@@ -26,6 +26,7 @@ outputs:
 runs:
   using: docker
   image: "Dockerfile"  # The Docker image containing the autograder
+  entrypoint: "/entrypoint.sh" 
   args:
     - "--html-weight=${{ inputs.html-weight }}"
     - "--css-weight=${{ inputs.css-weight }}"
