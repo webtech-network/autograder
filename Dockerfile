@@ -17,7 +17,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app/
 
 # 7. Set the entrypoint to execute the entrypoint script when the container runs
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "entrypoint.sh"]
 
-# 8. Specify default arguments if needed (can be overridden in GitHub Actions)
-CMD ["--repo", "$GITHUB_WORKSPACE/submission", "--html-weight", "30", "--css-weight", "40", "--js-weight", "30"]
