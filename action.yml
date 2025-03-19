@@ -1,0 +1,34 @@
+name: "HTML/CSS/JS Autograder"
+author: "Webtech Network"
+description: "An autograding tool for GitHub Classroom that evaluates students' HTML, CSS, and JavaScript projects."
+inputs:
+  html-weight:
+    description: "Weight for the HTML grading section."
+    required: true
+    default: "30"
+  css-weight:
+    description: "Weight for the CSS grading section."
+    required: true
+    default: "40"
+  js-weight:
+    description: "Weight for the JavaScript grading section."
+    required: true
+    default: "30"
+  timeout:
+    description: "Duration (in minutes) before the grading process is terminated. Defaults to 10 minutes."
+    required: false
+    default: "10"
+
+outputs:
+  result:
+    description: "Base64-encoded JSON containing the results of the grading."
+
+runs:
+  using: docker
+  image: "Dockerfile"  # The Docker image containing the autograder
+  args:
+    - "--html-weight=${{ inputs.html-weight }}"
+    - "--css-weight=${{ inputs.css-weight }}"
+    - "--js-weight=${{ inputs.js-weight }}"
+    - "--grading-criteria=${{ inputs.grading-criteria }}"
+    - "--timeout=${{ inputs.timeout }}"
