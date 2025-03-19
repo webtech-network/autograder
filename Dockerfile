@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 6. Copy the rest of the code into the working directory inside the container
 COPY . /app/
 
+# Copies your code file from your action repository to the filesystem path `/` of the container
+COPY entrypoint.sh /entrypoint.sh
+
 # 7. Set the entrypoint to execute the entrypoint script when the container runs
-ENTRYPOINT ["/bin/sh", "entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
 
