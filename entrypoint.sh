@@ -26,12 +26,7 @@ echo "Grading criteria: $GRADING_CRITERIA"
 
 # Run the Python autograder script with the provided inputs
 # This command will invoke autograder.py and pass the weights and grading criteria
-python /app/autograder.py \
-  --html-weight "$HTML_WEIGHT" \
-  --css-weight "$CSS_WEIGHT" \
-  --js-weight "$JS_WEIGHT" \
-  --grading-criteria "$GRADING_CRITERIA" \
-  --timeout "$TIMEOUT"
+python /app/autograder.py --html-weight $HTML_WEIGHT --css-weight $CSS_WEIGHT --js-weight $JS_WEIGHT --grading-criteria $GRADING_CRITERIA --timeout $TIMEOUT
 
 # Check if the autograder script executed successfully
 echo "✅ Autograding completed successfully!"
