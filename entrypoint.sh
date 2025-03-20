@@ -1,8 +1,5 @@
 #!/bin/sh
 
-# Exit immediately if any command fails
-set -e
-
 # Print a message to indicate the start of the autograding process
 echo "🚀 Starting autograder..."
 
@@ -30,7 +27,6 @@ echo "Grading criteria: $GRADING_CRITERIA"
 # Run the Python autograder script with the provided inputs
 # This command will invoke autograder.py and pass the weights and grading criteria
 python /app/autograder.py \
-  --repo "$STUDENT_REPO_PATH" \
   --html-weight "$HTML_WEIGHT" \
   --css-weight "$CSS_WEIGHT" \
   --js-weight "$JS_WEIGHT" \

@@ -11,7 +11,7 @@ WORKDIR /app
 COPY requirements.txt /app/
 
 # 5. Install dependencies (this includes any packages needed for autograding)
-RUN pip install --no-cache-dir -r requirements.txt
+#RUN pip install --no-cache-dir -r requirements.txt
 
 # 6. Copy the rest of the code into the working directory inside the container
 COPY . /app/
