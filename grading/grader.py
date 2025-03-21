@@ -8,3 +8,7 @@ def grade(test_file: str, total_tests: int):
     score = (passed_tests/ total_tests) * 100
 
     return score
+
+
+oi = pytest.main(['../tests/test_html.py'])
+

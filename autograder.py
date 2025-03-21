@@ -1,5 +1,5 @@
 import argparse
-
+from grading.final_scorer import get_final_score
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Github Classroom HTML/CSS/JS autograder by Webtech Network")
     parser.add_argument("--html-weight", type=float, required=True, help="Weight for HTML grading")
@@ -13,3 +13,15 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
+
+    html_weight = args.html_weight
+    css_weight = args.css_weight
+    js_weight = args.js_weight
+    grading_criteria = args.grading_criteria
+    timeout = args.timeout
+
+    final_score = get_final_score(html_weight,css_weight,js_weight)
+
+    print(f"Final score is {final_score}")
+
+

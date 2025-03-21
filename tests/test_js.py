@@ -2,7 +2,7 @@ import pytest
 
 # Helper function to read the JavaScript file
 def parse_js():
-    with open('script.js', 'r') as file:
+    with open('../submission/script.js', 'r') as file:
         return file.read()
 
 # 1. Test for valid JavaScript syntax
