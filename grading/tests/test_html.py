@@ -9,7 +9,7 @@ TEST SUITE FOR HTML PAGE
 # Helper function to parse HTML content using BeautifulSoup
 def parse_html():
     # Directly open and parse the 'index.html' file
-    with open('../submission/index.html', 'r') as file:
+    with open('submission/index.html', 'r') as file:
         html_content = file.read()
     return BeautifulSoup(html_content, "html.parser")
 

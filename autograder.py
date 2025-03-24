@@ -5,8 +5,8 @@ def parse_arguments():
     parser.add_argument("--html-weight", type=float, required=True, help="Weight for HTML grading")
     parser.add_argument("--css-weight", type=float, required=True, help="Weight for CSS grading")
     parser.add_argument("--js-weight", type=float, required=True, help="Weight for JavaScript grading")
-    parser.add_argument("--grading-criteria", type=str, required=True, help="JSON string with grading criteria")
-    parser.add_argument("--timeout", type=int, required=True, help="Timeout for grading execution in seconds")
+    #parser.add_argument("--grading-criteria", type=str, required=True, help="JSON string with grading criteria")
+    #parser.add_argument("--timeout", type=int, required=True, help="Timeout for grading execution in seconds")
 
     return parser.parse_args()
 
@@ -17,8 +17,10 @@ if __name__ == "__main__":
     html_weight = args.html_weight
     css_weight = args.css_weight
     js_weight = args.js_weight
-    grading_criteria = args.grading_criteria
-    timeout = args.timeout
+    #grading_criteria = args.grading_criteria
+    #timeout = args.timeout
+    if html_weight+css_weight+js_weight != 100:
+        raise ValueError("Weights must sum to 100")
 
     final_score = get_final_score(html_weight,css_weight,js_weight)
 
