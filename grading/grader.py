@@ -1,14 +1,13 @@
 import pytest
-
+from utils.collector import TestCollector
 
 def grade(test_file: str, total_tests: int):
-    
-    result = pytest.main([test_file,'--disable-warnings','--capture=no'])
-    passed_tests =  len([test for test in result.result if test.passed])
+    collector = TestCollector()
+    result = pytest.main([test_file,'--disable-warnings','--capture=no'],plugins=[collector])
+    passed_tests =  collector.passed
     score = (passed_tests/ total_tests) * 100
-
+    print(f"Passed Tests -> {passed_tests}")
     return score
 
 
-oi = pytest.main(['../tests/test_html.py'])
 
