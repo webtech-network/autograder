@@ -1,3 +1,6 @@
 pytest
 argparse
 bs4
+os
+json
+base64

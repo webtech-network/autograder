@@ -4,18 +4,18 @@
 echo "🚀 Starting autograder..."
 
 # Ensure that the necessary environment variables are set and print them for debugging
-echo "HTML Weight: $INPUT_HTML_WEIGHT"
-echo "CSS Weight: $INPUT_CSS_WEIGHT"
-echo "JS Weight: $INPUT_JS_WEIGHT"
-echo "Timeout: $INPUT_TIMEOUT"
-echo "Grading Criteria File: $INPUT_GRADING_CRITERIA"
+echo "HTML Weight: $1"
+echo "CSS Weight: $2"
+echo "JS Weight: $3"
+echo "Timeout: $4"
+echo "Grading Criteria File: $5"
 
 # Set default values for arguments if they are not provided
-HTML_WEIGHT="${INPUT_HTML_WEIGHT:-30}"
-CSS_WEIGHT="${INPUT_CSS_WEIGHT:-40}"
-JS_WEIGHT="${INPUT_JS_WEIGHT:-30}"
-TIMEOUT="${INPUT_TIMEOUT:-10}"
-GRADING_CRITERIA="${INPUT_GRADING_CRITERIA:-criteria.json}"
+HTML_WEIGHT="${1:-30}"
+CSS_WEIGHT="${2:-40}"
+JS_WEIGHT="${3:-30}"
+TIMEOUT="${4:-10}"
+GRADING_CRITERIA="${5:-criteria.json}"
 
 # Specify the path to the student's submission folder (we assume files are in the "submission" folder)
 STUDENT_REPO_PATH="$GITHUB_WORKSPACE/submission"
@@ -34,7 +34,7 @@ echo "✅ Autograding completed successfully!"
 # Ensure the final grading results are written to the appropriate output file
 # Base64 encode the results.json file before sending it to GitHub Classroom
 echo "Encoding results.json to Base64 and sending it to GitHub Classroom..."
-echo "result=$(jq -c . autograding_output/results.json | jq -sRr @base64)" >> "$GITHUB_OUTPUT"
+#echo "result=$(jq -c . autograding_output/results.json | jq -sRr @base64)" >> "$GITHUB_OUTPUT"
 
 # Provide a message indicating completion
 echo "🎉 Final results generated and sent to GitHub Classroom!"
