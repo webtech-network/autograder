@@ -27,8 +27,7 @@ runs:
   using: docker
   image: "Dockerfile"  # The Docker image containing the autograder
   args:
-    - "--html-weight=${{ inputs.html-weight }}"
-    - "--css-weight=${{ inputs.css-weight }}"
-    - "--js-weight=${{ inputs.js-weight }}"
-    - "--grading-criteria=${{ inputs.grading-criteria }}"
-    - "--timeout=${{ inputs.timeout }}"
+    - ${{ inputs.html-weight }}
+    - ${{ inputs.css-weight }} 
+    - ${{ inputs.js-weight }}
+    - ${{ inputs.timeout }}
