@@ -23,6 +23,7 @@ STUDENT_REPO_PATH="$GITHUB_WORKSPACE/submission"
 # Print some of the important paths for debugging
 echo "Student repository path: $STUDENT_REPO_PATH"
 echo "Grading criteria: $GRADING_CRITERIA"
+ls -R
 
 # Run the Python autograder script with the provided inputs
 # This command will invoke autograder.py and pass the weights and grading criteria
