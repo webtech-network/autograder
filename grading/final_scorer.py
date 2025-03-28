@@ -11,5 +11,8 @@ def get_final_score(html_weight,css_weight,js_weight):
         ((js_score * js_weight)))/100
     return final_score
 
+def test_path(weight):
+    return f"Weight is {weight}"
+
 #print(get_final_score(30,40,30))
 
