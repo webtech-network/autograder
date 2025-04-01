@@ -18,6 +18,13 @@ inputs:
     description: "Duration (in minutes) before the grading process is terminated. Defaults to 10 minutes."
     required: false
     default: "10"
+  token:
+    description: >
+      GitHub token used to check repository content and provide feedback. By default, 
+      this uses the repository token provided by GitHub Actions. You can customize this
+      by replacing this token with a user token which has write-access to your repository. 
+      Note that the token will be accessible to all repository collaborators.
+    default: ${{ github.token }}
 
 outputs:
   result:

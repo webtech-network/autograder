@@ -1,17 +1,13 @@
 import os
 from github import Github
 
-def notify_classroom(final_score):
+def notify_classroom(final_score,token):
     # Check if the final_score is provided and is between 0 and 100
     if final_score < 0 or final_score > 100:
         print("Invalid final score. It should be between 0 and 100.")
         return
 
     # Retrieve the GitHub token and repository information from environment variables
-    token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        print("GitHub token is missing.")
-        return
 
     repo_name = os.getenv("GITHUB_REPOSITORY")
     if not repo_name:

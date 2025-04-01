@@ -9,7 +9,7 @@ def parse_arguments():
     parser.add_argument("--js-weight", type=float, required=True, help="Weight for JavaScript grading")
     parser.add_argument("--grading-criteria", type=str, required=True, help="JSON string with grading criteria")
     parser.add_argument("--timeout", type=int, required=True, help="Timeout for grading execution in seconds")
-
+    parser.add_argument("--token", type=str, required=True, help="Github Personal Acess Token (PAT)" )
     return parser.parse_args()
 
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     print(f"Final score is {final_score}")
 
-    notify_classroom(final_score)
+    notify_classroom(final_score,token)
 
 
 
