@@ -64,6 +64,3 @@ def notify_classroom(final_score,token):
 
     print(f"Final grade updated: {final_score}/100")
     
-# Example usage
-final_score = 85  # This would be passed from your grading system or calculation
-notify_classroom(final_score)
