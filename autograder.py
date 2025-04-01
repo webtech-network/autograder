@@ -21,6 +21,7 @@ if __name__ == "__main__":
     js_weight = args.js_weight
     grading_criteria = args.grading_criteria
     timeout = args.timeout
+    token = args.token
 
     if html_weight+css_weight+js_weight != 100:
         raise ValueError("Weights must sum to 100")
