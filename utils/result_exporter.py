@@ -1,44 +1,73 @@
 import os
-import json
-import base64
+from github import Github
 
-def create_dict(final_score):
-    status = "passed" if final_score >= 60 else "failed"
-    result = {
-        "version": 3,
-        "status": status,
-        "tests": [
-            {
-                "name": "HTML/CSS/JS",
-                "status": "pass",
-                "test_code": 'assert "background-color" in css, "No background color set for <body>."',
-                "task_id": 0,
-                "filename": "autograder.py",
-                "line_no": 7,
-                "duration": 0.0001458939999992026,
-                "score": final_score
-            }
-        ],
-        "max_score": 100
-    }
+def notify_classroom(final_score):
+    # Check if the final_score is provided and is between 0 and 100
+    if final_score < 0 or final_score > 100:
+        print("Invalid final score. It should be between 0 and 100.")
+        return
 
-    return result
+    # Retrieve the GitHub token and repository information from environment variables
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        print("GitHub token is missing.")
+        return
 
-def encode_result(result):
-    encoded_data = base64.b64encode(json.dumps(result).encode()).decode()
-    return encoded_data
-def export_result(encoded_data):
-    github_output = os.getenv("GITHUB_OUTPUT")
-    if github_output:
-        with open(github_output, "a") as f:
-            f.write(f"result={encoded_data}\n")
+    repo_name = os.getenv("GITHUB_REPOSITORY")
+    if not repo_name:
+        print("Repository information is missing.")
+        return
 
+    # Create the GitHub client using the token
+    g = Github(token)
+    repo = g.get_repo(repo_name)
+    
+    # Get the workflow run ID
+    run_id = os.getenv("GITHUB_RUN_ID")
+    if not run_id:
+        print("Run ID is missing.")
+        return
 
-def export(final_score):
-    result_dict = create_dict(final_score)
-    result_dict = encode_result(result_dict)
-    export_result(result_dict)
+    # Fetch the workflow run
+    workflow_run = repo.get_workflow_run(run_id)
+    
+    # Find the check suite run ID
+    check_suite_url = workflow_run.check_suite_url
+    check_suite_id = int(check_suite_url.split('/')[-1])
 
+    # Get the check runs for this suite
+    check_runs = repo.check_runs.check_suite_id(check_suite_id)
+    check_run = next((run for run in check_runs if run.name == "Autograding Tests"), None)
 
+    if not check_run:
+        print("Check run not found.")
+        return
 
+    # Create a summary for the final grade
+    text = f"Final Score: {final_score}/100"
 
+    # Update the check run with the final score
+    check_run.create_update(
+        name="Autograding",
+        status="completed",
+        conclusion="success" if final_score == 100 else "neutral",  # Mark as success if full score, otherwise neutral
+        output={
+            "title": "Autograding Result",
+            "summary": text,
+            "text": text,
+            "annotations": [{
+                "path": ".github",
+                "start_line": 1,
+                "end_line": 1,
+                "annotation_level": "notice",
+                "message": text,
+                "title": "Autograding complete"
+            }]
+        }
+    )
+
+    print(f"Final grade updated: {final_score}/100")
+    
+# Example usage
+final_score = 85  # This would be passed from your grading system or calculation
+notify_classroom(final_score)
