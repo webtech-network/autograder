@@ -1,3 +1,5 @@
 pytest
 argparse
 bs4
+aiohttp==3.8.2
+PyGithub
