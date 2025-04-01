@@ -9,6 +9,7 @@ echo "CSS Weight: $2"
 echo "JS Weight: $3"
 echo "Timeout: $4"
 echo "Grading Criteria File: $5"
+echo "token: $6"
 
 # Set default values for arguments if they are not provided
 HTML_WEIGHT="${1:-30}"
@@ -27,7 +28,7 @@ ls -R
 
 # Run the Python autograder script with the provided inputs
 # This command will invoke autograder.py and pass the weights and grading criteria
-python /app/autograder.py --html-weight $HTML_WEIGHT --css-weight $CSS_WEIGHT --js-weight $JS_WEIGHT --grading-criteria $GRADING_CRITERIA --timeout $TIMEOUT
+python /app/autograder.py --html-weight $HTML_WEIGHT --css-weight $CSS_WEIGHT --js-weight $JS_WEIGHT --grading-criteria $GRADING_CRITERIA --timeout $TIMEOUT --token $6
 
 # Check if the autograder script executed successfully
 echo "✅ Autograding completed successfully!"
