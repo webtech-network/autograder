@@ -1,5 +1,4 @@
 from grading.grader import grade
-from tests import *
 from utils.path import Path
 
 def get_final_score(html_weight,css_weight,js_weight):
