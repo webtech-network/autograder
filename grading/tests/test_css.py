@@ -3,13 +3,13 @@ from bs4 import BeautifulSoup
 
 # Helper function to parse HTML content and extract the linked CSS file
 def parse_html():
-    with open('submission/index.html', 'r') as file:
+    with open('submission/index.html', 'r',encoding="utf-8") as file:
         html_content = file.read()
     return BeautifulSoup(html_content, "html.parser")
 
 # Helper function to parse the CSS file
 def parse_css():
-    with open('submission/style.css', 'r') as file:
+    with open('submission/style.css', 'r',encoding="utf-8") as file:
         return file.read()
 
 # 1. Test if the CSS file is correctly linked

@@ -24,10 +24,8 @@ if __name__ == "__main__":
     timeout = args.timeout
     if html_weight+css_weight+js_weight != 100:
         raise ValueError("Weights must sum to 100")
-    print(fs.test_path(html_weight))
     final_score = get_final_score(html_weight,css_weight,js_weight)
 
-    tests.test_no_eval()
     print(f"Final score is {final_score}")
 
     export(final_score)

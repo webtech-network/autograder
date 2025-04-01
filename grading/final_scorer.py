@@ -1,10 +1,12 @@
 from grading.grader import grade
-
+from tests import *
+from utils.path import Path
 
 def get_final_score(html_weight,css_weight,js_weight):
-    html_score = grade('grading/tests/test_html.py',24)
-    css_score = grade('grading/tests/test_css.py',11)
-    js_score = grade('grading/tests/test_js.py',15)
+    path = Path(__file__,'tests')
+    html_score = grade(path.getFilePath('test_html.py'),24)
+    css_score = grade(path.getFilePath('test_css.py'),11)
+    js_score = grade(path.getFilePath('test_js.py'),15)
     final_score = (
         ((html_score * html_weight))+
         ((css_score * css_weight)) + 
@@ -14,5 +16,5 @@ def get_final_score(html_weight,css_weight,js_weight):
 def test_path(weight):
     return f"Weight is {weight}"
 
-#print(get_final_score(30,40,30))
+print(get_final_score(30,40,30))
 
