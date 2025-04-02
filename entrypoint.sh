@@ -15,7 +15,7 @@ HTML_WEIGHT="${1:-30}"
 CSS_WEIGHT="${2:-40}"
 JS_WEIGHT="${3:-30}"
 TIMEOUT="${4:-10}"
-GRADING_CRITERIA="${5:-criteria.json}"
+GRADING_CRITERIA="${6:-criteria.json}"
 
 # Specify the path to the student's submission folder (we assume files are in the "submission" folder)
 STUDENT_REPO_PATH="$GITHUB_WORKSPACE/submission"
@@ -27,7 +27,7 @@ ls -R
 
 # Run the Python autograder script with the provided inputs
 # This command will invoke autograder.py and pass the weights and grading criteria
-python /app/autograder.py --html-weight $HTML_WEIGHT --css-weight $CSS_WEIGHT --js-weight $JS_WEIGHT --grading-criteria $GRADING_CRITERIA --timeout $TIMEOUT --token $6
+python /app/autograder.py --html-weight $HTML_WEIGHT --css-weight $CSS_WEIGHT --js-weight $JS_WEIGHT --grading-criteria $GRADING_CRITERIA --timeout $TIMEOUT --token $5
 
 # Check if the autograder script executed successfully
 echo "✅ Autograding completed successfully!"
