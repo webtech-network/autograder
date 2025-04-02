@@ -47,8 +47,6 @@ def notify_classroom(final_score,token):
     # Update the check run with the final score
     check_run.edit(
         name="Autograding",
-        status="completed",
-        conclusion="success" if final_score == 100 else "neutral",  # Mark as success if full score, otherwise neutral
         output={
             "title": "Autograding Result",
             "summary": text,
