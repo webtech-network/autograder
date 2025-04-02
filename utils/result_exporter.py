@@ -23,9 +23,10 @@ def notify_classroom(final_score,token):
     if not run_id:
         print("Run ID is missing.")
         return
+    print(f"run_id -> [{run_id}]")
 
     # Fetch the workflow run
-    workflow_run = repo.get_workflow_run(run_id)
+    workflow_run = repo.get_workflow_run(int(run_id))
     
     # Find the check suite run ID
     check_suite_url = workflow_run.check_suite_url
@@ -64,3 +65,6 @@ def notify_classroom(final_score,token):
 
     print(f"Final grade updated: {final_score}/100")
     
+if __name__ == "__main__": 
+    token = input()
+    notify_classroom(95,token)
