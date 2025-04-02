@@ -33,7 +33,7 @@ def notify_classroom(final_score,token):
     check_suite_id = int(check_suite_url.split('/')[-1])
 
     # Get the check runs for this suite
-    check_runs = repo.check_runs.check_suite_id(check_suite_id)
+    check_runs = repo.check_suite_id(check_suite_id)
     check_run = next((run for run in check_runs if run.name == "Autograding Tests"), None)
 
     if not check_run:
