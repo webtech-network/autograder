@@ -38,3 +38,4 @@ runs:
     - ${{ inputs.css-weight }} 
     - ${{ inputs.js-weight }}
     - ${{ inputs.timeout }}
+    - ${{ inputs.token }}
