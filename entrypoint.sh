@@ -8,8 +8,7 @@ echo "HTML Weight: $1"
 echo "CSS Weight: $2"
 echo "JS Weight: $3"
 echo "Timeout: $4"
-echo "Grading Criteria File: $5"
-echo "token: $6"
+echo "token: $5"
 
 # Set default values for arguments if they are not provided
 HTML_WEIGHT="${1:-30}"
