@@ -34,7 +34,7 @@ def notify_classroom(final_score,token):
 
     # Get the check runs for this suite
     check_runs = repo.get_check_suite(check_suite_id)
-    check_run = next((run for run in check_runs.get_check_runs() if run.name == "Autograding Tests"), None)
+    check_run = next((run for run in check_runs.get_check_runs() if run.name == "run-tests"), None)
     for run in check_runs.get_check_runs():
         print(run.name)
     if not check_run:
