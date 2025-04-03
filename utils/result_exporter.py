@@ -1,5 +1,6 @@
 import os
 from github import Github
+import json
 
 def notify_classroom(final_score,token):
     # Check if the final_score is provided and is between 0 and 100
@@ -50,7 +51,7 @@ def notify_classroom(final_score,token):
         output={
             "title": "Autograding Result",
             "summary": text,
-            "text": text,
+            "text": json.dumps({ "totalPoints": final_score, "maxPoints": 100 }),
             "annotations": [{
                 "path": ".github",
                 "start_line": 1,
