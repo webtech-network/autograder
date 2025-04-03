@@ -26,7 +26,7 @@ if __name__ == "__main__":
     if html_weight+css_weight+js_weight != 100:
         raise ValueError("Weights must sum to 100")
     final_score = get_final_score(html_weight,css_weight,js_weight)
-
+    final_score = format(final_score,".2f")
     print(f"Final score is {final_score}")
     print(f"Token -> {token}")
     notify_classroom(final_score,token)
