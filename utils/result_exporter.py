@@ -43,7 +43,7 @@ def notify_classroom(final_score,token):
         return
     print(f"Check run ID -> {check_run.id}")
     # Create a summary for the final grade
-    text = f"Final Score: {format(final_score,".2f")}/100"
+    text = f"Final Score: {format(final_score,'.2f')}/100"
 
     # Update the check run with the final score
     check_run.edit(
@@ -51,7 +51,7 @@ def notify_classroom(final_score,token):
         output={
             "title": "Autograding Result",
             "summary": text,
-            "text": json.dumps({ "totalPoints": format(final_score,".2f"), "maxPoints": 100 }),
+            "text": json.dumps({ "totalPoints": format(final_score,'.2f'), "maxPoints": 100 }),
             "annotations": [{
                 "path": ".github",
                 "start_line": 1,
@@ -63,7 +63,7 @@ def notify_classroom(final_score,token):
         }
     )
 
-    print(f"Final grade updated: {format(final_score,".2f")}/100")
+    print(f"Final grade updated: {format(final_score,'.2f')}/100")
     
 if __name__ == "__main__": 
     token = input()
