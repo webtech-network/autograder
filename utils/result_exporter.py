@@ -40,7 +40,7 @@ def notify_classroom(final_score,token):
     if not check_run:
         print("Check run not found.")
         return
-
+    print(f"Check run ID -> {check_run.id}")
     # Create a summary for the final grade
     text = f"Final Score: {final_score}/100"
 
