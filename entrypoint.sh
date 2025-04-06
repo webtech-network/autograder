@@ -23,7 +23,6 @@ STUDENT_REPO_PATH="$GITHUB_WORKSPACE/submission"
 # Print some of the important paths for debugging
 echo "Student repository path: $STUDENT_REPO_PATH"
 echo "Grading criteria: $GRADING_CRITERIA"
-ls -R
 
 # Run the Python autograder script with the provided inputs
 # This command will invoke autograder.py and pass the weights and grading criteria
@@ -31,11 +30,5 @@ python /app/autograder.py --html-weight $HTML_WEIGHT --css-weight $CSS_WEIGHT --
 
 # Check if the autograder script executed successfully
 echo "✅ Autograding completed successfully!"
-
-# Ensure the final grading results are written to the appropriate output file
-# Base64 encode the results.json file before sending it to GitHub Classroom
-echo "Encoding results.json to Base64 and sending it to GitHub Classroom..."
-#echo "result=$(jq -c . autograding_output/results.json | jq -sRr @base64)" >> "$GITHUB_OUTPUT"
-
 # Provide a message indicating completion
 echo "🎉 Final results generated and sent to GitHub Classroom!"

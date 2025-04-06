@@ -1,7 +1,7 @@
 import argparse
 from grading.final_scorer import get_final_score
-import grading.final_scorer as fs
 from utils.result_exporter import notify_classroom
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Github Classroom HTML/CSS/JS autograder by Webtech Network")
     parser.add_argument("--html-weight", type=float, required=True, help="Weight for HTML grading")
@@ -23,8 +23,11 @@ if __name__ == "__main__":
     timeout = args.timeout
     token = args.token
 
+
     if html_weight+css_weight+js_weight != 100:
         raise ValueError("Weights must sum to 100")
+
+
     final_score = get_final_score(html_weight,css_weight,js_weight)
 
     notify_classroom(final_score,token)

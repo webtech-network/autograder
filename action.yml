@@ -24,7 +24,7 @@ inputs:
       this uses the repository token provided by GitHub Actions. You can customize this
       by replacing this token with a user token which has write-access to your repository. 
       Note that the token will be accessible to all repository collaborators.
-    default: ${{ github.token }}
+    default: ${{ github.token }} #This is the only way to obtain a valid github token for API use.
 
 outputs:
   result:
