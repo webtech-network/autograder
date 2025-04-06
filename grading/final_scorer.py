@@ -15,5 +15,4 @@ def get_final_score(html_weight,css_weight,js_weight):
 def test_path(weight):
     return f"Weight is {weight}"
 
-print(get_final_score(30,40,30))
 

@@ -24,7 +24,6 @@ def notify_classroom(final_score,token):
     if not run_id:
         print("Run ID is missing.")
         return
-    print(f"run_id -> [{run_id}]")
 
     # Fetch the workflow run
     workflow_run = repo.get_workflow_run(int(run_id))
@@ -36,12 +35,9 @@ def notify_classroom(final_score,token):
     # Get the check runs for this suite
     check_runs = repo.get_check_suite(check_suite_id)
     check_run = next((run for run in check_runs.get_check_runs() if run.name == "run-tests"), None)
-    for run in check_runs.get_check_runs():
-        print(run.name)
     if not check_run:
         print("Check run not found.")
         return
-    print(f"Check run ID -> {check_run.id}")
     # Create a summary for the final grade
     text = f"Final Score: {format(final_score,'.2f')}/100"
 
