@@ -4,8 +4,9 @@ from utils.path import Path
 from time import sleep
 
 class Scorer:
-    def __init__(self,test_folder):
+    def __init__(self,test_folder,author):
         self.path = Path(__file__,test_folder)
+        self.author = author
         self.base = ()
         self.bonus = ()
         self.penalty = ()
@@ -21,15 +22,14 @@ class Scorer:
         self.final_score = final_score
         return final_score
     def get_feedback(self):
-        def get_feedback(self):
-            base_dict = {"passed": self.base[0], "failed": self.base[1]}
-            bonus_dict = {"passed": self.bonus[0], "failed": self.bonus[1]}
-            penalty_dict = {"passed": self.penalty[0], "failed": self.penalty[1]}
-            return generate_md(base_dict, bonus_dict, penalty_dict, self.final_score, self.author)
+        base_dict = {"passed": self.base[0], "failed": self.base[1]}
+        bonus_dict = {"passed": self.bonus[0], "failed": self.bonus[1]}
+        penalty_dict = {"passed": self.penalty[0], "failed": self.penalty[1]}
+        return generate_md(base_dict, bonus_dict, penalty_dict, self.final_score, self.author)
 
     @classmethod
-    def create_with_scores(cls,test_folder,base_file,bonus_file,penalty_file):
-        scorer = cls(test_folder)
+    def create_with_scores(cls,test_folder,author,base_file,bonus_file,penalty_file):
+        scorer = cls(test_folder,author)
         scorer.set_base_score(base_file)
         scorer.set_bonus_score(bonus_file)
         scorer.set_penalty_score(penalty_file)
