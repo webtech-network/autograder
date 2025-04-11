@@ -36,3 +36,8 @@ class Scorer:
         scorer.set_final_score()
         sleep(2)
         return scorer
+
+    @classmethod
+    def quick_build(cls, author):
+        scorer = Scorer.create_with_scores("tests", author, "test_base.py", "test_bonus.py", "test_penalty.py")
+        return scorer
