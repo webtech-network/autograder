@@ -48,10 +48,6 @@ def test_use_of_center_tag():
     soup = parse_html()
     assert soup.find('center') is not None, "No <center> tag found."
 
-# ❌ 6. Use of !important in CSS
-def test_important_usage():
-    css = parse_css()
-    assert "!important" in css, "No !important rule found in CSS."
 
 # ❌ 7. Use of alert() in JavaScript
 def test_alert_usage():
@@ -78,3 +74,33 @@ def test_hardcoded_image_dimensions():
             return
     assert False, "No hardcoded width or height attributes found on images."
 
+# 2. Test if `!important` is used
+def test_no_important_usage():
+    css_content = parse_css()
+    # Check for `!important` in the CSS code
+    assert "!important" in css_content, "Didn't Found !important in the CSS."
+
+def test_forbidden_b_tag():
+    soup = parse_html()
+    # Ensure no <b> tag is present
+    assert soup.find('b') is not None, "Found forbidden <b> tag"
+
+def test_forbidden_i_tag():
+    soup = parse_html()
+    # Ensure no <i> tag is present
+    assert soup.find('i') is not None, "Found forbidden <i> tag"
+
+def test_forbidden_font_tag():
+    soup = parse_html()
+    # Ensure no <font> tag is present
+    assert soup.find('font') is not None, "Found forbidden <font> tag"
+
+def test_forbidden_marquee_tag():
+    soup = parse_html()
+    # Ensure no <marquee> tag is present
+    assert soup.find('marquee') is not None, "Found forbidden <marquee> tag"
+
+def test_forbidden_center_tag():
+    soup = parse_html()
+    # Ensure no <center> tag is present
+    assert soup.find('center') is not None, "Found forbidden <center> tag"

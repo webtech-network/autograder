@@ -77,3 +77,40 @@ def test_modular_code_structure():
     js = parse_js()
     assert 'export ' in js or 'import ' in js, "JavaScript modular code structure (ES Modules) not detected."
 
+# 13. Test for proper use of array methods (e.g., map, filter, reduce)
+def test_array_methods():
+    js_content = parse_js()
+    # Ensure that array methods like map, filter, reduce are used instead of traditional loops
+    assert "map(" in js_content or "filter(" in js_content or "reduce(" in js_content, "Array methods like map, filter, or reduce are not used."
+
+# 10. Test for preventing memory leaks
+def test_memory_leaks():
+    js_content = parse_js()
+    # Ensure that event listeners or intervals are properly cleaned up to avoid memory leaks
+    assert ".removeEventListener" in js_content or "clearInterval" in js_content or "clearTimeout" in js_content, "Memory leaks may occur due to unremoved event listeners or intervals."
+
+# 6. Test for Minification
+def test_css_minification():
+    css_content = parse_css()
+    # Ensure that the CSS is minified (no extra spaces or line breaks)
+    assert css_content == css_content.replace(" ", "").replace("\n", ""), "CSS is not minified."
+
+def test_open_graph_description_tag():
+    soup = parse_html()
+    # Ensure Open Graph meta description tag is present
+    meta_tag = soup.find('meta', attrs={"property": "og:description"})
+    assert meta_tag is not None, "Missing Open Graph <meta property='og:description'> tag"
+
+def test_open_graph_title_tag():
+    soup = parse_html()
+    # Ensure Open Graph meta title tag is present
+    meta_tag = soup.find('meta', attrs={"property": "og:title"})
+    assert meta_tag is not None, "Missing Open Graph <meta property='og:title'> tag"
+
+def test_meta_description():
+    soup = parse_html()
+    # Ensure the meta description tag is present
+    meta_tag = soup.find('meta', attrs={"name": "description"})
+    assert meta_tag is not None, "Missing <meta name='description'> tag"
+
+

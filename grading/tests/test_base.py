@@ -23,9 +23,10 @@ def parse_js():
         return file.read()
 
 def test_doctype():
-    soup = parse_html()
-    # Ensure the DOCTYPE declaration is present
-    assert '<!DOCTYPE html>' in open('index.html').read()
+    with open('submission/index.html', 'r', encoding='utf-8') as file:
+        content = file.read().lower()
+    assert '<!doctype html>' in content, "DOCTYPE declaration not found"
+
 
 def test_html_tag():
     soup = parse_html()
@@ -59,32 +60,7 @@ def test_meta_viewport():
     meta_tag = soup.find('meta', attrs={"name": "viewport"})
     assert meta_tag is not None, "Missing <meta name='viewport'> tag"
 
-# 2. Test Forbidden Elements (One test for each forbidden tag)
 
-def test_forbidden_b_tag():
-    soup = parse_html()
-    # Ensure no <b> tag is present
-    assert soup.find('b') is None, "Found forbidden <b> tag"
-
-def test_forbidden_i_tag():
-    soup = parse_html()
-    # Ensure no <i> tag is present
-    assert soup.find('i') is None, "Found forbidden <i> tag"
-
-def test_forbidden_font_tag():
-    soup = parse_html()
-    # Ensure no <font> tag is present
-    assert soup.find('font') is None, "Found forbidden <font> tag"
-
-def test_forbidden_marquee_tag():
-    soup = parse_html()
-    # Ensure no <marquee> tag is present
-    assert soup.find('marquee') is None, "Found forbidden <marquee> tag"
-
-def test_forbidden_center_tag():
-    soup = parse_html()
-    # Ensure no <center> tag is present
-    assert soup.find('center') is None, "Found forbidden <center> tag"
 
 # 3. Test Accessibility and Semantic HTML (One test per element)
 
@@ -123,25 +99,7 @@ def test_semantic_main_tag():
     # Ensure <main> tag is present
     assert soup.find('main') is not None, "Missing <main> tag"
 
-# 4. Test SEO and Metadata Best Practices (One test per SEO tag)
 
-def test_meta_description():
-    soup = parse_html()
-    # Ensure the meta description tag is present
-    meta_tag = soup.find('meta', attrs={"name": "description"})
-    assert meta_tag is not None, "Missing <meta name='description'> tag"
-
-def test_open_graph_title_tag():
-    soup = parse_html()
-    # Ensure Open Graph meta title tag is present
-    meta_tag = soup.find('meta', attrs={"property": "og:title"})
-    assert meta_tag is not None, "Missing Open Graph <meta property='og:title'> tag"
-
-def test_open_graph_description_tag():
-    soup = parse_html()
-    # Ensure Open Graph meta description tag is present
-    meta_tag = soup.find('meta', attrs={"property": "og:description"})
-    assert meta_tag is not None, "Missing Open Graph <meta property='og:description'> tag"
 
 # 5. Test Proper Nesting and Closing Tags
 
@@ -175,11 +133,6 @@ def test_css_linked():
     assert link is not None, "The CSS file is not linked."
     assert link["href"] == "style.css", "CSS file is incorrectly linked."
 
-# 2. Test if `!important` is used
-def test_no_important_usage():
-    css_content = parse_css()
-    # Check for `!important` in the CSS code
-    assert "!important" not in css_content, "Found !important in the CSS."
 
 # 3. Test for Shorthand CSS properties (e.g., margin, padding)
 def test_shorthand_properties():
@@ -199,11 +152,6 @@ def test_layout_method():
     # Ensure that flexbox or grid is used in layout
     assert "display: flex" in css_content or "display: grid" in css_content, "Neither flexbox nor grid is used for layout."
 
-# 6. Test for Minification
-def test_css_minification():
-    css_content = parse_css()
-    # Ensure that the CSS is minified (no extra spaces or line breaks)
-    assert css_content == css_content.replace(" ", "").replace("\n", ""), "CSS is not minified."
 
 # 7. Test if CSS selectors are not overqualified
 def test_no_overqualified_selectors():
@@ -302,11 +250,6 @@ def test_async_error_handling():
     # Ensure proper error handling in Promises or async/await (e.g., using .catch or try/catch)
     assert ".catch(" in js_content or "try {" in js_content, "Asynchronous error handling is not present."
 
-# 10. Test for preventing memory leaks
-def test_memory_leaks():
-    js_content = parse_js()
-    # Ensure that event listeners or intervals are properly cleaned up to avoid memory leaks
-    assert ".removeEventListener" in js_content or "clearInterval" in js_content or "clearTimeout" in js_content, "Memory leaks may occur due to unremoved event listeners or intervals."
 
 # 11. Test for proper function names (meaningful naming)
 def test_meaningful_function_names():
@@ -322,12 +265,6 @@ def test_no_deeply_nested_code():
     # Check if there are deeply nested functions or loops (which can cause readability issues)
     assert js_content.count('function') < 5, "Too many functions defined, check for deep nesting."
     assert js_content.count('{') < 10, "Too many blocks or nested loops. Consider refactoring."
-
-# 13. Test for proper use of array methods (e.g., map, filter, reduce)
-def test_array_methods():
-    js_content = parse_js()
-    # Ensure that array methods like map, filter, reduce are used instead of traditional loops
-    assert "map(" in js_content or "filter(" in js_content or "reduce(" in js_content, "Array methods like map, filter, or reduce are not used."
 
 # 14. Test for the proper use of `const` and `let` (immutable vs mutable variables)
 def test_proper_use_of_const_and_let():
