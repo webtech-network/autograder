@@ -15,6 +15,9 @@ def get_test_results(test_file: str):
 def get_score(passed_tests,total_tests:int):
     return (len(passed_tests)/total_tests)*100
 
+def get_test_amount(test_report):
+    return len(test_report[0]) + len (test_report[1])
+
 
 
 
