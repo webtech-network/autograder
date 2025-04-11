@@ -1,4 +1,4 @@
-from grading.grader import get_test_results,get_score
+from grading.grader import get_test_results, get_score, get_test_amount
 from utils.report_generator import generate_md
 from utils.path import Path
 from time import sleep
@@ -18,7 +18,7 @@ class Scorer:
     def set_penalty_score(self,filename):
         self.penalty = get_test_results(self.path.getFilePath(filename))
     def set_final_score(self):
-        final_score = (get_score(self.base[0],9) * 0.8 )+(get_score(self.bonus[0],4) * 0.2) - (get_score(self.penalty[0],5) * 0.3)
+        final_score = (get_score(self.base[0],get_test_amount(self.base)) * 0.8 )+(get_score(self.bonus[0],get_test_amount(self.bonus)) * 0.2) - (get_score(self.penalty[0],get_test_amount(self.penalty)) * 0.3)
         self.final_score = final_score
         return final_score
     def get_feedback(self):
@@ -26,7 +26,9 @@ class Scorer:
         bonus_dict = {"passed": self.bonus[0], "failed": self.bonus[1]}
         penalty_dict = {"passed": self.penalty[0], "failed": self.penalty[1]}
         return generate_md(base_dict, bonus_dict, penalty_dict, self.final_score, self.author)
-
+    def create_feedback(self):
+        with open(self.path.getFilePath("feedback.md"),'w',encoding="utf-8") as feedback:
+            feedback.write(self.get_feedback())
     @classmethod
     def create_with_scores(cls,test_folder,author,base_file,bonus_file,penalty_file):
         scorer = cls(test_folder,author)
@@ -41,3 +43,5 @@ class Scorer:
     def quick_build(cls, author):
         scorer = Scorer.create_with_scores("tests", author, "test_base.py", "test_bonus.py", "test_penalty.py")
         return scorer
+
+
