@@ -1,0 +1,20 @@
+{
+  "base": {
+    "weight": 70,
+    "html": 40,
+    "css": 30,
+    "js": 30
+  },
+  "bonus": {
+    "weight": 30,
+    "html": 20,
+    "css": 40,
+    "js": 40
+  },
+  "penalty": {
+    "max_deduction": 25,
+    "html": 60,
+    "css": 30,
+    "js": 10
+  }
+}
