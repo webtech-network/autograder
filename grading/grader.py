@@ -27,6 +27,8 @@ class Grader:
 
     def get_test_amount(self):
         return len(self.passed_tests) + len (self.failed_tests)
+    def get_all_tests(self):
+        return zip(self.passed_tests, self.failed_tests)
 
     @classmethod
     def create(cls,test_file: str):
