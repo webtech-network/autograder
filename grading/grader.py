@@ -38,6 +38,19 @@ class Grader:
 
 
 
+if __name__ == '__main__':
+    grade = Grader.create("tests/test_base.py")
+    grade2 = Grader.create("tests/test_bonus.py")
+    grade3 = Grader.create("tests/test_penalty.py")
+    with open("log.txt","w") as log:
+        for test in grade.failed_tests:
+            log.write(test+"\n")
+        log.write('\n')
+        for test in grade2.failed_tests:
+            log.write(test+"\n")
+        log.write('\n')
+        for test in grade3.failed_tests:
+            log.write(test+"\n")
 
 
 
