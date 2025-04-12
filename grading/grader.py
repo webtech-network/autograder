@@ -23,7 +23,7 @@ class Grader:
         return passed_tests, failed_tests
 
     def get_score(self):
-        return (len(self.passed_tests)/self.total_tests)*100
+        return (len(self.passed_tests)/self.test_amount)*100
 
     def get_test_amount(self):
         return len(self.passed_tests) + len (self.failed_tests)

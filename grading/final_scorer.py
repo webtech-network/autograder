@@ -1,4 +1,4 @@
-from grading.grader import get_test_results, get_score, get_test_amount
+from grading.grader import Grader
 from utils.report_generator import generate_md
 from utils.path import Path
 from time import sleep
@@ -7,24 +7,24 @@ class Scorer:
     def __init__(self,test_folder,author):
         self.path = Path(__file__,test_folder)
         self.author = author
-        self.base = ()
-        self.bonus = ()
-        self.penalty = ()
+        self.base_grader = None
+        self.bonus_grader = None
+        self.penalty_grader = None
         self.final_score = 0
     def set_base_score(self,filename):
-        self.base = get_test_results(self.path.getFilePath(filename))
+        self.base_grader = Grader.create(self.path.getFilePath(filename))
     def set_bonus_score(self,filename):
-        self.bonus = get_test_results(self.path.getFilePath(filename))
+        self.bonus_grader = Grader.create(self.path.getFilePath(filename))
     def set_penalty_score(self,filename):
-        self.penalty = get_test_results(self.path.getFilePath(filename))
+        self.penalty_grader = Grader.create(self.path.getFilePath(filename))
     def set_final_score(self):
-        final_score = (get_score(self.base[0],get_test_amount(self.base)) * 0.8 )+(get_score(self.bonus[0],get_test_amount(self.bonus)) * 0.2) - (get_score(self.penalty[0],get_test_amount(self.penalty)) * 0.3)
+        final_score = (self.base_grader.get_score() * 0.8 )+(self.bonus_grader.get_score() * 0.2) - (self.penalty_grader.get_score() * 0.3)
         self.final_score = final_score
         return final_score
     def get_feedback(self):
-        base_dict = {"passed": self.base[0], "failed": self.base[1]}
-        bonus_dict = {"passed": self.bonus[0], "failed": self.bonus[1]}
-        penalty_dict = {"passed": self.penalty[0], "failed": self.penalty[1]}
+        base_dict = {"passed": self.base_grader.passed_tests, "failed": self.base_grader.failed_tests}
+        bonus_dict = {"passed": self.bonus_grader.passed_tests, "failed": self.bonus_grader.failed_tests}
+        penalty_dict = {"passed": self.penalty_grader.passed_tests, "failed": self.penalty_grader.failed_tests}
         return generate_md(base_dict, bonus_dict, penalty_dict, self.final_score, self.author)
     def create_feedback(self):
         with open(self.path.getFilePath("feedback.md"),'w',encoding="utf-8") as feedback:
@@ -44,4 +44,6 @@ class Scorer:
         scorer = Scorer.create_with_scores("tests", author, "test_base.py", "test_bonus.py", "test_penalty.py")
         return scorer
 
-
+if __name__ == '__main__':
+    score = Scorer.create_with_scores("tests","Arthur","test_base.py","test_bonus.py","test_penalty.py")
+    print(score.final_score)
