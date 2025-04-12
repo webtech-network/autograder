@@ -1,20 +1,43 @@
 {
   "base": {
-    "weight": 70,
-    "html": 40,
-    "css": 30,
-    "js": 30
+    "weight": 75,
+    "subjects": {
+      "html": {
+        "weight": 60,
+        "tests": [
+          "grading/tests/test_base.py::test_doctype",
+          "grading/tests/test_base.py::test_html_tag"
+        ]
+      },
+      "css": {
+        "weight": 10,
+        "tests": [
+          "grading/tests/test_base.py::test_css_linked"
+        ]
+      },
+      "js": {
+        "weight": 30,
+        "tests": [
+          "grading/tests/test_base.py::test_valid_js_syntax",
+          "grading/tests/test_base.py::test_modular_code"
+        ]
+      }
+    }
   },
   "bonus": {
-    "weight": 30,
-    "html": 20,
-    "css": 40,
-    "js": 40
+    "weight": 25,
+    "subjects": {
+      "html": { "weight": 20, "tests": [...] },
+      "css": { "weight": 30, "tests": [...] },
+      "js": { "weight": 50, "tests": [...] }
+    }
   },
   "penalty": {
-    "max_deduction": 25,
-    "html": 60,
-    "css": 30,
-    "js": 10
+    "max_deduction": 30,
+    "subjects": {
+      "html": { "weight": 70, "tests": [...] },
+      "css": { "weight": 20, "tests": [...] },
+      "js": { "weight": 10, "tests": [...] }
+    }
   }
 }
