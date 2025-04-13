@@ -1,8 +1,5 @@
 import json
 
-from _pytest.config import Config
-
-
 class Config:
     def __init__(self):
         self.config = {} #config json parsing to dict
@@ -18,7 +15,7 @@ class Config:
     def load_penalty_config(self):
         self.penalty_config = TestConfig.create("penalty",self.config)
     @classmethod
-    def create_config(cls,config_file : str) -> Config:
+    def create_config(cls,config_file : str):
         response = Config()
         response.parse_config(config_file)
         response.load_base_config()
@@ -27,7 +24,7 @@ class Config:
         return response
 
 
-class TestConfig():
+class TestConfig:
     def __init__(self,ctype):
         self.ctype = ctype
         self.weight = 0
