@@ -8,7 +8,7 @@
       },
       "css": {
         "weight": 10,
-        "test_path_path": "test_css_"
+        "test_path": "test_css_"
       },
       "js": {
         "weight": 30,
@@ -25,7 +25,7 @@
     }
   },
   "penalty": {
-    "max_deduction": 30,
+    "weight": 30,
     "subjects": {
       "html": { "weight": 70, "test_path": "test_html_" },
       "css": { "weight": 20, "test_path": "test_css_" },
