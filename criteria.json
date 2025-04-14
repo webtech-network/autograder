@@ -25,11 +25,11 @@
     }
   },
   "penalty": {
-    "weight": 30,
+    "weight": 10,
     "subjects": {
-      "html": { "weight": 70, "test_path": "test_html_" },
+      "html": { "weight": 50, "test_path": "test_html_" },
       "css": { "weight": 20, "test_path": "test_css_" },
-      "js": { "weight": 10, "test_path": "test_js_" }
+      "js": { "weight": 30, "test_path": "test_js_" }
     }
   }
 }
