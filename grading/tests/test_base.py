@@ -135,7 +135,7 @@ def test_css_css_linked():
 
 
 # 3. Test for Shorthand CSS properties (e.g., margin, padding)
-def test_html_shorthand_properties():
+def test_css_shorthand_properties():
     css_content = parse_css()
     # Check for shorthand properties like margin, padding, etc.
     assert "margin:" in css_content or "padding:" in css_content, "Missing shorthand for margin or padding."
@@ -175,7 +175,7 @@ def test_css_media_queries():
     assert "@media" in css_content, "Missing media queries for responsive design."
 
 # 10. Test for No Redundant or Duplicate Rules
-def test_html_no_redundant_rules():
+def test_css_no_redundant_rules():
     css_content = parse_css()
     # Ensure that there are no duplicate CSS rules for the same selector
     rules = css_content.split("}")
@@ -187,7 +187,7 @@ def test_html_no_redundant_rules():
             selectors.add(selector)
 
 # 11. Test for Consistent Units
-def test_html_consistent_units():
+def test_css_consistent_units():
     css_content = parse_css()
     # Ensure consistent use of units (e.g., rem, em, px, etc.)
     assert "rem" in css_content or "em" in css_content or "px" in css_content, "Inconsistent use of CSS units."
@@ -202,25 +202,25 @@ def test_js_valid_js_syntax():
         pytest.fail(f"JavaScript has syntax errors: {str(e)}")
 
 # 2. Test for the use of `let`, `const`, or `var` for variable declarations
-def test_html_no_undeclared_variables():
+def test_js_no_undeclared_variables():
     js_content = parse_js()
     # Ensure variables are declared using let, const, or var (no implicit global variables)
     assert "let " in js_content or "const " in js_content or "var " in js_content, "No variable declaration with let, const, or var found."
 
 # 3. Test for strict mode (`"use strict"`)
-def test_html_strict_mode():
+def test_js_strict_mode():
     js_content = parse_js()
     # Ensure that strict mode is enabled at the top of the script
     assert '"use strict";' in js_content, "'use strict' is not used to enforce strict mode."
 
 # 4. Test for avoiding the use of `eval()`
-def test_html_no_eval():
+def test_js_no_eval():
     js_content = parse_js()
     # Ensure that eval() is not used in the JavaScript file
     assert "eval(" not in js_content, "The use of eval() is detected, which should be avoided."
 
 # 5. Test for modularity (checking for functions)
-def test_html_modular_code():
+def test_js_modular_code():
     js_content = parse_js()
     # Ensure that the JavaScript code is broken into smaller functions instead of large monolithic functions
     functions = [line for line in js_content.splitlines() if line.strip().startswith("function")]
@@ -239,7 +239,7 @@ def test_js_event_handling():
     assert "addEventListener" in js_content, "addEventListener is not used for event handling."
 
 # 8. Test for DOM manipulation efficiency
-def test_html_dom_manipulation():
+def test_js_dom_manipulation():
     js_content = parse_js()
     # Ensure that DOM manipulation is done efficiently, ideally using modern methods like querySelector
     assert "document.querySelector" in js_content or "document.getElementById" in js_content, "Inefficient DOM manipulation methods detected."
@@ -260,14 +260,14 @@ def test_js_meaningful_function_names():
         assert len(name) > 0 and name != 'function', f"Function name '{name}' is not meaningful."
 
 # 12. Test for no deeply nested functions or loops
-def test_html_no_deeply_nested_code():
+def test_js_no_deeply_nested_code():
     js_content = parse_js()
     # Check if there are deeply nested functions or loops (which can cause readability issues)
     assert js_content.count('function') < 5, "Too many functions defined, check for deep nesting."
     assert js_content.count('{') < 10, "Too many blocks or nested loops. Consider refactoring."
 
 # 14. Test for the proper use of `const` and `let` (immutable vs mutable variables)
-def test_html_proper_use_of_const_and_let():
+def test_js_proper_use_of_const_and_let():
     js_content = parse_js()
     # Ensure that `const` is used for variables that should not be reassigned and `let` for mutable variables
     assert "const " in js_content, "The use of 'const' is missing where values should be immutable."

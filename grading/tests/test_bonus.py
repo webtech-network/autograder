@@ -37,11 +37,11 @@ def test_html_article_or_aside_used():
 
 # --- CSS BONUS TESTS ---
 
-def test_html_dark_mode_support():
+def test_css_dark_mode_support():
     css = parse_css()
     assert '@media (prefers-color-scheme: dark)' in css, "No dark mode support detected."
 
-def test_html_custom_font_imported():
+def test_css_custom_font_imported():
     css = parse_css()
     assert '@import url(' in css or 'fonts.googleapis.com' in css, "Custom font not imported."
 
@@ -49,7 +49,7 @@ def test_css_css_animation():
     css = parse_css()
     assert '@keyframes' in css or 'animation:' in css, "No CSS animation detected."
 
-def test_html_responsive_typography():
+def test_css_responsive_typography():
     css = parse_css()
     assert 'clamp(' in css or 'vw' in css or 'rem' in css, "Responsive typography not found (use clamp, rem, vw, etc.)."
 
@@ -60,11 +60,11 @@ def test_js_js_uses_template_literals():
     js = parse_js()
     assert '`' in js and '${' in js, "No usage of template literals found in JavaScript."
 
-def test_html_local_or_session_storage():
+def test_js_local_or_session_storage():
     js = parse_js()
     assert 'localStorage.' in js or 'sessionStorage.' in js, "No use of localStorage or sessionStorage."
 
-def test_html_interaction_feedback():
+def test_js_interaction_feedback():
     js = parse_js()
     keywords = ['classList.add', 'innerHTML', 'textContent', 'disabled', 'toggle']
     assert any(k in js for k in keywords), "No dynamic feedback behavior found on user interaction."
@@ -73,18 +73,18 @@ def test_html_form_validation_logic():
     js = parse_js()
     assert 'checkValidity' in js or 'regex' in js or '.test(' in js, "No form validation logic found."
 
-def test_html_modular_code_structure():
+def test_js_modular_code_structure():
     js = parse_js()
     assert 'export ' in js or 'import ' in js, "JavaScript modular code structure (ES Modules) not detected."
 
 # 13. Test for proper use of array methods (e.g., map, filter, reduce)
-def test_html_array_methods():
+def test_js_array_methods():
     js_content = parse_js()
     # Ensure that array methods like map, filter, reduce are used instead of traditional loops
     assert "map(" in js_content or "filter(" in js_content or "reduce(" in js_content, "Array methods like map, filter, or reduce are not used."
 
 # 10. Test for preventing memory leaks
-def test_html_memory_leaks():
+def test_js_memory_leaks():
     js_content = parse_js()
     # Ensure that event listeners or intervals are properly cleaned up to avoid memory leaks
     assert ".removeEventListener" in js_content or "clearInterval" in js_content or "clearTimeout" in js_content, "Memory leaks may occur due to unremoved event listeners or intervals."

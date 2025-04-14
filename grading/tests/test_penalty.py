@@ -34,7 +34,7 @@ def test_html_overuse_of_divs():
     assert len(divs) > 10, "Too few <div> tags for overuse penalty (needs > 10)."
 
 # ❌ 4. JavaScript in HTML (inline script tags)
-def test_html_inline_script_tags():
+def test_js_inline_script_tags():
     soup = parse_html()
     script_tags = soup.find_all('script')
     for script in script_tags:
@@ -50,12 +50,12 @@ def test_html_use_of_center_tag():
 
 
 # ❌ 7. Use of alert() in JavaScript
-def test_html_alert_usage():
+def test_js_alert_usage():
     js = parse_js()
     assert "alert(" in js, "No use of alert() found in JS."
 
 # ❌ 8. Use of document.write()
-def test_html_document_write():
+def test_js_document_write():
     js = parse_js()
     assert "document.write(" in js, "No use of document.write() found."
 
@@ -75,7 +75,7 @@ def test_html_hardcoded_image_dimensions():
     assert False, "No hardcoded width or height attributes found on images."
 
 # 2. Test if `!important` is used
-def test_html_no_important_usage():
+def test_css_no_important_usage():
     css_content = parse_css()
     # Check for `!important` in the CSS code
     assert "!important" in css_content, "Didn't Found !important in the CSS."
