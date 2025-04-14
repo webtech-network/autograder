@@ -24,7 +24,7 @@ class Grader:
     def generate_score(self):
         score = 0
         for sub_config in self.test_config.sub_configs:
-            grader = SubjectGrader.create(self.get_all_tests(),sub_config)
+            grader = SubjectGrader.create(self.get_all_tests(),sub_config,self.test_config.ctype)
             score += grader.score
         return (score/100) * self.test_config.weight
 
@@ -41,22 +41,24 @@ class Grader:
         grader.test_amount = grader.get_test_amount()
         return grader
 
-class SubjectGrader():
-    def __init__(self,test_report, sub_config):
+class SubjectGrader:
+    def __init__(self,test_report, sub_config,ctype):
         self.test_report = test_report
         self.sub_config = sub_config
+        self.ctype = ctype
         self.score = 0
     def get_all_tests(self):
         return len(self.test_report[0]) + len(self.test_report[1])
     def generate_sub_score(self):
-        regex = f"grading/tests/test_base.py::{self.sub_config.convention}"
+        regex = f"grading/tests/test_{self.ctype}.py::{self.sub_config.convention}"
         total_tests = sum(1 for s in self.test_report[0]+self.test_report[1] if s.startswith(regex))
         passed_tests = sum(1 for s in self.test_report[0] if s.startswith(regex))
+        print(f"CHECKS FOR SUBJECT {self.sub_config.ctype} had {passed_tests} passed from {total_tests} tests")
         self.score = (passed_tests / total_tests) * self.sub_config.weight
 
     @classmethod
-    def create(cls,test_report, sub_config):
-        response = cls(test_report,sub_config)
+    def create(cls,test_report, sub_config,ctype):
+        response = cls(test_report,sub_config,ctype)
         response.generate_sub_score()
         return response
 
