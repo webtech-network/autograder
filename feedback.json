@@ -103,7 +103,7 @@
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_shorthand_properties": [
+      "grading/tests/test_base.py::test_css_shorthand_properties": [
         "Você utilizou propriedades abreviadas como margin e padding. Muito bom!",
         "Evite declarar separadamente cada lado do margin/padding. Use shorthand como `margin: 10px 5px;`."
       ]
@@ -115,13 +115,13 @@
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_layout_method": [
+      "grading/tests/test_base.py::test_css_layout_method": [
         "Você usou Flexbox ou Grid para o layout. Ótima escolha!",
         "Faltando uso de Flexbox ou Grid. Eles ajudam a posicionar elementos de forma moderna e flexível."
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_no_overqualified_selectors": [
+      "grading/tests/test_base.py::test_css_no_overqualified_selectors": [
         "Os seletores CSS estão simples e diretos. Ótimo trabalho!",
         "Seus seletores estão muito específicos. Simplifique para evitar conflitos e facilitar manutenção."
       ]
@@ -133,19 +133,19 @@
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_media_queries": [
+      "grading/tests/test_base.py::test_css_media_queries": [
         "Media queries estão presentes. Sua página é responsiva!",
         "Faltando media queries. Use-as para adaptar sua página a diferentes tamanhos de tela."
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_no_redundant_rules": [
+      "grading/tests/test_base.py::test_css_no_redundant_rules": [
         "Sem regras CSS duplicadas. Seu código está limpo e organizado.",
         "Encontramos duplicações de regras CSS. Elimine as repetições para manter clareza."
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_consistent_units": [
+      "grading/tests/test_base.py::test_css_consistent_units": [
         "As unidades usadas no CSS estão consistentes. Perfeito!",
         "Detectamos uso misto de unidades (px, rem, etc). Escolha uma abordagem uniforme."
       ]
@@ -157,7 +157,7 @@
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_no_undeclared_variables": [
+      "grading/tests/test_base.py::test_js_no_undeclared_variables": [
         "Todas as variáveis foram declaradas com let, const ou var.",
         "Variáveis sem declaração foram encontradas. Use let, const ou var para evitar escopo global."
       ]
