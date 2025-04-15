@@ -23,12 +23,22 @@ def parse_js():
         return file.read()
 
 def test_html_doctype():
+    """
+    pass: A verificação de HTML doctype passou com sucesso.
+    fail: A verificação de HTML doctype falhou. Verifique se os elementos ou boas práticas estão corretamente implementados.
+    """
+
     with open('submission/index.html', 'r', encoding='utf-8') as file:
         content = file.read().lower()
     assert '<!doctype html>' in content, "DOCTYPE declaration not found"
 
 
 def test_html_html_tag():
+    """
+    pass: A verificação de HTML HTML tag passou com sucesso.
+    fail: A verificação de HTML HTML tag falhou. Verifique se os elementos ou boas práticas estão corretamente implementados.
+    """
+
     soup = parse_html()
     # Ensure the <html> tag is present
     assert soup.find('html') is not None, "The <html> tag is missing."
