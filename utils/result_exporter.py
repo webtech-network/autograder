@@ -1,5 +1,6 @@
 import os
 from github import Github
+import json
 
 def notify_classroom(final_score,token):
     # Check if the final_score is provided and is between 0 and 100
@@ -23,7 +24,6 @@ def notify_classroom(final_score,token):
     if not run_id:
         print("Run ID is missing.")
         return
-    print(f"run_id -> [{run_id}]")
 
     # Fetch the workflow run
     workflow_run = repo.get_workflow_run(int(run_id))
@@ -35,14 +35,11 @@ def notify_classroom(final_score,token):
     # Get the check runs for this suite
     check_runs = repo.get_check_suite(check_suite_id)
     check_run = next((run for run in check_runs.get_check_runs() if run.name == "run-tests"), None)
-    for run in check_runs.get_check_runs():
-        print(run.name)
     if not check_run:
         print("Check run not found.")
         return
-
     # Create a summary for the final grade
-    text = f"Final Score: {final_score}/100"
+    text = f"Final Score: {format(final_score,'.2f')}/100"
 
     # Update the check run with the final score
     check_run.edit(
@@ -50,7 +47,7 @@ def notify_classroom(final_score,token):
         output={
             "title": "Autograding Result",
             "summary": text,
-            "text": text,
+            "text": json.dumps({ "totalPoints": format(final_score,'.2f'), "maxPoints": 100 }),
             "annotations": [{
                 "path": ".github",
                 "start_line": 1,
@@ -62,7 +59,7 @@ def notify_classroom(final_score,token):
         }
     )
 
-    print(f"Final grade updated: {final_score}/100")
+    print(f"Final grade updated: {format(final_score,'.2f')}/100")
     
 if __name__ == "__main__": 
     token = input()

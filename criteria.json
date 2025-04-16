@@ -1,0 +1,35 @@
+{
+  "base": {
+    "weight": 75,
+    "subjects": {
+      "html": {
+        "weight": 60,
+        "test_path": "test_html_"
+      },
+      "css": {
+        "weight": 10,
+        "test_path": "test_css_"
+      },
+      "js": {
+        "weight": 30,
+        "test_path": "test_js_"
+      }
+    }
+  },
+  "bonus": {
+    "weight": 25,
+    "subjects": {
+      "html": { "weight": 20, "test_path": "test_html_" },
+      "css": { "weight": 30, "test_path": "test_css_" },
+      "js": { "weight": 50, "test_path": "test_js_" }
+    }
+  },
+  "penalty": {
+    "weight": 10,
+    "subjects": {
+      "html": { "weight": 50, "test_path": "test_html_" },
+      "css": { "weight": 20, "test_path": "test_css_" },
+      "js": { "weight": 30, "test_path": "test_js_" }
+    }
+  }
+}
