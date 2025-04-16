@@ -26,9 +26,9 @@ def extract_docstring_feedback(file_path, category):
 
 def generate_feedback_from_docstrings():
     files = [
-        ("test_base.py", "base_tests"),
-        ("test_bonus.py", "bonus_tests"),
-        ("test_penalty.py", "penalty_tests")
+        ("grading/tests/test_base.py", "base_tests"),
+        ("grading/tests/test_bonus.py", "bonus_tests"),
+        ("grading/tests/test_penalty.py", "penalty_tests")
     ]
 
     all_feedback = {}
@@ -41,3 +41,4 @@ def generate_feedback_from_docstrings():
         json.dump(all_feedback, f, indent=2, ensure_ascii=False)
 
     print("✅ feedback.json file generated using docstrings!")
+

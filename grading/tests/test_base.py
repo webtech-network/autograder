@@ -322,7 +322,7 @@ def test_js_no_undeclared_variables():
 def test_js_strict_mode():
     """
     pass: Modo estrito habilitado com 'use strict'. Excelente prática!
-    fail: "Adicione 'use strict'; no início do seu script para tornar o código mais seguro e previsível.
+    fail: Adicione 'use strict'; no início do seu script para tornar o código mais seguro e previsível.
     """
     js_content = parse_js()
     # Ensure that strict mode is enabled at the top of the script

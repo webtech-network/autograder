@@ -163,7 +163,7 @@
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_strict_mode": [
+      "grading/tests/test_base.py::test_js_strict_mode": [
         "Modo estrito habilitado com 'use strict'. Excelente prática!",
         "Adicione 'use strict'; no início do seu script para tornar o código mais seguro e previsível."
       ]
@@ -193,7 +193,7 @@
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_dom_manipulation": [
+      "grading/tests/test_base.py::test_js_dom_manipulation": [
         "Você está manipulando o DOM com métodos modernos como querySelector.",
         "Considere usar querySelector ou getElementById ao invés de métodos ultrapassados para acessar elementos."
       ]
@@ -211,13 +211,13 @@
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_no_deeply_nested_code": [
+      "grading/tests/test_base.py::test_js_no_deeply_nested_code": [
         "O código está limpo, sem blocos profundamente aninhados.",
         "Evite aninhar muitas funções ou estruturas. Quebre em partes menores para melhorar a legibilidade."
       ]
     },
     {
-      "grading/tests/test_base.py::test_html_proper_use_of_const_and_let": [
+      "grading/tests/test_base.py::test_js_proper_use_of_const_and_let": [
         "Uso adequado de const e let para variáveis. Muito bem!",
         "Use const para valores fixos e let para os que mudam. Isso torna o código mais previsível."
       ]
@@ -243,7 +243,7 @@
       ]
     },
     {
-      "grading/tests/test_bonus.py::test_html_dark_mode_support": [
+      "grading/tests/test_bonus.py::test_css_dark_mode_support": [
         "Modo escuro detectado! Sua página se adapta às preferências do usuário.",
         "Não encontramos suporte a modo escuro. Considere usar `@media (prefers-color-scheme: dark)` para atender melhor os usuários."
       ]
@@ -279,7 +279,7 @@
       ]
     },
     {
-      "grading/tests/test_bonus.py::test_html_interaction_feedback": [
+      "grading/tests/test_bonus.py::test_js_interaction_feedback": [
         "Comportamentos interativos detectados! O usuário recebe retorno ao interagir.",
         "Sua página ainda não oferece feedback visual nas interações. Tente usar `classList.add`, `innerHTML` ou `toggle` para isso."
       ]
@@ -297,13 +297,13 @@
       ]
     },
     {
-      "grading/tests/test_bonus.py::test_html_array_methods": [
+      "grading/tests/test_bonus.py::test_js_array_methods": [
         "Métodos como `map`, `filter` ou `reduce` foram usados com sucesso!",
         "Evite `for` e `while` para percorrer arrays. Tente usar métodos modernos como `map`, `filter` ou `reduce`."
       ]
     },
     {
-      "grading/tests/test_bonus.py::test_html_memory_leaks": [
+      "grading/tests/test_bonus.py::test_js_memory_leaks": [
         "Muito bem! Sua aplicação cuida de possíveis vazamentos de memória com `removeEventListener`, `clearInterval` ou `clearTimeout`.",
         "Detectamos ausência de tratamento para eventos ou timers. Lembre-se de usar `removeEventListener` ou `clearInterval` para evitar vazamentos."
       ]
@@ -315,7 +315,7 @@
       ]
     },
     {
-      "grading/tests/test_bonus.py::test_js_open_graph_description_tag": [
+      "grading/tests/test_bonus.py::test_html_open_graph_description_tag": [
         "Sua página tem uma descrição Open Graph. Isso melhora a aparência dos links nas redes sociais.",
         "Está faltando a meta tag Open Graph de descrição. Adicione `<meta property='og:description'>` no <head>."
       ]
@@ -327,7 +327,7 @@
       ]
     },
     {
-      "grading/tests/test_bonus.py::test_js_meta_description": [
+      "grading/tests/test_bonus.py::test_html_meta_description": [
         "A meta descrição foi definida. Isso ajuda sua página a aparecer melhor em buscadores.",
         "Inclua a tag `<meta name='description'>` com um resumo da sua página para melhorar o SEO."
       ]
@@ -336,98 +336,92 @@
   "penalty_tests": [
     {
       "grading/tests/test_penalty.py::test_html_use_of_br_tag": [
-        "Atenção: foi detectado o uso da tag `<br>`. Prefira usar espaçamento via CSS com `margin` ou `padding`.",
-        "Nenhuma tag `<br>` foi encontrada. Ótimo! Use margens ou padding no CSS para espaçamento."
+        "A tag <br> foi detectada. Prefira usar margens ou padding no CSS para espaçamento.",
+        "Nenhuma tag <br> foi encontrada. Ótimo! Use margens ou padding no CSS para espaçamento."
       ]
     },
     {
-      "grading/tests/test_penalty.py::test_html_inline_styles": [
-        "Foram detectados estilos inline. Evite usar `style=` no HTML e mova esses estilos para o CSS.",
-        "Nenhum estilo inline foi encontrado. Seu CSS está bem organizado!"
+      "grading/tests/test_penalty.py::test_css_inline_styles": [
+        "Estilos inline encontrados. Prefira movê-los para o CSS externo.",
+        "Nenhum estilo inline foi encontrado. Seu código está bem organizado!"
       ]
     },
     {
       "grading/tests/test_penalty.py::test_html_overuse_of_divs": [
-        "Foram encontrados muitos `<div>`s. Tente utilizar tags semânticas como `<section>`, `<article>`, `<main>` ou `<header>`.",
-        "O uso de `<div>` está controlado. Muito bom!"
+        "O uso de <div> está controlado. Muito bom!",
+        "Muito poucos <div> foram encontrados. Para penalidade, é necessário mais de 10 <div>."
       ]
     },
     {
       "grading/tests/test_penalty.py::test_js_inline_script_tags": [
-        "Você está usando JavaScript inline no HTML. Considere movê-lo para arquivos `.js` separados.",
-        "Nenhum `<script>` inline foi detectado. Ótimo trabalho!"
+        "Nenhum <script> inline foi detectado. Ótimo trabalho!",
+        "Não encontramos <script> inline. Considere movê-lo para arquivos `.js` separados."
       ]
     },
     {
       "grading/tests/test_penalty.py::test_html_use_of_center_tag": [
-        "Evite usar `<center>` para alinhamento. Use `text-align: center` no CSS para isso.",
-        "A tag `<center>` não foi utilizada. Perfeito!"
+        "A tag <center> não foi utilizada. Perfeito!",
+        "Nenhuma tag <center> foi encontrada. Para alinhamento, use `text-align: center` no CSS."
       ]
     },
     {
-      "grading/tests/test_penalty.py::test_html_important_usage": [
-        "Evite o uso de `!important` no CSS, pois dificulta a manutenção e pode gerar conflitos inesperados.",
-        "Não foi encontrado uso de `!important` no CSS. Excelente prática!"
+      "grading/tests/test_penalty.py::test_js_alert_usage": [
+        "Nenhum uso de alert() encontrado. Ótimo!",
+        "Alertas `alert()` detectados. Evite usar `alert()` em seu código."
       ]
     },
     {
-      "grading/tests/test_penalty.py::test_html_alert_usage": [
-        "Evite usar `alert()` em seu código JavaScript. Ele interrompe o fluxo do usuário e pode ser incômodo.",
-        "Não há uso de `alert()`. Ótimo! Isso torna a experiência do usuário mais fluida."
-      ]
-    },
-    {
-      "grading/tests/test_penalty.py::test_html_document_write": [
-        "Evite usar `document.write()`. Essa prática está obsoleta e pode causar problemas na renderização.",
-        "`document.write()` não está presente no seu código. Excelente!"
+      "grading/tests/test_penalty.py::test_js_document_write": [
+        "Nenhum uso de document.write() encontrado. Excelente prática!",
+        "Detectamos uso de document.write(). Essa prática pode causar problemas na renderização."
       ]
     },
     {
       "grading/tests/test_penalty.py::test_html_deprecated_u_tag": [
-        "A tag `<u>` está obsoleta. Para sublinhado, prefira usar CSS: `text-decoration: underline`.",
-        "Você não utilizou a tag `<u>`. Parabéns por evitar elementos ultrapassados!"
+        "A tag `<u>` não foi utilizada. Parabéns por evitar elementos ultrapassados!",
+        "A tag `<u>` foi usada. Evite-a, usando `text-decoration: underline` no CSS."
       ]
     },
     {
       "grading/tests/test_penalty.py::test_html_hardcoded_image_dimensions": [
-        "Evite usar `width` e `height` diretamente na tag `<img>`. Utilize o CSS para controlar essas dimensões.",
-        "Nenhuma imagem com largura ou altura fixa no HTML. Ótimo!"
+        "Nenhuma imagem com largura ou altura fixa no HTML. Ótimo!",
+        "Encontramos dimensões fixas de `width` ou `height` no HTML. Prefira usar o CSS para essas dimensões."
       ]
     },
     {
-      "grading/tests/test_penalty.py::test_html_no_important_usage": [
-        "Uso de `!important` detectado. Tente evitá-lo sempre que possível, usando classes mais específicas se necessário.",
-        "Não encontramos `!important` no CSS. Muito bom!"
+      "grading/tests/test_penalty.py::test_css_no_important_usage": [
+        "Não foi encontrado o uso de `!important` no CSS. Excelente prática!",
+        "Uso de `!important` detectado. Evite-o, pois dificulta a manutenção e pode gerar conflitos inesperados."
       ]
     },
     {
       "grading/tests/test_penalty.py::test_html_forbidden_b_tag": [
-        "Evite usar `<b>` para negrito. Isso prejudica a semântica. Use CSS com `font-weight: bold`.",
-        "A tag `<b>` não foi usada. Perfeito! Para negrito, use `font-weight` no CSS."
+        "Não encontramos a tag <b>. Para negrito, use `font-weight: bold` no CSS.",
+        "A tag `<b>` foi utilizada. Evite-a, utilizando o CSS para negrito."
       ]
     },
     {
       "grading/tests/test_penalty.py::test_html_forbidden_i_tag": [
-        "Evite a tag `<i>`. Utilize `font-style: italic` no CSS para aplicar itálico.",
-        "Nada de `<i>` por aqui. Excelente!"
+        "Não encontramos a tag <i>. Para itálico, use `font-style: italic` no CSS.",
+        "A tag `<i>` foi usada. Evite-a, utilizando o CSS para itálico."
       ]
     },
     {
       "grading/tests/test_penalty.py::test_html_forbidden_font_tag": [
-        "A tag `<font>` está obsoleta. Estilize seu texto com CSS moderno, como `color` e `font-size`.",
-        "Você não usou a tag `<font>`. Perfeito!"
+        "Não encontramos a tag `<font>`. Prefira usar o CSS para estilizar texto.",
+        "A tag `<font>` foi usada. Evite-a, utilizando o CSS moderno para estilo."
       ]
     },
     {
       "grading/tests/test_penalty.py::test_html_forbidden_marquee_tag": [
-        "Evite a tag `<marquee>`. Ela está obsoleta e não é recomendada. Prefira usar animações CSS.",
-        "Sem `<marquee>` no seu HTML. Ótimo!"
+        "Não encontramos a tag `<marquee>`. Prefira usar animações CSS.",
+        "A tag `<marquee>` foi encontrada. Ela está obsoleta, prefira usar animações CSS."
       ]
     },
     {
       "grading/tests/test_penalty.py::test_html_forbidden_center_tag": [
-        "Evite centralizar elementos com a tag `<center>`. Use CSS: `text-align: center` ou `display: flex`.",
-        "A tag `<center>` não foi usada. Você está no caminho certo!"
+        "Não encontramos a tag `<center>`. Use `text-align: center` no CSS para centralização.",
+        "A tag `<center>` foi encontrada. Use `text-align: center` ou `display: flex` no CSS para centralização."
       ]
     }
   ]
