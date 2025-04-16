@@ -1,6 +1,12 @@
 import ast, os, json
 
 def extract_docstring_feedback(file_path, category):
+    """
+
+    :param file_path:
+    :param category:
+    :return:
+    """
     with open(file_path, "r", encoding="utf-8") as f:
         tree = ast.parse(f.read())
 
@@ -25,6 +31,10 @@ def extract_docstring_feedback(file_path, category):
     return category, tests
 
 def generate_feedback_from_docstrings():
+    """
+
+    :return:
+    """
     files = [
         ("grading/tests/test_base.py", "base_tests"),
         ("grading/tests/test_bonus.py", "bonus_tests"),

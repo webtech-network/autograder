@@ -1,6 +1,9 @@
 import json
 
 class Config:
+    """
+
+    """
     def __init__(self):
         self.config = {} #config json parsing to dict
         self.base_config = None
@@ -25,6 +28,9 @@ class Config:
 
 
 class TestConfig:
+    """
+
+    """
     def __init__(self,ctype):
         self.ctype = ctype
         self.weight = 0
@@ -48,6 +54,9 @@ class TestConfig:
 
 
 class SubTestConfig(TestConfig):
+    """
+
+    """
     def __init__(self,ctype):
         super().__init__(ctype)
         self.convention = ""

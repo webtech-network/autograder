@@ -2,6 +2,13 @@ from github import Github
 import base64
 import os
 def overwrite_report_in_repo(token,file_path="relatorio.md", new_content=""):
+    """
+
+    :param token:
+    :param file_path:
+    :param new_content:
+    :return:
+    """
     try:
         # Get the current file content (if it exists)
         repo = os.getenv("GITHUB_REPOSITORY")

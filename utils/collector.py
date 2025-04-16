@@ -1,6 +1,9 @@
 import pytest
 
 class TestCollector:
+    """
+
+    """
     def __init__(self):
         self.passed = []
         self.failed = []
