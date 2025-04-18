@@ -1,6 +1,9 @@
 import os
 
 class Path:
+    """
+
+    """
     def __init__(self, root, mid):
         self.root = root
         self.mid = mid

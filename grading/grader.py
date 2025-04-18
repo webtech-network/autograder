@@ -7,6 +7,9 @@ from utils.collector import TestCollector
 
 
 class Grader:
+    """
+
+    """
     def __init__(self,test_file: str,test_config):
         self.test_file = test_file
         self.test_amount = 0

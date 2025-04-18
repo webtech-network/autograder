@@ -5,6 +5,9 @@ from utils.config_loader import Config
 from time import sleep
 
 class Scorer:
+    """
+
+    """
     def __init__(self,test_folder,author,config):
         self.path = Path(__file__,test_folder)
         self.author = author

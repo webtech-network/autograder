@@ -3,6 +3,12 @@ from github import Github
 import json
 
 def notify_classroom(final_score,token):
+    """
+
+    :param final_score:
+    :param token:
+    :return:
+    """
     # Check if the final_score is provided and is between 0 and 100
     if final_score < 0 or final_score > 100:
         print("Invalid final score. It should be between 0 and 100.")

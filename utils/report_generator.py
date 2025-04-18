@@ -5,6 +5,12 @@ from typing import final
 
 from utils.path import Path
 def get_key_value(list, name):
+    """
+
+    :param list:
+    :param name:
+    :return:
+    """
     for item in list:
         for key in item:
             if key == name:
