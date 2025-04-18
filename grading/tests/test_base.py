@@ -44,27 +44,47 @@ def test_html_html_tag():
     assert soup.find('html') is not None, "The <html> tag is missing."
 
 def test_html_head_tag():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure the <head> tag is present
     assert soup.find('head') is not None, "The <head> tag is missing."
 
 def test_html_body_tag():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure the <body> tag is present
     assert soup.find('body') is not None, "The <body> tag is missing."
 
 def test_html_title_tag():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure the <title> tag is present
     assert soup.find('title') is not None, "The <title> tag is missing."
 
 def test_html_meta_charset():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure the meta charset tag is present
     meta_tag = soup.find('meta', attrs={"charset": True})
     assert meta_tag is not None, "Missing <meta charset='UTF-8'>"
 
 def test_html_meta_viewport():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure the meta viewport tag is present for responsive design
     meta_tag = soup.find('meta', attrs={"name": "viewport"})
@@ -75,6 +95,10 @@ def test_html_meta_viewport():
 # 3. Test Accessibility and Semantic HTML (One test per element)
 
 def test_html_image_alt_attributes():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure all images have alt attributes
     images = soup.find_all('img')
@@ -82,6 +106,10 @@ def test_html_image_alt_attributes():
         assert img.get('alt'), "Image missing 'alt' attribute"
 
 def test_html_form_labels():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure all form inputs have associated labels
     inputs = soup.find_all('input')
@@ -90,21 +118,37 @@ def test_html_form_labels():
         assert label, f"Missing label for {input_tag.get('id')}"
 
 def test_html_semantic_header_tag():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure <header> tag is present
     assert soup.find('header') is not None, "Missing <header> tag"
 
 def test_html_semantic_footer_tag():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure <footer> tag is present
     assert soup.find('footer') is not None, "Missing <footer> tag"
 
 def test_html_semantic_nav_tag():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure <nav> tag is present
     assert soup.find('nav') is not None, "Missing <nav> tag"
 
 def test_html_semantic_main_tag():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure <main> tag is present
     assert soup.find('main') is not None, "Missing <main> tag"
@@ -114,6 +158,10 @@ def test_html_semantic_main_tag():
 # 5. Test Proper Nesting and Closing Tags
 
 def test_html_proper_nesting():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Check for correct nesting of elements (e.g., <ul> should only contain <li>)
     ul_tags = soup.find_all('ul')
@@ -122,6 +170,10 @@ def test_html_proper_nesting():
             assert child.name == 'li' or child.name is None, f"Invalid child in <ul>: {child.name}"
 
 def test_html_closing_tags():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure all non-void elements are properly closed
     void_tags = ['img', 'br', 'hr', 'input', 'meta']
@@ -132,11 +184,19 @@ def test_html_closing_tags():
 # 6. Test HTML Validation (Basic placeholder test for valid HTML)
 
 def test_html_valid_html():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     assert soup is not None, "HTML is not valid"
 
 # 1. Test if the CSS file is correctly linked
 def test_css_css_linked():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure the CSS file is linked in the <head> using <link rel="stylesheet">
     link = soup.find("link", {"rel": "stylesheet"})
@@ -146,18 +206,30 @@ def test_css_css_linked():
 
 # 3. Test for Shorthand CSS properties (e.g., margin, padding)
 def test_css_shorthand_properties():
+    """
+    pass:
+    fail:
+    """
     css_content = parse_css()
     # Check for shorthand properties like margin, padding, etc.
     assert "margin:" in css_content or "padding:" in css_content, "Missing shorthand for margin or padding."
 
 # 4. Test for the presence of CSS Variables
 def test_css_css_variables():
+    """
+    pass:
+    fail:
+    """
     css_content = parse_css()
     # Check if CSS variables are used (e.g., --primary-color)
     assert "--primary-color" in css_content or "--secondary-color" in css_content, "Missing CSS variable for colors."
 
 # 5. Test if the layout uses Flexbox or Grid (modern layout techniques)
 def test_css_layout_method():
+    """
+    pass:
+    fail:
+    """
     css_content = parse_css()
     # Ensure that flexbox or grid is used in layout
     assert "display: flex" in css_content or "display: grid" in css_content, "Neither flexbox nor grid is used for layout."
@@ -165,6 +237,10 @@ def test_css_layout_method():
 
 # 7. Test if CSS selectors are not overqualified
 def test_css_no_overqualified_selectors():
+    """
+    pass:
+    fail:
+    """
     css_content = parse_css()
     # Ensure that the CSS selectors are not overqualified (i.e., too specific)
     selectors = [selector.strip() for selector in css_content.split(",")]
@@ -173,6 +249,10 @@ def test_css_no_overqualified_selectors():
 
 # 8. Test for External CSS Links (No inline CSS)
 def test_css_external_css_only():
+    """
+    pass:
+    fail:
+    """
     soup = parse_html()
     # Ensure there is no inline CSS in the HTML (should use external CSS only)
     style_tag = soup.find("style")
@@ -180,12 +260,20 @@ def test_css_external_css_only():
 
 # 9. Test for Media Queries (Responsive design)
 def test_css_media_queries():
+    """
+    pass:
+    fail:
+    """
     css_content = parse_css()
     # Ensure that media queries are present for responsiveness
     assert "@media" in css_content, "Missing media queries for responsive design."
 
 # 10. Test for No Redundant or Duplicate Rules
 def test_css_no_redundant_rules():
+    """
+    pass:
+    fail:
+    """
     css_content = parse_css()
     # Ensure that there are no duplicate CSS rules for the same selector
     rules = css_content.split("}")
