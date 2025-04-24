@@ -25,14 +25,27 @@ class Grader:
         return passed_tests, failed_tests
 
     def generate_score(self):
-        score = 0
-        for sub_config in self.test_config.sub_configs:
-            grader = SubjectGrader.create(self.get_all_tests(),sub_config,self.test_config.ctype)
-            score += grader.score
+        sub_configs = self.test_config.sub_configs
+        if sub_configs:
+            score = self.grade_with_sub_configs(sub_configs)
+        else:
+            score = self.grade()
+
         return (score/100) * self.test_config.weight
+
+    def grade_with_sub_configs(self,sub_configs):
+        score = 0
+        for sub_config in sub_configs:
+            grader = SubjectGrader.create(self.get_all_tests(), sub_config, self.test_config.ctype)
+            score += grader.score
+        return score
+
+    def grade(self):
+        return len(self.passed_tests) / self.get_test_amount()
 
     def get_test_amount(self):
         return len(self.passed_tests) + len (self.failed_tests)
+
     def get_all_tests(self):
         return self.passed_tests, self.failed_tests
 
