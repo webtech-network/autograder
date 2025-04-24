@@ -48,8 +48,8 @@ class TestConfig:
         try:
             section = config[self.ctype]
             self.weight = section['weight']
-            for subj, val in section['subjects'].items():
-                sub_config = SubTestConfig.create(subj, val)
+            for subj, val in section['subjects'].items(): # todo -> Make this optional (if no subject if found, pass)
+                sub_config = SubTestConfig.create(subj, val) # todo -> If all subjects weights don't sum up to 100, balance or throw error
                 self.sub_configs.append(sub_config)
         except KeyError as e:
             raise Exception(f"Missing expected key in config for '{self.ctype}': {e}")
