@@ -1,5 +1,5 @@
 pytest
 argparse
 bs4
-aiohttp==3.8.2
+aiohttp==3.10.11
 PyGithub
