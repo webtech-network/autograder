@@ -51,16 +51,35 @@ class TestConfig:
         try:
             section = config[self.ctype]
             self.weight = section['weight']
-            self.load_subjects(section['subjects'].items())
+            if self.load_subjects(section['subjects'].items()) is True:
+                self.balance_weights()
         except KeyError as e:
             raise Exception(f"Missing expected key in config for '{self.ctype}': {e}")
+
     def load_subjects(self, subjects: dict):
         if subjects is None or subjects == {}:
             return False
         for subj, val in subjects.items():
             sub_config = SubTestConfig.create(subj, val)
             self.sub_configs.append(sub_config)
+        return True
 
+    def create_weights_dict(self):
+        weights = {}
+        for sub_config in self.sub_configs:
+            weights[sub_config.ctype] = sub_config.get_weight()
+        return weights
+
+    def balance_weights_dict(self,weights_dict):
+        total = sum(weights_dict.values())
+        if total == 0:
+            return {k: 0 for k in weights_dict}
+        return {k: round(v * 100 / total, 2) for k, v in weights_dict.items()}
+
+    def balance_weights(self):
+        weights = self.balance_weights_dict(self.create_weights_dict())
+        for sub_config in self.sub_configs:
+            sub_config.weight = weights[sub_config.ctype]
 
     def __str__(self):
         display = f"Config ctype: {self.ctype}\n"
