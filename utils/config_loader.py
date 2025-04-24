@@ -1,5 +1,8 @@
 import json
 
+from aiohttp import WSMessage
+
+
 class Config:
     def __init__(self):
         self.config = {}
@@ -48,11 +51,16 @@ class TestConfig:
         try:
             section = config[self.ctype]
             self.weight = section['weight']
-            for subj, val in section['subjects'].items(): # todo -> Make this optional (if no subject if found, pass)
-                sub_config = SubTestConfig.create(subj, val) # todo -> If all subjects weights don't sum up to 100, balance or throw error
-                self.sub_configs.append(sub_config)
+            self.load_subjects(section['subjects'].items())
         except KeyError as e:
             raise Exception(f"Missing expected key in config for '{self.ctype}': {e}")
+    def load_subjects(self, subjects: dict):
+        if subjects is None or subjects == {}:
+            return False
+        for subj, val in subjects.items():
+            sub_config = SubTestConfig.create(subj, val)
+            self.sub_configs.append(sub_config)
+
 
     def __str__(self):
         display = f"Config ctype: {self.ctype}\n"
