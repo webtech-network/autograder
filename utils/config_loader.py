@@ -99,13 +99,18 @@ class SubTestConfig(TestConfig):
     def __init__(self, ctype):
         super().__init__(ctype)
         self.convention = ""
+        self.include = None
+        self.exclude = None
 
     def load(self, config: dict):
         try:
             self.weight = config['weight']
             self.convention = config['test_path']
+            self.include = config.get('include')
+            self.exclude = config.get('exclude')
         except KeyError as e:
             raise Exception(f"Missing key in subtest config for '{self.ctype}': {e}")
+
 
     def __str__(self):
         display = f"\tConfig ctype: {self.ctype}\n"
