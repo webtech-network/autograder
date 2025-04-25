@@ -87,10 +87,12 @@ class SubjectGrader:
             all_tests = [t for t in all_tests if any(t.endswith(name) for name in self.sub_config.include)]
         elif self.sub_config.exclude:
             all_tests = [t for t in all_tests if not any(t.endswith(name) for name in self.sub_config.exclude)]
+
         if case == 'pass':
             return [t for t in self.test_report[0] if t in all_tests]
         elif case == 'fail':
             return [t for t in self.test_report[1] if t in all_tests]
+        # todo -> Add error handling here
 
 
     def generate_sub_score(self):
