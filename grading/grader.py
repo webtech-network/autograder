@@ -58,19 +58,33 @@ class Grader:
         return grader
 
 class SubjectGrader:
-    def __init__(self,test_report, sub_config,ctype):
+    def __init__(self, test_report, sub_config,ctype):
         self.test_report = test_report
         self.sub_config = sub_config
         self.ctype = ctype
         self.score = 0
+
     def get_all_tests(self):
         return len(self.test_report[0]) + len(self.test_report[1])
+
+    def get_selected_tests(self):
+        # Apply include/exclude logic
+        regex_prefix = f"grading/tests/test_{self.ctype}.py::{self.sub_config.convention}"
+        all_tests = [s for s in self.test_report[0] + self.test_report[1] if s.startswith(regex_prefix)]
+        if self.sub_config.include:
+            all_tests = [t for t in all_tests if any(t.endswith(name) for name in self.sub_config.include)]
+        elif self.sub_config.exclude:
+            all_tests = [t for t in all_tests if not any(t.endswith(name) for name in self.sub_config.exclude)]
+        return all_tests
+
     def generate_sub_score(self):
-        regex = f"grading/tests/test_{self.ctype}.py::{self.sub_config.convention}"
-        total_tests = sum(1 for s in self.test_report[0]+self.test_report[1] if s.startswith(regex))
-        passed_tests = sum(1 for s in self.test_report[0] if s.startswith(regex))
-        print(f"CHECKS FOR SUBJECT {self.sub_config.ctype} had {passed_tests} passed from {total_tests} tests")
-        self.score = (passed_tests / total_tests) * self.sub_config.weight
+        all_tests = self.get_selected_tests()
+        passed_tests = [t for t in self.test_report[0] if t in all_tests]
+        total_tests = len(all_tests)
+
+        print(f"CHECKS FOR SUBJECT {self.sub_config.ctype} had {len(passed_tests)} passed from {total_tests} tests")
+
+        self.score = (len(passed_tests) / total_tests) * self.sub_config.weight if total_tests > 0 else 0
 
     @classmethod
     def create(cls,test_report, sub_config,ctype):
