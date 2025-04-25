@@ -1,3 +1,4 @@
+from multiprocessing.util import sub_warning
 from tkinter.font import names
 from utils.path import Path
 from utils.config_loader import *
@@ -27,7 +28,9 @@ class Grader:
     def generate_score(self):
         sub_configs = self.test_config.sub_configs
         if sub_configs:
+            self.update_test_report(sub_configs)
             score = self.grade_with_sub_configs(sub_configs)
+
         else:
             score = self.grade()
 
@@ -39,6 +42,15 @@ class Grader:
             grader = SubjectGrader.create(self.get_all_tests(), sub_config, self.test_config.ctype)
             score += grader.score
         return score
+
+    def update_test_report(self,sub_configs):
+        new_failed_tests = []
+        new_passed_tests = []
+        for sub_config in sub_configs:
+            new_failed_tests.append(sub_config.get_selected_test('fail'))
+            new_passed_tests.append(sub_config.get_selected_test('pass'))
+        self.failed_tests = new_failed_tests
+        self.passed_tests = new_passed_tests
 
     def grade(self):
         return len(self.passed_tests) / self.get_test_amount()
@@ -67,7 +79,7 @@ class SubjectGrader:
     def get_all_tests(self):
         return len(self.test_report[0]) + len(self.test_report[1])
 
-    def get_selected_tests(self):
+    def get_selected_tests(self,case):
         # Apply include/exclude logic
         regex_prefix = f"grading/tests/test_{self.ctype}.py::{self.sub_config.convention}"
         all_tests = [s for s in self.test_report[0] + self.test_report[1] if s.startswith(regex_prefix)]
@@ -75,7 +87,11 @@ class SubjectGrader:
             all_tests = [t for t in all_tests if any(t.endswith(name) for name in self.sub_config.include)]
         elif self.sub_config.exclude:
             all_tests = [t for t in all_tests if not any(t.endswith(name) for name in self.sub_config.exclude)]
-        return all_tests
+        if case == 'pass':
+            return [t for t in self.test_report[0] if t in all_tests]
+        elif case == 'fail':
+            return [t for t in self.test_report[1] if t in all_tests]
+
 
     def generate_sub_score(self):
         all_tests = self.get_selected_tests()
