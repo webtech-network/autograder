@@ -92,7 +92,8 @@ class SubjectGrader:
             return [t for t in self.test_report[0] if t in all_tests]
         elif case == 'fail':
             return [t for t in self.test_report[1] if t in all_tests]
-        # todo -> Add error handling here
+        else:
+            raise Exception("Test case tag not provided, aborting...")
 
 
     def generate_sub_score(self):
