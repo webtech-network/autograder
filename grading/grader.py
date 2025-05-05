@@ -11,7 +11,7 @@ class Grader:
     """
 
     """
-    def __init__(self,test_file: str,test_config):
+    def __init__(self,test_file: str,test_config: TestConfig):
         self.test_file = test_file
         self.test_amount = 0
         self.test_config = test_config
@@ -30,7 +30,6 @@ class Grader:
         if sub_configs:
             self.update_test_report(sub_configs)
             score = self.grade_with_sub_configs(sub_configs)
-
         else:
             score = self.grade()
 
@@ -49,6 +48,8 @@ class Grader:
         for sub_config in sub_configs:
             new_failed_tests.append(sub_config.get_selected_test('fail'))
             new_passed_tests.append(sub_config.get_selected_test('pass'))
+            # Probably an error here -> get_selected_test is a method from SubjectGrader, but we're dealing with SubTestConfig objects.
+            # Fix: Create instances of SubTestConfig objects with SubjectGrader sub_configs before using get_selected_test()
         self.failed_tests = new_failed_tests
         self.passed_tests = new_passed_tests
 
@@ -82,7 +83,7 @@ class SubjectGrader:
     def get_selected_tests(self,case):
         # Apply include/exclude logic
         regex_prefix = f"grading/tests/test_{self.ctype}.py::{self.sub_config.convention}"
-        all_tests = [s for s in self.test_report[0] + self.test_report[1] if s.startswith(regex_prefix)]
+        all_tests = [s for s in self.test_report[0] + self.test_report[1] if s.startswith(regex_prefix)] #get all tests which paths start with the specified subject convention
         if self.sub_config.include:
             all_tests = [t for t in all_tests if any(t.endswith(name) for name in self.sub_config.include)]
         elif self.sub_config.exclude:
