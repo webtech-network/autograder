@@ -1,2 +1,5 @@
-# webtech-webcode-grader
-Webtech's HTML/CSS/JS autograding plugin for github classroom.
+# WebTech Autograder
+WebTech's Github Plugin for our Autograding System. 
+- Automatic Code Grading
+- Instant Feedback generation
+- Humanized report directly commited into student's repository
