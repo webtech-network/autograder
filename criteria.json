@@ -3,7 +3,7 @@
     "weight": 75,
     "subjects": {
       "html": {
-        "weight": 100,
+        "weight": 50,
         "test_path": "test_html_",
 
         "include": ["test_html_title_exists", "test_html_has_h1"],
@@ -21,7 +21,7 @@
         }
       },
       "css": {
-        "weight": 100,
+        "weight": 50,
         "test_path": "test_css_"
       }
     }
