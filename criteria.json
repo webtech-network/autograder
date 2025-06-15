@@ -1,18 +1,42 @@
 {
-
   "base": {
     "weight": 75,
-    "subjects": {}
+    "subjects": {
+      "html": {
+
+        "weight": 10,
+        "test_path": "test_html_",
+
+        "include": ["test_html_title_exists", "test_html_has_h1"],
+        "exclude": ["test_html_has_inline_style"]
+
+      },
+      "css": {
+        "weight": 80,
+        "test_path": "test_css_"
+      }
+    }
   },
 
   "bonus": {
     "weight": 25,
-    "subjects": {}
+    "subjects": {
+      "html": {
+        "weight": 100,
+        "test_path": "test_html_",
+        "include": ["test_html_extra_styling"]
+      }
+    }
   },
 
   "penalty": {
     "weight": 10,
-    "subjects": {}
+    "subjects": {
+      "html": {
+        "weight": 100,
+        "test_path": "test_html_",
+        "exclude": ["test_html_legit_tag"]
+      }
+    }
   }
-
 }
