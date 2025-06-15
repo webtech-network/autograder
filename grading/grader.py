@@ -18,7 +18,7 @@ class Grader:
     def get_test_results(self):
         """Run pytest on the test file and collect the results."""
         collector = TestCollector()
-        result = pytest.main([self.test_file, "-p", "no:terminal"], plugins=[collector])
+        result = pytest.main([self.test_file,"-p", "no:terminal"], plugins=[collector]) #"-p", "no:terminal"
         passed_tests = collector.passed
         failed_tests = collector.failed
         return passed_tests, failed_tests # return a tuple of lists containing passed and failed tests
@@ -66,20 +66,50 @@ class SubjectGrader:
         self.sub_config = sub_config # SubTestConfig instance containing the configuration for the subject
         self.ctype = ctype # Subject type (e.g., 'html, 'css', 'js')
         self.score = 0 # Score for the subject, initialized to 0
+        self.filtered = False
     def get_all_tests(self):
         return len(self.test_report[0]) + len(self.test_report[1])
     def generate_sub_score(self):
         """Generate the score for the subject based on the test results and the sub-configuration."""
-        regex = f"grading/tests/test_{self.ctype}.py::{self.sub_config.convention}" # Regex to match the subject tests
-        total_tests = sum(1 for s in self.test_report[0]+self.test_report[1] if s.startswith(regex)) # Count the total number of tests for the subject
-        passed_tests = sum(1 for s in self.test_report[0] if s.startswith(regex)) # Count the number of passed tests for the subject
-        print(f"CHECKS FOR SUBJECT {self.sub_config.ctype} had {passed_tests} passed from {total_tests} tests")
-        self.score = (passed_tests / total_tests) * self.sub_config.weight # Return the score as a percentage of the sub-configuration weight
+        if not self.filtered:
+            regex = f"tests/test_{self.ctype}.py::{self.sub_config.convention}" # Regex to match the subject tests
+            total_tests = sum(1 for s in self.test_report[0]+self.test_report[1] if s.startswith(regex)) # Count the total number of tests for the subject
+            passed_tests = sum(1 for s in self.test_report[0] if s.startswith(regex)) # Count the number of passed tests for the subject
+        else:
+            total_tests = self.get_all_tests()
+            passed_tests = len(self.test_report[0])
+
+        self.score = (passed_tests / total_tests) * self.sub_config.weight
+        # Return the score as a percentage of the sub-configuration weight
+
+    def filter_tests(self):
+        """Filter the test results based on the include list."""
+        passed_tests, failed_tests = self.test_report
+
+        # Using a set for the 'include' list provides faster lookups
+        if self.sub_config.include:
+            # Filter both lists to keep only the tests present in the include_set
+            filtered_passed = [test for test in passed_tests if test.split('::')[-1] in self.sub_config.include]
+            filtered_failed = [test for test in failed_tests if test.split('::')[-1] in self.sub_config.include]
+            # If the include list is empty, we keep all tests
+            self.test_report = (filtered_passed, filtered_failed) # Update the test report with the filtered results
+            self.filtered = True
+        elif self.sub_config.exclude:
+            # Filter both lists to keep only the tests not present in the include_set
+            filtered_passed = [test for test in passed_tests if test.split('::')[-1] not in self.sub_config.exclude]
+            filtered_failed = [test for test in failed_tests if test.split('::')[-1] not in self.sub_config.exclude]
+            self.test_report = (filtered_passed, filtered_failed)
+
+
+
+
+
 
     @classmethod
-    def create(cls,test_report, sub_config,ctype):
+    def create(cls,test_report, sub_config : SubTestConfig,ctype):
         """Create a SubjectGrader instance from a test report, a SubTestConfig instance, and a subject type."""
-        response = cls(test_report,sub_config,ctype)
+        response = cls(test_report, sub_config, ctype)
+        response.filter_tests()
         response.generate_sub_score()
         return response
 
@@ -89,7 +119,6 @@ if __name__ == '__main__':
     grade = Grader.create("tests/test_base.py",TestConfig.create("base",dic))
     grade2 = Grader.create("tests/test_bonus.py",TestConfig.create("bonus",dic))
     grade3 = Grader.create("tests/test_penalty.py",TestConfig.create("penalty",dic))
-    print(grade.generate_score())
 
 
 
