@@ -112,12 +112,19 @@ class SubTestConfig(TestConfig):
     def __init__(self, ctype):
         super().__init__(ctype)
         self.convention = ""
+        self.include = []
+        self.exclude = []
 
     def load(self, config: dict):
         """Load the configuration for the subject type from the provided dictionary."""
         try:
             self.weight = config['weight']
             self.convention = config['test_path']
+            if config.get('include') is not None:
+                self.include = config['include']
+            elif config.get('exclude') is not None:
+                self.exclude = config['exclude']
+
         except KeyError as e:
             raise Exception(f"Missing key in subtest config for '{self.ctype}': {e}")
 
@@ -129,5 +136,7 @@ class SubTestConfig(TestConfig):
         display = f"\tConfig ctype: {self.ctype}\n"
         display += f"\tWeight: {self.weight}\n"
         display += f"\tConvention: {self.convention}\n"
+        display += f"\tInclude: {', '.join(self.include) if self.include else 'None'}\n"
+        display += f"\tExclude: {', '.join(self.exclude) if self.exclude else 'None'}\n"
         return display
 
