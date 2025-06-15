@@ -4,16 +4,17 @@
     "subjects": {
       "html": {
 
-        "weight": 10,
+        "weight": 60,
         "test_path": "test_html_",
 
-        "include": ["test_html_title_exists", "test_html_has_h1"],
+
         "exclude": ["test_html_has_inline_style"]
 
       },
       "css": {
-        "weight": 80,
-        "test_path": "test_css_"
+        "weight": 40,
+        "test_path": "test_css_",
+        "exclude": ["test_css_external_css_only",["test_css_consistent_units"]]
       }
     }
   },
@@ -24,7 +25,7 @@
       "html": {
         "weight": 100,
         "test_path": "test_html_",
-        "include": ["test_html_extra_styling"]
+        "include": ["test_html_article_or_aside_used"]
       }
     }
   },
@@ -34,8 +35,8 @@
     "subjects": {
       "html": {
         "weight": 100,
-        "test_path": "test_html_",
-        "exclude": ["test_html_legit_tag"]
+        "test_path": "test_html_"
+
       }
     }
   }
