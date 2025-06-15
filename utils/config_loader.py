@@ -1,6 +1,6 @@
 import json
 
-from aiohttp import WSMessage
+
 
 
 class Config: # This class is used to load and manage all tests configurations.
@@ -15,6 +15,7 @@ class Config: # This class is used to load and manage all tests configurations.
         try:
             with open(config_file, 'r', encoding='utf-8') as file:
                 self.config = json.load(file)
+
         except FileNotFoundError:
             raise Exception(f"Config file '{config_file}' not found.")
         except json.JSONDecodeError as e:
@@ -58,7 +59,7 @@ class TestConfig:
         try:
             section = config[self.ctype]
             self.weight = section['weight']
-            if self.load_subjects(section['subjects'].items()) is True:
+            if self.load_subjects(section.get('subjects')) is True:
                 self.balance_weights()
         except KeyError as e:
             raise Exception(f"Missing expected key in config for '{self.ctype}': {e}")
@@ -120,8 +121,13 @@ class SubTestConfig(TestConfig):
         except KeyError as e:
             raise Exception(f"Missing key in subtest config for '{self.ctype}': {e}")
 
+    def get_weight(self):
+        """Get the weight of the sub-test configuration."""
+        return self.weight
+
     def __str__(self):
         display = f"\tConfig ctype: {self.ctype}\n"
         display += f"\tWeight: {self.weight}\n"
         display += f"\tConvention: {self.convention}\n"
         return display
+
