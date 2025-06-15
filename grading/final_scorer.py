@@ -6,10 +6,10 @@ from time import sleep
 
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
-    def __init__(self,test_folder,author,config):
+    def __init__(self,test_folder,author):
         self.path = Path(__file__,test_folder) # Path to the test folder
         self.author = author # Author of the code being graded
-        self.config = config # Config instance containing the configurations for all the test files
+        self.config = None # Config instance containing the configurations for all the test files
         self.base_grader = None # Grader instance for the base test file
         self.bonus_grader = None # Grader instance for the bonus test file
         self.penalty_grader = None # Grader instance for the penalty test file
@@ -17,15 +17,15 @@ class Scorer:
 
     def set_base_score(self,filename):
         """Set the base score by creating a Grader instance for the base test file."""
-        self.base_grader = Grader.create(self.path.getFilePath(filename),self.config.base_config)
+        self.base_grader = Grader.create(f"tests/{filename}",self.config.base_config)
 
     def set_bonus_score(self,filename):
         """Set the bonus score by creating a Grader instance for the bonus test file."""
-        self.bonus_grader = Grader.create(self.path.getFilePath(filename),self.config.bonus_config)
+        self.bonus_grader = Grader.create(f"tests/{filename}",self.config.bonus_config)
 
     def set_penalty_score(self,filename):
         """Set the penalty score by creating a Grader instance for the penalty test file."""
-        self.penalty_grader = Grader.create(self.path.getFilePath(filename),self.config.penalty_config)
+        self.penalty_grader = Grader.create(f"tests/{filename}",self.config.penalty_config)
 
     def set_final_score(self):
         """Calculate the final score by combining the scores from base, bonus, and penalty test files."""
@@ -46,9 +46,10 @@ class Scorer:
             feedback.write(self.get_feedback())
 
     @classmethod
-    def create_with_scores(cls,test_folder,author, config: Config ,base_file,bonus_file,penalty_file):
+    def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file):
         """Create a Scorer instance with the specified test files and author."""
-        scorer = cls(test_folder,author,config)
+        scorer = cls(test_folder,author)
+        scorer.config = Config.create_config(config_file) # Load the configuration from the specified file
         scorer.set_base_score(base_file)
         scorer.set_bonus_score(bonus_file)
         scorer.set_penalty_score(penalty_file)
@@ -57,11 +58,7 @@ class Scorer:
         return scorer
 
     @classmethod
-    def quick_build(cls, author,config):
+    def quick_build(cls, author):
         """Quickly build a Scorer instance with default test files and author."""
-        scorer = Scorer.create_with_scores("tests", author,config, "test_base.py", "test_bonus.py", "test_penalty.py")
+        scorer = Scorer.create_with_scores("tests", author,"criteria.json", "test_base.py", "test_bonus.py", "test_penalty.py")
         return scorer
-
-if __name__ == '__main__':
-    score = Scorer.create_with_scores("tests","Arthur","test_base.py","test_bonus.py","test_penalty.py")
-    print(score.final_score)
