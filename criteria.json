@@ -9,6 +9,8 @@
 
         "exclude": ["test_html_has_inline_style"],
         "quantitative": {
+          "weight" : 50,
+          "tests" : {
           "test_html_semantic_tags": {
             "checks": 10,
             "weight": 20
@@ -17,6 +19,7 @@
             "checks": 5,
             "weight": 10
           }
+        }
         }
       },
       "css": {
