@@ -54,8 +54,9 @@ class Grader:
     def create(cls,test_file: str,test_config: str):
         """Create a Grader instance from a test file and a TestConfig instance."""
         grader = Grader(test_file,test_config)
-        grader.passed_tests = grader.get_test_results()[0]
-        grader.failed_tests = grader.get_test_results()[1]
+        results = grader.get_test_results() # Get the test results by running pytest on the test file
+        grader.passed_tests = results[0] # Set the passed tests
+        grader.failed_tests = results[1]
         grader.test_amount = grader.get_test_amount()
         return grader
 
