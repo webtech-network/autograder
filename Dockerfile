@@ -1,5 +1,5 @@
 # 1. Use an official Python image as the base
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 # 2. Set environment variables to avoid interactive prompts
 ENV PYTHONUNBUFFERED=1
