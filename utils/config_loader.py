@@ -60,7 +60,7 @@ class TestConfig:
             section = config[self.ctype]
             self.weight = section['weight']
             if self.load_subjects(section.get('subjects')) is True:
-                self.balance_weights()
+                self.balance_weights(self.sub_configs)
         except KeyError as e:
             raise Exception(f"Missing expected key in config for '{self.ctype}': {e}")
 
@@ -73,9 +73,9 @@ class TestConfig:
             self.sub_configs.append(sub_config)
         return True
 
-    def create_weights_dict(self):
+    def create_weights_dict(self,configs):
         weights = {}
-        for sub_config in self.sub_configs:
+        for sub_config in configs:
             weights[sub_config.ctype] = sub_config.get_weight()
         return weights
 
@@ -86,9 +86,9 @@ class TestConfig:
             return {k: 0 for k in weights_dict}
         return {k: round(v * 100 / total, 2) for k, v in weights_dict.items()}
 
-    def balance_weights(self):
+    def balance_weights(self,configs):
         """Balance the weights of the sub-configurations based on their individual weights."""
-        weights = self.balance_weights_dict(self.create_weights_dict())
+        weights = self.balance_weights_dict(self.create_weights_dict(configs))
         for sub_config in self.sub_configs:
             sub_config.weight = weights[sub_config.ctype]
 
@@ -115,6 +115,7 @@ class SubTestConfig(TestConfig):
         self.include = []
         self.exclude = []
         self.quantitative_tests = []
+        self.quantitative_tests_weight = 0
 
     def load(self, config: dict):
         """Load the configuration for the subject type from the provided dictionary."""
@@ -128,19 +129,57 @@ class SubTestConfig(TestConfig):
             if config.get('quantitative') is not None:
                 print(config.get('quantitative'))
                 self.load_quantitative_tests(config.get('quantitative'))
+                self.balance_weights()
 
         except KeyError as e:
             raise Exception(f"Missing key in subtest config for '{self.ctype}': {e}")
     def load_quantitative_tests(self, section:dict):
         if section:
-            for test in section:
-                #print("TEST NAME -> ",test)
-                if section[test].get('checks') is not None:
-                    checks = section[test]['checks']
-                if section[test].get('weight') is not None:
-                    weight = section[test]['weight']
-                quantitative_test = QuantitativeConfig.create(test,checks,weight)
-                self.quantitative_tests.append(quantitative_test)
+            if section.get('weight') is not None:
+                self.quantitative_tests_weight = section['weight']
+                if section.get('tests') is not None:
+                    section = section['tests']
+                    for test in section:
+                        print("TEST NAME -> ",test)
+                        if section[test].get('checks') is not None:
+                            checks = section[test]['checks']
+                        if section[test].get('weight') is not None:
+                            weight = section[test]['weight']
+                        quantitative_test = QuantitativeConfig.create(test,checks,weight)
+                        self.quantitative_tests.append(quantitative_test)
+
+    def balance_weights(self):
+        """
+        Balances the weights of QConfig objects proportionally to a new total weight.
+
+        This function modifies the 'weight' attribute of the objects in the list in-place.
+
+        Args:
+            q_configs (list[QConfig]): A list of quantitative test configuration objects.
+                                         Each object must have a 'weight' attribute.
+            total_weight (int or float): The target total weight that the sum of all
+                                         individual weights should equal.
+        """
+        # Calculate the current sum of all weights from the configuration objects.
+        current_sum = sum(config.weight for config in self.quantitative_tests)
+
+        # Requirement 1: If weights are already balanced or the sum is 0, do nothing.
+        if current_sum == self.quantitative_tests_weight or current_sum == 0:
+            return
+
+        # Requirement 2: If weights are unbalanced, balance them proportionally.
+        # Calculate the factor by which each weight needs to be scaled.
+        scaling_factor = self.quantitative_tests_weight / current_sum
+
+        # Apply the scaling factor to each configuration object's weight.
+        for config in self.quantitative_tests:
+            config.weight = round(config.weight * scaling_factor, 2)
+
+        # Optional: Due to rounding, there might be a tiny difference.
+        # This step ensures the sum is exactly the total_weight by adjusting the last element.
+        new_sum = sum(config.weight for config in self.quantitative_tests)
+        if new_sum != self.quantitative_tests_weight and self.quantitative_tests:
+            self.quantitative_tests[-1].weight = round(self.quantitative_tests[-1].weight + (self.quantitative_tests_weight - new_sum), 2)
     def get_weight(self):
         """Get the weight of the sub-test configuration."""
         return self.weight
@@ -153,12 +192,13 @@ class SubTestConfig(TestConfig):
         display += f"\tExclude: {', '.join(self.exclude) if self.exclude else 'None'}\n"
         if self.quantitative_tests:
             display += f"\tQuantitative tests: \n"
+            display += f"\tQuantitative tests weight: {self.quantitative_tests_weight}\n"
             for qtest in self.quantitative_tests:
                 display += f"{qtest}\n"
         return display
 class QuantitativeConfig:
     def __init__(self,test_name,checks,weight):
-        self.test_name = test_name
+        self.ctype = test_name
         self.checks = checks
         self.weight = weight
     @classmethod
@@ -168,7 +208,7 @@ class QuantitativeConfig:
         response = cls(test_name, checks, weight)
         return response
     def __str__(self):
-        display = f"\t\t{self.test_name}\n"
+        display = f"\t\t{self.ctype}\n"
         display += f"\t\tChecks: {self.checks}\n"
         display += f"\t\tWeight: {self.weight}\n"
         return display
