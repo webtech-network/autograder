@@ -4,7 +4,7 @@
 echo "🚀 Starting autograder..."
 
 echo "Starting PostgreSQL container..."
-docker-compose -f /app/docker-copose.yaml up -d db
+docker-compose -f ./docker-copose.yaml up -d db
 
 echo "Awaiting PostgreSQL to be ready..."
 /usr/bin/python -c
