@@ -153,7 +153,7 @@ def test_css_css_minification():
     """
     css_content = parse_css()
     # Ensure that the CSS is minified (no extra spaces or line breaks)
-    assert css_content == css_content.replace(" ", "").replace("", ""), "CSS is not minified."
+    assert css_content == css_content.replace("\n", "").replace("\t", ""), "CSS is not minified."
 
 def test_html_open_graph_description_tag():
     """
