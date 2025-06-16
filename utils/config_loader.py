@@ -114,6 +114,7 @@ class SubTestConfig(TestConfig):
         self.convention = ""
         self.include = []
         self.exclude = []
+        self.quantitative_tests = []
 
     def load(self, config: dict):
         """Load the configuration for the subject type from the provided dictionary."""
@@ -124,10 +125,22 @@ class SubTestConfig(TestConfig):
                 self.include = config['include']
             elif config.get('exclude') is not None:
                 self.exclude = config['exclude']
+            if config.get('quantitative') is not None:
+                print(config.get('quantitative'))
+                self.load_quantitative_tests(config.get('quantitative'))
 
         except KeyError as e:
             raise Exception(f"Missing key in subtest config for '{self.ctype}': {e}")
-
+    def load_quantitative_tests(self, section:dict):
+        if section:
+            for test in section:
+                #print("TEST NAME -> ",test)
+                if section[test].get('checks') is not None:
+                    checks = section[test]['checks']
+                if section[test].get('weight') is not None:
+                    weight = section[test]['weight']
+                quantitative_test = QuantitativeConfig.create(test,checks,weight)
+                self.quantitative_tests.append(quantitative_test)
     def get_weight(self):
         """Get the weight of the sub-test configuration."""
         return self.weight
@@ -138,5 +151,29 @@ class SubTestConfig(TestConfig):
         display += f"\tConvention: {self.convention}\n"
         display += f"\tInclude: {', '.join(self.include) if self.include else 'None'}\n"
         display += f"\tExclude: {', '.join(self.exclude) if self.exclude else 'None'}\n"
+        if self.quantitative_tests:
+            display += f"\tQuantitative tests: \n"
+            for qtest in self.quantitative_tests:
+                display += f"{qtest}\n"
         return display
+class QuantitativeConfig:
+    def __init__(self,test_name,checks,weight):
+        self.test_name = test_name
+        self.checks = checks
+        self.weight = weight
+    @classmethod
+    def create(cls, test_name, checks, weight):
+        if checks < 0 or weight < 0 or weight > 100:
+            raise Exception(f"Invalid weight: {weight}")
+        response = cls(test_name, checks, weight)
+        return response
+    def __str__(self):
+        display = f"\t\t{self.test_name}\n"
+        display += f"\t\tChecks: {self.checks}\n"
+        display += f"\t\tWeight: {self.weight}\n"
+        return display
+
+
+
+
 
