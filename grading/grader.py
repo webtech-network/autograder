@@ -115,11 +115,6 @@ class SubjectGrader:
         return response
 
 
-if __name__ == '__main__':
-    dic = json.load(open("config.json"))
-    grade = Grader.create("tests/test_base.py",TestConfig.create("base",dic))
-    grade2 = Grader.create("tests/test_bonus.py",TestConfig.create("bonus",dic))
-    grade3 = Grader.create("tests/test_penalty.py",TestConfig.create("penalty",dic))
 
 
 
