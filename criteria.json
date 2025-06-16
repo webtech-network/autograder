@@ -7,9 +7,17 @@
         "weight": 60,
         "test_path": "test_html_",
 
-
-        "exclude": ["test_html_has_inline_style"]
-
+        "exclude": ["test_html_has_inline_style"],
+        "quantitative": {
+          "test_html_semantic_tags": {
+            "checks": 10,
+            "weight": 20
+          },
+          "test_html_images_with_alt": {
+            "checks": 5,
+            "weight": 10
+          }
+        }
       },
       "css": {
         "weight": 40,
