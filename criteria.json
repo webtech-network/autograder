@@ -23,9 +23,13 @@
         }
       },
       "css": {
-        "weight": 40,
+        "weight": 10,
         "test_path": "test_css_",
         "exclude": ["test_css_external_css_only","test_css_consistent_units"]
+      },
+      "js": {
+        "weight": 30,
+        "test_path": "test_js_"
       }
     }
   },
