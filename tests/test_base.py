@@ -1,26 +1,8 @@
 import pytest
-from bs4 import BeautifulSoup
+from conftest import parse_html, parse_css, parse_js
 '''
 TEST SUITE FOR HTML PAGE
 '''
-
-
-
-# Helper function to parse HTML content using BeautifulSoup
-def parse_html():
-    # Directly open and parse the 'index.html' file
-    with open('submission/index.html', 'r',encoding="utf-8") as file:
-        html_content = file.read()
-    return BeautifulSoup(html_content, "html.parser")
-
-# 1. Test Required Structural Elements
-# Helper function to parse the CSS file
-def parse_css():
-    with open('submission/style.css', 'r',encoding="utf-8") as file:
-        return file.read()
-def parse_js():
-    with open('submission/script.js', 'r',encoding="utf-8") as file:
-        return file.read()
 
 def test_html_doctype():
     """
@@ -33,6 +15,16 @@ def test_html_doctype():
     assert '<!doctype html>' in content, "DOCTYPE declaration not found"
 
 
+def test_html_quantitative_div_tags(quantitative_result_recorder):
+    """
+    pass: Você usou <div> de forma adequada. Ótimo trabalho!
+    fail: Muitos <div> foram encontrados. Use-os com moderação, evitando mais de 10 para não poluir o HTML.
+    """
+    soup = parse_html()
+    divs = soup.find_all('div')
+    actual_count = len(divs)
+    quantitative_result_recorder(actual_count)
+    assert actual_count > 0 , f"Too many <div> tags found: {actual_count} (should be <= 10)"
 def test_html_html_tag():
     """
     pass: A tag <html> está corretamente presente, iniciando o documento HTML.
@@ -339,7 +331,7 @@ def test_js_no_eval():
     assert "eval(" not in js_content, "The use of eval() is detected, which should be avoided."
 
 # 5. Test for modularity (checking for functions)
-def test_js_modular_code():
+def test_js_modular_code(quantitative_result_recorder):
     """
     pass: O código está modularizado com funções separadas. Excelente!
     fail: Seu código está em um bloco único. Reorganize em funções reutilizáveis para melhor leitura e manutenção.
@@ -347,7 +339,9 @@ def test_js_modular_code():
     js_content = parse_js()
     # Ensure that the JavaScript code is broken into smaller functions instead of large monolithic functions
     functions = [line for line in js_content.splitlines() if line.strip().startswith("function")]
-    assert len(functions) > 0, "JavaScript code should be modular, with functions."
+    quantitative_result_recorder.record_count("js_modular_code", len(functions))
+    print("Recorded ->", quantitative_result_recorder.user_properties[-1])
+    assert len(functions) > 0# Example expected count
 
 # 6. Test for asynchronous handling (using async/await or Promises)
 def test_js_async_handling():
