@@ -125,7 +125,7 @@ class SubTestConfig(TestConfig):
             elif config.get('exclude') is not None:
                 self.exclude = config['exclude']
             if config.get('quantitative') is not None:
-                print(config.get('quantitative'))
+                #(config.get('quantitative'))
                 self.load_quantitative_tests(config.get('quantitative'))
                 self.balance_weights()
 
@@ -145,6 +145,10 @@ class SubTestConfig(TestConfig):
                         quantitative_test = QuantitativeConfig.create(test,checks,weight) #It is complaining because checks and weight are only defined if the sections are not empty.
                         self.quantitative_tests.append(quantitative_test)
 
+    def get_quantitative_tests(self):
+        """Get the names of the quantitative tests."""
+        return {qtest.ctype:qtest for qtest in self.quantitative_tests}
+
     def balance_weights(self):
         """
         Balances the weights of QConfig objects proportionally to a new total weight.
@@ -161,12 +165,12 @@ class SubTestConfig(TestConfig):
         current_sum = sum(config.weight for config in self.quantitative_tests)
 
         # Requirement 1: If weights are already balanced or the sum is 0, do nothing.
-        if current_sum == self.quantitative_tests_weight or current_sum == 0:
+        if current_sum == 100 or current_sum == 0:
             return
 
         # Requirement 2: If weights are unbalanced, balance them proportionally.
         # Calculate the factor by which each weight needs to be scaled.
-        scaling_factor = self.quantitative_tests_weight / current_sum
+        scaling_factor = 100 / current_sum
 
         # Apply the scaling factor to each configuration object's weight.
         for config in self.quantitative_tests:
@@ -176,7 +180,7 @@ class SubTestConfig(TestConfig):
         # This step ensures the sum is exactly the total_weight by adjusting the last element.
         new_sum = sum(config.weight for config in self.quantitative_tests)
         if new_sum != self.quantitative_tests_weight and self.quantitative_tests:
-            self.quantitative_tests[-1].weight = round(self.quantitative_tests[-1].weight + (self.quantitative_tests_weight - new_sum), 2)
+            self.quantitative_tests[-1].weight = round(self.quantitative_tests[-1].weight + (100 - new_sum), 2)
     def get_weight(self):
         """Get the weight of the sub-test configuration."""
         return self.weight
