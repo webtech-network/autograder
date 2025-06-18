@@ -11,13 +11,21 @@
         "quantitative": {
           "weight" : 50,
           "tests" : {
-          "test_html_semantic_tags": {
-            "checks": 10,
+          "test_html_quantitative_div_tags": {
+            "checks": 30,
             "weight": 20
           },
-          "test_html_images_with_alt": {
+           "test_html_quantitative_div": {
+            "checks": 30,
+            "weight": 20
+          },
+           "test_html_div": {
+            "checks": 30,
+            "weight": 20
+          },
+          "test_html_quantitative_section_tags" : {
             "checks": 5,
-            "weight": 10
+            "weight": 60
           }
         }
         }
