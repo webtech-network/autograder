@@ -1,8 +1,6 @@
 import json
 
 
-
-
 class Config: # This class is used to load and manage all tests configurations.
     def __init__(self):
         self.config = {}
@@ -140,12 +138,11 @@ class SubTestConfig(TestConfig):
                 if section.get('tests') is not None:
                     section = section['tests']
                     for test in section:
-                        print("TEST NAME -> ",test)
                         if section[test].get('checks') is not None:
                             checks = section[test]['checks']
                         if section[test].get('weight') is not None:
                             weight = section[test]['weight']
-                        quantitative_test = QuantitativeConfig.create(test,checks,weight)
+                        quantitative_test = QuantitativeConfig.create(test,checks,weight) #It is complaining because checks and weight are only defined if the sections are not empty.
                         self.quantitative_tests.append(quantitative_test)
 
     def balance_weights(self):
