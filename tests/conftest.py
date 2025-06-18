@@ -54,10 +54,7 @@ def quantitative_result_recorder(request):
         # Store a dictionary with both actual_count and expected_checks for full context in the report
         # The 'expected_checks' here is a placeholder; the true expected value comes from criteria.json.
         request.node.user_properties.append(
-            ('quantitative_result', {
-                'actual_count': actual_count,
-                'expected_checks': expected_checks
-            })
+            ('quantitative_result', actual_count)
         )
     return record_count
 
