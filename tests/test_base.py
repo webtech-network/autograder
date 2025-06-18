@@ -44,6 +44,17 @@ def test_html_head_tag():
     # Ensure the <head> tag is present
     assert soup.find('head') is not None, "The <head> tag is missing."
 
+def test_html_quantitative_section_tags(quantitative_result_recorder):
+    """
+    pass: Você usou <section> de forma adequada. Muito bom!
+    fail: Muitos <section> foram encontrados. Use-os com moderação, evitando mais de 10 para não poluir o HTML.
+    """
+    soup = parse_html()
+    sections = soup.find_all('section')
+    actual_count = len(sections)
+    quantitative_result_recorder(actual_count)
+    assert actual_count > 0, f"Too many <section> tags found: {actual_count})"
+
 def test_html_body_tag():
     """
     pass: A tag <body> está presente e pronta para exibir seu conteúdo.
@@ -206,15 +217,23 @@ def test_css_shorthand_properties():
     # Check for shorthand properties like margin, padding, etc.
     assert "margin:" in css_content or "padding:" in css_content, "Missing shorthand for margin or padding."
 
+
+
+
 # 4. Test for the presence of CSS Variables
-def test_css_css_variables():
+def test_css_css_variables(quantitative_result_recorder):
     """
     pass: Variáveis CSS detectadas. Isso facilita a manutenção do seu estilo.
     fail: Não encontramos variáveis CSS. Tente usar --primary-color, por exemplo, para padronizar seu tema.
     """
     css_content = parse_css()
     # Check if CSS variables are used (e.g., --primary-color)
-    assert "--primary-color" in css_content or "--secondary-color" in css_content, "Missing CSS variable for colors."
+    count = 0
+    for key in css_content.split(" "):
+        if key in ["--primary-color", "--secondary-color", "--font-size"]:
+            count += 1
+    quantitative_result_recorder(count)
+    assert count>0, "No CSS variables found. Consider using --primary-color, --secondary-color, etc. for better maintainability."
 
 # 5. Test if the layout uses Flexbox or Grid (modern layout techniques)
 def test_css_layout_method():
