@@ -1,7 +1,4 @@
-from tkinter.font import names
-from utils.path import Path
 from utils.config_loader import *
-import json
 import pytest
 from utils.collector import TestCollector
 
@@ -21,7 +18,9 @@ class Grader:
         result = pytest.main([self.test_file,"-p", "no:terminal"], plugins=[collector]) #"-p", "no:terminal"
         passed_tests = collector.passed
         failed_tests = collector.failed
-        return passed_tests, failed_tests # return a tuple of lists containing passed and failed tests
+        quantitative_tests = collector.quantitative_results
+        print(quantitative_tests)
+        return passed_tests, failed_tests, quantitative_tests # return a tuple of lists containing passed and failed tests
 
     def generate_score(self):
         """Generate the score based on the test results and the test configuration."""
@@ -50,6 +49,15 @@ class Grader:
     def get_all_tests(self):
         return self.passed_tests, self.failed_tests
 
+    def get_results(self):
+        """Get the results of the grading process."""
+        return {
+            "passed_tests": self.passed_tests,
+            "failed_tests": self.failed_tests,
+            "test_amount": self.test_amount,
+            "score": self.generate_score()
+        }
+
     @classmethod
     def create(cls,test_file: str,test_config: str):
         """Create a Grader instance from a test file and a TestConfig instance."""
@@ -57,6 +65,7 @@ class Grader:
         results = grader.get_test_results() # Get the test results by running pytest on the test file
         grader.passed_tests = results[0] # Set the passed tests
         grader.failed_tests = results[1]
+        grader.quantitative_results = results[2] if len(results) > 2 else {}
         grader.test_amount = grader.get_test_amount()
         return grader
 
@@ -113,9 +122,6 @@ class SubjectGrader:
         return response
 
 
-
-
-class QuantitativeGrader:
 
 
 
