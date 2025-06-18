@@ -78,10 +78,19 @@ class SubjectGrader:
         self.score = 0 # Score for the subject, initialized to 0
         self.filtered = False
         self.quantitative_report = {}
+
     def get_all_tests(self):
         return len(self.test_report[0]) + len(self.test_report[1])
+
     def generate_sub_score(self):
-        """Generate the score for the subject based on the test results and the sub-configuration."""
+        unit_tests_score = self.get_unit_tests_score() # Get the score for unit tests
+        quantitative_score = self.get_quantitative_score() # Get the score for quantitative tests
+        total_score = unit_tests_score + quantitative_score # Calculate the total score as the sum of unit tests and quantitative scores
+        self.score =  (total_score/100) * self.sub_config.weight if self.sub_config.weight > 0 else 0 # Return the total score as a percentage of the sub-configuration weight
+
+    def get_unit_tests_score(self):
+        unit_tests_weight = 100 - self.sub_config.quantitative_tests_weight # Calculate the weight for unit tests
+
         if not self.filtered:
             regex = f"tests/test_{self.ctype}.py::{self.sub_config.convention}" # Regex to match the subject tests
             total_tests = sum(1 for s in self.test_report[0]+self.test_report[1] if s.startswith(regex)) # Count the total number of tests for the subject
@@ -90,10 +99,11 @@ class SubjectGrader:
             total_tests = self.get_all_tests()
             passed_tests = len(self.test_report[0])
 
-        self.score = (passed_tests / total_tests) * self.sub_config.weight
-        # Return the score as a percentage of the sub-configuration weight
+        return (passed_tests / total_tests) * unit_tests_weight if total_tests > 0 else 0 # Calculate the score as a percentage of the total tests for the subject, adjusted by the unit tests weight
+
     def filter_configs(self,configs):
         """Filter the configurations based on the convention of the subject."""
+
         filtered_configs = {}
         if configs.keys() != self.quantitative_report.keys():
             warnings.warn(
@@ -112,10 +122,12 @@ class SubjectGrader:
         if sum([config.weight for config in quantitative_configs.values()]) == 100:
             return
         else:
-            #print("Balancing active quantitative tests...")
+
             total_weight = sum([config.weight for config in quantitative_configs.values()])
             for test_name, config in quantitative_configs.items():
                 config.weight = round((config.weight / total_weight) * 100, 2)
+
+
     def get_quantitative_score(self):
         quantitative_configs = self.sub_config.get_quantitative_tests() # Get the quantitative tests from the sub-configuration
         quantitative_configs = self.filter_configs(quantitative_configs) # Filter the quantitative tests based on the convention
@@ -127,9 +139,8 @@ class SubjectGrader:
             actual_count = self.quantitative_report[test]
             if actual_count < test_config.checks:
                 test_score = ((test_config.checks - actual_count)/ test_config.checks) * test_config.weight
-                print(f"{test_config}\n\tExpected: {test_config.checks}, Actual: {actual_count}, Score: {test_config.weight - test_score}\n___________________________________________________________")
                 score -= test_score # Subtract the score for the test if the actual count is less than the expected checks
-        return score
+        return (score/100) * self.sub_config.quantitative_tests_weight if self.sub_config.quantitative_tests_weight > 0 else 0 # Return the score as a percentage of the quantitative tests weight
 
     def load_tests(self):
         """Filter the test results based on the include list."""
@@ -151,7 +162,6 @@ class SubjectGrader:
         filtered_quantitative = {test.split("::")[-1]:quantitative_tests[test] for test in quantitative_tests if test.split('::')[-1] in self.sub_config.get_quantitative_tests()}
 
         if filtered_quantitative:
-            #print("\t", filtered_quantitative)
             self.quantitative_report = filtered_quantitative
 
 
@@ -162,11 +172,9 @@ class SubjectGrader:
         """Create a SubjectGrader instance from a test report, a SubTestConfig instance, and a subject type.
         This method initializes the SubjectGrader, filters the tests based on the sub_config, and generates the sub score."""
         response = cls(test_report, sub_config, ctype)
-        #print("_______________________________________________________________")
-        #print(sub_config)
-        #print("_______________________________________________________________")
+
         response.load_tests()
-        print(response.get_quantitative_score())
+
         response.generate_sub_score()
         return response
 
