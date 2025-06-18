@@ -103,12 +103,10 @@ class SubjectGrader:
 
 
 
-
-
-
     @classmethod
     def create(cls,test_report, sub_config : SubTestConfig,ctype):
-        """Create a SubjectGrader instance from a test report, a SubTestConfig instance, and a subject type."""
+        """Create a SubjectGrader instance from a test report, a SubTestConfig instance, and a subject type.
+        This method initializes the SubjectGrader, filters the tests based on the sub_config, and generates the sub score."""
         response = cls(test_report, sub_config, ctype)
         response.filter_tests()
         response.generate_sub_score()
@@ -117,8 +115,7 @@ class SubjectGrader:
 
 
 
-
-
+class QuantitativeGrader:
 
 
 
