@@ -1,7 +1,7 @@
 from utils.config_loader import *
 import pytest
 from utils.collector import TestCollector
-
+import warnings
 
 class Grader:
     """This class is used to grade test files based on the results of pytest and the predefine configurations."""
@@ -11,6 +11,7 @@ class Grader:
         self.test_config = test_config # TestConfig instance containing the configuration for the test file
         self.passed_tests = [] # List of passed tests
         self.failed_tests = [] # List of failed tests
+        self.quantitative_results = {} # Dictionary to store quantitative results from tests
 
     def get_test_results(self):
         """Run pytest on the test file and collect the results."""
@@ -19,7 +20,6 @@ class Grader:
         passed_tests = collector.passed
         failed_tests = collector.failed
         quantitative_tests = collector.quantitative_results
-        print(quantitative_tests)
         return passed_tests, failed_tests, quantitative_tests # return a tuple of lists containing passed and failed tests
 
     def generate_score(self):
@@ -47,7 +47,7 @@ class Grader:
         return len(self.passed_tests) + len (self.failed_tests)
 
     def get_all_tests(self):
-        return self.passed_tests, self.failed_tests
+        return self.passed_tests, self.failed_tests,self.quantitative_results
 
     def get_results(self):
         """Get the results of the grading process."""
@@ -77,6 +77,7 @@ class SubjectGrader:
         self.ctype = ctype # Subject type (e.g., 'html, 'css', 'js')
         self.score = 0 # Score for the subject, initialized to 0
         self.filtered = False
+        self.quantitative_report = {}
     def get_all_tests(self):
         return len(self.test_report[0]) + len(self.test_report[1])
     def generate_sub_score(self):
@@ -91,10 +92,48 @@ class SubjectGrader:
 
         self.score = (passed_tests / total_tests) * self.sub_config.weight
         # Return the score as a percentage of the sub-configuration weight
+    def filter_configs(self,configs):
+        """Filter the configurations based on the convention of the subject."""
+        filtered_configs = {}
+        if configs.keys() != self.quantitative_report.keys():
+            warnings.warn(
+                "The number of configured quantitative tests does not match the actual quantitative tests set for this subject in the test file. "
+                "The existing quantitative tests will have their weights balanced to avoid scoring issues.",
+                UserWarning
+            )
+            for config in configs:
+                if config in self.quantitative_report.keys():
+                    filtered_configs[config] = configs[config]
+        else:
+            return configs
+        return filtered_configs
 
-    def filter_tests(self):
+    def balance_active_quantitative_tests(self,quantitative_configs):
+        if sum([config.weight for config in quantitative_configs.values()]) == 100:
+            return
+        else:
+            #print("Balancing active quantitative tests...")
+            total_weight = sum([config.weight for config in quantitative_configs.values()])
+            for test_name, config in quantitative_configs.items():
+                config.weight = round((config.weight / total_weight) * 100, 2)
+    def get_quantitative_score(self):
+        quantitative_configs = self.sub_config.get_quantitative_tests() # Get the quantitative tests from the sub-configuration
+        quantitative_configs = self.filter_configs(quantitative_configs) # Filter the quantitative tests based on the convention
+        self.balance_active_quantitative_tests(quantitative_configs)
+        score = 100 # the score represents the percentage of the expected checks that were passed
+
+        for test in self.quantitative_report:
+            test_config = quantitative_configs.get(test, None) # Get the configuration for the test
+            actual_count = self.quantitative_report[test]
+            if actual_count < test_config.checks:
+                test_score = ((test_config.checks - actual_count)/ test_config.checks) * test_config.weight
+                print(f"{test_config}\n\tExpected: {test_config.checks}, Actual: {actual_count}, Score: {test_config.weight - test_score}\n___________________________________________________________")
+                score -= test_score # Subtract the score for the test if the actual count is less than the expected checks
+        return score
+
+    def load_tests(self):
         """Filter the test results based on the include list."""
-        passed_tests, failed_tests = self.test_report
+        passed_tests, failed_tests,quantitative_tests = self.test_report
 
         # Using a set for the 'include' list provides faster lookups
         if self.sub_config.include:
@@ -109,6 +148,12 @@ class SubjectGrader:
             filtered_passed = [test for test in passed_tests if test.split('::')[-1] not in self.sub_config.exclude]
             filtered_failed = [test for test in failed_tests if test.split('::')[-1] not in self.sub_config.exclude]
             self.test_report = (filtered_passed, filtered_failed)
+        filtered_quantitative = {test.split("::")[-1]:quantitative_tests[test] for test in quantitative_tests if test.split('::')[-1] in self.sub_config.get_quantitative_tests()}
+
+        if filtered_quantitative:
+            #print("\t", filtered_quantitative)
+            self.quantitative_report = filtered_quantitative
+
 
 
 
@@ -117,7 +162,11 @@ class SubjectGrader:
         """Create a SubjectGrader instance from a test report, a SubTestConfig instance, and a subject type.
         This method initializes the SubjectGrader, filters the tests based on the sub_config, and generates the sub score."""
         response = cls(test_report, sub_config, ctype)
-        response.filter_tests()
+        #print("_______________________________________________________________")
+        #print(sub_config)
+        #print("_______________________________________________________________")
+        response.load_tests()
+        print(response.get_quantitative_score())
         response.generate_sub_score()
         return response
 
