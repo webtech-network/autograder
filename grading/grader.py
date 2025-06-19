@@ -29,7 +29,7 @@ class Grader:
             score = self.grade_with_sub_configs(sub_configs)
         else: # If there are no sub-configurations, grade the entire test file
             score = self.grade()
-
+        print(f"{self.test_config.ctype.upper()} score: {(score/100) * self.test_config.weight}")
         return (score/100) * self.test_config.weight # Return the final score as a percentage of the total weight
 
     def grade_with_sub_configs(self,sub_configs):
@@ -88,7 +88,11 @@ class SubjectGrader:
         total_score = unit_tests_score + quantitative_score # Calculate the total score as the sum of unit tests and quantitative scores
         self.score =  (total_score/100) * self.sub_config.weight if self.sub_config.weight > 0 else 0 # Return the total score as a percentage of the sub-configuration weight
 
+    def has_quantitative_config(self):
+        """Check if the subject has any quantitative tests configured."""
+        return len(self.sub_config.quantitative_tests) > 0
     def get_unit_tests_score(self):
+
         unit_tests_weight = 100 - self.sub_config.quantitative_tests_weight # Calculate the weight for unit tests
 
         if not self.filtered:
@@ -98,7 +102,6 @@ class SubjectGrader:
         else:
             total_tests = self.get_all_tests()
             passed_tests = len(self.test_report[0])
-
         return (passed_tests / total_tests) * unit_tests_weight if total_tests > 0 else 0 # Calculate the score as a percentage of the total tests for the subject, adjusted by the unit tests weight
 
     def filter_configs(self,configs):
@@ -129,6 +132,8 @@ class SubjectGrader:
 
 
     def get_quantitative_score(self):
+        if not self.has_quantitative_config(): # If there are no quantitative tests configured, return 0
+            return 0
         quantitative_configs = self.sub_config.get_quantitative_tests() # Get the quantitative tests from the sub-configuration
         quantitative_configs = self.filter_configs(quantitative_configs) # Filter the quantitative tests based on the convention
         self.balance_active_quantitative_tests(quantitative_configs)
