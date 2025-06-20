@@ -43,18 +43,13 @@ def parse_js(file_path="submission/script.js"):
     except Exception as e:
         pytest.fail(f"Error reading JavaScript file '{file_path}': {e}")
 
-
 @pytest.fixture(autouse=True)
 def quantitative_result_recorder(request):
     """
     Fixture to allow individual quantitative tests to report their actual_count.
     The data is attached to the test report via `request.node.user_properties`.
     """
-    def record_count(actual_count: int, expected_checks: int = 0):
-        # Store a dictionary with both actual_count and expected_checks for full context in the report
-        # The 'expected_checks' here is a placeholder; the true expected value comes from criteria.json.
-        request.node.user_properties.append(
-            ('quantitative_result', actual_count)
-        )
+    def record_count(actual_count: int):
+        # Record only the actual count
+        request.node.user_properties.append(('quantitative_result', actual_count))
     return record_count
-

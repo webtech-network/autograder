@@ -82,15 +82,14 @@ class SubjectGrader:
     def get_all_tests(self):
         return len(self.test_report[0]) + len(self.test_report[1])
 
+
     def generate_sub_score(self):
         unit_tests_score = self.get_unit_tests_score() # Get the score for unit tests
         quantitative_score = self.get_quantitative_score() # Get the score for quantitative tests
         total_score = unit_tests_score + quantitative_score # Calculate the total score as the sum of unit tests and quantitative scores
         self.score =  (total_score/100) * self.sub_config.weight if self.sub_config.weight > 0 else 0 # Return the total score as a percentage of the sub-configuration weight
 
-    def has_quantitative_config(self):
-        """Check if the subject has any quantitative tests configured."""
-        return len(self.sub_config.quantitative_tests) > 0
+
     def get_unit_tests_score(self):
 
         unit_tests_weight = 100 - self.sub_config.quantitative_tests_weight # Calculate the weight for unit tests
@@ -104,13 +103,31 @@ class SubjectGrader:
             passed_tests = len(self.test_report[0])
         return (passed_tests / total_tests) * unit_tests_weight if total_tests > 0 else 0 # Calculate the score as a percentage of the total tests for the subject, adjusted by the unit tests weight
 
+    def get_quantitative_score(self):
+        if not self.has_quantitative_config(): # If there are no quantitative tests configured, return 0
+            return 0
+        quantitative_configs = self.sub_config.get_quantitative_tests() # Get the quantitative tests from the sub-configuration
+        quantitative_configs = self.filter_configs(quantitative_configs) # Filter the quantitative tests based on the convention
+        self.balance_active_quantitative_tests(quantitative_configs)
+        score = 100 # the score represents the percentage of the expected checks that were passed
+
+        for test in self.quantitative_report:
+            test_config = quantitative_configs.get(test, None) # Get the configuration for the test
+            actual_count = self.quantitative_report[test]
+            if actual_count < test_config.checks:
+                test_score = ((test_config.checks - actual_count)/ test_config.checks) * test_config.weight
+                score -= test_score # Subtract the score for the test if the actual count is less than the expected checks
+        return (score/100) * self.sub_config.quantitative_tests_weight if self.sub_config.quantitative_tests_weight > 0 else 0 # Return the score as a percentage of the quantitative tests weight
+
+
     def filter_configs(self,configs):
         """Filter the configurations based on the convention of the subject."""
 
         filtered_configs = {}
         if configs.keys() != self.quantitative_report.keys():
+
             warnings.warn(
-                "The number of configured quantitative tests does not match the actual quantitative tests set for this subject in the test file. "
+                f"TEST_{self.ctype.upper()}: The number of configured quantitative tests in subject {self.sub_config.ctype} does not match the actual quantitative tests set for this subject in the test file. "
                 "The existing quantitative tests will have their weights balanced to avoid scoring issues.",
                 UserWarning
             )
@@ -131,21 +148,6 @@ class SubjectGrader:
                 config.weight = round((config.weight / total_weight) * 100, 2)
 
 
-    def get_quantitative_score(self):
-        if not self.has_quantitative_config(): # If there are no quantitative tests configured, return 0
-            return 0
-        quantitative_configs = self.sub_config.get_quantitative_tests() # Get the quantitative tests from the sub-configuration
-        quantitative_configs = self.filter_configs(quantitative_configs) # Filter the quantitative tests based on the convention
-        self.balance_active_quantitative_tests(quantitative_configs)
-        score = 100 # the score represents the percentage of the expected checks that were passed
-
-        for test in self.quantitative_report:
-            test_config = quantitative_configs.get(test, None) # Get the configuration for the test
-            actual_count = self.quantitative_report[test]
-            if actual_count < test_config.checks:
-                test_score = ((test_config.checks - actual_count)/ test_config.checks) * test_config.weight
-                score -= test_score # Subtract the score for the test if the actual count is less than the expected checks
-        return (score/100) * self.sub_config.quantitative_tests_weight if self.sub_config.quantitative_tests_weight > 0 else 0 # Return the score as a percentage of the quantitative tests weight
 
     def load_tests(self):
         """Filter the test results based on the include list."""
@@ -169,7 +171,9 @@ class SubjectGrader:
         if filtered_quantitative:
             self.quantitative_report = filtered_quantitative
 
-
+    def has_quantitative_config(self):
+        """Check if the subject has any quantitative tests configured."""
+        return len(self.sub_config.quantitative_tests) > 0
 
 
     @classmethod
