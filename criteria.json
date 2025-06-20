@@ -7,14 +7,37 @@
         "weight": 60,
         "test_path": "test_html_",
 
-
-        "exclude": ["test_html_has_inline_style"]
-
+        "exclude": ["test_html_has_inline_style"],
+        "quantitative": {
+          "weight" : 50,
+          "tests" : {
+          "test_html_quantitative_div_tags": {
+            "checks": 30,
+            "weight": 20
+          },
+           "test_html_quantitative_div": {
+            "checks": 30,
+            "weight": 20
+          },
+           "test_html_div": {
+            "checks": 30,
+            "weight": 20
+          },
+          "test_html_quantitative_section_tags" : {
+            "checks": 5,
+            "weight": 60
+          }
+        }
+        }
       },
       "css": {
-        "weight": 40,
+        "weight": 10,
         "test_path": "test_css_",
         "exclude": ["test_css_external_css_only","test_css_consistent_units"]
+      },
+      "js": {
+        "weight": 30,
+        "test_path": "test_js_"
       }
     }
   },

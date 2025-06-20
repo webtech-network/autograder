@@ -1,18 +1,6 @@
 # place your penalty test suite here
 import pytest
-from bs4 import BeautifulSoup
-
-def parse_html():
-    with open('submission/index.html', 'r', encoding='utf-8') as file:
-        return BeautifulSoup(file.read(), 'html.parser')
-
-def parse_css():
-    with open('submission/style.css', 'r', encoding='utf-8') as file:
-        return file.read()
-
-def parse_js():
-    with open('submission/script.js', 'r', encoding='utf-8') as file:
-        return file.read()
+from conftest import parse_html, parse_js, parse_css
 
 
 # === PENALTY TESTS (INVERTED LOGIC) ===
