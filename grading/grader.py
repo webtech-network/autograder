@@ -95,7 +95,7 @@ class SubjectGrader:
         unit_tests_weight = 100 - self.sub_config.quantitative_tests_weight # Calculate the weight for unit tests
 
         if not self.filtered:
-            regex = f"tests/test_{self.ctype}.py::{self.sub_config.convention}" # Regex to match the subject tests
+            regex = f"grading/tests/test_{self.ctype}.py::{self.sub_config.convention}" # Regex to match the subject tests
             total_tests = sum(1 for s in self.test_report[0]+self.test_report[1] if s.startswith(regex)) # Count the total number of tests for the subject
             passed_tests = sum(1 for s in self.test_report[0] if s.startswith(regex)) # Count the number of passed tests for the subject
         else:
