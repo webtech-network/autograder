@@ -22,14 +22,14 @@ class TestCollector:
                 None
             )
 
-            if quantitative_data:
+            if quantitative_data != None:
                 # This is a quantitative test. Record its specific count.
                 self.quantitative_results[report.nodeid] = quantitative_data
                 # Quantitative tests should generally "pass" in pytest execution
                 # if they ran and reported their count. Their score is determined
                 # by the reported count against expected_checks, not simple pass/fail.
                 # Add to passed list for overall execution tracking
-            else:
+            elif not quantitative_data:
                 # It's a regular pass/fail test
                 if report.failed:
                     self.failed.append(report.nodeid)
