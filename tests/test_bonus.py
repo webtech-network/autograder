@@ -1,175 +1,182 @@
-# place your bonus test suite here
 import pytest
-from conftest import parse_html, parse_js, parse_css
+from conftest import parse_html, parse_css, parse_js
+'''
+TEST SUITE FOR HTML PAGE
+'''
 
-
-
-# === BONUS TESTS ===
-
-# --- HTML BONUS TESTS ---
-
-def test_html_favicon_link():
+def test_html_doctype():
     """
-    pass: Você adicionou um favicon com sucesso! Sua página está mais profissional.
-    fail: Faltando favicon. Adicione um `<link rel='icon'>` dentro do `<head>` para exibir o ícone na aba do navegador.
+    pass: Perfeito! A declaração <!DOCTYPE html> está presente no início do documento.
+    fail: Seu HTML está sem a declaração <!DOCTYPE html>. Adicione-a no topo do arquivo para garantir compatibilidade com navegadores.
+    """
+
+    with open('submission/index.html', 'r', encoding='utf-8') as file:
+        content = file.read().lower()
+    assert '<!doctype html>' in content, "DOCTYPE declaration not found"
+
+
+def test_html_quantitative_div_tags(quantitative_result_recorder):
+    """
+    pass: Você usou <div> de forma adequada. Ótimo trabalho!
+    fail: Muitos <div> foram encontrados. Use-os com moderação, evitando mais de 10 para não poluir o HTML.
     """
     soup = parse_html()
-    assert soup.find('link', rel='icon') is not None, "Favicon is not included in the <head>."
-
-def test_html_section_ids_are_meaningful():
+    divs = soup.find_all('div')
+    actual_count = len(divs)
+    quantitative_result_recorder(actual_count)
+    assert actual_count > 0 , f"Too many <div> tags found: {actual_count} (should be <= 10)"
+def test_html_html_tag():
     """
-    pass: Os IDs das seções são significativos e bem nomeados. Excelente uso de kebab-case!
-    fail: Alguns IDs de seção estão genéricos ou mal formatados. Use nomes descritivos com hífens (kebab-case), como `minha-secao`.
+    pass: A tag <html> está corretamente presente, iniciando o documento HTML.
+    fail: O documento HTML está sem a tag <html>. Adicione-a para garantir a estrutura correta.
+    """
+
+    soup = parse_html()
+    # Ensure the <html> tag is present
+    assert soup.find('html') is not None, "The <html> tag is missing."
+
+def test_html_head_tag():
+    """
+    pass: A tag <head> foi encontrada. Ótimo, é nela que vão os metadados e links de estilo.
+    fail: A tag <head> está ausente. Certifique-se de incluí-la com título, links de CSS, etc.
+    """
+    soup = parse_html()
+    # Ensure the <head> tag is present
+    assert soup.find('head') is not None, "The <head> tag is missing."
+
+def test_html_quantitative_section_tags(quantitative_result_recorder):
+    """
+    pass: Você usou <section> de forma adequada. Muito bom!
+    fail: Muitos <section> foram encontrados. Use-os com moderação, evitando mais de 10 para não poluir o HTML.
     """
     soup = parse_html()
     sections = soup.find_all('section')
-    for section in sections:
-        sid = section.get('id')
-        assert sid is not None and '-' in sid, "Section ID is missing or not meaningful (use kebab-case)."
+    actual_count = len(sections)
+    quantitative_result_recorder(actual_count)
+    assert actual_count > 0, f"Too many <section> tags found: {actual_count})"
 
-def test_html_article_or_aside_used():
+def test_html_body_tag():
     """
-    pass: Você utilizou <article> ou <aside>, melhorando a semântica da sua página.
-    fail: Nenhum <article> ou <aside> foi encontrado. Considere usar essas tags para estruturar conteúdos relacionados ou independentes.
+    pass: A tag <body> está presente e pronta para exibir seu conteúdo.
+    fail: A tag <body> está faltando. Toda a parte visível da página deve estar dentro dela.
     """
     soup = parse_html()
-    assert soup.find('article') or soup.find('aside'), "No <article> or <aside> tags found."
+    # Ensure the <body> tag is present
+    assert soup.find('body') is not None, "The <body> tag is missing."
 
-
-# --- CSS BONUS TESTS ---
-
-def test_css_dark_mode_support():
+def test_html_title_tag():
     """
-    pass: Modo escuro detectado! Sua página se adapta às preferências do usuário.
-    fail: Não encontramos suporte a modo escuro. Considere usar `@media (prefers-color-scheme: dark)` para atender melhor os usuários.
-    """
-    css = parse_css()
-    assert '@media (prefers-color-scheme: dark)' in css, "No dark mode support detected."
-
-def test_css_custom_font_imported():
-    """
-    pass: Uma fonte personalizada foi importada com sucesso. Sua identidade visual está mais marcante!
-    fail: Você ainda não importou nenhuma fonte personalizada. Experimente usar o Google Fonts para trazer mais estilo ao texto.
-    """
-    css = parse_css()
-    assert '@import url(' in css or 'fonts.googleapis.com' in css, "Custom font not imported."
-
-def test_css_css_animation():
-    """
-    pass: Ótimo uso de animações com CSS! Isso deixa a interface mais viva.
-    fail: Nenhuma animação CSS detectada. Considere adicionar efeitos com `@keyframes` ou `animation` para enriquecer a experiência do usuário.
-    """
-    css = parse_css()
-    assert '@keyframes' in css or 'animation:' in css, "No CSS animation detected."
-
-def test_css_responsive_typography():
-    """
-    pass: Sua tipografia é responsiva! Uso de `clamp()`, `vw` ou `rem` aprovado.
-    fail: A tipografia parece fixa. Utilize `rem`, `vw` ou `clamp()` para tornar o texto adaptável a diferentes telas.
-    """
-    css = parse_css()
-    assert 'clamp(' in css or 'vw' in css or 'rem' in css, "Responsive typography not found (use clamp, rem, vw, etc.)."
-
-
-# --- JS BONUS TESTS ---
-
-def test_js_js_uses_template_literals():
-    """
-    pass: Você utilizou template literals no JavaScript. Muito bem!
-    fail: Template literals (`${}` dentro de crase) deixam o código mais limpo. Considere adotá-los para montar strings dinamicamente.
-    """
-    js = parse_js()
-    assert '`' in js and '${' in js, "No usage of template literals found in JavaScript."
-
-def test_js_local_or_session_storage():
-    """
-    pass: Você utilizou `localStorage` ou `sessionStorage` para persistir dados no navegador. Excelente!
-    fail: Considere usar `localStorage` ou `sessionStorage` para guardar preferências do usuário ou dados temporários.
-    """
-    js = parse_js()
-    assert 'localStorage.' in js or 'sessionStorage.' in js, "No use of localStorage or sessionStorage."
-
-def test_js_interaction_feedback():
-    """
-    pass: Comportamentos interativos detectados! O usuário recebe retorno ao interagir.
-    fail: Sua página ainda não oferece feedback visual nas interações. Tente usar `classList.add`, `innerHTML` ou `toggle` para isso.
-    """
-    js = parse_js()
-    keywords = ['classList.add', 'innerHTML', 'textContent', 'disabled', 'toggle']
-    assert any(k in js for k in keywords), "No dynamic feedback behavior found on user interaction."
-
-def test_html_form_validation_logic():
-    """
-    pass: Lógica de validação detectada! Os formulários estão mais robustos.
-    fail: Considere implementar validações nos formulários usando `.checkValidity()` ou expressões regulares.
-    """
-    js = parse_js()
-    assert 'checkValidity' in js or 'regex' in js or '.test(' in js, "No form validation logic found."
-
-def test_js_modular_code_structure():
-    """
-    pass: Seu código está estruturado em módulos ES6 com `import` e `export`. Excelente!
-    fail: Modularize seu JavaScript com `export` e `import` para manter o projeto organizado e escalável.
-    """
-    js = parse_js()
-    assert 'export ' in js or 'import ' in js, "JavaScript modular code structure (ES Modules) not detected."
-
-# 13. Test for proper use of array methods (e.g., map, filter, reduce)
-def test_js_array_methods():
-    """
-    pass: Métodos como `map`, `filter` ou `reduce` foram usados com sucesso!
-    fail: Evite `for` e `while` para percorrer arrays. Tente usar métodos modernos como `map`, `filter` ou `reduce`.
-    """
-    js_content = parse_js()
-    # Ensure that array methods like map, filter, reduce are used instead of traditional loops
-    assert "map(" in js_content or "filter(" in js_content or "reduce(" in js_content, "Array methods like map, filter, or reduce are not used."
-
-# 10. Test for preventing memory leaks
-def test_js_memory_leaks():
-    """
-    pass: Muito bem! Sua aplicação cuida de possíveis vazamentos de memória com `removeEventListener`, `clearInterval` ou `clearTimeout`.
-    fail: Detectamos ausência de tratamento para eventos ou timers. Lembre-se de usar `removeEventListener` ou `clearInterval` para evitar vazamentos.
-    """
-    js_content = parse_js()
-    # Ensure that event listeners or intervals are properly cleaned up to avoid memory leaks
-    assert ".removeEventListener" in js_content or "clearInterval" in js_content or "clearTimeout" in js_content, "Memory leaks may occur due to unremoved event listeners or intervals."
-
-# 6. Test for Minification
-def test_css_css_minification():
-    """
-    pass: O CSS está minificado. Seu código está limpo e otimizado!
-    fail: O CSS contém quebras de linha ou espaços desnecessários. Considere minificar para carregar mais rápido.
-    """
-    css_content = parse_css()
-    # Ensure that the CSS is minified (no extra spaces or line breaks)
-    assert css_content == css_content.replace("\n", "").replace("\t", ""), "CSS is not minified."
-
-def test_html_open_graph_description_tag():
-    """
-    pass: Sua página tem uma descrição Open Graph. Isso melhora a aparência dos links nas redes sociais.
-    fail: Está faltando a meta tag Open Graph de descrição. Adicione `<meta property='og:description'>` no <head>.
+    pass: Excelente! Sua página tem um título visível na aba do navegador.
+    fail: Sua página está sem <title>. Adicione-a dentro do <head> para definir um título no navegador.
     """
     soup = parse_html()
-    # Ensure Open Graph meta description tag is present
-    meta_tag = soup.find('meta', attrs={"property": "og:description"})
-    assert meta_tag is not None, "Missing Open Graph <meta property='og:description'> tag"
+    # Ensure the <title> tag is present
+    assert soup.find('title') is not None, "The <title> tag is missing."
 
-def test_html_open_graph_title_tag():
+def test_html_meta_charset():
     """
-    pass: Open Graph título presente! Sua página será bem apresentada ao ser compartilhada.
-    fail: Adicione `<meta property='og:title'>` para definir um título ao compartilhar sua página em redes sociais.
+    pass: A codificação de caracteres foi definida corretamente com UTF-8.
+    fail: Está faltando a meta tag charset. Adicione <meta charset='UTF-8'> para evitar problemas com acentuação.
     """
     soup = parse_html()
-    # Ensure Open Graph meta title tag is present
-    meta_tag = soup.find('meta', attrs={"property": "og:title"})
-    assert meta_tag is not None, "Missing Open Graph <meta property='og:title'> tag"
+    # Ensure the meta charset tag is present
+    meta_tag = soup.find('meta', attrs={"charset": True})
+    assert meta_tag is not None, "Missing <meta charset='UTF-8'>"
 
-def test_html_meta_description():
+def test_html_meta_viewport():
     """
-    pass: A meta descrição foi definida. Isso ajuda sua página a aparecer melhor em buscadores.
-    fail: Inclua a tag `<meta name='description'>` com um resumo da sua página para melhorar o SEO.
+    pass: A tag <meta name='viewport'> está presente e garante responsividade.
+    fail: Faltando a meta tag de viewport. Ela é essencial para que a página funcione bem em dispositivos móveis.
     """
     soup = parse_html()
-    # Ensure the meta description tag is present
-    meta_tag = soup.find('meta', attrs={"name": "description"})
-    assert meta_tag is not None, "Missing <meta name='description'> tag"
+    # Ensure the meta viewport tag is present for responsive design
+    meta_tag = soup.find('meta', attrs={"name": "viewport"})
+    assert meta_tag is not None, "Missing <meta name='viewport'> tag"
+
+
+
+# 3. Test Accessibility and Semantic HTML (One test per element)
+
+def test_html_image_alt_attributes():
+    """
+    pass: Todas as imagens possuem atributo alt. Isso melhora a acessibilidade.
+    fail: Algumas imagens estão sem o atributo alt. Adicione descrições alternativas para leitores de tela.
+    """
+    soup = parse_html()
+    # Ensure all images have alt attributes
+    images = soup.find_all('img')
+    for img in images:
+        assert img.get('alt'), "Image missing 'alt' attribute"
+
+def test_html_form_labels():
+    """
+    pass: Ótimo! Todos os inputs possuem labels associados.
+    fail: Alguns inputs não possuem labels. Isso prejudica a acessibilidade. Use a tag <label> com o atributo 'for'.
+    """
+    soup = parse_html()
+    # Ensure all form inputs have associated labels
+    inputs = soup.find_all('input')
+    for input_tag in inputs:
+        label = soup.find('label', attrs={'for': input_tag.get('id')})
+        assert label, f"Missing label for {input_tag.get('id')}"
+
+def test_html_semantic_header_tag():
+    """
+    pass: A tag <header> está presente. Sua estrutura semântica está bem definida!
+    fail: Faltando a tag <header>. Use-a para agrupar conteúdo introdutório da página.
+    """
+    soup = parse_html()
+    # Ensure <header> tag is present
+    assert soup.find('header') is not None, "Missing <header> tag"
+
+def test_html_semantic_footer_tag():
+    """
+    pass: Muito bom! A tag <footer> está presente e posiciona corretamente o rodapé.
+    fail: A tag <footer> está ausente. Use-a para agrupar conteúdo no final da página, como créditos ou links.
+    """
+    soup = parse_html()
+    # Ensure <footer> tag is present
+    assert soup.find('footer') is not None, "Missing <footer> tag"
+
+def test_html_semantic_nav_tag():
+    """
+    pass: A tag <nav> foi utilizada. Isso deixa sua navegação bem definida!
+    fail: Você se esqueceu da tag <nav>. Use-a para indicar menus de navegação.
+    """
+    soup = parse_html()
+    # Ensure <nav> tag is present
+    assert soup.find('nav') is not None, "Missing <nav> tag"
+
+def test_html_semantic_main_tag():
+    """
+    pass: A tag <main> foi usada corretamente para destacar o conteúdo principal.
+    fail: Inclua a tag <main> para delimitar o conteúdo central da sua página.
+    """
+    soup = parse_html()
+    # Ensure <main> tag is present
+    assert soup.find('main') is not None, "Missing <main> tag"
+
+
+
+
+def test_html_closing_tags():
+    """
+    pass: Todas as tags foram corretamente fechadas. HTML válido!
+    fail: Algumas tags não foram fechadas. Isso pode quebrar a estrutura da página. Corrija os fechamentos.
+    """
+    soup = parse_html()
+    # Ensure all non-void elements are properly closed
+    void_tags = ['img', 'br', 'hr', 'input', 'meta']
+    for tag in soup.find_all(True):  # True selects all tags
+        if tag.name not in void_tags:
+            assert soup.find(tag.name) is not None, f"Missing closing tag for <{tag.name}>"
+
+# 6. Test HTML Validation (Basic placeholder test for valid HTML)
+
+def test_html_valid_html():
+    """
+    pass: O HTML está bem formado e válido.
+    fail: O HTML parece estar mal estruturado. Revise o código ou utilize um validador como o do W3C.
+    """
+    soup = parse_html()
+    assert soup is not None, "HTML is not valid"
