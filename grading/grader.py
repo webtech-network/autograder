@@ -85,7 +85,9 @@ class SubjectGrader:
 
     def generate_sub_score(self):
         unit_tests_score = self.get_unit_tests_score() # Get the score for unit tests
+
         quantitative_score = self.get_quantitative_score() # Get the score for quantitative tests
+
         total_score = unit_tests_score + quantitative_score # Calculate the total score as the sum of unit tests and quantitative scores
         self.score =  (total_score/100) * self.sub_config.weight if self.sub_config.weight > 0 else 0 # Return the total score as a percentage of the sub-configuration weight
 
@@ -154,26 +156,30 @@ class SubjectGrader:
         passed_tests, failed_tests,quantitative_tests = self.test_report
 
         # Using a set for the 'include' list provides faster lookups
+        filtered_quantitative = {test.split("::")[-1]: quantitative_tests[test] for test in quantitative_tests if
+                                 test.split('::')[-1] in self.sub_config.get_quantitative_tests()}
         if self.sub_config.include:
             # Filter both lists to keep only the tests present in the include_set
             filtered_passed = [test for test in passed_tests if test.split('::')[-1] in self.sub_config.include]
             filtered_failed = [test for test in failed_tests if test.split('::')[-1] in self.sub_config.include]
+            filtered_quantitative = {test: filtered_quantitative[test] for test in filtered_quantitative if test in self.sub_config.include}
             # If the include list is empty, we keep all tests
             self.test_report = (filtered_passed, filtered_failed) # Update the test report with the filtered results
             self.filtered = True
         elif self.sub_config.exclude:
             # Filter both lists to keep only the tests not present in the include_set
+
             filtered_passed = [test for test in passed_tests if test.split('::')[-1] not in self.sub_config.exclude]
             filtered_failed = [test for test in failed_tests if test.split('::')[-1] not in self.sub_config.exclude]
+            filtered_quantitative = {test: filtered_quantitative[test] for test in filtered_quantitative if test not in self.sub_config.exclude}
             self.test_report = (filtered_passed, filtered_failed)
-        filtered_quantitative = {test.split("::")[-1]:quantitative_tests[test] for test in quantitative_tests if test.split('::')[-1] in self.sub_config.get_quantitative_tests()}
 
         if filtered_quantitative:
             self.quantitative_report = filtered_quantitative
 
     def has_quantitative_config(self):
         """Check if the subject has any quantitative tests configured."""
-        return len(self.sub_config.quantitative_tests) > 0
+        return len(self.quantitative_report) > 0
 
 
     @classmethod
