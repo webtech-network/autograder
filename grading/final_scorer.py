@@ -40,10 +40,10 @@ class Scorer:
     def give_bonus_score(self,base_score):
         """Add the bonus score to the final score if the base score is less than 100."""
         bonus_score = self.bonus_grader.generate_score()
-        if 100 - base_score >= bonus_score:
+        if 100 - base_score >= self.bonus_grader.test_config.weight:
             self.final_score += bonus_score
-        elif 100 - base_score < bonus_score:
-            self.final_score += (bonus_score/self.bonus_grader.weight) * (100 - base_score) # If the bonus score exceeds the remaining points to 100, scale it down
+        elif 100 - base_score < self.bonus_grader.test_config.weight:
+            self.final_score += (bonus_score/self.bonus_grader.test_config.weight) * (100 - base_score) # If the bonus score exceeds the remaining points to 100, scale it down
 
     def get_feedback(self):
         """Generate feedback in Markdown format based on the test results."""
