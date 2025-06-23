@@ -29,9 +29,21 @@ class Scorer:
 
     def set_final_score(self):
         """Calculate the final score by combining the scores from base, bonus, and penalty test files."""
-        final_score = (self.base_grader.generate_score())+(self.bonus_grader.generate_score()) - (self.penalty_grader.generate_score())
-        self.final_score = final_score
-        return final_score
+        base_score = self.base_grader.generate_score() # Generate the score for the base test file
+        self.final_score = base_score
+        if base_score < 100:
+            self.give_bonus_score(base_score) # If the base score is less than 100, add the bonus score
+        penalty_score = self.penalty_grader.generate_score() # Generate the score for the penalty test file
+        self.final_score -= penalty_score # Subtract the penalty score from the final score
+        return self.final_score
+
+    def give_bonus_score(self,base_score):
+        """Add the bonus score to the final score if the base score is less than 100."""
+        bonus_score = self.bonus_grader.generate_score()
+        if 100 - base_score >= self.bonus_grader.test_config.weight:
+            self.final_score += bonus_score
+        elif 100 - base_score < self.bonus_grader.test_config.weight:
+            self.final_score += (bonus_score/self.bonus_grader.test_config.weight) * (100 - base_score) # If the bonus score exceeds the remaining points to 100, scale it down
 
     def get_feedback(self):
         """Generate feedback in Markdown format based on the test results."""

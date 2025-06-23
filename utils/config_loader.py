@@ -56,7 +56,7 @@ class TestConfig:
         """Load the configuration for the test type from the provided dictionary."""
         try:
             section = config[self.ctype]
-            self.weight = section['weight']
+            self.weight = section['weight'] if self.ctype != 'base' else 100 # Base tests have a weight of 100
             if self.load_subjects(section.get('subjects')) is True:
                 self.balance_weights(self.sub_configs)
         except KeyError as e:
