@@ -1,7 +1,7 @@
 services:
   db: 
     image: postgres:17
-    entrypoint: 
+    environment: 
       POSTGRES_DB: db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: 1234
