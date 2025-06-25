@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-
+from core.config_processing.test_config import TestConfig
+from core.grading.subject_grader import SubjectGrader
 
 class BaseGrader(ABC):
     """Abstract base class for grading"""

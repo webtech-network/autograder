@@ -1,8 +1,4 @@
-from utils.config_loader import *
-import pytest
-from utils.collector import TestCollector
-import warnings
-from core.result_processor import ResultProcessor
+from core.config_processing.test_config import TestConfig
 from core.grading.pytest_grader import PytestGrader
 from core.grading.json_result_grader import JsonResultGrader
 

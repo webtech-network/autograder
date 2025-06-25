@@ -12,3 +12,4 @@ class ResultProcessor:
         failed_tests = [test for test in data if test.get("status") == "failed"]
         quantitative_results = {}  # Not present in this format
         return passed_tests, failed_tests, quantitative_results
+

@@ -1,7 +1,7 @@
-from grading.grader import Grader
+from core.grading.grader import Grader
 from utils.report_generator import generate_md
 from utils.path import Path
-from utils.config_loader import Config
+from core.config_processing.config import Config
 from time import sleep
 
 class Scorer:

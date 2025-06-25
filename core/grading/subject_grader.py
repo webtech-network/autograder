@@ -1,5 +1,5 @@
 
-from utils.config_loader import *
+from core.config_processing.sub_test_config import SubTestConfig
 import warnings
 
 class SubjectGrader:
