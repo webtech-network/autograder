@@ -20,7 +20,13 @@ class Grader:
         passed_tests = collector.passed
         failed_tests = collector.failed
         quantitative_tests = collector.quantitative_results
-        return passed_tests, failed_tests, quantitative_tests # return a tuple of lists containing passed and failed tests
+        self.set_cleaned_tests(passed_tests, failed_tests, quantitative_tests) # Clean the test results
+
+    def set_cleaned_tests(self, passed_tests, failed_tests, quantitative_tests):
+        """Clean the test results by removing the test file path and formatting the test names."""
+        self.passed_tests = [test.replace(self.test_file + "::", "") for test in passed_tests]
+        self.failed_tests = [test.replace(self.test_file + "::", "") for test in failed_tests]
+        self.quantitative_results = {test.replace(self.test_file + "::", ""): count for test, count in quantitative_tests.items()}
 
     def generate_score(self):
         """Generate the score based on the test results and the test configuration."""
@@ -62,10 +68,7 @@ class Grader:
     def create(cls,test_file: str,test_config: str):
         """Create a Grader instance from a test file and a TestConfig instance."""
         grader = Grader(test_file,test_config)
-        results = grader.get_test_results() # Get the test results by running pytest on the test file
-        grader.passed_tests = results[0] # Set the passed tests
-        grader.failed_tests = results[1]
-        grader.quantitative_results = results[2] if len(results) > 2 else {}
+        grader.get_test_results()
         grader.test_amount = grader.get_test_amount()
         return grader
 
@@ -97,7 +100,7 @@ class SubjectGrader:
         unit_tests_weight = 100 - self.sub_config.quantitative_tests_weight # Calculate the weight for unit tests
 
         if not self.filtered:
-            regex = f"tests/test_{self.ctype}.py::{self.sub_config.convention}" # Regex to match the subject tests
+            regex = self.sub_config.convention  # Regex to match the subject tests
             total_tests = sum(1 for s in self.test_report[0]+self.test_report[1] if s.startswith(regex)) # Count the total number of tests for the subject
             passed_tests = sum(1 for s in self.test_report[0] if s.startswith(regex)) # Count the number of passed tests for the subject
         else:
