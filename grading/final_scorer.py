@@ -1,8 +1,9 @@
 from grading.grader import Grader
-from utils.report_generator import generate_md
+from report.report_generator import generate_md,generate_ai_md
 from utils.path import Path
 from utils.config_loader import Config
 from time import sleep
+import os
 
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
@@ -39,11 +40,26 @@ class Scorer:
         bonus_dict = {"passed": self.bonus_grader.passed_tests, "failed": self.bonus_grader.failed_tests} # Format the bonus test results
         penalty_dict = {"passed": self.penalty_grader.passed_tests, "failed": self.penalty_grader.failed_tests} # Format the penalty test results
         return generate_md(base_dict, bonus_dict, penalty_dict, self.final_score, self.author) # Calls the generate_md function to create the feedback
-
-    def create_feedback(self):
+    def get_ai_feedback(self):
+        """Generate AI Generated feedback in Markdown format based on the test results."""
+        code = self.get_student_files()
+        base_dict = {"passed": self.base_grader.passed_tests,"failed": self.base_grader.failed_tests}  # Format the base test results
+        bonus_dict = {"passed": self.bonus_grader.passed_tests,"failed": self.bonus_grader.failed_tests}  # Format the bonus test results
+        penalty_dict = {"passed": self.penalty_grader.passed_tests,"failed": self.penalty_grader.failed_tests}  # Format the penalty test results
+        return generate_ai_md(code, base_dict, bonus_dict, penalty_dict, self.final_score,self.author)  # Calls the generate_md function to create the feedback
+    def create_feedback(self,mode="default"):
         """Create a feedback file in Markdown format with the test results and final score."""
         with open(self.path.getFilePath("feedback.md"),'w',encoding="utf-8") as feedback:
-            feedback.write(self.get_feedback())
+            if mode == "default":
+                feedback.write(self.get_feedback())
+            elif mode == "ai":
+                feedback.write(self.get_ai_feedback())
+            else:
+                raise Exception("Invalid mode")
+    def get_student_files(self):
+        """Get the student files."""
+        with open("submission/index.html","r",encoding="utf-8") as student_file:
+            return student_file.read()
 
     @classmethod
     def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file):
