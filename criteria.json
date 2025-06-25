@@ -1,9 +1,11 @@
 {
   "base": {
+    "native": false,
     "weight": 100
 
   },
   "bonus": {
+    "native": false
     "weight": 40,
     "subjects": {
       "extras": {
@@ -13,6 +15,7 @@
     }
   },
   "penalty": {
+    "native": false,
     "weight": 100,
     "subjects": {
       "forbidden": {
