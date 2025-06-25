@@ -1,13 +1,7 @@
 {
   "base": {
-    "weight": 100,
-    "subjects": {
-      "arithmetic": {
-        "weight": 100,
-        "test_path": "test_"
+    "weight": 100
 
-      }
-    }
   },
   "bonus": {
     "weight": 40,
