@@ -5,7 +5,7 @@
 
   },
   "bonus": {
-    "native": false
+    "native": false,
     "weight": 40,
     "subjects": {
       "extras": {
