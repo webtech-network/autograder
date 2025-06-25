@@ -2,6 +2,7 @@ from utils.config_loader import *
 import pytest
 from utils.collector import TestCollector
 import warnings
+from grading.result_processor import ResultProcessor
 
 class Grader:
     """This class is used to grade test files based on the results of pytest and the predefine configurations."""
@@ -13,7 +14,7 @@ class Grader:
         self.failed_tests = [] # List of failed tests
         self.quantitative_results = {} # Dictionary to store quantitative results from tests
 
-    def get_test_results(self):
+    def get_pytest_results(self):
         """Run pytest on the test file and collect the results."""
         collector = TestCollector()
         result = pytest.main([self.test_file,"-p", "no:terminal"], plugins=[collector]) #"-p", "no:terminal"
@@ -21,7 +22,13 @@ class Grader:
         failed_tests = collector.failed
         quantitative_tests = collector.quantitative_results
         return passed_tests, failed_tests, quantitative_tests # return a tuple of lists containing passed and failed tests
-
+    def get_test_results(self):
+        """Get the tests results from a json results file"""
+        results_dict = ResultProcessor.load_results(f"tests/results/{self.test_file.split(".")[0]}_results.json") # Load the test results from the specified file
+        passed_tests = [test['test'] for test in results_dict[0]]
+        failed_tests = [test['test'] for test in results_dict[1]]
+        quantitative_tests = []
+        return passed_tests, failed_tests, quantitative_tests # Return a tuple of lists containing passed and failed tests
     def generate_score(self):
         """Generate the score based on the test results and the test configuration."""
         sub_configs = self.test_config.sub_configs # Get the sub-configurations from the test configuration
@@ -41,7 +48,7 @@ class Grader:
         return score
 
     def grade(self):
-        return len(self.passed_tests) / self.get_test_amount()
+        return (len(self.passed_tests) / self.get_test_amount()) * 100 if self.test_config.ctype == "base" else (len(self.passed_tests) / self.get_test_amount()) * self.test_config.weight if self.test_config.weight > 0 else 0
 
     def get_test_amount(self):
         return len(self.passed_tests) + len (self.failed_tests)
@@ -103,6 +110,7 @@ class SubjectGrader:
         else:
             total_tests = self.get_all_tests()
             passed_tests = len(self.test_report[0])
+        print("Passed tests for subject ", self.sub_config.ctype, ":", passed_tests)
         return (passed_tests / total_tests) * unit_tests_weight if total_tests > 0 else 0 # Calculate the score as a percentage of the total tests for the subject, adjusted by the unit tests weight
 
     def get_quantitative_score(self):
