@@ -16,5 +16,5 @@ try {
 } catch (e) {
   recordResult('test_bonus_exception', 'failed', e.message);
 } finally {
-  fs.writeFileSync('test_bonus_results.json', JSON.stringify(results, null, 2));
+  fs.writeFileSync('./results/test_bonus_results.json', JSON.stringify(results, null, 2));
 }
