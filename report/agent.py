@@ -1,19 +1,13 @@
 from openai import OpenAI
-client = OpenAI(api_key = "")
+import os
+client = OpenAI(api_key=f"{os.getenv('OPENAI_API_KEY')}")
 
 
-candidate_code = """
+candidate_code = """\
 def add(a, b):
     return a + b
 """
 
-perfect_code = """
-def add(a, b):
-    # Handles floats and integers and raises TypeError on invalid input
-    if not isinstance(a, (int, float)) or not isinstance(b, (int, float)):
-        raise TypeError("Inputs must be numbers")
-    return a + b
-"""
 
 test_results = {
     "base": {
@@ -30,46 +24,46 @@ test_results = {
 }
 
 system_prompt = (
-    "You are an expert code reviewer. You just received a candidate's solution "
-    "for a code challenge. Your job is to give friendly, human, motivating feedback based on which "
-    "unit tests passed and failed. You will compliment what's good, highlight issues in a kind way, "
-    "and encourage the candidate to improve. Your tone is casual, empathetic,human-like and constructive. "
-    "Mention the types of tests: base (essential), bonus (nice-to-have), and penalty (bad practices)."
+    "Você é um revisor de código especialista. Você acabou de receber a solução de um candidato "
+    "para um desafio de código. Seu trabalho é fornecer um feedback amigável, humano e motivador com base nos "
+    "testes de unidade que passaram e falharam. Você elogiará o que é bom, destacará problemas de forma gentil "
+    "e incentivará o candidato a melhorar. Seu tom é casual, empático, humano e construtivo. "
+    "Você deve retornar respostas formatadas em markdown, isso é obrigatório. "
+    "A resposta deve ser apenas em direção ao candidato, sem mencionar o revisor ou o sistema."
 )
 
 user_prompt = f"""
-Here is the candidate's code:
+### 🧪 Código submetido:
+
+```python
 {candidate_code}
+```
 
-Here is the perfect solution:
-{perfect_code}
+### 📊 Resultados dos testes:
 
-Test results:
-Base tests:
+**Testes base:**  
 {test_results['base']}
 
-Bonus tests:
+**Testes bônus:**  
 {test_results['bonus']}
 
-Penalty tests:
+**Testes de penalidade:**  
 {test_results['penalty']}
 
-Candidate's score: {test_results['score']}%
+**Pontuação final:** {test_results['score']}%
 
-Please provide human-friendly feedback.
+Por favor, forneça um feedback amigável, humano e motivador.
+A resposta deve ser apenas em direção ao candidato, sem mencionar o revisor ou o sistema.
+Forneça toda a resposta em uma estrutura bem feita em markdown com elementos de títulos, indentação e listas.Markdown é obrigatório.
 """
 
-resp = client.responses.create(
-  model="gpt-4.1",
-  tools=[
-    {
-      "type": "code_interpreter",
-      "container": { "type": "auto" }
-    }
-  ],
-  instructions=system_prompt,
-  input=user_prompt,
-)
+response = client.chat.completions.create(model="gpt-3.5-turbo",
+messages=[
+    {"role": "system", "content": system_prompt},
+    {"role": "user", "content": user_prompt}
+],
+temperature=0.7)
 
-print(resp.output_text)
-
+print(response.choices[0].message.content)
+with open("report.txt", "a") as file:
+    file.write(str(response.usage.total_tokens))
