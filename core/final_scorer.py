@@ -17,15 +17,15 @@ class Scorer:
 
     def set_base_score(self,filename):
         """Set the base score by creating a Grader instance for the base test file."""
-        self.base_grader = Grader.create(f"tests/{filename}",self.config.base_config)
+        self.base_grader = Grader.create(f"{filename}",self.config.base_config)
 
     def set_bonus_score(self,filename):
         """Set the bonus score by creating a Grader instance for the bonus test file."""
-        self.bonus_grader = Grader.create(f"tests/{filename}",self.config.bonus_config)
+        self.bonus_grader = Grader.create(f"{filename}",self.config.bonus_config)
 
     def set_penalty_score(self,filename):
         """Set the penalty score by creating a Grader instance for the penalty test file."""
-        self.penalty_grader = Grader.create(f"tests/{filename}",self.config.penalty_config)
+        self.penalty_grader = Grader.create(f"{filename}",self.config.penalty_config)
 
     def set_final_score(self):
         """Calculate the final score by combining the scores from base, bonus, and penalty test files."""
