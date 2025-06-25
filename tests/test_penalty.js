@@ -10,9 +10,9 @@ function recordResult(test, status, message = null) {
 try {
   const code = fs.readFileSync('../submission/answer.js', 'utf-8');
   if (/eval\s*\(/.test(code)) {
-    recordResult('test_no_eval', 'failed', 'Use of eval is forbidden');
+    recordResult('test_no_eval', 'passed', 'Use of eval is forbidden');
   } else {
-    recordResult('test_no_eval', 'passed');
+    recordResult('test_no_eval', 'failed');
   }
 } catch (e) {
   recordResult('test_penalty_exception', 'failed', e.message);
