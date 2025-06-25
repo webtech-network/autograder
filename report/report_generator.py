@@ -139,5 +139,6 @@ def generate_ai_md(code,base,bonus,penalty,final_score,author):
                                                   {"role": "user", "content": user_prompt}
                                               ],
                                               temperature=0.7)
-    print(response.choices[0].message.content)
+    feedback = response.choices[0].message.content
+    return feedback
 
