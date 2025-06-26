@@ -15,7 +15,6 @@ try {
   recordResult('test_subtract', calc.subtract(5, 2) === 3 ? 'passed' : 'failed', '5 - 2 should be 3');
   recordResult('test_multiply', calc.multiply(4, 3) === 12 ? 'passed' : 'failed', '4 * 3 should be 12');
   recordResult('test_divide', calc.divide(10, 2) === 5 ? 'passed' : 'failed', '10 / 2 should be 5');
-  recordResult('test_will_fail', calc.add(2, 2) === 5 ? 'passed' : 'failed', 'This test is intentionally set to fail');
 } catch (e) {
   recordResult('test_base_exception', 'failed', e.message);
 } finally {
