@@ -99,12 +99,16 @@ def generate_ai_md(code,base,bonus,penalty,final_score,author):
     }
 
     system_prompt = (
+
         "Você é um revisor de código especialista. Você acabou de receber a solução de um candidato "
-        "para um desafio de código. Seu trabalho é fornecer um feedback amigável, humano e motivador com base nos "
+        "para um desafio de código. O desafio é de implementar uma calculadora em JavaScript com Node.js"
+        " Seu trabalho é fornecer um feedback amigável, humano e motivador com base nos "
         "testes de unidade que passaram e falharam. Você elogiará o que é bom, destacará problemas de forma gentil "
         "e incentivará o candidato a melhorar. Seu tom é casual, empático, humano e construtivo. "
         "Você deve retornar respostas formatadas em markdown, isso é obrigatório. "
         "A resposta deve ser apenas em direção ao candidato, sem mencionar o revisor ou o sistema."
+        "Em momento algum você deve mencionar a existência de testes unitários sendo executados por um sistema de avaliação automatizado. "
+        "Você deve fornecer o feedback sem citar a presença de teste, mostrando que você é simplesmente um revisor que realmente leu o código do candidato e está fornecendo feedback sobre ele."
     )
 
     user_prompt = f"""
@@ -131,6 +135,9 @@ def generate_ai_md(code,base,bonus,penalty,final_score,author):
     Por favor, forneça um feedback amigável, humano e motivador.
     A resposta deve ser apenas em direção ao candidato, sem mencionar o revisor ou o sistema.
     Forneça toda a resposta em uma estrutura bem feita em markdown com elementos de títulos, indentação e listas.Markdown é obrigatório.
+    Lembre-se de em nenhum momento mencionar a existência de testes unitários sendo executados por um sistema de avaliação automatizado.
+    Você deve agir como um revisor que realmente leu o código do candidato e está fornecendo feedback sobre ele.
+    Não se esqueça de divulgar a nota final do candidato, que é {final_score}/100. A nota deve ser apresentada antes de sua análise e de forma objetiva.
     """
 
     response = client.chat.completions.create(model="gpt-3.5-turbo",
