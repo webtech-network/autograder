@@ -49,7 +49,7 @@ class Scorer:
         return generate_ai_md(code, base_dict, bonus_dict, penalty_dict, self.final_score,self.author)  # Calls the generate_md function to create the feedback
     def create_feedback(self,mode="default"):
         """Create a feedback file in Markdown format with the test results and final score."""
-        with open(self.path.getFilePath("feedback.md"),'w',encoding="utf-8") as feedback:
+        with open("feedback.md",'w',encoding="utf-8") as feedback:
             if mode == "default":
                 feedback.write(self.get_feedback())
             elif mode == "ai":
