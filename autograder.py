@@ -1,4 +1,4 @@
-from grading.final_scorer import Scorer
+from core.final_scorer import Scorer
 import argparse
 from report.result_exporter import notify_classroom
 from report.commit_report import overwrite_report_in_repo

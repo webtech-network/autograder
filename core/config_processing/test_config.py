@@ -1,49 +1,3 @@
-import json
-
-
-class Config: # This class is used to load and manage all tests configurations.
-    def __init__(self):
-        self.config = {}
-        self.base_config = None # Configuration for tests in base_tests
-        self.bonus_config = None # Configuration for tests in bonus_tests
-        self.penalty_config = None # Configuration for tests in penalty_tests
-
-    def parse_config(self, config_file: str):
-        """Parse the configuration file and load the JSON data."""
-        try:
-            with open(config_file, 'r', encoding='utf-8') as file:
-                self.config = json.load(file)
-
-        except FileNotFoundError:
-            raise Exception(f"Config file '{config_file}' not found.")
-        except json.JSONDecodeError as e:
-            raise Exception(f"Error parsing JSON from '{config_file}': {e}")
-
-    def load_base_config(self):
-        """Load the base configuration for tests in base_tests creating a TestConfig instance for base file config."""
-        self.base_config = TestConfig.create("base", self.config)
-
-    def load_bonus_config(self):
-        """Load the bonus configuration for tests in bonus_tests creating a TestConfig instance for bonus file config."""
-        self.bonus_config = TestConfig.create("bonus", self.config)
-
-    def load_penalty_config(self):
-        """Load the penalty configuration for tests in penalty_tests creating a TestConfig instance for penalty file config."""
-        self.penalty_config = TestConfig.create("penalty", self.config)
-
-    @classmethod
-    def create_config(cls, config_file: str):
-        """Create a Config instance from a configuration file."""
-        response = cls()
-        try:
-            response.parse_config(config_file)
-            response.load_base_config()
-            response.load_bonus_config()
-            response.load_penalty_config()
-        except Exception as e:
-            raise Exception(f"Failed to create config: {e}")
-        return response
-
 
 class TestConfig:
     """This class is used to load and manage test configurations for different types of test files."""
@@ -51,12 +5,14 @@ class TestConfig:
         self.ctype = ctype # ctype can be 'base', 'bonus', or 'penalty'
         self.weight = 0 # Weight of the test configuration
         self.sub_configs = [] # List of SubTestConfig instances for each subject in the test configuration
+        self.native = None # Indicates if the test configuration is native (e.g., 'base' tests are native)
 
     def load(self, config: dict):
         """Load the configuration for the test type from the provided dictionary."""
         try:
             section = config[self.ctype]
-            self.weight = section['weight']
+            self.weight = section['weight'] if self.ctype != 'base' else 100 # Base tests have a weight of 100
+            self.native = section.get('native', False) # Check if the test configuration is native
             if self.load_subjects(section.get('subjects')) is True:
                 self.balance_weights(self.sub_configs)
         except KeyError as e:
@@ -93,6 +49,7 @@ class TestConfig:
     def __str__(self):
         display = f"Config ctype: {self.ctype}\n"
         display += f"Weight: {self.weight}\n"
+        display += f"Native: {self.native}\n"
         for sub_config in self.sub_configs:
             display += f"{sub_config}\n"
         return display
@@ -103,7 +60,6 @@ class TestConfig:
         response = cls(ctype)
         response.load(config_dict)
         return response
-
 
 class SubTestConfig(TestConfig):
     """This class is used to load and manage configurations for individual subjects in a test configuration."""
@@ -213,8 +169,3 @@ class QuantitativeConfig:
         display += f"\t\tChecks: {self.checks}\n"
         display += f"\t\tWeight: {self.weight}\n"
         return display
-
-
-
-
-
