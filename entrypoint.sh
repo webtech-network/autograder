@@ -29,18 +29,6 @@ fi
 
 # --- Database Setup (end) --- #
 
-# Ensure that the necessary environment variables are set and print them for debugging
-#echo "HTML Weight: $1"
-#echo "CSS Weight: $2"
-#echo "JS Weight: $3"
-#echo "Timeout: $4"
-#echo "token: $5"
-
-# Set default values for arguments if they are not provided
-#HTML_WEIGHT="${1:-30}"
-#CSS_WEIGHT="${2:-40}"
-#JS_WEIGHT="${3:-30}"
-#TIMEOUT="${4:-10}"
 GRADING_CRITERIA="${6:-criteria.json}"
 
 # Specify the path to the student's submission folder (we assume files are in the "submission" folder)
@@ -74,7 +62,7 @@ NODE_TEST_EXIT_CODE=$?
 
 # Run the Python autograder script with the provided inputs
 # This command will invoke autograder.py and pass the weights and grading criteria (Adjust to Node.js)
-python /app/autograder.py --html-weight $HTML_WEIGHT --css-weight $CSS_WEIGHT --js-weight $JS_WEIGHT --grading-criteria $GRADING_CRITERIA --timeout $TIMEOUT --token $5
+python /app/autograder.py --token $5
 
 #Stops PostgreSQL container
 echo "Stopping PostgreSQL container..."
