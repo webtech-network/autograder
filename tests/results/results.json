@@ -1,0 +1,47 @@
+{
+  "unit_tests": {
+    "test_base": {
+      "html": [
+        {
+          "test": "test_html_has_title",
+          "status": "passed",
+          "message": null
+        },
+        {
+          "test": "test_html_has_inline_style",
+          "status": "failed",
+          "message": "Inline styles found"
+        }
+      ]
+    },
+    "test_bonus": {
+      "html": [
+        {
+          "test": "test_html_bonus_semantics",
+          "status": "passed",
+          "message": "Good use of semantic tags"
+        }
+      ]
+    }
+  },
+  "quantitative_tests": {
+    "test_base": {
+      "html": [
+        {
+          "test": "test_html_quantitative_div_tags",
+          "status": "passed",
+          "message": null
+        }
+      ]
+    },
+    "test_bonus": {
+      "html": [
+        {
+          "test": "test_html_quantitative_div_tags",
+          "status": "failed",
+          "message": "Too many div tags"
+        }
+      ]
+    }
+  }
+}
