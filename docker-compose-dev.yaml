@@ -1,0 +1,8 @@
+services:
+  autograder:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: autograder-dev
+    volumes: 
+      - .:/app
