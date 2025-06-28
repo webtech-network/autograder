@@ -1,3 +1,5 @@
 /submission
 __pycache__
 /tests/results
+/node_modules
+.vscode
