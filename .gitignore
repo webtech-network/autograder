@@ -1,3 +1,4 @@
-core/grading/tests/__pycache__
+__pycache__
 /submission
 /core/grading/__pycache__
+.vscode

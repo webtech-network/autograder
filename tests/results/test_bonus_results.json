@@ -1,0 +1,14 @@
+[
+  {
+    "test": "test_add_float",
+    "status": "passed",
+    "message": "0.1 + 0.2 should be close to 0.3",
+    "subject": "extras"
+  },
+  {
+    "test": "test_large_numbers",
+    "status": "passed",
+    "message": "1e6 * 1e6 should be 1e12",
+    "subject": "extras"
+  }
+]
