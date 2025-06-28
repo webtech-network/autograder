@@ -8,7 +8,7 @@ for test_file in test_*.js; do
     echo "--- Running $test_file ---"
     node $test_file
     if [ $? -ne 0 ]; then
-        echo "Tests running failed in $test_file, exiting the process..."
+        echo "There was an error running $test_file, exiting the process..."
         exit 1
     fi
 done
