@@ -1,0 +1,64 @@
+{
+    "numFailedTestSuites": 3,
+    "numFailedTests": 0,
+    "numPassedTestSuites": 0,
+    "numPassedTests": 0,
+    "numPendingTestSuites": 0,
+    "numPendingTests": 0,
+    "numRuntimeErrorTestSuites": 3,
+    "numTodoTests": 0,
+    "numTotalTestSuites": 3,
+    "numTotalTests": 0,
+    "openHandles": [],
+    "snapshot": {
+        "added": 0,
+        "didUpdate": false,
+        "failure": false,
+        "filesAdded": 0,
+        "filesRemoved": 0,
+        "filesRemovedList": [],
+        "filesUnmatched": 0,
+        "filesUpdated": 0,
+        "matched": 0,
+        "total": 0,
+        "unchecked": 0,
+        "uncheckedKeysByFile": [],
+        "unmatched": 0,
+        "updated": 0
+    },
+    "startTime": 1751145569697,
+    "success": false,
+    "testResults": [
+        {
+            "assertionResults": [],
+            "coverage": {},
+            "endTime": 1751145573196,
+            "message": "  \u001b[1m● \u001b[22mTest suite failed to run\n\n    Your test suite must contain at least one test.\n\n      \u001b[2mat onResult (\u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1052:18)\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1122:165\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/emittery/index.js\u001b[2m:363:13\u001b[22m\n          at Array.map (<anonymous>)\n      \u001b[2mat Emittery.emit (\u001b[22mnode_modules/emittery/index.js\u001b[2m:361:23)\u001b[22m\n",
+            "name": "/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/test_bonus.js",
+            "startTime": 1751145573196,
+            "status": "failed",
+            "summary": ""
+        },
+        {
+            "assertionResults": [],
+            "coverage": {},
+            "endTime": 1751145573196,
+            "message": "  \u001b[1m● \u001b[22mTest suite failed to run\n\n    Your test suite must contain at least one test.\n\n      \u001b[2mat onResult (\u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1052:18)\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1122:165\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/emittery/index.js\u001b[2m:363:13\u001b[22m\n          at Array.map (<anonymous>)\n      \u001b[2mat Emittery.emit (\u001b[22mnode_modules/emittery/index.js\u001b[2m:361:23)\u001b[22m\n",
+            "name": "/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/test_penalty.js",
+            "startTime": 1751145573196,
+            "status": "failed",
+            "summary": ""
+        },
+        {
+            "assertionResults": [],
+            "coverage": {},
+            "endTime": 1751145573196,
+            "message": "  \u001b[1m● \u001b[22mTest suite failed to run\n\n    Your test suite must contain at least one test.\n\n      \u001b[2mat onResult (\u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1052:18)\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1122:165\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/emittery/index.js\u001b[2m:363:13\u001b[22m\n          at Array.map (<anonymous>)\n      \u001b[2mat Emittery.emit (\u001b[22mnode_modules/emittery/index.js\u001b[2m:361:23)\u001b[22m\n",
+            "name": "/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/test_base.js",
+            "startTime": 1751145573196,
+            "status": "failed",
+            "summary": ""
+        }
+    ],
+    "wasInterrupted": false
+}
