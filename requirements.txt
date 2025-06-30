@@ -1,5 +1,8 @@
-pytest
-argparse
-bs4
+pytest~=8.4.1
+argparse~=1.4.0
+bs4~=0.0.2
 aiohttp==3.10.11
-PyGithub
+PyGithub~=2.6.1
+
+requests~=2.32.4
+beautifulsoup4~=4.13.4
