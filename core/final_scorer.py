@@ -4,13 +4,15 @@ from report.report_generator import generate_md,generate_ai_md
 from utils.path import Path
 from core.config_processing.config import Config
 from time import sleep
+from core.redis.upstash_driver import *
 import os
 
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
-    def __init__(self,test_folder,author):
+    def __init__(self,test_folder,author, github_token):
         self.path = Path(__file__,test_folder) # Path to the test folder
         self.author = author # Author of the code being graded
+        self.github_token = github_token # Account id of the author
         self.config = None # Config instance containing the configurations for all the test files
         self.base_grader = None # Grader instance for the base test file
         self.bonus_grader = None # Grader instance for the bonus test file
@@ -60,24 +62,29 @@ class Scorer:
         bonus_dict = {"passed": self.bonus_grader.passed_tests,"failed": self.bonus_grader.failed_tests}  # Format the bonus test results
         penalty_dict = {"passed": self.penalty_grader.passed_tests,"failed": self.penalty_grader.failed_tests}  # Format the penalty test results
         return generate_ai_md(code, base_dict, bonus_dict, penalty_dict, self.final_score,self.author)  # Calls the generate_md function to create the feedback
-    def create_feedback(self,mode="default"):
+    def create_feedback(self):
         """Create a feedback file in Markdown format with the test results and final score."""
+        allowed = decrement_token_quota(self.github_token)
+
         with open("feedback.md",'w',encoding="utf-8") as feedback:
-            if mode == "default":
-                feedback.write(self.get_feedback())
-            elif mode == "ai":
+            if allowed:
                 feedback.write(self.get_ai_feedback())
             else:
-                raise Exception("Invalid mode")
+                feedback.write(self.get_feedback())
+
     def get_student_files(self):
         """Get the student files."""
         with open("submission/answer.js","r",encoding="utf-8") as student_file:
             return student_file.read()
 
     @classmethod
-    def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file):
+    def create_with_scores(cls,test_folder,github_token,author, config_file ,base_file,bonus_file,penalty_file):
         """Create a Scorer instance with the specified test files and author."""
-        scorer = cls(test_folder,author)
+        scorer = cls(test_folder,author, github_token)
+
+        if not token_exists(scorer.github_token):
+            create_token(scorer.github_token)
+
         scorer.config = Config.create_config(config_file) # Load the configuration from the specified file
         scorer.set_base_score(base_file)
         scorer.set_bonus_score(bonus_file)
