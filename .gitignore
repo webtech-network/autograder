@@ -1,3 +1,4 @@
 core/grading/tests/__pycache__
 /submission
 /core/grading/__pycache__
+.env

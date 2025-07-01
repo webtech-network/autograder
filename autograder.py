@@ -12,11 +12,11 @@ github_token = args.token
 author = os.getenv("GITHUB_ACTOR")
 
 
-scorer = Scorer.create_with_scores("tests",author,"test_base.py","test_bonus.py","test_penalty.py")
+scorer = Scorer.create_with_scores("tests",github_token,author,"test_base.py","test_bonus.py","test_penalty.py")
 final_score = scorer.final_score
 
 
-feedback = scorer.get_feedback()
+feedback = scorer.create_feedback()
 overwrite_report_in_repo(github_token,new_content=feedback)
 
 notify_classroom(final_score, github_token)
