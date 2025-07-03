@@ -1,7 +1,7 @@
 from core.final_scorer import Scorer
 import argparse
-from report.result_exporter import notify_classroom
-from report.commit_report import overwrite_report_in_repo
+from core.report.result_exporter import notify_classroom
+from core.report.commit_report import overwrite_report_in_repo
 import os
 
 parser = argparse.ArgumentParser(description="Process token argument.")
