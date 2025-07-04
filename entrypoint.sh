@@ -1,25 +1,77 @@
 #!/bin/sh
 
 # Print a message to indicate the start of the autograding process
-echo "🚀 Starting autograder..."
+echo "Starting autograder..."
 
-# Specify the path to the student's submission folder (we assume files are in the "submission" folder)
-STUDENT_REPO_PATH="$GITHUB_WORKSPACE/submission"
+set -e
 
-# Print some of the important paths for debugging
-echo "Student repository path: $STUDENT_REPO_PATH"
-echo "Grading criteria: $GRADING_CRITERIA"
+# --- Install dependencies in the student's repository and run server.js ---
+cd "$GITHUB_WORKSPACE"
 
-# --- Tests (start) --- #
+if [ -f "package.json" ]; then
+    echo "Downloading dependencies from student's project"
+    npm install;
+else
+    echo "Error: no package.json file found."
+    exit 1;
+fi
+
+echo "Starting server.js at port 3000..."
+node server.js &
+SERVER_PID=$!
+echo "Server started with PID: $SERVER_PID"
+
+#Checking if the server started:
+
+SERVER_URL="http://localhost:3000"
+CONNECTION_ATTEMPTS=10
+ATTEMPT_COUNTER=0
+
+while [ CONNECTION_ATTEMPTS -lt ATTEMPT_COUNTER ]; do
+    if curl -s "$SERVER_URL" > /dev/null; then
+        echo "Server is up and reachable."
+        break
+    else
+        echo "Server not reachable yet. Retrying in 2 seconds (Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)..."
+        sleep 2
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+    fi
+done
+
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    echo "Error: Server failed to start or become reachable after multiple attempts."
+    kill "$SERVER_PID" || true
+    exit 1
+fi
+
+# --- Running tests from action repository --- #
+
+cd "$GITHUB_ACTION_PATH"
+
+if [ -f "package.json" ]; then
+    echo "Installing autograder dependencies..."
+    npm install;
+else 
+    echo "Warning: package.json not found in Autograder's directory. Skipping npm install..."
+fi
+
 node ./tests/test_*.js
 
-# --- Tests (end) -- #
+TEST_OUTPUT_FILE="test-results.json"
 
-# Run the Python autograder script with the provided inputs
-# This command will invoke autograder.py and pass the weights and grading criteria
+cd ./tests
+
+if [ ! -f "$TEST_OUTPUT_FILE" ]; then 
+    echo "Error: $TEST_OUTPUT_FILE was not found after running all tests. Exiting with code 1."
+    kill "$SERVER_PID"
+    exit 1
+fi
+
+cd ..
+
+# --- Run the autograder ---
 python /app/autograder.py  --token $5
 
-# Check if the autograder script executed successfully
-echo "✅ Autograding completed successfully!"
-# Provide a message indicating completion
-echo "🎉 Final results generated and sent to GitHub Classroom!"
+echo "Autograding completed successfully!"
+echo "Final results generated and sent to GitHub Classroom!"
