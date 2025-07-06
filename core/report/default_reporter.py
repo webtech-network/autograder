@@ -1,4 +1,4 @@
-from base_reporter import BaseReporter
+from core.report.base_reporter import BaseReporter
 from utils.path import Path
 import json
 from datetime import datetime

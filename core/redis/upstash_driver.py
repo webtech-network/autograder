@@ -8,7 +8,6 @@ load_dotenv()
 redis = Redis(
     url=os.environ["UPSTASH_REDIS_REST_URL"],
     token=os.environ["UPSTASH_REDIS_REST_TOKEN"]
-
 )
 
 def token_exists(token: str) -> bool:

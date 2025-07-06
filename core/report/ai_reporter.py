@@ -1,4 +1,4 @@
-from base_reporter import BaseReporter
+from core.report.base_reporter import BaseReporter
 from openai import OpenAI
 import os
 from core.redis.upstash_driver import decrement_token_quota

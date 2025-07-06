@@ -1,11 +1,11 @@
 
 from core.grading.grader import Grader
-from report.report_generator import generate_md,generate_ai_md
 from utils.path import Path
 from core.config_processing.config import Config
 from time import sleep
+from core.result import Result
 from core.redis.upstash_driver import *
-import os
+from core.report.reporter import Reporter
 
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
