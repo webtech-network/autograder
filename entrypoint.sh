@@ -64,13 +64,13 @@ npm test -- --json --outputFile=./tests/test-results.json
 echo "Parsing results..."
 TEST_OUTPUT_FILE="test-results.json"
 
-cd ./tests
-
-if [ ! -f "$TEST_OUTPUT_FILE" ]; then 
+if [ ! -f "./tests/$TEST_OUTPUT_FILE" ]; then 
     echo "Error: $TEST_OUTPUT_FILE was not found after running all tests. Exiting with code 1."
     kill "$SERVER_PID"
     exit 1
 fi
+
+python result-parser.py
 
 cd ..
 
