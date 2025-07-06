@@ -3,8 +3,8 @@ from openai import OpenAI
 import os
 from core.redis.upstash_driver import decrement_token_quota
 class AIReporter(BaseReporter):
-    def __init__(self,result, repo, token):
-        super().__init__(result,repo,token)
+    def __init__(self,result,token):
+        super().__init__(result,token)
         self.client = OpenAI(api_key=f"{os.getenv('OPENAI_API_KEY')}")
     def generate_feedback(self):
         candidate_code = """\

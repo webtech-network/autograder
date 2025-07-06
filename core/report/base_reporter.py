@@ -5,10 +5,10 @@ import json
 
 class BaseReporter(ABC):
     """Abstract base class for reporting test results."""
-    def __init__(self,result,repo,token):
+    def __init__(self,result,token):
         self.result = result
         self.token = token
-        self.repo = repo
+        self.repo = None
 
     def get_repository(self):
         try:
