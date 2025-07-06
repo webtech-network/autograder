@@ -1,27 +1,15 @@
 {
   "base": {
-    "native": false,
-    "weight": 100
+    "weight": 10,
+    "native": true
 
   },
   "bonus": {
-    "native": false,
-    "weight": 40,
-    "subjects": {
-      "extras": {
-        "weight": 100,
-        "test_path": "test_"
-      }
-    }
+    "native": true,
+    "weight": 10
   },
   "penalty": {
-    "native": false,
-    "weight": 100,
-    "subjects": {
-      "forbidden": {
-        "weight": 100,
-        "test_path": "test_"
-      }
-    }
+    "native": true,
+    "weight": 30
   }
 }
