@@ -103,8 +103,20 @@ class BaseReporter(ABC):
 
         print(f"Final grade updated: {format(final_score, '.2f')}/100")
 
+    def create_feedback_file(self):
+        with open("feedback.md","w",encoding="utf-8") as f:
+            f.write(self.generate_feedback())
+
     @abstractmethod
     def generate_feedback(self):
         """Generate feedback based on the test results."""
         pass
+
+    @classmethod
+    def create(cls,result,token):
+        response = cls(result,token)
+        #response.get_repository()
+        return response
+
+
 
