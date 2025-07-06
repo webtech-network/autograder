@@ -1,14 +1,14 @@
 {
-    "numFailedTestSuites": 3,
-    "numFailedTests": 0,
-    "numPassedTestSuites": 0,
-    "numPassedTests": 0,
+    "numFailedTestSuites": 1,
+    "numFailedTests": 1,
+    "numPassedTestSuites": 2,
+    "numPassedTests": 57,
     "numPendingTestSuites": 0,
     "numPendingTests": 0,
-    "numRuntimeErrorTestSuites": 3,
+    "numRuntimeErrorTestSuites": 0,
     "numTodoTests": 0,
     "numTotalTestSuites": 3,
-    "numTotalTests": 0,
+    "numTotalTests": 58,
     "openHandles": [],
     "snapshot": {
         "added": 0,
@@ -26,37 +26,1104 @@
         "unmatched": 0,
         "updated": 0
     },
-    "startTime": 1751145569697,
+    "startTime": 1751770755517,
     "success": false,
     "testResults": [
         {
-            "assertionResults": [],
-            "coverage": {},
-            "endTime": 1751145573196,
-            "message": "  \u001b[1m● \u001b[22mTest suite failed to run\n\n    Your test suite must contain at least one test.\n\n      \u001b[2mat onResult (\u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1052:18)\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1122:165\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/emittery/index.js\u001b[2m:363:13\u001b[22m\n          at Array.map (<anonymous>)\n      \u001b[2mat Emittery.emit (\u001b[22mnode_modules/emittery/index.js\u001b[2m:361:23)\u001b[22m\n",
-            "name": "/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/test_bonus.js",
-            "startTime": 1751145573196,
+            "assertionResults": [
+                {
+                    "ancestorTitles": [
+                        "Bonus Tests - "
+                    ],
+                    "duration": 64,
+                    "failing": false,
+                    "failureDetails": [
+                        {
+                            "matcherResult": {
+                                "message": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: >= \u001b[32m300\u001b[39m\nReceived:    \u001b[31m200\u001b[39m",
+                                "pass": false
+                            }
+                        }
+                    ],
+                    "failureMessages": [
+                        "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: >= \u001b[32m300\u001b[39m\nReceived:    \u001b[31m200\u001b[39m\n    at Object.toBeGreaterThanOrEqual (/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/bonus.test.js:53:33)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)"
+                    ],
+                    "fullName": "Bonus Tests -  student used PRG correctly",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 0,
+                    "retryReasons": [],
+                    "startAt": 1751770756925,
+                    "status": "failed",
+                    "title": "student used PRG correctly"
+                },
+                {
+                    "ancestorTitles": [
+                        "Bonus Tests - "
+                    ],
+                    "duration": 32,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Bonus Tests -  student handled 404 status code",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 3,
+                    "retryReasons": [],
+                    "startAt": 1751770757001,
+                    "status": "passed",
+                    "title": "student handled 404 status code"
+                },
+                {
+                    "ancestorTitles": [
+                        "Bonus Tests - "
+                    ],
+                    "duration": 37,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Bonus Tests -  student used correct labels for the root route's form",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 0,
+                    "retryReasons": [],
+                    "startAt": 1751770757033,
+                    "status": "passed",
+                    "title": "student used correct labels for the root route's form"
+                },
+                {
+                    "ancestorTitles": [
+                        "Bonus Tests - "
+                    ],
+                    "duration": 17,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Bonus Tests -  student used correct labels for the /contato route's form",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 0,
+                    "retryReasons": [],
+                    "startAt": 1751770757070,
+                    "status": "passed",
+                    "title": "student used correct labels for the /contato route's form"
+                }
+            ],
+            "endTime": 1751770757122,
+            "message": "\u001b[1m\u001b[31m  \u001b[1m● \u001b[22m\u001b[1mBonus Tests -  › student used PRG correctly\u001b[39m\u001b[22m\n\n    \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\n    Expected: >= \u001b[32m300\u001b[39m\n    Received:    \u001b[31m200\u001b[39m\n\u001b[2m\u001b[22m\n\u001b[2m    \u001b[0m \u001b[90m 51 |\u001b[39m         })\u001b[33m;\u001b[39m\u001b[22m\n\u001b[2m     \u001b[90m 52 |\u001b[39m\u001b[22m\n\u001b[2m    \u001b[31m\u001b[1m>\u001b[22m\u001b[2m\u001b[39m\u001b[90m 53 |\u001b[39m         expect(response\u001b[33m.\u001b[39mstatus)\u001b[33m.\u001b[39mtoBeGreaterThanOrEqual(\u001b[35m300\u001b[39m)\u001b[33m;\u001b[39m\u001b[22m\n\u001b[2m     \u001b[90m    |\u001b[39m                                 \u001b[31m\u001b[1m^\u001b[22m\u001b[2m\u001b[39m\u001b[22m\n\u001b[2m     \u001b[90m 54 |\u001b[39m         expect(response\u001b[33m.\u001b[39mstatus)\u001b[33m.\u001b[39mtoBeLessThan(\u001b[35m400\u001b[39m)\u001b[33m;\u001b[39m\u001b[22m\n\u001b[2m     \u001b[90m 55 |\u001b[39m         expect(response\u001b[33m.\u001b[39mheaders\u001b[33m.\u001b[39mlocation)\u001b[33m.\u001b[39mtoBe(\u001b[32m'/contato-recebido'\u001b[39m)\u001b[33m;\u001b[39m\u001b[22m\n\u001b[2m     \u001b[90m 56 |\u001b[39m     })\u001b[33m;\u001b[39m\u001b[0m\u001b[22m\n\u001b[2m\u001b[22m\n\u001b[2m      \u001b[2mat Object.toBeGreaterThanOrEqual (\u001b[22m\u001b[2m\u001b[0m\u001b[36mtests/__tests__/bonus.test.js\u001b[39m\u001b[0m\u001b[2m:53:33)\u001b[22m\u001b[2m\u001b[22m\n",
+            "name": "/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/bonus.test.js",
+            "startTime": 1751770756085,
             "status": "failed",
             "summary": ""
         },
         {
-            "assertionResults": [],
-            "coverage": {},
-            "endTime": 1751145573196,
-            "message": "  \u001b[1m● \u001b[22mTest suite failed to run\n\n    Your test suite must contain at least one test.\n\n      \u001b[2mat onResult (\u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1052:18)\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1122:165\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/emittery/index.js\u001b[2m:363:13\u001b[22m\n          at Array.map (<anonymous>)\n      \u001b[2mat Emittery.emit (\u001b[22mnode_modules/emittery/index.js\u001b[2m:361:23)\u001b[22m\n",
-            "name": "/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/test_penalty.js",
-            "startTime": 1751145573196,
-            "status": "failed",
+            "assertionResults": [
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 58,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods / should not accept POST",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770756902,
+                    "status": "passed",
+                    "title": "/ should not accept POST"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 7,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods / should not accept PUT",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770756961,
+                    "status": "passed",
+                    "title": "/ should not accept PUT"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 5,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods / should not accept DELETE",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770756968,
+                    "status": "passed",
+                    "title": "/ should not accept DELETE"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 8,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods / should not accept PATCH",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770756973,
+                    "status": "passed",
+                    "title": "/ should not accept PATCH"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 7,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /sugestao should not accept POST",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770756981,
+                    "status": "passed",
+                    "title": "/sugestao should not accept POST"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 5,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /sugestao should not accept PUT",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770756988,
+                    "status": "passed",
+                    "title": "/sugestao should not accept PUT"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 4,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /sugestao should not accept DELETE",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770756993,
+                    "status": "passed",
+                    "title": "/sugestao should not accept DELETE"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 4,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /sugestao should not accept PATCH",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770756997,
+                    "status": "passed",
+                    "title": "/sugestao should not accept PATCH"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 8,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /contato should not accept PUT",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757002,
+                    "status": "passed",
+                    "title": "/contato should not accept PUT"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 4,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /contato should not accept DELETE",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757010,
+                    "status": "passed",
+                    "title": "/contato should not accept DELETE"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 3,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /contato should not accept PATCH",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757015,
+                    "status": "passed",
+                    "title": "/contato should not accept PATCH"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 3,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /api/lanches should not accept POST",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757018,
+                    "status": "passed",
+                    "title": "/api/lanches should not accept POST"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 4,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /api/lanches should not accept PUT",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757021,
+                    "status": "passed",
+                    "title": "/api/lanches should not accept PUT"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 3,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /api/lanches should not accept DELETE",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757025,
+                    "status": "passed",
+                    "title": "/api/lanches should not accept DELETE"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 3,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods /api/lanches should not accept PATCH",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757028,
+                    "status": "passed",
+                    "title": "/api/lanches should not accept PATCH"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect HTTP Methods"
+                    ],
+                    "duration": 155,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect HTTP Methods Optional - /contato-recebido exists and accepts correct methods",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 0,
+                    "retryReasons": [],
+                    "startAt": 1751770757031,
+                    "status": "passed",
+                    "title": "Optional - /contato-recebido exists and accepts correct methods"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect Content-Type Returns"
+                    ],
+                    "duration": 15,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect Content-Type Returns GET / should return text/html",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757187,
+                    "status": "passed",
+                    "title": "GET / should return text/html"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect Content-Type Returns"
+                    ],
+                    "duration": 5,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect Content-Type Returns GET /sugestao should return text/html",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757203,
+                    "status": "passed",
+                    "title": "GET /sugestao should return text/html"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect Content-Type Returns"
+                    ],
+                    "duration": 5,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect Content-Type Returns GET /contato should return text/html",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757208,
+                    "status": "passed",
+                    "title": "GET /contato should return text/html"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect Content-Type Returns"
+                    ],
+                    "duration": 4,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect Content-Type Returns GET /api/lanches should return application/json",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757213,
+                    "status": "passed",
+                    "title": "GET /api/lanches should return application/json"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect Content-Type Returns"
+                    ],
+                    "duration": 4,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect Content-Type Returns Static CSS file should return text/css",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757217,
+                    "status": "passed",
+                    "title": "Static CSS file should return text/css"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect Content-Type Returns"
+                    ],
+                    "duration": 7,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect Content-Type Returns POST /contato final response should be text/html (adaptive)",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757221,
+                    "status": "passed",
+                    "title": "POST /contato final response should be text/html (adaptive)"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect Form Field Name Attributes"
+                    ],
+                    "duration": 30,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect Form Field Name Attributes index.html form should have correct name attributes",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757228,
+                    "status": "passed",
+                    "title": "index.html form should have correct name attributes"
+                },
+                {
+                    "ancestorTitles": [
+                        "Penalty Tests - ",
+                        "Incorrect Form Field Name Attributes"
+                    ],
+                    "duration": 10,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Penalty Tests -  Incorrect Form Field Name Attributes contato.html form should have correct name attributes",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 4,
+                    "retryReasons": [],
+                    "startAt": 1751770757258,
+                    "status": "passed",
+                    "title": "contato.html form should have correct name attributes"
+                }
+            ],
+            "endTime": 1751770757272,
+            "message": "",
+            "name": "/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/penalty.test.js",
+            "startTime": 1751770756077,
+            "status": "passed",
             "summary": ""
         },
         {
-            "assertionResults": [],
-            "coverage": {},
-            "endTime": 1751145573196,
-            "message": "  \u001b[1m● \u001b[22mTest suite failed to run\n\n    Your test suite must contain at least one test.\n\n      \u001b[2mat onResult (\u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1052:18)\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/@jest/core/build/index.js\u001b[2m:1122:165\u001b[22m\n      \u001b[2mat \u001b[22mnode_modules/emittery/index.js\u001b[2m:363:13\u001b[22m\n          at Array.map (<anonymous>)\n      \u001b[2mat Emittery.emit (\u001b[22mnode_modules/emittery/index.js\u001b[2m:361:23)\u001b[22m\n",
-            "name": "/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/test_base.js",
-            "startTime": 1751145573196,
-            "status": "failed",
+            "assertionResults": [
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: / - ",
+                        "Status code and headers"
+                    ],
+                    "duration": 9,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: / -  Status code and headers should return a 200 OK status code",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757269,
+                    "status": "passed",
+                    "title": "should return a 200 OK status code"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: / - ",
+                        "Status code and headers"
+                    ],
+                    "duration": 2,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: / -  Status code and headers should return a Content-Type header of text/html",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757279,
+                    "status": "passed",
+                    "title": "should return a Content-Type header of text/html"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: / - ",
+                        "HTML Content Analysis"
+                    ],
+                    "duration": 9,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: / -  HTML Content Analysis should contain at least one form",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757311,
+                    "status": "passed",
+                    "title": "should contain at least one form"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: / - ",
+                        "HTML Content Analysis"
+                    ],
+                    "duration": 4,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: / -  HTML Content Analysis should contain all expected form input fields with correct attributes",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757320,
+                    "status": "passed",
+                    "title": "should contain all expected form input fields with correct attributes"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /sugestao - "
+                    ],
+                    "duration": 2,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /sugestao -  should accept GET request with query string",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757335,
+                    "status": "passed",
+                    "title": "should accept GET request with query string"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /sugestao - "
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /sugestao -  should return 200 OK and Content-Type text/html",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757337,
+                    "status": "passed",
+                    "title": "should return 200 OK and Content-Type text/html"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /sugestao - "
+                    ],
+                    "duration": 0,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /sugestao -  should not redirect (status code should be 200 directly)",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757338,
+                    "status": "passed",
+                    "title": "should not redirect (status code should be 200 directly)"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /sugestao - ",
+                        "HTML Content Analysis"
+                    ],
+                    "duration": 3,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /sugestao -  HTML Content Analysis should display the submitted \"nome\" in the HTML",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757338,
+                    "status": "passed",
+                    "title": "should display the submitted \"nome\" in the HTML"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /sugestao - ",
+                        "HTML Content Analysis"
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /sugestao -  HTML Content Analysis should display the submitted \"ingredientes\" in the HTML",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757341,
+                    "status": "passed",
+                    "title": "should display the submitted \"ingredientes\" in the HTML"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /sugestao - ",
+                        "HTML Content Analysis"
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /sugestao -  HTML Content Analysis should containt anchor to the root route",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757342,
+                    "status": "passed",
+                    "title": "should containt anchor to the root route"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (GET) - "
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (GET) -  should return 200 OK and Content-Type text/html",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757353,
+                    "status": "passed",
+                    "title": "should return 200 OK and Content-Type text/html"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (GET) - "
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (GET) -  should contain an input field for \"nome\"",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757354,
+                    "status": "passed",
+                    "title": "should contain an input field for \"nome\""
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (GET) - "
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (GET) -  should contain an input field for \"email\"",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757356,
+                    "status": "passed",
+                    "title": "should contain an input field for \"email\""
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (GET) - "
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (GET) -  should contain an input field for \"assunto\"",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757357,
+                    "status": "passed",
+                    "title": "should contain an input field for \"assunto\""
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (GET) - "
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (GET) -  should contain a textarea or input for \"mensagem\"",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757358,
+                    "status": "passed",
+                    "title": "should contain a textarea or input for \"mensagem\""
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (GET) - "
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (GET) -  should contain a submit button",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757359,
+                    "status": "passed",
+                    "title": "should contain a submit button"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (GET) - "
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (GET) -  should contain an anchor tag linking to the root route (\"/\")",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757360,
+                    "status": "passed",
+                    "title": "should contain an anchor tag linking to the root route (\"/\")"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (POST) - "
+                    ],
+                    "duration": 0,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (POST) -  final response should be 200 OK and Content-Type text/html",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757369,
+                    "status": "passed",
+                    "title": "final response should be 200 OK and Content-Type text/html"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (POST) - "
+                    ],
+                    "duration": 12,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (POST) -  should either respond directly with HTML or redirect to /contato-recebido",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 2,
+                    "retryReasons": [],
+                    "startAt": 1751770757369,
+                    "status": "passed",
+                    "title": "should either respond directly with HTML or redirect to /contato-recebido"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (POST) - ",
+                        "HTML Content Analysis (Final Page)"
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (POST) -  HTML Content Analysis (Final Page) should display the submitted \"nome\"",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757381,
+                    "status": "passed",
+                    "title": "should display the submitted \"nome\""
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (POST) - ",
+                        "HTML Content Analysis (Final Page)"
+                    ],
+                    "duration": 0,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (POST) -  HTML Content Analysis (Final Page) should display the submitted \"email\"",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757382,
+                    "status": "passed",
+                    "title": "should display the submitted \"email\""
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (POST) - ",
+                        "HTML Content Analysis (Final Page)"
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (POST) -  HTML Content Analysis (Final Page) should display the submitted \"assunto\"",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757382,
+                    "status": "passed",
+                    "title": "should display the submitted \"assunto\""
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (POST) - ",
+                        "HTML Content Analysis (Final Page)"
+                    ],
+                    "duration": 0,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (POST) -  HTML Content Analysis (Final Page) should display the submitted \"mensagem\"",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757383,
+                    "status": "passed",
+                    "title": "should display the submitted \"mensagem\""
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /contato (POST) - ",
+                        "HTML Content Analysis (Final Page)"
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /contato (POST) -  HTML Content Analysis (Final Page) should contain an anchor tag linking to the root route (\"/\")",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757383,
+                    "status": "passed",
+                    "title": "should contain an anchor tag linking to the root route (\"/\")"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /api/lanches - ",
+                        "Basic Connectivity and Headers"
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /api/lanches -  Basic Connectivity and Headers should return a 200 OK status code",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757388,
+                    "status": "passed",
+                    "title": "should return a 200 OK status code"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /api/lanches - ",
+                        "Basic Connectivity and Headers"
+                    ],
+                    "duration": 0,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /api/lanches -  Basic Connectivity and Headers should return a Content-Type header of application/json",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757389,
+                    "status": "passed",
+                    "title": "should return a Content-Type header of application/json"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /api/lanches - ",
+                        "JSON Data Structure Validation"
+                    ],
+                    "duration": 1,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /api/lanches -  JSON Data Structure Validation should return an array of lanches",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757389,
+                    "status": "passed",
+                    "title": "should return an array of lanches"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /api/lanches - ",
+                        "JSON Data Structure Validation"
+                    ],
+                    "duration": 0,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /api/lanches -  JSON Data Structure Validation should return an array with at least 3 lanches",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 1,
+                    "retryReasons": [],
+                    "startAt": 1751770757390,
+                    "status": "passed",
+                    "title": "should return an array with at least 3 lanches"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /api/lanches - ",
+                        "JSON Data Structure Validation"
+                    ],
+                    "duration": 3,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /api/lanches -  JSON Data Structure Validation each lanche object in the array should have the required attributes: id, nome ingredientes",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 9,
+                    "retryReasons": [],
+                    "startAt": 1751770757390,
+                    "status": "passed",
+                    "title": "each lanche object in the array should have the required attributes: id, nome ingredientes"
+                },
+                {
+                    "ancestorTitles": [
+                        "Base Tests - ",
+                        "Route: /api/lanches - ",
+                        "JSON Data Structure Validation"
+                    ],
+                    "duration": 2,
+                    "failing": false,
+                    "failureDetails": [],
+                    "failureMessages": [],
+                    "fullName": "Base Tests -  Route: /api/lanches -  JSON Data Structure Validation each lanche attribute should have the correct data type and not be blank, 0 or null",
+                    "invocations": 1,
+                    "location": null,
+                    "numPassingAsserts": 21,
+                    "retryReasons": [],
+                    "startAt": 1751770757393,
+                    "status": "passed",
+                    "title": "each lanche attribute should have the correct data type and not be blank, 0 or null"
+                }
+            ],
+            "endTime": 1751770757399,
+            "message": "",
+            "name": "/home/gnvr/Desktop/Autograder/autograder/tests/__tests__/base.test.js",
+            "startTime": 1751770756084,
+            "status": "passed",
             "summary": ""
         }
     ],
