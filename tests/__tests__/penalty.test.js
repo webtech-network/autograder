@@ -22,7 +22,7 @@ function expectFormFields($, expectedFieldNames) {
     });
 }
 
-describe('Penalty Tests', () => {
+describe('Penalty Tests - ', () => {
 
     const contactSubmission = {
         nome: "Chaerin Kim",
@@ -31,7 +31,6 @@ describe('Penalty Tests', () => {
         mensagem: "O lanche estava frio e nojento!"
     };
 
-    //Problem is here
     describe('Incorrect HTTP Methods', () => {
 
         async function testUnexpectedMethod(path, method) {
@@ -88,7 +87,6 @@ describe('Penalty Tests', () => {
 
             if (!isPrgUsed || !endpointExists) return; 
             
-            // We can run the method checks in parallel for efficiency.
             await Promise.all([
                 testUnexpectedMethod('/contato-recebido', 'POST'),
                 testUnexpectedMethod('/contato-recebido', 'PUT'),
@@ -98,7 +96,6 @@ describe('Penalty Tests', () => {
         });
     });
 
-    //OK
     describe('Incorrect Content-Type Returns', () => {
 
         test('GET / should return text/html', async () => {
