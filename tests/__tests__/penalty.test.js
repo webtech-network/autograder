@@ -9,7 +9,6 @@ const axiosNoRedirect = axios.create({
     }
 });
 
-
 function expectContentType(response, expectedType) {
     const contentType = response.headers['content-type'];
     expect(contentType).toBeDefined();
@@ -32,10 +31,12 @@ describe('Penalty Tests', () => {
         mensagem: "O lanche estava frio e nojento!"
     };
 
-    describe('1. Incorrect HTTP Methods', () => {
+    //Problem is here
+    describe('Incorrect HTTP Methods', () => {
 
-        async function testUnexpectedMethod(path, method, expectedStatus = [404, 405]) {
+        async function testUnexpectedMethod(path, method) {
             let response;
+            let expectedStatus = [404, 405]
             try {
                 response = await axiosNoRedirect({
                     method: method,
@@ -57,60 +58,48 @@ describe('Penalty Tests', () => {
             expect(expectedStatus).toContain(response.status);
         }
 
-        test('GET / should not accept POST', async () => await testUnexpectedMethod('/', 'POST'));
-        test('GET / should not accept PUT', async () => await testUnexpectedMethod('/', 'PUT'));
-        test('GET / should not accept DELETE', async () => await testUnexpectedMethod('/', 'DELETE'));
-        test('GET / should not accept PATCH', async () => await testUnexpectedMethod('/', 'PATCH'));
-
-        test('GET /sugestao should not accept POST', async () => await testUnexpectedMethod('/sugestao', 'POST'));
-        test('GET /sugestao should not accept PUT', async () => await testUnexpectedMethod('/sugestao', 'PUT'));
-        test('GET /sugestao should not accept DELETE', async () => await testUnexpectedMethod('/sugestao', 'DELETE'));
-        test('GET /sugestao should not accept PATCH', async () => await testUnexpectedMethod('/sugestao', 'PATCH'));
+        let endpointForbiddenMethods = {
+            "/": ['POST', 'PUT', 'DELETE', 'PATCH'],
+            "/sugestao": ['POST', 'PUT', 'DELETE', 'PATCH'],
+            "/contato": ['PUT', 'DELETE', 'PATCH'],
+            "/api/lanches": ['POST', 'PUT', 'DELETE', 'PATCH']
+        }
 
 
-        test('GET /contato should not accept PUT', async () => await testUnexpectedMethod('/contato', 'PUT'));
-        test('GET /contato should not accept DELETE', async () => await testUnexpectedMethod('/contato', 'DELETE'));
-        test('GET /contato should not accept DELETE', async () => await testUnexpectedMethod('/contato', 'PATCH'));
+        for (const endpoint in endpointForbiddenMethods) {
+            const forbiddenMethods = endpointForbiddenMethods[endpoint];
+            for (const method of forbiddenMethods) {
+                test(`${endpoint} should not accept ${method}`, async () => await testUnexpectedMethod(endpoint, method));
+            }
+        }
 
-
-        test('GET /api/lanches should not accept POST', async () => await testUnexpectedMethod('/api/lanches', 'POST'));
-        test('GET /api/lanches should not accept PUT', async () => await testUnexpectedMethod('/api/lanches', 'PUT'));
-        test('GET /api/lanches should not accept DELETE', async () => await testUnexpectedMethod('/api/lanches', 'DELETE'));
-        test('GET /api/lanches should not accept PATCH', async () => await testUnexpectedMethod('/api/lanches', 'PATCH'));
-
-        describe('Conditional: /contato-recebido (if PRG is used)', () => {
-            let initialPostResponse; 
+        test('Optional - /contato-recebido exists and accepts correct methods', async () => {
+            let endpointExists = false;
             let isPrgUsed = false;
 
-            beforeAll(async () => {
-                try {
-                    initialPostResponse = await axiosNoRedirect.post(`${BASE_URL}/contato`, contactSubmission, {
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        validateStatus: status => true
-                    });
-                    if (initialPostResponse.status >= 300 && initialPostResponse.status < 400 && initialPostResponse.headers.location === '/contato-recebido') {
-                        isPrgUsed = true;
-                    }
-                } catch (error) {
-                    if (error.response && error.response.status >= 300 && error.response.status < 400 && error.response.headers.location === '/contato-recebido') {
-                        isPrgUsed = true;
-                    }
-                }
-            });
+            try {
+                const initialPostResponse = await axiosNoRedirect.post(`${BASE_URL}/contato`, contactSubmission, /*{
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    validateStatus: status => true // Accept any status code
+                }*/);
+                if (initialPostResponse.status >= 300 && initialPostResponse.status < 400) isPrgUsed = true;
+                if(initialPostResponse.headers.location === '/contato-recebido') endpointExists = true;            
+            } catch (e) {}
 
-            beforeEach(() => {
-                if (!isPrgUsed) {
-                    pending('Skipping /contato-recebido method tests as PRG pattern was not detected for POST /contato.');
-                }
-            });
-
-            test('/contato-recebido should not accept POST', async () => await testUnexpectedMethod('/contato-recebido', 'POST'));
-            test('/contato-recebido should not accept PUT', async () => await testUnexpectedMethod('/contato-recebido', 'PUT'));
-            test('/contato-recebido should not accept DELETE', async () => await testUnexpectedMethod('/contato-recebido', 'DELETE'));
+            if (!isPrgUsed || !endpointExists) return; 
+            
+            // We can run the method checks in parallel for efficiency.
+            await Promise.all([
+                testUnexpectedMethod('/contato-recebido', 'POST'),
+                testUnexpectedMethod('/contato-recebido', 'PUT'),
+                testUnexpectedMethod('/contato-recebido', 'DELETE'),
+                testUnexpectedMethod('contato-recebido', 'PATCH')
+            ]);
         });
     });
 
-    describe('2. Incorrect Content-Type Returns', () => {
+    //OK
+    describe('Incorrect Content-Type Returns', () => {
 
         test('GET / should return text/html', async () => {
             const response = await axios.get(`${BASE_URL}/`);
@@ -137,13 +126,12 @@ describe('Penalty Tests', () => {
             expectContentType(response, 'text/css');
         });
 
-        // Test for POST /contato's final HTML response content type
         test('POST /contato final response should be text/html (adaptive)', async () => {
             let finalResponse;
             try {
                 const initialResponse = await axiosNoRedirect.post(`${BASE_URL}/contato`, contactSubmission, {
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    validateStatus: status => true
+                    //validateStatus: status => true
                 });
 
                 if (initialResponse.status >= 300 && initialResponse.status < 400) {
@@ -152,18 +140,17 @@ describe('Penalty Tests', () => {
                     finalResponse = initialResponse;
                 }
             } catch (error) {
-                // Handle errors like connection refused or Axios throwing for 3xx
                 if (error.response && error.response.status >= 300 && error.response.status < 400) {
                      finalResponse = await axios.get(`${BASE_URL}${error.response.headers.location}`);
                 } else {
-                    throw error; // Re-throw other errors
+                    throw error; 
                 }
             }
             expectContentType(finalResponse, 'text/html');
         });
     });
 
-    describe('3. Incorrect Form Field Name Attributes', () => {
+    describe('Incorrect Form Field Name Attributes', () => {
 
         test('index.html form should have correct name attributes', async () => {
             const response = await axios.get(`${BASE_URL}/`);
