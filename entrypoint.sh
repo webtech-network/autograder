@@ -56,8 +56,12 @@ else
     echo "Warning: package.json not found in Autograder's directory. Skipping npm install..."
 fi
 
-node ./tests/test_*.js
 
+#Treat errors
+echo "Running tests..."
+npm test -- --json --outputFile=./tests/test-results.json
+
+echo "Parsing results..."
 TEST_OUTPUT_FILE="test-results.json"
 
 cd ./tests
