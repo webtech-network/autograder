@@ -5,22 +5,22 @@ import json
 from core.report.default_reporter import DefaultReporter
 import time
 FEEDBACK_MAPPING = {
-    'test_server_js_exists': '👨‍💻 Seu arquivo `server.js` não foi encontrado na raiz do projeto. Ele é o ponto de entrada principal da aplicação e é essencial.',
-    'test_package_json_exists': '📦 Seu arquivo `package.json` não foi encontrado. Ele é necessário para gerenciar as dependências e os scripts do projeto.',
-    'test_package_json_has_main_key': '🔑 A chave `"main"` está faltando no seu `package.json`. Ela é necessária para indicar ao Node.js qual arquivo executar.',
+    'test_server_js_exists': '- 👨‍💻 Seu arquivo `server.js` não foi encontrado na raiz do projeto. Ele é o ponto de entrada principal da aplicação e é essencial.\n',
+    'test_package_json_exists': '- 📦 Seu arquivo `package.json` não foi encontrado. Ele é necessário para gerenciar as dependências e os scripts do projeto.\n',
+    'test_package_json_has_main_key': '- 🔑 A chave `"main"` está faltando no seu `package.json`. Ela é necessária para indicar ao Node.js qual arquivo executar.\n',
     # ADICIONE ESTA LINHA:
-    'package_json_main_is_correct': '🎯 O script `"main"` no seu `package.json` está incorreto. Ele deve ser `"server.js"`.',
-    'dir_public_exists': '📁 O diretório `public` não foi encontrado. Ele é necessário para armazenar arquivos estáticos.',
-    'dir_views_exists': '📁 O diretório `views` não foi encontrado. É onde seus arquivos HTML devem ficar.',
-    'dir_public_css_exists': '📁 O diretório `public/css` não foi encontrado.',
-    'dir_public_data_exists': '📁 O diretório `public/data` não foi encontrado.',
-    'file_style_css_exists': '📄 O arquivo de estilos em `public/css/style.css` não foi encontrado.',
-    'file_lanches_json_exists': '📄 O arquivo de dados em `public/data/lanches.json` não foi encontrado. A rota da API depende dele.',
-    'file_index_html_exists': '📄 O template da página principal em `views/index.html` não foi encontrado.',
-    'file_contato_html_exists': '📄 O template da página de contato em `views/contato.html` não foi encontrado.',
-    'file_gitignore_exists': '📄 O arquivo `.gitignore` não foi encontrado na raiz do projeto.',
-    'file_readme_exists': '📄 O arquivo `README.md` não foi encontrado na raiz do projeto.',
-    'lanches_json_is_valid': '☠️ Seu arquivo `public/data/lanches.json` tem um erro de sintaxe. O servidor não consegue lê-lo.'
+    'package_json_main_is_correct': '- 🎯 O script `"main"` no seu `package.json` está incorreto. Ele deve ser `"server.js"`.\n',
+    'dir_public_exists': '- 📁 O diretório `public` não foi encontrado. Ele é necessário para armazenar arquivos estáticos.\n',
+    'dir_views_exists': '- 📁 O diretório `views` não foi encontrado. É onde seus arquivos HTML devem ficar.\n',
+    'dir_public_css_exists': '- 📁 O diretório `public/css` não foi encontrado.\n',
+    'dir_public_data_exists': '- 📁 O diretório `public/data` não foi encontrado.\n',
+    'file_style_css_exists': '- 📄 O arquivo de estilos em `public/css/style.css` não foi encontrado.\n',
+    'file_lanches_json_exists': '- 📄 O arquivo de dados em `public/data/lanches.json` não foi encontrado. A rota da API depende dele.\n',
+    'file_index_html_exists': '- 📄 O template da página principal em `views/index.html` não foi encontrado.\n',
+    'file_contato_html_exists': '- 📄 O template da página de contato em `views/contato.html` não foi encontrado.\n',
+    'file_gitignore_exists': '- 📄 O arquivo `.gitignore` não foi encontrado na raiz do projeto.\n',
+    'file_readme_exists': '- 📄 O arquivo `README.md` não foi encontrado na raiz do projeto.\n',
+    'lanches_json_is_valid': '- ☠️ Seu arquivo `public/data/lanches.json` tem um erro de sintaxe. O servidor não consegue lê-lo.\n'
 }
 
 BASE_DIR = os.path.join(os.environ.get('GITHUB_WORKSPACE', ''), 'submission')
