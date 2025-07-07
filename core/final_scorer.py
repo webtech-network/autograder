@@ -70,7 +70,7 @@ class Scorer:
         if mode == "ai":
             allowed = self.driver.decrement_token_quota(self.author)
             if allowed:
-                return Reporter.create_ai_reporter(result,token,openai_key,quota=self.driver.get_token_quota(self.author))
+                return Reporter.create_ai_reporter(result,token,self.driver.get_token_quota(self.author),openai_key)
         return Reporter.create_default_reporter(result,token)
 
     def get_student_files(self):
