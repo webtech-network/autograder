@@ -18,7 +18,7 @@ author = os.getenv("GITHUB_ACTOR")
 scorer = Scorer.quick_build(author)
 
 
-reporter = scorer.get_reporter(github_token, args.redis_token, args.redis_url, mode="default")
+reporter = scorer.get_reporter(github_token, args.redis_token, args.redis_url, mode="ai")
 reporter.create_report()
 reporter.notify_classroom()
 reporter.overwrite_report_in_repo(github_token)
