@@ -46,7 +46,7 @@ class BaseReporter(ABC):
 
     def notify_classroom(self):
         """ """
-        final_score = self.result.get_final_score
+        final_score = self.result.final_score
         # Check if the final_score is provided and is between 0 and 100
         if final_score < 0 or final_score > 100:
             print("Invalid final score. It should be between 0 and 100.")
