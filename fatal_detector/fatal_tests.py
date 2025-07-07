@@ -3,7 +3,7 @@ import json
 import pytest
 
 # --- Configuration ---
-PROJECT_ROOT = '.'
+PROJECT_ROOT = os.path.join(os.getenv("GITHUB_WORKSPACE", "."), "submission")
 
 
 # --- Pytest Fixture ---
