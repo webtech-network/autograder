@@ -4,7 +4,7 @@ class Reporter:
     @classmethod
     def create_ai_reporter(cls, result,token, openai_key=None):
         """Creates an AIReporter instance with the students results"""
-        return AIReporter.create(result,token,openai_key)
+        return AIReporter.create(result,token,quota,openai_key)
 
     @classmethod
     def create_default_reporter(cls, result,token):

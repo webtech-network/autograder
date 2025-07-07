@@ -75,9 +75,9 @@ class AIReporter(BaseReporter):
         return feedback
 
     @classmethod
-    def create(cls, result, token, openai_key=None):
+    def create(cls, result, token, quota, openai_key=None):
         """Factory method to create an AIReporter instance."""
-        response = cls(result, token, openai_key)
+        response = cls(result, token, quota,openai_key)
         response.get_repository()
         return response
 
