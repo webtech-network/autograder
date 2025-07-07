@@ -1,0 +1,350 @@
+{
+  "base_tests": [
+    {
+      "Route: / - should return a 200 OK status code": [
+        "A rota `/` está funcionando e retornando o status 200 OK. Excelente!",
+        "A rota `/` não está retornando o status 200 OK. Verifique se o seu servidor está iniciado corretamente e se a rota principal está configurada para responder a requisições."
+      ]
+    },
+    {
+      "Route: / - should return a Content-Type header of text/html": [
+        "O cabeçalho `Content-Type` da rota `/` está como `text/html`. Perfeito!",
+        "A rota `/` não está retornando o `Content-Type` como `text/html`. Certifique-se de que você está enviando um arquivo HTML como resposta."
+      ]
+    },
+    {
+      "Route: / - should contain at least one form": [
+        "Um formulário foi encontrado na página inicial. Ótimo!",
+        "Não foi encontrado nenhum formulário (`<form>`) na sua página inicial. Adicione um formulário para que os usuários possam enviar dados."
+      ]
+    },
+    {
+      "Route: / - should contain all expected form input fields with correct attributes": [
+        "Todos os campos do formulário na página inicial estão presentes e com os atributos corretos.",
+        "Estão faltando campos (`<input>`) ou os atributos deles (`name`, `type`, etc.) estão incorretos no formulário da página inicial. Revise os requisitos do formulário."
+      ]
+    },
+    {
+      "Route: /sugestao - should accept GET request with query string": [
+        "A rota `/sugestao` aceita requisições GET com query string. Muito bem!",
+        "A rota `/sugestao` não está processando requisições GET com query string. Verifique se a rota está configurada para extrair dados da URL (ex: `req.query`)."
+      ]
+    },
+    {
+      "Route: /sugestao - should return 200 OK and Content-Type text/html": [
+        "A rota `/sugestao` retorna o status 200 OK e o `Content-Type` `text/html` corretamente.",
+        "A rota `/sugestao` não está retornando 200 OK ou o `Content-Type` não é `text/html`. Verifique a resposta desta rota."
+      ]
+    },
+    {
+      "Route: /sugestao - should not redirect (status code should be 200 directly)": [
+        "A rota `/sugestao` responde diretamente com status 200, sem redirecionamentos. Ótimo!",
+        "A rota `/sugestao` está fazendo um redirecionamento. O esperado é que ela renderize o conteúdo diretamente com um status 200."
+      ]
+    },
+    {
+      "Route: /sugestao - should display the submitted \"nome\" in the HTML": [
+        "O nome enviado para `/sugestao` está sendo exibido na página. Perfeito!",
+        "O nome enviado via query string para a rota `/sugestao` não foi encontrado no HTML da resposta. Verifique se você está pegando o valor e inserindo ele no corpo da página."
+      ]
+    },
+    {
+      "Route: /sugestao - should display the submitted \"ingredientes\" in the HTML": [
+        "Os ingredientes enviados para `/sugestao` estão sendo exibidos na página. Excelente!",
+        "Os ingredientes enviados via query string para a rota `/sugestao` não foram encontrados no HTML da resposta. Verifique se você está pegando os valores e inserindo-os no corpo da página."
+      ]
+    },
+    {
+      "Route: /sugestao - should containt anchor to the root route": [
+        "A página de sugestão contém um link (`<a>`) de volta para a página inicial. Ótima prática de navegação!",
+        "Não foi encontrado um link (`<a>`) para a rota raiz (`/`) na página `/sugestao`. Adicione um link para que o usuário possa voltar."
+      ]
+    },
+    {
+      "Route: /contato (GET) - should return 200 OK and Content-Type text/html": [
+        "A rota `/contato` (GET) retorna 200 OK e `Content-Type` `text/html` como esperado.",
+        "Falha ao acessar a rota GET `/contato`. Verifique se a rota existe, se o nome do arquivo HTML está correto e se está retornando um arquivo HTML com status 200."
+      ]
+    },
+    {
+      "Route: /contato (GET) - should contain an input field for \"nome\"": [
+        "O campo de nome (`<input name='nome'>`) está presente no formulário de contato.",
+        "Não foi encontrado um campo (`<input>`) para 'nome' no formulário da rota `/contato`. Certifique-se de que a rota existe e que o input possui o atributo `name='nome'`."
+      ]
+    },
+    {
+      "Route: /contato (GET) - should contain an input field for \"email\"": [
+        "O campo de email (`<input name='email'>`) está presente no formulário de contato.",
+        "Não foi encontrado um campo (`<input>`) para 'email' no formulário da rota `/contato`. Certifique-se de que a rota existe e que o input possui o atributo `name='email'`."
+      ]
+    },
+    {
+      "Route: /contato (GET) - should contain an input field for \"assunto\"": [
+        "O campo de assunto (`<input name='assunto'>`) está presente no formulário de contato.",
+        "Não foi encontrado um campo (`<input>`) para 'assunto' no formulário da rota `/contato`. Certifique-se de que a rota existe e que o input possui o atributo `name='assunto'`."
+      ]
+    },
+    {
+      "Route: /contato (GET) - should contain a textarea or input for \"mensagem\"": [
+        "O campo de mensagem (`<textarea name='mensagem'>` ou `<input name='mensagem'>`) está presente no formulário de contato.",
+        "Não foi encontrado um campo (`<textarea>` ou `<input>`) para 'mensagem' no formulário da rota `/contato`. Certifique-se de que a rota existe e que o campo possui o atributo `name='mensagem'`."
+      ]
+    },
+    {
+      "Route: /contato (GET) - should contain a submit button": [
+        "O botão de envio (`<button type='submit'>` ou `<input type='submit'>`) foi encontrado no formulário de contato.",
+        "O formulário da rota `/contato` não tem um botão de envio, ou a rota não foi encontrada. Adicione um `<button type='submit'>` ou `<input type='submit'>`."
+      ]
+    },
+    {
+      "Route: /contato (GET) - should contain an anchor tag linking to the root route (\"/\")": [
+        "A página de contato contém um link (`<a>`) de volta para a página inicial. Ótimo!",
+        "A página `/contato` não possui um link (`<a>`) para a rota raiz (`/`), ou a rota não foi encontrada. Adicione este link para melhorar a navegação."
+      ]
+    },
+    {
+      "Route: /contato (POST) - final response should be 200 OK and Content-Type text/html": [
+        "A rota `/contato` (POST) responde corretamente com 200 OK e `Content-Type` `text/html` após o envio do formulário.",
+        "A resposta final da rota POST `/contato` não é 200 OK ou o `Content-Type` não é `text/html`. Verifique o que acontece após o envio do formulário, incluindo possíveis redirecionamentos."
+      ]
+    },
+    {
+      "Route: /contato (POST) - should either respond directly with HTML or redirect to /contato-recebido": [
+        "A rota `/contato` (POST) responde com HTML diretamente ou redireciona para uma página de confirmação. Bom trabalho!",
+        "Após enviar um POST para `/contato`, a aplicação não está respondendo com um HTML nem redirecionando para uma página de confirmação. Verifique a lógica do seu servidor para essa rota."
+      ]
+    },
+    {
+      "Route: /contato (POST) - should display the submitted \"nome\"": [
+        "O 'nome' enviado pelo formulário de contato é exibido na página de resposta. Perfeito!",
+        "O 'nome' enviado pelo formulário de contato não está sendo exibido na página de resposta. Verifique se você está capturando o dado (`req.body.nome`) e o renderizando no HTML."
+      ]
+    },
+    {
+      "Route: /contato (POST) - should display the submitted \"email\"": [
+        "O 'email' enviado pelo formulário de contato é exibido na página de resposta. Excelente!",
+        "O 'email' enviado pelo formulário de contato não está sendo exibido na página de resposta. Verifique se você está capturando o dado (`req.body.email`) e o renderizando no HTML."
+      ]
+    },
+    {
+      "Route: /contato (POST) - should display the submitted \"assunto\"": [
+        "O 'assunto' enviado pelo formulário de contato é exibido na página de resposta. Muito bem!",
+        "O 'assunto' enviado pelo formulário de contato não está sendo exibido na página de resposta. Verifique se você está capturando o dado (`req.body.assunto`) e o renderizando no HTML."
+      ]
+    },
+    {
+      "Route: /contato (POST) - should display the submitted \"mensagem\"": [
+        "A 'mensagem' enviada pelo formulário de contato é exibida na página de resposta. Ótimo!",
+        "A 'mensagem' enviada pelo formulário de contato não está sendo exibida na página de resposta. Verifique se você está capturando o dado (`req.body.mensagem`) e o renderizando no HTML."
+      ]
+    },
+    {
+      "Route: /contato (POST) - should contain an anchor tag linking to the root route (\"/\")": [
+        "A página de resposta do formulário de contato possui um link de volta para a página inicial.",
+        "A página de resposta do formulário de contato não tem um link (`<a>`) de volta para a rota raiz (`/`). Adicione um para que o usuário possa navegar de volta."
+      ]
+    },
+    {
+      "Route: /api/lanches - should return a 200 OK status code": [
+        "A rota `/api/lanches` está online e retornando status 200 OK. Perfeito!",
+        "A rota `/api/lanches` não está respondendo com status 200 OK. Verifique se o servidor está rodando e a rota está configurada corretamente."
+      ]
+    },
+    {
+      "Route: /api/lanches - should return a Content-Type header of application/json": [
+        "A API de lanches está retornando o `Content-Type` como `application/json`. Excelente!",
+        "A rota `/api/lanches` não está retornando o `Content-Type` `application/json`. Use `res.json()` ou configure o cabeçalho manualmente para enviar a resposta em JSON."
+      ]
+    },
+    {
+      "Route: /api/lanches - should return an array of lanches": [
+        "A rota `/api/lanches` retorna um array. Ótimo!",
+        "A resposta da rota `/api/lanches` não é um array. A API deve retornar uma lista de objetos, mesmo que esteja vazia."
+      ]
+    },
+    {
+      "Route: /api/lanches - should return an array with at least 3 lanches": [
+        "A API de lanches retorna 3 ou mais itens. Excelente!",
+        "A API `/api/lanches` deve retornar um array com no mínimo 3 lanches. Verifique se você está enviando todos os dados necessários."
+      ]
+    },
+    {
+      "Route: /api/lanches - each lanche object in the array should have the required attributes: id, nome ingredientes": [
+        "Todos os lanches na API possuem os atributos `id`, `nome` e `ingredientes`. Perfeito!",
+        "Um ou mais objetos de lanche na sua API não possuem todos os atributos necessários (`id`, `nome`, `ingredientes`). Revise a estrutura dos objetos."
+      ]
+    },
+    {
+      "Route: /api/lanches - each lanche attribute should have the correct data type and not be blank, 0 or null": [
+        "Os atributos de cada lanche na API têm o tipo de dado correto e não estão vazios. Ótimo trabalho!",
+        "Algum atributo de um lanche na sua API está com o tipo de dado errado, é nulo ou está vazio. O `id` deve ser um número, e `nome` e `ingredientes` devem ser strings não vazias."
+      ]
+    }
+  ],
+  "bonus_tests": [
+    {
+      "student used PRG correctly": [
+        "O padrão Post-Redirect-Get (PRG) foi aplicado corretamente. Isso evita o reenvio de formulários ao atualizar a página. Excelente!",
+        "O padrão Post-Redirect-Get (PRG) não foi detectado. Após um POST, redirecione o usuário para uma nova página (com status 3xx) para evitar o reenvio do formulário. Isso é uma boa prática!"
+      ]
+    },
+    {
+      "student handled 404 status code": [
+        "Sua aplicação trata rotas não encontradas (404) de forma personalizada. Muito bom!",
+        "Sua aplicação não parece ter um tratamento para erros 404. Considere adicionar um middleware no final de suas rotas para capturar requisições a URLs inexistentes e responder com uma página de erro."
+      ]
+    },
+    {
+      "student used correct labels for the root route's form": [
+        "As `labels` do formulário da página inicial estão corretamente associadas aos seus `inputs`. Ótima acessibilidade!",
+        "As `labels` no formulário da página inicial não estão corretamente associadas aos seus `inputs`. Use o atributo `for` na `label` para apontar para o `id` do `input` correspondente."
+      ]
+    },
+    {
+      "student used correct labels for the /contato route's form": [
+        "As `labels` do formulário de contato estão corretamente associadas aos seus `inputs`. Excelente!",
+        "As `labels` no formulário da rota `/contato` não estão corretamente associadas aos seus `inputs`, ou a rota não foi encontrada. Use o atributo `for` na `label` para apontar para o `id` do `input` correspondente."
+      ]
+    }
+  ],
+  "penalty_tests": [
+    {
+      "/ should not accept POST": [
+        "Sua rota raiz (`/`) não aceita requisições do tipo POST, como esperado. Muito bem!",
+        "Sua rota raiz (`/`) está aceitando requisições do tipo POST. Ela deveria aceitar apenas GET. Configure o servidor para retornar um erro (405 Method Not Allowed) para outros métodos."
+      ]
+    },
+    {
+      "/ should not accept PUT": [
+        "Sua rota raiz (`/`) não aceita requisições do tipo PUT, como esperado. Ótimo!",
+        "Sua rota raiz (`/`) está aceitando requisições do tipo PUT. Ela deveria aceitar apenas GET. Configure o servidor para retornar um erro (405 Method Not Allowed) para outros métodos."
+      ]
+    },
+    {
+      "/ should not accept DELETE": [
+        "Sua rota raiz (`/`) não aceita requisições do tipo DELETE, como esperado. Perfeito!",
+        "Sua rota raiz (`/`) está aceitando requisições do tipo DELETE. Ela deveria aceitar apenas GET. Configure o servidor para retornar um erro (405 Method Not Allowed) para outros métodos."
+      ]
+    },
+    {
+      "/ should not accept PATCH": [
+        "Sua rota raiz (`/`) não aceita requisições do tipo PATCH, como esperado. Excelente!",
+        "Sua rota raiz (`/`) está aceitando requisições do tipo PATCH. Ela deveria aceitar apenas GET. Configure o servidor para retornar um erro (405 Method Not Allowed) para outros métodos."
+      ]
+    },
+    {
+      "/sugestao should not accept POST": [
+        "A rota `/sugestao` não aceita requisições POST, como esperado. Bom trabalho!",
+        "A rota `/sugestao` está aceitando requisições POST, mas deveria aceitar apenas GET. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/sugestao should not accept PUT": [
+        "A rota `/sugestao` não aceita requisições PUT, como esperado. Ótimo!",
+        "A rota `/sugestao` está aceitando requisições PUT, mas deveria aceitar apenas GET. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/sugestao should not accept DELETE": [
+        "A rota `/sugestao` não aceita requisições DELETE, como esperado. Muito bem!",
+        "A rota `/sugestao` está aceitando requisições DELETE, mas deveria aceitar apenas GET. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/sugestao should not accept PATCH": [
+        "A rota `/sugestao` não aceita requisições PATCH, como esperado. Perfeito!",
+        "A rota `/sugestao` está aceitando requisições PATCH, mas deveria aceitar apenas GET. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/contato should not accept PUT": [
+        "A rota `/contato` não aceita requisições PUT, como esperado. Bom trabalho!",
+        "A rota `/contato` está aceitando requisições PUT, mas deveria aceitar apenas GET e POST. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/contato should not accept DELETE": [
+        "A rota `/contato` não aceita requisições DELETE, como esperado. Ótimo!",
+        "A rota `/contato` está aceitando requisições DELETE, mas deveria aceitar apenas GET e POST. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/contato should not accept PATCH": [
+        "A rota `/contato` não aceita requisições PATCH, como esperado. Perfeito!",
+        "A rota `/contato` está aceitando requisições PATCH, mas deveria aceitar apenas GET e POST. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/api/lanches should not accept POST": [
+        "A rota `/api/lanches` não aceita requisições POST, como esperado. Bom trabalho!",
+        "A rota `/api/lanches` está aceitando requisições POST, mas deveria aceitar apenas GET. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/api/lanches should not accept PUT": [
+        "A rota `/api/lanches` não aceita requisições PUT, como esperado. Ótimo!",
+        "A rota `/api/lanches` está aceitando requisições PUT, mas deveria aceitar apenas GET. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/api/lanches should not accept DELETE": [
+        "A rota `/api/lanches` não aceita requisições DELETE, como esperado. Perfeito!",
+        "A rota `/api/lanches` está aceitando requisições DELETE, mas deveria aceitar apenas GET. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "/api/lanches should not accept PATCH": [
+        "A rota `/api/lanches` não aceita requisições PATCH, como esperado. Excelente!",
+        "A rota `/api/lanches` está aceitando requisições PATCH, mas deveria aceitar apenas GET. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "GET / should return text/html": [
+        "O teste de penalidade passou. Isso significa que você não definiu o `Content-Type` manualmente, o que é uma boa prática.",
+        "O `Content-Type` para a rota `/` foi definido manualmente. Embora funcione, é melhor deixar que o framework (ex: Express com `res.sendFile()` ou `res.render()`) defina este cabeçalho automaticamente."
+      ]
+    },
+    {
+      "GET /sugestao should return text/html": [
+        "O teste de penalidade passou. Isso significa que você não definiu o `Content-Type` manualmente. Ótimo!",
+        "O `Content-Type` para a rota `/sugestao` foi definido manualmente. Deixe que o framework defina este cabeçalho automaticamente ao enviar a resposta."
+      ]
+    },
+    {
+      "GET /contato should return text/html": [
+        "O teste de penalidade passou. A rota `/contato` existe e não está definindo o `Content-Type` manualmente.",
+        "O `Content-Type` para a rota `/contato` foi definido manualmente ou a rota não foi encontrada. Verifique a existência da rota e evite definir o `Content-Type` por conta própria."
+      ]
+    },
+    {
+      "GET /api/lanches should return application/json": [
+        "O teste de penalidade passou. Isso significa que você provavelmente está usando `res.json()`, que define o `Content-Type` automaticamente. Perfeito!",
+        "O `Content-Type` para a rota `/api/lanches` foi definido manualmente. Use o método `res.json()` do seu framework, que já configura o cabeçalho correto para você."
+      ]
+    },
+    {
+      "Static CSS file should return text/css": [
+        "O teste de penalidade passou. Seu servidor está servindo arquivos estáticos corretamente sem configuração manual de `Content-Type`.",
+        "Um arquivo CSS estático está com o `Content-Type` definido manualmente. Deixe que o middleware de arquivos estáticos (ex: `express.static`) gerencie os `Content-Types` por você."
+      ]
+    },
+    {
+      "POST /contato final response should be text/html (adaptive)": [
+        "O teste de penalidade passou. A resposta final do POST em `/contato` não define o `Content-Type` manualmente. Excelente.",
+        "A resposta final do POST em `/contato` está com `Content-Type` definido manualmente. Deixe que o framework (ao renderizar uma view ou enviar um arquivo) defina este cabeçalho automaticamente."
+      ]
+    },
+    {
+      "index.html form should have correct name attributes": [
+        "O formulário na `index.html` não possui atributos `name` incorretos. Ótimo.",
+        "Detectamos que um dos campos do formulário na `index.html` não tem o atributo `name` esperado. O formulário de sugestão deve ter os campos com `name='nome'` e `name='ingredientes'`."
+      ]
+    },
+    {
+      "contato.html form should have correct name attributes": [
+        "O formulário na `contato.html` não possui atributos `name` incorretos.",
+        "Detectamos que um dos campos do formulário na `contato.html` não tem o atributo `name` esperado (ou a página não foi encontrada). O formulário deve ter os campos com `name` definidos como `nome`, `email`, `assunto` e `mensagem`."
+      ]
+    }
+  ]
+}
