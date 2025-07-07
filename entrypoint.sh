@@ -3,7 +3,7 @@
 # Print a message to indicate the start of the autograding process
 echo "Starting autograder..."
 
-#set -e
+set -e
 cd /app
 
 python fatal_analysis.py --token $1
