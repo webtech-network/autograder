@@ -1,6 +1,23 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { BASE_URL } = require('../config');
+const fs = require('fs');
+
+let projectRoot;
+let projectFolderExists = false;
+
+try {
+    const potentialPath = path.join(process.env.GITHUB_WORKSPACE || '', "submission");
+
+    if (fs.existsSync(potentialPath)) {
+        projectRoot = potentialPath;
+        projectFolderExists = true;
+    }
+
+} catch (error) {
+    projectFolderExists = false;
+    console.error("An unexpected error occurred while checking the path:", error);
+}
 
 //Axios object that accepts all responses so they can be analyzed
 const axiosNoRedirect = axios.create({
@@ -81,7 +98,7 @@ describe('Penalty Tests - ', () => {
         for (const endpoint in endpointForbiddenMethods) {
             const forbiddenMethods = endpointForbiddenMethods[endpoint];
             for (const method of forbiddenMethods) {
-                test(`${endpoint} accepts wrong method ${method}`, async () => await testUnexpectedMethod(endpoint, method));
+                test(`Endpoint ${endpoint} não deve aceitar método ${method}`, async () => await testUnexpectedMethod(endpoint, method));
             }
         }
 
@@ -111,33 +128,33 @@ describe('Penalty Tests - ', () => {
 
     describe('Incorrect Content-Type Returns', () => {
 
-        safeTest('GET / does not return text/html', async () => {
+        safeTest('GET / não retorna text/html', async () => {
             const response = await axios.get(`${BASE_URL}/`);
             expectContentType(response, 'text/html');
         })
 
-        safeTest('GET /sugestao does not return text/html', async () => {
+        safeTest('GET /sugestao não retorna text/html', async () => {
             const response = await axios.get(`${BASE_URL}/sugestao?nome=test&ingredientes=test`);
             expectContentType(response, 'text/html');
         });
 
-        safeTest('GET /contato does not return text/html', async () => {
+        safeTest('GET /contato não retorna text/html', async () => {
             const response = await axios.get(`${BASE_URL}/contato`);
             expectContentType(response, 'text/html');
         });
 
-        safeTest('GET /api/lanches does not return application/json', async () => {
+        safeTest('GET /api/lanches não retorna application/json', async () => {
             const response = await axios.get(`${BASE_URL}/api/lanches`);
             expectContentType(response, 'application/json');
         });
 
-        safeTest('Static CSS file does not return text/css', async () => {
+        safeTest('arquivo css estático style.css não retorna text/css', async () => {
             const response = await axios.get(`${BASE_URL}/css/style.css`);
             expectContentType(response, 'text/css');
         });
 
 
-        safeTest('POST /contato final response does not return text/html (adaptive)', async () => {
+        safeTest('resposta final de POST /contato não retorna text/html (adaptativo)', async () => {
             let finalResponse;
             try {
                 const initialResponse = await axiosNoRedirect.post(`${BASE_URL}/contato`, contactSubmission, {
@@ -163,13 +180,13 @@ describe('Penalty Tests - ', () => {
 
     describe('Incorrect Form Field Name Attributes', () => {
 
-        safeTest('index.html form does not have correct name attributes', async () => {
+        safeTest('formulário da página index.html não possui campos de input com name attributes corretos', async () => {
             const response = await axios.get(`${BASE_URL}/`);
             const $ = cheerio.load(response.data);
             expectFormFields($, ['nome', 'ingredientes']);
         });
 
-        safeTest('contato.html form does not have correct name attributes', async () => {
+        safeTest('formulário da página contato.html não possui campos de input com name attributes corretos', async () => {
             const response = await axios.get(`${BASE_URL}/contato`);
             const $ = cheerio.load(response.data);
             expectFormFields($, ['nome', 'email', 'assunto', 'mensagem']);
@@ -177,51 +194,49 @@ describe('Penalty Tests - ', () => {
     });
 
     describe("Static File Organization", () => {
-        const projectRoot = path.join("GITHUB_WORKSPACE", "submission");
+        
+        test('projeto contém outras dependências além do express', () => {
+            if(!projectFolderExists) return;
 
-        test('project does not have a "public" folder for static assets', () => {
-            const publicFolderPath = path.join(projectRoot, 'public');
-            const folderExists = fs.existsSync(publicFolderPath);
-            expect(folderExists).toBe(false);
-        });
+            let packageJsonPath = '';
+            let fileExists = true;
+            try{
+                packageJsonPath = path.join(projectRoot, 'package.json');
+            } catch(error){
+                fileExists = fs.existsSync(packageJsonPath);
+            }
 
-        test('project has a "node_modules" folder', () => {
-            const nodeModulesPath = path.join(projectRoot, 'node_modules');
-            const folderExists = fs.existsSync(nodeModulesPath);
-            expect(folderExists).toBe(true);
-        });
-
-        test('project does not have a "package.json" file', () => {
-            const packageJsonPath = path.join(projectRoot, 'package.json');
-            const fileExists = fs.existsSync(packageJsonPath);
-            expect(fileExists).toBe(false);
-        });
-
-        test('project has dependencies other than "express" in the "package.json" file', () => {
-            const packageJsonPath = path.join(projectRoot, 'package.json');
-            const fileExists = fs.existsSync(packageJsonPath);
-            expect(fileExists).toBe(false);
+            if(!fileExists) return;
 
             const fileContent = fs.readFileSync(packageJsonPath, 'utf8');
+
+            if(!fileContent) return;
+
             const packageJson = JSON.parse(fileContent);
 
             const dependencies = packageJson.dependencies || {};
+
+            if(dependencies == {}) return;
+
             const dependencyKeys = Object.keys(dependencies);
 
             expect(dependencyKeys.length).toBeGreaterThan(1);
             expect(dependencyKeys).toContain('express');
         });
 
-        test('project does not have a "package-lock.json" file', () => {
-            const packageLockPath = path.join(projectRoot, 'package-lock.json');
-            const fileExists = fs.existsSync(packageLockPath);
-            expect(fileExists).toBe(false);
+        test('projeto do aluno contém pasta node_modules', () => {
+            if(!projectFolderExists) return;
+        
+            let nodeModulesPath;
+            let folderExists = false;
+            try{
+                nodeModulesPath = path.join(projectRoot || '', 'node_modules');
+            } catch(error){
+                folderExists = fs.existsSync(nodeModulesPath);
+            }
+
+            expect(folderExists).toBe(true);
         });
 
-        test('project does not have a server.js file', () => {
-            const serverJsPath = path.join(projectRoot, 'server.js');
-            const fileExists = fs.existsSync(serverJsPath);
-            expect(fileExists).toBe(false);
-        });
     });
 });

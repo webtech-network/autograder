@@ -20,11 +20,11 @@ describe('Base Tests - ', () => {
     // 1) --- Basic connectivity checks ---
     describe('Status code and headers', () => {
 
-      test('should return a 200 OK status code', () => {
+      test('deve retornar status code 200', () => {
         expect(response.status).toBe(200);
       });
 
-      test('should return a Content-Type header of text/html', () => {
+      test('deve retornar header Content-Type text/html', () => {
         expect(response.headers['content-type']).toMatch(/html/);
       });
     });
@@ -40,7 +40,7 @@ describe('Base Tests - ', () => {
         $form = $('form')
       });
 
-      test('should contain at least one form', () => {
+      test('deve conter pelo menos um formulário', () => {
         expect($form.length).toBeGreaterThan(0);
       });
 
@@ -55,7 +55,7 @@ describe('Base Tests - ', () => {
         }
       ];
 
-      test('should contain all expected form input fields with correct attributes', () => {
+      test('deve conter dois campos de input do tipo texto com atributos "name" sendo "nome" no primeiro e "ingredentes" no segundo', () => {
         expectedFormFields.forEach(field => {
           let foundField = false;
 
@@ -101,32 +101,32 @@ describe('Base Tests - ', () => {
       }
     });
 
-    test('should accept GET request with query string', () => {
+    test('deve aceitar uma requisição GET com query string contendo parâmetros "nome" e "ingredientes"', () => {
       expect(response.config.url).toContain(`?${queryString}`);
       expect(response.config.method).toBe('get');
     });
 
-    test('should return 200 OK and Content-Type text/html', () => {
+    test('deve retornar status code 200 com content-type html', () => {
       expect(response.status).toBe(200);
       expect(response.headers['content-type']).toMatch(/html/);
     });
 
-    test('should not redirect (status code should be 200 directly)', () => {
+    test('não deve retornar um redirect (status não deve ser 3xx)', () => {
       const isRedirect = response.status >= 300 && response.status < 400;
       expect(isRedirect).toBe(false);
     });
 
 
     describe('HTML Content Analysis', () => {
-      test('should display the submitted "nome" in the HTML', () => {
+      test('deve exibir o nome enviado via query string na página HTML', () => {
         expect($.html()).toContain(suggestion.nome);
       });
 
-      test('should display the submitted "ingredientes" in the HTML', () => {
+      test('deve exibir os ingredientes enviados via query string na página HTML', () => {
         expect($.html()).toContain(suggestion.ingredientes);
       });
 
-      test('should containt anchor to the root route', () => {
+      test('deve conter umad âncora para a rota raíz /', () => {
         const rootLink = $('a[href="/"]');
         expect(rootLink.length).toBeGreaterThanOrEqual(1);
       });
@@ -154,41 +154,41 @@ describe('Base Tests - ', () => {
       }
     });
 
-    test('should return 200 OK and Content-Type text/html', () => {
+    test('deve retornar status code 200 e Content-type text/html', () => {
       expect(response.status).toBe(200);
       expect(response.headers['content-type']).toMatch(/html/);
     });
 
-    test('should contain an input field for "nome"', () => {
+    test('deve conter um campo de input ou textarea do tipo texto com atributo name como "nome"', () => {
       const nomeInput = $('[name="nome"]');
       expect(nomeInput.length).toBeGreaterThan(0);
       expect(nomeInput.is('input[type="text"]') || nomeInput.is('textarea')).toBe(true);
     });
 
-    test('should contain an input field for "email"', () => {
+    test('deve conter um campo de input do tipo email ou texto com atributo name como "email"', () => {
       const emailInput = $('[name="email"]');
       expect(emailInput.length).toBeGreaterThan(0);
       expect(emailInput.is('input[type="email"]') || emailInput.is('input[type="text"]')).toBe(true);
     });
 
-    test('should contain an input field for "assunto"', () => {
+    test('deve conter um campo de input ou textarea do tipo texto com atributo name como "assunto"', () => {
       const assuntoInput = $('[name="assunto"]');
       expect(assuntoInput.length).toBeGreaterThan(0);
       expect(assuntoInput.is('input[type="text"]') || assuntoInput.is('textarea')).toBe(true);
     });
 
-    test('should contain a textarea or input for "mensagem"', () => {
+    test('deve conter um campo de input ou textarea do tipo texto com atributo name como "mensagem"', () => {
       const mensagemInput = $('[name="mensagem"]');
       expect(mensagemInput.length).toBeGreaterThan(0);
       expect(mensagemInput.is('textarea') || mensagemInput.is('input[type="text"]')).toBe(true);
     });
 
-    test('should contain a submit button', () => {
+    test('form deve conter botão do tipo submit', () => {
       const submitButton = $('button[type="submit"], input[type="submit"]');
       expect(submitButton.length).toBeGreaterThan(0);
     });
 
-    test('should contain an anchor tag linking to the root route ("/")', () => {
+    test('deve conter umad âncora para a rota raíz /', () => {
       const rootLink = $('a[href="/"]');
       expect(rootLink.length).toBeGreaterThan(0);
     });
@@ -256,42 +256,40 @@ describe('Base Tests - ', () => {
       }
     });
 
-    test('final response should be 200 OK and Content-Type text/html', () => {
+    test('resposta final deve possuir status code 200 com Content-type text/html', () => {
       expect(finalResponse.status).toBe(200);
       expect(finalResponse.headers['content-type']).toMatch(/html/);
     });
 
-    test('should either respond directly with HTML or redirect to /contato-recebido', () => {
+    test('dever retornar uma página HTML diretamente (status code 200) ou redirect para /contato-recebido (status code 3xx)', () => {
       if (initialStatus >= 300 && initialStatus < 400) {
         expect(initialStatus).toBeGreaterThanOrEqual(300);
         expect(initialStatus).toBeLessThan(400);
         expect(initialLocation).toBe('/contato-recebido');
-        console.log('Detected PRG pattern: POST resulted in a 3xx redirect.');
       } else {
         expect(initialStatus).toBe(200);
         expect(initialLocation).toBeUndefined();
-        console.log('Detected direct HTML response for POST.');
       }
     });
 
     describe('HTML Content Analysis (Final Page)', () => {
-      test('should display the submitted "nome"', () => {
+      test('página de resposta deve exibir o "nome" enviado no formulário', () => {
         expect($.html()).toContain(contactSubmission.nome);
       });
 
-      test('should display the submitted "email"', () => {
+      test('página de resposta deve exibir o "email" enviado no formulário', () => {
         expect($.html()).toContain(contactSubmission.email);
       });
 
-      test('should display the submitted "assunto"', () => {
+      test('página de resposta deve exibir o "assunto" enviado no formulário', () => {
         expect($.html()).toContain(contactSubmission.assunto);
       });
 
-      test('should display the submitted "mensagem"', () => {
+      test('página de resposta deve exibir o "mensagem" enviada no formulário', () => {
         expect($.html()).toContain(contactSubmission.mensagem);
       });
 
-      test('should contain an anchor tag linking to the root route ("/")', () => {
+      test('deve conter umad âncora para a rota raíz /', () => {
         const rootLink = $('a[href="/"]');
         expect(rootLink.length).toBeGreaterThan(0);
       });
@@ -314,11 +312,11 @@ describe('Base Tests - ', () => {
 
     // --- Basic Connectivity Checks ---
     describe('Basic Connectivity and Headers', () => {
-      test('should return a 200 OK status code', () => {
+      test('deve retornar status code 200', () => {
         expect(response.status).toBe(200);
       });
 
-      test('should return a Content-Type header of application/json', () => {
+      test('deve retornar header Content-type application/json', () => {
         expect(response.headers['content-type']).toMatch(/application\/json/);
       });
     });
@@ -326,15 +324,15 @@ describe('Base Tests - ', () => {
 
     // --- JSON Data Structure and Type Validation ---
     describe('JSON Data Structure Validation', () => {
-      test('should return an array of lanches', () => {
+      test('deve retornar um array de lanches', () => {
         expect(Array.isArray(lanches)).toBe(true);
       });
 
-      test('should return an array with at least 3 lanches', () => {
+      test('deve retornar um array com pelo menos 3 lanches', () => {
         expect(lanches.length).toBeGreaterThan(2);
       });
 
-      test('each lanche object in the array should have the required attributes: id, nome ingredientes', () => {
+      test('cada objeto de lanche do array deve ter os seguinte atributos: id, nome ingredientes', () => {
         lanches.forEach(lanche => {
           expect(lanche).toHaveProperty('id');
           expect(lanche).toHaveProperty('nome');
@@ -342,7 +340,7 @@ describe('Base Tests - ', () => {
         });
       });
 
-      test('each lanche attribute should have the correct data type and not be blank, 0 or null', () => {
+      test('cada atributo deve possuir o data type correto e não ser vazio, 0 ou null', () => {
         lanches.forEach(lanche => {
           expect(typeof lanche.id).toBe('number');
           expect(Number.isInteger(lanche.id)).toBe(true);
