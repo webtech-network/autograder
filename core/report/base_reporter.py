@@ -15,6 +15,7 @@ class BaseReporter(ABC):
             repos = os.getenv("GITHUB_REPOSITORY")
             g = Github(self.token)
             self.repo = g.get_repo(repos)
+            print("This repo is: ", self.repo)
         except:
             raise Exception("Failed to get repository. Please check your GitHub token and repository settings.")
 
@@ -44,10 +45,9 @@ class BaseReporter(ABC):
 
             print(f"Report successfully overwritten in {file_path}")
 
-    def notify_classroom(self):
-        """ """
-        final_score = self.result.final_score
+    def notify_classroom(self, token):
         # Check if the final_score is provided and is between 0 and 100
+        final_score = self.result.final_score
         if final_score < 0 or final_score > 100:
             print("Invalid final score. It should be between 0 and 100.")
             return
@@ -60,6 +60,8 @@ class BaseReporter(ABC):
             return
 
         # Create the GitHub client using the token
+        g = Github(token)
+        repo = g.get_repo(repo_name)
 
         # Get the workflow run ID
         run_id = os.getenv("GITHUB_RUN_ID")
@@ -68,15 +70,15 @@ class BaseReporter(ABC):
             return
 
         # Fetch the workflow run
-        workflow_run = self.repo.get_workflow_run(int(run_id))
+        workflow_run = repo.get_workflow_run(int(run_id))
 
         # Find the check suite run ID
         check_suite_url = workflow_run.check_suite_url
         check_suite_id = int(check_suite_url.split('/')[-1])
 
         # Get the check runs for this suite
-        check_runs = self.repo.get_check_suite(check_suite_id)
-        check_run = next((run for run in check_runs.get_check_runs() if run.name == "run-tests"), None)
+        check_runs = repo.get_check_suite(check_suite_id)
+        check_run = next((run for run in check_runs.get_check_runs() if run.name == "grading"), None)
         if not check_run:
             print("Check run not found.")
             return
