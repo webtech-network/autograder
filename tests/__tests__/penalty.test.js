@@ -81,7 +81,7 @@ describe('Penalty Tests - ', () => {
         for (const endpoint in endpointForbiddenMethods) {
             const forbiddenMethods = endpointForbiddenMethods[endpoint];
             for (const method of forbiddenMethods) {
-                test(`${endpoint} should not accept ${method}`, async () => await testUnexpectedMethod(endpoint, method));
+                test(`${endpoint} accepts wrong method ${method}`, async () => await testUnexpectedMethod(endpoint, method));
             }
         }
 
@@ -111,33 +111,33 @@ describe('Penalty Tests - ', () => {
 
     describe('Incorrect Content-Type Returns', () => {
 
-        safeTest('GET / should return text/html', async () => {
+        safeTest('GET / does not return text/html', async () => {
             const response = await axios.get(`${BASE_URL}/`);
             expectContentType(response, 'text/html');
         })
 
-        safeTest('GET /sugestao should return text/html', async () => {
+        safeTest('GET /sugestao does not return text/html', async () => {
             const response = await axios.get(`${BASE_URL}/sugestao?nome=test&ingredientes=test`);
             expectContentType(response, 'text/html');
         });
 
-        safeTest('GET /contato should return text/html', async () => {
+        safeTest('GET /contato does not return text/html', async () => {
             const response = await axios.get(`${BASE_URL}/contato`);
             expectContentType(response, 'text/html');
         });
 
-        safeTest('GET /api/lanches should return application/json', async () => {
+        safeTest('GET /api/lanches does not return application/json', async () => {
             const response = await axios.get(`${BASE_URL}/api/lanches`);
             expectContentType(response, 'application/json');
         });
 
-        safeTest('Static CSS file should return text/css', async () => {
+        safeTest('Static CSS file does not return text/css', async () => {
             const response = await axios.get(`${BASE_URL}/css/style.css`);
             expectContentType(response, 'text/css');
         });
 
 
-        safeTest('POST /contato final response should be text/html (adaptive)', async () => {
+        safeTest('POST /contato final response does not return text/html (adaptive)', async () => {
             let finalResponse;
             try {
                 const initialResponse = await axiosNoRedirect.post(`${BASE_URL}/contato`, contactSubmission, {
@@ -163,16 +163,65 @@ describe('Penalty Tests - ', () => {
 
     describe('Incorrect Form Field Name Attributes', () => {
 
-        safeTest('index.html form should have correct name attributes', async () => {
+        safeTest('index.html form does not have correct name attributes', async () => {
             const response = await axios.get(`${BASE_URL}/`);
             const $ = cheerio.load(response.data);
             expectFormFields($, ['nome', 'ingredientes']);
         });
 
-        safeTest('contato.html form should have correct name attributes', async () => {
+        safeTest('contato.html form does not have correct name attributes', async () => {
             const response = await axios.get(`${BASE_URL}/contato`);
             const $ = cheerio.load(response.data);
             expectFormFields($, ['nome', 'email', 'assunto', 'mensagem']);
+        });
+    });
+
+    describe("Static File Organization", () => {
+        const projectRoot = path.join("GITHUB_WORKSPACE", "submission");
+
+        test('project does not have a "public" folder for static assets', () => {
+            const publicFolderPath = path.join(projectRoot, 'public');
+            const folderExists = fs.existsSync(publicFolderPath);
+            expect(folderExists).toBe(false);
+        });
+
+        test('project has a "node_modules" folder', () => {
+            const nodeModulesPath = path.join(projectRoot, 'node_modules');
+            const folderExists = fs.existsSync(nodeModulesPath);
+            expect(folderExists).toBe(true);
+        });
+
+        test('project does not have a "package.json" file', () => {
+            const packageJsonPath = path.join(projectRoot, 'package.json');
+            const fileExists = fs.existsSync(packageJsonPath);
+            expect(fileExists).toBe(false);
+        });
+
+        test('project has dependencies other than "express" in the "package.json" file', () => {
+            const packageJsonPath = path.join(projectRoot, 'package.json');
+            const fileExists = fs.existsSync(packageJsonPath);
+            expect(fileExists).toBe(false);
+
+            const fileContent = fs.readFileSync(packageJsonPath, 'utf8');
+            const packageJson = JSON.parse(fileContent);
+
+            const dependencies = packageJson.dependencies || {};
+            const dependencyKeys = Object.keys(dependencies);
+
+            expect(dependencyKeys.length).toBeGreaterThan(1);
+            expect(dependencyKeys).toContain('express');
+        });
+
+        test('project does not have a "package-lock.json" file', () => {
+            const packageLockPath = path.join(projectRoot, 'package-lock.json');
+            const fileExists = fs.existsSync(packageLockPath);
+            expect(fileExists).toBe(false);
+        });
+
+        test('project does not have a server.js file', () => {
+            const serverJsPath = path.join(projectRoot, 'server.js');
+            const fileExists = fs.existsSync(serverJsPath);
+            expect(fileExists).toBe(false);
         });
     });
 });
