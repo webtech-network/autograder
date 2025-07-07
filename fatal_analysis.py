@@ -58,7 +58,7 @@ class FatalErrorReporter:
             final_feedback += "\n\nPor favor, corrija esses problemas e tente novamente."
 
             print(final_feedback)
-            # self.reporter.overwrite_report_in_repo(new_content=final_feedback) # Descomente quando o reporter estiver pronto
+            self.reporter.overwrite_report_in_repo(new_content=final_feedback) # Descomente quando o reporter estiver pronto
 
             # O pytest se encarregará de sair com um código de erro apropriado
             # por causa dos testes que falharam. Não precisamos de sys.exit(1) manual aqui.

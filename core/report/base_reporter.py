@@ -40,8 +40,10 @@ class BaseReporter(ABC):
             commit_message = "Criando relatório..."
             if file_sha:
                 self.repo.update_file(file_path, commit_message, new_content, file_sha)
+                print("Arquivo existente encontrado. Atualizando conteúdo...")
             else:
                 self.repo.create_file(file_path, commit_message, new_content)
+            print("Arquivo não encontrado. Criando novo arquivo...")
 
             print(f"Report successfully overwritten in {file_path}")
 
