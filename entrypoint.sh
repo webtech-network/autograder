@@ -6,7 +6,7 @@ echo "Starting autograder..."
 set -e
 
 # --- Install dependencies in the student's repository and run server.js ---
-cd "$GITHUB_WORKSPACE"
+cd "$GITHUB_WORKSPACE/submission"
 
 if [ -f "package.json" ]; then
     echo "Downloading dependencies from student's project"
@@ -27,7 +27,7 @@ SERVER_URL="http://localhost:3000"
 CONNECTION_ATTEMPTS=10
 ATTEMPT_COUNTER=0
 
-while [ CONNECTION_ATTEMPTS -lt ATTEMPT_COUNTER ]; do
+while [ $CONNECTION_ATTEMPTS -lt $ATTEMPT_COUNTER ]; do
     if curl -s "$SERVER_URL" > /dev/null; then
         echo "Server is up and reachable."
         break
@@ -39,7 +39,7 @@ while [ CONNECTION_ATTEMPTS -lt ATTEMPT_COUNTER ]; do
 done
 
 
-if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+if [ "$RETRY_COUNT" -eq "$MAX_RETRIES" ]; then
     echo "Error: Server failed to start or become reachable after multiple attempts."
     kill "$SERVER_PID" || true
     exit 1
@@ -47,7 +47,7 @@ fi
 
 # --- Running tests from action repository --- #
 
-cd "$GITHUB_ACTION_PATH"
+cd /app
 
 if [ -f "package.json" ]; then
     echo "Installing autograder dependencies..."
@@ -70,12 +70,10 @@ if [ ! -f "./tests/$TEST_OUTPUT_FILE" ]; then
     exit 1
 fi
 
-python result-parser.py
-
-cd ..
+python tests/result-parser.py
 
 # --- Run the autograder ---
-python /app/autograder.py  --token $5
+python autograder.py  --token $1
 
 echo "Autograding completed successfully!"
 echo "Final results generated and sent to GitHub Classroom!"
