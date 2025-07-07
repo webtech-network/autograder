@@ -73,7 +73,7 @@ class Scorer:
     def get_student_files(self):
         """Get the student files."""
         workspace = os.getenv("GITHUB_WORKSPACE", "")
-        file_path = os.path.join(workspace, "submission", "answer.js")
+        file_path = os.path.join(workspace, "submission", "server.js")
         with open(file_path, "r", encoding="utf-8") as student_file:
             return student_file.read()
     @classmethod
