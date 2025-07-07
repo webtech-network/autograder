@@ -64,6 +64,9 @@ class Scorer:
     def get_reporter(self,token, openai_key = None ,mode="default"):
         """Creates a Reporter instance with the students results"""
         result = self.generate_result()
+        print("Failed tests in base:", result.base_results["failed"])
+        print("Failed tests in bonus:", result.bonus_results["failed"])
+        print("Failed tests in penalty:", result.penalty_results["failed"])
         if mode == "ai":
             allowed = self.driver.decrement_token_quota(self.author)
             if allowed:
