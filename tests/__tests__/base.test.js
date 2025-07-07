@@ -13,7 +13,7 @@ describe('Base Tests - ', () => {
         response = await axios.get(BASE_URL)
       } catch (error) {
         if (error.code === 'ECONNREFUSED') throw new Error(`Connection refused at ${BASE_URL}. Is the Express server running?`);
-        throw error;
+        throw new Error(`An unexpected error occurred while testing GET /: ${error.message}`);
       }
     });
 
@@ -93,9 +93,9 @@ describe('Base Tests - ', () => {
         if (error.code === 'ECONNREFUSED') {
           throw new Error(`Connection refused at ${BASE_URL}/sugestao?${queryString}. Is the Express server running?`);
         }
-        response = error.response;
-        if (!response) {
-          throw error;
+        if(error.response) response = error.response;
+        else {
+          throw new Error(`An unexpected error occurred while testing GET /sugestao: ${error.message}`);
         }
         $ = cheerio.load(response.data);
       }
@@ -145,9 +145,10 @@ describe('Base Tests - ', () => {
         if (error.code === 'ECONNREFUSED') {
           throw new Error(`Connection refused at ${BASE_URL}/contato. Is the Express server running?`);
         }
-        response = error.response;
-        if (!response) {
-          throw error;
+        
+        if(response.error) response = error.response;
+        else {
+          throw new Error(`An unexpected error occurred while testing GET /contato: ${error.message}`);
         }
         $ = cheerio.load(response.data);
       }
@@ -217,6 +218,7 @@ describe('Base Tests - ', () => {
         initialStatus = responseFromPost.status;
         initialLocation = responseFromPost.headers.location;
 
+        //Analyzes PRG case
         if (initialStatus >= 300 && initialStatus < 400) {
           expect(initialLocation).toBe('/contato-recebido');
           finalResponse = await axios.get(`${BASE_URL}${initialLocation}`);
@@ -226,6 +228,7 @@ describe('Base Tests - ', () => {
         $ = cheerio.load(finalResponse.data);
 
       } catch (error) {
+        //Normal connectivity issue
         if (error.code === 'ECONNREFUSED') {
           throw new Error(`Connection refused at ${BASE_URL}/contato. Is the Express server running?`);
         }
@@ -242,7 +245,7 @@ describe('Base Tests - ', () => {
         } else {
           finalResponse = error.response;
           if (!finalResponse) {
-            throw error;
+            throw new Error(`An unexpected error occurred while testing POST /contato: ${error.message}`);
           }
           if (finalResponse.headers['content-type'] && finalResponse.headers['content-type'].includes('html')) {
             $ = cheerio.load(finalResponse.data);
@@ -305,7 +308,7 @@ describe('Base Tests - ', () => {
         lanches = response.data;
       } catch (error) {
         if (error.code === 'ECONNREFUSED') throw new Error(`Connection refused at ${BASE_URL}/api/lanches. Is the Express server running?`);
-        throw error;
+        throw Error(`An unexpected error occurred while testing GET /api/lanches: ${error.message}`);
       }
     });
 

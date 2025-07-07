@@ -9,6 +9,21 @@ const axiosNoRedirect = axios.create({
     }
 });
 
+function safeTest(description, asyncTestFn) {
+    test(description, async () => {
+        try {
+            await asyncTestFn();
+        } catch (error) {
+            // If the server is down, throw a specific, clean error message.
+            if (error.code === 'ECONNREFUSED') {
+                throw new Error(`Connection refused during test: "${description}". Is the server running?`);
+            }
+            // For any other error, re-throw a simplified version to avoid circular structure issues.
+            throw new Error(`An unexpected error occurred in test "${description}": ${error.message}`);
+        }
+    });
+}
+
 /**
  * A helper function to check for correctly associated labels and form fields.
  * @param {cheerio.CheerioAPI} $ - The Cheerio instance loaded with the HTML page.
@@ -37,8 +52,8 @@ function checkLabelsForForm($, fieldNames) {
 }
 
 describe('Bonus Tests - ', () => {
-    
-    test('student used PRG correctly', async () => {
+
+    safeTest('student used PRG correctly', async () => {
         const contactSubmission = {
             nome: "Tram Anh Nguyen",
             email: "tramanh@gmail.com",
@@ -53,9 +68,9 @@ describe('Bonus Tests - ', () => {
         expect(response.status).toBeGreaterThanOrEqual(300);
         expect(response.status).toBeLessThan(400);
         expect(response.headers.location).toBe('/contato-recebido');
-    });
+    })
 
-    test('student handled 404 status code', async () => {
+    safeTest('student handled 404 status code', async () => {
         const response = await axiosNoRedirect.get(`${BASE_URL}/random-url`);
     
         expect(response.status).toBe(404);
@@ -68,7 +83,7 @@ describe('Bonus Tests - ', () => {
         expect(rootLink.length).toBeGreaterThan(0);
     });
 
-    test("student used correct labels for the root route's form", async () => {
+    safeTest("student used correct labels for the root route's form", async () => {
         const response = await axios.get(`${BASE_URL}`);
         const $ = cheerio.load(response.data);
         const requiredFields = ['nome', 'ingredientes'];
@@ -76,7 +91,7 @@ describe('Bonus Tests - ', () => {
         checkLabelsForForm($, requiredFields);
     });
 
-    test("student used correct labels for the /contato route's form", async () => {
+    safeTest("student used correct labels for the /contato route's form", async () => {
         const response = await axios.get(`${BASE_URL}/contato`);
         const $ = cheerio.load(response.data);
         const requiredFields = ['nome', 'email', 'assunto', 'mensagem'];
