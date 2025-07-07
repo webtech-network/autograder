@@ -1,4 +1,5 @@
-core/grading/tests/__pycache__
 /submission
-/core/grading/__pycache__
-.env
+__pycache__
+/tests/results
+/node_modules
+.vscode
