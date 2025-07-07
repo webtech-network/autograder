@@ -24,6 +24,7 @@ class BaseGrader(ABC):
         else:  # If there are no sub-configurations, grade the entire test file
             score = self.grade()
         print(f"{self.test_config.ctype.upper()} score: {(score / 100) * self.test_config.weight}")
+        print(f"\t{self.test_config.ctype.upper()} weight: {self.test_config.weight}")
         return (score / 100) * self.test_config.weight  # Return the final score as a percentage of the total weight
 
     def grade_with_sub_configs(self, sub_configs):
@@ -35,7 +36,7 @@ class BaseGrader(ABC):
             score += grader.score  # Add the score of each subject to the total score
         return score
     def grade(self):
-        return (len(self.passed_tests) / self.get_test_amount()) * 100 if self.test_config.ctype == "base" else (len(self.passed_tests) / self.get_test_amount()) * self.test_config.weight if self.test_config.weight > 0 else 0
+        return (len(self.passed_tests) / self.get_test_amount()) * 100 if self.test_config.weight > 0 else 0
 
     def get_test_amount(self):
         return len(self.passed_tests) + len (self.failed_tests)

@@ -1,8 +1,11 @@
+
 from core.grading.grader import Grader
-from utils.report_generator import generate_md
 from utils.path import Path
 from core.config_processing.config import Config
 from time import sleep
+from core.result import Result
+from core.redis.upstash_driver import *
+from core.report.reporter import Reporter
 
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
@@ -13,7 +16,6 @@ class Scorer:
         self.base_grader = None # Grader instance for the base test file
         self.bonus_grader = None # Grader instance for the bonus test file
         self.penalty_grader = None # Grader instance for the penalty test file
-        self.final_score = 0  # Final score after grading all test files
 
     def set_base_score(self,filename):
         """Set the base score by creating a Grader instance for the base test file."""
@@ -27,45 +29,63 @@ class Scorer:
         """Set the penalty score by creating a Grader instance for the penalty test file."""
         self.penalty_grader = Grader.create(f"{filename}",self.config.penalty_config)
 
-    def set_final_score(self):
+    def get_final_score(self):
         """Calculate the final score by combining the scores from base, bonus, and penalty test files."""
         base_score = self.base_grader.generate_score() # Generate the score for the base test file
-        self.final_score = base_score
+        final_score = base_score
         if base_score < 100:
-            self.give_bonus_score(base_score) # If the base score is less than 100, add the bonus score
+            final_score = self.give_bonus_score(base_score,final_score) # If the base score is less than 100, add the bonus score
         penalty_score = self.penalty_grader.generate_score() # Generate the score for the penalty test file
-        self.final_score -= penalty_score # Subtract the penalty score from the final score
-        return self.final_score
+        final_score -= penalty_score # Subtract the penalty score from the final score
+        return final_score
 
-    def give_bonus_score(self,base_score):
+    def give_bonus_score(self,base_score,final_score):
         """Add the bonus score to the final score if the base score is less than 100."""
         bonus_score = self.bonus_grader.generate_score()
         if 100 - base_score >= self.bonus_grader.test_config.weight:
-            self.final_score += bonus_score
+            final_score += bonus_score
         elif 100 - base_score < self.bonus_grader.test_config.weight:
-            self.final_score += (bonus_score/self.bonus_grader.test_config.weight) * (100 - base_score) # If the bonus score exceeds the remaining points to 100, scale it down
+            final_score += (bonus_score/self.bonus_grader.test_config.weight) * (100 - base_score) # If the bonus score exceeds the remaining points to 100, scale it down
+        return final_score
 
-    def get_feedback(self):
-        """Generate feedback in Markdown format based on the test results."""
-        base_dict = {"passed": self.base_grader.passed_tests, "failed": self.base_grader.failed_tests} # Format the base test results
-        bonus_dict = {"passed": self.bonus_grader.passed_tests, "failed": self.bonus_grader.failed_tests} # Format the bonus test results
-        penalty_dict = {"passed": self.penalty_grader.passed_tests, "failed": self.penalty_grader.failed_tests} # Format the penalty test results
-        return generate_md(base_dict, bonus_dict, penalty_dict, self.final_score, self.author) # Calls the generate_md function to create the feedback
+    def generate_result(self):
+        """Generate a Result instance with the grading results"""
+        final_score = self.get_final_score()
+        base_dict = {"passed": self.base_grader.passed_tests,
+                     "failed": self.base_grader.failed_tests}  # Format the base test results
+        bonus_dict = {"passed": self.bonus_grader.passed_tests,
+                      "failed": self.bonus_grader.failed_tests}  # Format the bonus test results
+        penalty_dict = {"passed": self.penalty_grader.passed_tests,
+                        "failed": self.penalty_grader.failed_tests}  # Format the penalty test results
+        return Result(final_score,self.author,self.get_student_files(),base_dict, bonus_dict, penalty_dict)
 
-    def create_feedback(self):
-        """Create a feedback file in Markdown format with the test results and final score."""
-        with open(self.path.getFilePath("feedback.md"),'w',encoding="utf-8") as feedback:
-            feedback.write(self.get_feedback())
+    def get_reporter(self,token,mode="default"):
+        """Creates a Reporter instance with the students results"""
+        result = self.generate_result()
+        if mode == "ai":
+            allowed = decrement_token_quota(self.author)
+            if allowed:
+                return Reporter.create_ai_reporter(result,token)
+        return Reporter.create_default_reporter(result,token)
+
+    def get_student_files(self):
+        """Get the student files."""
+        with open("submission/answer.js","r",encoding="utf-8") as student_file:
+            return student_file.read()
 
     @classmethod
     def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file):
         """Create a Scorer instance with the specified test files and author."""
         scorer = cls(test_folder,author)
+
+        if not token_exists(scorer.author):
+            create_token(scorer.author,10)
+
         scorer.config = Config.create_config(config_file) # Load the configuration from the specified file
         scorer.set_base_score(base_file)
         scorer.set_bonus_score(bonus_file)
         scorer.set_penalty_score(penalty_file)
-        scorer.set_final_score()
+        #scorer.set_final_score()
         sleep(2)
         return scorer
 
