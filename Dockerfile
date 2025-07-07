@@ -4,31 +4,30 @@ FROM python:3.10-slim
 # 2. Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# 3. Install Node.js and build essentials
+# 3. Install Node.js and other necessary tools
 RUN apt-get update && \
     apt-get install -y curl gnupg && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs
 
-# 4. Set the working directory within the container
+# 4. Set the working directory for the rest of the build
 WORKDIR /app
 
-# 5. Install Python dependencies
-# Copy only the requirements file first to leverage Docker's cache
+# 5. Copy and install Python dependencies first to leverage caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Install Node.js dependencies
-# Copy package files and install modules. Avoid using the -g flag for project dependencies.
+# 6. Copy and install Node.js dependencies
+# This now correctly uses the /app working directory
 COPY package.json package-lock.json* ./
 RUN npm install
 
-# 7. Copy the rest of the code into the working directory
+# 7. Copy the rest of your application code
 COPY . .
 
-# 8. Make the entrypoint script executable
+# 8. Copy the entrypoint and make it executable
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# 9. Set the entrypoint to execute the script
-ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
+# 9. Set the entrypoint for the container
+ENTRYPOINT ["/entrypoint.sh"]
