@@ -70,7 +70,7 @@ class Scorer:
 
     def get_student_files(self):
         """Get the student files."""
-        with open("submission/answer.js","r",encoding="utf-8") as student_file:
+        with open("submission/server.js","r",encoding="utf-8") as student_file:
             return student_file.read()
 
     @classmethod
