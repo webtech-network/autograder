@@ -1,35 +1,84 @@
 import json
-import pandas as pd
+import os
+import re
 
-filename = 'test-results.json' 
+# --- Configuration ---
+INPUT_FILENAME = 'tests/test-results.json' 
+OUTPUT_DIR = 'tests/results'
+OUTPUT_FILES = {
+    'base': os.path.join(OUTPUT_DIR, 'test-base-results.json'),
+    'bonus': os.path.join(OUTPUT_DIR, 'test-bonus-results.json'),
+    'penalty': os.path.join(OUTPUT_DIR, 'test-penalty-results.json')
+}
 
-parsed_tests = []
+def parse_test_results():
+    """
+    Reads a Jest test report, parses it, and writes the results into separate
+    files for base, bonus, and penalty tests, prepending the route to base test titles.
+    """
+    results = {'base': [], 'bonus': [], 'penalty': []}
 
-try:
-    with open(filename, 'r') as file:
-        data = json.load(file)
+    try:
+        # --- 1. Setup Output Directory ---
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        print(f"Output directory '{OUTPUT_DIR}' is ready.")
 
-    for test_suite in data['testResults']:
-        suite_name = test_suite['name']
-        test_type = 'unknown'
-        if 'bonus.test.js' in suite_name:
-            test_type = 'bonus'
-        elif 'penalty.test.js' in suite_name:
-            test_type = 'penalty'
-        elif 'base.test.js' in suite_name:
-            test_type = 'base'
+        # --- 2. Read and Load Input File ---
+        with open(INPUT_FILENAME, 'r', encoding='utf-8') as file:
+            data = json.load(file)
 
-        for assertion in test_suite['assertionResults']:
-            parsed_tests.append({
-                'title': assertion['title'],
-                'type': test_type,
-                'status': assertion['status']
-            })
+        # --- 3. Process Test Suites ---
+        for test_suite in data['testResults']:
+            suite_name = test_suite['name']
+            test_type = 'unknown'
 
-    df = pd.DataFrame(parsed_tests)
-    print(df)
+            if 'base.test.js' in suite_name:
+                test_type = 'base'
+            elif 'bonus.test.js' in suite_name:
+                test_type = 'bonus'
+            elif 'penalty.test.js' in suite_name:
+                test_type = 'penalty'
+            
+            if test_type == 'unknown':
+                continue
 
-except FileNotFoundError:
-    print(f"Error: The file '{filename}' was not found.")
-except json.JSONDecodeError:
-    print(f"Error: The file '{filename}' is not a valid JSON file.")
+            # --- 4. Process Individual Assertions ---
+            for assertion in test_suite['assertionResults']:
+                message = assertion['failureMessages'][0] if assertion['status'] == 'failed' and assertion['failureMessages'] else ""
+                
+                subject = ""
+                if test_type == 'base':
+                    for title in assertion['ancestorTitles']:
+                        if title.startswith('Route: '):
+                            match = re.search(r"Route: (.*?) -", title)
+                            if match:
+                                subject = match.group(1).strip()
+                                break
+                
+                test_title = assertion['title']
+                if test_type == 'base' and subject:
+                    test_title = f"Route: {subject} - {test_title}"
+                
+                # Construct the final test result object
+                parsed_result = {
+                    'test': test_title,
+                    'status': assertion['status'],
+                    'message': message,
+                    'subject': subject
+                }
+                
+                results[test_type].append(parsed_result)
+
+        # --- 5. Write to Output Files ---
+        for test_type, output_file in OUTPUT_FILES.items():
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(results[test_type], f, indent=4, ensure_ascii=False)
+            print(f"Successfully saved {test_type} results to '{output_file}'")
+
+    except FileNotFoundError:
+        print(f"Error: The input file '{INPUT_FILENAME}' was not found.")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+if __name__ == "__main__":
+    parse_test_results()
