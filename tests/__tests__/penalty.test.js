@@ -215,7 +215,7 @@ describe('Penalty Tests - ', () => {
         test('.gitignore não contém pasta node_modules', () => {
             if(!projectFolderExists) return;
         
-            let gitIgnorePath = path.join(projectRoot, '.ignore');
+            let gitIgnorePath = path.join(projectRoot, '.gitignore');
             let fileExists = fs.existsSync(gitIgnorePath);
 
             if(!fileExists) return;
