@@ -1,7 +1,7 @@
 from core.report.base_reporter import BaseReporter
 from openai import OpenAI
 import os
-from core.redis.upstash_driver import decrement_token_quota
+
 class AIReporter(BaseReporter):
     def __init__(self,result,token,openai_key=None):
         super().__init__(result,token)

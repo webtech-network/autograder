@@ -1,6 +1,5 @@
 from core.report.ai_reporter import AIReporter
 from core.report.default_reporter import DefaultReporter
-from core.redis.upstash_driver import decrement_token_quota
 class Reporter:
     @classmethod
     def create_ai_reporter(cls, result,token, openai_key=None):

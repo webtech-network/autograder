@@ -4,7 +4,7 @@ from utils.path import Path
 from core.config_processing.config import Config
 from time import sleep
 from core.result import Result
-from core.redis.upstash_driver import *
+from core.redis.upstash_driver import Driver
 from core.report.reporter import Reporter
 
 class Scorer:
@@ -93,7 +93,7 @@ class Scorer:
         return scorer
 
     @classmethod
-    def quick_build(cls, author):
+    def quick_build(cls, author,redis_url=None, redis_token=None):
         """Quickly build a Scorer instance with default test files and author."""
-        scorer = Scorer.create_with_scores("tests", author,"criteria.json", "test_base.py", "test_bonus.py", "test_penalty.py")
+        scorer = Scorer.create_with_scores("tests", author,"criteria.json", "test_base.py", "test_bonus.py", "test_penalty.py",redis_token, redis_url)
         return scorer
