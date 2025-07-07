@@ -66,7 +66,7 @@ class Scorer:
         result = self.generate_result()
         print("Failed tests in base:", result.base_results["failed"])
         print("Failed tests in bonus:", result.bonus_results["failed"])
-        print("Failed tests in penalty:", result.penalty_results["failed"])
+        print("Penalties detected:", result.penalty_results["passed"])
         if mode == "ai":
             allowed = self.driver.decrement_token_quota(self.author)
             if allowed:
