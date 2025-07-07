@@ -1,8 +1,6 @@
 import sys
 import pytest
-from pycparser.c_ast import Default
-
-from utils.collector import TestCollector  # Assumindo que este é o seu plugin customizado
+from utils.collector import TestCollector
 import argparse
 from core.report.default_reporter import DefaultReporter
 # --- Mapeamento de Feedback ---
@@ -38,7 +36,7 @@ args = parser.parse_args()
 reporter = DefaultReporter.create(0,args.token)
 collector = TestCollector()
 # Assumindo que seu arquivo de teste se chama 'fatal_tests.py'
-pytest.main(["--tb=short", "--no-header", "fatal_tests.py"], plugins=[collector])
+pytest.main(["--tb=short", "--no-header", "fatal_detector/fatal_tests.py"], plugins=[collector])
 
 if collector.failed:
     error_messages = []
@@ -58,7 +56,7 @@ if collector.failed:
     final_feedback += "\n".join(error_messages)
     final_feedback += "\n\nPor favor, corrija esses problemas e tente novamente."
 
-    reporter.overwrite_report_in_repo(new_content=final_feedback)
+    #reporter.overwrite_report_in_repo(new_content=final_feedback)
     sys.exit(1)
 else:
     print("\n✅ Todas as verificações de erros fatais passaram com sucesso.")
