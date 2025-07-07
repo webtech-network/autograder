@@ -53,7 +53,7 @@ function checkLabelsForForm($, fieldNames) {
 
 describe('Bonus Tests - ', () => {
 
-    safeTest('student used PRG correctly', async () => {
+    safeTest('estudante utilizou padrão PRG na rota /contato corretamente', async () => {
         const contactSubmission = {
             nome: "Tram Anh Nguyen",
             email: "tramanh@gmail.com",
@@ -70,7 +70,7 @@ describe('Bonus Tests - ', () => {
         expect(response.headers.location).toBe('/contato-recebido');
     })
 
-    safeTest('student handled 404 status code', async () => {
+    safeTest('estudante criou template exibido em requisições 404 contendo uma âncora para a rota raíz', async () => {
         const response = await axiosNoRedirect.get(`${BASE_URL}/random-url`);
     
         expect(response.status).toBe(404);
@@ -83,7 +83,7 @@ describe('Bonus Tests - ', () => {
         expect(rootLink.length).toBeGreaterThan(0);
     });
 
-    safeTest("student used correct labels for the root route's form", async () => {
+    safeTest("estudante utilizou corretamente as tags label e attributo id nos inputs 'nome' e 'ingredientes' na rota /sugestao", async () => {
         const response = await axios.get(`${BASE_URL}`);
         const $ = cheerio.load(response.data);
         const requiredFields = ['nome', 'ingredientes'];
@@ -91,7 +91,7 @@ describe('Bonus Tests - ', () => {
         checkLabelsForForm($, requiredFields);
     });
 
-    safeTest("student used correct labels for the /contato route's form", async () => {
+    safeTest("estudante utilizou corretamente as tags label e attributo id nos inputs 'nome', 'email', 'assunto' and 'mensagem' do fomulário da rota /contato (GET)", async () => {
         const response = await axios.get(`${BASE_URL}/contato`);
         const $ = cheerio.load(response.data);
         const requiredFields = ['nome', 'email', 'assunto', 'mensagem'];
