@@ -35,6 +35,22 @@ class AIReporter(BaseReporter):
             "Você deve fornecer o feedback sem citar a presença de teste, mostrando que você é simplesmente um revisor que realmente leu o código do candidato e está fornecendo feedback sobre ele."
         )
 
+        system_prompt = (
+
+            "Você é um revisor de código especialista. Você acabou de receber a solução de um candidato "
+            "para um desafio de código. O desafio é de implementar um servidor em Node.js utilizando o framework Express.js. "
+            "O usuário deve implementar um servidor que responda a requisições HTTP GET e POST, "
+            "e deve implementar as rotas necessárias para atender aos requisitos do desafio. "
+            "Seu trabalho é fornecer um feedback amigável, humano e motivador com base nos erros detectados no código do candidato. "
+            "Você deve apontar todos os erros encontrados no código, analisá-los detalhadamente e explicar como o candidato pode corrigi-los para atingir uma nota melhor. "
+            "Além disso, você deve fazer uma análise geral do código submetido, destacando pontos positivos e negativos, como nomes de variáveis, estrutura do código, organização, etc. "
+            "Seu tom deve ser casual, empático, humano e construtivo. "
+            "Você deve retornar respostas formatadas em markdown, isso é obrigatório. "
+            "A resposta deve ser apenas em direção ao candidato, sem mencionar o revisor ou o sistema. "
+            "Em momento algum você deve mencionar a existência de testes unitários sendo executados por um sistema de avaliação automatizado. "
+            "Você deve fornecer o feedback como se fosse um revisor que realmente leu o código do candidato e está fornecendo feedback sobre ele."
+        )
+
         user_prompt = f"""
             Nome do aluno: {self.result.author}
             ### 🧪 Código submetido:
@@ -45,27 +61,31 @@ class AIReporter(BaseReporter):
 
             ### 📊 Resultados dos testes:
 
-            **Testes base:**  
-            {test_results['base']}
+            **Testes passados:**
+            {test_results['base']['passed']}
 
-            **Testes bônus:**  
-            {test_results['bonus']}
+            **Testes falhados:**
+            {test_results['base']['failed']}
 
-            **Penalidades Detectadas:**  
+            **Testes bônus passados:**
+            {test_results['bonus']['passed']}
+
+            **Penalidades detectadas:**
             {test_results['penalty']}
 
-            **Pontuação final:** {test_results['score']}/100
+            ### 📝 Instruções para o feedback:
 
-            Por favor, forneça um feedback amigável, humano e motivador.
-            A resposta deve ser apenas em direção ao candidato.
-            Forneça toda a resposta em uma estrutura bem feita em markdown com elementos de títulos, indentação e listas.Markdown é obrigatório.
-            Lembre-se de em nenhum momento mencionar a existência de testes unitários sendo executados por um sistema de avaliação automatizado.
-            Você deve agir como um revisor que realmente leu o código do candidato e está fornecendo feedback sobre ele. 
-            Faça comentários que mostrem que você leu o código do candidado, isto é, aponte pequenos detalhes que você percebeu no código, como nomes de variáveis, estrutura do código, etc.
-            Ao apontar os erros do aluno, especifique exatamente o que está errado e como ele pode corrigir isso.
-            
-            Não se esqueça de divulgar a nota final do candidato, que é {self.result.final_score}/100. A nota deve ser apresentada antes de sua análise e de forma objetiva.
-            """
+            - Aponte todos os erros detectados no código do aluno, explicando detalhadamente o que está errado e como ele pode corrigir.
+            - Faça uma análise geral do código submetido, destacando pontos positivos e negativos, como nomes de variáveis, estrutura do código, organização, etc.
+            - Forneça orientações claras e práticas para o candidato melhorar seu código e atingir uma nota melhor.
+            - Seja amigável, humano e motivador em seu tom.
+            - Retorne o feedback em uma estrutura bem feita em markdown com elementos de títulos, indentação e listas. Markdown é obrigatório.
+            - Não mencione a existência de testes unitários ou sistemas automatizados de avaliação.
+            - Mostre que você leu o código do candidato, apontando pequenos detalhes específicos do código.
+            - Divulgue a nota final do candidato de forma objetiva antes de sua análise.
+
+            **Nota final:** {test_results['score']}/100
+        """
 
         response = self.client.chat.completions.create(model="gpt-3.5-turbo",
                                                   messages=[
