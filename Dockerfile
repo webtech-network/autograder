@@ -16,7 +16,7 @@ FROM node:20-slim
 
 COPY package.json /app/
 
-RUN npm install
+RUN npm install -g
 
 
 # 6. Copy the rest of the code into the working directory inside the container
