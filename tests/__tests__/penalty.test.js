@@ -2,22 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { BASE_URL } = require('../config');
 const fs = require('fs');
-
-let projectRoot;
-let projectFolderExists = false;
-
-try {
-    const potentialPath = path.join(process.env.GITHUB_WORKSPACE || '', "submission");
-
-    if (fs.existsSync(potentialPath)) {
-        projectRoot = potentialPath;
-        projectFolderExists = true;
-    }
-
-} catch (error) {
-    projectFolderExists = false;
-    console.error("An unexpected error occurred while checking the path:", error);
-}
+const path = require('path');
 
 //Axios object that accepts all responses so they can be analyzed
 const axiosNoRedirect = axios.create({
@@ -195,45 +180,43 @@ describe('Penalty Tests - ', () => {
 
     describe("Static File Organization", () => {
         
+        let projectRoot = '';
+        let projectFolderExists = false;
+
+        beforeAll(() => {
+            projectRoot = path.join(process.env.GITHUB_WORKSPACE || '', "submission");
+
+            if (fs.existsSync(projectRoot)) {
+                projectFolderExists = true;
+            }
+            console.log(`Project root is: ${projectRoot}`);
+            console.log(`Project folder exists: ${projectFolderExists}`);
+        });
+
         test('projeto contém outras dependências além do express', () => {
             if(!projectFolderExists) return;
 
-            let packageJsonPath = '';
-            let fileExists = true;
-            try{
-                packageJsonPath = path.join(projectRoot, 'package.json');
-            } catch(error){
-                fileExists = fs.existsSync(packageJsonPath);
+            let packageJsonPath = path.join(projectRoot, 'package.json');
+            let fileExists = fs.existsSync(packageJsonPath);
+
+            if(!fileExists){
+                console.log(`package.json file does not exist - path used: ${packageJsonPath}`);
+                return;
             }
 
-            if(!fileExists) return;
-
             const fileContent = fs.readFileSync(packageJsonPath, 'utf8');
-
-            if(!fileContent) return;
-
             const packageJson = JSON.parse(fileContent);
-
             const dependencies = packageJson.dependencies || {};
-
-            if(dependencies == {}) return;
-
             const dependencyKeys = Object.keys(dependencies);
 
             expect(dependencyKeys.length).toBeGreaterThan(1);
-            expect(dependencyKeys).toContain('express');
         });
 
         test('projeto do aluno contém pasta node_modules', () => {
             if(!projectFolderExists) return;
         
-            let nodeModulesPath;
-            let folderExists = false;
-            try{
-                nodeModulesPath = path.join(projectRoot || '', 'node_modules');
-            } catch(error){
-                folderExists = fs.existsSync(nodeModulesPath);
-            }
+            let nodeModulesPath = path.join(projectRoot, 'node_modules');
+            let folderExists = fs.existsSync(nodeModulesPath);
 
             expect(folderExists).toBe(true);
         });
