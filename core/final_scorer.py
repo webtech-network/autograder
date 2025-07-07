@@ -61,7 +61,7 @@ class Scorer:
                         "failed": self.penalty_grader.failed_tests}  # Format the penalty test results
         return Result(final_score,self.author,self.get_student_files(),base_dict, bonus_dict, penalty_dict)
 
-    def get_reporter(self,token,redis_token,redis_url, openai_key = None ,mode="default"):
+    def get_reporter(self,token, openai_key = None ,mode="default"):
         """Creates a Reporter instance with the students results"""
         result = self.generate_result()
         if mode == "ai":
