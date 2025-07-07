@@ -3,10 +3,11 @@ from openai import OpenAI
 import os
 
 class AIReporter(BaseReporter):
-    def __init__(self,result,token,openai_key=None):
+    def __init__(self,result,token,quota,openai_key=None):
         super().__init__(result,token)
         self.client = OpenAI(api_key=openai_key)
-    def generate_feedback(self):
+        self.quota = quota
+    def generate_feedback(self, student_quota=10):
         candidate_code = """\
             def add(a, b):
                 return a + b
@@ -69,7 +70,8 @@ class AIReporter(BaseReporter):
                                                       {"role": "user", "content": user_prompt}
                                                   ],
                                                   temperature=0.7)
-        feedback = response.choices[0].message.content
+        ai_quota = f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI."
+        feedback = ai_quota + response.choices[0].message.content
         return feedback
 
     @classmethod
