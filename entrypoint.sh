@@ -73,7 +73,7 @@ fi
 python tests/result-parser.py
 
 # --- Run the autograder ---
-python autograder.py  --token $1
+python autograder.py  --token $1 --redis-token $2 --redis-url $3 --openai-key $4
 
 echo "Autograding completed successfully!"
 echo "Final results generated and sent to GitHub Classroom!"
