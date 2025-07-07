@@ -9,13 +9,15 @@ from core.report.reporter import Reporter
 
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
-    def __init__(self,test_folder,author):
+    def __init__(self,test_folder,author,driver):
         self.path = Path(__file__,test_folder) # Path to the test folder
         self.author = author # Author of the code being graded
         self.config = None # Config instance containing the configurations for all the test files
         self.base_grader = None # Grader instance for the base test file
         self.bonus_grader = None # Grader instance for the bonus test file
         self.penalty_grader = None # Grader instance for the penalty test file
+        self.driver = driver
+
 
     def set_base_score(self,filename):
         """Set the base score by creating a Grader instance for the base test file."""
@@ -61,10 +63,9 @@ class Scorer:
 
     def get_reporter(self,token,redis_token,redis_url, openai_key = None ,mode="default"):
         """Creates a Reporter instance with the students results"""
-        driver = Driver.create(redis_token,redis_url) # Initialize Redis connection with the provided token and URL
         result = self.generate_result()
         if mode == "ai":
-            allowed = driver.decrement_token_quota(self.author)
+            allowed = self.driver.decrement_token_quota(self.author)
             if allowed:
                 return Reporter.create_ai_reporter(result,token,openai_key)
         return Reporter.create_default_reporter(result,token)
@@ -75,12 +76,13 @@ class Scorer:
             return student_file.read()
 
     @classmethod
-    def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file):
+    def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file,redis_token,redis_url):
         """Create a Scorer instance with the specified test files and author."""
-        scorer = cls(test_folder,author)
+        driver = Driver.create(redis_token,redis_url)
+        scorer = cls(test_folder,author,driver)
 
-        if not token_exists(scorer.author):
-            create_token(scorer.author,10)
+        if not scorer.driver.token_exists(scorer.author):
+            scorer.driver.create_token(scorer.author,10)
 
         scorer.config = Config.create_config(config_file) # Load the configuration from the specified file
         scorer.set_base_score(base_file)
