@@ -9,18 +9,18 @@ inputs:
       by replacing this token with a user token which has write-access to your repository. 
       Note that the token will be accessible to all repository collaborators.
     default: ${{ github.token }} #This is the only way to obtain a valid github token for API use.
-    redis_name:
-        description: >
-            Redis token used to connect to the Redis server for caching and state management.
-            This is optional and can be set if you have a Redis instance running.
-    redis_url:
-        description: >
-            URL of the Redis server to connect to. This is optional and can be set if you have a Redis instance running.
-            If not provided, the autograder will run without Redis caching.
-    autograder_engine:
-        description: >
-            The autograder engine to use for grading. This can be set to 'default' or 'custom'.
-            If 'custom', you must provide a custom Dockerfile in the repository.
+  redis_name:
+      description: >
+          Redis token used to connect to the Redis server for caching and state management.
+          This is optional and can be set if you have a Redis instance running.
+  redis_url:
+      description: >
+          URL of the Redis server to connect to. This is optional and can be set if you have a Redis instance running.
+          If not provided, the autograder will run without Redis caching.
+  autograder_engine:
+      description: >
+          The autograder engine to use for grading. This can be set to 'default' or 'custom'.
+          If 'custom', you must provide a custom Dockerfile in the repository.
       
 
 outputs:
