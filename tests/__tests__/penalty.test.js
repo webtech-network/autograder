@@ -212,14 +212,24 @@ describe('Penalty Tests - ', () => {
             expect(dependencyKeys.length).toBeGreaterThan(1);
         });
 
-        test('projeto do aluno contém pasta node_modules', () => {
+        test('.gitignore não contém pasta node_modules', () => {
             if(!projectFolderExists) return;
         
-            let nodeModulesPath = path.join(projectRoot, 'node_modules');
-            let folderExists = fs.existsSync(nodeModulesPath);
+            let gitIgnorePath = path.join(projectRoot, '.ignore');
+            let fileExists = fs.existsSync(gitIgnorePath);
 
-            expect(folderExists).toBe(true);
+            if(!fileExists) return;
+
+            let isCorrectlyIgnored = false;
+
+            if (fs.existsSync(gitignorePath)) {
+                const gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+
+                if (gitignoreContent.includes('node_modules')) {
+                    isCorrectlyIgnored = true;
+                }
+            }
+            expect(isCorrectlyIgnored).toBe(false);
         });
-
     });
 });
