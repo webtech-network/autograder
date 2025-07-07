@@ -16,7 +16,7 @@ author = os.getenv("GITHUB_ACTOR")
 
 
 scorer = Scorer.quick_build(author,redis_url = args.redis_url, redis_token = args.redis_token)
-
+print("Final Score is: ", scorer.get_final_score())
 
 reporter = scorer.get_reporter(github_token,args.openai_key, mode="ai")
 reporter.create_report()

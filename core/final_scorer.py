@@ -6,7 +6,7 @@ from time import sleep
 from core.result import Result
 from core.redis.upstash_driver import Driver
 from core.report.reporter import Reporter
-
+import os
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
     def __init__(self,test_folder,author,driver):
@@ -72,9 +72,10 @@ class Scorer:
 
     def get_student_files(self):
         """Get the student files."""
-        with open("submission/server.js","r",encoding="utf-8") as student_file:
+        workspace = os.getenv("GITHUB_WORKSPACE", "")
+        file_path = os.path.join(workspace, "submission", "answer.js")
+        with open(file_path, "r", encoding="utf-8") as student_file:
             return student_file.read()
-
     @classmethod
     def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file,redis_token,redis_url):
         """Create a Scorer instance with the specified test files and author."""
