@@ -1,27 +1,36 @@
 {
   "base": {
     "native": false,
-    "weight": 100
-
+    "weight": 100,
+    "subjects": {
+      "/": {
+        "weight": 20,
+        "test_path": "Route: /"
+      },
+      "/sugestao": {
+        "weight": 25,
+        "test_path": "Route: /sugestao"
+      },
+      "/contato (GET)": {
+        "weight": 20,
+        "test_path": "Route: /contato (GET)"
+      },
+      "/contato (POST)": {
+        "weight": 25,
+        "test_path": "Route: /contato (POST)"
+      },
+      "/api/lances": {
+        "weight": 10,
+        "test_path": "Route: /api/lanches"
+      }
+    }
   },
   "bonus": {
     "native": false,
-    "weight": 40,
-    "subjects": {
-      "extras": {
-        "weight": 100,
-        "test_path": "test_"
-      }
-    }
+    "weight": 40
   },
   "penalty": {
     "native": false,
-    "weight": 100,
-    "subjects": {
-      "forbidden": {
-        "weight": 100,
-        "test_path": "test_"
-      }
-    }
+    "weight": 100
   }
 }
