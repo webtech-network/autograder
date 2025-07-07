@@ -61,10 +61,10 @@ class Scorer:
 
     def get_reporter(self,token,redis_token,redis_url, openai_key = None ,mode="default"):
         """Creates a Reporter instance with the students results"""
-        initialize_redis(redis_token, redis_url)  # Initialize Redis connection with the provided token and URL
+        driver = Driver.create(redis_token,redis_url) # Initialize Redis connection with the provided token and URL
         result = self.generate_result()
         if mode == "ai":
-            allowed = decrement_token_quota(self.author)
+            allowed = driver.decrement_token_quota(self.author)
             if allowed:
                 return Reporter.create_ai_reporter(result,token,openai_key)
         return Reporter.create_default_reporter(result,token)
