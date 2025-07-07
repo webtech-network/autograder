@@ -8,13 +8,13 @@ set -e
 # --- Install dependencies in the student's repository and run server.js ---
 cd "$GITHUB_WORKSPACE/submission"
 
-#if [ -f "package.json" ]; then
-#    echo "Downloading dependencies from student's project"
-#    npm install;
-#else
-#    echo "Error: no package.json file found."
-#    exit 1;
-#fi
+if [ -f "package.json" ]; then
+    echo "Downloading dependencies from student's project"
+    npm install;
+else
+    echo "Error: no package.json file found."
+    exit 1;
+fi
 
 echo "Starting server.js at port 3000..."
 node server.js &
@@ -27,14 +27,14 @@ SERVER_URL="http://localhost:3000"
 CONNECTION_ATTEMPTS=10
 ATTEMPT_COUNTER=0
 
-while [ $CONNECTION_ATTEMPTS -lt $ATTEMPT_COUNTER ]; do
+while [ $ATTEMPT_COUNTER -ne $CONNECTION_ATTEMPTS ]; do
     if curl -s "$SERVER_URL" > /dev/null; then
         echo "Server is up and reachable."
         break
     else
-        echo "Server not reachable yet. Retrying in 2 seconds (Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)..."
+        echo "Server not reachable yet. Retrying in 2 seconds (Attempt $(($ATTEMPT_COUNTER + 1))/$CONNECTION_ATTEMPTS)..."
         sleep 2
-        RETRY_COUNT=$((RETRY_COUNT + 1))
+        ATTEMPT_COUNTER=$(($ATTEMPT_COUNTER + 1))
     fi
 done
 
@@ -49,12 +49,12 @@ fi
 
 cd /app
 
-if [ -f "package.json" ]; then
-    echo "Installing autograder dependencies..."
-    npm install;
-else 
-    echo "Warning: package.json not found in Autograder's directory. Skipping npm install..."
-fi
+#if [ -f "package.json" ]; then
+#    echo "Installing autograder dependencies..."
+#    npm install;
+#else
+#    echo "Warning: package.json not found in Autograder's directory. Skipping npm install..."
+#fi
 
 
 #Treat errors
