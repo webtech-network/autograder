@@ -6,9 +6,9 @@ import re
 INPUT_FILENAME = 'tests/test-results.json' 
 OUTPUT_DIR = 'tests/results'
 OUTPUT_FILES = {
-    'base': os.path.join(OUTPUT_DIR, 'test-base-results.json'),
-    'bonus': os.path.join(OUTPUT_DIR, 'test-bonus-results.json'),
-    'penalty': os.path.join(OUTPUT_DIR, 'test-penalty-results.json')
+    'base': os.path.join(OUTPUT_DIR, 'test_base_results.json'),
+    'bonus': os.path.join(OUTPUT_DIR, 'test_bonus_results.json'),
+    'penalty': os.path.join(OUTPUT_DIR, 'test_penalty_results.json')
 }
 
 def parse_test_results():

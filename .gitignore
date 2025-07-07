@@ -5,3 +5,4 @@ __pycache__
 tests/test-results.json
 /tests/results
 /tests/test-results.json
+.env
