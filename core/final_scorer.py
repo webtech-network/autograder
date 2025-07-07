@@ -59,8 +59,9 @@ class Scorer:
                         "failed": self.penalty_grader.failed_tests}  # Format the penalty test results
         return Result(final_score,self.author,self.get_student_files(),base_dict, bonus_dict, penalty_dict)
 
-    def get_reporter(self,token,mode="default"):
+    def get_reporter(self,token,redis_token,redis_url,mode="default"):
         """Creates a Reporter instance with the students results"""
+        initialize_redis(redis_token, redis_url)  # Initialize Redis connection with the provided token and URL
         result = self.generate_result()
         if mode == "ai":
             allowed = decrement_token_quota(self.author)

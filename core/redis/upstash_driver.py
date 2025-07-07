@@ -5,10 +5,11 @@ from upstash_redis import Redis
 
 load_dotenv()
 
-redis = Redis(
-    url=os.environ["UPSTASH_REDIS_REST_URL"],
-    token=os.environ["UPSTASH_REDIS_REST_TOKEN"]
-)
+def initialize_redis(redis_url, redis_token):
+    redis = Redis(
+        url=redis_url,
+        token=redis_token
+    )
 
 def token_exists(token: str) -> bool:
     """Function to check if a given token exists in the database"""

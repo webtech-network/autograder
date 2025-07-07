@@ -3,9 +3,9 @@ from openai import OpenAI
 import os
 from core.redis.upstash_driver import decrement_token_quota
 class AIReporter(BaseReporter):
-    def __init__(self,result,token):
+    def __init__(self,result,token,openai_key=None):
         super().__init__(result,token)
-        self.client = OpenAI(api_key=f"{os.getenv('OPENAI_API_KEY')}")
+        self.client = OpenAI(api_key=openai_key)
     def generate_feedback(self):
         candidate_code = """\
             def add(a, b):
@@ -72,5 +72,10 @@ class AIReporter(BaseReporter):
         feedback = response.choices[0].message.content
         return feedback
 
-
+    @classmethod
+    def create(cls, result, token, openai_key=None):
+        """Factory method to create an AIReporter instance."""
+        response = cls(result, token, openai_key)
+        response.get_repository()
+        return response
 

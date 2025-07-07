@@ -9,16 +9,7 @@ parser.add_argument("--redis-url", type=str, required=True, help="Upstash Redis 
 parser.add_argument("--openai-key", type=str, required=True, help="OpenAI API key")
 args = parser.parse_args()
 
-env_vars = {
-    "UPSTASH_REDIS_REST_TOKEN": args.redis_token,
-    "UPSTASH_REDIS_REST_URL": args.redis_url,
-    "OPENAI_API_KEY": args.openai_key
-}
 
-# Iterate over the dictionary and set each environment variable.
-for key, value in env_vars.items():
-    os.environ[key] = value
-    print(f"Set environment variable: {key}")
 
 github_token = args.token
 author = os.getenv("GITHUB_ACTOR")
@@ -27,7 +18,7 @@ author = os.getenv("GITHUB_ACTOR")
 scorer = Scorer.quick_build(author)
 
 
-reporter = scorer.get_reporter(github_token, mode="ai")
+reporter = scorer.get_reporter(github_token, args.redis_token, args.redis_url, mode="default")
 reporter.create_report()
 reporter.notify_classroom()
 reporter.overwrite_report_in_repo(github_token)

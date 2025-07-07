@@ -115,7 +115,7 @@ class BaseReporter(ABC):
     @classmethod
     def create(cls,result,token):
         response = cls(result,token)
-        #response.get_repository()
+        response.get_repository()
         return response
 
 
