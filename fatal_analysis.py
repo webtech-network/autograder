@@ -1,96 +1,66 @@
-import sys
-import argparse
 import os
 import json
-from core.report.default_reporter import DefaultReporter
+import sys
 import time
+from core.report.default_reporter import DefaultReporter
+
 FEEDBACK_MAPPING = {
-    'test_server_js_exists': '- 👨‍💻 Seu arquivo `server.js` não foi encontrado na raiz do projeto. Ele é o ponto de entrada principal da aplicação e é essencial.\n',
-    'test_package_json_exists': '- 📦 Seu arquivo `package.json` não foi encontrado. Ele é necessário para gerenciar as dependências e os scripts do projeto.\n',
-    'test_package_json_has_main_key': '- 🔑 A chave `"main"` está faltando no seu `package.json`. Ela é necessária para indicar ao Node.js qual arquivo executar.\n',
-    # ADICIONE ESTA LINHA:
+    'server_js_exists': '- 👨‍💻 Seu arquivo `server.js` não foi encontrado na raiz do projeto. Ele é o ponto de entrada principal da aplicação e é essencial.\n',
+    'package_json_exists': '- 📦 Seu arquivo `package.json` não foi encontrado. Ele é necessário para gerenciar as dependências e os scripts do projeto.\n',
+    'package_json_has_main_key': '- 🔑 A chave `"main"` está faltando no seu `package.json`. Ela é necessária para indicar ao Node.js qual arquivo executar.\n',
     'package_json_main_is_correct': '- 🎯 O script `"main"` no seu `package.json` está incorreto. Ele deve ser `"server.js"`.\n',
-    'dir_public_exists': '- 📁 O diretório `public` não foi encontrado. Ele é necessário para armazenar arquivos estáticos.\n',
-    'dir_views_exists': '- 📁 O diretório `views` não foi encontrado. É onde seus arquivos HTML devem ficar.\n',
-    'dir_public_css_exists': '- 📁 O diretório `public/css` não foi encontrado.\n',
-    'dir_public_data_exists': '- 📁 O diretório `public/data` não foi encontrado.\n',
-    'file_style_css_exists': '- 📄 O arquivo de estilos em `public/css/style.css` não foi encontrado.\n',
-    'file_lanches_json_exists': '- 📄 O arquivo de dados em `public/data/lanches.json` não foi encontrado. A rota da API depende dele.\n',
-    'file_index_html_exists': '- 📄 O template da página principal em `views/index.html` não foi encontrado.\n',
-    'file_contato_html_exists': '- 📄 O template da página de contato em `views/contato.html` não foi encontrado.\n',
-    'file_gitignore_exists': '- 📄 O arquivo `.gitignore` não foi encontrado na raiz do projeto.\n',
-    'file_readme_exists': '- 📄 O arquivo `README.md` não foi encontrado na raiz do projeto.\n',
-    'lanches_json_is_valid': '- ☠️ Seu arquivo `public/data/lanches.json` tem um erro de sintaxe. O servidor não consegue lê-lo.\n'
+    'package_json_has_express_dependency': '- 🚀 O pacote `express` não foi encontrado nas dependências do seu `package.json`. Ele é essencial para o servidor.\n',
 }
 
 BASE_DIR = os.path.join(os.environ.get('GITHUB_WORKSPACE', ''), 'submission')
 
-def check_project_structure():
-    errors = []
-
-    def p(*paths):
-        return os.path.join(BASE_DIR, *paths)
-
-    if not os.path.isfile(p('server.js')):
+def check_server_js_exists(errors):
+    path = os.path.join(BASE_DIR, 'server.js')
+    if not os.path.isfile(path):
         errors.append('server_js_exists')
-    if not os.path.isfile(p('package.json')):
-        errors.append('package_json_exists')
-    else:
-        try:
-            with open(p('package.json'), encoding='utf-8') as f:
-                pkg = json.load(f)
-            if 'main' not in pkg:
-                errors.append('package_json_has_main_key')
-            elif pkg['main'] != 'server.js':
-                errors.append('package_json_main_is_correct')
-        except Exception:
-            errors.append('package_json_has_main_key')
-    if not os.path.isdir(p('public')):
-        errors.append('dir_public_exists')
-    if not os.path.isdir(p('views')):
-        errors.append('dir_views_exists')
-    if not os.path.isdir(p('public', 'css')):
-        errors.append('dir_public_css_exists')
-    if not os.path.isdir(p('public', 'data')):
-        errors.append('dir_public_data_exists')
-    if not os.path.isfile(p('public', 'css', 'style.css')):
-        errors.append('file_style_css_exists')
-    if not os.path.isfile(p('public', 'data', 'lanches.json')):
-        errors.append('file_lanches_json_exists')
-    else:
-        try:
-            with open(p('public', 'data', 'lanches.json'), encoding='utf-8') as f:
-                json.load(f)
-        except Exception:
-            errors.append('lanches_json_is_valid')
-    if not os.path.isfile(p('views', 'index.html')):
-        errors.append('file_index_html_exists')
-    if not os.path.isfile(p('views', 'contato.html')):
-        errors.append('file_contato_html_exists')
-    if not os.path.isfile(p('.gitignore')):
-        errors.append('file_gitignore_exists')
-    if not os.path.isfile(p('README.md')):
-        errors.append('file_readme_exists')
 
-    return errors
+def check_package_json_exists(errors):
+    path = os.path.join(BASE_DIR, 'package.json')
+    if not os.path.isfile(path):
+        errors.append('package_json_exists')
+        return None
+
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        errors.append('package_json_invalid')
+        return None
+
+def check_package_json_content(package_json, errors):
+    if 'main' not in package_json:
+        errors.append('package_json_has_main_key')
+    elif package_json['main'] != 'server.js':
+        errors.append('package_json_main_is_correct')
+
+    dependencies = package_json.get('dependencies', {})
+    if 'express' not in dependencies:
+        errors.append('package_json_has_express_dependency')
 
 def main():
-    parser = argparse.ArgumentParser(description="Executa a análise de erros fatais.")
-    parser.add_argument("--token", type=str, required=True, help="GitHub token")
-    args = parser.parse_args()
+    errors = []
 
-    errors = check_project_structure()
+    # Check for server.js
+    check_server_js_exists(errors)
 
+    # Check for package.json and its content
+    package_json = check_package_json_exists(errors)
+    if package_json:
+        check_package_json_content(package_json, errors)
+
+    # Handle errors
     if errors:
-        reporter = DefaultReporter.create(0, args.token)
+        reporter = DefaultReporter.create(0, "your-token-here")
         error_messages = [f"❌ {FEEDBACK_MAPPING[e]}" for e in errors]
         final_feedback = "\n--- ☠️ ERROS FATAIS ENCONTRADOS ☠️ ---\n"
         final_feedback += "Seu projeto não pode ser testado devido aos seguintes problemas críticos:\n\n"
         final_feedback += "\n".join(error_messages)
         final_feedback += "\n\nPor favor, corrija esses problemas e tente novamente."
-        #print(final_feedback)
-        time.sleep(3)
-        #print("Another block of code will be executed to overwrite the report in the repository.")
         reporter.overwrite_report_in_repo(new_content=final_feedback)
         time.sleep(3)
         sys.exit(1)
