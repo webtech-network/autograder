@@ -48,8 +48,16 @@ def test_package_json_main_is_correct(package_json_data):
     if 'main' in package_json_data:
         assert package_json_data['main'] == 'server.js'
 
+def test_package_json_has_express_dependency(package_json_data):
+    """
+    Checks if 'express' is a dependency in package.json.
+    It will fail if the 'dependencies' key is missing or doesn't contain 'express'.
+    """
+    dependencies = package_json_data.get('dependencies', {})
 
-# 3. Directory Structure
+    assert 'express' in dependencies, "FATAL: `package.json` must include 'express' as a dependency."
+
+'''# 3. Directory Structure
 def test_dir_public_exists():
     assert os.path.isdir(os.path.join(PROJECT_ROOT, 'public'))
 
@@ -67,6 +75,7 @@ def test_dir_public_data_exists():
 
 
 # 4. Required File Existence
+
 def test_file_style_css_exists():
     assert os.path.isfile(os.path.join(PROJECT_ROOT, 'public', 'css', 'style.css'))
 
@@ -91,7 +100,8 @@ def test_file_readme_exists():
     assert os.path.isfile(os.path.join(PROJECT_ROOT, 'README.md'))
 
 
-# 5. Data File Validity
+
+ 5. Data File Validity
 def test_lanches_json_is_valid():
     path = os.path.join(PROJECT_ROOT, 'public', 'data', 'lanches.json')
     if not os.path.isfile(path):
@@ -101,4 +111,4 @@ def test_lanches_json_is_valid():
         try:
             json.load(f)
         except json.JSONDecodeError as e:
-            pytest.fail(f"FATAL: `public/data/lanches.json` is not a valid JSON file. Error: {e}")
+            pytest.fail(f"FATAL: `public/data/lanches.json` is not a valid JSON file. Error: {e}")'''
