@@ -1,13 +1,10 @@
 import sys
 import pytest
-from utils.collector import TestCollector
 import argparse
+import os
 from core.report.default_reporter import DefaultReporter
-# --- Mapeamento de Feedback ---
-# Mapeia o nome de cada função de teste para uma mensagem de feedback específica e amigável.
-parser = argparse.ArgumentParser(description="Process token argument.")
-parser.add_argument("--token", type=str, required=True, help="GitHub token")
 
+# --- Mapeamento de Feedback ---
 FEEDBACK_MAPPING = {
     'test_server_js_exists': '👨‍💻 Seu arquivo `server.js` não foi encontrado na raiz do projeto. Ele é o ponto de entrada principal da aplicação e é essencial.',
     'test_package_json_exists': '📦 Seu arquivo `package.json` não foi encontrado. Ele é necessário para gerenciar as dependências e os scripts do projeto.',
@@ -27,38 +24,70 @@ FEEDBACK_MAPPING = {
 }
 
 
+class FatalErrorReporter:
+    """
+    Plugin Pytest para coletar falhas e reportar erros fatais de forma consolidada.
+    """
 
-"""
-Executa o pytest com o TestCollector, constrói uma mensagem de feedback consolidada
-para todas as falhas e encerra com código 1 se algum teste falhar.
-"""
-args = parser.parse_args()
-reporter = DefaultReporter.create(0,args.token)
-collector = TestCollector()
-# Assumindo que seu arquivo de teste se chama 'fatal_tests.py'
-pytest.main(["--tb=short", "--no-header", "fatal_detector/fatal_tests.py"], plugins=[collector])
+    def __init__(self, token):
+        self.failed_nodeids = []
+        self.reporter = DefaultReporter.create(0, token)
 
-if collector.failed:
-    error_messages = []
+    def pytest_runtest_logreport(self, report):
+        """Coleta os resultados de cada teste executado."""
+        if report.when == "call" and report.failed:
+            self.failed_nodeids.append(report.nodeid)
 
-    # Constrói a lista de mensagens de feedback a partir do mapeamento
-    for failed_test_nodeid in collector.failed:
-        # Extrai o nome da função de teste do node ID
-        test_name = failed_test_nodeid.split('::')[-1]
+    def pytest_sessionfinish(self, session):
+        """
+        Executado após todos os testes terminarem.
+        Aqui é o lugar certo para a lógica de feedback.
+        """
+        if self.failed_nodeids:
+            error_messages = []
+            print("THERE WERE FATAL ERRORS DETECTED IN YOUR PROJECT!")
 
-        # Busca a mensagem de feedback, fornecendo uma padrão caso não encontre
-        feedback = FEEDBACK_MAPPING.get(test_name, f"Ocorreu um erro fatal não especificado em {test_name}.")
-        error_messages.append(f"❌ {feedback}")
+            for nodeid in self.failed_nodeids:
+                test_name = nodeid.split('::')[-1]
+                feedback = FEEDBACK_MAPPING.get(test_name, f"Ocorreu um erro fatal não especificado em {test_name}.")
+                error_messages.append(f"❌ {feedback}")
 
-    # Constrói o relatório final de feedback para o usuário
-    final_feedback = "\n--- ☠️ ERROS FATAIS ENCONTRADOS ☠️ ---\n"
-    final_feedback += "Seu projeto não pode ser testado devido aos seguintes problemas críticos:\n\n"
-    final_feedback += "\n".join(error_messages)
-    final_feedback += "\n\nPor favor, corrija esses problemas e tente novamente."
+            final_feedback = "\n--- ☠️ ERROS FATAIS ENCONTRADOS ☠️ ---\n"
+            final_feedback += "Seu projeto não pode ser testado devido aos seguintes problemas críticos:\n\n"
+            final_feedback += "\n".join(error_messages)
+            final_feedback += "\n\nPor favor, corrija esses problemas e tente novamente."
 
-    #reporter.overwrite_report_in_repo(new_content=final_feedback)
-    sys.exit(1)
-else:
-    print("\n✅ Todas as verificações de erros fatais passaram com sucesso.")
+            print(final_feedback)
+            # self.reporter.overwrite_report_in_repo(new_content=final_feedback) # Descomente quando o reporter estiver pronto
+
+            # O pytest se encarregará de sair com um código de erro apropriado
+            # por causa dos testes que falharam. Não precisamos de sys.exit(1) manual aqui.
+
+        else:
+            print("\n✅ Todas as verificações de erros fatais passaram com sucesso.")
 
 
+def main():
+    """
+    Ponto de entrada principal do script.
+    """
+    parser = argparse.ArgumentParser(description="Executa a análise de erros fatais.")
+    parser.add_argument("--token", type=str, required=True, help="GitHub token")
+    args = parser.parse_args()
+
+    # Cria a instância do nosso plugin
+    reporter_plugin = FatalErrorReporter(token=args.token)
+
+    # Executa o pytest, passando o plugin.
+    # O pytest retornará um código de saída (0 para sucesso, >0 para falhas)
+    exit_code = pytest.main(
+        ["--tb=short", "--no-header", "fatal_detector/fatal_tests.py"],
+        plugins=[reporter_plugin]
+    )
+
+    # Encerra o script com o mesmo código de saída do pytest.
+    sys.exit(exit_code)
+
+
+if __name__ == '__main__':
+    main()
