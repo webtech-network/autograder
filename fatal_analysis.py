@@ -3,7 +3,7 @@ import argparse
 import os
 import json
 from core.report.default_reporter import DefaultReporter
-
+import time
 FEEDBACK_MAPPING = {
     'test_server_js_exists': '👨‍💻 Seu arquivo `server.js` não foi encontrado na raiz do projeto. Ele é o ponto de entrada principal da aplicação e é essencial.',
     'test_package_json_exists': '📦 Seu arquivo `package.json` não foi encontrado. Ele é necessário para gerenciar as dependências e os scripts do projeto.',
@@ -88,9 +88,12 @@ def main():
         final_feedback += "Seu projeto não pode ser testado devido aos seguintes problemas críticos:\n\n"
         final_feedback += "\n".join(error_messages)
         final_feedback += "\n\nPor favor, corrija esses problemas e tente novamente."
-        print(final_feedback)
+        #print(final_feedback)
+        time.sleep(3)
+        #print("Another block of code will be executed to overwrite the report in the repository.")
         reporter.overwrite_report_in_repo(new_content=final_feedback)
-        sys.exit(0)
+        time.sleep(3)
+        sys.exit(1)
     else:
         print("\n✅ Todas as verificações de erros fatais passaram com sucesso.")
         sys.exit(0)

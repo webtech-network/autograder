@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from github import Github
 import os
 import json
+from github.GithubException import GithubException, UnknownObjectException
 
 class BaseReporter(ABC):
     """Abstract base class for reporting test results."""
@@ -19,33 +20,33 @@ class BaseReporter(ABC):
         except:
             raise Exception("Failed to get repository. Please check your GitHub token and repository settings.")
 
+    from github import UnknownObjectException  # Importe a exceção específica
 
     def overwrite_report_in_repo(self, file_path="relatorio.md", new_content=""):
         """
-        :param file_path:
-        :param new_content:
-        :return:
+        Cria ou atualiza um arquivo de relatório no repositório.
         """
+        file_sha = None
+        commit_message = ""
 
+        # 1. Tente obter o arquivo para ver se ele já existe
         try:
             file = self.repo.get_contents(file_path)
             file_sha = file.sha
-        except:
-            # If the file doesn't exist, no sha is retrieved
-            file_sha = None
+            print(f"Arquivo '{file_path}' encontrado. Preparando para atualizar...")
+        except UnknownObjectException:
+            print(f"Arquivo '{file_path}' não encontrado. Preparando para criar...")
+            pass
 
-            # Encode the updated content in base64
-
-            # Commit the new content to the repository (either overwrite or create new)
-            commit_message = "Criando relatório..."
-            if file_sha:
-                self.repo.update_file(file_path, commit_message, new_content, file_sha)
-                print("Arquivo existente encontrado. Atualizando conteúdo...")
-            else:
-                self.repo.create_file(file_path, commit_message, new_content)
-            print("Arquivo não encontrado. Criando novo arquivo...")
-
-            print(f"Report successfully overwritten in {file_path}")
+        # 2. Fora do try/except, decida se cria ou atualiza
+        if file_sha:
+            commit_message = f"Atualizando relatório: {file_path}"
+            self.repo.update_file(path=file_path, message=commit_message, content=new_content, sha=file_sha)
+            print("Relatório atualizado com sucesso.")
+        else:
+            commit_message = f"Criando relatório: {file_path}"
+            self.repo.create_file(path=file_path, message=commit_message, content=new_content)
+            print("Relatório criado com sucesso.")
 
     def notify_classroom(self, token):
         # Check if the final_score is provided and is between 0 and 100
