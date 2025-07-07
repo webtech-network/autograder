@@ -1,6 +1,5 @@
 # 1. Use an official Python image as the base
 FROM python:3.10-slim
-
 # 2. Set environment variables to avoid interactive prompts
 ENV PYTHONUNBUFFERED=1
 
@@ -12,6 +11,13 @@ COPY requirements.txt /app/
 
 # 5. Install dependencies (this includes any packages needed for autograding)
 RUN pip install -r requirements.txt
+
+FROM node:20-slim
+
+COPY package.json /app/
+
+RUN npm install
+
 
 # 6. Copy the rest of the code into the working directory inside the container
 COPY . /app/

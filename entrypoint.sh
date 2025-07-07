@@ -8,13 +8,13 @@ set -e
 # --- Install dependencies in the student's repository and run server.js ---
 cd "$GITHUB_WORKSPACE/submission"
 
-if [ -f "package.json" ]; then
-    echo "Downloading dependencies from student's project"
-    npm install;
-else
-    echo "Error: no package.json file found."
-    exit 1;
-fi
+#if [ -f "package.json" ]; then
+#    echo "Downloading dependencies from student's project"
+#    npm install;
+#else
+#    echo "Error: no package.json file found."
+#    exit 1;
+#fi
 
 echo "Starting server.js at port 3000..."
 node server.js &
