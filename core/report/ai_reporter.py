@@ -16,7 +16,7 @@ class AIReporter(BaseReporter):
         test_results = {
             "base": self.result.base_results,
             "bonus": self.result.bonus_results,
-            "penalty": self.result.penalty_results,
+            "penalty": self.result.penalty_results["passed"],
             "score": self.result.final_score
         }
 
@@ -51,16 +51,19 @@ class AIReporter(BaseReporter):
             **Testes bônus:**  
             {test_results['bonus']}
 
-            **Testes de penalidade:**  
+            **Penalidades Detectadas:**  
             {test_results['penalty']}
 
             **Pontuação final:** {test_results['score']}/100
 
             Por favor, forneça um feedback amigável, humano e motivador.
-            A resposta deve ser apenas em direção ao candidato, sem mencionar o revisor ou o sistema.
+            A resposta deve ser apenas em direção ao candidato.
             Forneça toda a resposta em uma estrutura bem feita em markdown com elementos de títulos, indentação e listas.Markdown é obrigatório.
             Lembre-se de em nenhum momento mencionar a existência de testes unitários sendo executados por um sistema de avaliação automatizado.
-            Você deve agir como um revisor que realmente leu o código do candidato e está fornecendo feedback sobre ele.
+            Você deve agir como um revisor que realmente leu o código do candidato e está fornecendo feedback sobre ele. 
+            Faça comentários que mostrem que você leu o código do candidado, isto é, aponte pequenos detalhes que você percebeu no código, como nomes de variáveis, estrutura do código, etc.
+            Ao apontar os erros do aluno, especifique exatamente o que está errado e como ele pode corrigir isso.
+            
             Não se esqueça de divulgar a nota final do candidato, que é {self.result.final_score}/100. A nota deve ser apresentada antes de sua análise e de forma objetiva.
             """
 
@@ -70,7 +73,7 @@ class AIReporter(BaseReporter):
                                                       {"role": "user", "content": user_prompt}
                                                   ],
                                                   temperature=0.7)
-        ai_quota = f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI."
+        ai_quota = f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n"
         feedback = ai_quota + response.choices[0].message.content
         return feedback
 
