@@ -222,8 +222,8 @@ describe('Penalty Tests - ', () => {
 
             let isCorrectlyIgnored = false;
 
-            if (fs.existsSync(gitignorePath)) {
-                const gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+            if (fs.existsSync(gitIgnorePath)) {
+                const gitignoreContent = fs.readFileSync(gitIgnorePath, 'utf8');
 
                 if (gitignoreContent.includes('node_modules')) {
                     isCorrectlyIgnored = true;
