@@ -2,12 +2,28 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { BASE_URL } = require('../config');
 
+//Axios object that accepts all responses so they can be analyzed
 const axiosNoRedirect = axios.create({
     maxRedirects: 0,
     validateStatus: function (status) {
         return status >= 200 && status < 500;
     }
 });
+
+function safeTest(description, asyncTestFn) {
+    test(description, async () => {
+        try {
+            await asyncTestFn();
+        } catch (error) {
+            // If the server is down, throw a specific, clean error message.
+            if (error.code === 'ECONNREFUSED') {
+                throw new Error(`Connection refused during test: "${description}". Is the server running?`);
+            }
+            // For any other error, re-throw a simplified version to avoid circular structure issues.
+            throw new Error(`An unexpected error occurred in test "${description}": ${error.message}`);
+        }
+    });
+}
 
 function expectContentType(response, expectedType) {
     const contentType = response.headers['content-type'];
@@ -49,10 +65,7 @@ describe('Penalty Tests - ', () => {
                     }
                 });
             } catch (error) {
-                response = error.response;
-                if (!response) {
-                    throw new Error(`Network error or connection refused for ${method} ${path}: ${error.message}`);
-                }
+               throw new Error(`Network error or connection refused for ${method} ${path}: ${error.message}`);
             }
             expect(expectedStatus).not.toContain(response.status);
         }
@@ -98,32 +111,33 @@ describe('Penalty Tests - ', () => {
 
     describe('Incorrect Content-Type Returns', () => {
 
-        test('GET / should return text/html', async () => {
+        safeTest('GET / should return text/html', async () => {
             const response = await axios.get(`${BASE_URL}/`);
             expectContentType(response, 'text/html');
-        });
+        })
 
-        test('GET /sugestao should return text/html', async () => {
+        safeTest('GET /sugestao should return text/html', async () => {
             const response = await axios.get(`${BASE_URL}/sugestao?nome=test&ingredientes=test`);
             expectContentType(response, 'text/html');
         });
 
-        test('GET /contato should return text/html', async () => {
+        safeTest('GET /contato should return text/html', async () => {
             const response = await axios.get(`${BASE_URL}/contato`);
             expectContentType(response, 'text/html');
         });
 
-        test('GET /api/lanches should return application/json', async () => {
+        safeTest('GET /api/lanches should return application/json', async () => {
             const response = await axios.get(`${BASE_URL}/api/lanches`);
             expectContentType(response, 'application/json');
         });
 
-        test('Static CSS file should return text/css', async () => {
+        safeTest('Static CSS file should return text/css', async () => {
             const response = await axios.get(`${BASE_URL}/css/style.css`);
             expectContentType(response, 'text/css');
         });
 
-        test('POST /contato final response should be text/html (adaptive)', async () => {
+
+        safeTest('POST /contato final response should be text/html (adaptive)', async () => {
             let finalResponse;
             try {
                 const initialResponse = await axiosNoRedirect.post(`${BASE_URL}/contato`, contactSubmission, {
@@ -149,13 +163,13 @@ describe('Penalty Tests - ', () => {
 
     describe('Incorrect Form Field Name Attributes', () => {
 
-        test('index.html form should have correct name attributes', async () => {
+        safeTest('index.html form should have correct name attributes', async () => {
             const response = await axios.get(`${BASE_URL}/`);
             const $ = cheerio.load(response.data);
             expectFormFields($, ['nome', 'ingredientes']);
         });
 
-        test('contato.html form should have correct name attributes', async () => {
+        safeTest('contato.html form should have correct name attributes', async () => {
             const response = await axios.get(`${BASE_URL}/contato`);
             const $ = cheerio.load(response.data);
             expectFormFields($, ['nome', 'email', 'assunto', 'mensagem']);
