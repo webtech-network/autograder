@@ -3,7 +3,7 @@
 # Print a message to indicate the start of the autograding process
 echo "Starting autograder..."
 
-#set -e
+set -e
 cd /app
 
 python fatal_analysis.py --token $1
@@ -65,7 +65,7 @@ cd /app
 
 #Treat errors
 echo "Running tests..."
-npm test -- --json --outputFile=./tests/test-results.json
+npm test -- --json --outputFile=./tests/test-results.json || true
 
 echo "Parsing results..."
 TEST_OUTPUT_FILE="test-results.json"
