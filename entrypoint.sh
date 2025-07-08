@@ -49,6 +49,7 @@ else
 fi
 
 echo "Running fatal analysis..."
+cd /app
 python fatal_analysis.py --token $1
 
 # --- Running tests from action repository --- #
