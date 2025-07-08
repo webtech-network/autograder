@@ -38,7 +38,7 @@ class DefaultReporter(BaseReporter):
             tests_feedback = json.load(file)
         passed = True if self.result.final_score >= 70 else False
         # Initialize feedback
-        feedback = "<sup>Suas cotas de feedback AI acabaram, o sistema de feedback voltou ao padrão.</sup>"
+        feedback = "<sup>Suas cotas de feedback AI acabaram, o sistema de feedback voltou ao padrão.</sup>\n\n"
         feedback += f"# 🧪 Relatório de Avaliação – Journey Levty Etapa 1 - {self.result.author}\n\n"
         feedback += f"**Data:** {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
         feedback += f"**Nota Final:** `{format(self.result.final_score, '.2f')}/100`\n"
