@@ -3,10 +3,7 @@
 # Print a message to indicate the start of the autograding process
 echo "Starting autograder..."
 
-set -e
 cd /app
-
-python fatal_analysis.py --token $1
 
 # --- Install dependencies in the student's repository and run server.js ---
 cd "$GITHUB_WORKSPACE/submission"
@@ -20,8 +17,6 @@ else
     exit 1;
 fi
 
-
-
 echo "Starting server.js at port 3000..."
 node server.js &
 SERVER_PID=$!
@@ -32,10 +27,11 @@ echo "Server started with PID: $SERVER_PID"
 SERVER_URL="http://localhost:3000"
 CONNECTION_ATTEMPTS=10
 ATTEMPT_COUNTER=0
+SERVER_STATUS=1
 
 while [ $ATTEMPT_COUNTER -ne $CONNECTION_ATTEMPTS ]; do
     if curl -s "$SERVER_URL" > /dev/null; then
-        echo "Server is up and reachable."
+        SERVER_STATUS=0
         break
     else
         echo "Server not reachable yet. Retrying in 2 seconds (Attempt $(($ATTEMPT_COUNTER + 1))/$CONNECTION_ATTEMPTS)..."
@@ -44,24 +40,20 @@ while [ $ATTEMPT_COUNTER -ne $CONNECTION_ATTEMPTS ]; do
     fi
 done
 
+export SERVER_STATUS
 
-if [ "$RETRY_COUNT" -eq "$MAX_RETRIES" ]; then
-    echo "Error: Server failed to start or become reachable after multiple attempts."
-    kill "$SERVER_PID" || true
-    exit 1
+if [ $SERVER_STATUS -eq 0 ]; then 
+    echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is up and recheable"
+else 
+    echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is not healthy"
 fi
+
+echo "Running fatal analysis..."
+python fatal_analysis.py --token $1
 
 # --- Running tests from action repository --- #
 
 cd /app
-
-#if [ -f "package.json" ]; then
-#    echo "Installing autograder dependencies..."
-#    npm install;
-#else
-#    echo "Warning: package.json not found in Autograder's directory. Skipping npm install..."
-#fi
-
 
 #Treat errors
 echo "Running tests..."
