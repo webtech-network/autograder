@@ -3,8 +3,6 @@ set -e
 # Print a message to indicate the start of the autograding process
 echo "Starting autograder..."
 
-cd /app
-
 # --- Install dependencies in the student's repository and run server.js ---
 cd "$GITHUB_WORKSPACE/submission"
 
