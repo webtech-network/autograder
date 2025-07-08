@@ -14,7 +14,6 @@ FEEDBACK_MAPPING = {
 }
 
 BASE_DIR = os.path.join(os.environ.get('GITHUB_WORKSPACE', ''), 'submission')
-
 def check_server_status(errors):
     server_status = os.environ.get('SERVER_STATUS', '0')
     if server_status == "1":
@@ -61,7 +60,8 @@ def main():
 
     # Handle errors
     if errors:
-        reporter = DefaultReporter.create(0, "your-token-here")
+        token = os.environ.get('GITHUB_TOKEN', '')
+        reporter = DefaultReporter.create(0,token )
         error_messages = [f"❌ {FEEDBACK_MAPPING[e]}" for e in errors]
         final_feedback = "\n--- ☠️ ERROS FATAIS ENCONTRADOS ☠️ ---\n"
         final_feedback += "Seu projeto não pode ser testado devido aos seguintes problemas críticos:\n\n"
