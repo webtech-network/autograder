@@ -1,51 +1,362 @@
 {
-  "base": {
-    "weight": 75,
-    "subjects": {
-      "html": {
-        "weight": 100,
-        "test_path": "test_html_",
-
-        "include": ["test_html_title_exists", "test_html_has_h1"],
-        "exclude": ["test_html_has_inline_style"],
-
-        "quantitative": {
-          "test_html_semantic_tags": {
-            "weight": 10,
-            "max_value": 20
-          },
-          "test_html_images_with_alt": {
-            "weight": 5,
-            "max_value": 10
-          }
-        }
-      },
-      "css": {
-        "weight": 100,
-        "test_path": "test_css_"
-      }
+  "base_tests": [
+    {
+      "Route: / - deve retornar status code 200": [
+        "Parabéns! Sua rota principal (`/`) está no ar e respondendo com o status `200 OK`. Isso significa que ela foi encontrada e está pronta para receber visitantes.",
+        "A rota principal (`/`) não está respondendo como esperado. O teste esperava um status `200 OK`, mas recebeu outra coisa. Verifique se seu servidor Express está rodando (com `node index.js` ou similar) e se você configurou uma rota para o caminho `/` usando `app.get('/', ...)`."
+      ]
+    },
+    {
+      "Route: / - deve retornar header Content-Type text/html": [
+        "Ótimo! A rota principal (`/`) está enviando o cabeçalho `Content-Type` como `text/html`. Isso informa ao navegador que ele deve renderizar a página como HTML.",
+        "O cabeçalho `Content-Type` da rota `/` não veio como `text/html`. O navegador pode não entender como exibir a página corretamente. Certifique-se de que você está enviando um arquivo HTML. Usar `res.sendFile()` ou `res.render()` geralmente cuida disso para você."
+      ]
+    },
+    {
+      "Route: / - deve conter pelo menos um formulário": [
+        "Excelente! Foi encontrado um formulário (`<form>`) na sua página inicial. Agora os usuários têm como interagir e enviar dados.",
+        "A página inicial (`/`) não parece ter um formulário (`<form>`). Lembre-se, o formulário é essencial para que os usuários possam nos enviar sugestões de lanches."
+      ]
+    },
+    {
+      "Route: / - deve conter dois campos de input do tipo texto com atributos \"name\" sendo \"nome\" no primeiro e \"ingredentes\" no segundo": [
+        "Perfeito! Os campos (`<input>`) para 'nome' e 'ingredientes' foram encontrados no formulário da página inicial, com os atributos `name` corretos. Tudo pronto para receber as sugestões!",
+        "Atenção: o formulário da página inicial não está com os campos corretos. O teste procura por dois inputs: um com `name=\"nome\"` e outro com `name=\"ingredientes\"`. Verifique se os dois existem e se os atributos `name` estão escritos exatamente assim."
+      ]
+    },
+    {
+      "Route: /sugestao - deve aceitar uma requisição GET com query string contendo parâmetros \"nome\" e \"ingredientes\"": [
+        "Muito bem! A rota `/sugestao` está configurada para receber requisições GET e ler os dados (`nome` e `ingredientes`) da query string. É assim que recebemos os dados do formulário da página inicial.",
+        "A rota `/sugestao` não está processando os dados enviados via GET. Verifique se a rota está implementada para receber requisições GET e se você está usando `req.query` para acessar os parâmetros `nome` e `ingredientes` que vêm na URL."
+      ]
+    },
+    {
+      "Route: /sugestao - deve retornar status code 200 com content-type html": [
+        "Isso aí! A rota `/sugestao` está respondendo com `200 OK` e `Content-Type: text/html`. O usuário receberá uma página de confirmação válida.",
+        "A resposta da rota `/sugestao` não está correta. Ela deve retornar o status `200 OK` e o `Content-Type` `text/html`. Verifique se você está enviando uma página HTML como resposta a essa rota."
+      ]
+    },
+    {
+      "Route: /sugestao - não deve retornar um redirect (status não deve ser 3xx)": [
+        "Ótimo! A rota `/sugestao` renderiza a página de resposta diretamente, sem redirecionamentos. É exatamente o comportamento esperado aqui.",
+        "Parece que a rota `/sugestao` está fazendo um redirecionamento (retornando um status 3xx). Para este exercício, a rota deve renderizar o conteúdo diretamente, respondendo com um status `200 OK`."
+      ]
+    },
+    {
+      "Route: /sugestao - deve exibir o nome enviado via query string na página HTML": [
+        "Que legal! O nome do lanche enviado pelo formulário foi exibido com sucesso na página de sugestão. O usuário sabe que sua sugestão foi recebida.",
+        "O nome do lanche, que foi enviado para a rota `/sugestao`, não apareceu na página de resposta. Lembre-se de capturar o valor de `req.query.nome` e passá-lo para o seu template HTML para que ele possa ser exibido."
+      ]
+    },
+    {
+      "Route: /sugestao - deve exibir os ingredientes enviados via query string na página HTML": [
+        "Perfeito! Os ingredientes enviados pelo formulário estão sendo exibidos na página de sugestão. O usuário vê todos os detalhes que enviou.",
+        "Os ingredientes, que foram enviados para a rota `/sugestao`, não foram encontrados na página de resposta. Você precisa capturar o valor de `req.query.ingredientes` e inseri-lo no corpo do seu HTML."
+      ]
+    },
+    {
+      "Route: /sugestao - deve conter umad âncora para a rota raíz /": [
+        "Boa prática! A página de sugestão tem um link de volta para a página inicial (`/`). Isso melhora muito a experiência de navegação do usuário.",
+        "Está faltando um link para voltar à página inicial na sua página `/sugestao`. Adicione uma âncora (`<a href=\"/\">Voltar</a>`, por exemplo) para que os usuários possam navegar de volta facilmente."
+      ]
+    },
+    {
+      "Route: /contato (GET) - deve retornar status code 200 e Content-type text/html": [
+        "Tudo certo! A rota `/contato` (GET) foi acessada com sucesso, retornando uma página HTML com status 200.",
+        "Não conseguimos acessar a página de contato em `/contato`. Verifique se a rota `app.get('/contato', ...)` existe e se está enviando um arquivo HTML como resposta (usando `res.sendFile`, por exemplo). Talvez haja um erro de digitação no nome da rota ou do arquivo."
+      ]
+    },
+    {
+      "Route: /contato (GET) - deve conter um campo de input ou textarea do tipo texto com atributo name como \"nome\"": [
+        "Ótimo! Encontramos o campo para o nome (`<input name=\"nome\">`) no formulário de contato.",
+        "Não encontramos um campo para o 'nome' no formulário da página `/contato`. Certifique-se de que existe um `<input>` ou `<textarea>` com o atributo `name=\"nome\"`."
+      ]
+    },
+    {
+      "Route: /contato (GET) - deve conter um campo de input do tipo email ou texto com atributo name como \"email\"": [
+        "Campo de email encontrado no formulário de contato. Perfeito!",
+        "Não encontramos um campo para o 'email' no formulário da página `/contato`. Adicione um `<input>` com o atributo `name=\"email\"` para que os usuários possam nos contatar."
+      ]
+    },
+    {
+      "Route: /contato (GET) - deve conter um campo de input ou textarea do tipo texto com atributo name como \"assunto\"": [
+        "Campo para o assunto (`<input name=\"assunto\">`) presente no formulário de contato. Muito bem.",
+        "O campo para 'assunto' está faltando no formulário da página `/contato`. Adicione um `<input>` ou `<textarea>` com o atributo `name=\"assunto\"`."
+      ]
+    },
+    {
+      "Route: /contato (GET) - deve conter um campo de input ou textarea do tipo texto com atributo name como \"mensagem\"": [
+        "O campo de mensagem (`<textarea name=\"mensagem\">`) está presente. Tudo certo para receber as mensagens dos usuários.",
+        "Faltou o campo para a 'mensagem' no formulário de `/contato`. Adicione uma `<textarea>` com `name=\"mensagem\"` para que os usuários possam escrever o texto principal."
+      ]
+    },
+    {
+      "Route: /contato (GET) - form deve conter botão do tipo submit": [
+        "Botão de envio (`<button type='submit'>`) encontrado no formulário. Perfeito!",
+        "O formulário de contato precisa de um botão para ser enviado. Adicione um `<button type='submit'>Enviar</button>` ou `<input type='submit'>` dentro da tag `<form>`."
+      ]
+    },
+    {
+      "Route: /contato (GET) - deve conter umad âncora para a rota raíz /": [
+        "Excelente! A página de contato tem um link (`<a>`) de volta para a home. Isso é ótimo para a navegação.",
+        "A página `/contato` não tem um link para voltar à rota principal (`/`). Adicionar um `<a href=\"/\">...</a>` ajuda o usuário a navegar pelo site."
+      ]
+    },
+    {
+      "Route: /contato (POST) - resposta final deve possuir status code 200 com Content-type text/html": [
+        "Após o envio do formulário de contato (POST), a resposta final é uma página HTML com status 200. Comportamento correto!",
+        "A resposta final após o POST para `/contato` não foi um HTML com status 200. Verifique o que sua rota `app.post('/contato', ...)` está retornando. Ela deve enviar uma página de confirmação ou redirecionar para uma."
+      ]
+    },
+    {
+      "Route: /contato (POST) - dever retornar uma página HTML diretamente (status code 200) ou redirect para /contato-recebido (status code 3xx)": [
+        "Ótima implementação! A rota POST `/contato` responde com uma página de confirmação, seja diretamente ou através de um redirecionamento. Ambas as abordagens funcionam bem.",
+        "Após o envio (POST) para `/contato`, o servidor não está respondendo com um HTML nem redirecionando para uma página de sucesso. Verifique sua lógica na rota `app.post('/contato', ...)` para garantir que o usuário receba uma confirmação."
+      ]
+    },
+    {
+      "Route: /contato (POST) - página de resposta deve exibir o \"nome\" enviado no formulário": [
+        "Perfeito! O nome enviado pelo formulário de contato está sendo exibido na página de resposta. O usuário se sente reconhecido.",
+        "O 'nome' enviado via POST para `/contato` não foi encontrado na página de resposta. Para exibir os dados, você precisa recebê-los com `req.body.nome` (não se esqueça do middleware `express.urlencoded`) e inseri-los no HTML de resposta."
+      ]
+    },
+    {
+      "Route: /contato (POST) - página de resposta deve exibir o \"email\" enviado no formulário": [
+        "Excelente! O email do usuário é exibido na página de confirmação. Feedback claro e completo.",
+        "O 'email' enviado pelo formulário não apareceu na página de resposta. Verifique se você está pegando o dado de `req.body.email` e o incluindo no HTML de confirmação."
+      ]
+    },
+    {
+      "Route: /contato (POST) - página de resposta deve exibir o \"assunto\" enviado no formulário": [
+        "Muito bem! O assunto da mensagem é exibido na página de resposta, confirmando o que foi enviado.",
+        "O 'assunto' da mensagem não foi encontrado na página de resposta do formulário. Lembre-se de capturar `req.body.assunto` e mostrá-lo ao usuário no HTML."
+      ]
+    },
+    {
+      "Route: /contato (POST) - página de resposta deve exibir o \"mensagem\" enviada no formulário": [
+        "Ótimo! A mensagem enviada pelo usuário é exibida na página de confirmação. Transparência total!",
+        "A 'mensagem' enviada via formulário não está sendo exibida na página de resposta. Certifique-se de que `req.body.mensagem` está sendo capturado e renderizado no HTML de confirmação."
+      ]
+    },
+    {
+      "Route: /contato (POST) - deve conter umad âncora para a rota raíz /": [
+        "A página de confirmação do formulário de contato tem um link de volta para a home. Navegação fluida e intuitiva, parabéns!",
+        "A página de resposta após o envio do formulário de contato não tem um link (`<a>`) de volta para a rota raiz (`/`). Adicione este link para facilitar a vida do usuário."
+      ]
+    },
+    {
+      "Route: /api/lanches - deve retornar status code 200": [
+        "Sua API de lanches em `/api/lanches` está online e respondendo com status 200. Perfeito!",
+        "A rota `/api/lanches` não está respondendo com status 200. Verifique se a rota `app.get('/api/lanches', ...)` está configurada corretamente e sem erros."
+      ]
+    },
+    {
+      "Route: /api/lanches - deve retornar header Content-type application/json": [
+        "Excelente! Sua API está informando que a resposta é um JSON (`Content-Type: application/json`). Usar `res.json()` é a forma ideal de fazer isso.",
+        "A rota `/api/lanches` não está com o `Content-Type` correto. Para uma API, o esperado é `application/json`. Certifique-se de que você está usando `res.json()` para enviar a resposta, pois ele ajusta o cabeçalho automaticamente."
+      ]
+    },
+    {
+      "Route: /api/lanches - deve retornar um array de lanches": [
+        "Sua API está retornando um array. Ótimo! APIs que retornam listas devem sempre usar arrays, mesmo que vazios.",
+        "A resposta da rota `/api/lanches` deveria ser um array (`[]`), mas veio em outro formato. Garanta que você está enviando uma lista de objetos, como `res.json([{...}, {...}])`."
+      ]
+    },
+    {
+      "Route: /api/lanches - deve retornar um array com pelo menos 3 lanches": [
+        "A API de lanches está bem recheada, com 3 ou mais itens. Excelente!",
+        "A API `/api/lanches` precisa de mais opções! O teste esperava um array com no mínimo 3 lanches. Verifique se seu array de dados contém pelo menos 3 objetos."
+      ]
+    },
+    {
+      "Route: /api/lanches - cada objeto de lanche do array deve ter os seguinte atributos: id, nome ingredientes": [
+        "A estrutura dos dados da sua API está perfeita! Todos os lanches possuem os atributos `id`, `nome` e `ingredientes`.",
+        "Um ou mais objetos na sua API de lanches estão com atributos faltando. Cada lanche deve ser um objeto com esta estrutura: `{ id: ..., nome: '...', ingredientes: '...' }`. Revise seus dados."
+      ]
+    },
+    {
+      "Route: /api/lanches - cada atributo deve possuir o data type correto e não ser vazio, 0 ou null": [
+        "Qualidade dos dados impecável! Os atributos de cada lanche têm o tipo de dado correto (`id` como número, `nome` e `ingredientes` como strings) e não estão vazios.",
+        "Atenção à qualidade dos dados na API. O atributo `id` deve ser um número maior que zero, e `nome` e `ingredientes` devem ser strings que não estejam vazias. Verifique os valores em seu array de lanches."
+      ]
     }
-  },
-
-  "bonus": {
-    "weight": 25,
-    "subjects": {
-      "html": {
-        "weight": 100,
-        "test_path": "test_html_",
-        "include": ["test_html_extra_styling"]
-      }
+  ],
+  "bonus_tests": [
+    {
+      "estudante utilizou padrão PRG na rota /contato corretamente": [
+        "Uau! Você aplicou o padrão Post-Redirect-Get (PRG) no formulário de contato. Isso é uma prática avançada e excelente, pois previne que o formulário seja reenviado se o usuário atualizar a página. Parabéns!",
+        "Dica de mestre: após o envio de um formulário (POST), é uma boa prática redirecionar o usuário para uma nova página (GET). Isso é chamado de padrão PRG e evita problemas de reenvio. Você pode fazer isso com `res.redirect('/contato-recebido')`."
+      ]
+    },
+    {
+      "estudante criou template exibido em requisições 404 contendo uma âncora para a rota raíz": [
+        "Excelente! Você criou uma página de erro 404 personalizada e amigável, com um link para a home. Isso melhora muito a experiência quando o usuário se perde no site.",
+        "Sua aplicação ainda não tem um tratamento para erros 404 (página não encontrada). Considere adicionar um middleware no final de suas rotas para lidar com isso, mostrando uma página de erro com um link para a home."
+      ]
+    },
+    {
+      "estudante utilizou corretamente as tags label e attributo id nos inputs 'nome' e 'ingredientes' na rota /sugestao": [
+        "Acessibilidade em dia! As `labels` do formulário de sugestão estão corretamente ligadas aos seus `inputs` usando `for` e `id`. Isso ajuda usuários de leitores de tela e melhora a usabilidade para todos. Ótimo trabalho!",
+        "Para melhorar a acessibilidade, as `<label>`s do seu formulário de sugestão devem ser associadas aos `<input>`s. Faça assim: `<label for=\"nome_id\">Nome</label>` e `<input id=\"nome_id\" name=\"nome\">`. O `for` da label deve ser igual ao `id` do input."
+      ]
+    },
+    {
+      "estudante utilizou corretamente as tags label e attributo id nos inputs 'nome', 'email', 'assunto' and 'mensagem' do fomulário da rota /contato (GET)": [
+        "Parabéns! O formulário de contato também segue as melhores práticas de acessibilidade, com todas as `labels` corretamente associadas aos seus campos.",
+        "As `labels` no formulário de contato não estão associadas aos seus campos. Use o atributo `for` na `label` e o `id` correspondente no `input` ou `textarea` para conectá-los. Isso é muito importante para a acessibilidade."
+      ]
     }
-  },
-
-  "penalty": {
-    "weight": 10,
-    "subjects": {
-      "html": {
-        "weight": 100,
-        "test_path": "test_html_",
-        "exclude": ["test_html_legit_tag"]
-      }
+  ],
+  "penalty_tests": [
+    {
+      "Endpoint / não deve aceitar método POST": [
+        "Correto! Sua rota raiz (`/`) só aceita o método GET, rejeitando POST como deveria.",
+        "A rota raiz (`/`) está aceitando requisições POST. Ela deveria ser configurada para aceitar apenas GET. Geralmente, não é necessário fazer nada para que isso aconteça, a menos que você tenha criado uma rota `app.post('/', ...)` por engano."
+      ]
+    },
+    {
+      "Endpoint / não deve aceitar método PUT": [
+        "Perfeito. A rota raiz (`/`) não aceita requisições PUT, conforme o esperado.",
+        "Sua rota raiz (`/`) está aceitando o método PUT. Ela deve responder apenas a GET. Revise suas configurações de rota para o caminho `/`."
+      ]
+    },
+    {
+      "Endpoint / não deve aceitar método DELETE": [
+        "Ótimo! Sua rota raiz (`/`) não aceita o método DELETE.",
+        "Sua rota raiz (`/`) está aceitando requisições DELETE. Ela deveria aceitar apenas GET. Verifique se não há uma rota `app.delete('/', ...)` definida."
+      ]
+    },
+    {
+      "Endpoint / não deve aceitar método PATCH": [
+        "Excelente. A rota raiz (`/`) não aceita requisições PATCH, como esperado.",
+        "Sua rota raiz (`/`) está aceitando o método PATCH. Ela deve responder apenas a GET. Revise as rotas definidas para o caminho `/`."
+      ]
+    },
+    {
+      "Endpoint /sugestao não deve aceitar método POST": [
+        "Correto. A rota `/sugestao` responde apenas a GET, como deveria.",
+        "A rota `/sugestao` está aceitando requisições POST, mas ela foi projetada para apenas exibir dados via GET. Ajuste seu servidor para que `app.post('/sugestao', ...)` não exista."
+      ]
+    },
+    {
+      "Endpoint /sugestao não deve aceitar método PUT": [
+        "Isso mesmo! A rota `/sugestao` não aceita o método PUT.",
+        "A rota `/sugestao` está aceitando requisições PUT. Ela deve ser configurada para aceitar apenas GET."
+      ]
+    },
+    {
+      "Endpoint /sugestao não deve aceitar método DELETE": [
+        "Perfeito. A rota `/sugestao` não aceita o método DELETE.",
+        "A rota `/sugestao` está aceitando requisições DELETE, mas deveria aceitar apenas GET. Remova qualquer rota `app.delete('/sugestao', ...)`."
+      ]
+    },
+    {
+      "Endpoint /sugestao não deve aceitar método PATCH": [
+        "Ótimo! A rota `/sugestao` não aceita o método PATCH.",
+        "A rota `/sugestao` está aceitando requisições PATCH, mas deveria aceitar apenas GET. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "Endpoint /contato não deve aceitar método PUT": [
+        "Correto. A rota `/contato` aceita GET e POST, mas não PUT.",
+        "A rota `/contato` está aceitando requisições PUT. Ela deveria aceitar apenas GET (para mostrar o formulário) e POST (para recebê-lo). Verifique suas rotas."
+      ]
+    },
+    {
+      "Endpoint /contato não deve aceitar método DELETE": [
+        "Exato. A rota `/contato` não aceita o método DELETE.",
+        "A rota `/contato` está aceitando requisições DELETE. Ela deveria aceitar apenas GET e POST. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "Endpoint /contato não deve aceitar método PATCH": [
+        "Perfeito! A rota `/contato` não aceita o método PATCH.",
+        "A rota `/contato` está aceitando requisições PATCH. Ela deveria aceitar apenas GET e POST. Ajuste a configuração do seu servidor."
+      ]
+    },
+    {
+      "Endpoint /api/lanches não deve aceitar método POST": [
+        "Correto. A API `/api/lanches` é somente para leitura (GET) e não aceita POST.",
+        "Sua API em `/api/lanches` está aceitando requisições POST. Para este projeto, ela deve ser apenas para consulta (GET)."
+      ]
+    },
+    {
+      "Endpoint /api/lanches não deve aceitar método PUT": [
+        "Isso! A API `/api/lanches` não aceita o método PUT.",
+        "Sua API em `/api/lanches` está aceitando requisições PUT. Ela deve ser configurada para aceitar apenas GET."
+      ]
+    },
+    {
+      "Endpoint /api/lanches não deve aceitar método DELETE": [
+        "Ótimo. A API `/api/lanches` não aceita o método DELETE.",
+        "Sua API em `/api/lanches` está aceitando requisições DELETE. Para este projeto, ela deve ser apenas para consulta (GET)."
+      ]
+    },
+    {
+      "Endpoint /api/lanches não deve aceitar método PATCH": [
+        "Perfeito. A API `/api/lanches` não aceita o método PATCH.",
+        "Sua API em `/api/lanches` está aceitando requisições PATCH. Ela deve ser configurada para aceitar apenas GET."
+      ]
+    },
+    {
+      "GET / não retorna text/html": [
+        "Ótimo! Você deixou o Express definir o `Content-Type` da rota `/` automaticamente. Essa é a melhor abordagem.",
+        "Você definiu o `Content-Type` da rota `/` manualmente. Embora funcione, o ideal é deixar que o Express faça isso por você ao usar `res.sendFile()` ou `res.render()`. Evite usar `res.setHeader('Content-Type', ...)` para HTML."
+      ]
+    },
+    {
+      "GET /sugestao não retorna text/html": [
+        "Excelente! O `Content-Type` da rota `/sugestao` está sendo definido automaticamente pelo framework.",
+        "O `Content-Type` para a rota `/sugestao` foi definido manualmente. É melhor deixar que o Express defina este cabeçalho automaticamente quando você envia a resposta."
+      ]
+    },
+    {
+      "GET /contato não retorna text/html": [
+        "Bom trabalho! Você não definiu o `Content-Type` da rota `/contato` manualmente, deixando o Express cuidar disso.",
+        "O `Content-Type` para a rota `/contato` foi definido manualmente. Deixe o framework fazer esse trabalho para você ao renderizar ou enviar a página."
+      ]
+    },
+    {
+      "GET /api/lanches não retorna application/json": [
+        "Perfeito! Você provavelmente usou `res.json()`, que define o `Content-Type` para `application/json` automaticamente. Essa é a forma correta.",
+        "O `Content-Type` para a API `/api/lanches` foi definido manualmente. Use o método `res.json()`, pois ele já configura o cabeçalho correto e converte o objeto para JSON."
+      ]
+    },
+    {
+      "arquivo css estático style.css não retorna text/css": [
+        "Ótimo! Seu servidor está servindo arquivos CSS corretamente, e o `Content-Type` está sendo gerenciado pelo middleware `express.static`.",
+        "Um arquivo CSS foi servido com o `Content-Type` definido manualmente. O correto é usar o middleware `express.static` para servir a pasta de arquivos estáticos, pois ele gerencia os `Content-Types` (CSS, imagens, etc.) automaticamente."
+      ]
+    },
+    {
+      "resposta final de POST /contato não retorna text/html (adaptativo)": [
+        "Excelente! A resposta final do POST em `/contato` não define o `Content-Type` manualmente. Você deixou o framework fazer o trabalho.",
+        "A resposta final do POST para `/contato` está com `Content-Type` definido manualmente. Deixe que o Express (ao renderizar uma view ou enviar um arquivo) defina este cabeçalho por você."
+      ]
+    },
+    {
+      "formulário da página index.html não possui campos de input com name attributes corretos": [
+        "O formulário na `index.html` não possui atributos `name` incorretos. Ótimo.",
+        "Detectamos que um dos campos do formulário na `index.html` não tem o atributo `name` esperado. O formulário de sugestão deve ter os campos com `name='nome'` e `name='ingredientes'`."
+      ]
+    },
+    {
+      "formulário da página contato.html não possui campos de input com name attributes corretos": [
+        "O formulário na `contato.html` não possui atributos `name` incorretos.",
+        "Detectamos que um dos campos do formulário na `contato.html` não tem o atributo `name` esperado (ou a página não foi encontrada). O formulário deve ter os campos com `name` definidos como `nome`, `email`, `assunto` e `mensagem`."
+      ]
+    },
+    {
+      "projeto contém outras dependências além do express": [
+        "Seu projeto usa apenas a dependência `express`, conforme solicitado. Excelente!",
+        "Seu projeto tem mais dependências além do `express`. Para este desafio, apenas o Express era necessário. Verifique seu arquivo `package.json`."
+      ]
+    },
+    {
+      ".gitignore não contém pasta node_modules": [
+        "Ótima prática! Seu arquivo `.gitignore` está instruindo o Git a ignorar a pasta `node_modules`. Isso é essencial para manter o repositório limpo.",
+        "Atenção: a pasta `node_modules` não deve ser enviada para o repositório Git. Adicione a linha `node_modules` ao seu arquivo `.gitignore` para evitar isso."
+      ]
     }
-  }
+  ]
 }

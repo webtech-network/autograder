@@ -1,15 +1,15 @@
 {
   "base": {
     "weight": 10,
-    "native": true
+    "native": false
 
   },
   "bonus": {
-    "native": true,
+    "native": false,
     "weight": 10
   },
   "penalty": {
-    "native": true,
+    "native": false,
     "weight": 30
   }
 }
