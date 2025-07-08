@@ -5,6 +5,7 @@ import time
 from core.report.default_reporter import DefaultReporter
 
 FEEDBACK_MAPPING = {
+    'server_js_invalid': '- ⚠️ Não conseguimos rodar o seu servidor. Por favor, verifique seu código ou busque suporte nas guildas.\n',
     'server_js_exists': '- 👨‍💻 Seu arquivo `server.js` não foi encontrado na raiz do projeto. Ele é o ponto de entrada principal da aplicação e é essencial.\n',
     'package_json_exists': '- 📦 Seu arquivo `package.json` não foi encontrado. Ele é necessário para gerenciar as dependências e os scripts do projeto.\n',
     'package_json_has_main_key': '- 🔑 A chave `"main"` está faltando no seu `package.json`. Ela é necessária para indicar ao Node.js qual arquivo executar.\n',
@@ -14,6 +15,10 @@ FEEDBACK_MAPPING = {
 
 BASE_DIR = os.path.join(os.environ.get('GITHUB_WORKSPACE', ''), 'submission')
 
+def check_server_status(errors):
+    server_status = os.environ.get('SERVER_STATUS', '0')
+    if server_status == "1":
+        errors.append('server_js_invalid')
 def check_server_js_exists(errors):
     path = os.path.join(BASE_DIR, 'server.js')
     if not os.path.isfile(path):
@@ -43,8 +48,9 @@ def check_package_json_content(package_json, errors):
         errors.append('package_json_has_express_dependency')
 
 def main():
-    errors = []
 
+    errors = []
+    check_server_status(errors)
     # Check for server.js
     check_server_js_exists(errors)
 
