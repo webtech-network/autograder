@@ -80,7 +80,7 @@ class AIReporter(BaseReporter):
 
         feedback = f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n\n"
         feedback += f"Feedback para {self.result.author}:\n\n"
-        feedback += f"Nota final: **{test_results['score']}/100**\n\n"
+        feedback += f"Nota final: **{test_results['score']:.1f}/100**\n\n"
         feedback += response.choices[0].message.content
         return feedback
 
