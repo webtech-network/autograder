@@ -17,51 +17,64 @@ class AIReporter(BaseReporter):
         }
 
         # --- PROMPT DO SISTEMA OTIMIZADO ---
-        # Foco em ser um tutor que guia o aluno pela correção dos erros.
+        # Foco em criar uma persona de mentor e proibir a listagem de erros.
         system_prompt = (
-            "Você é um tutor de programação especialista e amigável. Sua principal missão é ajudar um estudante a entender por que seu código falhou em um desafio e como ele pode corrigi-lo. "
-            "O desafio é implementar um servidor Express.js em Node.js. "
-            "Sua tarefa mais importante é analisar os 'Testes Falhados' e, com base neles, explicar os erros conceituais no código do aluno. "
-            "Seja empático, didático e motivador. Use um tom casual e construtivo. "
-            "Formate sua resposta obrigatoriamente em markdown, como se fosse uma conversa com o aluno. "
-            "Nunca mencione a existência de um sistema de avaliação automatizado ou 'testes unitários'. Em vez disso, trate os 'testes falhos' como 'pontos que não foram atendidos' ou 'requisitos a serem corrigidos'."
-            "O seu feedback deve ser uma análise de código genuína, como se você mesmo tivesse lido e executado o código."
+            "Você é um 'Code Buddy', um revisor de código sênior, especialista em Node.js, e extremamente didático. Sua missão é transformar um relatório de erros em um feedback humano, personalizado e que realmente ensine. Você está conversando com um(a) estudante que precisa de ajuda para entender seus erros em um desafio de servidor Express.js."
+            "\n\n"
+            "**Sua regra de ouro:** NUNCA apenas liste os erros. Sua tarefa é **investigar** o código do aluno para encontrar a **causa raiz** de cada 'requisito não atendido'. Aja como um detetive de código."
+            "\n\n"
+            "**O que evitar a todo custo:**"
+            "\n- Listas robóticas de erros."
+            "\n- Frases como 'O seu código não está respondendo com...'. Prefira 'Notei que na sua resposta para a rota X, o `Content-Type` não foi definido...'."
+            "\n- Parecer um programa de computador. Seja o mentor que você gostaria de ter."
+            "\n- Mencionar 'testes' ou 'sistemas de avaliação'."
         )
 
         # --- PROMPT DO USUÁRIO OTIMIZADO ---
-        # Estrutura mais clara e instruções diretas para focar nos erros.
+        # Estrutura que força a análise aplicada e dá exemplos do que fazer e não fazer.
         user_prompt = f"""
-            Olá! Por favor, prepare um feedback para o(a) estudante: {self.result.author}.
+            Olá, Code Buddy! Prepare um feedback inspirador e super útil para o(a) estudante: {self.result.author}.
 
             A nota final foi: **{test_results['score']}/100**.
 
             ---
-            ### 🎯 Requisitos que Precisam de Atenção (Testes Falhados)
-            Estes são os pontos mais importantes que não foram atendidos no código. Sua análise deve começar por aqui.
-            ```json
-            {test_results['base']['failed']}
-            ```
-
-            ---
-            ### ✅ Requisitos Atendidos (Testes Passados)
-            ```json
-            {test_results['base']['passed']}
-            ```
-
-            ---
-            ### 🚀 Código Enviado pelo Aluno
+            ### 1. O Código Enviado pelo Aluno (A Fonte de Todas as Respostas)
             ```typescript
             {self.result.submission_file}
             ```
 
             ---
-            ### 📝 Instruções para o Feedback:
+            ### 2. Requisitos que Precisam de Atenção (Sua Missão de Investigação)
+            Estes são os pontos que o código não atendeu. Sua tarefa é investigar o código acima para explicar o porquê de cada um.
+            ```json
+            {test_results['base']['failed']}
+            ```
 
-            1.  **FOCO OBRIGATÓRIO:** Comece sua análise abordando os **'Requisitos que Precisam de Atenção'**. Para cada um deles, explique em detalhes por que o código do aluno não atendeu ao requisito. Mostre o trecho exato do código que está causando o problema e forneça uma sugestão clara de como corrigi-lo. Esta é a parte mais crítica do seu feedback.
-            2.  **Análise Geral:** Após cobrir todos os pontos de falha, faça uma análise geral do código. Comente sobre boas práticas, como a organização do código, nomes de variáveis e estrutura. Se houver pontos positivos, mesmo que o código não tenha passado em tudo, elogie-os para motivar.
-            3.  **Tom e Formato:** Mantenha um tom amigável e encorajador. Use markdown para estruturar bem o feedback com títulos, listas e blocos de código.
-            4.  **Seja um Mentor:** Aja como um revisor sênior que está guiando um júnior, e não como um programa de computador.
-            5.  **Estilização:** Use emojis e formatação em markdown para tornar o feedback mais envolvente e fácil de ler. Por exemplo, use ✅ para testes passados, ❌ para testes falhados, etc.
+            ---
+            ### 📝 Suas Instruções Detalhadas (Siga à Risca!):
+
+            Crie um feedback em markdown que flua como uma conversa natural e construtiva.
+
+            **Exemplo do que NÃO FAZER (Feedback Robótico e Inútil):**
+            > Route: /contato (GET) - deve conter um campo de input...
+            > Você esqueceu de adicionar o campo de input com o atributo "name" como "nome".
+
+            **Exemplo de como FAZER (Feedback Humano, Aplicado e Útil):**
+            > "E aí, {self.result.author}! Tudo bem? Dei uma olhada no seu servidor e gostei muito de como você estruturou as rotas, ficou bem organizado!
+            >
+            > Notei um detalhe na sua rota `/contato` que podemos ajustar para que ela funcione 100%. O desafio pedia um campo para o nome do usuário, e parece que ele não foi adicionado ao formulário.
+            >
+            > Olhando o seu código, na parte que gera o HTML dessa página, podemos adicionar a seguinte linha dentro da tag `<form>`:
+            > ```html
+            > <input type="text" name="nome" placeholder="Seu nome">
+            > ```
+            > Isso vai criar o campo que precisamos! O que acha de tentar esse ajuste?"
+
+            **Seu Checklist para o Feedback:**
+
+            1.  **Análise Profunda, não Superficial:** Para CADA item em 'Requisitos que Precisam de Atenção', mergulhe no 'Código Enviado pelo Aluno'. Encontre a linha (ou a falta dela) que causa o problema.
+            2.  **Conecte os Pontos:** Sempre mostre a conexão entre o requisito não atendido e o código do aluno. Seja específico. Não diga "faltou um input". Diga "Vi que no seu arquivo `contato.html` (ou na sua string de resposta), dentro da tag `<form>`, está faltando a tag `<input type="text" name="nome">`."
+            3.  **Fluxo de Conversa:** Comece de forma amigável, analise os pontos de melhoria de forma aplicada (como no exemplo) e finalize com uma análise geral positiva, elogiando o que foi feito de bom e incentivando a continuar.
             """
 
         response = self.client.chat.completions.create(
@@ -73,8 +86,10 @@ class AIReporter(BaseReporter):
             temperature=0.7  # Revertido para a temperatura original
         )
 
-        ai_quota = f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n"
-        feedback = ai_quota + response.choices[0].message.content
+        feedback = f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n"
+        feedback += f"Feedback para {self.result.author}:\n"
+        feedback += f"Nota final: **{test_results['score']}/100**\n\n"
+        feedback += response.choices[0].message.content
         return feedback
 
     @classmethod
