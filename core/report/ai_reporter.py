@@ -77,8 +77,8 @@ class AIReporter(BaseReporter):
             ],
             temperature=0.7
         )
-
-        feedback = f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n\n"
+        feedback = "<sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>"
+        feedback += f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n\n"
         feedback += f"Feedback para {self.result.author}:\n\n"
         feedback += f"Nota final: **{test_results['score']:.1f}/100**\n\n"
         feedback += response.choices[0].message.content
