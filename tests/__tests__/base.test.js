@@ -44,6 +44,11 @@ describe('Base Tests - ', () => {
         expect($form.length).toBeGreaterThan(0);
       });
 
+      test('form deve conter botão do tipo submit', () => {
+        const submitButton = $('button[type="submit"], input[type="submit"]');
+        expect(submitButton.length).toBeGreaterThan(0);
+      });
+
       const expectedFormFields = [
         {
           name: 'nome',
