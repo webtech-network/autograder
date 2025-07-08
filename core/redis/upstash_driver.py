@@ -35,6 +35,8 @@ def decrement_token_quota(token: str) -> bool:
     """Function to decrement the quota of a user based on his token"""
     key = f"token:{token}"
     result = redis.get(key)
+    print("Result is:", result)
+    print("Typing result:", type(result))
     if result is None:
         return False
 
