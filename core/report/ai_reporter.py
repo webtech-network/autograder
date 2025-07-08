@@ -1,19 +1,10 @@
+from core.report.base_reporter import BaseReporter
 from openai import OpenAI
+import os
 
-# Supondo que BaseReporter e a estrutura de result sejam definidos em outro lugar
-# from core.report.base_reporter import BaseReporter
-# class BaseReporter:
-#     def __init__(self, result, token):
-#         self.result = result
-#         self.token = token
-#     def get_repository(self):
-#         print("Getting repository...")
-
-class AIReporter: # Herde de BaseReporter quando o tiver disponível
-    def __init__(self, result, token, quota, openai_key=None):
-        # super().__init__(result, token) # Descomente quando BaseReporter estiver disponível
-        self.result = result
-        self.token = token
+class AIReporter(BaseReporter):
+    def __init__(self,result,token,quota,openai_key=None):
+        super().__init__(result,token)
         self.client = OpenAI(api_key=openai_key)
         self.quota = quota
 
@@ -70,28 +61,26 @@ class AIReporter: # Herde de BaseReporter quando o tiver disponível
             2.  **Análise Geral:** Após cobrir todos os pontos de falha, faça uma análise geral do código. Comente sobre boas práticas, como a organização do código, nomes de variáveis e estrutura. Se houver pontos positivos, mesmo que o código não tenha passado em tudo, elogie-os para motivar.
             3.  **Tom e Formato:** Mantenha um tom amigável e encorajador. Use markdown para estruturar bem o feedback com títulos, listas e blocos de código.
             4.  **Seja um Mentor:** Aja como um revisor sênior que está guiando um júnior, e não como um programa de computador.
-            5.  **Estilização:** Use emojis e formatação em markdown para tornar o feedback mais envolvente e fácil de ler. Por exemplo, use `**negrito**` para destacar pontos importantes, `*itálico*` para ênfase, e blocos de código para trechos de código.
+            5.  **Estilização:** Use emojis e formatação em markdown para tornar o feedback mais envolvente e fácil de ler. Por exemplo, use ✅ para testes passados, ❌ para testes falhados, etc.
             """
 
         response = self.client.chat.completions.create(
-            model="gpt-3.5-turbo", # Revertido para o modelo original
+            model="gpt-3.5-turbo",  # Revertido para o modelo original
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            temperature=0.7 # Revertido para a temperatura original
+            temperature=0.7  # Revertido para a temperatura original
         )
 
         ai_quota = f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n"
-        feedback = ai_ota = f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n"
         feedback = ai_quota + response.choices[0].message.content
         return feedback
 
     @classmethod
     def create(cls, result, token, quota, openai_key=None):
         """Factory method to create an AIReporter instance."""
-        # Supondo que 'get_repository' seja um método da classe base
-        # response = cls(result, token, quota, openai_key)
-        # response.get_repository()
-        # return response
-        return cls(result, token, quota, openai_key) # Retorno simplificado para o exemplo
+        response = cls(result, token, quota,openai_key)
+        response.get_repository()
+        return response
+
