@@ -3,6 +3,9 @@ import json
 import sys
 import time
 from core.report.default_reporter import DefaultReporter
+import argparse
+parser = argparse.ArgumentParser(description="Process token argument.")
+parser.add_argument("--token", type=str, required=True, help="GitHub token")
 
 FEEDBACK_MAPPING = {
     'server_js_invalid': '- ⚠️ Não conseguimos rodar o seu servidor. Por favor, verifique seu código ou busque suporte nas guildas.\n',
@@ -60,8 +63,8 @@ def main():
 
     # Handle errors
     if errors:
-        token = os.environ.get('GITHUB_TOKEN', '')
-        reporter = DefaultReporter.create(0,token )
+        token = parser.parse_args().token
+        reporter = DefaultReporter.create(0, token )
         error_messages = [f"❌ {FEEDBACK_MAPPING[e]}" for e in errors]
         final_feedback = "\n--- ☠️ ERROS FATAIS ENCONTRADOS ☠️ ---\n"
         final_feedback += "Seu projeto não pode ser testado devido aos seguintes problemas críticos:\n\n"
