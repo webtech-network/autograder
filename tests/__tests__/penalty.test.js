@@ -86,29 +86,6 @@ describe('Penalty Tests - ', () => {
                 test(`Endpoint ${endpoint} não deve aceitar método ${method}`, async () => await testUnexpectedMethod(endpoint, method));
             }
         }
-
-        /*test('Optional - /contato-recebido exists and accepts correct methods', async () => {
-            let endpointExists = false;
-            let isPrgUsed = false;
-
-            try {
-                const initialPostResponse = await axiosNoRedirect.post(`${BASE_URL}/contato`, contactSubmission, /*{
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    validateStatus: status => true // Accept any status code
-                });
-                if (initialPostResponse.status >= 300 && initialPostResponse.status < 400) isPrgUsed = true;
-                if(initialPostResponse.headers.location === '/contato-recebido') endpointExists = true;            
-            } catch (e) {}
-
-            if (!isPrgUsed || !endpointExists) return; 
-            
-            await Promise.all([
-                testUnexpectedMethod('/contato-recebido', 'POST'),
-                testUnexpectedMethod('/contato-recebido', 'PUT'),
-                testUnexpectedMethod('/contato-recebido', 'DELETE'),
-                testUnexpectedMethod('contato-recebido', 'PATCH')
-            ]);
-        });*/
     });
 
     describe('Incorrect Content-Type Returns', () => {
