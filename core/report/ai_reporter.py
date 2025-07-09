@@ -34,7 +34,7 @@ class AIReporter(BaseReporter):
         user_prompt = f"""
             Olá, Code Buddy! 🚀 Prepare um feedback inspirador e super útil para o(a) estudante: {self.result.author}.
 
-            A nota final foi: **{test_results['score']}/100**.
+            A nota final foi: **{test_results['score']:.1f}/100**.
 
             ---
             ### 1. O Código Enviado pelo Aluno (A Fonte de Todas as Respostas)

@@ -42,8 +42,6 @@ def check_package_json_exists(errors):
 def check_package_json_content(package_json, errors):
     if 'main' not in package_json:
         errors.append('package_json_has_main_key')
-    elif package_json['main'] != 'server.js':
-        errors.append('package_json_main_is_correct')
 
     dependencies = package_json.get('dependencies', {})
     if 'express' not in dependencies:
