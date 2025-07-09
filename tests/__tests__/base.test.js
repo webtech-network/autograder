@@ -200,7 +200,7 @@ describe('Base Tests - ', () => {
   });
 
   describe('Route: /contato (POST) - ', () => {
-    const contactSubmission = {
+    const baseContactSubmission = {
       nome: "Sophie Nguyen",
       email: "tramanh@gmail.com",
       assunto: "Sugestão de Evento",
@@ -214,7 +214,7 @@ describe('Base Tests - ', () => {
 
     beforeAll(async () => {
       try {
-        const responseFromPost = await axiosNoRedirect.post(`${BASE_URL}/contato`, contactSubmission, {
+        const responseFromPost = await axiosNoRedirect.post(`${BASE_URL}/contato`, baseContactSubmission, {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           }
@@ -225,7 +225,9 @@ describe('Base Tests - ', () => {
 
         //Analyzes PRG case
         if (initialStatus >= 300 && initialStatus < 400) {
-          expect(initialLocation).toBe('/contato-recebido');
+          const redirectURL = new URL(initialLocation, BASE_URL);
+          expect(redirectURL.pathname).toBe('/contato-recebido');
+          expect(redirectURL.search).not.toBe('');
           finalResponse = await axios.get(`${BASE_URL}${initialLocation}`);
         } else {
           finalResponse = responseFromPost;
@@ -240,7 +242,9 @@ describe('Base Tests - ', () => {
         if (error.response && error.response.status >= 300 && error.response.status < 400) {
           initialStatus = error.response.status;
           initialLocation = error.response.headers.location;
-          expect(initialLocation).toBe('/contato-recebido');
+          const redirectUrl = new URL(initialLocation, BASE_URL);
+          expect(redirectUrl.pathname).toBe('/contato-recebido');
+          expect(redirectUrl.search).not.toBe('');
           try {
             finalResponse = await axios.get(`${BASE_URL}${initialLocation}`);
             $ = cheerio.load(finalResponse.data);
@@ -270,7 +274,8 @@ describe('Base Tests - ', () => {
       if (initialStatus >= 300 && initialStatus < 400) {
         expect(initialStatus).toBeGreaterThanOrEqual(300);
         expect(initialStatus).toBeLessThan(400);
-        expect(initialLocation).toBe('/contato-recebido');
+        const redirectUrl = new URL(initialLocation, BASE_URL);
+        expect(redirectUrl.pathname).toBe('/contato-recebido');
       } else {
         expect(initialStatus).toBe(200);
         expect(initialLocation).toBeUndefined();
@@ -279,19 +284,19 @@ describe('Base Tests - ', () => {
 
     describe('HTML Content Analysis (Final Page)', () => {
       test('página de resposta deve exibir o "nome" enviado no formulário', () => {
-        expect($.html()).toContain(contactSubmission.nome);
+        expect($.html()).toContain(baseContactSubmission.nome);
       });
 
       test('página de resposta deve exibir o "email" enviado no formulário', () => {
-        expect($.html()).toContain(contactSubmission.email);
+        expect($.html()).toContain(baseContactSubmission.email);
       });
 
       test('página de resposta deve exibir o "assunto" enviado no formulário', () => {
-        expect($.html()).toContain(contactSubmission.assunto);
+        expect($.html()).toContain(baseContactSubmission.assunto);
       });
 
       test('página de resposta deve exibir o "mensagem" enviada no formulário', () => {
-        expect($.html()).toContain(contactSubmission.mensagem);
+        expect($.html()).toContain(baseContactSubmission.mensagem);
       });
 
       test('deve conter umad âncora para a rota raíz /', () => {
