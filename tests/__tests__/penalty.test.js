@@ -90,33 +90,33 @@ describe('Penalty Tests - ', () => {
 
     describe('Incorrect Content-Type Returns', () => {
 
-        safeTest('GET / não retorna text/html', async () => {
+        safeTest('Content-type: GET / não retorna text/html', async () => {
             const response = await axios.get(`${BASE_URL}/`);
             expectContentType(response, 'text/html');
         })
 
-        safeTest('GET /sugestao não retorna text/html', async () => {
+        safeTest('Content-type: GET /sugestao não retorna text/html', async () => {
             const response = await axios.get(`${BASE_URL}/sugestao?nome=test&ingredientes=test`);
             expectContentType(response, 'text/html');
         });
 
-        safeTest('GET /contato não retorna text/html', async () => {
+        safeTest('Content-type: GET /contato não retorna text/html', async () => {
             const response = await axios.get(`${BASE_URL}/contato`);
             expectContentType(response, 'text/html');
         });
 
-        safeTest('GET /api/lanches não retorna application/json', async () => {
+        safeTest('Content-type: GET /api/lanches não retorna application/json', async () => {
             const response = await axios.get(`${BASE_URL}/api/lanches`);
             expectContentType(response, 'application/json');
         });
 
-        safeTest('arquivo css estático style.css não retorna text/css', async () => {
+        safeTest('Content-type: arquivo css estático style.css não retorna text/css', async () => {
             const response = await axios.get(`${BASE_URL}/css/style.css`);
             expectContentType(response, 'text/css');
         });
 
 
-        safeTest('resposta final de POST /contato não retorna text/html (adaptativo)', async () => {
+        safeTest('Content-type: resposta final de POST /contato não retorna text/html (adaptativo)', async () => {
             let finalResponse;
             try {
                 const initialResponse = await axiosNoRedirect.post(`${BASE_URL}/contato`, contactSubmission, {
@@ -142,13 +142,13 @@ describe('Penalty Tests - ', () => {
 
     describe('Incorrect Form Field Name Attributes', () => {
 
-        safeTest('formulário da página index.html não possui campos de input com name attributes corretos', async () => {
+        safeTest('Name attributes: formulário da página index.html não possui campos de input com name attributes corretos', async () => {
             const response = await axios.get(`${BASE_URL}/`);
             const $ = cheerio.load(response.data);
             expectFormFields($, ['nome', 'ingredientes']);
         });
 
-        safeTest('formulário da página contato.html não possui campos de input com name attributes corretos', async () => {
+        safeTest('Name attributes: formulário da página contato.html não possui campos de input com name attributes corretos', async () => {
             const response = await axios.get(`${BASE_URL}/contato`);
             const $ = cheerio.load(response.data);
             expectFormFields($, ['nome', 'email', 'assunto', 'mensagem']);
@@ -170,7 +170,7 @@ describe('Penalty Tests - ', () => {
             console.log(`Project folder exists: ${projectFolderExists}`);
         });
 
-        test('projeto contém outras dependências além do express', () => {
+        test('Static files: projeto contém outras dependências além do express', () => {
             if(!projectFolderExists) return;
 
             let packageJsonPath = path.join(projectRoot, 'package.json');
@@ -189,7 +189,7 @@ describe('Penalty Tests - ', () => {
             expect(dependencyKeys.length).toBeGreaterThan(1);
         });
 
-        test('.gitignore não contém pasta node_modules', () => {
+        test('Static files: .gitignore não contém pasta node_modules', () => {
             if(!projectFolderExists) return;
         
             let gitIgnorePath = path.join(projectRoot, '.gitignore');

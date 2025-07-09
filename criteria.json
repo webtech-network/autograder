@@ -31,6 +31,24 @@
   },
   "penalty": {
     "native": false,
-    "weight": 100
+    "weight": 100,
+    "subjects": {
+      "Static file organization": {
+        "weight": 30,
+        "test_path": "Static files:"
+      },
+      "Content-type": {
+        "weight": 30,
+        "test_path": "Content-type:"
+      },
+      "Accepted methods": {
+        "weight": 30,
+        "test_path": "Endpoint"
+      },
+      "Name attributes": {
+        "weight": 10,
+        "test_path": "Name attributes:"
+      }
+    }
   }
 }

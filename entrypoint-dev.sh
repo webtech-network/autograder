@@ -7,4 +7,4 @@ echo "Parsing tests..."
 python tests/result-parser.py
 
 #echo "Running autograder..."
-#ython qualquer-coisa-na-real.py
+#python qualquer-coisa-na-real.py

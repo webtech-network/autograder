@@ -299,61 +299,61 @@
       ]
     },
     {
-      "GET / não retorna text/html": [
+      "Content-type: GET / não retorna text/html": [
         "Ótimo! Você deixou o Express definir o `Content-Type` da rota `/` automaticamente. Essa é a melhor abordagem.",
         "Você definiu o `Content-Type` da rota `/` manualmente. Embora funcione, o ideal é deixar que o Express faça isso por você ao usar `res.sendFile()` ou `res.render()`. Evite usar `res.setHeader('Content-Type', ...)` para HTML."
       ]
     },
     {
-      "GET /sugestao não retorna text/html": [
+      "Content-type: GET /sugestao não retorna text/html": [
         "Excelente! O `Content-Type` da rota `/sugestao` está sendo definido automaticamente pelo framework.",
         "O `Content-Type` para a rota `/sugestao` foi definido manualmente. É melhor deixar que o Express defina este cabeçalho automaticamente quando você envia a resposta."
       ]
     },
     {
-      "GET /contato não retorna text/html": [
+      "Content-type: GET /contato não retorna text/html": [
         "Bom trabalho! Você não definiu o `Content-Type` da rota `/contato` manualmente, deixando o Express cuidar disso.",
         "O `Content-Type` para a rota `/contato` foi definido manualmente. Deixe o framework fazer esse trabalho para você ao renderizar ou enviar a página."
       ]
     },
     {
-      "GET /api/lanches não retorna application/json": [
+      "Content-type: GET /api/lanches não retorna application/json": [
         "Perfeito! Você provavelmente usou `res.json()`, que define o `Content-Type` para `application/json` automaticamente. Essa é a forma correta.",
         "O `Content-Type` para a API `/api/lanches` foi definido manualmente. Use o método `res.json()`, pois ele já configura o cabeçalho correto e converte o objeto para JSON."
       ]
     },
     {
-      "arquivo css estático style.css não retorna text/css": [
+      "Content-type: arquivo css estático style.css não retorna text/css": [
         "Ótimo! Seu servidor está servindo arquivos CSS corretamente, e o `Content-Type` está sendo gerenciado pelo middleware `express.static`.",
         "Um arquivo CSS foi servido com o `Content-Type` definido manualmente. O correto é usar o middleware `express.static` para servir a pasta de arquivos estáticos, pois ele gerencia os `Content-Types` (CSS, imagens, etc.) automaticamente."
       ]
     },
     {
-      "resposta final de POST /contato não retorna text/html (adaptativo)": [
+      "Content-type: resposta final de POST /contato não retorna text/html (adaptativo)": [
         "Excelente! A resposta final do POST em `/contato` não define o `Content-Type` manualmente. Você deixou o framework fazer o trabalho.",
         "A resposta final do POST para `/contato` está com `Content-Type` definido manualmente. Deixe que o Express (ao renderizar uma view ou enviar um arquivo) defina este cabeçalho por você."
       ]
     },
     {
-      "formulário da página index.html não possui campos de input com name attributes corretos": [
+      "Name attributes: formulário da página index.html não possui campos de input com name attributes corretos": [
         "O formulário na `index.html` não possui atributos `name` incorretos. Ótimo.",
         "Detectamos que um dos campos do formulário na `index.html` não tem o atributo `name` esperado. O formulário de sugestão deve ter os campos com `name='nome'` e `name='ingredientes'`."
       ]
     },
     {
-      "formulário da página contato.html não possui campos de input com name attributes corretos": [
+      "Name attributes: formulário da página contato.html não possui campos de input com name attributes corretos": [
         "O formulário na `contato.html` não possui atributos `name` incorretos.",
         "Detectamos que um dos campos do formulário na `contato.html` não tem o atributo `name` esperado (ou a página não foi encontrada). O formulário deve ter os campos com `name` definidos como `nome`, `email`, `assunto` e `mensagem`."
       ]
     },
     {
-      "projeto contém outras dependências além do express": [
+      "Static files: projeto contém outras dependências além do express": [
         "Seu projeto usa apenas a dependência `express`, conforme solicitado. Excelente!",
         "Seu projeto tem mais dependências além do `express`. Para este desafio, apenas o Express era necessário. Verifique seu arquivo `package.json`."
       ]
     },
     {
-      ".gitignore não contém pasta node_modules": [
+      "Static files: .gitignore não contém pasta node_modules": [
         "Ótima prática! Seu arquivo `.gitignore` está instruindo o Git a ignorar a pasta `node_modules`. Isso é essencial para manter o repositório limpo.",
         "Atenção: a pasta `node_modules` não deve ser enviada para o repositório Git. Adicione a linha `node_modules` ao seu arquivo `.gitignore` para evitar isso."
       ]
