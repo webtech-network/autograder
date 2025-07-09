@@ -53,7 +53,7 @@ function checkLabelsForForm($, fieldNames) {
 
 describe('Bonus Tests - ', () => {
 
-    safeTest('estudante utilizou padrão PRG na rota /contato corretamente', async () => {
+    safeTest('estudante utilizou padrão PRG na rota /contato corretamente (Stateless)', async () => {
         const contactSubmission = {
             nome: "Tram Anh Nguyen",
             email: "tramanh@gmail.com",
@@ -67,7 +67,16 @@ describe('Bonus Tests - ', () => {
 
         expect(response.status).toBeGreaterThanOrEqual(300);
         expect(response.status).toBeLessThan(400);
-        expect(response.headers.location).toBe('/contato-recebido');
+
+        const locationHeader = response.headers.get('Location');
+        expect(locationHeader).toBeDefined();
+
+        const redirectURL = new URL(locationHeader, BASE_URL);
+        expect(redirectURL.pathname).toBe('/contato-recebido');
+
+        for (const [key, value] of Object.entries(contactSubmission)) {
+            expect(redirectURL.searchParams.get(key)).toBe(value);
+        }
     })
 
     safeTest('estudante criou template exibido em requisições 404 contendo uma âncora para a rota raíz', async () => {
