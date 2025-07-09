@@ -55,7 +55,14 @@ class AIReporter(BaseReporter):
             ```json
             {test_results['bonus']['passed']}
             ```
-
+            
+            ___
+            ### 4. Problemas que Geraram Descontos (Cuidado!)
+            Estes são os problemas que causaram descontos na nota final. Sua tarefa é analisar o código acima para descobrir o **motivo real** de cada falha.
+            Não se esqueça de chamar a atenção do aluno para esses pontos críticos!
+            ```json
+            {test_results['penalty']}
+            ```
             ---
             ### 📝 Suas Instruções Detalhadas (Siga à Risca!):
 
