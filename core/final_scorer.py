@@ -53,6 +53,8 @@ class Scorer:
     def generate_result(self):
         """Generate a Result instance with the grading results"""
         final_score = self.get_final_score()
+        if final_score < 0:
+            final_score = 0
         base_dict = {"passed": self.base_grader.passed_tests,
                      "failed": self.base_grader.failed_tests}  # Format the base test results
         bonus_dict = {"passed": self.bonus_grader.passed_tests,
