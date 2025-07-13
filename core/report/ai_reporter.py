@@ -1,74 +1,100 @@
 from core.report.base_reporter import BaseReporter
 from openai import OpenAI
 import os
-from core.redis.upstash_driver import decrement_token_quota
-class AIReporter(BaseReporter):
-    def __init__(self,result,token):
-        super().__init__(result,token)
-        self.client = OpenAI(api_key=f"{os.getenv('OPENAI_API_KEY')}")
-    def generate_feedback(self):
-        candidate_code = """\
-            def add(a, b):
-                return a + b
-            """
 
+
+class AIReporter(BaseReporter):
+    def __init__(self, result, token, quota, openai_key=None):
+        super().__init__(result, token)
+        self.client = OpenAI(api_key=openai_key)
+        self.quota = quota
+
+    def generate_feedback(self):
         test_results = {
             "base": self.result.base_results,
             "bonus": self.result.bonus_results,
-            "penalty": self.result.penalty_results,
+            "penalty": self.result.penalty_results["passed"],
             "score": self.result.final_score
         }
 
+        # --- PROMPT DO SISTEMA OTIMIZADO ---
+        # Foco em hierarquia de erros e na persona de mentor.
         system_prompt = (
-
-            "Você é um revisor de código especialista. Você acabou de receber a solução de um candidato "
-            "para um desafio de código. O desafio é de implementar uma calculadora em JavaScript com Node.js"
-            " Seu trabalho é fornecer um feedback amigável, humano e motivador com base nos "
-            "testes de unidade que passaram e falharam. Você elogiará o que é bom, destacará problemas de forma gentil "
-            "e incentivará o candidato a melhorar. Seu tom é casual, empático, humano e construtivo. "
-            "Você deve retornar respostas formatadas em markdown, isso é obrigatório. "
-            "A resposta deve ser apenas em direção ao candidato, sem mencionar o revisor ou o sistema."
-            "Em momento algum você deve mencionar a existência de testes unitários sendo executados por um sistema de avaliação automatizado. "
-            "Você deve fornecer o feedback sem citar a presença de teste, mostrando que você é simplesmente um revisor que realmente leu o código do candidato e está fornecendo feedback sobre ele."
+            "Você é um 'Code Buddy' 🧑‍💻, um revisor de código sênior, especialista em Node.js, e extremamente didático. Sua missão é transformar um relatório de erros em um feedback humano, personalizado e que realmente ensine. Você está conversando com um(a) estudante que precisa de ajuda para entender seus erros em um desafio de servidor Express.js."
+            "\n\n"
+            "**Sua regra de ouro é a ANÁLISE DE CAUSA RAIZ:** Você NUNCA aponta um erro superficial. Você deve investigar o código para encontrar o problema fundamental. Por exemplo, se vários requisitos de uma rota `/contato` falham (como a falta de um campo de input), sua primeira hipótese deve ser: 'Será que a rota `app.get('/contato', ...)` sequer foi implementada?'. Se não foi, esse é o erro principal a ser apontado. Aja como um detetive de código 🕵️."
+            "\n\n"
+            "**O que evitar a todo custo:**"
+            "\n- Listar erros de forma robótica."
+            "\n- Dar feedback sobre um detalhe (ex: um campo HTML) quando o problema fundamental (ex: a rota) não existe."
+            "\n- Parecer um programa de computador. Seja o mentor que você gostaria de ter. Use emojis para deixar a conversa mais leve e amigável! 🚀💡🤔"
         )
 
+        # --- PROMPT DO USUÁRIO OTIMIZADO ---
+        # Adiciona seção de bônus e reforça a análise de causa raiz.
         user_prompt = f"""
-            Nome do aluno: {self.result.author}
-            ### 🧪 Código submetido:
+            Olá, Code Buddy! 🚀 Prepare um feedback inspirador e super útil para o(a) estudante: {self.result.author}.
 
-            ```python
+            A nota final foi: **{test_results['score']:.1f}/100**.
+
+            ---
+            ### 1. O Código Enviado pelo Aluno (A Fonte de Todas as Respostas)
+            ```typescript
             {self.result.submission_file}
             ```
 
-            ### 📊 Resultados dos testes:
+            ---
+            ### 2. Requisitos que Precisam de Atenção (Sua Missão de Investigação �️)
+            Estes são os pontos que o código não atendeu. Sua tarefa é investigar o código acima para descobrir o **motivo real** de cada falha.
+            ```json
+            {test_results['base']['failed']}
+            ```
 
-            **Testes base:**  
-            {test_results['base']}
+            ---
+            ### 3. 🎉 Conquistas Bônus (Parabéns!)
+            Não se esqueça de celebrar estas vitórias! Mostre ao aluno que o esforço extra valeu a pena.
+            ```json
+            {test_results['bonus']['passed']}
+            ```
 
-            **Testes bônus:**  
-            {test_results['bonus']}
-
-            **Testes de penalidade:**  
+            ___
+            ### 4. Problemas que Geraram Descontos (Cuidado!)
+            Estes são os problemas que causaram descontos na nota final. Sua tarefa é analisar o código acima para descobrir o **motivo real** de cada falha.
+            Não se esqueça de chamar a atenção do aluno para esses pontos críticos!
+            ```json
             {test_results['penalty']}
+            ```
+            ---
+            ### 📝 Suas Instruções Detalhadas (Siga à Risca!):
 
-            **Pontuação final:** {test_results['score']}/100
+            Crie um feedback em markdown que flua como uma conversa natural, amigável e construtiva. Use bastante emojis!
 
-            Por favor, forneça um feedback amigável, humano e motivador.
-            A resposta deve ser apenas em direção ao candidato, sem mencionar o revisor ou o sistema.
-            Forneça toda a resposta em uma estrutura bem feita em markdown com elementos de títulos, indentação e listas.Markdown é obrigatório.
-            Lembre-se de em nenhum momento mencionar a existência de testes unitários sendo executados por um sistema de avaliação automatizado.
-            Você deve agir como um revisor que realmente leu o código do candidato e está fornecendo feedback sobre ele.
-            Não se esqueça de divulgar a nota final do candidato, que é {self.result.final_score}/100. A nota deve ser apresentada antes de sua análise e de forma objetiva.
+            **Seu Checklist para o Feedback:**
+
+            1.  **Pense em Causa e Efeito (O MAIS IMPORTANTE!):** Se múltiplos requisitos de uma rota como `/contato` falham, o problema é a falta de um `<input>` ou a **falta da própria rota `app.get('/contato')`**? Sempre aponte o erro mais fundamental primeiro! Diga algo como: "Percebi que vários pontos da página de contato não funcionaram, e ao investigar seu código, vi que a rota `app.get('/contato', ...)` ainda não foi criada. Esse é o primeiro passo! Vamos criá-la juntos?".
+            2.  **Análise Profunda, não Superficial:** Para CADA item em 'Requisitos que Precisam de Atenção', mergulhe no 'Código Enviado pelo Aluno'. Encontre a linha (ou a falta dela) que causa o problema.
+            3.  **Celebre as Vitórias 🎉:** Comece o feedback elogiando os pontos positivos e **obrigatoriamente** mencione os 'Conquistas Bônus' que o aluno alcançou. Isso é essencial para a motivação!
+            4.  **Fluxo de Conversa:** Comece de forma amigável, celebre os acertos, analise os pontos de melhoria de forma aplicada (como no exemplo) e finalize com uma análise geral positiva, incentivando a continuar.
             """
 
-        response = self.client.chat.completions.create(model="gpt-3.5-turbo",
-                                                  messages=[
-                                                      {"role": "system", "content": system_prompt},
-                                                      {"role": "user", "content": user_prompt}
-                                                  ],
-                                                  temperature=0.7)
-        feedback = response.choices[0].message.content
+        response = self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7
+        )
+        feedback = "<sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>\n\n"
+        feedback += f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n\n"
+        feedback += f"# Feedback para {self.result.author}:\n\n"
+        feedback += f"Nota final: **{test_results['score']:.1f}/100**\n\n"
+        feedback += response.choices[0].message.content
         return feedback
 
-
-
+    @classmethod
+    def create(cls, result, token, quota, openai_key=None):
+        """Factory method to create an AIReporter instance."""
+        response = cls(result, token, quota, openai_key)
+        response.get_repository()
+        return response
