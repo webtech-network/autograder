@@ -1,25 +1,35 @@
 #!/bin/sh
-
+set -e
 # Print a message to indicate the start of the autograding process
-echo "🚀 Starting autograder..."
+echo "Starting autograder..."
 
-# Specify the path to the student's submission folder (we assume files are in the "submission" folder)
-STUDENT_REPO_PATH="$GITHUB_WORKSPACE/submission"
+# --- Install dependencies in the student's repository and run server.js ---
 
-# Print some of the important paths for debugging
-echo "Student repository path: $STUDENT_REPO_PATH"
-echo "Grading criteria: $GRADING_CRITERIA"
+echo "Running fatal analysis..."
+cd /app
+python fatal_analysis.py --token $1
 
-# --- Tests (start) --- #
-node ./tests/test_*.js
+# --- Running tests from action repository --- #
 
-# --- Tests (end) -- #
+cd /app
 
-# Run the Python autograder script with the provided inputs
-# This command will invoke autograder.py and pass the weights and grading criteria
-python /app/autograder.py  --token $5
+#Treat errors
+echo "Running tests..."
+# Add your test command here
 
-# Check if the autograder script executed successfully
-echo "✅ Autograding completed successfully!"
-# Provide a message indicating completion
-echo "🎉 Final results generated and sent to GitHub Classroom!"
+echo "Parsing results..."
+TEST_OUTPUT_FILE="test-results.json"
+
+if [ ! -f "./tests/$TEST_OUTPUT_FILE" ]; then
+    echo "Error: $TEST_OUTPUT_FILE was not found after running all tests. Exiting with code 1."
+    kill "$SERVER_PID"
+    exit 1
+fi
+
+python tests/result-parser.py
+# Parses the test results into the autograder result format.
+# --- Run the autograder ---
+python autograder.py  --token $1 --redis-token $2 --redis-url $3 --openai-key $4
+
+echo "Autograding completed successfully!"
+echo "Final results generated and sent to GitHub Classroom!"

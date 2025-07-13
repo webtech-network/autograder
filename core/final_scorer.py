@@ -4,18 +4,19 @@ from utils.path import Path
 from core.config_processing.config import Config
 from time import sleep
 from core.result import Result
-from core.redis.upstash_driver import *
+from core.redis.upstash_driver import Driver
 from core.report.reporter import Reporter
-
+import os
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
-    def __init__(self,test_folder,author):
+    def __init__(self,test_folder,author,driver):
         self.path = Path(__file__,test_folder) # Path to the test folder
         self.author = author # Author of the code being graded
         self.config = None # Config instance containing the configurations for all the test files
         self.base_grader = None # Grader instance for the base test file
         self.bonus_grader = None # Grader instance for the bonus test file
         self.penalty_grader = None # Grader instance for the penalty test file
+        self.driver = driver
 
     def set_base_score(self,filename):
         """Set the base score by creating a Grader instance for the base test file."""
@@ -51,6 +52,8 @@ class Scorer:
     def generate_result(self):
         """Generate a Result instance with the grading results"""
         final_score = self.get_final_score()
+        if final_score < 0:
+            final_score = 0
         base_dict = {"passed": self.base_grader.passed_tests,
                      "failed": self.base_grader.failed_tests}  # Format the base test results
         bonus_dict = {"passed": self.bonus_grader.passed_tests,
@@ -59,27 +62,32 @@ class Scorer:
                         "failed": self.penalty_grader.failed_tests}  # Format the penalty test results
         return Result(final_score,self.author,self.get_student_files(),base_dict, bonus_dict, penalty_dict)
 
-    def get_reporter(self,token,mode="default"):
+    def get_reporter(self,token, openai_key = None ,mode="default"):
         """Creates a Reporter instance with the students results"""
         result = self.generate_result()
+        print("Failed tests in base:", result.base_results["failed"])
+        print("Failed tests in bonus:", result.bonus_results["failed"])
+        print("Penalties detected:", result.penalty_results["passed"])
         if mode == "ai":
-            allowed = decrement_token_quota(self.author)
+            allowed = self.driver.decrement_token_quota(self.author)
             if allowed:
-                return Reporter.create_ai_reporter(result,token)
+                return Reporter.create_ai_reporter(result,token,self.driver.get_token_quota(self.author),openai_key)
         return Reporter.create_default_reporter(result,token)
 
     def get_student_files(self):
         """Get the student files."""
-        with open("submission/answer.js","r",encoding="utf-8") as student_file:
+        workspace = os.getenv("GITHUB_WORKSPACE", "")
+        file_path = os.path.join(workspace, "submission", "server.js")
+        with open(file_path, "r", encoding="utf-8") as student_file:
             return student_file.read()
-
     @classmethod
-    def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file):
+    def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file,redis_token,redis_url):
         """Create a Scorer instance with the specified test files and author."""
-        scorer = cls(test_folder,author)
+        driver = Driver.create(redis_token,redis_url)
+        scorer = cls(test_folder,author,driver)
 
-        if not token_exists(scorer.author):
-            create_token(scorer.author,10)
+        if not scorer.driver.token_exists(scorer.author):
+            scorer.driver.create_token(scorer.author,10)
 
         scorer.config = Config.create_config(config_file) # Load the configuration from the specified file
         scorer.set_base_score(base_file)
@@ -90,7 +98,7 @@ class Scorer:
         return scorer
 
     @classmethod
-    def quick_build(cls, author):
+    def quick_build(cls, author,redis_url=None, redis_token=None):
         """Quickly build a Scorer instance with default test files and author."""
-        scorer = Scorer.create_with_scores("tests", author,"criteria.json", "test_base.py", "test_bonus.py", "test_penalty.py")
+        scorer = Scorer.create_with_scores("tests", author,"criteria.json", "test_base.py", "test_bonus.py", "test_penalty.py",redis_token, redis_url)
         return scorer
