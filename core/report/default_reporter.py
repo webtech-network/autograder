@@ -85,4 +85,6 @@ class DefaultReporter(BaseReporter):
         feedback += "\n---\n"
         feedback += "Continue praticando e caprichando no código. Cada detalhe conta! 💪\n"
         feedback += "Se precisar de ajuda, não hesite em perguntar nos canais da guilda. Estamos aqui para ajudar! 🤝\n"
+        feedback += "\n---\n"
+        feedback += "<sup>Made By the Autograder Team.</sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Carvalho](https://github.com/ArthuCRodrigues)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Drumond](https://github.com/drumondpucminas)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Gabriel Resende](https://github.com/gnvr29)</sup></sup>"
         return feedback

@@ -90,6 +90,8 @@ class AIReporter(BaseReporter):
         feedback += f"# Feedback para {self.result.author}:\n\n"
         feedback += f"Nota final: **{test_results['score']:.1f}/100**\n\n"
         feedback += response.choices[0].message.content
+        feedback += "\n\n---\n"
+        feedback += "<sup>Made By the Autograder Team.</sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Carvalho](https://github.com/ArthuCRodrigues)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Drumond](https://github.com/drumondpucminas)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Gabriel Resende](https://github.com/gnvr29)</sup></sup>"
         return feedback
 
     @classmethod
