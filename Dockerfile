@@ -5,11 +5,11 @@ FROM python:3.10-slim
 ENV PYTHONUNBUFFERED=1
 
 # 3. Install Node.js and other necessary tools
+
 RUN apt-get update && \
-    apt-get install tree \
-    apt-get install -y curl gnupg && \
+    apt-get install -y tree curl gnupg && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs \
+    apt-get install -y nodejs
 
 
 # 4. Set the working directory for the rest of the build
