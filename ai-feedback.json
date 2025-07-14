@@ -6,7 +6,7 @@
   "submission_files": [
     "server.js",
     "package.json",
-    "routes/api.js"
+    "project_structure.txt"
   ],
   "learning_resources": {
     "subject1": [

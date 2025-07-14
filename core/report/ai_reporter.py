@@ -15,10 +15,10 @@ class AIReporter(BaseReporter):
         self.config = config if config else AiConfig.parse_config()
 
     def _prepare_test_results_str(self):
-        results = f"Failed base tests:{self.result.base_results['failed']}\n"
-        results += f"Passed bonus tests:{self.result.bonus_results['passed']}\n"
-        results += f"Failed bonus tests:{self.result.bonus_results['failed']}\n"
-        results += f"Penalties detected:{self.result.penalty_results['passed']}\n"
+        results = f"Testes base que falharam:{self.result.base_results['failed']}\n\n"
+        results += f"Testes bonus que passaram:{self.result.bonus_results['passed']}\n\n"
+        results += f"Testes bonus que falharam:{self.result.bonus_results['failed']}\n\n"
+        results += f"Penalidades detectadas:{self.result.penalty_results['passed']}\n\n"
         return results
     def get_system_prompt(self):
         return self.config.system_prompt
@@ -54,22 +54,22 @@ class AIReporter(BaseReporter):
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
-                    formatted_files_content.append(f"# FILE: {filename}\n```\n{content}\n```")
+                    formatted_files_content.append(f"# ARQUIVO: {filename}\n```\n{content}\n```")
             except FileNotFoundError:
-                formatted_files_content.append(f"# FILE: {filename}\n---\n**Error: File not found.**\n---")
+                formatted_files_content.append(f"# ARQUIVO: {filename}\n---\n**O ARQUIVO NÃO EXISTE NO REPOSITORIO DO ALUNO!.**\n---")
         return "\n\n".join(formatted_files_content)
 
     def _prepare_learning_resources_str(self):
         """Prepares a formatted string of learning resources."""
         if not self.config.learning_resources:
-            return "No additional resources provided."
+            return "Essa atividade não possui recursos de aprendizado adicionais."
 
         resource_list = []
         for resource in self.config.learning_resources:
             resource_list.append(f"- {resource.subject}: " + ", ".join(
                 f"{res['url']} ({res['description']})" for res in resource.resources))
 
-        return "\n".join(resource_list) if resource_list else "No additional resources provided."
+        return "\n".join(resource_list) if resource_list else "Essa atividade não possui recursos de aprendizado adicionais."
 
     def generate_feedback(self):
         """Generates feedback using the OpenAI API based on the assembled prompt."""

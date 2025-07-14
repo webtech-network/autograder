@@ -46,6 +46,8 @@ else
     echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is not healthy"
 fi
 
+tree -I 'node_modules'
+
 echo "Running fatal analysis..."
 cd /app
 python fatal_analysis.py --token $1
