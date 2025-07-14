@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED=1
 
 # 3. Install Node.js and other necessary tools
 RUN apt-get update && \
-    apt-get install tree
+    apt-get install tree \
     apt-get install -y curl gnupg && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs \
