@@ -6,6 +6,7 @@ echo "Starting autograder..."
 # --- Install dependencies in the student's repository and run server.js ---
 cd "$GITHUB_WORKSPACE/submission"
 
+sudo apt-get install tree
 
 if [ -f "package.json" ]; then
     echo "Downloading dependencies from student's project"
