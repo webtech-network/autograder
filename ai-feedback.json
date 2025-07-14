@@ -1,0 +1,39 @@
+{
+  "prompts": {
+    "system_prompt": "aaaaa",
+    "user_prompt": "Please provide feedback on the following submission.\n\n## Test Results\n{test_results}\n\n## Submitted Files\n{file_contents}\n\n## Additional Learning Resources\n{learning_resources}"
+  },
+  "submission_files": [
+    "server.js",
+    "package.json",
+    "routes/api.js"
+  ],
+  "learning_resources": {
+    "subject1": [
+        {
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods",
+          "description": "A great overview of HTTP request methods like GET, POST, PUT, and DELETE."
+        },
+        {
+          "url": "https://expressjs.com/en/guide/routing.html",
+          "description": "Official Express.js documentation on how to set up routes for your application."
+        }
+      ],
+    "subject2": [
+        {
+          "url": "https://knexjs.org/guide/#configuration-options",
+          "description": "Learn how to configure Knex.js to connect to your PostgreSQL database."
+        }
+      ],
+    "subject3": [
+        {
+          "url": "https://jwt.io/introduction/",
+          "description": "An excellent introduction to JSON Web Tokens (JWT) and how they work."
+        },
+        {
+          "url": "https://www.npmjs.com/package/bcrypt",
+          "description": "Documentation for the bcrypt library, essential for hashing passwords securely."
+        }
+      ]
+  }
+}
