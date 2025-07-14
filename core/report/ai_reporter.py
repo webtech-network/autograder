@@ -15,12 +15,11 @@ class AIReporter(BaseReporter):
         self.config = config if config else AiConfig.parse_config()
 
     def _prepare_test_results_str(self):
-        return {
-            "base": self.result.base_results,
-            "bonus": self.result.bonus_results,
-            "penalty": self.result.penalty_results["passed"],
-            "score": self.result.final_score
-        }
+        results = f"Failed base tests:{self.result.base_results['failed']}\n"
+        results += f"Passed bonus tests:{self.result.bonus_results['passed']}\n"
+        results += f"Failed bonus tests:{self.result.bonus_results['failed']}\n"
+        results += f"Penalties detected:{self.result.penalties["passed"]}\n"
+        return results
     def get_system_prompt(self):
         return self.config.system_prompt
 
