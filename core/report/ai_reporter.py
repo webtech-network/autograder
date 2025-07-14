@@ -18,7 +18,7 @@ class AIReporter(BaseReporter):
         results = f"Failed base tests:{self.result.base_results['failed']}\n"
         results += f"Passed bonus tests:{self.result.bonus_results['passed']}\n"
         results += f"Failed bonus tests:{self.result.bonus_results['failed']}\n"
-        results += f"Penalties detected:{self.result.penalty_results["passed"]}\n"
+        results += f"Penalties detected:{self.result.penalty_results['passed']}\n"
         return results
     def get_system_prompt(self):
         return self.config.system_prompt
