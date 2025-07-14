@@ -15,7 +15,12 @@ class AIReporter(BaseReporter):
         self.config = config if config else AiConfig.parse_config()
 
     def _prepare_test_results_str(self):
-        return "failed several tests."
+        return {
+            "base": self.result.base_results,
+            "bonus": self.result.bonus_results,
+            "penalty": self.result.penalty_results["passed"],
+            "score": self.result.final_score
+        }
     def get_system_prompt(self):
         return self.config.system_prompt
 
