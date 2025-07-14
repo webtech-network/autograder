@@ -1,7 +1,7 @@
 {
   "prompts": {
     "system_prompt": "aaaaa",
-    "user_prompt": "bbbbbbb"
+    "user_prompt": "Please provide feedback on the following submission.\n\n## Test Results\n{test_results}\n\n## Submitted Files\n{file_contents}\n\n## Additional Learning Resources\n{learning_resources}"
   },
   "submission_files": [
     "server.js",
