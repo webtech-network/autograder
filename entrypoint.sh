@@ -20,6 +20,7 @@ node server.js &
 SERVER_PID=$!
 echo "Server started with PID: $SERVER_PID"
 
+tree -I 'node_modules' > project_structure.txt
 #Checking if the server started:
 
 SERVER_URL="http://localhost:3000"
