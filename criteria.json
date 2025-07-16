@@ -26,7 +26,7 @@
     "weight": 30,
     "subjects": {
       "Simple Filtering": {
-        "weight": 20,
+        "weight": 30,
         "test_path": "Simple Filtering"
       },
       "Complex Filtering": {
@@ -34,7 +34,7 @@
         "test_path": "Complex Filtering"
       },
       "Custom Error": {
-        "weight": 50,
+        "weight": 40,
         "test_path": "Custom Error"
       }
     }
@@ -43,7 +43,14 @@
     "native": false,
     "weight": 50,
     "subjects": {
-
+        "Validation": {
+          "weight": 70,
+          "test_path": "Validation"
+        },
+        "Static files": {
+        "weight": 30,
+        "test_path": "Static files"
+      }
     }
   }
 }
