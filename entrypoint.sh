@@ -114,6 +114,10 @@ fi
 python tests/result_parser.py
 
 # --- Run the autograder ---
+echo "$1"
+echo "$2"
+echo "$3"
+echo "$4"
 python autograder.py  --token $1 --redis-token $2 --redis-url $3 --openai-key $4
 
 echo "Autograding completed successfully!"
