@@ -34,18 +34,22 @@ describe('Base Tests - ', () => {
             createdCaseId = caseResponse.data.id;
 
         } catch (error) {
-            throw new Error(`There was an error during the beforeEach setup in the base tests: ${error.message}`);
+            console.log(error)
         }
     });
 
     // DELETES TEST DATA
     afterEach(async () => {
-        // Only attempt to delete entities if they exist
-        if (createdCaseId) {
-            await axios.delete(`${BASE_URL}/casos/${createdCaseId}`);
-        }
-        if (createdAgentId) {
-            await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`);
+        try {
+            // Only attempt to delete entities if they exist
+            if (createdCaseId) {
+                await axios.delete(`${BASE_URL}/casos/${createdCaseId}`);
+            }
+            if (createdAgentId) {
+                await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`);
+            }
+        } catch (error) {
+            console.log(error)
         }
 
         // Reset IDs for the next test
@@ -66,7 +70,7 @@ describe('Base Tests - ', () => {
 
             const response = await axios.post(`${BASE_URL}/agentes`, newAgent);
             expect(response.status).toBe(201);
-            expect(response.data).toMatchObject(testAgent);
+            expect(response.data).toMatchObject(newAgent);
         });
 
         safeTest('READ: Lista todos os agente corretamente', async () => {
@@ -111,8 +115,14 @@ describe('Base Tests - ', () => {
             expect(response.status).toBe(204);
             expect(response.data).toBeFalsy();
 
-            // Verify that the agent is actually gone by expecting a 404 error
-            await expect(axios.get(`${BASE_URL}/agentes/${createdAgentId}`)).rejects.toThrow('API error in test "Deleta dados de agente corretamente": 404 Not Found');
+            //Verify that the user
+            let checkResponse;
+            try {
+                checkResponse = await axios.get(`${BASE_URL}/agentes/${createdAgentId}`);
+                expect(true).toBeFalsy();
+            } catch (error) {
+                expect(checkResponse.status).toBe(404);
+            }
 
             // Nullify the ID to prevent afterEach from trying to delete it again
             createdAgentId = null;

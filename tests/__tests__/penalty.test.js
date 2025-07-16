@@ -42,18 +42,23 @@ describe('Penalty Tests - ', () => {
                 createdCaseId = caseResponse.data.id;
 
             } catch (error) {
-                throw new Error(`There was an error during the beforeEach setup in the penalty tests: ${error.message}`);
+                console.error(error.message);
+                //throw new Error(`There was an error during the beforeEach setup in the penalty tests: ${error.message}`);
             }
         });
 
         // DELETES TEST DATA
         afterEach(async () => {
             // Only attempt to delete entities if they exist
-            if (createdCaseId) {
-                await axios.delete(`${BASE_URL}/casos/${createdCaseId}`);
-            }
-            if (createdAgentId) {
-                await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`);
+            try {
+                if (createdCaseId) {
+                    await axios.delete(`${BASE_URL}/casos/${createdCaseId}`);
+                }
+                if (createdAgentId) {
+                    await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`);
+                }
+            } catch (error) {
+                console.error(error);
             }
 
             // Reset IDs for the next test
@@ -91,6 +96,51 @@ describe('Penalty Tests - ', () => {
                     expect(true).toBeFalsy();
                     console.error(error)
                     //expect(error.response.status).toBe(400);
+                }
+            });
+
+            safeTest("Validation: Consegue registrar agente com nome vazio", async () => {
+                let emptyNameAgent = {
+                    nome: "",
+                    dataDeIncorporacao: "2023-11-30",
+                    cargo: "Delegado"
+                };
+                try {
+                    await axios.post(`${BASE_URL}/agentes`, emptyNameAgent);
+                    expect(true).toBeTruthy();
+                } catch (error) {
+                    expect(true).toBeFalsy();
+                    console.error(error);
+                }
+            });
+
+            safeTest("Validation: Consegue registrar agente com data vazia", async () => {
+                let emptyNameAgent = {
+                    nome: "Testing",
+                    dataDeIncorporacao: "",
+                    cargo: "Delegado"
+                };
+                try {
+                    await axios.post(`${BASE_URL}/agentes`, emptyNameAgent);
+                    expect(true).toBeTruthy();
+                } catch (error) {
+                    expect(true).toBeFalsy();
+                    console.error(error);
+                }
+            });
+
+            safeTest("Consegue registrar agente com cargo vazio", async () => {
+                let emptyNameAgent = {
+                    nome: "Testing",
+                    dataDeIncorporacao: "2023-11-30",
+                    cargo: ""
+                };
+                try {
+                    await axios.post(`${BASE_URL}/agentes`, emptyNameAgent);
+                    expect(true).toBeTruthy();
+                } catch (error) {
+                    expect(true).toBeFalsy();
+                    console.error(error);
                 }
             });
 
@@ -139,8 +189,15 @@ describe('Penalty Tests - ', () => {
                 }
             });
 
-            safeTest("Validation: Consegue atualizar um caso com status que não seja 'aberto' ou 'solucionado'", () => {
-
+            safeTest("Validation: Consegue atualizar um caso com status que não seja 'aberto' ou 'solucionado'", async () => {
+                const invalidCase = { titulo: "Título Válido", descricao: "Desc", status: "inválido", agente_id: createdAgentId };
+                try {
+                    await axios.post(`${BASE_URL}/casos`, invalidCase);
+                    expect(true).toBeTruthy();
+                } catch (error) {
+                    expect(true).toBeFalsy();
+                    console.error(error)
+                }
             });
 
         })

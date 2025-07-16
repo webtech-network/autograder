@@ -51,7 +51,7 @@ describe('Bonus Tests - ', () => {
      * Simple filtering refers to filtering results by simply inserting the value of an attribute to a query string
      */
     describe('Simple Filtering:', () => {
-        safeTest('Estudante implementou endpoint de filtragem de caso por status corretamente', async() => {
+        safeTest('Simple Filtering: Estudante implementou endpoint de filtragem de caso por status corretamente', async() => {
             const response = await axios.get(`${BASE_URL}/casos?status=aberto`);
 
             expect(response.status).toBe(200);
@@ -67,7 +67,7 @@ describe('Bonus Tests - ', () => {
             expect(response.data.some(c => c.id === solvedCase.id)).toBe(false);
         });
 
-        safeTest('Estudante implementou endpoint de filtragem de caso por agente corretamente', async () => {
+        safeTest('Simple Filtering: Estudante implementou endpoint de filtragem de caso por agente corretamente', async () => {
             const response = await axios.get(`${BASE_URL}/casos?agente_id=${newerAgent.id}`);
 
             expect(response.status).toBe(200);
@@ -81,7 +81,7 @@ describe('Bonus Tests - ', () => {
             expect(response.data.some(c => c.id === openCase.id)).toBe(false);
         });
 
-        safeTest('Estudante implementou endpoint de filtragem de casos por keywords no título e/ou descrição', async () => {
+        safeTest('Simple Filtering: Estudante implementou endpoint de filtragem de casos por keywords no título e/ou descrição', async () => {
             const keyword = "assalto";
             const response = await axios.get(`${BASE_URL}/casos?q=${keyword}`);
 
@@ -114,28 +114,52 @@ describe('Bonus Tests - ', () => {
      * allow other operations, such as sorting, to be performed.
      */
     describe('Complex Filtering:', () => {
-        safeTest('Estudante implementou endpoint de filtragem de agente por data de incorporacao com sorting em ordem crescente corretamente', async() => {
+        safeTest('Complex Filtering: Estudante implementou endpoint de filtragem de agente por data de incorporacao com sorting em ordem crescente corretamente', async() => {
+            let veryOldAgent = {
+                nome: "Ednilson",
+                dataDeIncorporacao: "1975-03-21",
+                cargo: "Coronel"
+            }
+            let agentCreated = (await axios.post(`${BASE_URL}/agentes`, veryOldAgent)).data;
+            
             const response = await axios.get(`${BASE_URL}/agentes?sort=dataDeIncorporacao`);
 
             expect(response.status).toBe(200);
             const agents = response.data;
 
-            const indexOfOlder = agents.findIndex(a => a.id === olderAgent.id);
-            const indexOfNewer = agents.findIndex(a => a.id === newerAgent.id);
+            expect(agents[0]).toMatchObject(agentCreated);
+            expect(agents.length).toBeGreaterThan(2);
 
-            expect(indexOfOlder).toBeLessThan(indexOfNewer);
+            for (let i = 0; i < agents.length - 1; i++) {
+                const currentAgentDate = agents[i].dataDeIncorporacao;
+                const nextAgentDate = agents[i + 1].dataDeIncorporacao; 
+
+                expect(currentAgentDate).toBeLessThanOrEqual(nextAgentDate);
+            }
         });
 
-        safeTest('Estudante implementou endpoint de filtragem de agente por data de incorporacao com sorting em ordem decrescente corretamente', async() => {
+        safeTest('Complex Filtering: Estudante implementou endpoint de filtragem de agente por data de incorporacao com sorting em ordem decrescente corretamente', async() => {
+            const veryYoungAgent = {
+                nome: "Enzo",
+                dataDeIncorporacao: "2025-07-16",
+                cargo: "Soldado"
+            }
+
+            let agentCreated = (await axios.post(`${BASE_URL}/agentes`, veryYoungAgent)).data;
+
             const response = await axios.get(`${BASE_URL}/agentes?sort=-dataDeIncorporacao`);
 
             expect(response.status).toBe(200);
             const agents = response.data;
 
-            const indexOfOlder = agents.findIndex(a => a.id === olderAgent.id);
-            const indexOfNewer = agents.findIndex(a => a.id === newerAgent.id);
+            expect(agents[0]).toMatchObject(agentCreated);
+            expect(agents.length).toBeGreaterThan(2);
+            for (let i = 0; i < agents.length - 1; i++) {
+                const currentAgentDate = agents[i].dataDeIncorporacao;
+                const nextAgentDate = agents[i + 1].dataDeIncorporacao;
+                expect(currentAgentDate).toBeGreaterThanOrEqual(nextAgentDate);
+            }
 
-            expect(indexOfNewer).toBeLessThan(indexOfOlder);
         });
     });
 
@@ -151,7 +175,7 @@ describe('Bonus Tests - ', () => {
      * }
      */
     describe('Custom Error:', () => {
-        safeTest('Estudante implementou mensagens de erro customizadas para argumentos de agente inválidos corretamente', async () => {
+        safeTest('Custom Error: Estudante implementou mensagens de erro customizadas para argumentos de agente inválidos corretamente', async () => {
             const invalidPayload = {
                 nome: "Agente Inválido",
                 dataDeIncorporacao: "30/11/2023", // Wrong format
@@ -172,7 +196,7 @@ describe('Bonus Tests - ', () => {
             }
         });
 
-        safeTest('Estudante implementou mensagens de erro customizadas para argumentos de caso inválidos corretamente', async () => {
+        safeTest('Custom Error: Estudante implementou mensagens de erro customizadas para argumentos de caso inválidos corretamente', async () => {
             const invalidPayload = {
                 titulo: "Caso com Status Inválido",
                 descricao: "", //Invalid description
