@@ -3,8 +3,9 @@ argparse~=1.4.0
 bs4~=0.0.2
 aiohttp==3.10.11
 PyGithub~=2.6.1
-
+openai==1.93.0
 requests~=2.32.4
 beautifulsoup4~=4.13.4
 dotenv~=0.9.9
 python-dotenv~=1.1.1
+upstash-redis==1.4.0
