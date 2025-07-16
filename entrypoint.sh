@@ -4,6 +4,50 @@ set -e
 echo "Starting autograder..."
 
 # --- Install dependencies in the student's repository and run server.js ---
+cd "$GITHUB_WORKSPACE/submission"
+
+
+if [ -f "package.json" ]; then
+    echo "Downloading dependencies from student's project"
+    npm install;
+else
+    echo "Error: no package.json file found."
+    exit 1;
+fi
+
+echo "Starting server.js at port 3000..."
+node server.js &
+SERVER_PID=$!
+echo "Server started with PID: $SERVER_PID"
+
+tree -I 'node_modules' > project_structure.txt
+#Checking if the server started:
+
+SERVER_URL="http://localhost:3000"
+CONNECTION_ATTEMPTS=10
+ATTEMPT_COUNTER=0
+SERVER_STATUS=1
+
+while [ $ATTEMPT_COUNTER -ne $CONNECTION_ATTEMPTS ]; do
+    if curl -s "$SERVER_URL" > /dev/null; then
+        SERVER_STATUS=0
+        break
+    else
+        echo "Server not reachable yet. Retrying in 2 seconds (Attempt $(($ATTEMPT_COUNTER + 1))/$CONNECTION_ATTEMPTS)..."
+        sleep 2
+        ATTEMPT_COUNTER=$(($ATTEMPT_COUNTER + 1))
+    fi
+done
+
+export SERVER_STATUS
+
+if [ $SERVER_STATUS -eq 0 ]; then
+    echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is up and recheable"
+else
+    echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is not healthy"
+fi
+
+tree -I 'node_modules'
 
 echo "Running fatal analysis..."
 cd /app
@@ -15,7 +59,7 @@ cd /app
 
 #Treat errors
 echo "Running tests..."
-# Add your test command here
+npm test -- --json --outputFile=./tests/test-results.json || true
 
 echo "Parsing results..."
 TEST_OUTPUT_FILE="test-results.json"
@@ -27,9 +71,9 @@ if [ ! -f "./tests/$TEST_OUTPUT_FILE" ]; then
 fi
 
 python tests/result-parser.py
-# Parses the test results into the autograder result format.
+
 # --- Run the autograder ---
-python autograder.py  --token $1 --redis-token $2 --redis-url $3 --openai-key $4
+python main.py  --token $1 --redis-token $2 --redis-url $3 --openai-key $4
 
 echo "Autograding completed successfully!"
 echo "Final results generated and sent to GitHub Classroom!"

@@ -18,6 +18,7 @@ class Scorer:
         self.penalty_grader = None # Grader instance for the penalty test file
         self.driver = driver
 
+
     def set_base_score(self,filename):
         """Set the base score by creating a Grader instance for the base test file."""
         self.base_grader = Grader.create(f"{filename}",self.config.base_config)

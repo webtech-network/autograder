@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "axios": "^1.10.0",
+    "cheerio": "^1.1.0",
+    "jest": "^30.0.3"
+  },
+  "scripts": {
+    "test": "jest"
+  }
+}
