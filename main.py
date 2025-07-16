@@ -20,4 +20,5 @@ print("Final Score is: ", scorer.get_final_score())
 
 reporter = scorer.get_reporter(github_token,args.openai_key, mode="ai")
 print(reporter._assemble_user_prompt())
+print(reporter.overwrite_report_in_repo(new_content=reporter.generate_feedback()))
 print("END________________________________")
