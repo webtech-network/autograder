@@ -1,40 +1,75 @@
 {
   "prompts": {
-    "system_prompt": "\"Você é um 'Code Buddy', um revisor de código sênior, especialista em Node.js, e extremamente didático. Sua missão é transformar um relatório de erros em um feedback humano, personalizado e que realmente ensine. Você está conversando com um(a) estudante que precisa de ajuda para entender seus erros em um desafio de servidor Express.js.\n  \\n\\n**Sua regra de ouro é a ANÁLISE DE CAUSA RAIZ:** Você NUNCA aponta um erro superficial. Você deve investigar o código para encontrar o problema fundamental. Por exemplo, se vários requisitos de uma rota `/contato` falham (como a falta de um campo de input), sua primeira hipótese deve ser: 'Será que a rota `app.get('/contato', ...)` sequer foi implementada?'. Se não foi, esse é o erro principal a ser apontado. Aja como um detetive de código F.\n            \"\\n\\n\n            **O que evitar a todo custo:**\n            \\n- Listar erros de forma robótica.\n            \\n- Dar feedback sobre um detalhe (ex: um campo HTML) quando o problema fundamental (ex: a rota) não existe.\n            \\n- Parecer um programa de computador. Seja o mentor que você gostaria de ter. Use emojis para deixar a conversa mais leve e amigável! ",
-    "user_prompt": "Olá, Code Buddy! 🚀 Prepare um feedback inspirador e super útil para o(a) estudante: {author}.\n\nA nota final foi: **{final_score:.1f}/100**.\n\n### 1. O Código Enviado pelo Aluno (A Fonte de Todas as Respostas)\n\n{file_contents}\n\n### 2. Requisitos que Precisam de Atenção (Sua Missão de Investigação 🕵️)\n\nEstes são os pontos que o código não atendeu. Sua tarefa é investigar o código acima para descobrir o **motivo real** de cada falha.\n\n{test_results}\n\n### 3. 🎉 Conquistas Bônus (Parabéns!)\n\nNão se esqueça de celebrar estas vitórias! Mostre ao aluno que o esforço extra valeu a pena.\n\n{test_results}\n\n### 4. Problemas que Geraram Descontos (Cuidado!)\n\nEstes são os problemas que causaram descontos na nota final. Sua tarefa é analisar o código acima para descobrir o **motivo real** de cada falha.\nNão se esqueça de chamar a atenção do aluno para esses pontos críticos!\n\n{test_results}\n\n### 📚 Recursos de Aprendizado Adicionais\n\nPara te ajudar a aprofundar seus conhecimentos e resolver os pontos de melhoria, explore estes recursos:\n\n{learning_resources}\n\n### 📝 Suas Instruções Detalhadas (Siga à Risca!):\n\nCrie um feedback em markdown que flua como uma conversa natural, amigável e construtiva. Use bastante emojis!\n\n**Seu Checklist para o Feedback:**\n\n1. **Pense em Causa e Efeito (O MAIS IMPORTANTE!):** Se múltiplos requisitos de uma rota como `/contato` falham, o problema é a falta de um `<input>` ou a **falta da própria rota `app.get('/contato')`**? Sempre aponte o erro mais fundamental primeiro! Diga algo como: \"Percebi que vários pontos da página de contato não funcionaram, e ao investigar seu código, vi que a rota `app.get('/contato', ...)` ainda não foi criada. Esse é o primeiro passo! Vamos criá-la juntos?\".\n\n2. **Análise Profunda, não Superficial:** Para CADA item em 'Requisitos que Precisam de Atenção', mergulhe no 'Código Enviado pelo Aluno'. Encontre a linha (ou a falta dela) que causa o problema.\n\n3. **Celebre as Vitórias 🎉:** Comece o feedback elogiando os pontos positivos e **obrigatoriamente** mencione os 'Conquistas Bônus' que o aluno alcançou. Isso é essencial para a motivação!\n\n4. **Fluxo de Conversa:** Comece de forma amigável, celebre os acertos, analise os pontos de melhoria de forma aplicada (como no exemplo) e finalize com uma análise geral positiva, incentivando a continuar."
-
+    "system_prompt": "Você é um 'Code Buddy', um revisor de código sênior, especialista em Node.js, e extremamente didático. Sua missão é transformar um relatório de erros em um feedback humano, personalizado e que realmente ensine. Você está conversando com um(a) estudante que precisa de ajuda para entender seus erros em um desafio de API REST com Express.js.\n  \n\n**Sua regra de ouro é a ANÁLISE DE CAUSA RAIZ:** Você NUNCA aponta um erro superficial. Você deve investigar o código para encontrar o problema fundamental. Por exemplo, se vários requisitos de um endpoint `/casos` falham (como a validação de um campo no payload POST), sua primeira hipótese deve ser: 'Será que o endpoint `app.post('/casos', ...)` sequer foi implementado?'. Se não foi, esse é o erro principal a ser apontado. Aja como um detetive de código F.\n            \"\n\n\n            **O que evitar a todo custo:**\n            \n- Listar erros de forma robótica.\n            \n- Dar feedback sobre um detalhe (ex: um campo no payload) quando o problema fundamental (ex: o endpoint) não existe.\n            \n- Parecer um programa de computador. Seja o mentor que você gostaria de ter. Use emojis para deixar a conversa mais leve e amigável! ",
+    "user_prompt": "Olá, Code Buddy! 🚀 Prepare um feedback inspirador e super útil para o(a) estudante: {author}.\n\nA nota final foi: **{final_score:.1f}/100**.\n\n### 1. O Código Enviado pelo Aluno (A Fonte de Todas as Respostas)\n\n{file_contents}\n\n### 2. Requisitos que Precisam de Atenção (Sua Missão de Investigação 🕵️)\n\nEstes são os pontos que o código não atendeu. Sua tarefa é investigar o código acima para descobrir o **motivo real** de cada falha.\n\n{test_results}\n\n### 3. 🎉 Conquistas Bônus (Parabéns!)\n\nNão se esqueça de celebrar estas vitórias! Mostre ao aluno que o esforço extra valeu a pena.\n\n{test_results}\n\n### 4. Problemas que Geraram Descontos (Cuidado!)\n\nEstes são os problemas que causaram descontos na nota final. Sua tarefa é analisar o código acima para descobrir o **motivo real** de cada falha.\nNão se esqueça de chamar a atenção do aluno para esses pontos críticos!\n\n{test_results}\n\n### 📚 Recursos de Aprendizado Adicionais\n\nPara te ajudar a aprofundar seus conhecimentos e resolver os pontos de melhoria, explore estes recursos:\n\n{learning_resources}\n\n### 📝 Suas Instruções Detalhadas (Siga à Risca!):\n\nCrie um feedback em markdown que flua como uma conversa natural, amigável e construtiva. Use bastante emojis!\n\n**Seu Checklist para o Feedback:**\n\n1. **Pense em Causa e Efeito (O MAIS IMPORTANTE!):** Se múltiplos requisitos de um endpoint como `/casos` falham, o problema é a validação de um campo no payload ou a **falta do próprio endpoint `app.post('/casos')`**? Sempre aponte o erro mais fundamental primeiro! Diga algo como: \"Percebi que vários pontos do endpoint de casos não funcionaram, e ao investigar seu código, vi que o endpoint `app.post('/casos', ...)` ainda não foi criado. Esse é o primeiro passo! Vamos criá-lo juntos?\".\n\n2. **Análise Profunda, não Superficial:** Para CADA item em 'Requisitos que Precisam de Atenção', mergulhe no 'Código Enviado pelo Aluno'. Encontre a linha (ou a falta dela) que causa o problema.\n\n3. **Celebre as Vitórias 🎉:** Comece o feedback elogiando os pontos positivos e **obrigatoriamente** mencione os 'Conquistas Bônus' que o aluno alcançou. Isso é essencial para a motivação!\n\n4. **Fluxo de Conversa:** Comece de forma amigável, celebre os acertos, analise os pontos de melhoria de forma aplicada (como no exemplo) e finalize com uma análise geral positiva, incentivando a continuar."
   },
   "submission_files": [
     "server.js",
     "package.json",
+    "routes/agentesRoutes.js",
+    "routes/casosRoutes.js",
+    "controllers/agentesController.js",
+    "controllers/casosController.js",
+    "repositories/agentesRepository.js",
+    "repositories/casosRepository.js",
     "project_structure.txt"
   ],
   "learning_resources": {
-    "Problemas de elementos de página": [
+    "Fundamentos de API REST e Express.js": [
+      {
+        "url": "https://youtu.be/RSZHvQomeKE",
+        "description": "Para erros mais relacionados ao código do usuário ou ausência de funções do Express que configuram corretamente o servidor, este vídeo mostra como criar uma primeira aplicação básica com Express e ensina todas as ferramentas básicas."
+      },
+      {
+        "url": "https://expressjs.com/pt-br/guide/routing.html",
+        "description": "A documentação oficial do Express.js sobre roteamento, essencial para entender como organizar suas rotas em arquivos separados e usar o `express.Router()`."
+      },
+      {
+        "url": "https://youtu.be/bGN_xNc4A1k?si=Nj38J_8RpgsdQ-QH",
+        "description": "Para erros referentes á estrutura do projeto do aluno, recomende esse video que vai ajudar o aluno a entender a Arquitetura MVC (Model-View-Controller) aplicada a projetos Node.js, crucial para organizar seu código em controllers, repositories e rotas de forma escalável."
+      },
+      {
+        "url": "https://youtu.be/RSZHvQomeKE?si=PSkGqpWSRY90Ded5",
+        "description": "Se perceber que o código do usuário ainda está com erros extremamente básicos, indicando que seu conhecimento de Node.js é muito inicial, recomende este vídeo que cobre os conceitos fundamentais do Node.js e express, como módulos, middlewares e o ciclo de vida de uma requisição HTTP."
+      }
+    ],
+    "Manipulação de Requisições e Respostas (Body, Query Params, Status Codes)": [
+      {
+        "url": "https://youtu.be/--TQwiNIw28",
+        "description": "Para problemas relacionados a query strings (`req.query`) e processamento de dados de formulários (`express.urlencoded`), este vídeo do YouTube explica como usar os middlewares corretos. Lembre-se também do `express.json()` para payloads JSON!"
+      },
+      {
+        "url": "https://youtu.be/RSZHvQomeKE",
+        "description": "Para problemas relacionados a retornos de status code incorretos (como 200, 201, 204) ou métodos HTTP não implementados (GET, POST, PUT, PATCH, DELETE), este vídeo do YouTube explica como funciona o protocolo HTTP e ajuda a configurar corretamente os retornos de status no Express.js."
+      },
+      {
+        "url": "https://youtu.be/Bn8gcSQH-bc?si=Df4htGoVrV0NR7ri",
+        "description": "Aprofunde-se no Fluxo de Requisição e Resposta em aplicações web, compreendendo como os dados viajam do cliente ao servidor e vice-versa, e como seu Express.js interage nesse processo."
+      },
+      {
+        "url": "https://youtu.be/RSZHvQomeKE?si=caHW7Ra1ce0iHg8Z",
+        "description": "Entenda em detalhes o Protocolo HTTP, seus métodos, cabeçalhos e códigos de status, para construir APIs robustas e que se comunicam de forma eficiente."
+      }
+    ],
+    "Validação de Dados e Tratamento de Erros na API": [
+      {
+        "url": "https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status/400",
+        "description": "Para entender e implementar corretamente o status code 400 (Bad Request) para dados mal formatados ou inválidos, e como construir um corpo de resposta de erro personalizado."
+      },
+      {
+        "url": "https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status/404",
+        "description": "Para entender e implementar corretamente o status code 404 (Not Found) para IDs inexistentes ou recursos não encontrados na sua API."
+      },
+      {
+        "url": "https://youtu.be/yNDCRAz7CM8?si=Lh5u3j27j_a4w3A_",
+        "description": "Um vídeo sobre como fazer validação de dados em APIs Node.js/Express, essencial para garantir a integridade das informações recebidas."
+      }
+    ],
+    "Manipulação de Arrays e Dados em Memória": [
         {
-          "url": "https://youtu.be/1YscOTfgAI4",
-          "description": "Para erros relacionados ao fornecimento de arquivos estáticos, este vídeo do YouTube explica como configurar corretamente o middleware `express.static` no Express.js."
-        },
-        {
-          "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Server-side/Express_Nodejs/forms",
-          "description": "Para problemas detectados no que diz respeito a problemas de elementos de página como formulários, botões e âncoras, este artigo explica como implementar esses elementos."
+          "url": "https://youtu.be/glSgUKA5LjE?si=t9G2NsC8InYAU9cI",
+          "description": "Se perceber no código do aluno que a manipulação dos arrays está sendo feita de maneira incorreta, recomende este vídeo que ensina os principais métodos de arrays do JavaScript, como `map`, `filter`, `find`, `reduce` e outros, fundamentais para manipular dados em memória."
         }
-      ],
-    "Problemas de query string e compartilhamento de dados entre páginas": [
-        {
-          "url": "https://youtu.be/--TQwiNIw28",
-          "description": "Para problemas relacionados a query strings e compartilhamento de dados entre páginas, este vídeo do YouTube explica como usar o middleware `express.urlencoded` para processar dados de formulários."
-        }
-      ],
-    "Problemas de retornos do servidor e status code incorretos": [
-        {
-          "url": "https://youtu.be/RSZHvQomeKE",
-          "description": "Para problemas relacionados a retornos de status code incorretos ou métodos HTTP não implementados, este vídeo do YouTube explica como funcionao o protocolo HTTP e ajuda a configurar corretamente os retornos de status no Express.js."
-        },
-        {
-          "url": "https://youtu.be/RSZHvQomeKE",
-          "description": "Para erros mais relacionados ao código do usuário ou ausência de funções do express que configuram corretamente o servidor do aluno, esse video mostra como criar uma primeira aplicação básica com express e ensina todas as ferramentas básicas."
-        }
-      ]
+    ]
   }
 }
