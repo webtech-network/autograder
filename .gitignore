@@ -3,3 +3,5 @@ __pycache__
 /tests/results
 /node_modules
 .vscode
+/tests/results
+.env
