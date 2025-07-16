@@ -129,7 +129,7 @@ describe('Penalty Tests - ', () => {
                 }
             });
 
-            safeTest("Consegue registrar agente com cargo vazio", async () => {
+            safeTest("Validation: Consegue registrar agente com cargo vazio", async () => {
                 let emptyNameAgent = {
                     nome: "Testing",
                     dataDeIncorporacao: "2023-11-30",
