@@ -31,11 +31,17 @@ class AIReporter(BaseReporter):
         files_str = self.get_files()
         resources_str = self._prepare_learning_resources_str()
 
+        # Extract author and final_score directly
+        author_name = self.result.author
+        final_score_value = self.result.final_score
+
         # 2. Get the template
         prompt_template = self.config.user_prompt
 
         # 3. Inject data into the template
         return prompt_template.format(
+            author=author_name,
+            final_score=final_score_value,
             test_results=test_results_str,
             file_contents=files_str,
             learning_resources=resources_str
