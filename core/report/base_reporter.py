@@ -48,7 +48,7 @@ class BaseReporter(ABC):
             self.repo.create_file(path=file_path, message=commit_message, content=new_content)
             print("Relatório criado com sucesso.")
 
-    def notify_classroom(self, token):
+    def notify_classroom(self):
         # Check if the final_score is provided and is between 0 and 100
         final_score = self.result.final_score
         if final_score < 0 or final_score > 100:
@@ -62,6 +62,7 @@ class BaseReporter(ABC):
             print("Repository information is missing.")
             return
 
+        token = os.getenv("GITHUB_TOKEN")
         # Create the GitHub client using the token
         g = Github(token)
         repo = g.get_repo(repo_name)
