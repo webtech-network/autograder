@@ -81,7 +81,7 @@ class AIReporter(BaseReporter):
         """Generates feedback using the OpenAI API based on the assembled prompt."""
 
         system_prompt = self.config.system_prompt
-        final_user_prompt = self._assemble_user_prompt()
+        final_user_prompt = self.assemble_user_prompt()
 
         response = self.client.chat.completions.create(
             model="gpt-4o-mini",
