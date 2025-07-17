@@ -16,6 +16,7 @@ class AIReporter(BaseReporter):
 
     def _prepare_test_results_str(self):
         results = f"Testes base que falharam:{self.result.base_results['failed']}\n\n"
+        results += f"Testes base que passaram:{self.result.base_results['passed']}\n\n"
         results += f"Testes bonus que passaram:{self.result.bonus_results['passed']}\n\n"
         results += f"Testes bonus que falharam:{self.result.bonus_results['failed']}\n\n"
         results += f"Penalidades detectadas:{self.result.penalty_results['passed']}\n\n"
@@ -52,18 +53,19 @@ class AIReporter(BaseReporter):
 
         ### 3. Onde o Código Precisa de Atenção (Onde você vai fazer sua análise 🕵️)
 
-        Em seguida, você vai receber os testes feitos na submissão do aluno que falharam, ou seja, onde foram detectados problemas.
+        Em seguida, você vai receber os testes feitos na submissão do aluno:
 
         {test_results_str}
 
-        ### 4. O que cada grupo de teste significa (O que você vai usar para entender o que o aluno fez de errado)
+        ### 4. O que cada grupo de teste significa (O que você vai usar para entender o que o aluno fez de errado, ou parabenizá-lo pelo que fez certo):
 
         Testes base são os requisitos obrigatórios do projeto, ou seja, o que o aluno precisa entregar para ser aprovado.
 
-        Testes bônus são os requisitos opcionais do projeto, ou seja, o que o aluno pode entregar para melhorar sua nota.
+        Testes bônus são os requisitos opcionais do projeto, ou seja, o que o aluno pode entregar para melhorar sua nota, você recebeu apenas os testes bonus que passaram, ou seja, você deve apenas mostrar que reconhece os extras que ele conseguiu.
 
         Penalidades são os requisitos que o aluno não pode entregar, ou seja, o que o aluno fez de errado e que não pode estar presente em sua submissão.
 
+        LEMBRE-SE: Sempre que for abordar um erro detectado, busque entender o que está acontecendo no código do aluno, e por que aquele teste falhou. Muitas vezes, os testes falhados são os mais importantes, pois eles indicam problemas fundamentais no código do aluno.
         É crucial que você preste atenção neles, pois geralmente indicam problemas fundamentais que, uma vez corrigidos, destravam diversas outras funcionalidades. Ou seja, certifique-se de analisar o código do aluno com muita atenção para entender o porque daquele teste ter falhado, e assim conseguir explicar pro aluno o que está errado.
 
         ### 📚 Recursos de Aprendizado Adicionais
@@ -75,6 +77,7 @@ class AIReporter(BaseReporter):
         ### 📝 Suas Instruções Detalhadas (Siga à Risca!):
 
         Crie um feedback em markdown que flua como uma conversa natural, amigável e construtiva. Use bastante emojis!
+        Você deve SEMPRE mostrar trechos de código para mostrar os erros do aluno e também para mostrar possíveis soluções. 
 
         **Seu Checklist para o Feedback:**
 
