@@ -3,9 +3,10 @@ from typing import List
 
 
 class AiConfig:
-    def __init__(self,system_prompt: str, user_prompt: str, files: list[str],learning_resources = None):
+    def __init__(self,system_prompt: str, assignment_context: str,extra_orientations:str, files: list[str],learning_resources = None):
         self.system_prompt = system_prompt
-        self.user_prompt = user_prompt
+        self.assignment_context = assignment_context
+        self.extra_orientations = extra_orientations
         self.files = files
         self.learning_resources = learning_resources
 
@@ -15,13 +16,14 @@ class AiConfig:
             config = json.load(file)
             prompts = config["prompts"]
             system_prompt = prompts.get("system_prompt", "")
-            user_prompt = prompts.get("user_prompt", "")
+            assignment_context = prompts.get("assignment_context", "")
+            extra_orientations = prompts.get("extra_orientations", "")
             files = config.get("submission_files", [])
             learning_resources = []
             resources = config.get("learning_resources")
             for subject in resources:
                 learning_resources.append(LearningResource.parse_resource(resources.get(subject), subject))
-            return cls(system_prompt, user_prompt, files, learning_resources)
+            return cls(system_prompt, assignment_context, extra_orientations, files, learning_resources)
 
 
 

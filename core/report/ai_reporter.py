@@ -35,17 +35,51 @@ class AIReporter(BaseReporter):
         author_name = self.result.author
         final_score_value = self.result.final_score
 
-        # 2. Get the template
-        prompt_template = self.config.user_prompt
+        # 2. Assemble the prompt using a single, readable f-string
+        return f"""Olá, Code Buddy! 🚀 Prepare um feedback inspirador e super útil para o(a) estudante: {author_name}.
 
-        # 3. Inject data into the template
-        return prompt_template.format(
-            author=author_name,
-            final_score=final_score_value,
-            test_results=test_results_str,
-            file_contents=files_str,
-            learning_resources=resources_str
-        )
+        ---
+
+        {self.config.assignment_context}
+
+        ---
+
+        🌟 A nota final do estudante é: **{final_score_value:.1f}/100**
+
+        ### 1. O Código Enviado pelo Aluno (A Fonte de Todas as Respostas)
+
+        {files_str}
+
+        ### 3. Onde o Código Precisa de Atenção (Onde você vai fazer sua análise 🕵️)
+
+        Em seguida, você vai receber os testes feitos na submissão do aluno que falharam, ou seja, onde foram detectados problemas.
+
+        {test_results_str}
+
+        ### 4. O que cada grupo de teste significa (O que você vai usar para entender o que o aluno fez de errado)
+
+        Testes base são os requisitos obrigatórios do projeto, ou seja, o que o aluno precisa entregar para ser aprovado.
+
+        Testes bônus são os requisitos opcionais do projeto, ou seja, o que o aluno pode entregar para melhorar sua nota.
+
+        Penalidades são os requisitos que o aluno não pode entregar, ou seja, o que o aluno fez de errado e que não pode estar presente em sua submissão.
+
+        É crucial que você preste atenção neles, pois geralmente indicam problemas fundamentais que, uma vez corrigidos, destravam diversas outras funcionalidades. Ou seja, certifique-se de analisar o código do aluno com muita atenção para entender o porque daquele teste ter falhado, e assim conseguir explicar pro aluno o que está errado.
+
+        ### 📚 Recursos de Aprendizado Adicionais
+
+        Os recursos abaixo devem ser recomendados ao usuário (por url) na lógica de: quando você encontrar um erro no código do aluno, busque por um recurso que se encaixe naquele problema e recomende ao aluno para que ele tenha onde aprender. Verifique com atenção o erro do aluno e forneça o conteúdo que realmente aborda aquele problema. Aqui estão os recursos e seus casos de uso:
+
+        {resources_str}
+
+        ### 📝 Suas Instruções Detalhadas (Siga à Risca!):
+
+        Crie um feedback em markdown que flua como uma conversa natural, amigável e construtiva. Use bastante emojis!
+
+        **Seu Checklist para o Feedback:**
+
+        {self.config.extra_orientations}
+        """
 
     def get_files(self):
         """
