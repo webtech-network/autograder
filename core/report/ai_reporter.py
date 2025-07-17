@@ -121,7 +121,7 @@ class AIReporter(BaseReporter):
         final_user_prompt = self.assemble_user_prompt()
 
         response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": final_user_prompt}
