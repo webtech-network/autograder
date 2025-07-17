@@ -3,6 +3,7 @@ __pycache__
 /node_modules
 .vscode
 tests/test-results.json
-/tests/results
+/tests/results/*
 /tests/test-results.json
 .env
+/.idea
