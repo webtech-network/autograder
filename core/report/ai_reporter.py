@@ -23,7 +23,7 @@ class AIReporter(BaseReporter):
     def get_system_prompt(self):
         return self.config.system_prompt
 
-    def _assemble_user_prompt(self):
+    def assemble_user_prompt(self):
         """Assembles the final user prompt by injecting dynamic data into the template."""
 
         # 1. Get all the dynamic parts
