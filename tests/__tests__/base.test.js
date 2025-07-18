@@ -116,9 +116,8 @@ describe('Base Tests - ', () => {
             expect(response.data).toBeFalsy();
 
             //Verify that the user
-            let checkResponse;
             try {
-                checkResponse = await axios.get(`${BASE_URL}/agentes/${createdAgentId}`);
+                await axios.get(`${BASE_URL}/agentes/${createdAgentId}`);
                 expect(true).toBeFalsy();
             } catch (error) {
                 expect(true).toBe(true);
@@ -291,9 +290,8 @@ describe('Base Tests - ', () => {
             expect(response.status).toBe(204);
             expect(response.data).toBeFalsy();
 
-            let check;
             try{
-                check = await axios.get(`${BASE_URL}/casos/${temp}`);
+                await axios.get(`${BASE_URL}/casos/${temp}`);
                 expect(true).toBeFalsy();
             } catch(error){
                 expect(true).toBeTruthy();
