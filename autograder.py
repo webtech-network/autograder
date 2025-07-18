@@ -2,6 +2,8 @@ from core.final_scorer import Scorer
 import argparse
 import os
 
+from core.report.ai_reporter import AIReporter
+
 parser = argparse.ArgumentParser(description="Process token argument.")
 parser.add_argument("--token", type=str, required=True, help="GitHub token")
 parser.add_argument("--redis-token", type=str, required=True, help="Upstash Redis REST token")
@@ -20,7 +22,8 @@ print("Final Score is: ", scorer.get_final_score())
 
 reporter = scorer.get_reporter(github_token,args.openai_key, mode="ai")
 feedback = reporter.generate_feedback()
-print(reporter.assemble_user_prompt())
+if isinstance(reporter,AIReporter):
+    print(reporter.assemble_user_prompt())
 reporter.notify_classroom(github_token)
 reporter.overwrite_report_in_repo(new_content=feedback)
 
