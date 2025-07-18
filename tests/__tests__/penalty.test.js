@@ -43,7 +43,6 @@ describe('Penalty Tests - ', () => {
 
             } catch (error) {
                 console.error(error.message);
-                //throw new Error(`There was an error during the beforeEach setup in the penalty tests: ${error.message}`);
             }
         });
 
@@ -144,6 +143,37 @@ describe('Penalty Tests - ', () => {
                 }
             });
 
+            safeTest("Validation: Consegue alterar ID do agente com método PUT", async ()=> {
+                const newId = "das ist kein ID";
+                const payload = {
+                    id: newId,
+                    nome: "Change id",
+                    dataDeIncorporacao: "2023-11-30",
+                    cargo: "Delegado"
+                }
+
+                try{
+                    await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, payload);
+                    expect(true).toBeTruthy();
+                    createdAgentId = null;
+                } catch (error) {
+                    expect(true).toBeFalsy();
+                }
+
+            });
+
+            safeTest("Validation: Consegue alterar ID do agente com método PATCH", async () => {
+                const newId = "customId";
+                const payload = { id: newId };
+
+                try{
+                    await axios.patch(`${BASE_URL}/agentes/${createdAgentId}`, payload);
+                    expect(true).toBeTruthy();
+                    createdAgentId = null;
+                } catch (error) {
+                    expect(true).toBeFalsy();
+                }
+            });
 
             //Case validation section
 
@@ -197,6 +227,38 @@ describe('Penalty Tests - ', () => {
                 } catch (error) {
                     expect(true).toBeFalsy();
                     console.error(error)
+                }
+            });
+
+            safeTest("Validation: Consegue alterar ID do caso com método PUT", async ()=> {
+                const newId = "das ist kein ID";
+                const payload = {
+                    id: newId,
+                    titulo: "Change id",
+                    descricao: "Caso de teste",
+                    status: "aberto",
+                    agente_id: createdAgentId
+                }
+
+                try{
+                    await axios.put(`${BASE_URL}/casos/${createdCaseId}`, payload);
+                    expect(true).toBeTruthy();
+                    createdCaseId = null;
+                } catch (error) {
+                    expect(true).toBeFalsy();
+                }
+            });
+
+            safeTest("Validation: Consegue alterar ID do caso com método PATCH", async () => {
+                const newId = "customId";
+                const payload = { id: newId };
+
+                try{
+                    await axios.patch(`${BASE_URL}/casos/${createdAgentId}`, payload);
+                    expect(true).toBeTruthy();
+                    createdCaseId = null;
+                } catch (error) {
+                    expect(true).toBeFalsy();
                 }
             });
 
