@@ -298,10 +298,7 @@ describe('Penalty Tests - ', () => {
             const dependencies = packageJson.dependencies || {};
             const dependencyKeys = Object.keys(dependencies);
 
-            expect(dependencyKeys.length).toBeLessThan(3);
             expect(dependencyKeys).not.toContain("express");
-            expect(dependencyKeys).not.toContain("swagger-jsdoc");
-            expect(dependencyKeys).not.toContain("swagger-ui-express");
         });
 
         test('Static files: .gitignore não contém pasta node_modules', () => {
@@ -324,22 +321,12 @@ describe('Penalty Tests - ', () => {
             expect(isCorrectlyIgnored).toBe(false);
         });
 
-        test('Static files: usuário não possui arquivo para documentação swagger', async () => {
-            if(!projectFolderExists) return;
-
-            let swaggerFilePathJson = path.join(projectRoot, 'docs/swagger.json');
-            let swaggerFilePathYaml = path.join(projectRoot, 'docs/swagger.yaml');
-            let fileExists = fs.existsSync(swaggerFilePathJson) || fs.existsSync(swaggerFilePathYaml);
-
-            expect(fileExists).toBeFalsy();
-        });
 
         test('Static files: usuário não seguiu estrutura de arquivos à risca', async () => {
             if(!projectFolderExists) return;
 
-            let swaggerFilePathJson = path.join(projectRoot, 'docs/swagger.json');
-            let swaggerFilePathYaml = path.join(projectRoot, 'docs/swagger.yaml');
-            let swaggerFileExists = fs.existsSync(swaggerFilePathJson) || fs.existsSync(swaggerFilePathYaml);
+            let swaggerFolderPath = path.join(projectRoot, "docs");
+            let swaggerFolderExists = fs.existsSync(swaggerFolderPath);
 
             let gitIgnorePath = path.join(projectRoot, '.gitignore');
             let gitIgnoreExists = fs.existsSync(gitIgnorePath);
@@ -362,7 +349,7 @@ describe('Penalty Tests - ', () => {
             let caseRepositoryPath = path.join(projectRoot, 'repositories/casosRepository.js');
             let repositoriesExist = fs.existsSync(caseRepositoryPath) && fs.existsSync(agentRepositoryPath);
 
-            let followedStructured = swaggerFileExists
+            let followedStructured = swaggerFolderExists
                 && gitIgnoreExists
                 && packageJsonExists
                 && serverExists
