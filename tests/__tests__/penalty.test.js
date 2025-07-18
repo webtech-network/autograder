@@ -262,6 +262,16 @@ describe('Penalty Tests - ', () => {
                 }
             });
 
+            //Swagger content type
+            safeTest("Validation: docs endpoint retorna página HTML com sucesso", async ()=>{
+                try {
+                    let response = await axios.get(`${BASE_URL}/docs`);
+                    expect(response.headers['Content-Type']).toMatch(/html/);
+                } catch (error) {
+                    expect(true).toBeFalsy();
+                }
+            });
+
         })
     });
 
