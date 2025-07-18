@@ -67,6 +67,18 @@ describe('Bonus Tests - ', () => {
             expect(response.data.some(c => c.id === solvedCase.id)).toBe(false);
         });
 
+        safeTest('Simple Filtering: Estudante implementou endpoint de busca de agente responsável por caso', async()=>{
+            try{
+               let response = await axios.get(`${BASE_URL}/${openCase.id}/agente`);
+               let agent = await response.data;
+               expect(response.status).toBe(200);
+               expect(agent.id).toBe(olderAgent.id);
+            } catch(error){
+                expect(true).toBeFalsy();
+                console.log(error);
+            }
+        });
+
         safeTest('Simple Filtering: Estudante implementou endpoint de filtragem de caso por agente corretamente', async () => {
             const response = await axios.get(`${BASE_URL}/casos?agente_id=${newerAgent.id}`);
 
