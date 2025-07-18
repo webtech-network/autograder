@@ -118,7 +118,7 @@ echo "$1"
 echo "$2"
 echo "$3"
 echo "$4"
-python autograder.py  --token $1 --redis-token $2 --redis-url $3 --openai-key $4
+python autograder.py --token $1 --autograder-bot-token $2 --redis-token $3 --redis-url $4 --openai-key $5
 
 echo "Autograding completed successfully!"
 echo "Final results generated and sent to GitHub Classroom!"
