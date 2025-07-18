@@ -190,9 +190,9 @@ describe('Base Tests - ', () => {
             }
         });
 
-        safeTest('UPDATE: Recebe status code 400 ao tentar atualizar objeto parcialmente com método PATCH e payload em formato incorreto', async () => {
+        safeTest('UPDATE: Recebe status code 400 ao tentar atualizar agente parcialmente com método PATCH e payload em formato incorreto', async () => {
             const invalidPartialPayload = {
-                dataDeIncorporacao: "01-01-2025"
+                campoInexistente: "testing"
             };
 
             try {
