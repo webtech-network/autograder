@@ -344,7 +344,7 @@ describe('Penalty Tests - ', () => {
             let packageJsonPath = path.join(projectRoot, 'package.json');
             let packageJsonExists = fs.existsSync(packageJsonPath);
 
-            let serverJsonPath = path.join(projectRoot, 'server.json');
+            let serverJsonPath = path.join(projectRoot, 'server.js');
             let serverExists = fs.existsSync(serverJsonPath);
 
             let agentRouterPath = path.join(projectRoot, 'routes/agentesRoutes.js');
