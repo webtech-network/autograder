@@ -1,97 +1,141 @@
 from core.report.base_reporter import BaseReporter
 from openai import OpenAI
+from core.config_processing.ai_config import AiConfig
 import os
 
 
+
 class AIReporter(BaseReporter):
-    def __init__(self, result, token, quota, openai_key=None):
+    def __init__(self, result, token, quota, openai_key=None,config=None):
         super().__init__(result, token)
         self.client = OpenAI(api_key=openai_key)
         self.quota = quota
+        self.config = config if config else AiConfig.parse_config()
+
+    def _prepare_test_results_str(self):
+        results = f"Testes base que falharam:{self.result.base_results['failed']}\n\n"
+        results += f"Testes base que passaram:{self.result.base_results['passed']}\n\n"
+        results += f"Testes bonus que passaram:{self.result.bonus_results['passed']}\n\n"
+        results += f"Testes bonus que falharam:{self.result.bonus_results['failed']}\n\n"
+        results += f"Penalidades detectadas:{self.result.penalty_results['passed']}\n\n"
+        return results
+    def get_system_prompt(self):
+        return self.config.system_prompt
+
+    def assemble_user_prompt(self):
+        """Assembles the final user prompt by injecting dynamic data into the template."""
+
+        # 1. Get all the dynamic parts
+        test_results_str = self._prepare_test_results_str()
+        files_str = self.get_files()
+        resources_str = self._prepare_learning_resources_str()
+
+        # Extract author and final_score directly
+        author_name = self.result.author
+        final_score_value = self.result.final_score
+
+        # 2. Assemble the prompt using a single, readable f-string
+        return f"""Olá, Code Buddy! 🚀 Prepare um feedback inspirador e super útil para o(a) estudante: {author_name}.
+
+        ---
+
+        {self.config.assignment_context}
+
+        ---
+
+        🌟 A nota final do estudante é: **{final_score_value:.1f}/100**
+
+        ### 1. O Código Enviado pelo Aluno (A Fonte de Todas as Respostas)
+
+        {files_str}
+
+        ### 3. Onde o Código Precisa de Atenção (Onde você vai fazer sua análise 🕵️)
+
+        Em seguida, você vai receber os testes feitos na submissão do aluno:
+
+        {test_results_str}
+
+        ### 4. O que cada grupo de teste significa (O que você vai usar para entender o que o aluno fez de errado, ou parabenizá-lo pelo que fez certo):
+
+        Testes base são os requisitos obrigatórios do projeto, ou seja, o que o aluno precisa entregar para ser aprovado.
+
+        Testes bônus são os requisitos opcionais do projeto, ou seja, o que o aluno pode entregar para melhorar sua nota, você recebeu apenas os testes bonus que passaram, ou seja, você deve apenas mostrar que reconhece os extras que ele conseguiu.
+
+        Penalidades são os requisitos que o aluno não pode entregar, ou seja, o que o aluno fez de errado e que não pode estar presente em sua submissão.
+
+        LEMBRE-SE: Sempre que for abordar um erro detectado, busque entender o que está acontecendo no código do aluno, e por que aquele teste falhou. Muitas vezes, os testes falhados são os mais importantes, pois eles indicam problemas fundamentais no código do aluno.
+        É crucial que você preste atenção neles, pois geralmente indicam problemas fundamentais que, uma vez corrigidos, destravam diversas outras funcionalidades. Ou seja, certifique-se de analisar o código do aluno com muita atenção para entender o porque daquele teste ter falhado, e assim conseguir explicar pro aluno o que está errado.
+
+        ### 📚 Recursos de Aprendizado Adicionais
+
+        Os recursos abaixo devem ser recomendados ao usuário (por url) na lógica de: quando você encontrar um erro no código do aluno, busque por um recurso que se encaixe naquele problema e recomende ao aluno para que ele tenha onde aprender. Verifique com atenção o erro do aluno e forneça o conteúdo que realmente aborda aquele problema. Aqui estão os recursos e seus casos de uso:
+
+        {resources_str}
+
+        ### 📝 Suas Instruções Detalhadas (Siga à Risca!):
+
+        Crie um feedback em markdown que flua como uma conversa natural, amigável e construtiva. Use bastante emojis!
+        Você deve SEMPRE mostrar trechos de código para mostrar os erros do aluno e também para mostrar possíveis soluções. 
+
+        **Seu Checklist para o Feedback:**
+
+        {self.config.extra_orientations}
+        """
+
+    def get_files(self):
+        """
+        Reads files listed in the config from the submission directory
+        and formats them into a single string for the AI prompt.
+        """
+        base_path = os.getenv("GITHUB_WORKSPACE", ".")
+        submission_dir = os.path.join(base_path, 'submission')
+        formatted_files_content = []
+        for filename in self.config.files:
+            file_path = os.path.join(submission_dir, filename)
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    formatted_files_content.append(f"# ARQUIVO: {filename}\n```\n{content}\n```")
+            except FileNotFoundError:
+                formatted_files_content.append(f"# ARQUIVO: {filename}\n---\n**O ARQUIVO NÃO EXISTE NO REPOSITORIO DO ALUNO!.**\n---")
+        return "\n\n".join(formatted_files_content)
+
+    def _prepare_learning_resources_str(self):
+        """Prepares a formatted string of learning resources."""
+        if not self.config.learning_resources:
+            return "Essa atividade não possui recursos de aprendizado adicionais."
+
+        resource_list = []
+        for resource in self.config.learning_resources:
+            resource_list.append(f"- {resource.subject}: " + ", ".join(
+                f"{res['url']} ({res['description']})" for res in resource.resources))
+
+        return "\n".join(resource_list) if resource_list else "Essa atividade não possui recursos de aprendizado adicionais."
 
     def generate_feedback(self):
-        test_results = {
-            "base": self.result.base_results,
-            "bonus": self.result.bonus_results,
-            "penalty": self.result.penalty_results["passed"],
-            "score": self.result.final_score
-        }
+        """Generates feedback using the OpenAI API based on the assembled prompt."""
 
-        # --- PROMPT DO SISTEMA OTIMIZADO ---
-        # Foco em hierarquia de erros e na persona de mentor.
-        system_prompt = (
-            "Você é um 'Code Buddy' 🧑‍💻, um revisor de código sênior, especialista em Node.js, e extremamente didático. Sua missão é transformar um relatório de erros em um feedback humano, personalizado e que realmente ensine. Você está conversando com um(a) estudante que precisa de ajuda para entender seus erros em um desafio de servidor Express.js."
-            "\n\n"
-            "**Sua regra de ouro é a ANÁLISE DE CAUSA RAIZ:** Você NUNCA aponta um erro superficial. Você deve investigar o código para encontrar o problema fundamental. Por exemplo, se vários requisitos de uma rota `/contato` falham (como a falta de um campo de input), sua primeira hipótese deve ser: 'Será que a rota `app.get('/contato', ...)` sequer foi implementada?'. Se não foi, esse é o erro principal a ser apontado. Aja como um detetive de código 🕵️."
-            "\n\n"
-            "**O que evitar a todo custo:**"
-            "\n- Listar erros de forma robótica."
-            "\n- Dar feedback sobre um detalhe (ex: um campo HTML) quando o problema fundamental (ex: a rota) não existe."
-            "\n- Parecer um programa de computador. Seja o mentor que você gostaria de ter. Use emojis para deixar a conversa mais leve e amigável! 🚀💡🤔"
-        )
-
-        # --- PROMPT DO USUÁRIO OTIMIZADO ---
-        # Adiciona seção de bônus e reforça a análise de causa raiz.
-        user_prompt = f"""
-            Olá, Code Buddy! 🚀 Prepare um feedback inspirador e super útil para o(a) estudante: {self.result.author}.
-
-            A nota final foi: **{test_results['score']:.1f}/100**.
-
-            ---
-            ### 1. O Código Enviado pelo Aluno (A Fonte de Todas as Respostas)
-            ```typescript
-            {self.result.submission_file}
-            ```
-
-            ---
-            ### 2. Requisitos que Precisam de Atenção (Sua Missão de Investigação �️)
-            Estes são os pontos que o código não atendeu. Sua tarefa é investigar o código acima para descobrir o **motivo real** de cada falha.
-            ```json
-            {test_results['base']['failed']}
-            ```
-
-            ---
-            ### 3. 🎉 Conquistas Bônus (Parabéns!)
-            Não se esqueça de celebrar estas vitórias! Mostre ao aluno que o esforço extra valeu a pena.
-            ```json
-            {test_results['bonus']['passed']}
-            ```
-
-            ___
-            ### 4. Problemas que Geraram Descontos (Cuidado!)
-            Estes são os problemas que causaram descontos na nota final. Sua tarefa é analisar o código acima para descobrir o **motivo real** de cada falha.
-            Não se esqueça de chamar a atenção do aluno para esses pontos críticos!
-            ```json
-            {test_results['penalty']}
-            ```
-            ---
-            ### 📝 Suas Instruções Detalhadas (Siga à Risca!):
-
-            Crie um feedback em markdown que flua como uma conversa natural, amigável e construtiva. Use bastante emojis!
-
-            **Seu Checklist para o Feedback:**
-
-            1.  **Pense em Causa e Efeito (O MAIS IMPORTANTE!):** Se múltiplos requisitos de uma rota como `/contato` falham, o problema é a falta de um `<input>` ou a **falta da própria rota `app.get('/contato')`**? Sempre aponte o erro mais fundamental primeiro! Diga algo como: "Percebi que vários pontos da página de contato não funcionaram, e ao investigar seu código, vi que a rota `app.get('/contato', ...)` ainda não foi criada. Esse é o primeiro passo! Vamos criá-la juntos?".
-            2.  **Análise Profunda, não Superficial:** Para CADA item em 'Requisitos que Precisam de Atenção', mergulhe no 'Código Enviado pelo Aluno'. Encontre a linha (ou a falta dela) que causa o problema.
-            3.  **Celebre as Vitórias 🎉:** Comece o feedback elogiando os pontos positivos e **obrigatoriamente** mencione os 'Conquistas Bônus' que o aluno alcançou. Isso é essencial para a motivação!
-            4.  **Fluxo de Conversa:** Comece de forma amigável, celebre os acertos, analise os pontos de melhoria de forma aplicada (como no exemplo) e finalize com uma análise geral positiva, incentivando a continuar.
-            """
+        system_prompt = self.config.system_prompt
+        final_user_prompt = self.assemble_user_prompt()
 
         response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": final_user_prompt}
             ],
-            temperature=0.7
+            temperature=0.5  # Lowered for more deterministic feedback
         )
+
+        # Now, format the final report
         feedback = "<sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>\n\n"
         feedback += f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n\n"
         feedback += f"# Feedback para {self.result.author}:\n\n"
-        feedback += f"Nota final: **{test_results['score']:.1f}/100**\n\n"
+        feedback += f"Nota final: **{self.result.final_score:.1f}/100**\n\n"
         feedback += response.choices[0].message.content
+        feedback += "\n\n> Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).\n\n"
         feedback += "\n\n---\n"
-        feedback += "<sup>Made By the Autograder Team.</sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Carvalho](https://github.com/ArthuCRodrigues)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Drumond](https://github.com/drumondpucminas)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Gabriel Resende](https://github.com/gnvr29)</sup></sup>"
+        feedback += "<sup>Made By the Autograder Team.</sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Carvalho](https://github.com/ArthurCRodrigues)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Drumond](https://github.com/drumondpucminas)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Gabriel Resende](https://github.com/gnvr29)</sup></sup>"
         return feedback
 
     @classmethod
