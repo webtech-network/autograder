@@ -20,14 +20,6 @@ class DefaultReporter(BaseReporter):
         """
         Generate a Markdown report for autograding feedback.
         Takes dictionaries for base, bonus, and penalty with keys `passed` and `failed` containing test names.
-
-        :param base: Dictionary containing passed and failed validation for base checks.
-        :param bonus: Dictionary containing passed and failed validation for bonus checks.
-        :param author: String containing author name.
-        :param penalty: Dictionary containing passed and failed validation for penalty checks.
-        :param final_score: The final calculated score (provided as a parameter).
-        :param feedback_file: Path to the JSON file containing test-specific feedback (default is "tests_feedback.json").
-        :return: A Markdown formatted string with feedback.
         """
 
 
