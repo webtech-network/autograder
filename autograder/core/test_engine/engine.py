@@ -17,7 +17,7 @@ class TestEngine:
         if test_framework == "pytest":
             from autograder.core.test_engine.adapters.pytest_adapter import PytestAdapter
             runner = PytestAdapter()
-        elif test_framework == "unittest":
+        elif test_framework == "jest":
             from autograder.core.test_engine.adapters.jest_adapter import JestAdapter
             runner = JestAdapter()
         else:
