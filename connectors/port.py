@@ -52,6 +52,20 @@ class Port(ABC):
         except Exception as e:
             raise Exception(f"Error running autograder: {e}") from e
 
+    def import_preset(self, preset, criteria_json=None,feedback_json=None):
+        """
+        Responsible for importing grading presets to the autograder core.
+        Checks the preset name and imports the corresponding configuration files from the presets package.
+        """
+        if preset == "rest-api":
+            #Copy the files from this preset to the autograder system
+            pass
+        elif preset == "etapa-2":
+            #copy the files from this preset to the autograder system
+            pass
+        else:
+            raise ValueError(f"Unknown preset: {preset}. Please provide a valid preset name.")
+
     @abstractmethod
     def export_results(self):
         """
