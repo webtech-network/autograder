@@ -1,12 +1,11 @@
 
 from autograder.core.config_processing.test_config import TestConfig
-from autograder.core.grading.result_processor import ResultProcessor
+from autograder.core.utils.result_processor import ResultProcessor
 from autograder.core.grading.subject_grader import SubjectGrader
 
 class Grader:
     """Abstract base class for grading"""
-    def __init__(self, test_file,test_config):
-        self.test_file = test_file
+    def __init__(self, test_config):
         self.test_amount = 0  # Total number of validation in the test file
         self.test_config = test_config  # TestConfig instance containing the configuration for the test file
         self.passed_tests = []  # List of passed validation
@@ -15,7 +14,7 @@ class Grader:
 
     def get_test_results(self):
         """Get the validation results from a json results file"""
-        results_dict = ResultProcessor.load_results(f"validation/results/{self.test_file.split('.')[0]}_results.json")  # Load the test results from the specified file
+        results_dict = ResultProcessor.load_results(f"validation/results/{self.test_config.ctype}_tests_results.json")  # Load the test results from the specified file
         passed_tests = [test['test'] for test in results_dict[0]]
         failed_tests = [test['test'] for test in results_dict[1]]
         quantitative_tests = []
@@ -63,9 +62,9 @@ class Grader:
             "score": self.generate_score()
         }
     @classmethod
-    def create(cls, test_file: str, test_config: TestConfig):
+    def create(cls, test_config: TestConfig):
         """Create a Grader instance from a test file and a TestConfig instance."""
-        grader = cls(test_file, test_config)
+        grader = cls(test_config)
         grader.get_test_results()
         grader.test_amount = grader.get_test_amount()
         return grader
