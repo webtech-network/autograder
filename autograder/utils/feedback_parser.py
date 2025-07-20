@@ -15,7 +15,7 @@ def extract_docstring_feedback(file_path, category):
     for node in tree.body:
         if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
             docstring = ast.get_docstring(node)
-            test_id = f"grading/tests/{os.path.basename(file_path)}::{node.name}"
+            test_id = f"grading/validation/{os.path.basename(file_path)}::{node.name}"
 
             pass_msg = "✅ Sucesso"
             fail_msg = "❌ Falhou"
@@ -36,9 +36,9 @@ def generate_feedback_from_docstrings():
     :return:
     """
     files = [
-        ("grading/tests/test_base.py", "base_tests"),
-        ("grading/tests/test_bonus.py", "bonus_tests"),
-        ("grading/tests/test_penalty.py", "penalty_tests")
+        ("grading/validation/test_base.py", "base_tests"),
+        ("grading/validation/test_bonus.py", "bonus_tests"),
+        ("grading/validation/test_penalty.py", "penalty_tests")
     ]
 
     all_feedback = {}

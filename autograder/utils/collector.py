@@ -3,17 +3,17 @@ import pytest
 class TestCollector:
     """
     TestCollector collects test results, distinguishing between regular pass/fail
-    tests and quantitative tests that report a specific count.
+    validation and quantitative validation that report a specific count.
     """
     def __init__(self):
-        self.passed = [] # Stores nodeids of passed regular tests (and quantitative tests that executed successfully)
-        self.failed = [] # Stores nodeids of failed regular tests
+        self.passed = [] # Stores nodeids of passed regular validation (and quantitative validation that executed successfully)
+        self.failed = [] # Stores nodeids of failed regular validation
         self.quantitative_results = {} # Stores quantitative results: {nodeid: {'test_name': '...', 'actual_count': N}}
 
     def pytest_runtest_logreport(self, report):
         """
         Pytest hook to process test reports.
-        Captures pass/fail for regular tests and specific counts for quantitative tests.
+        Captures pass/fail for regular validation and specific counts for quantitative validation.
         """
         if report.when == 'call':
             # Check if this test recorded a quantitative result via user_properties
@@ -25,7 +25,7 @@ class TestCollector:
             if quantitative_data != None:
                 # This is a quantitative test. Record its specific count.
                 self.quantitative_results[report.nodeid] = quantitative_data
-                # Quantitative tests should generally "pass" in pytest execution
+                # Quantitative validation should generally "pass" in pytest execution
                 # if they ran and reported their count. Their score is determined
                 # by the reported count against expected_checks, not simple pass/fail.
                 # Add to passed list for overall execution tracking
