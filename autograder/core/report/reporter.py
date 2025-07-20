@@ -1,5 +1,5 @@
-from core.report.ai_reporter import AIReporter
-from core.report.default_reporter import DefaultReporter
+from autograder.core.report.ai_reporter import AIReporter
+from autograder.core.report.default_reporter import DefaultReporter
 class Reporter:
     @classmethod
     def create_ai_reporter(cls, result,token,quota, openai_key=None):

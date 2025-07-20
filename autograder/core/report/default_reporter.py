@@ -1,5 +1,4 @@
-from core.report.base_reporter import BaseReporter
-from utils.path import Path
+from autograder.core.report.base_reporter import BaseReporter
 import json
 from datetime import datetime
 class DefaultReporter(BaseReporter):
@@ -22,10 +21,10 @@ class DefaultReporter(BaseReporter):
         Generate a Markdown report for autograding feedback.
         Takes dictionaries for base, bonus, and penalty with keys `passed` and `failed` containing test names.
 
-        :param base: Dictionary containing passed and failed tests for base checks.
-        :param bonus: Dictionary containing passed and failed tests for bonus checks.
+        :param base: Dictionary containing passed and failed validation for base checks.
+        :param bonus: Dictionary containing passed and failed validation for bonus checks.
         :param author: String containing author name.
-        :param penalty: Dictionary containing passed and failed tests for penalty checks.
+        :param penalty: Dictionary containing passed and failed validation for penalty checks.
         :param final_score: The final calculated score (provided as a parameter).
         :param feedback_file: Path to the JSON file containing test-specific feedback (default is "tests_feedback.json").
         :return: A Markdown formatted string with feedback.
@@ -63,7 +62,7 @@ class DefaultReporter(BaseReporter):
         if len(self.result.bonus_results["passed"]) > 0:
             feedback += f"- Você conquistou `{len(self.result.bonus_results['passed'])}` bônus! Excelente trabalho nos detalhes adicionais!\n"
             for passed_test in self.result.bonus_results["passed"]:
-                # Get the feedback for passed bonus tests
+                # Get the feedback for passed bonus validation
                 passed_feedback = self.get_key_value(tests_feedback["bonus_tests"], passed_test)[0]  # Failed feedback
                 feedback += f"  - 🌟 **Testes bônus passados**: `{passed_test}`\n"
                 feedback += f"    - {passed_feedback}\n"
@@ -75,7 +74,7 @@ class DefaultReporter(BaseReporter):
         if len(self.result.penalty_results["passed"]) > 0:
             feedback += f"- Foram encontrados `{len(self.result.penalty_results['passed'])}` problemas que acarretam descontos. Veja abaixo os testes penalizados:\n"
             for failed_test in self.result.penalty_results["passed"]:
-                # Get the feedback for failed penalty tests
+                # Get the feedback for failed penalty validation
                 failed_feedback = self.get_key_value(tests_feedback["penalty_tests"], failed_test)[0]  # Failed feedback
                 feedback += f"  - ⚠️ **Falhou no teste de penalidade**: `{failed_test}`\n"
                 feedback += f"    - **Correção sugerida**: {failed_feedback}\n"

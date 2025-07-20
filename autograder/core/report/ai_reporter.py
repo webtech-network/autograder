@@ -1,6 +1,6 @@
-from core.report.base_reporter import BaseReporter
+from autograder.core.report.base_reporter import BaseReporter
 from openai import OpenAI
-from core.config_processing.ai_config import AiConfig
+from autograder.core.config_processing.ai_config import AiConfig
 import os
 
 
@@ -87,7 +87,7 @@ class AIReporter(BaseReporter):
         Reads files listed in the config from the submission directory
         and formats them into a single string for the AI prompt.
         """
-        base_path = os.getenv("GITHUB_WORKSPACE", ".")
+        base_path = os.getenv("GITHUB_WORKSPACE", "")
         submission_dir = os.path.join(base_path, 'submission')
         formatted_files_content = []
         for filename in self.config.files:
