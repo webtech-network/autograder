@@ -5,13 +5,13 @@ class TestConfig:
         self.ctype = ctype # ctype can be 'base', 'bonus', or 'penalty'
         self.weight = 0 # Weight of the test configuration
         self.sub_configs = [] # List of SubTestConfig instances for each subject in the test configuration
-        self.native = None # Indicates if the test configuration is native (e.g., 'base' tests are native)
+        self.native = None # Indicates if the test configuration is native (e.g., 'base' validation are native)
 
     def load(self, config: dict):
         """Load the configuration for the test type from the provided dictionary."""
         try:
             section = config[self.ctype]
-            self.weight = section['weight'] if self.ctype != 'base' else 100 # Base tests have a weight of 100
+            self.weight = section['weight'] if self.ctype != 'base' else 100 # Base validation have a weight of 100
             self.native = section.get('native', False) # Check if the test configuration is native
             if self.load_subjects(section.get('subjects')) is True:
                 self.balance_weights(self.sub_configs)
@@ -91,8 +91,8 @@ class SubTestConfig(TestConfig):
         if section:
             if section.get('weight') is not None:
                 self.quantitative_tests_weight = section['weight']
-                if section.get('tests') is not None:
-                    section = section['tests']
+                if section.get('validation') is not None:
+                    section = section['validation']
                     for test in section:
                         if section[test].get('checks') is not None:
                             checks = section[test]['checks']
@@ -102,7 +102,7 @@ class SubTestConfig(TestConfig):
                         self.quantitative_tests.append(quantitative_test)
 
     def get_quantitative_tests(self):
-        """Get the names of the quantitative tests."""
+        """Get the names of the quantitative validation."""
         return {qtest.ctype:qtest for qtest in self.quantitative_tests}
 
     def balance_weights(self):
@@ -148,8 +148,8 @@ class SubTestConfig(TestConfig):
         display += f"\tInclude: {', '.join(self.include) if self.include else 'None'}\n"
         display += f"\tExclude: {', '.join(self.exclude) if self.exclude else 'None'}\n"
         if self.quantitative_tests:
-            display += f"\tQuantitative tests: \n"
-            display += f"\tQuantitative tests weight: {self.quantitative_tests_weight}\n"
+            display += f"\tQuantitative validation: \n"
+            display += f"\tQuantitative validation weight: {self.quantitative_tests_weight}\n"
             for qtest in self.quantitative_tests:
                 display += f"{qtest}\n"
         return display

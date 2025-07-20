@@ -1,4 +1,4 @@
-from core.config_processing.test_config import TestConfig
+from autograder.core.config_processing.test_config import TestConfig
 class SubTestConfig(TestConfig):
     """This class is used to load and manage configurations for individual subjects in a test configuration."""
     def __init__(self, ctype):
@@ -29,8 +29,8 @@ class SubTestConfig(TestConfig):
         if section:
             if section.get('weight') is not None:
                 self.quantitative_tests_weight = section['weight']
-                if section.get('tests') is not None:
-                    section = section['tests']
+                if section.get('validation') is not None:
+                    section = section['validation']
                     for test in section:
                         if section[test].get('checks') is not None:
                             checks = section[test]['checks']
@@ -40,7 +40,7 @@ class SubTestConfig(TestConfig):
                         self.quantitative_tests.append(quantitative_test)
 
     def get_quantitative_tests(self):
-        """Get the names of the quantitative tests."""
+        """Get the names of the quantitative validation."""
         return {qtest.ctype:qtest for qtest in self.quantitative_tests}
 
     def balance_weights(self):
@@ -86,8 +86,8 @@ class SubTestConfig(TestConfig):
         display += f"\tInclude: {', '.join(self.include) if self.include else 'None'}\n"
         display += f"\tExclude: {', '.join(self.exclude) if self.exclude else 'None'}\n"
         if self.quantitative_tests:
-            display += f"\tQuantitative tests: \n"
-            display += f"\tQuantitative tests weight: {self.quantitative_tests_weight}\n"
+            display += f"\tQuantitative validation: \n"
+            display += f"\tQuantitative validation weight: {self.quantitative_tests_weight}\n"
             for qtest in self.quantitative_tests:
                 display += f"{qtest}\n"
         return display
