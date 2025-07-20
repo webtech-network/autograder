@@ -1,11 +1,11 @@
 
-from core.grading.grader import Grader
-from utils.path import Path
-from core.config_processing.config import Config
+from autograder.core.grading.grader import Grader
+from autograder.utils.path import Path
+from autograder.core.config_processing.config import Config
 from time import sleep
-from core.result import Result
-from core.redis.upstash_driver import Driver
-from core.report.reporter import Reporter
+from autograder.core.grading.models.result import Result
+from autograder.core.redis.upstash_driver import Driver
+from autograder.core.report.reporter import Reporter
 import os
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
@@ -66,8 +66,8 @@ class Scorer:
     def get_reporter(self,token, openai_key = None ,mode="default"):
         """Creates a Reporter instance with the students results"""
         result = self.generate_result()
-        print("Failed tests in base:", result.base_results["failed"])
-        print("Failed tests in bonus:", result.bonus_results["failed"])
+        print("Failed validation in base:", result.base_results["failed"])
+        print("Failed validation in bonus:", result.bonus_results["failed"])
         print("Penalties detected:", result.penalty_results["passed"])
         if mode == "ai":
             allowed = self.driver.decrement_token_quota(self.author)
@@ -101,5 +101,5 @@ class Scorer:
     @classmethod
     def quick_build(cls, author,redis_url=None, redis_token=None):
         """Quickly build a Scorer instance with default test files and author."""
-        scorer = Scorer.create_with_scores("tests", author,"criteria.json", "test_base.py", "test_bonus.py", "test_penalty.py",redis_token, redis_url)
+        scorer = Scorer.create_with_scores("validation", author,"criteria.json", "test_base.py", "test_bonus.py", "test_penalty.py",redis_token, redis_url)
         return scorer
