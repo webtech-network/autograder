@@ -1,35 +1,18 @@
 
-from autograder.core.grading.grader import Grader
-from autograder.utils.path import Path
-from autograder.core.config_processing.config import Config
-from time import sleep
 from autograder.core.grading.models.result import Result
-from autograder.core.redis.upstash_driver import Driver
-from autograder.core.report.reporter import Reporter
+from autograder.core.report.reporter_factory import Reporter
 import os
 class Scorer:
     """This class is used to manage the grading process for the three test suites: base, bonus, and penalty."""
-    def __init__(self,test_folder,author,driver):
-        self.path = Path(__file__,test_folder) # Path to the test folder
+    def __init__(self,author,config,base_grader,bonus_grader,penalty_grader,driver=None):
         self.author = author # Author of the code being graded
-        self.config = None # Config instance containing the configurations for all the test files
-        self.base_grader = None # Grader instance for the base test file
-        self.bonus_grader = None # Grader instance for the bonus test file
-        self.penalty_grader = None # Grader instance for the penalty test file
+        self.config = config # Config instance containing the configurations for all the test files
+        self.base_grader = base_grader # Grader instance for the base test file
+        self.bonus_grader = bonus_grader # Grader instance for the bonus test file
+        self.penalty_grader = penalty_grader # Grader instance for the penalty test file
         self.driver = driver
 
 
-    def set_base_score(self,filename):
-        """Set the base score by creating a Grader instance for the base test file."""
-        self.base_grader = Grader.create(f"{filename}",self.config.base_config)
-
-    def set_bonus_score(self,filename):
-        """Set the bonus score by creating a Grader instance for the bonus test file."""
-        self.bonus_grader = Grader.create(f"{filename}",self.config.bonus_config)
-
-    def set_penalty_score(self,filename):
-        """Set the penalty score by creating a Grader instance for the penalty test file."""
-        self.penalty_grader = Grader.create(f"{filename}",self.config.penalty_config)
 
     def get_final_score(self):
         """Calculate the final score by combining the scores from base, bonus, and penalty test files."""
@@ -81,25 +64,16 @@ class Scorer:
         file_path = os.path.join(workspace, "submission", "server.js")
         with open(file_path, "r", encoding="utf-8") as student_file:
             return student_file.read()
-    @classmethod
-    def create_with_scores(cls,test_folder,author, config_file ,base_file,bonus_file,penalty_file,redis_token,redis_url):
-        """Create a Scorer instance with the specified test files and author."""
-        driver = Driver.create(redis_token,redis_url)
-        scorer = cls(test_folder,author,driver)
-
-        if not scorer.driver.token_exists(scorer.author):
-            scorer.driver.create_token(scorer.author,10)
-
-        scorer.config = Config.create_config(config_file) # Load the configuration from the specified file
-        scorer.set_base_score(base_file)
-        scorer.set_bonus_score(bonus_file)
-        scorer.set_penalty_score(penalty_file)
-        #scorer.set_final_score()
-        sleep(2)
-        return scorer
 
     @classmethod
-    def quick_build(cls, author,redis_url=None, redis_token=None):
+    def build(cls, author,config,base_grader,bonus_grader,penalty_grader):
         """Quickly build a Scorer instance with default test files and author."""
-        scorer = Scorer.create_with_scores("validation", author,"criteria.json", "test_base.py", "test_bonus.py", "test_penalty.py",redis_token, redis_url)
-        return scorer
+        if base_grader and bonus_grader and penalty_grader:
+            return cls(author,config,base_grader,bonus_grader,penalty_grader)
+        else:
+            raise ValueError("Grader instances for base, bonus, and penalty must be provided.")
+
+    @staticmethod
+    def build_and_grade(author,config,base_grader,bonus_grader,penalty_grader):
+        scorer = Scorer.build(author,config,base_grader,bonus_grader,penalty_grader)
+        return scorer.get_final_score()
