@@ -1,4 +1,4 @@
-from core.final_scorer import Scorer
+from autograder.core.grading.scorer import Scorer
 import argparse
 import os
 
