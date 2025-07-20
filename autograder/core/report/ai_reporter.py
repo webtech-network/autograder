@@ -1,3 +1,5 @@
+
+
 from autograder.core.report.base_reporter import BaseReporter
 from openai import OpenAI
 from autograder.core.config_processing.ai_config import AiConfig
@@ -6,8 +8,8 @@ import os
 
 
 class AIReporter(BaseReporter):
-    def __init__(self, result, token, quota, openai_key=None,config=None):
-        super().__init__(result, token)
+    def __init__(self, result, quota, openai_key=None,config=None):
+        super().__init__(result)
         self.client = OpenAI(api_key=openai_key)
         self.quota = quota
         self.config = config if config else AiConfig.parse_config()
@@ -139,8 +141,7 @@ class AIReporter(BaseReporter):
         return feedback
 
     @classmethod
-    def create(cls, result, token, quota, openai_key=None):
+    def create(cls, result, openai_key, quota):
         """Factory method to create an AIReporter instance."""
-        response = cls(result, token, quota, openai_key)
-        response.get_repository()
+        response = cls(result,openai_key,quota)
         return response
