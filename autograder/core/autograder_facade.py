@@ -12,7 +12,15 @@ class Autograder:
     This class will be used by the Adapters to perform the grading process and achieve the final score + feedback.
     """
     @staticmethod
-    def grade(test_framework = "pytest",student_name = None,student_credentials=None, feedback_type="default",openai_key=None,redis_url=None,redis_token=None):
+    def grade(
+            test_framework = "pytest",
+            student_name = None,
+            student_credentials=None,
+            feedback_type="default",
+            openai_key=None,
+            redis_url=None,
+            redis_token=None
+                            ):
         TestEngine.run_tests(test_framework)
         assignment_config = Config.create_config("autograder/request_bucket/criteria.json") #TODO: add error handling for file not found
         base_grader = Grader.create(assignment_config.base_config)
