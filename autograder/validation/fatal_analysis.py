@@ -2,7 +2,7 @@ import os
 import json
 import sys
 import time
-from core.report.default_reporter import DefaultReporter
+from autograder.core.report.default_reporter import DefaultReporter
 import argparse
 parser = argparse.ArgumentParser(description="Process token argument.")
 parser.add_argument("--token", type=str, required=True, help="GitHub token")
