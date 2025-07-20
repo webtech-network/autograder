@@ -94,13 +94,13 @@ echo "Running fatal analysis..."
 cd /app
 python fatal_analysis.py --token $1
 
-# --- Running tests from action repository --- #
+# --- Running validation from action repository --- #
 
 cd /app
 
 #Treat errors
 echo "Running tests..."
-npm test -- --json --outputFile=./tests/test-results.json || true
+npm test -- --json --outputFile=./validation/test-results.json || true
 
 echo "Parsing results..."
 TEST_OUTPUT_FILE="test-results.json"
@@ -111,7 +111,7 @@ if [ ! -f "./tests/$TEST_OUTPUT_FILE" ]; then
     exit 1
 fi
 
-python tests/result_parser.py
+python validation/result_parser.py
 
 # --- Run the autograder ---
 echo "$1"
