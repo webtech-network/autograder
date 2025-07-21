@@ -78,3 +78,7 @@ def get_presets():
 
 # To run this API service:
 # uvicorn submission_api:app --host 0.0.0.0 --port 8000 --reload
+
+if __name__ == "__main__":
+    # Run the API service with Uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
