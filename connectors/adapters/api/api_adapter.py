@@ -21,3 +21,19 @@ class ApiAdapter(Port):
         }
 
         return response
+
+    @classmethod
+    def create(cls,test_framework,grading_preset,student_name,student_credentials,feedback_type,openai_key=None,redis_url=None,redis_token=None):
+        """
+        Factory method to create an instance of ApiAdapter.
+        """
+        return cls(
+            test_framework=test_framework,
+            student_name=student_name,
+            grading_preset=grading_preset,
+            feedback_type=feedback_type,
+            student_credentials=student_credentials,
+            openai_key=openai_key,
+            redis_url=redis_url,
+            redis_token=redis_token
+        )
