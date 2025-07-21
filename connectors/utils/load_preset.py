@@ -6,8 +6,8 @@ def import_preset(preset, custom_criteria=False, custom_feedback=False):
     """
     Responsible for importing grading presets to the autograder core.
     Checks the preset name and imports the corresponding configuration files from the presets package.
+    Cleans the /validation (except __init__.py) and /request_bucket folders before importing.
     """
-    # Get the project root directory
     if preset == "custom":
         return
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -15,14 +15,26 @@ def import_preset(preset, custom_criteria=False, custom_feedback=False):
     request_bucket = os.path.join(project_root, 'autograder', 'core', 'request_bucket')
     validation_dir = os.path.join(project_root, 'autograder', 'core', 'validation')
 
-    if not os.path.isdir(preset_dir):
-        raise ValueError(f"Preset directory not found: {preset_dir}")
+        if not os.path.isdir(preset_dir):
+            raise ValueError(f"Preset directory not found: {preset_dir}")
 
-    os.makedirs(request_bucket, exist_ok=True)
-    os.makedirs(validation_dir, exist_ok=True)
+        os.makedirs(request_bucket, exist_ok=True)
+        os.makedirs(validation_dir, exist_ok=True)
 
-    # Handle specific presets
-    if preset in ["html-css-js", "etapa-2"]:
+        # Clean request_bucket
+        for file in os.listdir(request_bucket):
+            file_path = os.path.join(request_bucket, file)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+        # Clean validation_dir except __init__.py
+        for file in os.listdir(validation_dir):
+            file_path = os.path.join(validation_dir, file)
+            if os.path.isfile(file_path) and file != '__init__.py':
+                os.remove(file_path)
+
+        # Handle specific presets
+
         # Copy .json files to /core/request_bucket
         for file in os.listdir(preset_dir):
             if file.endswith('.json'):
@@ -39,3 +51,8 @@ def import_preset(preset, custom_criteria=False, custom_feedback=False):
                 shutil.copy2(src, dst)
     else:
         raise ValueError(f"Unknown preset: {preset}. Please provide a valid preset name.")
+
+
+
+if __name__ == "__main__":
+    import_preset("etapa-1")
