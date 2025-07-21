@@ -10,10 +10,11 @@ def import_preset(preset, custom_criteria=False, custom_feedback=False):
     """
     if preset == "custom":
         return
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-    preset_dir = os.path.join(project_root, 'presets', preset)
-    request_bucket = os.path.join(project_root, 'autograder', 'core', 'request_bucket')
-    validation_dir = os.path.join(project_root, 'autograder', 'core', 'validation')
+    if preset in ["html-css-js", "etapa-2"]:
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        preset_dir = os.path.join(project_root, 'presets', preset)
+        request_bucket = os.path.join(project_root, 'autograder', '', 'request_bucket')
+        validation_dir = os.path.join(project_root, 'autograder', 'core', 'validation')
 
         if not os.path.isdir(preset_dir):
             raise ValueError(f"Preset directory not found: {preset_dir}")
