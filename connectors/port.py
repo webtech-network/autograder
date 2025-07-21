@@ -3,6 +3,10 @@ from autograder.core.autograder_facade import Autograder
 
 import os
 import shutil
+
+from autograder.core.models.autograder_response import AutograderResponse
+
+
 class Port(ABC):
 
     """
@@ -41,7 +45,6 @@ class Port(ABC):
     def send_submission_files(self):
         self.get_submission_files()
         pass
-
     def run_autograder(self):
         try:
             response = Autograder.grade(
