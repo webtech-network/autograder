@@ -1,15 +1,19 @@
 from abc import ABC, abstractmethod
 from autograder.core.autograder_facade import Autograder
+
+import os
+import shutil
 class Port(ABC):
+
     """
     Abstract Port class that defines the accepted interface for the core system communication.
     """
-    def __init__(self,test_framework,student_name,student_credentials,feedback_type,openai_key=None,redis_url=None,redis_token=None):
+    def __init__(self,test_framework,grading_preset,student_name,student_credentials,feedback_type,openai_key=None,redis_url=None,redis_token=None):
         self.test_framework = test_framework
+        self.grading_preset = grading_preset
         self.student_name = student_name
         self.student_credentials = student_credentials
         self.feedback_type = feedback_type
-        self.openai_key = openai_key
         self.redis_url = redis_url
         self.redis_token = redis_token
         self.autograder_response = None
@@ -52,19 +56,6 @@ class Port(ABC):
         except Exception as e:
             raise Exception(f"Error running autograder: {e}") from e
 
-    def import_preset(self, preset, criteria_json=None,feedback_json=None):
-        """
-        Responsible for importing grading presets to the autograder core.
-        Checks the preset name and imports the corresponding configuration files from the presets package.
-        """
-        if preset == "rest-api":
-            #Copy the files from this preset to the autograder system
-            pass
-        elif preset == "etapa-2":
-            #copy the files from this preset to the autograder system
-            pass
-        else:
-            raise ValueError(f"Unknown preset: {preset}. Please provide a valid preset name.")
 
     @abstractmethod
     def export_results(self):
@@ -74,3 +65,5 @@ class Port(ABC):
         """
         pass
 
+if __name__ == "__main__":
+    Port.import_preset("html-css-js")
