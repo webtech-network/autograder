@@ -14,6 +14,7 @@ class Port(ABC):
         self.student_name = student_name
         self.student_credentials = student_credentials
         self.feedback_type = feedback_type
+        self.openai_key = openai_key
         self.redis_url = redis_url
         self.redis_token = redis_token
         self.autograder_response = None
@@ -53,6 +54,7 @@ class Port(ABC):
                 redis_token=self.redis_token
             )
             self.autograder_response = response
+            return self
         except Exception as e:
             raise Exception(f"Error running autograder: {e}") from e
 
