@@ -43,7 +43,7 @@ async def grade_submission_endpoint(
     #logger.info(f"API Request received for student: {student_id}, assignment: {assignment_id}")
     try:
         # Call the adapter's workflow method
-        result = await ApiAdapter.create(
+        result = ApiAdapter.create(
             test_framework=test_framework,
             grading_preset=grading_preset,
             student_name=student_name,
