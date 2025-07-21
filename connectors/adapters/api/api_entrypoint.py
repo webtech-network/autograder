@@ -35,6 +35,7 @@ async def grade_submission_endpoint(
     openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
     redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
     redis_token: Optional[str] = Form(None, description="Redis token for AI feedback"),
+    #TODO: Add file upload handling
 ):
     """
     Receives a student's assignment submission and triggers the autograding process.
