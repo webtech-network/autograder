@@ -27,16 +27,14 @@ def get_api_adapter() -> ApiAdapter:
 
 @app.post("/grade_submission/")
 async def grade_submission_endpoint(
-    student_id: str = Form(..., description="Unique identifier for the student."),
-    assignment_id: str = Form(..., description="Unique identifier for the assignment."),
-    test_runner_type: str = Form(..., description="Type of test runner (e.g., 'jest-custom-tests', 'pytest-native')."),
-    # Student submission files (e.g., server.js, package.json, student_code.py)
-    submission_files: List[UploadFile] = File(..., description="Student's submission files."),
-    # Configuration files (criteria.json, ai-feedback.json, feedback.json)
-    config_files: List[UploadFile] = File(..., description="Autograder configuration files (criteria.json, ai-feedback.json, feedback.json)."),
-    # Optional user-provided test files (e.g., base.test.js, test_my_feature.py)
-    user_test_files: Optional[List[UploadFile]] = File(None, description="Optional custom test files provided by the user."),
-    api_adapter: ApiAdapter = Depends(get_api_adapter) # Inject the adapter
+    test_framework: str = Form(..., description="The test framework to use (e.g., pytest)"),
+    grading_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.)"),
+    student_name: str = Form(..., description="The name of the student"),
+    student_credentials: str = Form(..., description="The credentials of the student (e.g., GitHub token)"),
+    feedback_type: str = Form("default", description="The type of feedback to provide (default or ai)"),
+    openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
+    redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
+    redis_token: Optional[str] = Form(None, description="Redis token for AI feedback"),
 ):
     """
     Receives a student's assignment submission and triggers the autograding process.
@@ -45,14 +43,16 @@ async def grade_submission_endpoint(
     #logger.info(f"API Request received for student: {student_id}, assignment: {assignment_id}")
     try:
         # Call the adapter's workflow method
-        result = await api_adapter.run_autograding_workflow(
-            student_id=student_id,
-            assignment_id=assignment_id,
-            test_runner_type=test_runner_type,
-            submission_files=submission_files,
-            config_files=config_files,
-            user_test_files=user_test_files
-        )
+        result = await ApiAdapter.create(
+            test_framework=test_framework,
+            grading_preset=grading_preset,
+            student_name=student_name,
+            student_credentials=student_credentials,
+            feedback_type=feedback_type,
+            openai_key=openai_key,
+            redis_url=redis_url,
+            redis_token=redis_token
+        ).run_autograder().export_results()
         return result
     except Exception as e:
         #logger.error(f"API endpoint error for {student_id}: {e}", exc_info=True)
