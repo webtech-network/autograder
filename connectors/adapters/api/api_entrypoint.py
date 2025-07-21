@@ -59,5 +59,22 @@ async def grade_submission_endpoint(
         #logger.error(f"API endpoint error for {student_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
+@app.get("/presets")
+def get_presets():
+    """
+    Returns a list of available grading presets.
+    This could be extended to return more detailed information about each preset.
+    """
+    # For now, we return a static list of presets.
+    # In a real application, this could query a database or configuration file.
+    presets = [
+        "html-css-js",
+        "python",
+        "java",
+        "c++",
+        "javascript"
+    ]
+    return {"presets": presets}
+
 # To run this API service:
 # uvicorn submission_api:app --host 0.0.0.0 --port 8000 --reload
