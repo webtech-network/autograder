@@ -1,3 +1,4 @@
+from autograder.core.models.autograder_response import AutograderResponse
 from connectors.port import Port
 
 
@@ -22,6 +23,21 @@ class ApiAdapter(Port):
 
         return response
 
+    def run_autograder(self):
+        """
+        Runs the autograder workflow.
+        This method should be implemented by the concrete Port classes.
+        """
+        # Here we would typically call the Autograder core logic
+        # For now, we simulate a successful grading response
+        self.autograder_response = AutograderResponse(100, "Your submission is perfect!")
+        return self
+
+    def get_configuration_files(self):
+        print("Getting configuration files for the API adapter.")
+
+    def get_submission_files(self):
+        print("Getting submission files for the API adapter.")
     @classmethod
     def create(cls,test_framework,grading_preset,student_name,student_credentials,feedback_type,openai_key=None,redis_url=None,redis_token=None):
         """
