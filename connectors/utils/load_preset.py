@@ -36,16 +36,31 @@ def import_preset(preset, custom_criteria=False, custom_feedback=False):
 
         # Handle specific presets
 
-        # Copy .json files to /core/request_bucket
+        # Copy .json files to /request_bucket
         for file in os.listdir(preset_dir):
             if file.endswith('.json'):
                 src = os.path.join(preset_dir, file)
                 dst = os.path.join(request_bucket, file)
                 shutil.copy2(src, dst)
 
-        # Copy test files from /tests to /core/validation
+        #Copy all other files to /validation
+        for file in os.listdir(preset_dir):
+            if not file.endswith('.json') and file != 'tests' and file !='__init__.py':
+                src = os.path.join(preset_dir, file)
+                dst = os.path.join(validation_dir, file)
+                shutil.copy2(src, dst)
+        # Copy test files from /tests to /validation/tests
         tests_dir = os.path.join(preset_dir, 'tests')
+        tests_dst_dir = os.path.join(validation_dir, 'tests')
         if os.path.isdir(tests_dir):
+            # Clean the destination directory first
+            if os.path.isdir(tests_dst_dir):
+                for file in os.listdir(tests_dst_dir):
+                    file_path = os.path.join(tests_dst_dir, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+            else:
+                os.makedirs(tests_dst_dir, exist_ok=True)
             for file in os.listdir(tests_dir):
                 src = os.path.join(tests_dir, file)
                 dst = os.path.join(tests_dst_dir, file)
@@ -56,4 +71,4 @@ def import_preset(preset, custom_criteria=False, custom_feedback=False):
 
 
 if __name__ == "__main__":
-    import_preset("etapa-2")
+    import_preset("html-css-js")
