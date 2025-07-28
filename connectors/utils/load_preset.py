@@ -14,7 +14,7 @@ def import_preset(preset, custom_criteria=False, custom_feedback=False):
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         preset_dir = os.path.join(project_root, 'presets', preset)
         request_bucket = os.path.join(project_root, 'autograder', '', 'request_bucket')
-        validation_dir = os.path.join(project_root, 'autograder', 'core', 'validation')
+        validation_dir = os.path.join(project_root, 'autograder', 'validation')
 
         if not os.path.isdir(preset_dir):
             raise ValueError(f"Preset directory not found: {preset_dir}")
@@ -48,7 +48,7 @@ def import_preset(preset, custom_criteria=False, custom_feedback=False):
         if os.path.isdir(tests_dir):
             for file in os.listdir(tests_dir):
                 src = os.path.join(tests_dir, file)
-                dst = os.path.join(validation_dir, file)
+                dst = os.path.join(tests_dst_dir, file)
                 shutil.copy2(src, dst)
     else:
         raise ValueError(f"Unknown preset: {preset}. Please provide a valid preset name.")
