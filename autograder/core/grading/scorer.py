@@ -44,7 +44,7 @@ class Scorer:
                       "failed": self.bonus_grader.failed_tests}  # Format the bonus test results
         penalty_dict = {"passed": self.penalty_grader.passed_tests,
                         "failed": self.penalty_grader.failed_tests}  # Format the penalty test results
-        return Result(final_score,self.author,self.get_student_files(),base_dict, bonus_dict, penalty_dict)
+        return Result(final_score,self.author,None,base_dict, bonus_dict, penalty_dict)
 
     def get_reporter(self,token, openai_key = None ,mode="default"):
         """Creates a Reporter instance with the students results"""
@@ -58,12 +58,6 @@ class Scorer:
                 return Reporter.create_ai_reporter(result,token,self.driver.get_token_quota(self.author),openai_key)
         return Reporter.create_default_reporter(result,token)
 
-    def get_student_files(self):
-        """Get the student files."""
-        workspace = os.getenv("GITHUB_WORKSPACE", "")
-        file_path = os.path.join(workspace, "submission", "server.js")
-        with open(file_path, "r", encoding="utf-8") as student_file:
-            return student_file.read()
 
     @classmethod
     def build(cls, author,config,base_grader,bonus_grader,penalty_grader):
@@ -76,4 +70,4 @@ class Scorer:
     @staticmethod
     def build_and_grade(author,config,base_grader,bonus_grader,penalty_grader):
         scorer = Scorer.build(author,config,base_grader,bonus_grader,penalty_grader)
-        return scorer.get_final_score()
+        return scorer.generate_result()
