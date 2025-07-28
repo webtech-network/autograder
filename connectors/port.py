@@ -1,10 +1,5 @@
 from abc import ABC, abstractmethod
-from autograder.core.autograder_facade import Autograder
-
-import os
-import shutil
-
-from autograder.core.models.autograder_response import AutograderResponse
+from autograder.autograder_facade import Autograder
 
 
 class Port(ABC):
