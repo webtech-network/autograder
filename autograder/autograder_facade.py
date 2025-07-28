@@ -46,3 +46,14 @@ class Autograder:
         feedback = reporter.generate_feedback()
         return AutograderResponse(result.final_score, feedback)
 
+
+if __name__ == "__main__":
+    """
+    This is the entry point for the Autograder. 
+    It is used for testing purposes and can be run directly to see the grading process in action.
+    """
+    response = Autograder.grade(test_framework="pytest", student_name="John Doe", feedback_type="default")
+    print(f"Final Score: {response.final_score}")
+    print("Feedback:")
+    print(response.feedback)
+
