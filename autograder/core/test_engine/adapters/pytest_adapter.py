@@ -75,7 +75,7 @@ class PytestAdapter(EnginePort):
         report_paths = []
 
         for test_file_name in self.TEST_FILES:
-            test_file_path = os.path.join(self.VALIDATION_DIR, test_file_name)
+            test_file_path = os.path.join(self.VALIDATION_DIR, f"tests/{test_file_name}")
 
             if not os.path.exists(test_file_path):
                 raise FileNotFoundError(
@@ -88,14 +88,27 @@ class PytestAdapter(EnginePort):
             print(f"Running pytest for {test_file_name}...")
             try:
                 # Run pytest and generate JSON report
-                # Using --json-report and specifying output file
+                # Removed check=True so that failing tests do not raise a CalledProcessError.
+                # Pytest will still exit with a non-zero code for failures, but subprocess.run
+                # will not raise an exception, allowing the report to be generated.
                 command = [
                     "pytest",
                     test_file_path,
                     "--json-report",
                     f"--json-report-file={json_report_path}"
                 ]
-                subprocess.run(command, check=True, capture_output=True, text=True)
+                result = subprocess.run(command, capture_output=True, text=True)
+
+                # Check if the report file was actually created.
+                # If pytest failed to generate the report (e.g., syntax error in test file),
+                # then we should still raise an error.
+                if not os.path.exists(json_report_path) or os.path.getsize(json_report_path) == 0:
+                    print(f"Error: Pytest failed to generate a report for {test_file_name}.")
+                    print(f"STDOUT: {result.stdout}")
+                    print(f"STDERR: {result.stderr}")
+                    raise RuntimeError(
+                        f"Pytest execution failed for {test_file_name} and no report was generated. See logs above.")
+
                 print(f"Successfully ran {test_file_name}. Report saved to {json_report_path}")
                 report_paths.append(json_report_path)
             except subprocess.CalledProcessError as e:
@@ -165,7 +178,7 @@ class PytestAdapter(EnginePort):
                             "test": test_name,
                             "status": status,
                             "message": message,
-                            "subject": test_type  # Use 'base', 'bonus', or 'penalty' as the subject
+                            "subject": test_type #TODO -> Add correct subject according to criteria.json
                         }
 
                         # Append to the correct category
@@ -209,3 +222,14 @@ class PytestAdapter(EnginePort):
 
         return normalized_results
 
+
+if __name__ == "__main__":
+    # Example usage of the PytestAdapter
+    adapter = PytestAdapter()
+    try:
+        print(adapter.VALIDATION_DIR)
+        report_files = adapter.run_tests()
+        normalized_results = adapter.normalize_output(report_files)
+        print("Normalized Results:", json.dumps(normalized_results, indent=2))
+    except Exception as e:
+        print(f"An error occurred: {e}")
