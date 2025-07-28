@@ -22,8 +22,8 @@ class TestEngine:
             runner = JestAdapter()
         else:
             raise ValueError(f"Unsupported test framework: {test_framework}")
-        runner.run_tests()
-        runner.normalize_output()
+        report_files = runner.run_tests()
+        runner.normalize_output(report_files)
 
 
 
