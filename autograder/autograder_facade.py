@@ -22,7 +22,7 @@ class Autograder:
             redis_token=None
                             ):
         TestEngine.run_tests(test_framework)
-        assignment_config = Config.create_config("autograder/request_bucket/criteria.json") #TODO: add error handling for file not found
+        assignment_config = Config.create_config("/request_bucket/criteria.json") #TODO: add error handling for file not found
         base_grader = Grader.create(assignment_config.base_config)
         bonus_grader = Grader.create(assignment_config.bonus_config)
         penalty_grader = Grader.create(assignment_config.penalty_config)
