@@ -111,11 +111,6 @@ class PytestAdapter(EnginePort):
 
                 print(f"Successfully ran {test_file_name}. Report saved to {json_report_path}")
                 report_paths.append(json_report_path)
-            except subprocess.CalledProcessError as e:
-                print(f"Error running pytest for {test_file_name}:")
-                print(f"STDOUT: {e.stdout}")
-                print(f"STDERR: {e.stderr}")
-                raise RuntimeError(f"Pytest execution failed for {test_file_name}. See logs above.") from e
             except Exception as e:
                 print(f"An unexpected error occurred while running pytest for {test_file_name}: {e}")
                 raise
