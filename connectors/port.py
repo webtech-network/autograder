@@ -40,12 +40,9 @@ class Port(ABC):
     def send_configuration_files(self):
         self.get_configuration_files()
         pass
-    def send_submission_files(self):
-        self.get_submission_files()
-        pass
-    def run_autograder(self):
+    async def run_autograder(self):
         try:
-            response = Autograder.grade(
+            response = await Autograder.start_grader().grade(
                 test_framework=self.test_framework,
                 student_name=self.student_name,
                 student_credentials=self.student_credentials,
@@ -67,6 +64,3 @@ class Port(ABC):
         This method should be implemented by the concrete Port classes.
         """
         pass
-
-if __name__ == "__main__":
-    Port.import_preset("html-css-js")
