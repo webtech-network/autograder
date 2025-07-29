@@ -2,6 +2,7 @@
 import os
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import uvicorn
 
@@ -13,6 +14,22 @@ app = FastAPI(
     description="API for submitting student assignments for automated grading.",
     version="1.0.0"
 )
+
+# 2. DEFINE THE ALLOWED ORIGINS
+# These are the URLs where your frontend is running.
+# For local development, this often includes localhost on various ports
+# or the file protocol if you open the HTML directly in the browser.
+origins = ["*"]
+
+# ADD THE MIDDLEWARE TO YOUR APP
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Dependency to provide the ApiAdapter instance
 # This allows injecting configuration (like Redis/OpenAI keys)
