@@ -44,24 +44,19 @@ def get_api_adapter() -> ApiAdapter:
 
 @app.post("/grade_submission/")
 async def grade_submission_endpoint(
-    test_framework: str = Form(..., description="The test framework to use (e.g., pytest)"),
-    grading_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.)"),
-    student_name: str = Form(..., description="The name of the student"),
-    student_credentials: str = Form(..., description="The credentials of the student (e.g., GitHub token)"),
-    feedback_type: str = Form("default", description="The type of feedback to provide (default or ai)"),
-    openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
-    redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
-    redis_token: Optional[str] = Form(None, description="Redis token for AI feedback"),
-    #TODO: Add file upload handling
+        files: List[UploadFile] = File(..., description="The student's source code files (HTML, CSS, JS)"),
+        test_framework: str = Form(..., description="The test framework to use (e.g., pytest)"),
+        grading_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.)"),
+        student_name: str = Form(..., description="The name of the student"),
+        student_credentials: str = Form(..., description="The credentials of the student (e.g., GitHub token)"),
+        feedback_type: str = Form("default", description="The type of feedback to provide (default or ai)"),
+        openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
+        redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
+        redis_token: Optional[str] = Form(None, description="Redis token for AI feedback"),
 ):
-    """
-    Receives a student's assignment submission and triggers the autograding process.
-    Files are uploaded via multipart/form-data.
-    """
-    #logger.info(f"API Request received for student: {student_id}, assignment: {assignment_id}")
     try:
-        # Call the adapter's workflow method
-        result = ApiAdapter.create(
+        # 1. Create the adapter instance (synchronous)
+        adapter = ApiAdapter.create(
             test_framework=test_framework,
             grading_preset=grading_preset,
             student_name=student_name,
@@ -70,12 +65,21 @@ async def grade_submission_endpoint(
             openai_key=openai_key,
             redis_url=redis_url,
             redis_token=redis_token
-        ).run_autograder().export_results()
-        return result
-    except Exception as e:
-        #logger.error(f"API endpoint error for {student_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        )
 
+        # 2. Save the submission files (asynchronous)
+        await adapter.export_submission_files(submission_files=files)
+
+        # 3. Run the autograder and await its completion (asynchronous)
+        await adapter.run_autograder()
+
+        # 4. Get the results from the adapter (synchronous)
+        result = adapter.export_results()
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 @app.get("/presets")
 def get_presets():
     """
