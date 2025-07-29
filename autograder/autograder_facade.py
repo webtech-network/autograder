@@ -14,6 +14,13 @@ class Autograder:
     Autograder class that serves as a facade for the entire autograder system.
     This class will be used by the Adapters to perform the grading process and achieve the final score + feedback.
     """
+    @staticmethod
+    def start_grader():
+        """
+        This method is used to clean all the previous configurations and start a new grading session.
+        :return:
+        """
+        return Autograder()
 
     @staticmethod
     async def grade(
