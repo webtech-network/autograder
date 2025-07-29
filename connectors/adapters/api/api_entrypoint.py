@@ -42,6 +42,9 @@ def get_api_adapter() -> ApiAdapter:
     openai_key = os.getenv("OPENAI_API_KEY", "dummy_openai_key")
     #return ApiAdapter(redis_name=redis_name, redis_url=redis_url, openai_key=openai_key)
 
+
+# src/interfaces/api/submission_api.py
+
 @app.post("/grade_submission/")
 async def grade_submission_endpoint(
         files: List[UploadFile] = File(..., description="The student's source code files (HTML, CSS, JS)"),
@@ -91,8 +94,6 @@ def get_presets():
     presets = [
         "html-css-js",
         "python",
-        "java",
-        "c++",
         "javascript"
     ]
     return {"presets": presets}
