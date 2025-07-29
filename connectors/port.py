@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from typing import List
+from fastapi import UploadFile
 from autograder.autograder_facade import Autograder
 
 
@@ -19,12 +21,13 @@ class Port(ABC):
         self.autograder_response = None
 
     @abstractmethod
-    def get_submission_files(self):
+    def export_submission_files(self,submission_files:List[UploadFile]):
         """
-        Abstract method to get the submission files from the student.
+        Abstract method to export the submission files for the autograder.
         This method should be implemented by the concrete Port classes.
         """
         pass
+
 
     @abstractmethod
     def get_configuration_files(self):
