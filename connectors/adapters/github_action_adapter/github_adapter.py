@@ -1,9 +1,6 @@
 import json
 import os
 import shutil
-from typing import List
-
-from fastapi import UploadFile
 
 from connectors.port import Port
 from github import Github
