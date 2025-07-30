@@ -32,19 +32,18 @@ class Autograder:
             except Exception as e:
                 print(f'Error: Failed to delete directory {directory_path}. Reason: {e}')
 
-        # Recreate the directory.
-        '''
+        # This part was commented out in the user's code, but it's essential
+        # for recreating the directory structure after cleaning.
         try:
             os.makedirs(directory_path, exist_ok=True)
         except Exception as e:
             print(f'Error: Failed to create directory {directory_path}. Reason: {e}')
-            '''
 
     @staticmethod
     def finish_session():
         """
         This method cleans all previous configurations and files to start a new grading session.
-        It cleans the contents of /validation, /validation/results, /request_bucket, and /request_bucket/submission.
+        It cleans the contents of /validation and /request_bucket.
         :return: A new instance of the Autograder.
         """
         print("Finishing session and cleaning up workspace...")
@@ -56,12 +55,11 @@ class Autograder:
         validation_path = os.path.join(current_dir, "validation")
         request_bucket_path = os.path.join(current_dir, "request_bucket")
 
-        # Clean the top-level directories. This will remove all files and subdirectories.
+        # Clean and recreate the top-level directories.
         Autograder._recreate_directory(validation_path)
-        sleep(1)
         Autograder._recreate_directory(request_bucket_path)
-        sleep(1)
-        # Recreate the essential nested directory structure.
+
+        # Recreate the essential nested directory structure inside the now-clean parent directories.
         validation_results_path = os.path.join(validation_path, "results")
         submission_path = os.path.join(request_bucket_path, "submission")
 
@@ -81,48 +79,63 @@ class Autograder:
             redis_url=None,
             redis_token=None
     ):
-        # This will now correctly wait for the async tests to finish
-        await TestEngine.run_tests(test_framework)
-        sleep(2)
+        """
+        Main grading method with robust error handling.
+        It uses a try...finally block to ensure that cleanup (`finish_session`)
+        is always performed, effectively "rolling back" the state on failure.
+        """
+        try:
+            # This will now correctly wait for the async tests to finish
+            await TestEngine.run_tests(test_framework)
+            sleep(2)
 
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(current_dir, "request_bucket", "criteria.json")
-        # Normalize the path to resolve ".." correctly
-        normalized_path = os.path.normpath(config_path)
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            config_path = os.path.join(current_dir, "request_bucket", "criteria.json")
+            # Normalize the path to resolve ".." correctly
+            normalized_path = os.path.normpath(config_path)
 
-        assignment_config = Config.create_config(normalized_path)
+            assignment_config = Config.create_config(normalized_path)
 
-        base_grader = Grader.create(assignment_config.base_config)
-        bonus_grader = Grader.create(assignment_config.bonus_config)
-        penalty_grader = Grader.create(assignment_config.penalty_config)
+            base_grader = Grader.create(assignment_config.base_config)
+            bonus_grader = Grader.create(assignment_config.bonus_config)
+            penalty_grader = Grader.create(assignment_config.penalty_config)
 
-        result = Scorer.build_and_grade(student_name, assignment_config, base_grader, bonus_grader, penalty_grader)
-        print("Final Score: ", result)
+            result = Scorer.build_and_grade(student_name, assignment_config, base_grader, bonus_grader, penalty_grader)
+            print("Final Score: ", result)
 
-        reporter = None
-        if feedback_type == "default":
-            reporter = Reporter.create_default_reporter(result)
+            reporter = None
+            if feedback_type == "default":
+                reporter = Reporter.create_default_reporter(result)
 
-        elif feedback_type == "ai":
-            if not openai_key:
-                raise ValueError("OpenAI key is required for AI feedback.")
-            if not redis_url or not redis_token:
-                raise ValueError("Redis URL and token are required for AI feedback.")
-            driver = Driver.create(redis_token, redis_url)
-            if not driver.token_exists(student_credentials):
-                driver.create_token(student_credentials, 10)
-            allowed = driver.decrement_token_quota(student_credentials)
-            if allowed:
-                quota = driver.get_token_quota(student_credentials)
-                reporter = Reporter.create_ai_reporter(result, openai_key, quota)
-        else:
-            raise ValueError("Invalid feedback type. Choose 'default' or 'ai'.")
+            elif feedback_type == "ai":
+                if not openai_key:
+                    raise ValueError("OpenAI key is required for AI feedback.")
+                if not redis_url or not redis_token:
+                    raise ValueError("Redis URL and token are required for AI feedback.")
+                driver = Driver.create(redis_token, redis_url)
+                if not driver.token_exists(student_credentials):
+                    driver.create_token(student_credentials, 10)
+                allowed = driver.decrement_token_quota(student_credentials)
+                if allowed:
+                    quota = driver.get_token_quota(student_credentials)
+                    reporter = Reporter.create_ai_reporter(result, openai_key, quota)
+            else:
+                raise ValueError("Invalid feedback type. Choose 'default' or 'ai'.")
 
-        feedback = reporter.generate_feedback()
+            feedback = reporter.generate_feedback()
 
-        # Call the cleanup method at the end of the grading process.
-        Autograder.finish_session()
-        return AutograderResponse(result.final_score, feedback)
+            return AutograderResponse(result.final_score, feedback)
+
+        except Exception as e:
+            # Log the error and re-raise it so the caller knows something went wrong.
+            print(f"An error occurred during the grading process: {e}")
+            raise
+
+        finally:
+            # This block will execute regardless of whether the `try` block
+            # completed successfully or raised an exception.
+            print("Executing cleanup protocol...")
+            Autograder.finish_session()
 
 
 if __name__ == "__main__":
@@ -132,15 +145,15 @@ if __name__ == "__main__":
     """
 
 
-    # 1. Define an async function to be the entry point
     async def main():
         print("Starting autograder...")
-        # 2. Use 'await' to properly call the async 'grade' method
-        response = await Autograder.grade(test_framework="pytest", student_name="John Doe", feedback_type="default")
-        print(f"Final Score: {response.final_score}")
-        print("Feedback:")
-        print(response.feedback)
+        try:
+            response = await Autograder.grade(test_framework="pytest", student_name="John Doe", feedback_type="default")
+            print(f"Final Score: {response.final_score}")
+            print("Feedback:")
+            print(response.feedback)
+        except Exception as e:
+            print(f"Autograder run failed. Final state after cleanup. Error: {e}")
 
 
-    # 3. Use asyncio.run() to execute the async main function
     asyncio.run(main())
