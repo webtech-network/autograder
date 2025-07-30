@@ -42,5 +42,4 @@ if __name__ == "__main__":
     adapter.run_autograder()
     print(f"Final Score for {student_name}: {adapter.autograder_response.final_score}")
 
-    adapter.notify_classroom()
-    adapter.commit_feedback()
+    adapter.export_results()
