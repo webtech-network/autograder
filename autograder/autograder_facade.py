@@ -9,13 +9,38 @@ from autograder.core.test_engine.engine import TestEngine
 from autograder.core.utils.upstash_driver import Driver
 from time import sleep
 
+
 class Autograder:
     """
     Autograder class that serves as a facade for the entire autograder system.
     This class will be used by the Adapters to perform the grading process and achieve the final score + feedback.
     """
+
     @staticmethod
-    def start_grader():
+    def _recreate_directory(directory_path: str):
+        """
+        Helper method to completely remove a directory and all its contents,
+        and then recreate it. This ensures a clean state.
+        :param directory_path: The absolute path to the directory to clean.
+        """
+        print(f"Resetting directory: {directory_path}")
+        # If the directory exists, remove it completely.
+        if os.path.isdir(directory_path):
+            try:
+                shutil.rmtree(directory_path)
+            except Exception as e:
+                print(f'Error: Failed to delete directory {directory_path}. Reason: {e}')
+
+        # Recreate the directory.
+        '''
+        try:
+            os.makedirs(directory_path, exist_ok=True)
+        except Exception as e:
+            print(f'Error: Failed to create directory {directory_path}. Reason: {e}')
+            '''
+
+    @staticmethod
+    def finish_session():
         """
         This method is used to clean all the previous configurations and start a new grading session.
         :return:
