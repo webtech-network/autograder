@@ -36,9 +36,11 @@ if __name__ == "__main__":
                                    redis_url=args.redis_url,
                                    redis_token=args.redis_token
                                    )
-    #TODO: Look for a criteria.json or feedback.json file in the presets directory
+
     load_preset(args.grading_preset)
+
     adapter.run_autograder()
     print(f"Final Score for {student_name}: {adapter.autograder_response.final_score}")
+
     adapter.notify_classroom()
     adapter.commit_feedback()
