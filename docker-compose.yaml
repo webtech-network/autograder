@@ -1,0 +1,16 @@
+services:
+  postgres-database:
+    container_name: pg-test-db
+    image: postgres:17
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - test-data:/var/lib/postgresql/data
+
+volumes:
+  test-data:
