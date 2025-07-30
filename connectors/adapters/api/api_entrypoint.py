@@ -4,6 +4,7 @@ import os
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
+from connectors.utils.load_preset import load_preset
 import uvicorn
 
 from api_adapter import ApiAdapter
@@ -70,6 +71,8 @@ async def grade_submission_endpoint(
             redis_token=redis_token
         )
 
+        # Load the grading preset configuration
+        load_preset(grading_preset)
         # 2. Save the submission files (asynchronous)
         await adapter.export_submission_files(submission_files=files)
 
@@ -93,7 +96,7 @@ def get_presets():
     # In a real application, this could query a database or configuration file.
     presets = [
         "html-css-js",
-        "python",
+        "etapa-2",
         "javascript"
     ]
     return {"presets": presets}
