@@ -14,6 +14,8 @@ FEEDBACK_MAPPING = {
     'package_json_has_main_key': '- 🔑 A chave `"main"` está faltando no seu `package.json`. Ela é necessária para indicar ao Node.js qual arquivo executar.\n',
     'package_json_main_is_correct': '- 🎯 O script `"main"` no seu `package.json` está incorreto. Ele deve ser `"server.js"`.\n',
     'package_json_has_express_dependency': '- 🚀 O pacote `express` não foi encontrado nas dependências do seu `package.json`. Ele é essencial para o servidor.\n',
+    'db_container_running': 'Não conseguimos rodar o banco de dados para os testes. Comunique a equipe de desenvolvimento do autograder.',
+    'db_connectivity': 'Não conseguimos conectar ao banco de dados para os testes. Comunique a equipe de desenvolvimento.'
 }
 
 BASE_DIR = os.path.join(os.environ.get('GITHUB_WORKSPACE', ''), 'submission')
@@ -21,6 +23,17 @@ def check_server_status(errors):
     server_status = os.environ.get('SERVER_STATUS', '0')
     if server_status == "1":
         errors.append('server_js_invalid')
+
+def db_container_status(errors):
+    db_container_status = os.environ.get('DATABASE_CONTAINER_STATUS', '0')
+    if db_container_status == "1":
+        errors.append('db_container_running')
+
+def db_status(errors):
+    db_conn_status = os.environ.get('DATABASE_STATUS', '0')
+    if db_conn_status == "1":
+        errors.append('db_connectivity')
+
 def check_server_js_exists(errors):
     path = os.path.join(BASE_DIR, 'server.js')
     if not os.path.isfile(path):
