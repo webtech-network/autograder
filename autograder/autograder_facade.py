@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 from autograder.core.config_processing.config import Config
 from autograder.core.grading.grader import Grader
 from autograder.core.grading.scorer import Scorer
@@ -42,9 +43,32 @@ class Autograder:
     @staticmethod
     def finish_session():
         """
-        This method is used to clean all the previous configurations and start a new grading session.
-        :return:
+        This method cleans all previous configurations and files to start a new grading session.
+        It cleans the contents of /validation, /validation/results, /request_bucket, and /request_bucket/submission.
+        :return: A new instance of the Autograder.
         """
+        print("Finishing session and cleaning up workspace...")
+
+        # Determine the absolute path to the current directory (autograder/)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Define paths for the directories that need to be cleaned.
+        validation_path = os.path.join(current_dir, "validation")
+        request_bucket_path = os.path.join(current_dir, "request_bucket")
+
+        # Clean the top-level directories. This will remove all files and subdirectories.
+        Autograder._recreate_directory(validation_path)
+        sleep(1)
+        Autograder._recreate_directory(request_bucket_path)
+        sleep(1)
+        # Recreate the essential nested directory structure.
+        validation_results_path = os.path.join(validation_path, "results")
+        submission_path = os.path.join(request_bucket_path, "submission")
+
+        os.makedirs(validation_results_path, exist_ok=True)
+        os.makedirs(submission_path, exist_ok=True)
+
+        print("Cleanup complete. Ready for a new session.")
         return Autograder()
 
     @staticmethod
@@ -90,6 +114,8 @@ class Autograder:
             raise ValueError("Invalid feedback type. Choose 'default' or 'ai'.")
 
         feedback = reporter.generate_feedback()
+        # Call the cleanup method at the end of the grading process.
+        Autograder.finish_session()
         return AutograderResponse(result.final_score, feedback)
 
 
