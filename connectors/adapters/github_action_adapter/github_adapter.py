@@ -112,6 +112,10 @@ class GithubAdapter(Port):
             commit_message = f"Criando relatório: {file_path}"
             self.repo.create_file(path=file_path, message=commit_message, content=new_content)
             print("Relatório criado com sucesso.")
+    def export_results(self):
+        self.commit_feedback()
+        self.notify_classroom()
+
 
     @classmethod
     def create(cls,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
