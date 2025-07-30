@@ -42,7 +42,7 @@ class Port(ABC):
         pass
     async def run_autograder(self):
         try:
-            response = await Autograder.start_grader().grade(
+            response = await Autograder.grade(
                 test_framework=self.test_framework,
                 student_name=self.student_name,
                 student_credentials=self.student_credentials,
