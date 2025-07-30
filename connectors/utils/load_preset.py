@@ -2,7 +2,7 @@ import os
 import shutil
 
 
-def import_preset(preset, custom_criteria=False, custom_feedback=False):
+def load_preset(preset, custom_criteria=False, custom_feedback=False):
     """
     Responsible for importing grading presets to the autograder core.
     Checks the preset name and imports the corresponding configuration files from the presets package.

@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 from connectors.adapters.github_action_adapter.github_adapter import GithubAdapter
-from connectors.utils.load_preset import import_preset
+from connectors.utils.load_preset import load_preset
 parser = ArgumentParser(description="GitHub Action Adapter for Autograder")
 parser.add_argument("--github_token", type=str, required=True, help="GitHub Token")
 parser.add_argument("--app_token", type=str, required=False, help="GitHub App Token")
@@ -37,7 +37,7 @@ if __name__ == "__main__":
                                    redis_token=args.redis_token
                                    )
     #TODO: Look for a criteria.json or feedback.json file in the presets directory
-    import_preset(args.grading_preset)
+    load_preset(args.grading_preset)
     adapter.run_autograder()
     print(f"Final Score for {student_name}: {adapter.autograder_response.final_score}")
     adapter.notify_classroom()
