@@ -21,7 +21,7 @@ class Port(ABC):
         self.autograder_response = None
 
     @abstractmethod
-    def export_submission_files(self,submission_files:List[UploadFile]):
+    def export_submission_files(self):
         """
         Abstract method to export the submission files for the autograder.
         This method should be implemented by the concrete Port classes.
