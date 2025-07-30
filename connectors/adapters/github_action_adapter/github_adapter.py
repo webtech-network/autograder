@@ -1,5 +1,9 @@
 import json
 import os
+import shutil
+from typing import List
+
+from fastapi import UploadFile
 
 from connectors.port import Port
 from github import Github
@@ -116,6 +120,12 @@ class GithubAdapter(Port):
         self.commit_feedback()
         self.notify_classroom()
 
+    def export_submission_files(self):
+        """
+        Copies the student's submission files from the GitHub workspace
+        to the autograder's request bucket for processing.
+        """
+        print("Exporting submission files for grading...")
 
     @classmethod
     def create(cls,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
