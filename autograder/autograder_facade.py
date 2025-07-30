@@ -84,20 +84,25 @@ class Autograder:
         # This will now correctly wait for the async tests to finish
         await TestEngine.run_tests(test_framework)
         sleep(2)
+
         current_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(current_dir, "request_bucket", "criteria.json")
         # Normalize the path to resolve ".." correctly
         normalized_path = os.path.normpath(config_path)
+
         assignment_config = Config.create_config(normalized_path)
 
         base_grader = Grader.create(assignment_config.base_config)
         bonus_grader = Grader.create(assignment_config.bonus_config)
         penalty_grader = Grader.create(assignment_config.penalty_config)
+
         result = Scorer.build_and_grade(student_name, assignment_config, base_grader, bonus_grader, penalty_grader)
         print("Final Score: ", result)
+
         reporter = None
         if feedback_type == "default":
             reporter = Reporter.create_default_reporter(result)
+
         elif feedback_type == "ai":
             if not openai_key:
                 raise ValueError("OpenAI key is required for AI feedback.")
@@ -114,6 +119,7 @@ class Autograder:
             raise ValueError("Invalid feedback type. Choose 'default' or 'ai'.")
 
         feedback = reporter.generate_feedback()
+
         # Call the cleanup method at the end of the grading process.
         Autograder.finish_session()
         return AutograderResponse(result.final_score, feedback)
