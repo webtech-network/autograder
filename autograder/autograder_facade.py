@@ -119,7 +119,6 @@ class Autograder:
         return AutograderResponse(result.final_score, feedback)
 
 
-# --- FIX IS HERE ---
 if __name__ == "__main__":
     """
     This is the entry point for the Autograder. 
