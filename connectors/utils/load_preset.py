@@ -9,8 +9,10 @@ def load_preset(preset, custom_criteria=False, custom_feedback=False):
     Cleans the /validation (except __init__.py) and /request_bucket folders before importing.
     """
     if preset == "custom":
+        print("Custom mode enabled. No preset files will be loaded.")
         return
     if preset in ["html-css-js", "etapa-2"]:
+        print("Loading preset: " + preset)
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         preset_dir = os.path.join(project_root, 'presets', preset)
         request_bucket = os.path.join(project_root, 'autograder', '', 'request_bucket')
@@ -71,4 +73,4 @@ def load_preset(preset, custom_criteria=False, custom_feedback=False):
 
 
 if __name__ == "__main__":
-    import_preset("html-css-js")
+    load_preset("html-css-js")
