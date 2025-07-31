@@ -3,55 +3,6 @@ set -e
 # Print a message to indicate the start of the autograding process
 echo "Starting autograder..."
 
-#Switches to autograder directory and loads environment variables from .env file
-#cd /app
-
-# --- Starting database container --- #
-#DATABASE_CONTAINER_STATUS=1
-#CONTAINER_NAME="pg-test-db"
-
-#echo "Starting PostgreSQL container"
-#docker compose up -d
-#DATABASE_CONTAINER_STATUS=$?
-
-#export DATABASE_CONTAINER_STATUS;
-
-#if [ $DATABASE_CONTAINER_STATUS -ne 0 ]; then
-#    echo "Database container responded with status code: $DATABASE_CONTAINER_STATUS. Database is up and recheable"
-#else
-#    echo "Database container responded with status code: $DATABASE_CONTAINER_STATUS. Database failed to start"
-#fi
-
-# --- Checking for database initialization --- #
-#DATABASE_STATUS=1
-#MAX_DB_CONNECTION_ATTEMPTS=10
-#DB_SERVICE_NAME="postgres-database"
-#SLEEP_INTERVAL=3
-
-#if [ $DATABASE_CONTAINER_STATUS -eq 0 ]; then
-#    echo "Checking for PostgreSQL database's connectivity..."
-#    for i in $(seq 1 $MAX_DB_CONNECTION_ATTEMPTS);
-#    do
-#        echo "Attempt $i/$MAX_DB_CONNECTION_ATTEMPTS"
-#
-#        docker exec -T $DB_SERVICE_NAME pg_isready -U $POSTGRES_USER -q
-#        DATABASE_STATUS=$?
-
-#        if [ $DATABASE_STATUS -eq 0 ]; then
-#            echo "PostgreSQL database is successfully accepting connections"
-#            break;
-#        fi
-#
-#        if [ $i -eq $MAX_DB_CONNECTION_ATTEMPTS ]; then
-#            echo "PostgreSQL database is not accepting connections"
-#        else
-#            sleep $SLEEP_INTERVAL
-#        fi
-#    done
-#fi
-
-#export DATABASE_STATUS
-
 # --- Install dependencies in the student's repository ---
 cd "$GITHUB_WORKSPACE/submission"
 

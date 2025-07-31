@@ -28,27 +28,7 @@ def check_server_status(errors):
     server_status = os.environ.get('SERVER_STATUS', '0')
     if server_status == "1":
         errors.append('server_js_invalid')
-'''
-def check_db_container_status(errors):
-    db_container_status = os.environ.get('DATABASE_CONTAINER_STATUS', '0')
-    if db_container_status == "1":
-        errors.append('db_container_running')
 
-def check_db_status(errors):
-    db_conn_status = os.environ.get('DATABASE_STATUS', '0')
-    if db_conn_status == "1":
-        errors.append('db_connectivity')
-
-def check_migration_application_status(errors):
-    migration_application_status = os.environ.get('MIGRATIONS_APPLICATION_STATUS', '0')
-    if migration_application_status == "1":
-        errors.append('migration_application')
-
-def check_seeds_running_status(errors):
-    seeds_running_status = os.environ.get('SEEDS_RUN_STATUS', '0')
-    if seeds_running_status == "1":
-        errors.append('seeds_running')
-'''
 def check_server_js_exists(errors):
     path = os.path.join(BASE_DIR, 'server.js')
     if not os.path.isfile(path):
@@ -81,9 +61,20 @@ def check_knexfile_exists(errors):
         errors.append('knexfile_exists')
 
 def check_migrations_exists(errors):
-    path = os.path.join(BASE_DIR, 'db', 'migrations', 'solution_migrations.js')
-    if not os.path.isfile(path):
-        errors.append('migrations_exist')
+    # Define the directory where migrations are stored
+    migrations_dir = os.path.join(BASE_DIR, 'db', 'migrations')
+
+    # First, ensure the migrations directory exists
+    if not os.path.isdir(migrations_dir):
+        errors.append('migrations_directory_not_found')
+        return
+
+    # Check for any file in the directory containing the target name
+    found = any('solution_migrations.js' in filename for filename in os.listdir(migrations_dir))
+
+    # If no matching file was found after checking all files, append the error
+    if not found:
+        errors.append('migrations_file_does_not_exist')
 
 def check_seeds_exist(errors):
     agentes_seed_path = os.path.join(BASE_DIR, 'db', 'seeds', 'agentes.js')
