@@ -2,6 +2,7 @@ const axios = require('axios');
 const BASE_URL = require('../request-config')
 const {describe, beforeEach, afterEach, expect} = require("@jest/globals");
 
+axios.defaults.timeout = 10000;
 
 describe('Bonus Tests - ', () => {
 
@@ -117,6 +118,16 @@ describe('Bonus Tests - ', () => {
             expect(response.status).toBe(200);
             expect(Array.isArray(response2.data)).toBe(true);
             expect(response.data.length).toBe(0);
+        });
+
+        safeTest('Simple filtering: Estudante implementou endpoint de busca de casos do agente', async () => {
+            let agentCases = await axios.get(`${BASE_URL}/${newerAgent.id}/casos`);
+            let agentCasesArray = await agentCases.data;
+            expect(Array.isArray(agentCasesArray)).toBeTruthy();
+
+            agentCasesArray.forEach((c) => {
+                expect(c.agente_id).toBe(newerAgent.id);
+            });
         });
     });
 
