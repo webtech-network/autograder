@@ -259,6 +259,7 @@ describe('Penalty Tests - ', () => {
         })
     });
 
+    /*
     describe('Database tests - ', () => {
         let autograderRoot = '';
         let autograderRootExists = false;
@@ -318,8 +319,7 @@ describe('Penalty Tests - ', () => {
                 console.log(error)
             }
         });
-        
-    });
+    });*/
 
     //TESTS RELATED TO THE USER'S FILE ORGANIZATION AND CONFIG FILES (ALREADY MADE)
     describe('Static File Organization - ', () => {

@@ -19,7 +19,7 @@ else
 fi
 
 # --- Applies the migrations --- #
-npx knex migrate:latest
+npx knex migrate:latest --env ci
 MIGRATIONS_APPLICATION_STATUS=$?
 
 export MIGRATIONS_APPLICATION_STATUS
