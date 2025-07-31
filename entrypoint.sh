@@ -78,7 +78,7 @@ node server.js &
 SERVER_PID=$!
 echo "Server started with PID: $SERVER_PID"
 
-tree -I 'node_modules' > project_structure.txt
+#tree -I 'node_modules' > project_structure.txt
 #Checking if the server started:
 
 SERVER_URL="http://localhost:3000"
@@ -105,7 +105,7 @@ else
     echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is not healthy"
 fi
 
-tree -I 'node_modules'
+#tree -I 'node_modules'
 
 cd /app
 
@@ -137,8 +137,6 @@ echo "$2"
 echo "$3"
 echo "$4"
 python autograder.py --token $1 --autograder-bot-token $2 --redis-token $3 --redis-url $4 --openai-key $5
-
-docker compose down -v 
 
 echo "Autograding completed successfully!"
 echo "Final results generated and sent to GitHub Classroom!"
