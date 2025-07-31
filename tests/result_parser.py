@@ -45,12 +45,6 @@ def parse_test_results():
             # --- 4. Process Individual Assertions ---
             for assertion in test_suite['assertionResults']:
                 message = assertion['failureMessages'][0] if assertion['status'] == 'failed' and assertion['failureMessages'] else ""
-                
-                '''
-                base_subjects = ["CREATE", "READ", "UPDATE", "DELETE"]
-                penalty_subjects = ["Validation", "Static files"]
-                bonus_subjects = ["Simple Filtering", "Complex Filtering", "Custom error"]
-                '''
 
                 subject = ""
                 
