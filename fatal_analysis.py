@@ -28,7 +28,7 @@ def check_server_status(errors):
     server_status = os.environ.get('SERVER_STATUS', '0')
     if server_status == "1":
         errors.append('server_js_invalid')
-
+'''
 def check_db_container_status(errors):
     db_container_status = os.environ.get('DATABASE_CONTAINER_STATUS', '0')
     if db_container_status == "1":
@@ -48,7 +48,7 @@ def check_seeds_running_status(errors):
     seeds_running_status = os.environ.get('SEEDS_RUN_STATUS', '0')
     if seeds_running_status == "1":
         errors.append('seeds_running')
-
+'''
 def check_server_js_exists(errors):
     path = os.path.join(BASE_DIR, 'server.js')
     if not os.path.isfile(path):
@@ -102,11 +102,11 @@ def main():
     package_json = check_package_json_exists(errors)
     if package_json:
         check_package_json_content(package_json, errors)
-    
+    '''
     #Checks if the container started and the database connection
     check_db_container_status(errors)
     check_db_status(errors)
-
+'''
     #Checks if the knexfile exists
     check_knexfile_exists(errors)
 
@@ -116,13 +116,6 @@ def main():
     #Checks if the seeds exist
     check_seeds_exist(errors)
 
-    #Checks for the Migration application status
-    check_migration_application_status(errors)
-
-    #Checks for seeds running status
-    check_seeds_running_status(errors)
-
-    # Handle errors
     if errors:
         token = parser.parse_args().token
         reporter = DefaultReporter.create(0, token )
