@@ -2,7 +2,10 @@ const axios = require('axios');
 const BASE_URL= require('../request-config');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process')
 const {describe, beforeEach, afterEach, beforeAll, test, expect} = require("@jest/globals");
+
+axios.defaults.timeout = 10000;
 
 describe('Penalty Tests - ', () => {
 
@@ -69,10 +72,6 @@ describe('Penalty Tests - ', () => {
 
             //Agent validation section
 
-            safeTest('Validation: ID utilizado para agentes não é UUID', () => {
-                const regex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-                expect(regex.test(createdAgentId)).toBeFalsy();
-            });
 
             safeTest('Validation: Consegue registrar um agente com dataDeIncorporacao em formato invalido (não é YYYY-MM,DD)', async () => {
                 const invalidAgent = { ...testAgent, dataDeIncorporacao: "30-11-2023" };
@@ -177,11 +176,6 @@ describe('Penalty Tests - ', () => {
 
             //Case validation section
 
-            safeTest('Validation: ID utilizado para casos não é UUID', () => {
-                const regex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-                expect(regex.test(createdCaseId)).toBeFalsy();
-            });
-
             safeTest("Validation: Consegue criar um caso com título vazio", async() => {
                 const invalidCase = { titulo: "", descricao: "Descrição válida", status: "aberto", agente_id: createdAgentId };
                 try {
@@ -262,19 +256,70 @@ describe('Penalty Tests - ', () => {
                 }
             });
 
-            //Swagger content type
-            safeTest("Validation: docs endpoint retorna página HTML com sucesso", async ()=>{
-                try {
-                    let response = await axios.get(`${BASE_URL}/docs`);
-                    expect(response.headers['Content-Type']).toMatch(/html/);
-                } catch (error) {
-                    expect(true).toBeFalsy();
-                }
-            });
-
         })
     });
 
+    describe('Database tests - ', () => {
+        let autograderRoot = '';
+        let autograderRootExists = false;
+
+        beforeAll(() => {
+            autograderRoot = path.join('/app');
+            autograderRootExists = fs.existsSync(autograderRoot);
+        });
+
+        safeTest('PERSISTENCE: Dados resistem reinicialização do container', async () => {
+            if(!autograderRootExists) return;
+            let agentId;
+            let persistenceCaseId;
+
+            try {
+                let agent = {
+                    nome: "Persistence",
+                    dataDeIncorporacao: "2000-01-30",
+                    cargo: "Fuzileiro"
+                }
+                let response = await axios.post(`${BASE_URL}/agentes`, agent);
+                agentId = await response.data.id;
+
+                let persistenceCase = {
+                    titulo: "Persistence",
+                    descricao: "Alguém hackeou o banco central",
+                    status: "aberto",
+                    agente_id: agentId
+                }
+
+                let caseResponse = await axios.post(`${BASE_URL}/casos`, persistenceCase);
+                persistenceCaseId = await caseResponse.data.id;
+            } catch (error){
+                console.log(error);
+            }
+
+            try {
+                execSync("docker compose down", { stdio: 'inherit' });
+                execSync("docker compose up -d", { stdio: 'inherit' })
+            } catch(error) {
+                console.log(error);
+            }
+
+            try {
+                let agent = await axios.get(`${BASE_URL}/agentes/${agentId}`);
+                let responseAgentId = await agent.data.id;
+                expect(responseAgentId).toEqual(agentId);
+            } catch (error) {
+                console.log(error);
+            }
+
+            try {
+                let caso = await axios.get(`${BASE_URL}/casos/${persistenceCaseId}`);
+                let responseCaseId = await caso.data.id;
+                expect(responseCaseId).toEqual(responseCaseId);
+            } catch (error) {
+                console.log(error)
+            }
+        });
+        
+    });
 
     //TESTS RELATED TO THE USER'S FILE ORGANIZATION AND CONFIG FILES (ALREADY MADE)
     describe('Static File Organization - ', () => {
@@ -335,9 +380,6 @@ describe('Penalty Tests - ', () => {
         test('Static files: usuário não seguiu estrutura de arquivos à risca', async () => {
             if(!projectFolderExists) return;
 
-            let swaggerFolderPath = path.join(projectRoot, "docs");
-            let swaggerFolderExists = fs.existsSync(swaggerFolderPath);
-
             let gitIgnorePath = path.join(projectRoot, '.gitignore');
             let gitIgnoreExists = fs.existsSync(gitIgnorePath);
 
@@ -359,15 +401,40 @@ describe('Penalty Tests - ', () => {
             let caseRepositoryPath = path.join(projectRoot, 'repositories/casosRepository.js');
             let repositoriesExist = fs.existsSync(caseRepositoryPath) && fs.existsSync(agentRepositoryPath);
 
-            let followedStructured = swaggerFolderExists
-                && gitIgnoreExists
+            let knexFilePath = path.join(projectRoot, 'knexfile.js');
+            let knexFileExists = fs.existsSync(knexFilePath);
+
+            let migrationsFolder = path.join(projectRoot, 'db/migrations');
+            let migrationsFolderExists = fs.existsSync(migrationsFolder);
+
+            let dbPath = path.join(projectRoot, 'db/db.js');
+            let dbExists = fs.existsSync(dbPath);
+
+            let dockerComposeYmlPath = path.join(projectRoot, 'docker-compose.yml');
+            let dockerComposeYamlPath = path.join(projectRoot, 'docker-compose.yaml');
+            let dockerComposeExists = fs.existsSync(dockerComposeYmlPath) || fs.existsSync(dockerComposeYamlPath);
+
+            let followedStructured = gitIgnoreExists
                 && packageJsonExists
                 && serverExists
                 && routersExist
                 && controllersExist
-                && repositoriesExist;
+                && repositoriesExist
+                && knexFileExists
+                && migrationsFolderExists
+                && dbExists
+                && dockerComposeExists;
 
             expect(followedStructured).toBeFalsy();
+        });
+
+        test('ENV: Arquivo .env está presente na root do projeto', () => {
+            if(!projectFolderExists) return;
+
+            let envPath = path.join(projectRoot, '.env');
+            let envExists = fs.existsSync(envPath);
+
+            expect(envExists).toBeTruthy();
         });
     });
 });
