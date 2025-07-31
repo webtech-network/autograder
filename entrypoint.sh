@@ -65,31 +65,13 @@ else
     exit 1;
 fi
 
-# --- Creates migrations --- #
-MIGRATIONS_STATUS=0
-MIGRATIONS_DIR="./db/migrations"
-if ls "$MIGRATIONS_DIR"/*.js >/dev/null 2>&1; then
-    echo "✅ Migration files already exist, skipping creation."
-else
-    npx knex migrate:make solution_migrations.js
-    MIGRATIONS_STATUS=$?
-fi
+# --- Applies the migrations --- #
+npx knex migrate:latest
+MIGRATIONS_APPLICATION_STATUS=$?
 
-export MIGRATIONS_STATUS
+export MIGRATIONS_APPLICATION_STATUS
 
-# --- Creates and runs seeds --- #
-SEEDS_CREATION_STATUS=0
-SEEDS_DIR="./db/seeds"
-
-if ls "$MIGRATIONS_DIR"/*.js >/dev/null 2>&1; then
-    echo "✅ Migration files already exist, skipping creation."
-else
-    npx knex seed:make *_solution_migrations.js
-    SEEDS_CREATION_STATUS=$?
-fi
-
-export SEEDS_CREATION_STATUS
-
+# --- Runs seeds --- #
 npx knex seed:run
 SEEDS_RUN_STATUS=$?
 
