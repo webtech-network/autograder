@@ -25,7 +25,7 @@ MIGRATIONS_APPLICATION_STATUS=$?
 export MIGRATIONS_APPLICATION_STATUS
 
 # --- Runs seeds --- #
-npx knex seed:run
+npx knex seed:run --env ci
 SEEDS_RUN_STATUS=$?
 
 export SEEDS_RUN_STATUS
