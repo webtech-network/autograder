@@ -5,7 +5,11 @@ echo "Starting autograder..."
 
 #Switches to autograder directory and loads environment variables from .env file
 cd /app
-source .env
+
+
+export POSTGRES_USER=postgres
+export POSTGRES_PASSWORD=postgres
+export POSTGRES_DB=policia_db
 
 # --- Starting database container --- #
 DATABASE_CONTAINER_STATUS=1
