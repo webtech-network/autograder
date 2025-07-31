@@ -7,9 +7,9 @@ echo "Starting autograder..."
 cd /app
 
 
-export POSTGRES_USER=postgres
-export POSTGRES_PASSWORD=postgres
-export POSTGRES_DB=policia_db
+export POSTGRES_USER="postgres"
+export POSTGRES_PASSWORD="postgres"
+export POSTGRES_DB="policia_db"
 
 # --- Starting database container --- #
 DATABASE_CONTAINER_STATUS=1
