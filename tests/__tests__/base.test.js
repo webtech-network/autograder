@@ -2,6 +2,8 @@ const axios = require('axios');
 const BASE_URL = require('../request-config');
 const {describe, beforeEach, afterEach, expect} = require("@jest/globals");
 
+axios.defaults.timeout = 10000;
+
 describe('Base Tests - ', () => {
 
     let testAgent = {
