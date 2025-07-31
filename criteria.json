@@ -41,7 +41,7 @@
   },
   "penalty": {
     "native": false,
-    "weight": 50,
+    "weight": 100,
     "subjects": {
         "Validation": {
           "weight": 20,
