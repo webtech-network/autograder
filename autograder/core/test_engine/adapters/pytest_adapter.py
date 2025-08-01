@@ -1,211 +1,168 @@
-import subprocess
+import asyncio
 import os
 import json
-import shutil
 from typing import List, Dict, Any
 
 from autograder.core.test_engine.engine_port import EnginePort
 
 
-# Assuming TestResult and Result are defined elsewhere if still needed for other parts of the core,
-# but normalize_output will now return a different structure.
-# from autograder.core.grading.models.result import TestResult, Result
-
-
 class PytestAdapter(EnginePort):
     """
-    Adapter for running pytest tests and normalizing their output.
+    Adapter for running pytest tests and normalizing their output asynchronously.
     """
 
     TEST_FILES = ["test_base.py", "test_bonus.py", "test_penalty.py"]
-    VALIDATION_DIR = os.path.join(os.getcwd(), 'autograder', 'validation')
+
+    # Pathing logic seems correct based on your file tree, so it remains unchanged.
+    _THIS_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+    _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_THIS_FILE_DIR)))
+    VALIDATION_DIR = os.path.join(_PROJECT_ROOT, 'validation')
     RESULTS_DIR = os.path.join(VALIDATION_DIR, 'tests', 'results')
 
-    def __init__(self):
+    async def _install_dependencies(self):
         """
-        Initializes the PytestAdapter.
-        """
-        pass
-
-    def _install_dependencies(self):
-        """
-        Installs pytest and pytest-json-report if not already installed.
+        Installs pytest and pytest-json-report asynchronously if not already installed.
         """
         print("Checking and installing pytest dependencies...")
         try:
-            # Check if pytest is installed
-            subprocess.run(["pytest", "--version"], check=True, capture_output=True)
+            # Check if pytest is installed using an async subprocess
+            proc_pytest = await asyncio.create_subprocess_exec(
+                "pytest", "--version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await proc_pytest.wait()
+            if proc_pytest.returncode != 0:
+                raise FileNotFoundError
             print("pytest is already installed.")
-        except (subprocess.CalledProcessError, FileNotFoundError):
+        except FileNotFoundError:
             print("pytest not found. Installing pytest...")
-            subprocess.run(["pip", "install", "pytest"], check=True)
+            installer_proc = await asyncio.create_subprocess_exec("pip", "install", "pytest", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            await installer_proc.wait()
             print("pytest installed successfully.")
 
         try:
-            # Check if pytest-json-report is installed
-            subprocess.run(["pytest", "--help"], check=True, capture_output=True)
-            # A simple check for '--json-report' in help output is a heuristic
-            help_output = subprocess.run(["pytest", "--help"], capture_output=True, text=True, check=True).stdout
-            if "--json-report" not in help_output:
-                raise FileNotFoundError  # Simulate not found if option is missing
+            # Check for pytest-json-report
+            proc_report = await asyncio.create_subprocess_exec(
+                "pytest", "--help",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, _ = await proc_report.communicate()
+            if "--json-report" not in stdout.decode():
+                raise FileNotFoundError
             print("pytest-json-report is already installed.")
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            print("pytest-json-report not found. Installing pytest-json-report...")
-            subprocess.run(["pip", "install", "pytest-json-report"], check=True)
+        except FileNotFoundError:
+            print("pytest-json-report not found. Installing...")
+            installer_proc = await asyncio.create_subprocess_exec("pip", "install", "pytest-json-report", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            await installer_proc.wait()
             print("pytest-json-report installed successfully.")
-        print("Pytest dependencies check complete.")
 
-    def run_tests(self) -> List[str]:
+    async def run_tests(self) -> List[str]:
         """
-        Runs pytest for base, bonus, and penalty test files.
+        Runs pytest asynchronously for base, bonus, and penalty test files.
         Generates JSON reports for each and returns their paths.
-
-        Raises:
-            FileNotFoundError: If any of the required test files are missing.
-            subprocess.CalledProcessError: If pytest execution fails.
-
-        Returns:
-            List[str]: A list of paths to the generated JSON report files.
         """
-        self._install_dependencies()
-
-        # Ensure the results directory exists
+        await self._install_dependencies()
         os.makedirs(self.RESULTS_DIR, exist_ok=True)
-
         report_paths = []
 
         for test_file_name in self.TEST_FILES:
-            test_file_path = os.path.join(self.VALIDATION_DIR, test_file_name)
-
+            test_file_path = os.path.join(self.VALIDATION_DIR, "tests", test_file_name)
             if not os.path.exists(test_file_path):
-                raise FileNotFoundError(
-                    f"Required test file not found: {test_file_path}. "
-                    "Please ensure all base, bonus, and penalty test files are present."
-                )
+                raise FileNotFoundError(f"Required test file not found: {test_file_path}")
 
             json_report_path = os.path.join(self.RESULTS_DIR, f"{os.path.splitext(test_file_name)[0]}.json")
+            command = [
+                "pytest",
+                test_file_path,
+                "--json-report",
+                f"--json-report-file={json_report_path}"
+            ]
 
             print(f"Running pytest for {test_file_name}...")
-            try:
-                # Run pytest and generate JSON report
-                # Using --json-report and specifying output file
-                command = [
-                    "pytest",
-                    test_file_path,
-                    "--json-report",
-                    f"--json-report-file={json_report_path}"
-                ]
-                subprocess.run(command, check=True, capture_output=True, text=True)
-                print(f"Successfully ran {test_file_name}. Report saved to {json_report_path}")
-                report_paths.append(json_report_path)
-            except subprocess.CalledProcessError as e:
-                print(f"Error running pytest for {test_file_name}:")
-                print(f"STDOUT: {e.stdout}")
-                print(f"STDERR: {e.stderr}")
-                raise RuntimeError(f"Pytest execution failed for {test_file_name}. See logs above.") from e
-            except Exception as e:
-                print(f"An unexpected error occurred while running pytest for {test_file_name}: {e}")
-                raise
+            # Use asyncio's non-blocking subprocess call
+            process = await asyncio.create_subprocess_exec(
+                *command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+
+            # Wait for the subprocess to finish and capture output
+            stdout, stderr = await process.communicate()
+
+            if not os.path.exists(json_report_path) or os.path.getsize(json_report_path) == 0:
+                print(f"Error: Pytest failed to generate a report for {test_file_name}.")
+                if stdout:
+                    print(f"STDOUT: {stdout.decode()}")
+                if stderr:
+                    print(f"STDERR: {stderr.decode()}")
+                raise RuntimeError(f"Pytest execution failed for {test_file_name} and no report was generated.")
+
+            print(f"Successfully ran {test_file_name}. Report saved to {json_report_path}")
+            report_paths.append(json_report_path)
 
         return report_paths
 
     def normalize_output(self, report_paths: List[str]) -> Dict[str, List[Dict[str, str]]]:
         """
-        Normalizes the pytest JSON report files into the autograder's standard test report convention.
-        Saves the normalized results as JSON files (e.g., test_base_results.json) and deletes
-        the temporary pytest JSON report files after processing.
-
-        Args:
-            report_paths (List[str]): A list of paths to the pytest JSON report files.
-
-        Returns:
-            Dict[str, List[Dict[str, str]]]: A dictionary with keys 'base', 'bonus', 'penalty',
-                                             each containing a list of test results in the
-                                             autograder's standard format.
+        Normalizes the pytest JSON report files into the autograder's standard format.
+        (This method performs file I/O, which is blocking, but it's typically fast enough.
+        For very high-concurrency scenarios, you could adapt it to use a library like `aiofiles`.)
         """
-        normalized_results: Dict[str, List[Dict[str, str]]] = {
-            "base": [],
-            "bonus": [],
-            "penalty": []
-        }
+        normalized_results: Dict[str, List[Dict[str, str]]] = {"base": [], "bonus": [], "penalty": []}
 
         for report_path in report_paths:
             try:
                 with open(report_path, 'r') as f:
                     report_data = json.load(f)
 
-                # Extract test type from the report file path (e.g., 'test_base', 'test_bonus')
-                # This will be used as the 'subject' in the normalized output
                 file_name_without_ext = os.path.splitext(os.path.basename(report_path))[0]
                 test_type = file_name_without_ext.replace('test_', '')
 
-                if 'tests' in report_data and isinstance(report_data['tests'], list):
+                if 'tests' in report_data:
                     for test in report_data['tests']:
-                        test_name = test.get('nodeid', 'unknown_test').split("::")[-1]  # Extract test name from nodeid
-                        outcome = test.get('outcome', 'skipped')  # passed, failed, skipped
-
-                        # Determine status and message based on outcome
+                        test_name = test.get('nodeid', 'unknown_test').split("::")[-1]
+                        outcome = test.get('outcome', 'skipped')
                         status = "passed" if outcome == "passed" else "failed"
                         message = ""
                         if outcome == "failed":
-                            # Attempt to get error message from pytest report structure
-                            longrepr = test.get('call', {}).get('longrepr')
-                            if isinstance(longrepr, dict) and 'reprcrash' in longrepr:
-                                message = longrepr['reprcrash'].get('message', 'Test failed.')
-                            elif isinstance(longrepr, str):
-                                message = longrepr
-                            else:
-                                message = "Test failed with no specific error message provided."
+                            message = test.get('call', {}).get('longrepr', 'Test failed.')
                         elif outcome == "skipped":
-                            status = "skipped"
                             message = "Test was skipped."
 
-                        # Create a dictionary conforming to the autograder's standard test report structure
                         normalized_test = {
-                            "test": test_name,
-                            "status": status,
-                            "message": message,
-                            "subject": test_type  # Use 'base', 'bonus', or 'penalty' as the subject
+                            "test": test_name, "status": status, "message": message, "subject": test_type
                         }
-
-                        # Append to the correct category
                         if test_type in normalized_results:
                             normalized_results[test_type].append(normalized_test)
-                        else:
-                            print(f"Warning: Unknown test type '{test_type}' encountered. Skipping test: {test_name}")
-                else:
-                    print(f"Warning: 'tests' key not found or not a list in {report_path}. Skipping.")
 
-            except FileNotFoundError:
-                print(f"Warning: Report file not found during normalization: {report_path}")
-            except json.JSONDecodeError:
-                print(f"Error: Could not decode JSON from file: {report_path}")
-            except Exception as e:
-                print(f"An unexpected error occurred while processing {report_path}: {e}")
+            except (FileNotFoundError, json.JSONDecodeError) as e:
+                print(f"Warning: Could not process report file {report_path}. Error: {e}")
             finally:
-                # Delete the temporary Pytest JSON report file
                 if os.path.exists(report_path):
                     os.remove(report_path)
-                    print(f"Deleted temporary pytest report file: {report_path}")
 
-        # After processing all pytest reports, save the normalized results to new JSON files
+        # Save normalized results
         for test_type, results_list in normalized_results.items():
-            output_file_name = f"test_{test_type}_results.json"
-            output_file_path = os.path.join(self.RESULTS_DIR, output_file_name)
-            try:
-                with open(output_file_path, 'w') as outfile:
-                    json.dump(results_list, outfile, indent=2)
-                print(f"Saved normalized results for '{test_type}' to {output_file_path}")
-            except Exception as e:
-                print(f"Error saving normalized results for '{test_type}' to {output_file_path}: {e}")
-
-        # Clean up the results directory if empty after all operations
-        if os.path.exists(self.RESULTS_DIR) and not os.listdir(self.RESULTS_DIR):
-            try:
-                os.rmdir(self.RESULTS_DIR)
-                print(f"Deleted empty results directory: {self.RESULTS_DIR}")
-            except OSError as e:
-                print(f"Error deleting empty results directory {self.RESULTS_DIR}: {e}")
+            output_file_path = os.path.join(self.RESULTS_DIR, f"test_{test_type}_results.json")
+            with open(output_file_path, 'w') as outfile:
+                json.dump(results_list, outfile, indent=2)
+            print(f"Saved normalized results for '{test_type}' to {output_file_path}")
 
         return normalized_results
 
+
+async def main():
+    """ Example usage for the async adapter """
+    adapter = PytestAdapter()
+    try:
+        report_files = await adapter.run_tests()
+        normalized_results = adapter.normalize_output(report_files)
+        print("\n--- Normalized Results ---")
+        print(json.dumps(normalized_results, indent=2))
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(main())

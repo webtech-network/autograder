@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 
 from connectors.port import Port
 from github import Github
@@ -112,7 +113,63 @@ class GithubAdapter(Port):
             commit_message = f"Criando relatório: {file_path}"
             self.repo.create_file(path=file_path, message=commit_message, content=new_content)
             print("Relatório criado com sucesso.")
+    def export_results(self):
+        self.commit_feedback()
+        self.notify_classroom()
 
+    def export_submission_files(self):
+        """
+        Copies the student's submission files from the GitHub workspace
+        to the autograder's request bucket for processing.
+        """
+        print("Exporting submission files for grading...")
+
+        # Get the source directory from the GITHUB_WORKSPACE environment variable.
+        workspace_path = os.getenv("GITHUB_WORKSPACE")
+        if not workspace_path:
+            raise Exception(
+                "GITHUB_WORKSPACE environment variable not set. This script must be run within a GitHub Action.")
+
+        source_dir = os.path.join(workspace_path, "submission")
+
+        if not os.path.isdir(source_dir):
+            print(f"Warning: Submission directory not found at '{source_dir}'. No files to grade.")
+            return
+
+        # Determine the project's root directory to correctly locate the destination.
+        # This file's path is: connectors/adapters/github_action_adapter/github_adapter.py
+        # The project root is three directory levels up.
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        destination_dir = os.path.join(project_root, "autograder", "request_bucket", "submission")
+
+        # Ensure the destination directory exists. The finish_session() method in the
+        # facade should handle cleanup, but we make sure the path is ready here.
+        os.makedirs(destination_dir, exist_ok=True)
+
+        print(f"Copying from: {source_dir}")
+        print(f"Copying to:   {destination_dir}")
+
+        # Copy each file and directory from the source to the destination.
+        for item_name in os.listdir(source_dir):
+            source_item = os.path.join(source_dir, item_name)
+            destination_item = os.path.join(destination_dir, item_name)
+
+            try:
+                if os.path.isdir(source_item):
+                    # If a directory with the same name already exists in the destination,
+                    # remove it first to ensure a clean copy of the new submission.
+                    if os.path.exists(destination_item):
+                        shutil.rmtree(destination_item)
+                    shutil.copytree(source_item, destination_item)
+                    print(f" - Copied directory: {item_name}")
+                else:  # It's a file
+                    shutil.copy2(source_item, destination_item)  # copy2 preserves file metadata
+                    print(f" - Copied file: {item_name}")
+            except Exception as e:
+                print(f"Error: Failed to copy '{item_name}'. Reason: {e}")
+                raise  # Stop execution if a critical file copy fails.
+
+        print("Submission files exported successfully.")
     @classmethod
     def create(cls,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
         response = cls(test_framework,github_author,feedback_type,github_token,app_token,openai_key,redis_url,redis_token)

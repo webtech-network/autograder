@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from autograder.core.autograder_facade import Autograder
+from typing import List
+from fastapi import UploadFile
+from autograder.autograder_facade import Autograder
 
-import os
-import shutil
+
 class Port(ABC):
 
     """
@@ -20,12 +21,13 @@ class Port(ABC):
         self.autograder_response = None
 
     @abstractmethod
-    def get_submission_files(self):
+    def export_submission_files(self):
         """
-        Abstract method to get the submission files from the student.
+        Abstract method to export the submission files for the autograder.
         This method should be implemented by the concrete Port classes.
         """
         pass
+
 
     @abstractmethod
     def get_configuration_files(self):
@@ -38,13 +40,9 @@ class Port(ABC):
     def send_configuration_files(self):
         self.get_configuration_files()
         pass
-    def send_submission_files(self):
-        self.get_submission_files()
-        pass
-
-    def run_autograder(self):
+    async def run_autograder(self):
         try:
-            response = Autograder.grade(
+            response = await Autograder.grade(
                 test_framework=self.test_framework,
                 student_name=self.student_name,
                 student_credentials=self.student_credentials,
@@ -66,6 +64,3 @@ class Port(ABC):
         This method should be implemented by the concrete Port classes.
         """
         pass
-
-if __name__ == "__main__":
-    Port.import_preset("html-css-js")

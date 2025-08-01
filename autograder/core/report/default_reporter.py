@@ -1,9 +1,18 @@
+import os
+
+from autograder.core.grading.models.result import Result
 from autograder.core.report.base_reporter import BaseReporter
 import json
 from datetime import datetime
+
+from autograder.core.utils.result_processor import ResultProcessor
+
+
 class DefaultReporter(BaseReporter):
     """Default reporter for test results.
     Checks for feedback texts from feedback.json"""
+    _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
     @classmethod
     def get_key_value(cls,list, name):
         """
@@ -23,10 +32,15 @@ class DefaultReporter(BaseReporter):
         """
 
 
+        absolute_path = os.path.join(DefaultReporter._PROJECT_ROOT,"request_bucket","feedback.json")
+        print(f"Attempting to load FEEDBACK from: {absolute_path}")
 
         # Load feedback data from the JSON file
-        with open(feedback_file, "r", encoding="utf-8") as file:
+        with open(absolute_path, "r", encoding="utf-8") as file:
+            #tests_feedback = json.load(file)
+            print("Reading feedback file:")
             tests_feedback = json.load(file)
+            print(tests_feedback)
         passed = True if self.result.final_score >= 70 else False
         # Initialize feedback
         feedback = "<sup>Suas cotas de feedback AI acabaram, o sistema de feedback voltou ao padrão.</sup>\n\n"
@@ -36,6 +50,7 @@ class DefaultReporter(BaseReporter):
         feedback += f"**Status:** {'✅ Aprovado' if passed else '❌ Reprovado'}\n\n"
         feedback += "---\n"
 
+        print(self.get_key_value(tests_feedback["base_tests"], "test_css_css_linked"))
         # Base Feedback (Requisitos Obrigatórios)
         feedback += "## ✅ Requisitos Obrigatórios\n"
         if len(self.result.base_results["failed"]) == 0:
@@ -79,3 +94,4 @@ class DefaultReporter(BaseReporter):
         feedback += "\n---\n"
         feedback += "<sup>Made By the Autograder Team.</sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Carvalho](https://github.com/ArthuCRodrigues)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Drumond](https://github.com/drumondpucminas)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Gabriel Resende](https://github.com/gnvr29)</sup></sup>"
         return feedback
+
