@@ -10,7 +10,6 @@ from autograder.core.test_engine.engine import TestEngine
 from autograder.core.utils.upstash_driver import Driver
 from time import sleep
 
-
 class Autograder:
     """
     Autograder class that serves as a facade for the entire autograder system.
