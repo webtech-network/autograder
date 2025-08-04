@@ -19,7 +19,3 @@ class AutograderRequest:
         self.openai_key = openai_key
         self.redis_url = redis_url
         self.redis_token = redis_token
-
-    @classmethod
-    def create_request(cls):
-        pass
