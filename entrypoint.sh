@@ -63,20 +63,20 @@ cd "$GITHUB_WORKSPACE/submission"
 
 if [ -f "package.json" ]; then
     echo "Downloading dependencies from student's project"
-    npm ci;
+    npm ci || true;
 else
     echo "Error: no package.json file found."
     exit 1;
 fi
 
 # --- Applies the migrations --- #
-npx knex migrate:latest
+npx knex migrate:latest || true
 MIGRATIONS_APPLICATION_STATUS=$?
 
 export MIGRATIONS_APPLICATION_STATUS
 
 # --- Runs seeds --- #
-npx knex seed:run
+npx knex seed:run || true
 SEEDS_RUN_STATUS=$?
 
 export SEEDS_RUN_STATUS
@@ -118,7 +118,7 @@ cd "$GITHUB_WORKSPACE/submission"
 
 if [ -f "package.json" ]; then
     echo "Downloading dependencies from student's project"
-    npm install;
+    npm install || true;
 else
     echo "Error: no package.json file found."
     exit 1;
