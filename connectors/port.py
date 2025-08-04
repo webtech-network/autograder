@@ -20,26 +20,6 @@ class Port(ABC):
         self.redis_token = redis_token
         self.autograder_response = None
 
-    @abstractmethod
-    def export_submission_files(self):
-        """
-        Abstract method to export the submission files for the autograder.
-        This method should be implemented by the concrete Port classes.
-        """
-        pass
-
-
-    @abstractmethod
-    def get_configuration_files(self):
-        """
-        Abstract method to get the configuration files for the autograder.
-        This method should be implemented by the concrete Port classes.
-        """
-        pass
-
-    def send_configuration_files(self):
-        self.get_configuration_files()
-        pass
     async def run_autograder(self):
         try:
             response = await Autograder.grade(
