@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
-from fastapi import UploadFile
+from models.autograder_request import AutograderRequest
 from autograder.autograder_facade import Autograder
 
 
