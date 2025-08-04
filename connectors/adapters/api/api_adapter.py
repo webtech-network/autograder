@@ -2,9 +2,11 @@ import os
 import aiofiles
 from typing import List
 from fastapi import UploadFile
-
+from connectors.models.assignment_files import AssignmentFiles
+from connectors.models.autograder_request import AutograderRequest
 from autograder.autograder_facade import Autograder
 from autograder.core.models.autograder_response import AutograderResponse
+from connectors.models.autograder_request import AutograderRequest
 from connectors.port import Port
 
 
@@ -18,6 +20,8 @@ class ApiAdapter(Port):
     # Construct the full, correct path to the submission bucket.
     REQUEST_BUCKET_PATH = os.path.join(PROJECT_ROOT, "autograder", "request_bucket", "submission")
     # --- END CORRECTION ---
+
+
 
     async def export_submission_files(self, submission_files: List[UploadFile]):
         """
@@ -38,6 +42,7 @@ class ApiAdapter(Port):
             finally:
                 await file.close()
 
+
     def export_results(self):
         """
         Prepares the results of the autograding workfow as an API response.
@@ -57,8 +62,30 @@ class ApiAdapter(Port):
 
         return response
 
-    def get_configuration_files(self):
-        print("Getting configuration files for the API adapter.")
+    def create_request(self,submission_files: List[UploadFile],criteria_json,feedback_json,
+                       student_name,preset,test_framework,feedback_mode,openai_key=None,
+                       redis_url=None,redis_token=None,ai_feedback_json=None) -> AutograderRequest:
+
+        submission_files_dict = {}
+        for submission_file in submission_files:
+            submission_files_dict[submission_file.filename] = submission_file
+
+        assignment_files = AssignmentFiles(
+            submission_files=submission_files_dict,
+            criteria=criteria_json,
+            feedback=feedback_json,
+            ai_feedback=ai_feedback_json
+        )
+        return AutograderRequest(
+            assignment_files,
+            student_name,preset,
+            test_framework,
+            feedback_mode,
+            openai_key,
+            redis_url,
+            redis_token
+        )
+
 
     @classmethod
     def create(cls, test_framework, grading_preset, student_name, student_credentials, feedback_type, openai_key=None, redis_url=None, redis_token=None):
