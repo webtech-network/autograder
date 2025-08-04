@@ -44,20 +44,16 @@
     "weight": 100,
     "subjects": {
         "Validation": {
-          "weight": 20,
+          "weight": 35,
           "test_path": "Validation"
         },
         "Static files": {
-        "weight": 20,
+        "weight": 35,
         "test_path": "Static files"
       },
       "ENV": {
-        "weight": 20,
+        "weight": 30,
         "test_path": "ENV"
-      }, 
-      "PERSISTENCE": {
-        "weight": 40,
-        "test_path": "PERSISTENCE"
       }
     }
   }

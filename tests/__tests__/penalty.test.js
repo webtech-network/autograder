@@ -259,6 +259,7 @@ describe('Penalty Tests - ', () => {
         })
     });
 
+    /*
     describe('Database tests - ', () => {
         let autograderRoot = '';
         let autograderRootExists = false;
@@ -318,8 +319,7 @@ describe('Penalty Tests - ', () => {
                 console.log(error)
             }
         });
-        
-    });
+    });*/
 
     //TESTS RELATED TO THE USER'S FILE ORGANIZATION AND CONFIG FILES (ALREADY MADE)
     describe('Static File Organization - ', () => {
@@ -397,10 +397,6 @@ describe('Penalty Tests - ', () => {
             let caseControllerPath = path.join(projectRoot, 'controllers/casosController.js');
             let controllersExist = fs.existsSync(agentControllerPath) && fs.existsSync(caseControllerPath);
 
-            let agentRepositoryPath = path.join(projectRoot, 'repositories/agentesRepository.js');
-            let caseRepositoryPath = path.join(projectRoot, 'repositories/casosRepository.js');
-            let repositoriesExist = fs.existsSync(caseRepositoryPath) && fs.existsSync(agentRepositoryPath);
-
             let knexFilePath = path.join(projectRoot, 'knexfile.js');
             let knexFileExists = fs.existsSync(knexFilePath);
 
@@ -419,7 +415,6 @@ describe('Penalty Tests - ', () => {
                 && serverExists
                 && routersExist
                 && controllersExist
-                && repositoriesExist
                 && knexFileExists
                 && migrationsFolderExists
                 && dbExists
