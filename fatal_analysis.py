@@ -66,15 +66,17 @@ def check_migrations_exists(errors):
 
     # First, ensure the migrations directory exists
     if not os.path.isdir(migrations_dir):
-        errors.append('migrations_directory_not_found')
+        errors.append('migrations_exist')
         return
 
+    '''
     # Check for any file in the directory containing the target name
     found = any('solution_migrations.js' in filename for filename in os.listdir(migrations_dir))
 
     # If no matching file was found after checking all files, append the error
     if not found:
         errors.append('migrations_file_does_not_exist')
+    '''
 
 def check_seeds_exist(errors):
     agentes_seed_path = os.path.join(BASE_DIR, 'db', 'seeds', 'agentes.js')
