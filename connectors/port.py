@@ -64,3 +64,13 @@ class Port(ABC):
         This method should be implemented by the concrete Port classes.
         """
         pass
+
+    @abstractmethod
+    def create_request(self, submission_files, criteria_json, feedback_json, student_name, preset,
+                       test_framework, feedback_mode, openai_key=None, redis_url=None, redis_token=None,
+                       ai_feedback_json=None) -> AutograderRequest:
+        """
+        Abstract method to create an AutograderRequest object.
+        This method should be implemented by the concrete Port classes.
+        """
+        pass
