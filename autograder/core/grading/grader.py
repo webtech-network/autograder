@@ -1,5 +1,5 @@
 
-from autograder.core.config_processing.test_config import TestConfig
+from autograder.core.config_processing.test_file_config import TestFileConfig
 from autograder.core.utils.result_processor import ResultProcessor
 from autograder.core.grading.subject_grader import SubjectGrader
 
@@ -66,7 +66,7 @@ class Grader:
             "score": self.generate_score()
         }
     @classmethod
-    def create(cls, test_config: TestConfig):
+    def create(cls, test_config: TestFileConfig):
         """Create a Grader instance from a test file and a TestConfig instance."""
         grader = cls(test_config)
         grader.get_test_results()
