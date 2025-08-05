@@ -1,6 +1,6 @@
 import json
-from autograder.core.config_processing.test_config import TestConfig
-class Config: # This class is used to load and manage all validation configurations.
+from autograder.core.config_processing.test_file_config import TestFileConfig
+class CriteriaConfig: # This class is used to load and manage all validation configurations.
     def __init__(self):
         self.config = {}
         self.base_config = None # Configuration for validation in base_tests
@@ -20,15 +20,15 @@ class Config: # This class is used to load and manage all validation configurati
 
     def load_base_config(self):
         """Load the base configuration for validation in base_tests creating a TestConfig instance for base file config."""
-        self.base_config = TestConfig.create("base", self.config)
+        self.base_config = TestFileConfig.create("base", self.config)
 
     def load_bonus_config(self):
         """Load the bonus configuration for validation in bonus_tests creating a TestConfig instance for bonus file config."""
-        self.bonus_config = TestConfig.create("bonus", self.config)
+        self.bonus_config = TestFileConfig.create("bonus", self.config)
 
     def load_penalty_config(self):
         """Load the penalty configuration for validation in penalty_tests creating a TestConfig instance for penalty file config."""
-        self.penalty_config = TestConfig.create("penalty", self.config)
+        self.penalty_config = TestFileConfig.create("penalty", self.config)
 
     @classmethod
     def create_config(cls, config_file: str):
