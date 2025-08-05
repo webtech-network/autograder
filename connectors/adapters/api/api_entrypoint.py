@@ -4,7 +4,7 @@ import os
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
-from connectors.models.assignment_config import Preset
+from connectors.models.assignment_config import AssignmentConfig
 import uvicorn
 
 from api_adapter import ApiAdapter
@@ -49,9 +49,12 @@ def get_api_adapter() -> ApiAdapter:
 @app.post("/grade_submission/")
 async def grade_submission_endpoint(
         submission_files: List[UploadFile] = File(..., description="The student's source code files (HTML, CSS, JS)"),
-        test_framework: str = Form(..., description="The test framework to use (e.g., pytest)"),
-        grading_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.)"),
-        preset: Optional[Preset] = Form(None, description="The custom preset to use for grading, if custom preset is selected"),
+        test_files: Optional[List[UploadFile]] = File(None, description="Test Files for the submission (in case of custom preset)"),
+        criteria_json: Optional[File] = File(None, description="JSON file with grading criteria (in case of custom preset)"),
+        feedback_json: Optional[File] = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
+        ai_feedback_json: Optional[File] = File(None, description="JSON file with AI feedback configuration (in case of custom preset)"),
+        test_framework: Optional[str] = Form("custom", description="The test framework to use (e.g., pytest)"),
+        grading_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.) or custom for custom configuration"),
         student_name: str = Form(..., description="The name of the student"),
         student_credentials: str = Form(..., description="The credentials of the student (e.g., GitHub token)"),
         feedback_type: str = Form("default", description="The type of feedback to provide (default or ai)"),
@@ -62,11 +65,19 @@ async def grade_submission_endpoint(
     try:
         adapter = ApiAdapter()
 
-        if grading_preset != "custom":
-            preset = Preset.load_preset(grading_preset)
+        if grading_preset == "custom":
+            assignment_config = AssignmentConfig.load_custom(test_files,criteria_json,feedback_json,ai_feedback=ai_feedback_json,test_framework=test_framework)
+        else:
+            assignment_config = AssignmentConfig.load_preset(grading_preset)
 
-        adapter.create_request(submission_files,preset,student_name, test_framework, feedback_type,openai_key,redis_url,redis_token)
-
+        adapter.create_request(submission_files=submission_files,
+                               assignment_config=assignment_config,
+                               student_name=student_name,
+                               student_credentials=student_credentials,
+                               feedback_mode=feedback_type,
+                               openai_key=openai_key,
+                               redis_url=redis_url,
+                               redis_token=redis_token)
 
 
         # 3. Run the autograder and await its completion (asynchronous)
