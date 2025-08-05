@@ -1,7 +1,7 @@
 import asyncio
 import os
 import shutil
-from autograder.core.config_processing.config import Config
+from autograder.core.config_processing.criteria_config import CriteriaConfig
 from autograder.core.grading.grader import Grader
 from autograder.core.grading.scorer import Scorer
 from autograder.core.models.autograder_response import AutograderResponse
@@ -94,7 +94,7 @@ class Autograder:
             # Normalize the path to resolve ".." correctly
             normalized_path = os.path.normpath(config_path)
 
-            assignment_config = Config.create_config(normalized_path)
+            assignment_config = CriteriaConfig.create_config(normalized_path)
 
             base_grader = Grader.create(assignment_config.base_config)
             bonus_grader = Grader.create(assignment_config.bonus_config)
