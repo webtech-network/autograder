@@ -27,21 +27,22 @@ class ApiAdapter(Port):
 
         return response
 
-    def create_request(self,submission_files: List[UploadFile],
+    def create_request(self,
+                       submission_files: List[UploadFile],
                        assignment_config: AssignmentConfig,
                        student_name,
                        student_credentials,
-                       feedback_mode,
+                       feedback_mode="default",
                        openai_key=None,
                        redis_url=None,
-                       redis_token=None) -> AutograderRequest:
+                       redis_token=None):
 
         submission_files_dict = {}
         for submission_file in submission_files:
             submission_files_dict[submission_file.filename] = submission_file
 
 
-        return AutograderRequest(
+        self.autograder_request =  AutograderRequest(
             submission_files_dict,
             assignment_config,
             student_name,
