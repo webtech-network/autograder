@@ -4,7 +4,7 @@ class TestFiles:
     """
     This model is used to represent the base,bonus,penalty and fatal analysis tests, along with additional configuration files for the tests.
     """
-    def __init__(self,test_base,test_bonus,test_penalty,fatal_tests=None,other_files=None):
+    def __init__(self,test_base=None,test_bonus=None,test_penalty=None,fatal_tests=None,other_files=None):
         """
         Initializes the TestFiles model with the provided test files and other configuration files.
 
