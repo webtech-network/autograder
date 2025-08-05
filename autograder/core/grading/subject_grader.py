@@ -1,5 +1,5 @@
 
-from autograder.core.config_processing.sub_test_config import SubTestConfig
+from autograder.core.config_processing.subject_config import SubjectConfig
 import warnings
 
 class SubjectGrader:
@@ -116,7 +116,7 @@ class SubjectGrader:
 
 
     @classmethod
-    def create(cls,test_report, sub_config : SubTestConfig,ctype):
+    def create(cls,test_report, sub_config : SubjectConfig,ctype):
         """Create a SubjectGrader instance from a test report, a SubTestConfig instance, and a subject type.
         This method initializes the SubjectGrader, filters the validation based on the sub_config, and generates the sub score."""
         response = cls(test_report, sub_config, ctype)
