@@ -86,4 +86,4 @@ class AssignmentConfig:
 
     @classmethod
     def load_custom(cls,test_files,criteria,feedback,ai_feedback=None,test_framework="pytest"):
-        pass
+        return cls(test_files,criteria,feedback,ai_feedback=ai_feedback,test_framework=test_framework)
