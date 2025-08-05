@@ -6,7 +6,7 @@ from connectors.models.autograder_request import AutograderRequest
 from autograder.autograder_facade import Autograder
 from autograder.core.models.autograder_response import AutograderResponse
 from connectors.models.autograder_request import AutograderRequest
-from connectors.models.preset import Preset
+from connectors.models.assignment_config import Preset
 from connectors.models.test_files import TestFiles
 from connectors.port import Port
 

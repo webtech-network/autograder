@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from connectors.models.preset import Preset
+from connectors.models.assignment_config import Preset
 from models.autograder_request import AutograderRequest
 from autograder.autograder_facade import Autograder
 

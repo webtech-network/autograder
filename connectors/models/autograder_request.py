@@ -1,4 +1,4 @@
-from connectors.models.preset import Preset
+from connectors.models.assignment_config import Preset
 from connectors.models.test_files import TestFiles
 
 

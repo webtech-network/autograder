@@ -4,7 +4,7 @@ import os
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
-from connectors.models.preset import Preset
+from connectors.models.assignment_config import Preset
 import uvicorn
 
 from api_adapter import ApiAdapter
