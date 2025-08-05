@@ -86,3 +86,23 @@ class ApiAdapter(Port):
             redis_url,
             redis_token
         )
+    def create_custom_assignment_config(self,
+                                       test_files: List[UploadFile],
+                                       criteria,
+                                       feedback,
+                                       preset="custom",
+                                       ai_feedback=None,
+                                       test_framework="pytest"):
+        files = TestFiles()
+        for file in test_files:
+            if file.filename.startswith("base_tests"):
+                files.test_base = file
+            elif file.filename.startswith("bonus_tests"):
+                files.test_bonus = file
+            elif file.filename.startswith("penalty_tests"):
+                files.test_penalty = file
+            elif file.filename.startswith("fatal_analysis"):
+                files.fatal_tests.append(file)
+            else:
+                files.other_files[file.filename] = file
+        return AssignmentConfig.load_custom(files,criteria,feedback,ai_feedback=ai_feedback,test_framework=test_framework)
