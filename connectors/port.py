@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
 from connectors.models.assignment_config import AssignmentConfig
-from models.autograder_request import AutograderRequest
 from autograder.autograder_facade import Autograder
 
 
@@ -12,6 +11,7 @@ class Port(ABC):
     def __init__(self):
         self.autograder_request = None
         self.autograder_response = None
+
     async def run_autograder(self):
         try:
             response = await Autograder.grade(self.autograder_request)
@@ -30,7 +30,8 @@ class Port(ABC):
         pass
 
     @abstractmethod
-    def create_request(self, submission_files,
+    def create_request(self,
+                       submission_files,
                        assignment_config: AssignmentConfig,
                        student_name,
                        student_credentials,
@@ -40,6 +41,19 @@ class Port(ABC):
                        redis_token=None):
         """
         Abstract method to create an AutograderRequest object.
+        This method should be implemented by the concrete Port classes.
+        """
+        pass
+
+    @abstractmethod
+    def create_custom_assignment_config(self, test_files,
+                                       criteria,
+                                       feedback,
+                                       preset="custom",
+                                       ai_feedback=None,
+                                       test_framework="pytest"):
+        """
+        Abstract method to create an AssignmentConfig object.
         This method should be implemented by the concrete Port classes.
         """
         pass
