@@ -114,7 +114,7 @@ cd /app
 # --- Running fatal analysis
 
 echo "Running fatal analysis..."
-python fatal_analysis.py --token $1
+python fatal_analysis.py --token $2
 
 # --- Running tests from action repository --- #
 
