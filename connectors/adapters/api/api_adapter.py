@@ -2,11 +2,12 @@ import os
 import aiofiles
 from typing import List
 from fastapi import UploadFile
-from connectors.models.assignment_files import AssignmentFiles
 from connectors.models.autograder_request import AutograderRequest
 from autograder.autograder_facade import Autograder
 from autograder.core.models.autograder_response import AutograderResponse
 from connectors.models.autograder_request import AutograderRequest
+from connectors.models.preset import Preset
+from connectors.models.test_files import TestFiles
 from connectors.port import Port
 
 
@@ -54,51 +55,30 @@ class ApiAdapter(Port):
         # Prepare the API response
         response = {
             "status": "success",
-            "student_name": self.student_name,
-            "student_credentials": self.student_credentials,
+            #"student_name": self.student_name,
+            #"student_credentials": self.student_credentials,
             "final_score": self.autograder_response.final_score,
             "feedback": self.autograder_response.feedback
         }
 
         return response
 
-    def create_request(self,submission_files: List[UploadFile],criteria_json,feedback_json,
-                       student_name,preset,test_framework,feedback_mode,openai_key=None,
+    def create_request(self,submission_files: List[UploadFile],preset: Preset,
+                       student_name,test_framework,feedback_mode,openai_key=None,
                        redis_url=None,redis_token=None,ai_feedback_json=None) -> AutograderRequest:
 
         submission_files_dict = {}
         for submission_file in submission_files:
             submission_files_dict[submission_file.filename] = submission_file
 
-        assignment_files = AssignmentFiles(
-            submission_files=submission_files_dict,
-            criteria=criteria_json,
-            feedback=feedback_json,
-            ai_feedback=ai_feedback_json
-        )
+
         return AutograderRequest(
-            assignment_files,
-            student_name,preset,
+            submission_files_dict,
+            preset,
+            student_name,
             test_framework,
             feedback_mode,
             openai_key,
             redis_url,
             redis_token
-        )
-
-
-    @classmethod
-    def create(cls, test_framework, grading_preset, student_name, student_credentials, feedback_type, openai_key=None, redis_url=None, redis_token=None):
-        """
-        Factory method to create an instance of ApiAdapter.
-        """
-        return cls(
-            test_framework=test_framework,
-            student_name=student_name,
-            grading_preset=grading_preset,
-            feedback_type=feedback_type,
-            student_credentials=student_credentials,
-            openai_key=openai_key,
-            redis_url=redis_url,
-            redis_token=redis_token
         )
