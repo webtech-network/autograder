@@ -60,22 +60,13 @@ async def grade_submission_endpoint(
 ):
     try:
         # 1. Create the adapter instance (synchronous)
-        adapter = ApiAdapter.create(
-            test_framework=test_framework,
-            grading_preset=grading_preset,
-            student_name=student_name,
-            student_credentials=student_credentials,
-            feedback_type=feedback_type,
-            openai_key=openai_key,
-            redis_url=redis_url,
-            redis_token=redis_token
-        )
+        adapter = ApiAdapter()
 
         # Load the grading preset configuration
-        load_preset(grading_preset)
+        preset = load_preset(grading_preset) #TODO: Create Preset model to store the preset data
         # 2. Save the submission files (asynchronous)
-        await adapter.export_submission_files(submission_files=files)
 
+        adapter.create_request(files,preset.criteria_json,preset.feedback_json,student_name,test_framework,feedback_type,openai_key,redis_url,redis_token,preset.ai_feedback_json)
         # 3. Run the autograder and await its completion (asynchronous)
         await adapter.run_autograder()
 

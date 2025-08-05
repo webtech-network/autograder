@@ -8,17 +8,8 @@ class Port(ABC):
     """
     Abstract Port class that defines the accepted interface for the core system communication.
     """
-    def __init__(self,test_framework,grading_preset,student_name,student_credentials,feedback_type,openai_key=None,redis_url=None,redis_token=None):
-        self.test_framework = test_framework
-        self.grading_preset = grading_preset
-        self.student_name = student_name
-        self.student_credentials = student_credentials
-        self.feedback_type = feedback_type
-        self.openai_key = openai_key
-        self.redis_url = redis_url
-        self.redis_token = redis_token
-        self.autograder_response = None
-
+    def __init__(self):
+        self.autograder_request = None
     async def run_autograder(self):
         try:
             response = await Autograder.grade(
@@ -45,7 +36,7 @@ class Port(ABC):
         pass
 
     @abstractmethod
-    def create_request(self, submission_files, criteria_json, feedback_json, student_name, preset,
+    def create_request(self, submission_files, criteria_json, feedback_json, student_name,
                        test_framework, feedback_mode, openai_key=None, redis_url=None, redis_token=None,
                        ai_feedback_json=None) -> AutograderRequest:
         """
