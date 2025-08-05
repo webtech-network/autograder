@@ -1,6 +1,4 @@
 from connectors.models.assignment_config import AssignmentConfig
-from connectors.models.test_files import TestFiles
-
 
 class AutograderRequest:
     def __init__(
