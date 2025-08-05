@@ -1,6 +1,4 @@
 # src/interfaces/api/submission_api.py
-import os
-
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
@@ -35,13 +33,14 @@ app.add_middleware(
 # Dependency to provide the ApiAdapter instance
 # This allows injecting configuration (like Redis/OpenAI keys)
 # For a real deployment, these would come from environment variables or a config file
-def get_api_adapter() -> ApiAdapter:
+def get_api_adapter():
     # In a production environment, these would be loaded from environment variables
     # or a secure configuration management system.
-    redis_name = os.getenv("REDIS_NAME", "default_redis_name")
-    redis_url = os.getenv("REDIS_URL", "http://localhost:8080")
-    openai_key = os.getenv("OPENAI_API_KEY", "dummy_openai_key")
+    #redis_name = os.getenv("REDIS_NAME", "default_redis_name")
+    #redis_url = os.getenv("REDIS_URL", "http://localhost:8080")
+    #openai_key = os.getenv("OPENAI_API_KEY", "dummy_openai_key")
     #return ApiAdapter(redis_name=redis_name, redis_url=redis_url, openai_key=openai_key)
+    pass
 
 
 # src/interfaces/api/submission_api.py
@@ -66,7 +65,7 @@ async def grade_submission_endpoint(
         adapter = ApiAdapter()
 
         if grading_preset == "custom":
-            assignment_config = AssignmentConfig.load_custom(test_files,criteria_json,feedback_json,ai_feedback=ai_feedback_json,test_framework=test_framework)
+            assignment_config = adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,test_framework=test_framework)
         else:
             assignment_config = AssignmentConfig.load_preset(grading_preset)
 
