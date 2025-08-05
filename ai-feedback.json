@@ -20,7 +20,7 @@
     "repositories/casosRepository.js",
 "knexfile.js",
 "docker-compose.yml",
-"docker-compose.yaml"
+"project_structure.txt"
   ],
   "learning_resources": {
     "Configuração de Banco de Dados com Docker e Knex": [
