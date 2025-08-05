@@ -1,5 +1,5 @@
-from autograder.core.config_processing.test_config import TestConfig
-class SubTestConfig(TestConfig):
+from autograder.core.config_processing.test_file_config import TestFileConfig
+class SubjectConfig(TestFileConfig):
     """This class is used to load and manage configurations for individual subjects in a test configuration."""
     def __init__(self, ctype):
         super().__init__(ctype)
