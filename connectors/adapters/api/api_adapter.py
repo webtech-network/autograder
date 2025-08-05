@@ -6,7 +6,7 @@ from connectors.models.autograder_request import AutograderRequest
 from autograder.autograder_facade import Autograder
 from autograder.core.models.autograder_response import AutograderResponse
 from connectors.models.autograder_request import AutograderRequest
-from connectors.models.assignment_config import Preset
+from connectors.models.assignment_config import AssignmentConfig
 from connectors.models.test_files import TestFiles
 from connectors.port import Port
 
@@ -63,9 +63,14 @@ class ApiAdapter(Port):
 
         return response
 
-    def create_request(self,submission_files: List[UploadFile],preset: Preset,
-                       student_name,test_framework,feedback_mode,openai_key=None,
-                       redis_url=None,redis_token=None,ai_feedback_json=None) -> AutograderRequest:
+    def create_request(self,submission_files: List[UploadFile],
+                       assignment_config: AssignmentConfig,
+                       student_name,
+                       student_credentials,
+                       feedback_mode,
+                       openai_key=None,
+                       redis_url=None,
+                       redis_token=None) -> AutograderRequest:
 
         submission_files_dict = {}
         for submission_file in submission_files:
@@ -74,9 +79,8 @@ class ApiAdapter(Port):
 
         return AutograderRequest(
             submission_files_dict,
-            preset,
+            assignment_config,
             student_name,
-            test_framework,
             feedback_mode,
             openai_key,
             redis_url,
