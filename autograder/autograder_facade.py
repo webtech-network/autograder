@@ -14,6 +14,7 @@ class Autograder:
     """
     Autograder class that serves as a facade for the entire autograder system.
     This class will be used by the Adapters to perform the grading process and achieve the final score + feedback.
+    TODO: Refactor FACADE to receive an AutograderRequest object as input to the grade() method and handle file positioning internally.
     """
 
     @staticmethod

@@ -1,10 +1,10 @@
 # src/interfaces/api/submission_api.py
 import os
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
-from connectors.utils.load_preset import load_preset
+from connectors.models.preset import Preset
 import uvicorn
 
 from api_adapter import ApiAdapter
@@ -48,9 +48,10 @@ def get_api_adapter() -> ApiAdapter:
 
 @app.post("/grade_submission/")
 async def grade_submission_endpoint(
-        files: List[UploadFile] = File(..., description="The student's source code files (HTML, CSS, JS)"),
+        submission_files: List[UploadFile] = File(..., description="The student's source code files (HTML, CSS, JS)"),
         test_framework: str = Form(..., description="The test framework to use (e.g., pytest)"),
         grading_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.)"),
+        preset: Optional[Preset] = Form(None, description="The custom preset to use for grading, if custom preset is selected"),
         student_name: str = Form(..., description="The name of the student"),
         student_credentials: str = Form(..., description="The credentials of the student (e.g., GitHub token)"),
         feedback_type: str = Form("default", description="The type of feedback to provide (default or ai)"),
@@ -59,14 +60,15 @@ async def grade_submission_endpoint(
         redis_token: Optional[str] = Form(None, description="Redis token for AI feedback"),
 ):
     try:
-        # 1. Create the adapter instance (synchronous)
         adapter = ApiAdapter()
 
-        # Load the grading preset configuration
-        preset = load_preset(grading_preset) #TODO: Create Preset model to store the preset data
-        # 2. Save the submission files (asynchronous)
+        if grading_preset != "custom":
+            preset = Preset.load_preset(grading_preset)
 
-        adapter.create_request(files,preset.criteria_json,preset.feedback_json,student_name,test_framework,feedback_type,openai_key,redis_url,redis_token,preset.ai_feedback_json)
+        adapter.create_request(submission_files,preset,student_name, test_framework, feedback_type,openai_key,redis_url,redis_token)
+
+
+
         # 3. Run the autograder and await its completion (asynchronous)
         await adapter.run_autograder()
 
