@@ -1,5 +1,5 @@
 
-class TestConfig:
+class TestFileConfig:
     """This class is used to load and manage test configurations for different types of test files."""
     def __init__(self, ctype):
         self.ctype = ctype # ctype can be 'base', 'bonus', or 'penalty'
@@ -61,7 +61,7 @@ class TestConfig:
         response.load(config_dict)
         return response
 
-class SubTestConfig(TestConfig):
+class SubTestConfig(TestFileConfig):
     """This class is used to load and manage configurations for individual subjects in a test configuration."""
     def __init__(self, ctype):
         super().__init__(ctype)
