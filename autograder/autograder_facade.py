@@ -10,13 +10,37 @@ from autograder.core.test_engine.engine import TestEngine
 from autograder.core.utils.upstash_driver import Driver
 from time import sleep
 
+from connectors.models.autograder_request import AutograderRequest
+
+
 class Autograder:
     """
     Autograder class that serves as a facade for the entire autograder system.
     This class will be used by the Adapters to perform the grading process and achieve the final score + feedback.
     TODO: Refactor FACADE to receive an AutograderRequest object as input to the grade() method and handle file positioning internally.
     """
-
+    @staticmethod
+    def connect(autograder_request:AutograderRequest) -> AutograderResponse:
+        """
+        Main FACADE method that receives the AutograderRequest object, prepares the grading session, performs it, and returns the AutograderResponse.
+        """
+        Autograder.prepare_session(autograder_request.assignment_config, autograder_request.submission_files)
+        response = Autograder.grade(autograder_request.assignment_config.test_framework,
+                                autograder_request.student_name,
+                                autograder_request.student_credentials,
+                                autograder_request.feedback_mode,
+                                autograder_request.openai_key,
+                                autograder_request.redis_url,
+                                autograder_request.redis_token
+                                )
+        #add finish_session() here
+        return response
+    @staticmethod
+    def prepare_session(assignment_config, submission_files):
+        """
+        Receives all the files needed and places them in the correct directories for the grading job.
+        """
+        pass
     @staticmethod
     def _recreate_directory(directory_path: str):
         """
