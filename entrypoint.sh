@@ -13,9 +13,6 @@ export POSTGRES_DB="policia_db"
 if [ -f "package.json" ]; then
     echo "Downloading dependencies from student's project"
     npm ci || true;
-else
-    echo "Error: no package.json file found."
-    exit 1;
 fi
 
 # --- Applies the migrations --- #
