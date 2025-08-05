@@ -73,7 +73,7 @@ describe('Penalty Tests - ', () => {
             //Agent validation section
 
 
-            safeTest('Validation: Consegue registrar um agente com dataDeIncorporacao em formato invalido (não é YYYY-MM,DD)', async () => {
+            safeTest('Validation: Consegue registrar um agente com dataDeIncorporacao em formato invalido (não é YYYY-MM-DD)', async () => {
                 const invalidAgent = { ...testAgent, dataDeIncorporacao: "30-11-2023" };
                 try {
                     await axios.post(`${BASE_URL}/agentes`, invalidAgent);

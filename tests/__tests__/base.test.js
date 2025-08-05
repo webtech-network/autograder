@@ -340,7 +340,7 @@ describe('Base Tests - ', () => {
         });
 
         safeTest("READ: Recebe status code 404 ao tentar buscar um caso por ID inválido", async () => {
-            const nonExistentCaseId = 3424234;
+            const nonExistentCaseId = 3.17;
             try {
                 await axios.get(`${BASE_URL}/casos/${nonExistentCaseId}`);
                 expect(true).toBeFalsy();
