@@ -23,10 +23,11 @@ scorer = Scorer.quick_build(author,redis_url = args.redis_url, redis_token = arg
 print("Final Score is: ", scorer.get_final_score())
 
 reporter = scorer.get_reporter(autograder_bot_token,args.openai_key, mode="ai")
-feedback = reporter.generate_feedback()
 if isinstance(reporter,AIReporter):
     print(reporter.assemble_user_prompt())
+feedback = reporter.generate_feedback()
 reporter.notify_classroom(github_token)
+
 reporter.overwrite_report_in_repo(new_content=feedback)
 
 
