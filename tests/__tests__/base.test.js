@@ -150,7 +150,7 @@ describe('Base Tests - ', () => {
         });
 
         safeTest('READ: Recebe status 404 ao tentar buscar um agente inexistente', async () => {
-            const inexistentId = "dwjnclkwmkemwdl";
+            const inexistentId = 173128973;
 
             try {
                 await axios.get(`${BASE_URL}/agentes/${inexistentId}`,);
@@ -176,7 +176,7 @@ describe('Base Tests - ', () => {
         });
 
         safeTest('UPDATE: Recebe status code 404 ao tentar atualizar agente por completo com método PUT de agente inexistente', async () => {
-            const nonExistentId = crypto.randomUUID().toString();
+            const nonExistentId = 378192;
             const validPayload = {
                 nome: "Agente Fantasma",
                 dataDeIncorporacao: "2025-01-01",
@@ -205,7 +205,7 @@ describe('Base Tests - ', () => {
         });
 
         safeTest('UPDATE: Recebe status code 404 ao tentar atualizar agente por parcialmente com método PATCH de agente inexistente', async () => {
-            const nonExistentId = crypto.randomUUID().toString();
+            const nonExistentId = 37812731;
             const validPartialPayload = { cargo: "Agente Secreto" };
 
             try {
@@ -217,7 +217,7 @@ describe('Base Tests - ', () => {
         });
 
         safeTest('DELETE: Recebe status code 404 ao tentar deletar agente inexistente', async () => {
-            const nonExistentId = crypto.randomUUID().toString();
+            const nonExistentId = 34267;
 
             try {
                 await axios.delete(`${BASE_URL}/agentes/${nonExistentId}`);
@@ -324,7 +324,7 @@ describe('Base Tests - ', () => {
         });
 
         safeTest("CREATE: Recebe status code 404 ao tentar criar caso com id de agente inválido/inexistente", async () => {
-            const nonExistentAgentId = "hiwnqjdnkqndoqdjiqwdn";
+            const nonExistentAgentId = 435345;
             const payloadWithInvalidAgent = {
                 titulo: "Caso para agente fantasma",
                 descricao: "Este agente não existe",
@@ -340,7 +340,7 @@ describe('Base Tests - ', () => {
         });
 
         safeTest("READ: Recebe status code 404 ao tentar buscar um caso por ID inválido", async () => {
-            const nonExistentCaseId = "hbkdqjnwefu";
+            const nonExistentCaseId = 3424234;
             try {
                 await axios.get(`${BASE_URL}/casos/${nonExistentCaseId}`);
                 expect(true).toBeFalsy();
@@ -364,7 +364,7 @@ describe('Base Tests - ', () => {
         });
 
         safeTest("UPDATE: Recebe status code 404 ao tentar atualizar um caso por completo com método PUT de um caso inexistente", async () => {
-            const nonExistentCaseId = "crcashknnwe";
+            const nonExistentCaseId = 567765;
             const validPayload = {
                 titulo: "Caso Fantasma",
                 descricao: "Atualizando um caso que não existe.",
@@ -381,7 +381,7 @@ describe('Base Tests - ', () => {
 
 
         safeTest("UPDATE: Recebe status code 404 ao tentar atualizar um caso parcialmente com método PATCH de um caso inexistente", async () => {
-            const nonExistentCaseId = "caso-inexistente";
+            const nonExistentCaseId = 65757;
             const validPartialPayload = { status: "solucionado" };
             try {
                 await axios.patch(`${BASE_URL}/casos/${nonExistentCaseId}`, validPartialPayload);
@@ -392,7 +392,7 @@ describe('Base Tests - ', () => {
         });
 
         safeTest("DELETE: Recebe status code 404 ao tentar deletar um caso inexistente", async () => {
-            const nonExistentCaseId = crypto.randomUUID().toString();
+            const nonExistentCaseId = 456646;
             try {
                 await axios.delete(`${BASE_URL}/casos/${nonExistentCaseId}`);
                 expect(true).toBeFalsy();

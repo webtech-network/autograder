@@ -143,7 +143,7 @@ describe('Penalty Tests - ', () => {
             });
 
             safeTest("Validation: Consegue alterar ID do agente com método PUT", async ()=> {
-                const newId = "das ist kein ID";
+                const newId = 88888888;
                 const payload = {
                     id: newId,
                     nome: "Change id",
@@ -162,7 +162,7 @@ describe('Penalty Tests - ', () => {
             });
 
             safeTest("Validation: Consegue alterar ID do agente com método PATCH", async () => {
-                const newId = "customId";
+                const newId = 999999;
                 const payload = { id: newId };
 
                 try{
@@ -201,7 +201,7 @@ describe('Penalty Tests - ', () => {
             });
 
             safeTest('Validation: Consegue registrar caso com agente inexistente', async () => {
-                const nonExistentAgentId = "Isso com ctz n é um ID";
+                const nonExistentAgentId = 999999;
                 const invalidCase = { titulo: "Título Válido", descricao: "Descrição válida", status: "aberto", agente_id: nonExistentAgentId };
                 try {
                     await axios.post(`${BASE_URL}/casos`, invalidCase);
@@ -225,7 +225,7 @@ describe('Penalty Tests - ', () => {
             });
 
             safeTest("Validation: Consegue alterar ID do caso com método PUT", async ()=> {
-                const newId = "das ist kein ID";
+                const newId = 1234567;
                 const payload = {
                     id: newId,
                     titulo: "Change id",
@@ -244,7 +244,7 @@ describe('Penalty Tests - ', () => {
             });
 
             safeTest("Validation: Consegue alterar ID do caso com método PATCH", async () => {
-                const newId = "customId";
+                const newId = 420420;
                 const payload = { id: newId };
 
                 try{
