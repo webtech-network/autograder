@@ -3,7 +3,7 @@ from connectors.models.test_files import TestFiles
 
 
 class AssignmentConfig:
-    def __init__(self, preset,test_files, criteria, feedback, ai_feedback=None):
+    def __init__(self, test_files, criteria, feedback, preset="custom",ai_feedback=None,test_framework="pytest"):
         """
         Initializes the Preset model with the provided test files and configuration files.
 
@@ -12,6 +12,7 @@ class AssignmentConfig:
         :param feedback: The feedback configuration.
         :param ai_feedback: Optional; AI-generated feedback configuration.
         """
+        self.test_framework = test_framework
         self.preset = preset
         self.test_files = test_files
         self.criteria = criteria
@@ -82,3 +83,7 @@ class AssignmentConfig:
             feedback=feedback,
             ai_feedback=ai_feedback
         )
+
+    @classmethod
+    def load_custom(cls,test_files,criteria,feedback,ai_feedback=None,test_framework="pytest"):
+        pass
