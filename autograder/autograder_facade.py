@@ -19,8 +19,9 @@ class Autograder:
     This class will be used by the Adapters to perform the grading process and achieve the final score + feedback.
     TODO: Refactor FACADE to receive an AutograderRequest object as input to the grade() method and handle file positioning internally.
     """
+
     @staticmethod
-    def connect(autograder_request:AutograderRequest) -> AutograderResponse:
+    async def connect(autograder_request: AutograderRequest) -> AutograderResponse:
         """
         Main FACADE method that receives the AutograderRequest object, prepares the grading session, performs it, and returns the AutograderResponse.
         """
