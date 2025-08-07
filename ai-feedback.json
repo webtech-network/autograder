@@ -11,16 +11,16 @@
     "INSTRUCTIONS.md",
     "db/db.js",
     "db/seeds/agentes.js",
-"db/seeds/casos.js",
+    "db/seeds/casos.js",
     "routes/agentesRoutes.js",
     "routes/casosRoutes.js",
     "controllers/agentesController.js",
     "controllers/casosController.js",
     "repositories/agentesRepository.js",
     "repositories/casosRepository.js",
-"knexfile.js",
-"docker-compose.yml",
-"project_structure.txt"
+    "docker-compose.yml",
+    "project_structure.txt",
+    "db/migrations"
   ],
   "learning_resources": {
     "Configuração de Banco de Dados com Docker e Knex": [
