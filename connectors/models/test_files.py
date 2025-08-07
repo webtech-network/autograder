@@ -19,3 +19,18 @@ class TestFiles:
         self.test_penalty = test_penalty
         self.fatal_tests = fatal_tests if fatal_tests is not None else []
         self.other_files = other_files if other_files is not None else {}
+    def __str__(self):
+        test_base = test_bonus = test_penalty = fatal_tests = other_files = "[Not Loaded]"
+        if self.test_base:
+            test_base = "[Loaded]"
+        if self.test_bonus:
+            test_bonus = "[Loaded]"
+        if self.test_penalty:
+            test_penalty = "[Loaded]"
+        if self.fatal_tests:
+            fatal_tests = "[Loaded]"
+        if self.other_files:
+            other_files = "[Loaded]"
+        return f"TestFiles(test_base={test_base}, test_bonus={test_bonus}, " \
+               f"test_penalty={test_penalty}, fatal_tests={fatal_tests}, " \
+               f"other_files={other_files})"
