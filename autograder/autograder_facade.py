@@ -220,12 +220,54 @@ if __name__ == "__main__":
     This is the entry point for the Autograder. 
     It is used for testing purposes and can be run directly to see the grading process in action.
     """
+    from connectors.models.assignment_config import AssignmentConfig
+    from connectors.models.autograder_request import AutograderRequest
 
+    ass = AssignmentConfig.load_preset("html-css-js")
+    print(ass)
+    submission_files = {
+        "index.html":
+            """<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <h1>Welcome to My Page</h1> <!-- ✅ Matches test requirement -->
+        <p>This is a simple webpage.</p> <!-- ✅ Just needs a paragraph -->
+
+        <button id="myButton">Click Me!</button> <!-- ✅ Button with correct ID & text -->
+
+        <script src="script.js"></script>
+    </body>
+    </html>""",
+        "style.css": """
+        /* ✅ Background color applied */
+    body {
+        background-color: lightblue;
+    }
+
+    /* ✅ <h1> has a color */
+    h1 {
+        color: darkblue;
+    }
+        """,
+        "script.js":
+        """
+        // ✅ Select the button and add a click event listener
+document.getElementById("myButton").addEventListener("click", function() {
+    this.textContent = "Clicked!"; // ✅ Changes button text on click
+});
+        """
+    }
+    request = AutograderRequest(submission_files, ass, "Arthur Carvalho", "123", "default")
 
     async def main():
         print("Starting autograder...")
         try:
-            response = await Autograder.grade(test_framework="pytest", student_name="John Doe", feedback_type="default")
+            response = await Autograder.connect(request)
             print(f"Final Score: {response.final_score}")
             print("Feedback:")
             print(response.feedback)
