@@ -53,7 +53,7 @@ class AssignmentConfig:
         preset_dir = os.path.join(project_root, 'presets', preset_name)
 
         if not os.path.isdir(preset_dir):
-            raise ValueError(f"Preset not found: {preset_dir}")
+            raise ValueError(f"Preset not found: {preset_name}")
 
         # Initialize variables for test files
         test_base = None
@@ -67,9 +67,36 @@ class AssignmentConfig:
         feedback = None
         ai_feedback = None
 
-        # Detect test framework by file extension
-        test_framework = "pytest"  # default
         for file in os.listdir(preset_dir):
+            file_path = os.path.join(preset_dir, file)
+            if file == "criteria.json":
+                print("Loaded criteria.json")
+                with open(os.path.join(preset_dir, file), 'r', encoding='utf-8') as f:
+                    criteria = f.read()
+            elif file == "feedback.json":
+                print("Loaded feedback.json")
+                with open(os.path.join(preset_dir, file), 'r', encoding='utf-8') as f:
+                    feedback = f.read()
+            elif file == "ai-feedback.json":
+                print("Loaded ai-feedback.json")
+                with open(os.path.join(preset_dir, file), 'r', encoding='utf-8') as f:
+                    ai_feedback = f.read()
+            else:
+                # Add other files to the other_files dictionary
+                if os.path.isdir(file_path) or file == "__init__.py":
+                    continue
+                print("Not a standard test file, checking for other files: " + file)
+
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    other_files[file] = f.read()
+
+
+        # Iterate through files in the preset directory
+        preset_tests_dir = os.path.join(preset_dir, "tests")
+
+        # Determine test framework based on file extensions
+        test_framework = "pytest"  # default
+        for file in os.listdir(preset_tests_dir):
             if file.endswith(".py"):
                 test_framework = "pytest"
                 break
@@ -80,26 +107,22 @@ class AssignmentConfig:
                 test_framework = "ai"
                 break
 
-        # Iterate through files in the preset directory
-        for file in os.listdir(preset_dir):
-            file_path = os.path.join(preset_dir, file)
+        for file in os.listdir(preset_tests_dir):
+            file_path = os.path.join(preset_tests_dir, file)
 
-            if file.startswith("base_tests"):
+            if file.startswith("test_base"):
                 with open(file_path, 'r', encoding='utf-8') as f:
+
                     test_base = f.read()
-            elif file.startswith("bonus_tests"):
+            elif file.startswith("test_bonus"):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     test_bonus = f.read()
-            elif file.startswith("penalty_tests"):
+            elif file.startswith("test_penalty"):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     test_penalty = f.read()
             elif file.startswith("fatal_analysis"):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     fatal_tests = f.read()
-            else:
-                # Add other files to the other_files dictionary
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    other_files[file] = f.read()
 
         # Create TestFiles object
         test_files = TestFiles(
