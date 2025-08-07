@@ -87,13 +87,13 @@ class Autograder:
         # Place config files in /request_bucket
         if assignment_config.criteria:
             with open(os.path.join(request_bucket_path, "criteria.json"), "w", encoding="utf-8") as f:
-                json.dump(assignment_config.criteria, f)
+                json.dump(json.loads(assignment_config.criteria),f,ensure_ascii=False, indent=2)
         if assignment_config.feedback:
             with open(os.path.join(request_bucket_path, "feedback.json"), "w", encoding="utf-8") as f:
-                json.dump(assignment_config.feedback, f)
+                json.dump(json.loads(assignment_config.feedback),f,ensure_ascii=False, indent=2)
         if assignment_config.ai_feedback:
             with open(os.path.join(request_bucket_path, "ai-feedback.json"), "w", encoding="utf-8") as f:
-                json.dump(assignment_config.ai_feedback, f)
+                json.dump(json.loads(assignment_config.ai_feedback),f,ensure_ascii=False, indent=2)
 
         # Place submission files in /request_bucket/submission
         for filename, content in submission_files.items():
