@@ -19,10 +19,24 @@ class AssignmentConfig:
         self.feedback = feedback
         self.ai_feedback = ai_feedback if ai_feedback is not None else {}
 
+    def set_test_framework(self, test_framework):
+        """
+        Sets the test framework for the assignment configuration.
+        """
+        self.test_framework = test_framework
+
+    def __str__(self):
+        """
+        Returns a string representation of the AssignmentConfig object.
+        """
+        return f"AssignmentConfig(preset={self.preset}, test_framework={self.test_framework}, test_files={self.test_files}, criteria={self.criteria}, feedback={self.feedback}, ai_feedback={self.ai_feedback})"
+
+
     @classmethod
     def load_preset(cls, preset_name):
         """
         Loads a preset and generates a Preset object with the correct attributes.
+        The test_framework is inferred from the test file extensions.
         """
         if preset_name == "custom":
             print("Custom mode enabled. No preset files will be loaded.")
@@ -44,6 +58,19 @@ class AssignmentConfig:
         criteria = None
         feedback = None
         ai_feedback = None
+
+        # Detect test framework by file extension
+        test_framework = "pytest"  # default
+        for file in os.listdir(preset_dir):
+            if file.endswith(".py"):
+                test_framework = "pytest"
+                break
+            elif file.endswith(".js"):
+                test_framework = "jest"
+                break
+            elif file.endswith(".json"):
+                test_framework = "ai"
+                break
 
         # Iterate through files in the preset directory
         for file in os.listdir(preset_dir):
@@ -75,13 +102,14 @@ class AssignmentConfig:
             other_files=other_files
         )
 
-        # Return a new Preset object
+        # Return a new Preset object with detected test_framework
         return cls(
             preset=preset_name,
             test_files=test_files,
             criteria=criteria,
             feedback=feedback,
-            ai_feedback=ai_feedback
+            ai_feedback=ai_feedback,
+            test_framework=test_framework
         )
 
     @classmethod
