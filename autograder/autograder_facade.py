@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import shutil
 from autograder.core.config_processing.criteria_config import CriteriaConfig
@@ -24,24 +25,80 @@ class Autograder:
     async def connect(autograder_request: AutograderRequest) -> AutograderResponse:
         """
         Main FACADE method that receives the AutograderRequest object, prepares the grading session, performs it, and returns the AutograderResponse.
+        Ensures cleanup is always performed, even if an error occurs.
         """
-        Autograder.prepare_session(autograder_request.assignment_config, autograder_request.submission_files)
-        response = Autograder.grade(autograder_request.assignment_config.test_framework,
-                                autograder_request.student_name,
-                                autograder_request.student_credentials,
-                                autograder_request.feedback_mode,
-                                autograder_request.openai_key,
-                                autograder_request.redis_url,
-                                autograder_request.redis_token
-                                )
-        #add finish_session() here
-        return response
+        try:
+            Autograder.prepare_session(autograder_request.assignment_config, autograder_request.submission_files)
+            response = await Autograder.grade(
+                autograder_request.assignment_config.test_framework,
+                autograder_request.student_name,
+                autograder_request.student_credentials,
+                autograder_request.feedback_mode,
+                autograder_request.openai_key,
+                autograder_request.redis_url,
+                autograder_request.redis_token
+            )
+            return response
+        finally:
+            Autograder.finish_session()
+
     @staticmethod
     def prepare_session(assignment_config, submission_files):
         """
         Receives all the files needed and places them in the correct directories for the grading job.
         """
-        pass
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        validation_path = os.path.join(current_dir, "validation")
+        validation_tests_path = os.path.join(validation_path, "tests")
+        request_bucket_path = os.path.join(current_dir, "request_bucket")
+        submission_path = os.path.join(request_bucket_path, "submission")
+
+        # Ensure directories exist
+        os.makedirs(validation_tests_path, exist_ok=True)
+        os.makedirs(submission_path, exist_ok=True)
+
+
+        # Determine file extension based on test_framework
+        framework = getattr(assignment_config, "test_framework", "pytest")
+        ext = ".py" if framework == "pytest" else ".js" if framework == "jest" else ".json" if framework == "ai" else ".txt"
+
+
+        # Place test files in /validation/tests
+        test_files = assignment_config.test_files
+        if test_files.test_base:
+            with open(os.path.join(validation_tests_path, f"test_base{ext}"), "w", encoding="utf-8") as f:
+                f.write(test_files.test_base)
+        if test_files.test_bonus:
+            with open(os.path.join(validation_tests_path, f"test_bonus{ext}"), "w", encoding="utf-8") as f:
+                f.write(test_files.test_bonus)
+        if test_files.test_penalty:
+            with open(os.path.join(validation_tests_path, f"test_penalty{ext}"), "w", encoding="utf-8") as f:
+                f.write(test_files.test_penalty)
+        if test_files.fatal_tests:
+            with open(os.path.join(validation_tests_path, f"fatal_tests{ext}"), "w", encoding="utf-8") as f:
+                f.write(test_files.fatal_tests)
+
+
+        # Place other test files in /validation
+        for filename, content in test_files.other_files.items():
+            with open(os.path.join(validation_path, filename), "w", encoding="utf-8") as f:
+                f.write(content)
+
+        # Place config files in /request_bucket
+        if assignment_config.criteria:
+            with open(os.path.join(request_bucket_path, "criteria.json"), "w", encoding="utf-8") as f:
+                json.dump(assignment_config.criteria, f)
+        if assignment_config.feedback:
+            with open(os.path.join(request_bucket_path, "feedback.json"), "w", encoding="utf-8") as f:
+                json.dump(assignment_config.feedback, f)
+        if assignment_config.ai_feedback:
+            with open(os.path.join(request_bucket_path, "ai-feedback.json"), "w", encoding="utf-8") as f:
+                json.dump(assignment_config.ai_feedback, f)
+
+        # Place submission files in /request_bucket/submission
+        for filename, content in submission_files.items():
+            with open(os.path.join(submission_path, filename), "w", encoding="utf-8") as f:
+                f.write(content)
     @staticmethod
     def _recreate_directory(directory_path: str):
         """
