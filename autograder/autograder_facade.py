@@ -213,11 +213,6 @@ class Autograder:
             print(f"An error occurred during the grading process: {e}")
             raise
 
-        finally:
-            # This block will execute regardless of whether the `try` block
-            # completed successfully or raised an exception.
-            print("Executing cleanup protocol...")
-            Autograder.finish_session()
 
 
 if __name__ == "__main__":
