@@ -29,9 +29,17 @@ class AssignmentConfig:
         """
         Returns a string representation of the AssignmentConfig object.
         """
-        return f"AssignmentConfig(preset={self.preset}, test_framework={self.test_framework}, test_files={self.test_files}, criteria={self.criteria}, feedback={self.feedback}, ai_feedback={self.ai_feedback})"
-
-
+        criteria = feedback = ai_feedback = "[Not Loaded]"
+        if self.criteria:
+            criteria = "[Loaded]"
+        if self.feedback:
+            feedback = "[Loaded]"
+        if self.ai_feedback:
+            ai_feedback = "[Loaded]"
+        return f"AssignmentConfig(preset={self.preset}, test_framework={self.test_framework}, " \
+                f"test_files={self.test_files}, criteria={criteria}, " \
+                f"feedback={feedback}, " \
+                f"ai_feedback={ai_feedback})"
     @classmethod
     def load_preset(cls, preset_name):
         """
