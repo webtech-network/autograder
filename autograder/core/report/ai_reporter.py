@@ -86,20 +86,49 @@ class AIReporter(BaseReporter):
 
     def get_files(self):
         """
-        Reads files listed in the config from the submission directory
-        and formats them into a single string for the AI prompt.
+        Reads files and directories listed in the config from the submission directory
+        and formats their content into a single string for the AI prompt.
         """
-        base_path = os.getenv("GITHUB_WORKSPACE", "")
+        base_path = os.getenv("GITHUB_WORKSPACE", ".")
         submission_dir = os.path.join(base_path, 'submission')
         formatted_files_content = []
-        for filename in self.config.files:
-            file_path = os.path.join(submission_dir, filename)
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                    formatted_files_content.append(f"# ARQUIVO: {filename}\n```\n{content}\n```")
-            except FileNotFoundError:
-                formatted_files_content.append(f"# ARQUIVO: {filename}\n---\n**O ARQUIVO NÃO EXISTE NO REPOSITORIO DO ALUNO!.**\n---")
+
+        # Iterate through each item specified in the config
+        for item_path in self.config.files:
+            full_path = os.path.join(submission_dir, item_path)
+
+            # Check if the item is a directory
+            if os.path.isdir(full_path):
+                try:
+                    # Read all files within the directory
+                    for filename in os.listdir(full_path):
+                        file_path = os.path.join(full_path, filename)
+                        # Make sure it's actually a file and not a subdirectory
+                        if os.path.isfile(file_path):
+                            # Prepend the directory name to the file name for clarity in the output
+                            relative_file_path = os.path.join(item_path, filename)
+                            with open(file_path, "r", encoding="utf-8") as f:
+                                content = f.read()
+                                formatted_files_content.append(f"# ARQUIVO: {relative_file_path}\n```\n{content}\n```")
+                except FileNotFoundError:
+                    formatted_files_content.append(
+                        f"# DIRETÓRIO: {item_path}\n---\n**O DIRETÓRIO NÃO EXISTE NO REPOSITÓRIO DO ALUNO!**\n---")
+
+            # If it's not a directory, treat it as a single file
+            elif os.path.isfile(full_path):
+                try:
+                    with open(full_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                        formatted_files_content.append(f"# ARQUIVO: {item_path}\n```\n{content}\n```")
+                except FileNotFoundError:
+                    formatted_files_content.append(
+                        f"# ARQUIVO: {item_path}\n---\n**O ARQUIVO NÃO EXISTE NO REPOSITÓRIO DO ALUNO!**\n---")
+
+            # Handle cases where the path is neither a file nor a directory
+            else:
+                formatted_files_content.append(
+                    f"# ITEM: {item_path}\n---\n**O CAMINHO NÃO É UM ARQUIVO NEM UM DIRETÓRIO VÁLIDO NO REPOSITÓRIO DO ALUNO!**\n---")
+
         return "\n\n".join(formatted_files_content)
 
     def _prepare_learning_resources_str(self):
