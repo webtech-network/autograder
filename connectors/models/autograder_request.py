@@ -19,3 +19,9 @@ class AutograderRequest:
         self.openai_key = openai_key
         self.redis_url = redis_url
         self.redis_token = redis_token
+    def __str__(self):
+        stri = f"{len(self.submission_files)} submission files.\n"
+        stri += f"Assignment config: {self.assignment_config}\n"
+        stri += f"Student name: {self.student_name}\n"
+        stri += f"Feedback mode: {self.feedback_mode}\n"
+        return stri
