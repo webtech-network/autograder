@@ -129,7 +129,7 @@ class AssignmentConfig:
             test_base=test_base,
             test_bonus=test_bonus,
             test_penalty=test_penalty,
-            fatal_tests=fatal_tests,
+            fatal_analysis=fatal_tests,
             other_files=other_files
         )
 

@@ -74,9 +74,9 @@ class Autograder:
         if test_files.test_penalty:
             with open(os.path.join(validation_tests_path, f"test_penalty{ext}"), "w", encoding="utf-8") as f:
                 f.write(test_files.test_penalty)
-        if test_files.fatal_tests:
+        if test_files.fatal_analysis:
             with open(os.path.join(validation_tests_path, f"fatal_tests{ext}"), "w", encoding="utf-8") as f:
-                f.write(test_files.fatal_tests)
+                f.write(test_files.fatal_analysis)
 
 
         # Place other test files in /validation
