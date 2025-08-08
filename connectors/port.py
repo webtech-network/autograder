@@ -14,7 +14,7 @@ class Port(ABC):
 
     async def run_autograder(self):
         try:
-            response = await Autograder.grade(self.autograder_request)
+            response = await Autograder.connect(self.autograder_request)
             self.autograder_response = response
             return self
         except Exception as e:
