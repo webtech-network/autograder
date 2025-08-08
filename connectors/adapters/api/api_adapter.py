@@ -27,7 +27,7 @@ class ApiAdapter(Port):
 
         return response
 
-    def create_request(self,
+    async def create_request(self,
                        submission_files: List[UploadFile],
                        assignment_config: AssignmentConfig,
                        student_name,
@@ -39,19 +39,21 @@ class ApiAdapter(Port):
 
         submission_files_dict = {}
         for submission_file in submission_files:
-            submission_files_dict[submission_file.filename] = submission_file
+            submission_content = await submission_file.read()
+            submission_files_dict[submission_file.filename] =  submission_content.decode("utf-8")
 
-
+        print(f"Creating AutograderRequest with {feedback_mode} feedback mode")
         self.autograder_request =  AutograderRequest(
             submission_files_dict,
             assignment_config,
             student_name,
-            feedback_mode,
-            openai_key,
-            redis_url,
-            redis_token
+            feedback_mode=feedback_mode,
+            openai_key=openai_key,
+            redis_url=redis_url,
+            redis_token=redis_token
         )
-    def create_custom_assignment_config(self,
+        print(f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode")
+    async def create_custom_assignment_config(self,
                                        test_files: List[UploadFile],
                                        criteria,
                                        feedback,
@@ -61,13 +63,18 @@ class ApiAdapter(Port):
         files = TestFiles()
         for file in test_files:
             if file.filename.startswith("base_tests"):
-                files.test_base = file
+                base_content = await file.read()
+                files.test_base = base_content.decode("utf-8")
             elif file.filename.startswith("bonus_tests"):
-                files.test_bonus = file
+                bonus_content = await file.read()
+                files.test_bonus = bonus_content.decode("utf-8")
             elif file.filename.startswith("penalty_tests"):
-                files.test_penalty = file
+                penalty_content = await file.read()
+                files.test_penalty = penalty_content.decode("utf-8")
             elif file.filename.startswith("fatal_analysis"):
-                files.fatal_tests.append(file)
+                fatal_content = await file.read()
+                files.test_fatal_analysis = fatal_content.decode("utf-8")
             else:
-                files.other_files[file.filename] = file
+                other_files_content = await file.read()
+                files.other_files[file.filename] = other_files_content.decode("utf-8")
         return AssignmentConfig.load_custom(files,criteria,feedback,ai_feedback=ai_feedback,test_framework=test_framework)
