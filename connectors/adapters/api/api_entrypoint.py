@@ -63,13 +63,12 @@ async def grade_submission_endpoint(
 ):
     try:
         adapter = ApiAdapter()
-
         if grading_preset == "custom":
-            assignment_config = adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,test_framework=test_framework)
+            assignment_config = await adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,test_framework=test_framework)
         else:
             assignment_config = AssignmentConfig.load_preset(grading_preset)
 
-        adapter.create_request(submission_files=submission_files,
+        await adapter.create_request(submission_files=submission_files,
                                assignment_config=assignment_config,
                                student_name=student_name,
                                student_credentials=student_credentials,
@@ -78,13 +77,11 @@ async def grade_submission_endpoint(
                                redis_url=redis_url,
                                redis_token=redis_token)
 
-
         # 3. Run the autograder and await its completion (asynchronous)
         await adapter.run_autograder()
 
         # 4. Get the results from the adapter (synchronous)
         result = adapter.export_results()
-
         return result
 
     except Exception as e:
