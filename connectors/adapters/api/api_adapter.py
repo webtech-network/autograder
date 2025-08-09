@@ -18,9 +18,8 @@ class ApiAdapter(Port):
 
         # Prepare the API response
         response = {
-            "status": "success",
-            #"student_name": self.student_name,
-            #"student_credentials": self.student_credentials,
+            "server_status": "Sever connection happened successfully",
+            "autograding_status": self.autograder_response.status,
             "final_score": self.autograder_response.final_score,
             "feedback": self.autograder_response.feedback
         }
