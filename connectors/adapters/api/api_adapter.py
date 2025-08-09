@@ -59,6 +59,7 @@ class ApiAdapter(Port):
                                        feedback,
                                        preset="custom",
                                        ai_feedback=None,
+                                       setup=None,
                                        test_framework="pytest"):
         files = TestFiles()
         for file in test_files:
@@ -77,4 +78,4 @@ class ApiAdapter(Port):
             else:
                 other_files_content = await file.read()
                 files.other_files[file.filename] = other_files_content.decode("utf-8")
-        return AssignmentConfig.load_custom(files,criteria,feedback,ai_feedback=ai_feedback,test_framework=test_framework)
+        return AssignmentConfig.load_custom(files,criteria,feedback,ai_feedback=ai_feedback,setup=setup,test_framework=test_framework)
