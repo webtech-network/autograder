@@ -15,9 +15,6 @@ class Grader:
     def get_test_results(self):
         """Get the validation results from a json results file"""
         results_dict = ResultProcessor.load_results(f"test_{self.test_config.ctype}_results.json")
-        print("RESULTS_DICT -> ")
-        print(results_dict[0]) # Debugging output to check the loaded results
-        print(results_dict[1])
         # Load the test results from the specified file
         passed_tests = [test['test'] for test in results_dict[0]]
         failed_tests = [test['test'] for test in results_dict[1]]
