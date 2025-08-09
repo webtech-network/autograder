@@ -17,8 +17,9 @@ class PytestAdapter(EnginePort):
     _THIS_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
     _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_THIS_FILE_DIR)))
     VALIDATION_DIR = os.path.join(_PROJECT_ROOT, 'validation')
+    REQUEST_BUCKET_DIR = os.path.join(_PROJECT_ROOT, 'request_bucket')
     RESULTS_DIR = os.path.join(VALIDATION_DIR, 'tests', 'results')
-
+    SUBMISSION_DIR = os.path.join(REQUEST_BUCKET_DIR, 'submission')
     async def _install_dependencies(self):
         """
         Installs pytest and pytest-json-report asynchronously if not already installed.
@@ -165,4 +166,5 @@ async def main():
         print(f"\nAn error occurred: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    adapter = PytestAdapter()
+    adapter.setup()
