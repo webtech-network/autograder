@@ -6,8 +6,10 @@ class TestEngine:
     TestEngine is the factory class for the test engine adapters.
     It now runs tests and normalizes the output in a single async operation.
     """
-    @classmethod
-    async def run_tests(cls, test_framework):
+    fatal_error = False
+
+    @staticmethod
+    async def run(test_framework):
         """
         Creates an adapter, runs tests, and normalizes the output,
         ensuring all steps complete before returning.
@@ -22,6 +24,11 @@ class TestEngine:
         else:
             raise ValueError(f"Unsupported test framework: {test_framework}")
 
+
+        # Run setup commands and fatal_analysis if needed.
+        if runner.setup() == 1:
+            TestEngine.fatal_error = True
+            return
         # --- KEY FIX ---
         # Await the test runs to ensure raw reports are created first.
         report_files = await runner.run_tests()
