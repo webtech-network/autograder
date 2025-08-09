@@ -38,9 +38,8 @@ class DefaultReporter(BaseReporter):
         # Load feedback data from the JSON file
         with open(absolute_path, "r", encoding="utf-8") as file:
             #tests_feedback = json.load(file)
-            print("Reading feedback file:")
+            print("Made it! Reading feedback file...")
             tests_feedback = json.load(file)
-            print(tests_feedback)
         passed = True if self.result.final_score >= 70 else False
         # Initialize feedback
         feedback = "<sup>Suas cotas de feedback AI acabaram, o sistema de feedback voltou ao padrão.</sup>\n\n"
@@ -50,7 +49,6 @@ class DefaultReporter(BaseReporter):
         feedback += f"**Status:** {'✅ Aprovado' if passed else '❌ Reprovado'}\n\n"
         feedback += "---\n"
 
-        print(self.get_key_value(tests_feedback["base_tests"], "test_css_css_linked"))
         # Base Feedback (Requisitos Obrigatórios)
         feedback += "## ✅ Requisitos Obrigatórios\n"
         if len(self.result.base_results["failed"]) == 0:
@@ -59,7 +57,6 @@ class DefaultReporter(BaseReporter):
             feedback += f"- Foram encontrados `{len(self.result.base_results['failed'])}` problemas nos requisitos obrigatórios. Veja abaixo os testes que falharam:\n"
             for test_name in self.result.base_results["failed"]:
                 # Get the feedback from the JSON structure based on pass/fail
-                print("Test Name:", test_name)
                 passed_feedback = self.get_key_value(tests_feedback["base_tests"], test_name)[1]  # Failed feedback
                 feedback += f"  - ⚠️ **Falhou no teste**: `{test_name}`\n"
                 feedback += f"    - **Melhoria sugerida**: {passed_feedback}\n"
