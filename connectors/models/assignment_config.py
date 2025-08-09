@@ -3,7 +3,7 @@ from connectors.models.test_files import TestFiles
 
 
 class AssignmentConfig:
-    def __init__(self, test_files, criteria, feedback, preset="custom",ai_feedback=None,test_framework="pytest"):
+    def __init__(self, test_files, criteria, feedback, setup ,preset="custom",ai_feedback=None,test_framework="pytest"):
         """
         Initializes the Preset model with the provided test files and configuration files.
 
@@ -18,6 +18,7 @@ class AssignmentConfig:
         self.criteria = criteria
         self.feedback = feedback
         self.ai_feedback = ai_feedback if ai_feedback is not None else {}
+        self.setup = setup
 
     def set_test_framework(self, test_framework):
         """
@@ -29,17 +30,20 @@ class AssignmentConfig:
         """
         Returns a string representation of the AssignmentConfig object.
         """
-        criteria = feedback = ai_feedback = "[Not Loaded]"
+        criteria = feedback = ai_feedback = setup = "[Not Loaded]"
         if self.criteria:
             criteria = "[Loaded]"
         if self.feedback:
             feedback = "[Loaded]"
         if self.ai_feedback:
             ai_feedback = "[Loaded]"
+        if self.setup:
+            setup = "[Loaded]"
         return f"AssignmentConfig(preset={self.preset}, test_framework={self.test_framework}, " \
                 f"test_files={self.test_files}, criteria={criteria}, " \
                 f"feedback={feedback}, " \
-                f"ai_feedback={ai_feedback})"
+                f"ai_feedback={ai_feedback}" \
+                f"setup={setup})"
     @classmethod
     def load_preset(cls, preset_name):
         """
@@ -66,6 +70,7 @@ class AssignmentConfig:
         criteria = None
         feedback = None
         ai_feedback = None
+        setup = None
 
         for file in os.listdir(preset_dir):
             file_path = os.path.join(preset_dir, file)
@@ -81,11 +86,15 @@ class AssignmentConfig:
                 print("Loaded ai-feedback.json")
                 with open(os.path.join(preset_dir, file), 'r', encoding='utf-8') as f:
                     ai_feedback = f.read()
+            elif file == "autograder-setup.json":
+                print("Loaded autograder-setup.json")
+                with open(os.path.join(preset_dir, file), 'r', encoding='utf-8') as f:
+                    setup = f.read()
             else:
                 # Add other files to the other_files dictionary
                 if os.path.isdir(file_path) or file == "__init__.py":
                     continue
-                print("Not a standard test file, checking for other files: " + file)
+                print("Saving " + file+" to other_files")
 
                 with open(file_path, 'r', encoding='utf-8') as f:
                     other_files[file] = f.read()
@@ -120,16 +129,12 @@ class AssignmentConfig:
             elif file.startswith("test_penalty"):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     test_penalty = f.read()
-            elif file.startswith("fatal_analysis"):
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    fatal_tests = f.read()
 
         # Create TestFiles object
         test_files = TestFiles(
             test_base=test_base,
             test_bonus=test_bonus,
             test_penalty=test_penalty,
-            fatal_analysis=fatal_tests,
             other_files=other_files
         )
 
@@ -140,9 +145,10 @@ class AssignmentConfig:
             criteria=criteria,
             feedback=feedback,
             ai_feedback=ai_feedback,
+            setup=setup,
             test_framework=test_framework
         )
 
     @classmethod
-    def load_custom(cls,test_files,criteria,feedback,ai_feedback=None,test_framework="pytest"):
-        return cls(test_files,criteria,feedback,ai_feedback=ai_feedback,test_framework=test_framework)
+    def load_custom(cls,test_files,criteria,feedback,ai_feedback=None,setup=None,test_framework="pytest"):
+        return cls(test_files,criteria,feedback,ai_feedback=ai_feedback,setup=setup,test_framework=test_framework)
