@@ -1,0 +1,13 @@
+{
+  "commands": [
+    {
+      "name": "Save Project Structure",
+      "command": "tree -I 'node_modules' -I '.idea' -I '__pycache__' > project_structure.txt"
+    }
+  ],
+  "file_checks": [
+    "index.html",
+    "style.css",
+    "script.js"
+  ]
+}
