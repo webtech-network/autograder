@@ -56,6 +56,7 @@ async def grade_submission_endpoint(
         criteria_json: Optional[UploadFile] = File(None, description="JSON file with grading criteria (in case of custom preset)"),
         feedback_json: Optional[UploadFile] = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
         ai_feedback_json: Optional[UploadFile] = File(None, description="JSON file with AI feedback configuration (in case of custom preset)"),
+        setup_json: Optional[UploadFile] = File(None, description="JSON file with commands configuration (in case of custom preset)"),
         test_framework: Optional[str] = Form("custom", description="The test framework to use (e.g., pytest)"),
         openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
         redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
@@ -64,7 +65,7 @@ async def grade_submission_endpoint(
     try:
         adapter = ApiAdapter()
         if grading_preset == "custom":
-            assignment_config = await adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,test_framework=test_framework)
+            assignment_config = await adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,setup=setup_json,test_framework=test_framework)
         else:
             assignment_config = AssignmentConfig.load_preset(grading_preset)
 
