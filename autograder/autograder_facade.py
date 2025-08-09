@@ -6,6 +6,7 @@ from autograder.core.config_processing.criteria_config import CriteriaConfig
 from autograder.core.grading.grader import Grader
 from autograder.core.grading.scorer import Scorer
 from autograder.core.models.autograder_response import AutograderResponse
+from autograder.core.report.fatal_report import FatalReporter
 from autograder.core.report.reporter_factory import Reporter
 from autograder.core.test_engine.engine import TestEngine
 from autograder.core.utils.upstash_driver import Driver
@@ -56,7 +57,7 @@ class Autograder:
         # Ensure directories exist
         os.makedirs(validation_tests_path, exist_ok=True)
         os.makedirs(submission_path, exist_ok=True)
-
+        os.makedirs(os.path.join(validation_tests_path,"results"), exist_ok=True)
 
         # Determine file extension based on test_framework
         framework = getattr(assignment_config, "test_framework", "pytest")
@@ -74,9 +75,6 @@ class Autograder:
         if test_files.test_penalty:
             with open(os.path.join(validation_tests_path, f"test_penalty{ext}"), "w", encoding="utf-8") as f:
                 f.write(test_files.test_penalty)
-        if test_files.fatal_analysis:
-            with open(os.path.join(validation_tests_path, f"fatal_tests{ext}"), "w", encoding="utf-8") as f:
-                f.write(test_files.fatal_analysis)
 
 
         # Place other test files in /validation
@@ -94,7 +92,9 @@ class Autograder:
         if assignment_config.ai_feedback:
             with open(os.path.join(request_bucket_path, "ai-feedback.json"), "w", encoding="utf-8") as f:
                 json.dump(json.loads(assignment_config.ai_feedback),f,ensure_ascii=False, indent=2)
-
+        if assignment_config.setup:
+            with open(os.path.join(request_bucket_path, "autograder-setup.json"), "w", encoding="utf-8") as f:
+                json.dump(json.loads(assignment_config.setup),f,ensure_ascii=False, indent=2)
         # Place submission files in /request_bucket/submission
         for filename, content in submission_files.items():
             with open(os.path.join(submission_path, filename), "w", encoding="utf-8") as f:
@@ -120,7 +120,11 @@ class Autograder:
             os.makedirs(directory_path, exist_ok=True)
         except Exception as e:
             print(f'Error: Failed to create directory {directory_path}. Reason: {e}')
-
+            print(f'Error: Failed to create directory {directory_path}. Reason: {e}')
+    @staticmethod
+    def early_exit():
+        fatal_report = FatalReporter.generate_feedback()
+        return AutograderResponse("Fail",0.0, fatal_report)
     @staticmethod
     def finish_session():
         """
@@ -168,9 +172,10 @@ class Autograder:
         """
         try:
             # This will now correctly wait for the async tests to finish
-            await TestEngine.run_tests(test_framework)
+            await TestEngine.run(test_framework)
             sleep(2)
-
+            if TestEngine.fatal_error:
+                return Autograder.early_exit()
             current_dir = os.path.dirname(os.path.abspath(__file__))
             config_path = os.path.join(current_dir, "request_bucket", "criteria.json")
             # Normalize the path to resolve ".." correctly
@@ -206,7 +211,7 @@ class Autograder:
 
             feedback = reporter.generate_feedback()
 
-            return AutograderResponse(result.final_score, feedback)
+            return AutograderResponse("Success",result.final_score, feedback)
 
         except Exception as e:
             # Log the error and re-raise it so the caller knows something went wrong.
@@ -262,7 +267,7 @@ document.getElementById("myButton").addEventListener("click", function() {
 });
         """
     }
-    request = AutograderRequest(submission_files, ass, "Arthur Carvalho", "123", "default")
+    request = AutograderRequest({"index.html":submission_files["index.html"]}, ass, "Arthur Carvalho", "123", "default")
 
     async def main():
         print("Starting autograder...")
