@@ -30,17 +30,6 @@ app.add_middleware(
 )
 
 
-# Dependency to provide the ApiAdapter instance
-# This allows injecting configuration (like Redis/OpenAI keys)
-# For a real deployment, these would come from environment variables or a config file
-def get_api_adapter():
-    # In a production environment, these would be loaded from environment variables
-    # or a secure configuration management system.
-    #redis_name = os.getenv("REDIS_NAME", "default_redis_name")
-    #redis_url = os.getenv("REDIS_URL", "http://localhost:8080")
-    #openai_key = os.getenv("OPENAI_API_KEY", "dummy_openai_key")
-    #return ApiAdapter(redis_name=redis_name, redis_url=redis_url, openai_key=openai_key)
-    pass
 
 
 # src/interfaces/api/submission_api.py
