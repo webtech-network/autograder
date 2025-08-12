@@ -221,53 +221,58 @@ class Autograder:
 
 
 if __name__ == "__main__":
-    """
-    This is the entry point for the Autograder. 
-    It is used for testing purposes and can be run directly to see the grading process in action.
-    """
     from connectors.models.assignment_config import AssignmentConfig
     from connectors.models.autograder_request import AutograderRequest
 
-    ass = AssignmentConfig.load_preset("html-css-js")
-    print(ass)
-    submission_files = {
-        "index.html":
-            """<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
-        <h1>Welcome to My Page</h1> <!-- ✅ Matches test requirement -->
-        <p>This is a simple webpage.</p> <!-- ✅ Just needs a paragraph -->
-
-        <button id="myButton">Click Me!</button> <!-- ✅ Button with correct ID & text -->
-
-        <script src="script.js"></script>
-    </body>
-    </html>""",
-        "style.css": """
-        /* ✅ Background color applied */
-    body {
-        background-color: lightblue;
-    }
-
-    /* ✅ <h1> has a color */
-    h1 {
-        color: darkblue;
-    }
-        """,
-        "script.js":
+    opt = int(input("1 - Jest Test\n2 - Pytest\nChoose the test framework to run: "))
+    if opt == 1:
         """
-        // ✅ Select the button and add a click event listener
-document.getElementById("myButton").addEventListener("click", function() {
-    this.textContent = "Clicked!"; // ✅ Changes button text on click
-});
+        This is the entry point for the Autograder. 
+        It is used for testing purposes and can be run directly to see the grading process in action.
         """
-    }
-    request = AutograderRequest({"index.html":submission_files["index.html"]}, ass, "Arthur Carvalho", "123", "default")
+
+
+        ass = AssignmentConfig.load_preset("html-css-js")
+        print(ass)
+        submission_files = {
+            "index.html":
+                """<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link rel="stylesheet" href="style.css">
+        </head>
+        <body>
+            <h1>Welcome to My Page</h1> <!-- ✅ Matches test requirement -->
+            <p>This is a simple webpage.</p> <!-- ✅ Just needs a paragraph -->
+    
+            <button id="myButton">Click Me!</button> <!-- ✅ Button with correct ID & text -->
+    
+            <script src="script.js"></script>
+        </body>
+        </html>""",
+            "style.css": """
+            /* ✅ Background color applied */
+        body {
+            background-color: lightblue;
+        }
+    
+        /* ✅ <h1> has a color */
+        h1 {
+            color: darkblue;
+        }
+            """,
+            "script.js":
+            """
+            // ✅ Select the button and add a click event listener
+    document.getElementById("myButton").addEventListener("click", function() {
+        this.textContent = "Clicked!"; // ✅ Changes button text on click
+    });
+            """
+        }
+        request = AutograderRequest({"index.html":submission_files["index.html"]}, ass, "Arthur Carvalho", "123", "default")
+
 
     async def main():
         print("Starting autograder...")
