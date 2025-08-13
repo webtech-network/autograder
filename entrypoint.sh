@@ -1,5 +1,8 @@
 #!/bin/bash
 # Add non required argument validation.
+
+echo $GITHUB_TOKEN
+echo $GRADING_PRESET
 python connectors/adapters/github_action_adapter/adapter_entrypoint.py \
     --github-token $1 \
     --app_token $2 \
