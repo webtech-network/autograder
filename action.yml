@@ -40,10 +40,10 @@ outputs:
 # Configures how the action is executed.
 runs:
   using: docker
-  image: "Dockerfile"  # Specifies the Docker image to run.
-  # Passes the inputs to the container's entrypoint script ($1, $2, etc.).
-  args:
-    GITHUB_TOKEN:  ${{ inputs.github-token }}
+  image: "Dockerfile"
+  # Use 'env' to pass named variables to the container
+  env:
+    GITHUB_TOKEN: ${{ inputs.github-token }}
     APP_TOKEN: ${{ inputs.app_token }}
     TEST_FRAMEWORK: ${{ inputs.test_framework }}
     GRADING_PRESET: ${{ inputs.grading_preset }}
