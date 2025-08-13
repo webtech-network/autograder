@@ -11,7 +11,7 @@ inputs:
     required: false
     default: ${{ github.token }}
   grading_preset:
-    description: 'Defines the set of grading rules and point values to apply.'
+    description: 'Defines the set of grading rules and point values to apply. To create your own grading preset, use "custom".'
     required: true
   feedback-type:
     description: 'The type or style of feedback to provide to the student (e.g., summary, detailed).'
@@ -43,11 +43,11 @@ runs:
   image: "Dockerfile"  # Specifies the Docker image to run.
   # Passes the inputs to the container's entrypoint script ($1, $2, etc.).
   args:
-    - ${{ inputs.github-token }}
-    - ${{ inputs.app_token }}
-    - ${{ inputs.test_framework }}
-    - ${{ inputs.grading_preset }}
-    - ${{ inputs.feedback-type }}
-    - ${{ inputs.openai_key }}
-    - ${{ inputs.redis_url }}
-    - ${{ inputs.redis_token }}
+    GITHUB_TOKEN:  ${{ inputs.github-token }}
+    APP_TOKEN: ${{ inputs.app_token }}
+    TEST_FRAMEWORK: ${{ inputs.test_framework }}
+    GRADING_PRESET: ${{ inputs.grading_preset }}
+    FEEDBACK_TYPE: ${{ inputs.feedback-type }}
+    OPENAI_KEY: ${{ inputs.openai_key }}
+    REDIS_URL: ${{ inputs.redis_url }}
+    REDIS_TOKEN: ${{ inputs.redis_token }}
