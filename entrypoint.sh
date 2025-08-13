@@ -1,15 +1,13 @@
 #!/bin/bash
 # Add non required argument validation.
 
-echo $GITHUB_TOKEN
-echo $GRADING_PRESET
 python connectors/adapters/github_action_adapter/adapter_entrypoint.py \
-    --github-token $1 \
-    --app_token $2 \
-    --test_framework $3 \
-    --grading_preset $4 \
+    --github-token $GITHUB_TOKEN \
+    --app_token $APP_TOKEN \
+    --test_framework $TEST_FRAMEWORK \
+    --grading_preset $GRADING_PRESET \
     --student-name $GITHUB_ACTOR \
-    --feedback-type $5 \
-    --openai_key $6 \
-    --redis_url $7 \
-    --redis_token $8
+    --feedback-type $FEEDBACK_TYPE \
+    --openai_key $OPENAI_KEY \
+    --redis_url $REDIS_URL \
+    --redis_token $REDIS_TOKEN
