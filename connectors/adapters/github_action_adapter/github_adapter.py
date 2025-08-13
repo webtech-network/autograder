@@ -2,21 +2,16 @@ import json
 import os
 import shutil
 
+from connectors.models.assignment_config import AssignmentConfig
+from connectors.models.autograder_request import AutograderRequest
+from connectors.models.test_files import TestFiles
 from connectors.port import Port
 from github import Github
 from github.GithubException import UnknownObjectException
 
 class GithubAdapter(Port):
-    def __init__(self,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
-        super().__init__(
-            test_framework,
-            github_author,
-            github_author,
-            feedback_type,
-            openai_key,
-            redis_url,
-            redis_token
-        )
+    def __init__(self,github_token,app_token):
+        super().__init__()
         self.github_token = github_token
         self.app_token = app_token
         self.repo = None
@@ -117,59 +112,88 @@ class GithubAdapter(Port):
         self.commit_feedback()
         self.notify_classroom()
 
-    def export_submission_files(self):
+    def create_request(self,submission_files,assignment_config, student_name, student_credentials, feedback_mode="default",openai_key=None, redis_url=None, redis_token=None):
         """
-        Copies the student's submission files from the GitHub workspace
-        to the autograder's request bucket for processing.
+        Creates an AutograderRequest object with the provided parameters.
         """
-        print("Exporting submission files for grading...")
+        submission_path = os.getenv("GITHUB_WORKSPACE/submission", ".")
+        submission_files_dict = {}
 
-        # Get the source directory from the GITHUB_WORKSPACE environment variable.
-        workspace_path = os.getenv("GITHUB_WORKSPACE")
-        if not workspace_path:
-            raise Exception(
-                "GITHUB_WORKSPACE environment variable not set. This script must be run within a GitHub Action.")
+        # take all files in the submission directory and add them to the submission_files_dict
+        for root, dirs, files in os.walk(submission_path):
+            for file in files:
+                # Full path to the file
+                file_path = os.path.join(root, file)
 
-        source_dir = os.path.join(workspace_path, "submission")
+                # Key: Path relative to the starting directory to ensure uniqueness
+                relative_path = os.path.relpath(file_path, submission_path)
 
-        if not os.path.isdir(source_dir):
-            print(f"Warning: Submission directory not found at '{source_dir}'. No files to grade.")
-            return
+                try:
+                    with open(file_path, "r", encoding='utf-8', errors='ignore') as f:
+                        # Use the unique relative_path as the key
+                        submission_files_dict[relative_path] = f.read()
+                except Exception as e:
+                    print(f"Could not read file {file_path}: {e}")
 
-        # Determine the project's root directory to correctly locate the destination.
-        # This file's path is: connectors/adapters/github_action_adapter/github_adapter.py
-        # The project root is three directory levels up.
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-        destination_dir = os.path.join(project_root, "autograder", "request_bucket", "submission")
+        print(f"Creating AutograderRequest with {feedback_mode} feedback mode")
+        self.autograder_request = AutograderRequest(
+            submission_files_dict,
+            assignment_config,
+            student_name,
+            student_credentials=student_credentials,
+            feedback_mode=feedback_mode,
+            openai_key=openai_key,
+            redis_url=redis_url,
+            redis_token=redis_token
+        )
+        print(f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode")
+    def create_custom_assignment_config(self,
+                                       test_files,
+                                       criteria,
+                                       feedback,
+                                       preset="custom",
+                                       ai_feedback=None,
+                                       setup=None,
+                                       test_framework="pytest"):
+        # Look for test_base,test_penalty and test_bonus files in $submission/.github/autograder/tests
+        # Look for criteria.json, feedback.json and ai-feedback.json,autograder-setup.json in $submisison/.github/autograder
+        submission_path = os.getenv("GITHUB_WORKSPACE/submission", ".")
+        files = TestFiles()
+        with open(os.path.join(submission_path, ".github", "autograder", "tests", "test_base.py"), "r") as f:
+            files.test_base = f.read()
+        with open(os.path.join(submission_path, ".github", "autograder", "tests", "test_bonus.py"), "r") as f:
+            files.test_bonus = f.read()
+        with open(os.path.join(submission_path, ".github", "autograder", "tests", "test_penalty.py"), "r") as f:
+            files.test_penalty = f.read()
+        # Add other files ({filename: file_content}) to files.other_files
+        with open(os.path.join(submission_path, ".github", "autograder", "tests", "other_files.json"), "r") as f:
+            other_files = json.load(f)
+            for filename, content in other_files.items():
+                files.other_files[filename] = content
+        # Saves criteria.json
+        with open(os.path.join(submission_path, ".github", "autograder", "criteria.json"), "r") as f:
+            criteria_content = f.read()
+        # Saves feedback.json
+        with open(os.path.join(submission_path, ".github", "autograder", "feedback.json"), "r") as f:
+            feedback_content = f.read()
+        # Saves ai-feedback.json (if present)
+        ai_feedback_content = None
+        ai_feedback_path = os.path.join(submission_path, ".github", "autograder", "ai-feedback.json")
+        if os.path.exists(ai_feedback_path):
+            with open(ai_feedback_path, "r") as f:
+                ai_feedback_content = f.read()
+        # Saves autograder-setup.json (if present)
+        setup_content = None
+        setup_path = os.path.join(submission_path, ".github", "autograder", "autograder-setup.json")
+        if os.path.exists(setup_path):
+            with open(setup_path, "r") as f:
+                setup_content = f.read()
+        return AssignmentConfig.load_custom(files,criteria_content,feedback_content,ai_feedback=ai_feedback_content,setup=setup_content,test_framework=test_framework)
 
-        # Ensure the destination directory exists. The finish_session() method in the
-        # facade should handle cleanup, but we make sure the path is ready here.
-        os.makedirs(destination_dir, exist_ok=True)
 
-        print(f"Copying from: {source_dir}")
-        print(f"Copying to:   {destination_dir}")
 
-        # Copy each file and directory from the source to the destination.
-        for item_name in os.listdir(source_dir):
-            source_item = os.path.join(source_dir, item_name)
-            destination_item = os.path.join(destination_dir, item_name)
 
-            try:
-                if os.path.isdir(source_item):
-                    # If a directory with the same name already exists in the destination,
-                    # remove it first to ensure a clean copy of the new submission.
-                    if os.path.exists(destination_item):
-                        shutil.rmtree(destination_item)
-                    shutil.copytree(source_item, destination_item)
-                    print(f" - Copied directory: {item_name}")
-                else:  # It's a file
-                    shutil.copy2(source_item, destination_item)  # copy2 preserves file metadata
-                    print(f" - Copied file: {item_name}")
-            except Exception as e:
-                print(f"Error: Failed to copy '{item_name}'. Reason: {e}")
-                raise  # Stop execution if a critical file copy fails.
 
-        print("Submission files exported successfully.")
     @classmethod
     def create(cls,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
         response = cls(test_framework,github_author,feedback_type,github_token,app_token,openai_key,redis_url,redis_token)
