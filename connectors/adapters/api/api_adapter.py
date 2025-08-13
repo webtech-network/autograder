@@ -71,9 +71,6 @@ class ApiAdapter(Port):
             elif file.filename.startswith("penalty_tests"):
                 penalty_content = await file.read()
                 files.test_penalty = penalty_content.decode("utf-8")
-            elif file.filename.startswith("fatal_analysis"):
-                fatal_content = await file.read()
-                files.test_fatal_analysis = fatal_content.decode("utf-8")
             else:
                 other_files_content = await file.read()
                 files.other_files[file.filename] = other_files_content.decode("utf-8")
