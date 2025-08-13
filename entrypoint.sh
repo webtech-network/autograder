@@ -1,6 +1,8 @@
 #!/bin/bash
 # Add non required argument validation.
 
+cd /app
+
 python connectors/adapters/github_action_adapter/github_entrypoint.py \
     --github-token $GITHUB_TOKEN \
     --app_token $APP_TOKEN \
