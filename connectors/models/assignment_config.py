@@ -113,7 +113,7 @@ class AssignmentConfig:
                 test_framework = "jest"
                 break
             elif file.endswith(".json"):
-                test_framework = "ai"
+                test_framework = "ai_engine"
                 break
 
         for file in os.listdir(preset_tests_dir):
