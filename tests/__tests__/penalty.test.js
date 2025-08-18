@@ -24,12 +24,39 @@ describe('Penalty Tests - ', () => {
         // These variables will hold the IDs of the created entities
         let createdAgentId = null;
         let createdCaseId = null;
+        let createdUserJWT = "";
+        let requestHeaders;
+
+        //This block is used to register a user and log him in to get a valid JWT token
+        beforeAll(async ()=>{
+            try {
+                const properUser = {
+                    nome: "Gabriel testador",
+                    email: "gabrieltestador@gmail.com",
+                    senha: "G4br13lT35t4d0r!!!"
+                }
+
+                const properUserLoginPayload = {
+                    nome: properUser.nome,
+                    senha: properUser.senha
+                }
+
+                await axios.post(`${BASE_URL}/auth/register`, properUser);
+                let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
+                createdUserJWT = userLoginResponse.data;
+
+                requestHeaders = {'Authorization': `Bearer ${token}`};
+                
+            } catch (error) {
+                console.log(error);
+            }
+        });
 
         // CREATES TEST DATA
         beforeEach(async () => {
             try {
                 //Creates agent and fetches id from response
-                const agentResponse = await axios.post(`${BASE_URL}/agentes`, testAgent);
+                const agentResponse = await axios.post(`${BASE_URL}/agentes`, testAgent, {headers: requestHeaders});
                 createdAgentId = agentResponse.data.id;
 
                 //Creates testCase using the id from the newly generated agentResponse
@@ -41,7 +68,7 @@ describe('Penalty Tests - ', () => {
                 };
 
                 //Creates the case and waits for the response
-                const caseResponse = await axios.post(`${BASE_URL}/casos`, testCase);
+                const caseResponse = await axios.post(`${BASE_URL}/casos`, testCase, {headers: requestHeaders});
                 createdCaseId = caseResponse.data.id;
 
             } catch (error) {
@@ -54,10 +81,10 @@ describe('Penalty Tests - ', () => {
             // Only attempt to delete entities if they exist
             try {
                 if (createdCaseId) {
-                    await axios.delete(`${BASE_URL}/casos/${createdCaseId}`);
+                    await axios.delete(`${BASE_URL}/casos/${createdCaseId}`, {headers: requestHeaders});
                 }
                 if (createdAgentId) {
-                    await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`);
+                    await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`, {headers: requestHeaders});
                 }
             } catch (error) {
                 console.error(error);
@@ -76,7 +103,7 @@ describe('Penalty Tests - ', () => {
             safeTest('Validation: Consegue registrar um agente com dataDeIncorporacao em formato invalido (não é YYYY-MM-DD)', async () => {
                 const invalidAgent = { ...testAgent, dataDeIncorporacao: "30-11-2023" };
                 try {
-                    await axios.post(`${BASE_URL}/agentes`, invalidAgent);
+                    await axios.post(`${BASE_URL}/agentes`, invalidAgent, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                 } catch (error) {
                     expect(true).toBeFalsy();
@@ -88,12 +115,11 @@ describe('Penalty Tests - ', () => {
                 const futureYear = new Date().getFullYear() + 1;
                 const invalidAgent = { ...testAgent, dataDeIncorporacao: `${futureYear}-01-01` };
                 try {
-                    await axios.post(`${BASE_URL}/agentes`, invalidAgent);
+                    await axios.post(`${BASE_URL}/agentes`, invalidAgent, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                 } catch (error) {
                     expect(true).toBeFalsy();
                     console.error(error)
-                    //expect(error.response.status).toBe(400);
                 }
             });
 
@@ -104,7 +130,7 @@ describe('Penalty Tests - ', () => {
                     cargo: "Delegado"
                 };
                 try {
-                    await axios.post(`${BASE_URL}/agentes`, emptyNameAgent);
+                    await axios.post(`${BASE_URL}/agentes`, emptyNameAgent, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                 } catch (error) {
                     expect(true).toBeFalsy();
@@ -119,7 +145,7 @@ describe('Penalty Tests - ', () => {
                     cargo: "Delegado"
                 };
                 try {
-                    await axios.post(`${BASE_URL}/agentes`, emptyNameAgent);
+                    await axios.post(`${BASE_URL}/agentes`, emptyNameAgent, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                 } catch (error) {
                     expect(true).toBeFalsy();
@@ -134,7 +160,7 @@ describe('Penalty Tests - ', () => {
                     cargo: ""
                 };
                 try {
-                    await axios.post(`${BASE_URL}/agentes`, emptyNameAgent);
+                    await axios.post(`${BASE_URL}/agentes`, emptyNameAgent, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                 } catch (error) {
                     expect(true).toBeFalsy();
@@ -152,7 +178,7 @@ describe('Penalty Tests - ', () => {
                 }
 
                 try{
-                    await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, payload);
+                    await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, payload, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                     createdAgentId = null;
                 } catch (error) {
@@ -166,7 +192,7 @@ describe('Penalty Tests - ', () => {
                 const payload = { id: newId };
 
                 try{
-                    await axios.patch(`${BASE_URL}/agentes/${createdAgentId}`, payload);
+                    await axios.patch(`${BASE_URL}/agentes/${createdAgentId}`, payload, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                     createdAgentId = null;
                 } catch (error) {
@@ -179,24 +205,22 @@ describe('Penalty Tests - ', () => {
             safeTest("Validation: Consegue criar um caso com título vazio", async() => {
                 const invalidCase = { titulo: "", descricao: "Descrição válida", status: "aberto", agente_id: createdAgentId };
                 try {
-                    await axios.post(`${BASE_URL}/casos`, invalidCase);
+                    await axios.post(`${BASE_URL}/casos`, invalidCase, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                 } catch (error) {
                     expect(true).toBeFalsy();
                     console.error(error)
-                    //expect(error.response.status).toBe(400);
                 }
             });
 
             safeTest("Validation: Consegue criar um caso com descrição vazia", async () => {
                 const invalidCase = { titulo: "Título Válido", descricao: "", status: "aberto", agente_id: createdAgentId };
                 try {
-                    await axios.post(`${BASE_URL}/casos`, invalidCase);
+                    await axios.post(`${BASE_URL}/casos`, invalidCase, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                 } catch (error) {
                     expect(true).toBeFalsy();
                     console.error(error)
-                    //expect(error.response.status).toBe(400);
                 }
             });
 
@@ -204,11 +228,10 @@ describe('Penalty Tests - ', () => {
                 const nonExistentAgentId = 999999;
                 const invalidCase = { titulo: "Título Válido", descricao: "Descrição válida", status: "aberto", agente_id: nonExistentAgentId };
                 try {
-                    await axios.post(`${BASE_URL}/casos`, invalidCase);
+                    await axios.post(`${BASE_URL}/casos`, invalidCase, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                 } catch (error) {
                     expect(true).toBeFalsy();
-                    //expect(error.response.status).toBe(404);
                     console.error(error);
                 }
             });
@@ -216,7 +239,7 @@ describe('Penalty Tests - ', () => {
             safeTest("Validation: Consegue atualizar um caso com status que não seja 'aberto' ou 'solucionado'", async () => {
                 const invalidCase = { titulo: "Título Válido", descricao: "Desc", status: "inválido", agente_id: createdAgentId };
                 try {
-                    await axios.post(`${BASE_URL}/casos`, invalidCase);
+                    await axios.post(`${BASE_URL}/casos`, invalidCase, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                 } catch (error) {
                     expect(true).toBeFalsy();
@@ -235,7 +258,7 @@ describe('Penalty Tests - ', () => {
                 }
 
                 try{
-                    await axios.put(`${BASE_URL}/casos/${createdCaseId}`, payload);
+                    await axios.put(`${BASE_URL}/casos/${createdCaseId}`, payload, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                     createdCaseId = null;
                 } catch (error) {
@@ -248,80 +271,43 @@ describe('Penalty Tests - ', () => {
                 const payload = { id: newId };
 
                 try{
-                    await axios.patch(`${BASE_URL}/casos/${createdAgentId}`, payload);
+                    await axios.patch(`${BASE_URL}/casos/${createdAgentId}`, payload, {headers: requestHeaders});
                     expect(true).toBeTruthy();
                     createdCaseId = null;
                 } catch (error) {
                     expect(true).toBeFalsy();
                 }
             });
+        });
 
-        })
+        describe("Cybersecurity related tests: - ", () => {
+            safeTest("SECURITY: Aplicação apresenta vulnerabilidade alg none", async ()=>{
+                const tokenParts = createdUserJWT.split('.');
+                
+                const header = JSON.parse(Buffer.from(tokenParts[0], 'base64url').toString('utf8'));
+                const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64url').toString('utf8'));
+
+                header.alg = 'none';
+                payload.isAdmin = true;
+
+                const maliciousHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+                const maliciousPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+
+                const maliciousToken = `${maliciousHeader}.${maliciousPayload}.`;
+                const maliciousRequestHeader = {'Authorization': `Bearer ${maliciousToken}`};
+                
+                try {
+                    await axios.get(`${BASE_URL}/agentes`, maliciousRequestHeader);
+                    expect(true).toBeTruthy();
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+                
+            });
+        });
     });
 
-    /*
-    describe('Database tests - ', () => {
-        let autograderRoot = '';
-        let autograderRootExists = false;
-
-        beforeAll(() => {
-            autograderRoot = path.join('/app');
-            autograderRootExists = fs.existsSync(autograderRoot);
-        });
-
-        safeTest('PERSISTENCE: Dados resistem reinicialização do container', async () => {
-            if(!autograderRootExists) return;
-            let agentId;
-            let persistenceCaseId;
-
-            try {
-                let agent = {
-                    nome: "Persistence",
-                    dataDeIncorporacao: "2000-01-30",
-                    cargo: "Fuzileiro"
-                }
-                let response = await axios.post(`${BASE_URL}/agentes`, agent);
-                agentId = await response.data.id;
-
-                let persistenceCase = {
-                    titulo: "Persistence",
-                    descricao: "Alguém hackeou o banco central",
-                    status: "aberto",
-                    agente_id: agentId
-                }
-
-                let caseResponse = await axios.post(`${BASE_URL}/casos`, persistenceCase);
-                persistenceCaseId = await caseResponse.data.id;
-            } catch (error){
-                console.log(error);
-            }
-
-            try {
-                execSync("docker compose down", { stdio: 'inherit' });
-                execSync("docker compose up -d", { stdio: 'inherit' })
-            } catch(error) {
-                console.log(error);
-            }
-
-            try {
-                let agent = await axios.get(`${BASE_URL}/agentes/${agentId}`);
-                let responseAgentId = await agent.data.id;
-                expect(responseAgentId).toEqual(agentId);
-            } catch (error) {
-                console.log(error);
-            }
-
-            try {
-                let caso = await axios.get(`${BASE_URL}/casos/${persistenceCaseId}`);
-                let responseCaseId = await caso.data.id;
-                expect(responseCaseId).toEqual(responseCaseId);
-            } catch (error) {
-                console.log(error)
-            }
-        });
-    });*/
-
-    //TESTS RELATED TO THE USER'S FILE ORGANIZATION AND CONFIG FILES (ALREADY MADE)
+    //TESTS RELATED TO THE USER'S FILE ORGANIZATION AND CONFIG FILES
     describe('Static File Organization - ', () => {
         let projectRoot = '';
         let projectFolderExists = false;
@@ -336,7 +322,6 @@ describe('Penalty Tests - ', () => {
             console.log(`Project folder exists: ${projectFolderExists}`);
         });
 
-        //ADAPT TO NEW DEPENDENCIES
         test('Static files: projeto não contém dependências obrigatórias', () => {
             if (!projectFolderExists) return;
 
@@ -391,11 +376,13 @@ describe('Penalty Tests - ', () => {
 
             let agentRouterPath = path.join(projectRoot, 'routes/agentesRoutes.js');
             let caseRouterPath = path.join(projectRoot, 'routes/casosRoutes.js');
-            let routersExist = fs.existsSync(agentRouterPath) && fs.existsSync(caseRouterPath);
+            let authRouterPath = path.join(projectRoot, 'routes/authRoutes.js');
+            let routersExist = fs.existsSync(agentRouterPath) && fs.existsSync(caseRouterPath) && fs.existsSync(authRouterPath);
 
             let agentControllerPath = path.join(projectRoot, 'controllers/agentesController.js');
             let caseControllerPath = path.join(projectRoot, 'controllers/casosController.js');
-            let controllersExist = fs.existsSync(agentControllerPath) && fs.existsSync(caseControllerPath);
+            let authControllerPath = path.join(projectRoot, 'routes/authController.js');
+            let controllersExist = fs.existsSync(agentControllerPath) && fs.existsSync(caseControllerPath) && fs.existsSync(authControllerPath);
 
             let knexFilePath = path.join(projectRoot, 'knexfile.js');
             let knexFileExists = fs.existsSync(knexFilePath);

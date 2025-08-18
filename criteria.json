@@ -3,27 +3,23 @@
     "weight": 100,
     "native": false,
     "subjects": {
-      "CREATE": {
+      "USERS": {
+        "weight": 35,
+        "test_path": "USERS"
+      },
+      "AGENTS": {
+        "weight": 35,
+        "test_path": "AGENTS"
+      },
+      "CASES": {
         "weight": 30,
-        "test_path": "CREATE:"
-      },
-      "READ": {
-        "weight": 20,
-        "test_path": "READ:"
-      },
-      "UPDATE": {
-        "weight": 30,
-        "test_path": "UPDATE:"
-      },
-      "DELETE": {
-        "weight": 20,
-        "test_path": "DELETE:"
+        "test_path": "CASES"
       }
     }
   },
   "bonus": {
     "native": false,
-    "weight": 30,
+    "weight": 50,
     "subjects": {
       "Simple Filtering": {
         "weight": 30,
@@ -34,8 +30,12 @@
         "test_path": "Complex Filtering"
       },
       "Custom Error": {
-        "weight": 40,
+        "weight": 30,
         "test_path": "Custom Error"
+      },
+      "User details": {
+        "weight": 10,
+        "test_path": "User details"
       }
     }
   },
@@ -43,17 +43,21 @@
     "native": false,
     "weight": 100,
     "subjects": {
-        "Validation": {
-          "weight": 35,
-          "test_path": "Validation"
-        },
-        "Static files": {
+      "Validation": {
         "weight": 35,
+        "test_path": "Validation"
+      },
+      "Static files": {
+        "weight": 15,
         "test_path": "Static files"
       },
       "ENV": {
-        "weight": 30,
+        "weight": 15,
         "test_path": "ENV"
+      },
+      "Security": {
+        "weight": 35,
+        "test_path": "Security"
       }
     }
   }

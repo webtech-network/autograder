@@ -9,6 +9,7 @@
     "test": "jest --runInBand"
   },
   "dependencies": {
-    "@jest/globals": "^30.0.4"
+    "@jest/globals": "^30.0.4",
+    "jsonwebtoken": "^9.0.2"
   }
 }
