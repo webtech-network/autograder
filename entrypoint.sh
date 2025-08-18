@@ -5,7 +5,7 @@ cd /app
 
 tree -a -I "node_modules|.git|.github|.vscode|.idea|.pytest_cache|__pycache__|.DS_Store" .
 
-python -m connectors.adapters.github_action_adapter.github_entrypoint.py \
+python -m connectors.adapters.github_action_adapter.github_entrypoint \
     --github-token $GITHUB_TOKEN \
     --app-token $APP_TOKEN \
     --test-framework $TEST_FRAMEWORK \
