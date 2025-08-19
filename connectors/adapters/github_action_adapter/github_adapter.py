@@ -112,41 +112,7 @@ class GithubAdapter(Port):
         self.commit_feedback()
         self.notify_classroom()
 
-    def create_request(self,submission_files,assignment_config, student_name, student_credentials, feedback_mode="default",openai_key=None, redis_url=None, redis_token=None):
-        """
-        Creates an AutograderRequest object with the provided parameters.
-        """
-        submission_path = os.getenv("GITHUB_WORKSPACE/submission", ".")
-        submission_files_dict = {}
 
-        # take all files in the submission directory and add them to the submission_files_dict
-        for root, dirs, files in os.walk(submission_path):
-            for file in files:
-                # Full path to the file
-                file_path = os.path.join(root, file)
-
-                # Key: Path relative to the starting directory to ensure uniqueness
-                relative_path = os.path.relpath(file_path, submission_path)
-
-                try:
-                    with open(file_path, "r", encoding='utf-8', errors='ignore') as f:
-                        # Use the unique relative_path as the key
-                        submission_files_dict[relative_path] = f.read()
-                except Exception as e:
-                    print(f"Could not read file {file_path}: {e}")
-
-        print(f"Creating AutograderRequest with {feedback_mode} feedback mode")
-        self.autograder_request = AutograderRequest(
-            submission_files_dict,
-            assignment_config,
-            student_name,
-            student_credentials=student_credentials,
-            feedback_mode=feedback_mode,
-            openai_key=openai_key,
-            redis_url=redis_url,
-            redis_token=redis_token
-        )
-        print(f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode")
     def create_custom_assignment_config(self,
                                        test_files,
                                        criteria,
@@ -190,7 +156,48 @@ class GithubAdapter(Port):
                 setup_content = f.read()
         return AssignmentConfig.load_custom(files,criteria_content,feedback_content,ai_feedback=ai_feedback_content,setup=setup_content,test_framework=test_framework)
 
+    def get_submission_files(self):
 
+        submission_path = os.getenv("GITHUB_WORKSPACE/submission", ".")
+        submission_files_dict = {}
+
+        # take all files in the submission directory and add them to the submission_files_dict
+        for root, dirs, files in os.walk(submission_path):
+          for file in files:
+            # Full path to the file
+            file_path = os.path.join(root, file)
+
+            # Key: Path relative to the starting directory to ensure uniqueness
+            relative_path = os.path.relpath(file_path, submission_path)
+
+            try:
+                 with open(file_path, "r", encoding='utf-8', errors='ignore') as f:
+                      # Use the unique relative_path as the key
+                      submission_files_dict[relative_path] = f.read()
+            except Exception as e:
+                 print(f"Could not read file {file_path}: {e}")
+
+        return submission_files_dict
+
+    def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None):
+        """
+        Creates an AutograderRequest object with the provided parameters.
+        """
+        print("Getting submission files from the repository...")
+        submission_files_dict = self.get_submission_files()
+        print(submission_files_dict)
+        print(f"Creating AutograderRequest with {feedback_mode} feedback mode")
+        self.autograder_request = AutograderRequest(
+            submission_files_dict,
+            assignment_config,
+            student_name,
+            student_credentials=student_credentials,
+            feedback_mode=feedback_mode,
+            openai_key=openai_key,
+            redis_url=redis_url,
+            redis_token=redis_token
+        )
+        print(f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode")
 
 
 
