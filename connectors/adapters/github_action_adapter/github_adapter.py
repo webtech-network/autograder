@@ -14,14 +14,15 @@ class GithubAdapter(Port):
         super().__init__()
         self.github_token = github_token
         self.app_token = app_token
-        self.repo = None
+        self.repo = self.get_repository()
 
     def get_repository(self):
         try:
             repos = os.getenv("GITHUB_REPOSITORY")
             g = Github(self.app_token)
-            self.repo = g.get_repo(repos)
-            print("This repo is: ", self.repo)
+            repo = g.get_repo(repos)
+            print("This repo is: ", repo)
+            return repo
         except:
             raise Exception("Failed to get repository. Please check your GitHub token and repository settings.")
 
@@ -210,6 +211,6 @@ class GithubAdapter(Port):
 
     @classmethod
     def create(cls,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
-        response = cls(test_framework,github_author,feedback_type,github_token,app_token,openai_key,redis_url,redis_token)
+        response = cls(test_framework,github_author)
         response.get_repository()
         return response
