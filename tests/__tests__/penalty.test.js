@@ -2,7 +2,6 @@ const axios = require('axios');
 const BASE_URL= require('../request-config');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process')
 const {describe, beforeEach, afterEach, beforeAll, test, expect} = require("@jest/globals");
 
 axios.defaults.timeout = 10000;
@@ -43,9 +42,9 @@ describe('Penalty Tests - ', () => {
 
                 await axios.post(`${BASE_URL}/auth/register`, properUser);
                 let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
-                createdUserJWT = userLoginResponse.data;
+                createdUserJWT = userLoginResponse.data.access_token;
 
-                requestHeaders = {'Authorization': `Bearer ${token}`};
+                requestHeaders = {'Authorization': `Bearer ${createdUserJWT}`};
                 
             } catch (error) {
                 console.log(error);
@@ -98,7 +97,6 @@ describe('Penalty Tests - ', () => {
         describe('Logic and validation errors', () => {
 
             //Agent validation section
-
 
             safeTest('Validation: Consegue registrar um agente com dataDeIncorporacao em formato invalido (não é YYYY-MM-DD)', async () => {
                 const invalidAgent = { ...testAgent, dataDeIncorporacao: "30-11-2023" };

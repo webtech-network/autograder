@@ -1,6 +1,6 @@
 const axios = require('axios');
 const BASE_URL = require('../request-config')
-const {describe, beforeEach, afterEach, expect} = require("@jest/globals");
+const {describe, beforeEach, afterEach, expect, beforeAll} = require("@jest/globals");
 
 axios.defaults.timeout = 10000;
 
@@ -32,7 +32,7 @@ describe('Bonus Tests - ', () => {
 
             await axios.post(`${BASE_URL}/auth/register`, properUser);
             let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
-            createdUserJWT = userLoginResponse.data;
+            createdUserJWT = userLoginResponse.data.access_token;
 
             requestHeaders = {'Authorization': `Bearer: ${createdUserJWT}`};
         } catch (error) {

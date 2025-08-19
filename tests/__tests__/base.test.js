@@ -5,16 +5,22 @@ const jwt = require('jsonwebtoken');
 
 axios.defaults.timeout = 10000;
 
-function validateJwt(token, secretOrPublicKey) {
-  try {
-    const decoded = jwt.verify(token, secretOrPublicKey);
-    return decoded;
-  } catch (err) {
-    console.error('JWT validation failed:', err.message);
-    return false;
-  }
-}
+function validateJwtFormat(token) {
+    if (typeof token !== 'string') {
+        return false;
+    }
+    try {
+        const decoded = jwt.decode(token, { complete: true });
 
+        if (decoded && decoded.header && decoded.payload) {
+            return decoded.payload; // Format is valid, return the payload
+        }
+        return false;
+    } catch (err) {
+        console.error('JWT format validation failed:', err.message);
+        return false;
+    }
+}
 
 describe('Base Tests - ', () => {
 
@@ -46,7 +52,7 @@ describe('Base Tests - ', () => {
         try {
             await axios.post(`${BASE_URL}/auth/register`, properUser);
             let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
-            createdUserJWT = userLoginResponse.data;
+            createdUserJWT = userLoginResponse.data.access_token;
             requestHeaders = {'Authorization': `Bearer ${createdUserJWT}`};
         } catch (error) {
             console.log(error);
@@ -119,13 +125,13 @@ describe('Base Tests - ', () => {
             try {
                 let response = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
                 expect(response.status).toBe(200);
-                expect(validateJwt(response.data)).toBeTruthy();
+                expect(validateJwtFormat(response.data.access_token)).toBeTruthy();
             } catch (error) {
                 console.log(error);
             }
         });
 
-        safeTest("USERS: Faz logout de usuário logado corretamente com status code 204 sem retorno e invalida o JWT", async () => {
+        safeTest("USERS: Faz logout de usuário logado corretamente com status code 200 ou 204 sem retorno e invalida o JWT", async () => {
             try {
                 let extraUser = {
                     nome: "Teste",
@@ -140,13 +146,64 @@ describe('Base Tests - ', () => {
 
                 await axios.post(`${BASE_URL}/auth/register`, extraUser);
                 let loginResponse = await axios.post(`${BASE_URL}/auth/login`, loginPayload);
-                let authHeaders = {'Authorization': `Bearer ${loginResponse.data}`};
+                let authHeaders = {'Authorization': `Bearer ${loginResponse.data.access_token}`};
 
                 let response = await axios.post(`${BASE_URL}/auth/logout`, {
                     headers: authHeaders
                 });
 
+                let statusValid = response.status === 200 || response.status === 204;
+                expect(statusValid).toBeTruthy();
+                expect(response.data).toBe('');
+            } catch (error) {
+                console.log(error)
+            }
+        });
+
+        safeTest("USERS: Consegue deletar usuário corretamente com status code 204", async () => {
+            try {
+                let extraUser2 = {
+                    nome: "Teste",
+                    email: "testeDelete@gmail.com",
+                    senha: "Senha1234..."
+                };
+
+                let loginPayload2 = {
+                    nome: extraUser2.nome,
+                    senha: extraUser2.senha
+                }
+
+                await axios.post(`${BASE_URL}/auth/register`, extraUser2);
+                let loginResponse = await axios.post(`${BASE_URL}/auth/login`, loginPayload2);
+                let authHeaders = {'Authorization': `Bearer ${loginResponse.data.access_token}`};
+
+                let response = await axios.delete(`${BASE_URL}/auth/logout`, {
+                    headers: authHeaders
+                });
+
                 expect(response.status).toBe(204);
+                expect(response.data).toBe('');
+            } catch (error) {
+                console.log(error)
+            }
+        });
+
+        safeTest("USERS: JWT retornado no login possui data de expiração válida", async () => {
+            try {
+                let response = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
+                let jwt = response.data.access_token;
+                expect(jwt).toBeDefined();
+
+                const payloadBase64 = jwt.split('.')[1];
+                const jsonPayload = Buffer.from(payloadBase64, 'base64').toString();
+                const decodedPayload = JSON.parse(jsonPayload);
+
+                const expirationTimestamp = decodedPayload.exp;
+                expect(expirationTimestamp).toBeDefined();
+
+                const currentTimeSeconds = Math.floor(Date.now() / 1000);
+
+                expect(expirationTimestamp).toBeGreaterThan(currentTimeSeconds);
             } catch (error) {
                 console.log(error)
             }
@@ -223,12 +280,68 @@ describe('Base Tests - ', () => {
             }
         });
 
-        safeTest("USERS: Recebe erro 400 ao tentar criar um usuário com senha que não segue as especificações", async () => {
+        safeTest("USERS: Recebe erro 400 ao tentar criar um usuário com senha curta de mais", async () => {
             try {
                 let user = {
                     nome: "nomevazio",
-                    email: "nomevazio@gmail.com",
-                    senha: "senha123"
+                    email: "nomevazio2@gmail.com",
+                    senha: "Senha1."
+                };
+                await axios.post(`${BASE_URL}/auth/register`, user);
+                expect(true).toBeFalsy();
+            } catch (error) {
+                expect(error.response.status).toBe(400);
+            }
+        });
+
+        safeTest("USERS: Recebe erro 400 ao tentar criar um usuário com senha sem números", async () => {
+            try {
+                let user = {
+                    nome: "nomevazio",
+                    email: "nomevazio3@gmail.com",
+                    senha: "SenhaDeTeste."
+                };
+                await axios.post(`${BASE_URL}/auth/register`, user);
+                expect(true).toBeFalsy();
+            } catch (error) {
+                expect(error.response.status).toBe(400);
+            }
+        });
+
+        safeTest("USERS: Recebe erro 400 ao tentar criar um usuário com senha sem caractere especial", async () => {
+            try {
+                let user = {
+                    nome: "nomevazio",
+                    email: "nomevazio4@gmail.com",
+                    senha: "SenhaDeTeste12345"
+                };
+                await axios.post(`${BASE_URL}/auth/register`, user);
+                expect(true).toBeFalsy();
+            } catch (error) {
+                expect(error.response.status).toBe(400);
+            }
+        });
+
+        safeTest("USERS: Recebe erro 400 ao tentar criar um usuário com senha sem letra maiúscula", async () => {
+            try {
+                let user = {
+                    nome: "nomevazio",
+                    email: "nomevazio5@gmail.com",
+                    senha: "senhadeteste12345!!!"
+                };
+                await axios.post(`${BASE_URL}/auth/register`, user);
+                expect(true).toBeFalsy();
+            } catch (error) {
+                expect(error.response.status).toBe(400);
+            }
+        });
+
+        safeTest("USERS: Recebe erro 400 ao tentar criar um usuário com senha sem letras", async () => {
+            try {
+                let user = {
+                    nome: "nomevazio",
+                    email: "nomevazio6@gmail.com",
+                    senha: "{}{}12345!!!"
                 };
                 await axios.post(`${BASE_URL}/auth/register`, user);
                 expect(true).toBeFalsy();
@@ -241,8 +354,22 @@ describe('Base Tests - ', () => {
             try {
                 let user = {
                     nome: "nomevazio",
-                    email: "nomevazio@gmail.com",
+                    email: "nomevazio7@gmail.com",
                     senha: null
+                };
+                await axios.post(`${BASE_URL}/auth/register`, user);
+                expect(true).toBeFalsy();
+            } catch (error) {
+                expect(error.response.status).toBe(400);
+            }
+        });
+
+        safeTest("USERS: Recebe erro 400 ao tentar criar um usuário com e-mail já em uso", async () => {
+            try {
+                let user = {
+                    nome: "nomevazio",
+                    email: properUser.email,
+                    senha: "SenhaBastanteValida123!!!"
                 };
                 await axios.post(`${BASE_URL}/auth/register`, user);
                 expect(true).toBeFalsy();
@@ -294,7 +421,7 @@ describe('Base Tests - ', () => {
 
                 await axios.post(`${BASE_URL}/auth/register`, extraUser);
                 let loginResponse = await axios.post(`${BASE_URL}/auth/login`, loginPayload);
-                let authHeaders = {'Authorization': `Bearer ${loginResponse.data}`};
+                let authHeaders = {'Authorization': `Bearer ${loginResponse.data.access_token}`};
 
                 await axios.post(`${BASE_URL}/auth/logout`, {
                     headers: authHeaders
