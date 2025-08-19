@@ -14,12 +14,12 @@ class GithubAdapter(Port):
         super().__init__()
         self.github_token = github_token
         self.app_token = app_token
-        self.repo = self.get_repository()
+        self.repo = self.get_repository(app_token)
 
-    def get_repository(self):
+    def get_repository(self,app_token):
         try:
             repos = os.getenv("GITHUB_REPOSITORY")
-            g = Github(self.app_token)
+            g = Github(app_token)
             repo = g.get_repo(repos)
             print("This repo is: ", repo)
             return repo
