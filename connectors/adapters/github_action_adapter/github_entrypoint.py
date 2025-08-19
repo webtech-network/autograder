@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from connectors.adapters.github_action_adapter.github_adapter import GithubAdapter
+from connectors.models.assignment_config import AssignmentConfig
 from connectors.utils.load_preset import load_preset
 parser = ArgumentParser(description="GitHub Action Adapter for Autograder")
 parser.add_argument("--github-token", type=str, required=True, help="GitHub Token")
@@ -31,7 +32,7 @@ async def main():
     if args.grading_preset == "custom":
         assignment_config = adapter.create_custom_assignment_config(test_files=None, criteria=None, feedback=None, ai_feedback=None, setup=None, test_framework=test_framework)
     else:
-        assignment_config = load_preset(args.grading_preset)
+        assignment_config = AssignmentConfig.load_preset(args.grading_preset)
         print(assignment_config)
 
     adapter.create_request(submission_files=None,assignment_config=assignment_config,student_name=student_name,student_credentials=github_token,feedback_mode=feedback_type,openai_key=args.openai_key,redis_url=args.redis_url,redis_token=args.redis_token)
