@@ -158,7 +158,8 @@ class GithubAdapter(Port):
 
     def get_submission_files(self):
 
-        submission_path = os.getenv("GITHUB_WORKSPACE/submission", ".")
+        base_path = os.getenv("GITHUB_WORKSPACE", ".")
+        submission_path = os.path.join(base_path, 'submission')
         #print all the files in the submission_path
         for root, dirs, files in os.walk(submission_path):
             for file in files:
