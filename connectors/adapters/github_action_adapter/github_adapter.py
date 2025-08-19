@@ -169,7 +169,7 @@ class GithubAdapter(Port):
         # take all files in the submission directory and add them to the submission_files_dict
         for root, dirs, files in os.walk(submission_path):
          # Skip .git directory
-         if '.git' in dirs:
+         if '.git' in dirs or ".github" in dirs:
              dirs.remove('.git')
          for file in files:
              # Full path to the file
