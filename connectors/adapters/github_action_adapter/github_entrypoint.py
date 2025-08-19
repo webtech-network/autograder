@@ -33,7 +33,7 @@ async def main():
     else:
         assignment_config = load_preset(args.grading_preset)
 
-    adapter.create_request(submission_files=None,assignment_config=assignment_config,student_name=student_name,student_credentials=None,feedback_mode=feedback_type,openai_key=args.openai_key,redis_url=args.redis_url,redis_token=args.redis_token)
+    await adapter.create_request(submission_files=None,assignment_config=assignment_config,student_name=student_name,student_credentials=None,feedback_mode=feedback_type,openai_key=args.openai_key,redis_url=args.redis_url,redis_token=args.redis_token)
 
     await adapter.run_autograder()
 
