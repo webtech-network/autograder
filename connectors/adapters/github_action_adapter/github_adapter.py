@@ -168,18 +168,21 @@ class GithubAdapter(Port):
 
         # take all files in the submission directory and add them to the submission_files_dict
         for root, dirs, files in os.walk(submission_path):
-          for file in files:
-            # Full path to the file
-            file_path = os.path.join(root, file)
+         # Skip .git directory
+         if '.git' in dirs:
+             dirs.remove('.git')
+         for file in files:
+             # Full path to the file
+             file_path = os.path.join(root, file)
 
-            # Key: Path relative to the starting directory to ensure uniqueness
-            relative_path = os.path.relpath(file_path, submission_path)
+             # Key: Path relative to the starting directory to ensure uniqueness
+             relative_path = os.path.relpath(file_path, submission_path)
 
-            try:
+             try:
                  with open(file_path, "r", encoding='utf-8', errors='ignore') as f:
-                      # Use the unique relative_path as the key
-                      submission_files_dict[relative_path] = f.read()
-            except Exception as e:
+                     # Use the unique relative_path as the key
+                     submission_files_dict[relative_path] = f.read()
+             except Exception as e:
                  print(f"Could not read file {file_path}: {e}")
 
         return submission_files_dict
