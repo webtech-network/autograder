@@ -160,10 +160,6 @@ class GithubAdapter(Port):
 
         base_path = os.getenv("GITHUB_WORKSPACE", ".")
         submission_path = os.path.join(base_path, 'submission')
-        #print all the files in the submission_path
-        for root, dirs, files in os.walk(submission_path):
-            for file in files:
-                print(os.path.join(root, file))
         submission_files_dict = {}
 
         # take all files in the submission directory and add them to the submission_files_dict
@@ -180,6 +176,7 @@ class GithubAdapter(Port):
 
              try:
                  with open(file_path, "r", encoding='utf-8', errors='ignore') as f:
+                     print("Adding file to submission_files_dict: ", relative_path)
                      # Use the unique relative_path as the key
                      submission_files_dict[relative_path] = f.read()
              except Exception as e:
