@@ -156,7 +156,7 @@ class GithubAdapter(Port):
                 setup_content = f.read()
         return AssignmentConfig.load_custom(files,criteria_content,feedback_content,ai_feedback=ai_feedback_content,setup=setup_content,test_framework=test_framework)
 
-    async def get_submission_files(self):
+    def get_submission_files(self):
 
         base_path = os.getenv("GITHUB_WORKSPACE", ".")
         submission_path = os.path.join(base_path, 'submission')
@@ -187,12 +187,12 @@ class GithubAdapter(Port):
 
         return submission_files_dict
 
-    async def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None):
+    def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None):
         """
         Creates an AutograderRequest object with the provided parameters.
         """
         print("Getting submission files from the repository...")
-        submission_files_dict = await self.get_submission_files()
+        submission_files_dict = self.get_submission_files()
         print(submission_files_dict)
         print(f"Creating AutograderRequest with {feedback_mode} feedback mode")
         self.autograder_request = AutograderRequest(
