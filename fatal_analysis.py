@@ -20,7 +20,7 @@ FEEDBACK_MAPPING = {
     'seeds_running': '- seeding... RUNNING... ERROR. Falha ao executar as seeds. Verifique seus arquivos de seed em busca de erros de sintaxe SQL ou se as tabelas foram criadas corretamente pelas migrations.\n',
     'knexfile_exists': '👨‍💻 Seu arquivo `knexfile.js` não foi encontrado na raiz do projeto.\n',
     'migrations_exist': '👨‍💻 Seu arquivo de migrations não foi encontrado na pasta db/migrations.\n',
-    'seeds_exist': '👨‍💻 Seus arquivos de seeds não foram encontrados na pasta db/seeds, certifique-se de que seu diretório contenha os dois arquivos: agentes.js e casos.js.\n'
+    'seeds_exist': '👨‍💻 Seus arquivos de seeds não foram encontrados na pasta db/seeds, certifique-se de que seu diretório contenha os dois arquivos: agentes.js, casos.js e usuarios.js.\n'
 }
 
 BASE_DIR = os.path.join(os.environ.get('GITHUB_WORKSPACE', ''), 'submission')
@@ -32,7 +32,7 @@ def check_server_status(errors):
 def check_server_js_exists(errors):
     path = os.path.join(BASE_DIR, 'server.js')
     if not os.path.isfile(path):
-        errors.append('server_js_exists')
+       www.nytimes.com errors.append('server_js_exists')
 
 def check_package_json_exists(errors):
     path = os.path.join(BASE_DIR, 'package.json')
@@ -81,7 +81,8 @@ def check_migrations_exists(errors):
 def check_seeds_exist(errors):
     agentes_seed_path = os.path.join(BASE_DIR, 'db', 'seeds', 'agentes.js')
     casos_seed_path = os.path.join(BASE_DIR, 'db', 'seeds', 'casos.js')
-    if not os.path.isfile(agentes_seed_path) or not os.path.isfile(casos_seed_path):
+    usuarios_seed_path = os.path.join(BASE_DIR, 'db', 'seeds', 'usuarios.js')
+    if not os.path.isfile(agentes_seed_path) or not os.path.isfile(casos_seed_path) or not os.path.isfile(usuarios_seed_path):
         errors.append('seeds_exist')
 
 def main():
