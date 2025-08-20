@@ -32,7 +32,7 @@ def check_server_status(errors):
 def check_server_js_exists(errors):
     path = os.path.join(BASE_DIR, 'server.js')
     if not os.path.isfile(path):
-       www.nytimes.com errors.append('server_js_exists')
+       errors.append('server_js_exists')
 
 def check_package_json_exists(errors):
     path = os.path.join(BASE_DIR, 'package.json')

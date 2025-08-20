@@ -2,6 +2,11 @@ name: "HTML/CSS/JS Autograder"
 author: "Webtech Network"
 description: "An autograding tool for GitHub Classroom that evaluates students' HTML, CSS, and JavaScript projects."
 inputs:
+  JWT_SECRET:
+    description: >
+      JWT token used to authenticate the autograder. This is required for the autograder to function properly.
+      It should be provided by the GitHub Classroom setup.
+    required: true
   token:
     description: >
       GitHub token used to check repository content and provide feedback. By default, 
@@ -34,9 +39,10 @@ outputs:
 runs:
   using: docker
   image: "Dockerfile"  # The Docker image containing the autograder
-  args:
-    - ${{ inputs.token }}
-    - ${{ inputs.autograder_bot_token }}
-    - ${{ inputs.redis_name }}
-    - ${{ inputs.redis_url }}
-    - ${{ inputs.autograder_engine }}
+  env:
+    JWT_TOKEN: ${{ inputs.JWT_SECRET }}
+    GITHUB_TOKEN:  ${{ inputs.token }}
+    APP_TOKEN: ${{ inputs.autograder_bot_token }}
+    REDIS_TOKEN: ${{ inputs.redis_name }}
+    REDIS_URL: ${{ inputs.redis_url }}
+    OPENAI_KEY: ${{ inputs.autograder_engine }}
