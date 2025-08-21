@@ -35,13 +35,12 @@ class ApiAdapter(Port):
                        openai_key=None,
                        redis_url=None,
                        redis_token=None):
-
         submission_files_dict = {}
         for submission_file in submission_files:
+            if ".git" in submission_file.filename:
+                continue
             submission_content = await submission_file.read()
             submission_files_dict[submission_file.filename] =  submission_content.decode("utf-8")
-
-        print(f"Creating AutograderRequest with {feedback_mode} feedback mode")
         self.autograder_request =  AutograderRequest(
             submission_files_dict,
             assignment_config,
@@ -51,7 +50,6 @@ class ApiAdapter(Port):
             redis_url=redis_url,
             redis_token=redis_token
         )
-        print(f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode")
     async def create_custom_assignment_config(self,
                                        test_files: List[UploadFile],
                                        criteria,
