@@ -1,4 +1,6 @@
 # src/interfaces/api/submission_api.py
+import logging
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
@@ -30,6 +32,13 @@ app.add_middleware(
 )
 
 
+# --- Setup robust logging ---
+# Configure logger to print messages to the console.
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 # src/interfaces/api/submission_api.py
@@ -52,11 +61,18 @@ async def grade_submission_endpoint(
         redis_token: Optional[str] = Form(None, description="Redis token for AI feedback"),
 ):
     try:
+        logging.info("Received API request to grade submission.")
         adapter = ApiAdapter()
         if grading_preset == "custom":
+            logging.info("Custom grading preset selected. Loading custom configuration.")
             assignment_config = await adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,setup=setup_json,test_framework=test_framework)
+            logging.info("Custom grading preset loaded.")
         else:
+            logging.info(f"Using preset: {grading_preset}. Loading preset configuration.")
             assignment_config = AssignmentConfig.load_preset(grading_preset)
+            logging.info(f"Preset {grading_preset} loaded successfully.")
+
+        logging.info(f"Creating autograder request....")
         await adapter.create_request(submission_files=submission_files,
                                assignment_config=assignment_config,
                                student_name=student_name,
@@ -65,9 +81,13 @@ async def grade_submission_endpoint(
                                openai_key=openai_key,
                                redis_url=redis_url,
                                redis_token=redis_token)
+        logging.info(f"Autograder request created successfully.")
+
 
         # 3. Run the autograder and await its completion (asynchronous)
+        logging.info("Running the autograder...")
         await adapter.run_autograder()
+
 
         # 4. Get the results from the adapter (synchronous)
         result = adapter.export_results()
