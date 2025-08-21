@@ -1,7 +1,8 @@
 const axios = require('axios');
 const BASE_URL = require('../request-config');
 const {describe, beforeEach, afterEach, expect} = require("@jest/globals");
-
+const setup = require('../setup'); // Assuming safeTest is defined in a separate file
+const safeTest = setup.safeTest; // Importing safeTest from setup
 describe('Base Tests - ', () => {
 
     let testAgent = {

@@ -57,7 +57,6 @@ async def grade_submission_endpoint(
             assignment_config = await adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,setup=setup_json,test_framework=test_framework)
         else:
             assignment_config = AssignmentConfig.load_preset(grading_preset)
-
         await adapter.create_request(submission_files=submission_files,
                                assignment_config=assignment_config,
                                student_name=student_name,
