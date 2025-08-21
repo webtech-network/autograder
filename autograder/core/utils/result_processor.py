@@ -11,7 +11,7 @@ class ResultProcessor:
         """Loads test results from a JSON file using an absolute path."""
         # Construct the absolute path from the project root
         print("PROJECT ROOT:", ResultProcessor._PROJECT_ROOT)
-        absolute_path = os.path.join(ResultProcessor._PROJECT_ROOT, 'validation', 'tests','results', result_file_name)
+        absolute_path = os.path.join(ResultProcessor._PROJECT_ROOT, 'validation', '__tests__','results', result_file_name)
 
         print(f"Attempting to load results from: {absolute_path}")
         try:
