@@ -54,14 +54,14 @@ class Autograder:
         request_bucket_path = os.path.join(current_dir, "request_bucket")
         submission_path = os.path.join(request_bucket_path, "submission")
 
-        # Ensure directories exist
-        os.makedirs(validation_tests_path, exist_ok=True)
-        os.makedirs(submission_path, exist_ok=True)
-        os.makedirs(os.path.join(validation_tests_path,"results"), exist_ok=True)
+            logging.info("Building directory structure...")
+            os.makedirs(validation_tests_path, exist_ok=True)
+            os.makedirs(submission_path, exist_ok=True)
+            os.makedirs(os.path.join(validation_tests_path, "results"), exist_ok=True)
 
-        # Determine file extension based on test_framework
-        framework = getattr(assignment_config, "test_framework", "pytest")
-        ext = ".py" if framework == "pytest" else ".js" if framework == "jest" else ".json" if framework == "ai" else ".txt"
+            logging.info("Choosing file extension based on test framework...")
+            framework = getattr(assignment_config, "test_framework", "pytest")
+            ext = ".py" if framework == "pytest" else ".js" if framework == "jest" else ".json" if framework == "ai" else ".txt"
 
 
         # Place test files in /validation/tests
@@ -75,6 +75,11 @@ class Autograder:
         if test_files.test_penalty:
             with open(os.path.join(validation_tests_path, f"test_penalty{ext}"), "w", encoding="utf-8") as f:
                 f.write(test_files.test_penalty)
+            logging.info("Placing test files...")
+                    logging.info("Writing base test file...")
+                    logging.info("Writing bonus test file...")
+                    logging.info("Writing penalty test file...")
+            logging.info("Test files placed.")
 
 
         # Place other test files in /validation
@@ -99,6 +104,10 @@ class Autograder:
         for filename, content in submission_files.items():
             with open(os.path.join(submission_path, filename), "w", encoding="utf-8") as f:
                 f.write(content)
+            logging.info("Placing configuration files...")
+            logging.info("Configuration files placed.")
+
+            logging.info("Placing submission files...")
     @staticmethod
     def _recreate_directory(directory_path: str):
         """
@@ -106,25 +115,23 @@ class Autograder:
         and then recreate it. This ensures a clean state.
         :param directory_path: The absolute path to the directory to clean.
         """
-        print(f"Resetting directory: {directory_path}")
-        # If the directory exists, remove it completely.
+        logging.info(f"Resetting directory: {directory_path}")
         if os.path.isdir(directory_path):
             try:
                 shutil.rmtree(directory_path)
             except Exception as e:
-                print(f'Error: Failed to delete directory {directory_path}. Reason: {e}')
+                logging.error(f'Error: Failed to delete directory {directory_path}. Reason: {e}')
 
-        # This part was commented out in the user's code, but it's essential
-        # for recreating the directory structure after cleaning.
         try:
             os.makedirs(directory_path, exist_ok=True)
         except Exception as e:
-            print(f'Error: Failed to create directory {directory_path}. Reason: {e}')
-            print(f'Error: Failed to create directory {directory_path}. Reason: {e}')
+            logging.error(f'Error: Failed to create directory {directory_path}. Reason: {e}')
+
     @staticmethod
     def early_exit():
         fatal_report = FatalReporter.generate_feedback()
-        return AutograderResponse("Fail",0.0, fatal_report)
+        return AutograderResponse("Fail", 0.0, fatal_report)
+
     @staticmethod
     def finish_session():
         """
@@ -132,27 +139,22 @@ class Autograder:
         It cleans the contents of /validation and /request_bucket.
         :return: A new instance of the Autograder.
         """
-        print("Finishing session and cleaning up workspace...")
+        logging.info("Finishing session and cleaning up workspace...")
 
-        # Determine the absolute path to the current directory (autograder/)
         current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # Define paths for the directories that need to be cleaned.
         validation_path = os.path.join(current_dir, "validation")
         request_bucket_path = os.path.join(current_dir, "request_bucket")
 
-        # Clean and recreate the top-level directories.
         Autograder._recreate_directory(validation_path)
         Autograder._recreate_directory(request_bucket_path)
 
-        # Recreate the essential nested directory structure inside the now-clean parent directories.
         validation_results_path = os.path.join(validation_path, "results")
         submission_path = os.path.join(request_bucket_path, "submission")
 
         os.makedirs(validation_results_path, exist_ok=True)
         os.makedirs(submission_path, exist_ok=True)
 
-        print("Cleanup complete. Ready for a new session.")
+        logging.info("Cleanup complete. Ready for a new session.")
         return Autograder()
 
     @staticmethod
@@ -167,18 +169,14 @@ class Autograder:
     ):
         """
         Main grading method with robust error handling.
-        It uses a try...finally block to ensure that cleanup (`finish_session`)
-        is always performed, effectively "rolling back" the state on failure.
         """
         try:
-            # This will now correctly wait for the async tests to finish
             await TestEngine.run(test_framework)
             sleep(2)
             if TestEngine.fatal_error:
                 return Autograder.early_exit()
             current_dir = os.path.dirname(os.path.abspath(__file__))
             config_path = os.path.join(current_dir, "request_bucket", "criteria.json")
-            # Normalize the path to resolve ".." correctly
             normalized_path = os.path.normpath(config_path)
 
             assignment_config = CriteriaConfig.create_config(normalized_path)
@@ -188,12 +186,11 @@ class Autograder:
             penalty_grader = Grader.create(assignment_config.penalty_config)
 
             result = Scorer.build_and_grade(student_name, assignment_config, base_grader, bonus_grader, penalty_grader)
-            print("Final Score: ", result)
+            logging.info(f"Final Score: {result.final_score}")
 
             reporter = None
             if feedback_type == "default":
                 reporter = Reporter.create_default_reporter(result)
-
             elif feedback_type == "ai":
                 if not openai_key:
                     raise ValueError("OpenAI key is required for AI feedback.")
@@ -211,13 +208,14 @@ class Autograder:
 
             feedback = reporter.generate_feedback()
 
-            return AutograderResponse("Success",result.final_score, feedback)
+            return AutograderResponse("Success", result.final_score, feedback)
 
         except Exception as e:
-            # Log the error and re-raise it so the caller knows something went wrong.
-            print(f"An error occurred during the grading process: {e}")
+            # --- More detailed logging in the `grade` method ---
+            error_trace = traceback.format_exc()
+            logging.error(f"An error occurred during the grading process: {e}\n{error_trace}")
+            # Re-raise to be handled by the main `connect` method's exception handler.
             raise
-
 
 
 if __name__ == "__main__":
@@ -226,14 +224,7 @@ if __name__ == "__main__":
 
     opt = int(input("1 - Jest Test\n2 - Pytest\nChoose the test framework to run: "))
     if opt == 1:
-        """
-        This is the entry point for the Autograder. 
-        It is used for testing purposes and can be run directly to see the grading process in action.
-        """
-
-
         ass = AssignmentConfig.load_preset("html-css-js")
-        print(ass)
         submission_files = {
             "index.html":
                 """<!DOCTYPE html>
@@ -244,45 +235,38 @@ if __name__ == "__main__":
             <link rel="stylesheet" href="style.css">
         </head>
         <body>
-            <h1>Welcome to My Page</h1> <!-- ✅ Matches test requirement -->
-            <p>This is a simple webpage.</p> <!-- ✅ Just needs a paragraph -->
-    
-            <button id="myButton">Click Me!</button> <!-- ✅ Button with correct ID & text -->
-    
+            <h1>Welcome to My Page</h1>
+            <p>This is a simple webpage.</p>
+            <button id="myButton">Click Me!</button>
             <script src="script.js"></script>
         </body>
         </html>""",
             "style.css": """
-            /* ✅ Background color applied */
-        body {
-            background-color: lightblue;
-        }
-    
-        /* ✅ <h1> has a color */
-        h1 {
-            color: darkblue;
-        }
+        body { background-color: lightblue; }
+        h1 { color: darkblue; }
             """,
             "script.js":
-            """
-            // ✅ Select the button and add a click event listener
+                """
     document.getElementById("myButton").addEventListener("click", function() {
-        this.textContent = "Clicked!"; // ✅ Changes button text on click
+        this.textContent = "Clicked!";
     });
             """
         }
-        request = AutograderRequest({"index.html":submission_files["index.html"]}, ass, "Arthur Carvalho", "123", "default")
+        request = AutograderRequest({"index.html": submission_files["index.html"]}, ass, "Arthur Carvalho", "123",
+                                    "default")
 
 
     async def main():
-        print("Starting autograder...")
+        logging.info("Starting autograder...")
         try:
             response = await Autograder.connect(request)
-            print(f"Final Score: {response.final_score}")
-            print("Feedback:")
-            print(response.feedback)
+            logging.info(f"STATUS: {response.status}")
+            logging.info(f"Final Score: {response.final_score}")
+            logging.info("--- FEEDBACK ---")
+            print(response.feedback) # Using print here for clean feedback output
         except Exception as e:
-            print(f"Autograder run failed. Final state after cleanup. Error: {e}")
+            # This top-level catch is a final safety net.
+            logging.critical(f"Autograder run failed catastrophically. Error: {e}")
 
 
     asyncio.run(main())
