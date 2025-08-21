@@ -63,22 +63,21 @@ class Autograder:
             framework = getattr(assignment_config, "test_framework", "pytest")
             ext = ".py" if framework == "pytest" else ".js" if framework == "jest" else ".json" if framework == "ai" else ".txt"
 
-
-        # Place test files in /validation/tests
-        test_files = assignment_config.test_files
-        if test_files.test_base:
-            with open(os.path.join(validation_tests_path, f"test_base{ext}"), "w", encoding="utf-8") as f:
-                f.write(test_files.test_base)
-        if test_files.test_bonus:
-            with open(os.path.join(validation_tests_path, f"test_bonus{ext}"), "w", encoding="utf-8") as f:
-                f.write(test_files.test_bonus)
-        if test_files.test_penalty:
-            with open(os.path.join(validation_tests_path, f"test_penalty{ext}"), "w", encoding="utf-8") as f:
-                f.write(test_files.test_penalty)
             logging.info("Placing test files...")
+            test_files = assignment_config.test_files
+            # ... (placing test_base, test_bonus, test_penalty files remains the same)
+            if test_files.test_base:
+                with open(os.path.join(validation_tests_path, f"test_base{ext}"), "w", encoding="utf-8") as f:
                     logging.info("Writing base test file...")
+                    f.write(test_files.test_base)
+            if test_files.test_bonus:
+                with open(os.path.join(validation_tests_path, f"test_bonus{ext}"), "w", encoding="utf-8") as f:
                     logging.info("Writing bonus test file...")
+                    f.write(test_files.test_bonus)
+            if test_files.test_penalty:
+                with open(os.path.join(validation_tests_path, f"test_penalty{ext}"), "w", encoding="utf-8") as f:
                     logging.info("Writing penalty test file...")
+                    f.write(test_files.test_penalty)
             logging.info("Test files placed.")
 
 
@@ -87,27 +86,44 @@ class Autograder:
             with open(os.path.join(validation_path, filename), "w", encoding="utf-8") as f:
                 f.write(content)
 
-        # Place config files in /request_bucket
-        if assignment_config.criteria:
-            with open(os.path.join(request_bucket_path, "criteria.json"), "w", encoding="utf-8") as f:
-                json.dump(json.loads(assignment_config.criteria),f,ensure_ascii=False, indent=2)
-        if assignment_config.feedback:
-            with open(os.path.join(request_bucket_path, "feedback.json"), "w", encoding="utf-8") as f:
-                json.dump(json.loads(assignment_config.feedback),f,ensure_ascii=False, indent=2)
-        if assignment_config.ai_feedback:
-            with open(os.path.join(request_bucket_path, "ai-feedback.json"), "w", encoding="utf-8") as f:
-                json.dump(json.loads(assignment_config.ai_feedback),f,ensure_ascii=False, indent=2)
-        if assignment_config.setup:
-            with open(os.path.join(request_bucket_path, "autograder-setup.json"), "w", encoding="utf-8") as f:
-                json.dump(json.loads(assignment_config.setup),f,ensure_ascii=False, indent=2)
-        # Place submission files in /request_bucket/submission
-        for filename, content in submission_files.items():
-            with open(os.path.join(submission_path, filename), "w", encoding="utf-8") as f:
-                f.write(content)
             logging.info("Placing configuration files...")
+            # ... (placing config files remains the same)
+            if assignment_config.criteria:
+                with open(os.path.join(request_bucket_path, "criteria.json"), "w", encoding="utf-8") as f:
+                    json.dump(json.loads(assignment_config.criteria), f, ensure_ascii=False, indent=2)
+            if assignment_config.feedback:
+                with open(os.path.join(request_bucket_path, "feedback.json"), "w", encoding="utf-8") as f:
+                    json.dump(json.loads(assignment_config.feedback), f, ensure_ascii=False, indent=2)
+            if assignment_config.ai_feedback:
+                with open(os.path.join(request_bucket_path, "ai-feedback.json"), "w", encoding="utf-8") as f:
+                    json.dump(json.loads(assignment_config.ai_feedback), f, ensure_ascii=False, indent=2)
+            if assignment_config.setup:
+                with open(os.path.join(request_bucket_path, "autograder-setup.json"), "w", encoding="utf-8") as f:
+                    json.dump(json.loads(assignment_config.setup), f, ensure_ascii=False, indent=2)
             logging.info("Configuration files placed.")
 
             logging.info("Placing submission files...")
+            for filename, content in submission_files.items():
+                # --- MODIFICATION START ---
+                # Split the path into parts using the OS-specific separator
+                path_parts = filename.split(os.path.sep)
+
+                # If there are path parts (i.e., it's in a folder), strip the first one
+                # Otherwise (it's just a file), use the original filename
+                relative_filename = os.path.join(*path_parts[1:]) if len(path_parts) > 1 else filename
+
+                # Construct the full path using the new relative filename
+                full_path = os.path.join(submission_path, relative_filename)
+                directory = os.path.dirname(full_path)
+                os.makedirs(directory, exist_ok=True)
+                # --- MODIFICATION END ---
+                with open(full_path, "w", encoding="utf-8") as f:
+                    logging.info(f"Writing submission file: {relative_filename}...")
+                    f.write(content)
+        except (IOError, OSError) as e:
+            logging.error(f"Failed to prepare session due to a file system error: {e}")
+            raise
+
     @staticmethod
     def _recreate_directory(directory_path: str):
         """
