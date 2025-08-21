@@ -1,7 +1,11 @@
 import asyncio
 import json
+import logging
 import os
 import shutil
+import traceback
+from time import sleep
+
 from autograder.core.config_processing.criteria_config import CriteriaConfig
 from autograder.core.grading.grader import Grader
 from autograder.core.grading.scorer import Scorer
@@ -10,9 +14,15 @@ from autograder.core.report.fatal_report import FatalReporter
 from autograder.core.report.reporter_factory import Reporter
 from autograder.core.test_engine.engine import TestEngine
 from autograder.core.utils.upstash_driver import Driver
-from time import sleep
-
 from connectors.models.autograder_request import AutograderRequest
+
+# --- Setup robust logging ---
+# Configure logger to print messages to the console.
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 class Autograder:
@@ -29,6 +39,7 @@ class Autograder:
         Ensures cleanup is always performed, even if an error occurs.
         """
         try:
+            logging.info("Connected! Preparing grading session...")
             Autograder.prepare_session(autograder_request.assignment_config, autograder_request.submission_files)
             response = await Autograder.grade(
                 autograder_request.assignment_config.test_framework,
@@ -40,6 +51,19 @@ class Autograder:
                 autograder_request.redis_token
             )
             return response
+        except Exception as e:
+            # --- Robust Error Handling ---
+            # Log the full exception traceback for debugging.
+            error_trace = traceback.format_exc()
+            logging.error(f"A critical error occurred in the connect method: {e}\n{error_trace}")
+            # Generate a fatal error report for the user.
+            FatalReporter.report_error(
+                "An unexpected error occurred during the grading process. "
+                "Please contact support and provide the following details.",
+                str(e)
+            )
+            # Return a structured failure response.
+            return Autograder.early_exit()
         finally:
             Autograder.finish_session()
 
@@ -47,12 +71,14 @@ class Autograder:
     def prepare_session(assignment_config, submission_files):
         """
         Receives all the files needed and places them in the correct directories for the grading job.
+        Handles nested directories in filenames and ignores the first (root) directory.
         """
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        validation_path = os.path.join(current_dir, "validation")
-        validation_tests_path = os.path.join(validation_path, "tests")
-        request_bucket_path = os.path.join(current_dir, "request_bucket")
-        submission_path = os.path.join(request_bucket_path, "submission")
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            validation_path = os.path.join(current_dir, "validation")
+            validation_tests_path = os.path.join(validation_path, "__tests__")
+            request_bucket_path = os.path.join(current_dir, "request_bucket")
+            submission_path = os.path.join(request_bucket_path, "submission")
 
             logging.info("Building directory structure...")
             os.makedirs(validation_tests_path, exist_ok=True)
@@ -80,11 +106,19 @@ class Autograder:
                     f.write(test_files.test_penalty)
             logging.info("Test files placed.")
 
+            for filename, content in test_files.other_files.items():
+                # --- MODIFICATION START ---
+                # Strip the root folder from the path
+                path_parts = filename.split(os.path.sep)
+                relative_filename = os.path.join(*path_parts[1:]) if len(path_parts) > 1 else filename
 
-        # Place other test files in /validation
-        for filename, content in test_files.other_files.items():
-            with open(os.path.join(validation_path, filename), "w", encoding="utf-8") as f:
-                f.write(content)
+                # Construct the full path using the new relative filename
+                full_path = os.path.join(validation_path, relative_filename)
+                directory = os.path.dirname(full_path)
+                os.makedirs(directory, exist_ok=True)
+                # --- MODIFICATION END ---
+                with open(full_path, "w", encoding="utf-8") as f:
+                    f.write(content)
 
             logging.info("Placing configuration files...")
             # ... (placing config files remains the same)
