@@ -18,7 +18,7 @@ class PytestAdapter(EnginePort):
     _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_THIS_FILE_DIR)))
     VALIDATION_DIR = os.path.join(_PROJECT_ROOT, 'validation')
     REQUEST_BUCKET_DIR = os.path.join(_PROJECT_ROOT, 'request_bucket')
-    RESULTS_DIR = os.path.join(VALIDATION_DIR, 'tests', 'results')
+    RESULTS_DIR = os.path.join(VALIDATION_DIR, '__tests__', 'results')
     SUBMISSION_DIR = os.path.join(REQUEST_BUCKET_DIR, 'submission')
     async def _install_dependencies(self):
         """
@@ -69,7 +69,7 @@ class PytestAdapter(EnginePort):
         report_paths = []
 
         for test_file_name in self.TEST_FILES:
-            test_file_path = os.path.join(self.VALIDATION_DIR, "tests", test_file_name)
+            test_file_path = os.path.join(self.VALIDATION_DIR, "__tests__", test_file_name)
             if not os.path.exists(test_file_path):
                 raise FileNotFoundError(f"Required test file not found: {test_file_path}")
 
