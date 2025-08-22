@@ -38,6 +38,6 @@ This structure ensures that every test is mapped to a specific subject and categ
 
 Here is a diagram illustrating the grading tree:
 
-![Grading Artifacts Tree](/imgs/tree_structure.png)
+![Grading Artifacts Tree](/docs/imgs/tree_structure.png)
 
 By understanding this structure, you can create sophisticated and well-organized grading schemes for any assignment.
