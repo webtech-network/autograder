@@ -379,7 +379,7 @@ describe('Penalty Tests - ', () => {
 
             let agentControllerPath = path.join(projectRoot, 'controllers/agentesController.js');
             let caseControllerPath = path.join(projectRoot, 'controllers/casosController.js');
-            let authControllerPath = path.join(projectRoot, 'routes/authController.js');
+            let authControllerPath = path.join(projectRoot, 'controllers/authController.js');
             let controllersExist = fs.existsSync(agentControllerPath) && fs.existsSync(caseControllerPath) && fs.existsSync(authControllerPath);
 
             let knexFilePath = path.join(projectRoot, 'knexfile.js');
