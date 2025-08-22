@@ -40,7 +40,3 @@ This documentation is divided into several sections to help you find the informa
 * [**6. API Reference**](/docs/api_reference.md): Detailed documentation for the autograder's API.
 
 
-
-## License
-
-This project is licensed under the MIT License. See the `LICENSE` file for more details.
