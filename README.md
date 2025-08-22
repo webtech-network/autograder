@@ -21,7 +21,7 @@ The Autograder is a flexible and extensible system that allows educators to crea
 
 ## Getting Started
 
-Ready to dive in? Our [**Getting Started Guide**](1_docs/getting_started.md) will walk you through the process of setting up and running the autograder for the first time.
+Ready to dive in? Our [**Getting Started Guide**](1_/docs/getting_started.md) will walk you through the process of setting up and running the autograder for the first time.
 
 ## Documentation
 
