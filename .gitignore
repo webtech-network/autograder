@@ -1,3 +1,8 @@
-grading/tests/__pycache__
 /submission
-/grading/__pycache__
+__pycache__
+/node_modules
+.vscode
+/autograder/validation/test-results.json
+/autograder/validation/results/*
+.env
+/.idea

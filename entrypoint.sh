@@ -1,34 +1,72 @@
-#!/bin/sh
+#!/bin/bash
+# This script validates required environment variables and dynamically builds
+# the command to run the python entrypoint, only passing arguments that are set.
 
-# Print a message to indicate the start of the autograding process
-echo "🚀 Starting autograder..."
+# Exit immediately if a command exits with a non-zero status for robustness.
+set -e
 
-# Ensure that the necessary environment variables are set and print them for debugging
-echo "HTML Weight: $1"
-echo "CSS Weight: $2"
-echo "JS Weight: $3"
-echo "Timeout: $4"
-echo "token: $5"
+# --- 1. Validate Required Environment Variables ---
+# These variables correspond to arguments marked as `required=True` in the Python script.
+# The script will exit with an error if any of them are missing.
+if [[ -z "$GITHUB_TOKEN" ]]; then
+  echo "Error: Environment variable GITHUB_TOKEN is not set." >&2
+  exit 1
+fi
 
-# Set default values for arguments if they are not provided
-HTML_WEIGHT="${1:-30}"
-CSS_WEIGHT="${2:-40}"
-JS_WEIGHT="${3:-30}"
-TIMEOUT="${4:-10}"
-GRADING_CRITERIA="${6:-criteria.json}"
+if [[ -z "$GRADING_PRESET" ]]; then
+  echo "Error: Environment variable GRADING_PRESET is not set." >&2
+  exit 1
+fi
 
-# Specify the path to the student's submission folder (we assume files are in the "submission" folder)
-STUDENT_REPO_PATH="$GITHUB_WORKSPACE/submission"
+if [[ -z "$GITHUB_ACTOR" ]]; then
+  echo "Error: Environment variable GITHUB_ACTOR is not set." >&2
+  exit 1
+fi
 
-# Print some of the important paths for debugging
-echo "Student repository path: $STUDENT_REPO_PATH"
-echo "Grading criteria: $GRADING_CRITERIA"
+cd /app
 
-# Run the Python autograder script with the provided inputs
-# This command will invoke autograder.py and pass the weights and grading criteria
-python /app/autograder.py --html-weight $HTML_WEIGHT --css-weight $CSS_WEIGHT --js-weight $JS_WEIGHT --grading-criteria $GRADING_CRITERIA --timeout $TIMEOUT --token $5
+# --- 2. Dynamically Build Command Arguments ---
+# Initialize a bash array with the base command and the required arguments.
+args=(
+    "python"
+    "-m"
+    "connectors.adapters.github_action_adapter.github_entrypoint"
+    "--github-token" "$GITHUB_TOKEN"
+    "--grading-preset" "$GRADING_PRESET"
+    "--student-name" "$GITHUB_ACTOR"
+)
 
-# Check if the autograder script executed successfully
-echo "✅ Autograding completed successfully!"
-# Provide a message indicating completion
-echo "🎉 Final results generated and sent to GitHub Classroom!"
+# Conditionally add optional arguments to the array ONLY if they are set.
+# The '-n' flag checks if the variable's string length is non-zero.
+# Note: The argument flags (e.g., --app_token) match the ones in your Python script.
+if [[ -n "$APP_TOKEN" ]]; then
+    args+=("--app_token" "$APP_TOKEN")
+fi
+
+if [[ -n "$TEST_FRAMEWORK" ]]; then
+    args+=("--test_framework" "$TEST_FRAMEWORK")
+fi
+
+if [[ -n "$FEEDBACK_TYPE" ]]; then
+    args+=("--feedback_type" "$FEEDBACK_TYPE")
+fi
+
+if [[ -n "$OPENAI_KEY" ]]; then
+    args+=("--openai_key" "$OPENAI_KEY")
+fi
+
+if [[ -n "$REDIS_URL" ]]; then
+    args+=("--redis_url" "$REDIS_URL")
+fi
+
+if [[ -n "$REDIS_TOKEN" ]]; then
+    args+=("--redis_token" "$REDIS_TOKEN")
+fi
+
+
+# --- 3. Execute the Python Script ---
+echo "Executing python entrypoint with configured arguments..."
+
+# The "${args[@]}" syntax expands the array into separate, properly quoted arguments.
+# This is the safest way to run commands with dynamic arguments that might contain spaces.
+"${args[@]}"

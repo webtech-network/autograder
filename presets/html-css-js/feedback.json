@@ -1,0 +1,422 @@
+{
+  "base_tests": [
+    {
+      "test_html_html_tag": [
+        "A tag <html> está corretamente presente, iniciando o documento HTML.",
+        "O documento HTML está sem a tag <html>. Adicione-a para garantir a estrutura correta."
+      ]
+    },
+    {
+      "test_html_head_tag": [
+        "A tag <head> foi encontrada. Ótimo, é nela que vão os metadados e links de estilo.",
+        "A tag <head> está ausente. Certifique-se de incluí-la com título, links de CSS, etc."
+      ]
+    },
+    {
+      "test_html_body_tag": [
+        "A tag <body> está presente e pronta para exibir seu conteúdo.",
+        "A tag <body> está faltando. Toda a parte visível da página deve estar dentro dela."
+      ]
+    },
+    {
+      "test_html_title_tag": [
+        "Excelente! Sua página tem um título visível na aba do navegador.",
+        "Sua página está sem <title>. Adicione-a dentro do <head> para definir um título no navegador."
+      ]
+    },
+    {
+      "test_html_meta_charset": [
+        "A codificação de caracteres foi definida corretamente com UTF-8.",
+        "Está faltando a meta tag charset. Adicione <meta charset='UTF-8'> para evitar problemas com acentuação."
+      ]
+    },
+    {
+      "test_html_meta_viewport": [
+        "A tag <meta name='viewport'> está presente e garante responsividade.",
+        "Faltando a meta tag de viewport. Ela é essencial para que a página funcione bem em dispositivos móveis."
+      ]
+    },
+    {
+      "test_html_image_alt_attributes": [
+        "Todas as imagens possuem atributo alt. Isso melhora a acessibilidade.",
+        "Algumas imagens estão sem o atributo alt. Adicione descrições alternativas para leitores de tela."
+      ]
+    },
+    {
+      "test_html_form_labels": [
+        "Ótimo! Todos os inputs possuem labels associados.",
+        "Alguns inputs não possuem labels. Isso prejudica a acessibilidade. Use a tag <label> com o atributo 'for'."
+      ]
+    },
+    {
+      "test_html_semantic_header_tag": [
+        "A tag <header> está presente. Sua estrutura semântica está bem definida!",
+        "Faltando a tag <header>. Use-a para agrupar conteúdo introdutório da página."
+      ]
+    },
+    {
+      "test_html_semantic_footer_tag": [
+        "Muito bom! A tag <footer> está presente e posiciona corretamente o rodapé.",
+        "A tag <footer> está ausente. Use-a para agrupar conteúdo no final da página, como créditos ou links."
+      ]
+    },
+    {
+      "test_html_semantic_nav_tag": [
+        "A tag <nav> foi utilizada. Isso deixa sua navegação bem definida!",
+        "Você se esqueceu da tag <nav>. Use-a para indicar menus de navegação."
+      ]
+    },
+    {
+      "test_html_semantic_main_tag": [
+        "A tag <main> foi usada corretamente para destacar o conteúdo principal.",
+        "Inclua a tag <main> para delimitar o conteúdo central da sua página."
+      ]
+    },
+    {
+      "test_html_proper_nesting": [
+        "A estrutura do HTML está bem aninhada. Tudo em ordem!",
+        "Erro de aninhamento encontrado. Ex: listas <ul> devem conter apenas <li>. Verifique a estrutura."
+      ]
+    },
+    {
+      "test_html_closing_tags": [
+        "Todas as tags foram corretamente fechadas. HTML válido!",
+        "Algumas tags não foram fechadas. Isso pode quebrar a estrutura da página. Corrija os fechamentos."
+      ]
+    },
+    {
+      "test_html_valid_html": [
+        "O HTML está bem formado e válido.",
+        "O HTML parece estar mal estruturado. Revise o código ou utilize um validador como o do W3C."
+      ]
+    },
+    {
+      "test_css_css_linked": [
+        "O CSS está corretamente vinculado via <link> no <head>.",
+        "O CSS não foi vinculado corretamente. Use <link rel='stylesheet' href='style.css'> no <head>."
+      ]
+    },
+    {
+      "test_css_shorthand_properties": [
+        "Você utilizou propriedades abreviadas como margin e padding. Muito bom!",
+        "Evite declarar separadamente cada lado do margin/padding. Use shorthand como `margin: 10px 5px;`."
+      ]
+    },
+    {
+      "test_css_css_variables": [
+        "Variáveis CSS detectadas. Isso facilita a manutenção do seu estilo.",
+        "Não encontramos variáveis CSS. Tente usar --primary-color, por exemplo, para padronizar seu tema."
+      ]
+    },
+    {
+      "test_css_layout_method": [
+        "Você usou Flexbox ou Grid para o layout. Ótima escolha!",
+        "Faltando uso de Flexbox ou Grid. Eles ajudam a posicionar elementos de forma moderna e flexível."
+      ]
+    },
+    {
+      "test_css_no_overqualified_selectors": [
+        "Os seletores CSS estão simples e diretos. Ótimo trabalho!",
+        "Seus seletores estão muito específicos. Simplifique para evitar conflitos e facilitar manutenção."
+      ]
+    },
+    {
+      "test_css_external_css_only": [
+        "Nenhum estilo inline encontrado. Tudo está no CSS externo. Excelente!",
+        "Estilos inline foram detectados. Prefira manter todo o CSS em arquivos separados."
+      ]
+    },
+    {
+      "test_css_media_queries": [
+        "Media queries estão presentes. Sua página é responsiva!",
+        "Faltando media queries. Use-as para adaptar sua página a diferentes tamanhos de tela."
+      ]
+    },
+    {
+      "test_css_no_redundant_rules": [
+        "Sem regras CSS duplicadas. Seu código está limpo e organizado.",
+        "Encontramos duplicações de regras CSS. Elimine as repetições para manter clareza."
+      ]
+    },
+    {
+      "test_css_consistent_units": [
+        "As unidades usadas no CSS estão consistentes. Perfeito!",
+        "Detectamos uso misto de unidades (px, rem, etc). Escolha uma abordagem uniforme."
+      ]
+    },
+    {
+      "test_js_valid_js_syntax": [
+        "O JavaScript não apresenta erros de sintaxe. Ótimo!",
+        "Seu JavaScript contém erro de sintaxe. Verifique parênteses, chaves e pontuação."
+      ]
+    },
+    {
+      "test_js_no_undeclared_variables": [
+        "Todas as variáveis foram declaradas com let, const ou var.",
+        "Variáveis sem declaração foram encontradas. Use let, const ou var para evitar escopo global."
+      ]
+    },
+    {
+      "test_js_strict_mode": [
+        "Modo estrito habilitado com 'use strict'. Excelente prática!",
+        "Adicione 'use strict'; no início do seu script para tornar o código mais seguro e previsível."
+      ]
+    },
+    {
+      "test_js_no_eval": [
+        "Não encontramos uso do método eval(). Muito bem!",
+        "Evite usar eval(), pois representa riscos à segurança e é difícil de depurar."
+      ]
+    },
+    {
+      "test_js_modular_code": [
+        "O código está modularizado com funções separadas. Excelente!",
+        "Seu código está em um bloco único. Reorganize em funções reutilizáveis para melhor leitura e manutenção."
+      ]
+    },
+    {
+      "test_js_async_handling": [
+        "Async/await ou Promises foram utilizados. Perfeito para operações assíncronas!",
+        "Não foi identificado uso de async/await ou Promises. Eles são recomendados para chamadas assíncronas."
+      ]
+    },
+    {
+      "test_js_event_handling": [
+        "addEventListener está sendo usado corretamente para manipulação de eventos.",
+        "Evite eventos inline como onclick. Use addEventListener no JavaScript."
+      ]
+    },
+    {
+      "test_js_dom_manipulation": [
+        "Você está manipulando o DOM com métodos modernos como querySelector.",
+        "Considere usar querySelector ou getElementById ao invés de métodos ultrapassados para acessar elementos."
+      ]
+    },
+    {
+      "test_js_async_error_handling": [
+        "Erros em operações assíncronas estão sendo tratados. Excelente!",
+        "Faltando tratamento de erros com try/catch ou .catch() nas Promises. Isso evita falhas silenciosas."
+      ]
+    },
+    {
+      "test_js_meaningful_function_names": [
+        "As funções têm nomes descritivos e claros.",
+        "Algumas funções estão com nomes genéricos. Dê nomes que indiquem claramente o que a função faz."
+      ]
+    },
+    {
+      "test_js_no_deeply_nested_code": [
+        "O código está limpo, sem blocos profundamente aninhados.",
+        "Evite aninhar muitas funções ou estruturas. Quebre em partes menores para melhorar a legibilidade."
+      ]
+    },
+    {
+      "test_js_proper_use_of_const_and_let": [
+        "Uso adequado de const e let para variáveis. Muito bem!",
+        "Use const para valores fixos e let para os que mudam. Isso torna o código mais previsível."
+      ]
+    }
+  ],
+  "bonus_tests": [
+    {
+      "test_html_favicon_link": [
+        "Você adicionou um favicon com sucesso! Sua página está mais profissional.",
+        "Faltando favicon. Adicione um `<link rel='icon'>` dentro do `<head>` para exibir o ícone na aba do navegador."
+      ]
+    },
+    {
+      "test_html_section_ids_are_meaningful": [
+        "Os IDs das seções são significativos e bem nomeados. Excelente uso de kebab-case!",
+        "Alguns IDs de seção estão genéricos ou mal formatados. Use nomes descritivos com hífens (kebab-case), como `minha-secao`."
+      ]
+    },
+    {
+      "test_html_article_or_aside_used": [
+        "Você utilizou <article> ou <aside>, melhorando a semântica da sua página.",
+        "Nenhum <article> ou <aside> foi encontrado. Considere usar essas tags para estruturar conteúdos relacionados ou independentes."
+      ]
+    },
+    {
+      "test_css_dark_mode_support": [
+        "Modo escuro detectado! Sua página se adapta às preferências do usuário.",
+        "Não encontramos suporte a modo escuro. Considere usar `@media (prefers-color-scheme: dark)` para atender melhor os usuários."
+      ]
+    },
+    {
+      "test_css_custom_font_imported": [
+        "Uma fonte personalizada foi importada com sucesso. Sua identidade visual está mais marcante!",
+        "Você ainda não importou nenhuma fonte personalizada. Experimente usar o Google Fonts para trazer mais estilo ao texto."
+      ]
+    },
+    {
+      "test_css_css_animation": [
+        "Ótimo uso de animações com CSS! Isso deixa a interface mais viva.",
+        "Nenhuma animação CSS detectada. Considere adicionar efeitos com `@keyframes` ou `animation` para enriquecer a experiência do usuário."
+      ]
+    },
+    {
+      "test_css_responsive_typography": [
+        "Sua tipografia é responsiva! Uso de `clamp()`, `vw` ou `rem` aprovado.",
+        "A tipografia parece fixa. Utilize `rem`, `vw` ou `clamp()` para tornar o texto adaptável a diferentes telas."
+      ]
+    },
+    {
+      "test_js_js_uses_template_literals": [
+        "Você utilizou template literals no JavaScript. Muito bem!",
+        "Template literals (`${}` dentro de crase) deixam o código mais limpo. Considere adotá-los para montar strings dinamicamente."
+      ]
+    },
+    {
+      "test_js_local_or_session_storage": [
+        "Você utilizou `localStorage` ou `sessionStorage` para persistir dados no navegador. Excelente!",
+        "Considere usar `localStorage` ou `sessionStorage` para guardar preferências do usuário ou dados temporários."
+      ]
+    },
+    {
+      "test_js_interaction_feedback": [
+        "Comportamentos interativos detectados! O usuário recebe retorno ao interagir.",
+        "Sua página ainda não oferece feedback visual nas interações. Tente usar `classList.add`, `innerHTML` ou `toggle` para isso."
+      ]
+    },
+    {
+      "test_html_form_validation_logic": [
+        "Lógica de validação detectada! Os formulários estão mais robustos.",
+        "Considere implementar validações nos formulários usando `.checkValidity()` ou expressões regulares."
+      ]
+    },
+    {
+      "test_js_modular_code_structure": [
+        "Seu código está estruturado em módulos ES6 com `import` e `export`. Excelente!",
+        "Modularize seu JavaScript com `export` e `import` para manter o projeto organizado e escalável."
+      ]
+    },
+    {
+      "test_js_array_methods": [
+        "Métodos como `map`, `filter` ou `reduce` foram usados com sucesso!",
+        "Evite `for` e `while` para percorrer arrays. Tente usar métodos modernos como `map`, `filter` ou `reduce`."
+      ]
+    },
+    {
+      "test_js_memory_leaks": [
+        "Muito bem! Sua aplicação cuida de possíveis vazamentos de memória com `removeEventListener`, `clearInterval` ou `clearTimeout`.",
+        "Detectamos ausência de tratamento para eventos ou timers. Lembre-se de usar `removeEventListener` ou `clearInterval` para evitar vazamentos."
+      ]
+    },
+    {
+      "test_css_css_minification": [
+        "O CSS está minificado. Seu código está limpo e otimizado!",
+        "O CSS contém quebras de linha ou espaços desnecessários. Considere minificar para carregar mais rápido."
+      ]
+    },
+    {
+      "test_html_open_graph_description_tag": [
+        "Sua página tem uma descrição Open Graph. Isso melhora a aparência dos links nas redes sociais.",
+        "Está faltando a meta tag Open Graph de descrição. Adicione `<meta property='og:description'>` no <head>."
+      ]
+    },
+    {
+      "test_html_open_graph_title_tag": [
+        "Open Graph título presente! Sua página será bem apresentada ao ser compartilhada.",
+        "Adicione `<meta property='og:title'>` para definir um título ao compartilhar sua página em redes sociais."
+      ]
+    },
+    {
+      "test_html_meta_description": [
+        "A meta descrição foi definida. Isso ajuda sua página a aparecer melhor em buscadores.",
+        "Inclua a tag `<meta name='description'>` com um resumo da sua página para melhorar o SEO."
+      ]
+    }
+  ],
+  "penalty_tests": [
+    {
+      "test_html_use_of_br_tag": [
+        "A tag <br> foi detectada. Prefira usar margens ou padding no CSS para espaçamento.",
+        "Nenhuma tag <br> foi encontrada. Ótimo! Use margens ou padding no CSS para espaçamento."
+      ]
+    },
+    {
+      "test_css_inline_styles": [
+        "Estilos inline encontrados. Prefira movê-los para o CSS externo.",
+        "Nenhum estilo inline foi encontrado. Seu código está bem organizado!"
+      ]
+    },
+    {
+      "test_html_overuse_of_divs": [
+        "O uso de <div> está controlado. Muito bom!",
+        "Muito poucos <div> foram encontrados. Para penalidade, é necessário mais de 10 <div>."
+      ]
+    },
+    {
+      "test_js_inline_script_tags": [
+        "Nenhum <script> inline foi detectado. Ótimo trabalho!",
+        "Não encontramos <script> inline. Considere movê-lo para arquivos `.js` separados."
+      ]
+    },
+    {
+      "test_html_use_of_center_tag": [
+        "A tag <center> não foi utilizada. Perfeito!",
+        "Nenhuma tag <center> foi encontrada. Para alinhamento, use `text-align: center` no CSS."
+      ]
+    },
+    {
+      "test_js_alert_usage": [
+        "Nenhum uso de alert() encontrado. Ótimo!",
+        "Alertas `alert()` detectados. Evite usar `alert()` em seu código."
+      ]
+    },
+    {
+      "test_js_document_write": [
+        "Nenhum uso de document.write() encontrado. Excelente prática!",
+        "Detectamos uso de document.write(). Essa prática pode causar problemas na renderização."
+      ]
+    },
+    {
+      "test_html_deprecated_u_tag": [
+        "A tag `<u>` não foi utilizada. Parabéns por evitar elementos ultrapassados!",
+        "A tag `<u>` foi usada. Evite-a, usando `text-decoration: underline` no CSS."
+      ]
+    },
+    {
+      "test_html_hardcoded_image_dimensions": [
+        "Nenhuma imagem com largura ou altura fixa no HTML. Ótimo!",
+        "Encontramos dimensões fixas de `width` ou `height` no HTML. Prefira usar o CSS para essas dimensões."
+      ]
+    },
+    {
+      "test_css_no_important_usage": [
+        "Não foi encontrado o uso de `!important` no CSS. Excelente prática!",
+        "Uso de `!important` detectado. Evite-o, pois dificulta a manutenção e pode gerar conflitos inesperados."
+      ]
+    },
+    {
+      "test_html_forbidden_b_tag": [
+        "Não encontramos a tag <b>. Para negrito, use `font-weight: bold` no CSS.",
+        "A tag `<b>` foi utilizada. Evite-a, utilizando o CSS para negrito."
+      ]
+    },
+    {
+      "test_html_forbidden_i_tag": [
+        "Não encontramos a tag <i>. Para itálico, use `font-style: italic` no CSS.",
+        "A tag `<i>` foi usada. Evite-a, utilizando o CSS para itálico."
+      ]
+    },
+    {
+      "test_html_forbidden_font_tag": [
+        "Não encontramos a tag `<font>`. Prefira usar o CSS para estilizar texto.",
+        "A tag `<font>` foi usada. Evite-a, utilizando o CSS moderno para estilo."
+      ]
+    },
+    {
+      "test_html_forbidden_marquee_tag": [
+        "Não encontramos a tag `<marquee>`. Prefira usar animações CSS.",
+        "A tag `<marquee>` foi encontrada. Ela está obsoleta, prefira usar animações CSS."
+      ]
+    },
+    {
+      "test_html_forbidden_center_tag": [
+        "Não encontramos a tag `<center>`. Use `text-align: center` no CSS para centralização.",
+        "A tag `<center>` foi encontrada. Use `text-align: center` ou `display: flex` no CSS para centralização."
+      ]
+    }
+  ]
+}
