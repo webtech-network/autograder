@@ -36,7 +36,7 @@ describe('Penalty Tests - ', () => {
                 }
 
                 const properUserLoginPayload = {
-                    nome: properUser.nome,
+                    email: properUser.email,
                     senha: properUser.senha
                 }
 

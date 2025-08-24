@@ -43,7 +43,7 @@ describe('Base Tests - ', () => {
     }
 
     const properUserLoginPayload = {
-        nome: properUser.nome,
+        email: properUser.email,
         senha: properUser.senha
     }
 
@@ -140,7 +140,7 @@ describe('Base Tests - ', () => {
                 };
 
                 let loginPayload = {
-                    nome: extraUser.nome,
+                    email: extraUser.email,
                     senha: extraUser.senha
                 }
 
@@ -169,7 +169,7 @@ describe('Base Tests - ', () => {
                 };
 
                 let loginPayload2 = {
-                    nome: extraUser2.nome,
+                    email: extraUser2.email,
                     senha: extraUser2.senha
                 }
 
@@ -415,7 +415,7 @@ describe('Base Tests - ', () => {
                 };
 
                 let loginPayload = {
-                    nome: extraUser.nome,
+                    email: extraUser.email,
                     senha: extraUser.senha
                 }
 

@@ -26,7 +26,7 @@ describe('Bonus Tests - ', () => {
     beforeAll(async ()=>{
         try {
             const properUserLoginPayload = {
-                nome: properUser.nome,
+                email: properUser.email,
                 senha: properUser.senha
             }
 
