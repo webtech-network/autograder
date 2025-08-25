@@ -19,12 +19,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Copy and install Node.js dependencies
-# This now correctly uses the /app working directory
-COPY package.json package-lock.json* ./
-RUN npm install
+RUN echo "INSIDE DOCKERFILE THIS IS GRADING_PRESET ${GRADING_PRESET}"
 
-# 7. Copy the rest of your application code
+# 6. Copy the rest of your application code
 COPY . .
 
 # 8. Copy the entrypoint and make it executable

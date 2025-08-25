@@ -1,124 +1,72 @@
-#!/bin/sh
+#!/bin/bash
+# This script validates required environment variables and dynamically builds
+# the command to run the python entrypoint, only passing arguments that are set.
+
+# Exit immediately if a command exits with a non-zero status for robustness.
 set -e
-# Print a message to indicate the start of the autograding process
-echo "Starting autograder..."
 
-# --- Install dependencies in the student's repository and run server.js ---
-cd "$GITHUB_WORKSPACE/submission"
-
-
-if [ -f "package.json" ]; then
-    echo "Downloading dependencies from student's project"
-    npm install;
-else
-    echo "Error: no package.json file found."
-    exit 1;
+# --- 1. Validate Required Environment Variables ---
+# These variables correspond to arguments marked as `required=True` in the Python script.
+# The script will exit with an error if any of them are missing.
+if [[ -z "$GITHUB_TOKEN" ]]; then
+  echo "Error: Environment variable GITHUB_TOKEN is not set." >&2
+  exit 1
 fi
 
-echo "Starting server.js at port 3000..."
-node server.js &
-SERVER_PID=$!
-echo "Server started with PID: $SERVER_PID"
-
-#Checking if the server started:
-
-SERVER_URL="http://localhost:3000"
-CONNECTION_ATTEMPTS=10
-ATTEMPT_COUNTER=0
-SERVER_STATUS=1
-
-while [ $ATTEMPT_COUNTER -ne $CONNECTION_ATTEMPTS ]; do
-    if curl -s "$SERVER_URL" > /dev/null; then
-        SERVER_STATUS=0
-        break
-    else
-        echo "Server not reachable yet. Retrying in 2 seconds (Attempt $(($ATTEMPT_COUNTER + 1))/$CONNECTION_ATTEMPTS)..."
-        sleep 2
-        ATTEMPT_COUNTER=$(($ATTEMPT_COUNTER + 1))
-    fi
-done
-
-export SERVER_STATUS
-
-if [ $SERVER_STATUS -eq 0 ]; then
-    echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is up and recheable"
-else
-    echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is not healthy"
-fi
-cd "$GITHUB_WORKSPACE/submission"
-
-
-if [ -f "package.json" ]; then
-    echo "Downloading dependencies from student's project"
-    npm install;
-else
-    echo "Error: no package.json file found."
-    exit 1;
+if [[ -z "$GRADING_PRESET" ]]; then
+  echo "Error: Environment variable GRADING_PRESET is not set." >&2
+  exit 1
 fi
 
-echo "Starting server.js at port 3000..."
-node server.js &
-SERVER_PID=$!
-echo "Server started with PID: $SERVER_PID"
-
-tree -I 'node_modules' > project_structure.txt
-#Checking if the server started:
-
-SERVER_URL="http://localhost:3000"
-CONNECTION_ATTEMPTS=10
-ATTEMPT_COUNTER=0
-SERVER_STATUS=1
-
-while [ $ATTEMPT_COUNTER -ne $CONNECTION_ATTEMPTS ]; do
-    if curl -s "$SERVER_URL" > /dev/null; then
-        SERVER_STATUS=0
-        break
-    else
-        echo "Server not reachable yet. Retrying in 2 seconds (Attempt $(($ATTEMPT_COUNTER + 1))/$CONNECTION_ATTEMPTS)..."
-        sleep 2
-        ATTEMPT_COUNTER=$(($ATTEMPT_COUNTER + 1))
-    fi
-done
-
-export SERVER_STATUS
-
-if [ $SERVER_STATUS -eq 0 ]; then
-    echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is up and recheable"
-else
-    echo "Server healthcheck responded with status code: $SERVER_STATUS. Server is not healthy"
+if [[ -z "$GITHUB_ACTOR" ]]; then
+  echo "Error: Environment variable GITHUB_ACTOR is not set." >&2
+  exit 1
 fi
-
-tree -I 'node_modules'
-
-echo "Running fatal analysis..."
-cd /app
-python fatal_analysis.py --token $1
-
-# --- Running tests from action repository --- #
 
 cd /app
 
-#Treat errors
-echo "Running tests..."
-npm test -- --json --outputFile=./tests/test-results.json || true
+# --- 2. Dynamically Build Command Arguments ---
+# Initialize a bash array with the base command and the required arguments.
+args=(
+    "python"
+    "-m"
+    "connectors.adapters.github_action_adapter.github_entrypoint"
+    "--github-token" "$GITHUB_TOKEN"
+    "--grading-preset" "$GRADING_PRESET"
+    "--student-name" "$GITHUB_ACTOR"
+)
 
-echo "Parsing results..."
-TEST_OUTPUT_FILE="test-results.json"
-
-if [ ! -f "./tests/$TEST_OUTPUT_FILE" ]; then
-    echo "Error: $TEST_OUTPUT_FILE was not found after running all tests. Exiting with code 1."
-    kill "$SERVER_PID"
-    exit 1
+# Conditionally add optional arguments to the array ONLY if they are set.
+# The '-n' flag checks if the variable's string length is non-zero.
+# Note: The argument flags (e.g., --app_token) match the ones in your Python script.
+if [[ -n "$APP_TOKEN" ]]; then
+    args+=("--app_token" "$APP_TOKEN")
 fi
 
-python tests/result_parser.py
+if [[ -n "$TEST_FRAMEWORK" ]]; then
+    args+=("--test_framework" "$TEST_FRAMEWORK")
+fi
 
-# --- Run the autograder ---
-echo "$1"
-echo "$2"
-echo "$3"
-echo "$4"
-python autograder.py  --token $1 --redis-token $2 --redis-url $3 --openai-key $4
+if [[ -n "$FEEDBACK_TYPE" ]]; then
+    args+=("--feedback_type" "$FEEDBACK_TYPE")
+fi
 
-echo "Autograding completed successfully!"
-echo "Final results generated and sent to GitHub Classroom!"
+if [[ -n "$OPENAI_KEY" ]]; then
+    args+=("--openai_key" "$OPENAI_KEY")
+fi
+
+if [[ -n "$REDIS_URL" ]]; then
+    args+=("--redis_url" "$REDIS_URL")
+fi
+
+if [[ -n "$REDIS_TOKEN" ]]; then
+    args+=("--redis_token" "$REDIS_TOKEN")
+fi
+
+
+# --- 3. Execute the Python Script ---
+echo "Executing python entrypoint with configured arguments..."
+
+# The "${args[@]}" syntax expands the array into separate, properly quoted arguments.
+# This is the safest way to run commands with dynamic arguments that might contain spaces.
+"${args[@]}"

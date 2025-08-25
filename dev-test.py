@@ -1,6 +1,0 @@
-from core.final_scorer import Scorer
-
-scorer = Scorer.quick_build("")
-
-final_score = scorer.final_score
-print(final_score)

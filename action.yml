@@ -1,37 +1,53 @@
 name: "HTML/CSS/JS Autograder"
 author: "Webtech Network"
 description: "An autograding tool for GitHub Classroom that evaluates students' HTML, CSS, and JavaScript projects."
-inputs:
-  token:
-    description: >
-      GitHub token used to check repository content and provide feedback. By default, 
-      this uses the repository token provided by GitHub Actions. You can customize this
-      by replacing this token with a user token which has write-access to your repository. 
-      Note that the token will be accessible to all repository collaborators.
-    default: ${{ github.token }} #This is the only way to obtain a valid github token for API use.
-  redis_name:
-      description: >
-          Redis token used to connect to the Redis server for caching and state management.
-          This is optional and can be set if you have a Redis instance running.
-  redis_url:
-      description: >
-          URL of the Redis server to connect to. This is optional and can be set if you have a Redis instance running.
-          If not provided, the autograder will run without Redis caching.
-  autograder_engine:
-      description: >
-          The autograder engine to use for grading. This can be set to 'default' or 'custom'.
-          If 'custom', you must provide a custom Dockerfile in the repository.
-      
 
+# Defines the inputs that the action can receive.
+# These are mapped to the arguments in the `runs` section below.
+inputs:
+  github-token:
+    description: >
+      GitHub token for API access. Defaults to the token provided by GitHub Actions.
+    required: false
+    default: ${{ github.token }}
+  grading_preset:
+    description: 'Defines the set of grading rules and point values to apply. To create your own grading preset, use "custom".'
+    required: true
+  feedback-type:
+    description: 'The type or style of feedback to provide to the student (e.g., summary, detailed).'
+    required: true
+  openai_key:
+    description: 'Optional OpenAI API key for generating AI-assisted feedback.'
+    required: false
+  redis_url:
+    description: 'Optional URL for a Redis instance for caching.'
+    required: false
+  redis_token:
+    description: 'Optional authentication token for the Redis instance.'
+    required: false
+  app_token:
+    description: 'The application token for the autograder service.'
+    required: false
+  test_framework:
+    description: 'Specifies the test framework to use for grading (e.g., jest, cypress).'
+    required: false
+
+# Defines the output variable of the action.
 outputs:
   result:
     description: "Base64-encoded JSON containing the results of the grading."
 
+# Configures how the action is executed.
 runs:
   using: docker
-  image: "Dockerfile"  # The Docker image containing the autograder
-  args:
-    - ${{ inputs.token }}
-    - ${{ inputs.redis_name }}
-    - ${{ inputs.redis_url }}
-    - ${{ inputs.autograder_engine }}
+  image: "Dockerfile"
+  # Use 'env' to pass named variables to the container
+  env:
+    GITHUB_TOKEN: ${{ inputs.github-token }}
+    APP_TOKEN: ${{ inputs.app_token }}
+    TEST_FRAMEWORK: ${{ inputs.test_framework }}
+    GRADING_PRESET: ${{ inputs.grading_preset }}
+    FEEDBACK_TYPE: ${{ inputs.feedback-type }}
+    OPENAI_KEY: ${{ inputs.openai_key }}
+    REDIS_URL: ${{ inputs.redis_url }}
+    REDIS_TOKEN: ${{ inputs.redis_token }}
