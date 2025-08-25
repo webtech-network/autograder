@@ -28,6 +28,7 @@ class ApiAdapter(Port):
 
     async def create_request(self,
                        submission_files: List[UploadFile],
+                       preset,
                        assignment_config: AssignmentConfig,
                        student_name,
                        student_credentials,
@@ -43,6 +44,7 @@ class ApiAdapter(Port):
             submission_files_dict[submission_file.filename] =  submission_content.decode("utf-8")
         self.autograder_request =  AutograderRequest(
             submission_files_dict,
+            preset,
             assignment_config,
             student_name,
             feedback_mode=feedback_mode,
@@ -56,6 +58,7 @@ class ApiAdapter(Port):
                                        feedback,
                                        preset="custom",
                                        ai_feedback=None,
+                                       preset_config=None,
                                        setup=None,
                                        test_framework="pytest"):
         files = TestFiles()
@@ -72,4 +75,4 @@ class ApiAdapter(Port):
             else:
                 other_files_content = await file.read()
                 files.other_files[file.filename] = other_files_content.decode("utf-8")
-        return AssignmentConfig.load_custom(files,criteria,feedback,ai_feedback=ai_feedback,setup=setup,test_framework=test_framework)
+        return AssignmentConfig.load_custom(files,criteria,feedback,ai_feedback=ai_feedback,preset_config=preset_config,setup=setup,test_framework=test_framework)

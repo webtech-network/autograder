@@ -4,6 +4,7 @@ class AutograderRequest:
     def __init__(
             self,
             submission_files: dict,
+            preset:str,
             assignment_config: AssignmentConfig,
             student_name,
             student_credentials=None,
@@ -12,6 +13,7 @@ class AutograderRequest:
             redis_url=None,
             redis_token=None):
         self.submission_files = submission_files
+        self.preset = preset
         self.assignment_config = assignment_config
         self.student_name = student_name
         self.student_credentials = student_credentials

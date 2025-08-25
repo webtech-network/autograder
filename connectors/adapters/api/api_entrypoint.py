@@ -53,6 +53,7 @@ async def grade_submission_endpoint(
         test_files: Optional[List[UploadFile]] = File(None,description="Test Files for the submission (in case of custom preset)"),
         criteria_json: Optional[UploadFile] = File(None, description="JSON file with grading criteria (in case of custom preset)"),
         feedback_json: Optional[UploadFile] = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
+        preset_config_json: Optional[UploadFile] = File(None, description="JSON file with preset configuration"),
         ai_feedback_json: Optional[UploadFile] = File(None, description="JSON file with AI feedback configuration (in case of custom preset)"),
         setup_json: Optional[UploadFile] = File(None, description="JSON file with commands configuration (in case of custom preset)"),
         test_framework: Optional[str] = Form("custom", description="The test framework to use (e.g., pytest)"),
@@ -65,7 +66,7 @@ async def grade_submission_endpoint(
         adapter = ApiAdapter()
         if grading_preset == "custom":
             logging.info("Custom grading preset selected. Loading custom configuration.")
-            assignment_config = await adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,setup=setup_json,test_framework=test_framework)
+            assignment_config = await adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,preset_config=preset_config_json,setup=setup_json,test_framework=test_framework)
             logging.info("Custom grading preset loaded.")
         else:
             logging.info(f"Using preset: {grading_preset}. Loading preset configuration.")
@@ -74,6 +75,7 @@ async def grade_submission_endpoint(
 
         logging.info(f"Creating autograder request....")
         await adapter.create_request(submission_files=submission_files,
+                               preset=grading_preset,
                                assignment_config=assignment_config,
                                student_name=student_name,
                                student_credentials=student_credentials,
@@ -82,7 +84,6 @@ async def grade_submission_endpoint(
                                redis_url=redis_url,
                                redis_token=redis_token)
         logging.info(f"Autograder request created successfully.")
-
 
         # 3. Run the autograder and await its completion (asynchronous)
         logging.info("Running the autograder...")

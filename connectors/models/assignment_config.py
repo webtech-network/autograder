@@ -3,7 +3,7 @@ from connectors.models.test_files import TestFiles
 
 
 class AssignmentConfig:
-    def __init__(self, test_files, criteria, feedback, setup ,preset="custom",ai_feedback=None,test_framework="pytest"):
+    def __init__(self, test_files, criteria, feedback, setup ,preset="custom",preset_config=None,ai_feedback=None,test_framework="pytest"):
         """
         Initializes the Preset model with the provided test files and configuration files.
 
@@ -17,6 +17,7 @@ class AssignmentConfig:
         self.test_files = test_files
         self.criteria = criteria
         self.feedback = feedback
+        self.preset_config = preset_config
         self.ai_feedback = ai_feedback if ai_feedback is not None else {}
         self.setup = setup
 
@@ -30,22 +31,24 @@ class AssignmentConfig:
         """
         Returns a string representation of the AssignmentConfig object.
         """
-        criteria = feedback = ai_feedback = setup = "[Not Loaded]"
+        criteria = feedback = ai_feedback = setup = preset_config = "[Not Loaded]"
         if self.criteria:
             criteria = "[Loaded]"
         if self.feedback:
             feedback = "[Loaded]"
         if self.ai_feedback:
             ai_feedback = "[Loaded]"
+        if self.preset_config:
+            preset_config = "[Loaded]"
         if self.setup:
             setup = "[Loaded]"
         return f"AssignmentConfig(preset={self.preset}, test_framework={self.test_framework}, " \
                 f"test_files={self.test_files}, criteria={criteria}, " \
                 f"feedback={feedback}, " \
-                f"ai_feedback={ai_feedback}" \
+                f"ai_feedback={ai_feedback},preset_config={preset_config}" \
                 f"setup={setup})"
     @classmethod
-    def load_preset(cls, preset_name):
+    def load_preset(cls, preset_name, preset_config):
         """
         Loads a preset and generates a Preset object with the correct attributes.
         The test_framework is inferred from the test file extensions.
@@ -121,7 +124,6 @@ class AssignmentConfig:
 
             if file.startswith("test_base"):
                 with open(file_path, 'r', encoding='utf-8') as f:
-
                     test_base = f.read()
             elif file.startswith("test_bonus"):
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -145,6 +147,7 @@ class AssignmentConfig:
             criteria=criteria,
             feedback=feedback,
             ai_feedback=ai_feedback,
+            preset_config=preset_config,
             setup=setup,
             test_framework=test_framework
         )
