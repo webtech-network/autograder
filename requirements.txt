@@ -9,3 +9,4 @@ beautifulsoup4~=4.13.4
 dotenv~=0.9.9
 python-dotenv~=1.1.1
 upstash-redis==1.4.0
+
