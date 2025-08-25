@@ -43,6 +43,8 @@ class Autograder:
             Autograder.prepare_session(autograder_request.assignment_config, autograder_request.submission_files)
             response = await Autograder.grade(
                 autograder_request.assignment_config.test_framework,
+                autograder_request.preset,
+                autograder_request.assignment_config.preset_config,
                 autograder_request.student_name,
                 autograder_request.student_credentials,
                 autograder_request.feedback_mode,
@@ -210,9 +212,11 @@ class Autograder:
     @staticmethod
     async def grade(
             test_framework="pytest",
+            preset="custom",
             student_name=None,
             student_credentials=None,
             feedback_type="default",
+            preset_config=None,
             openai_key=None,
             redis_url=None,
             redis_token=None
@@ -221,7 +225,10 @@ class Autograder:
         Main grading method with robust error handling.
         """
         try:
-            await TestEngine.run(test_framework)
+            if preset_config:
+                await TestEngine.run_custom_preset(preset,preset_config)
+            else:
+                await TestEngine.run(test_framework)
             sleep(2)
             if TestEngine.fatal_error:
                 return Autograder.early_exit()
