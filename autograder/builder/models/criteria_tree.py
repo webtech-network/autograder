@@ -21,8 +21,8 @@ class TestCall:
 
 class Test:
     """
-    Represents a test to be executed by looking up its name in a test library
-    and running it for each TestCall. This is a LEAF node in the tree.
+    Represents a group of calls to a single test function in the library.
+    This is a LEAF node in the grading tree.
     """
     def __init__(self, name: str):
         self.name = name
@@ -31,29 +31,25 @@ class Test:
     def add_call(self, call: TestCall):
         self.calls.append(call)
 
-    def execute(self, test_library, submission_files) -> TestResult:
+    def execute(self, test_library, submission_files) -> List['TestResult']:
         """
-        Finds the test function in the library and executes it for each call.
-        For simplicity, this example averages the scores of all calls.
+        Finds and executes a function from the test library for each TestCall
+        and returns a list of all the resulting TestResult objects.
         """
         try:
             test_function = getattr(test_library, self.name)
         except AttributeError:
-            return TestResult(self.name, 0, f"ERROR: Test function '{self.name}' not found in library.")
+            # If the function is missing, return a single failed result
+            return [TestResult(self.name, 0, f"ERROR: Test function '{self.name}' not found in library.")]
 
-        call_scores = []
-        call_reports = []
+        # If there are no specific calls, run the function once with no arguments
+        if not self.calls:
+            return [test_function(submission_files)]
 
-        for call in self.calls:
-            result = test_function(submission_files, *call.args)
-            call_scores.append(result.score)
-            call_reports.append(result.report)
-
-        # Average the scores from all calls for this test
-        final_score = sum(call_scores) / len(call_scores) if call_scores else 100
-        final_report = " | ".join(call_reports)
-
-        return TestResult(self.name, int(final_score), final_report)
+        # --- Execute each call and collect all TestResult objects ---
+        return [
+            test_function(submission_files, *call.args) for call in self.calls
+        ]
 
     def __repr__(self):
         return f"Test(name='{self.name}', calls={len(self.calls)})"
@@ -91,13 +87,44 @@ class TestCategory:
 
 class Criteria:
     """The ROOT of the criteria tree."""
-    def __init__(self, test_library_name: str):
+    def __init__(self):
         self.base = TestCategory("base")
         self.bonus = TestCategory("bonus")
         self.penalty = TestCategory("penalty")
 
     def __repr__(self):
         return f"Criteria(categories=['base', 'bonus', 'penalty'])"
+
+    def print_tree(self):
+        """Prints a visual representation of the entire criteria tree."""
+        print(f"🌲 Criteria Tree")
+        self._print_category(self.base, prefix="  ")
+        self._print_category(self.bonus, prefix="  ")
+        self._print_category(self.penalty, prefix="  ")
+
+    def _print_category(self, category: TestCategory, prefix: str):
+        """Helper method to print a category and its subjects."""
+        if not category.subjects:
+            return
+        print(f"{prefix}📁 {category.name.upper()}")
+        for subject in category.subjects.values():
+            self._print_subject(subject, prefix=prefix + "    ")
+
+    def _print_subject(self, subject: Subject, prefix: str):
+        """Recursive helper method to print a subject and its contents."""
+        print(f"{prefix}📘 {subject.name} (weight: {subject.weight})")
+
+        # If the subject has sub-subjects, recurse
+        if subject.subjects is not None:
+            for sub in subject.subjects.values():
+                self._print_subject(sub, prefix=prefix + "    ")
+
+        # If the subject has tests, print them
+        if subject.tests is not None:
+            for test in subject.tests:
+                print(f"{prefix}  - 🧪 {test.name}")
+                for call in test.calls:
+                    print(f"{prefix}    - Parameters: {call.args}")
 
 
 
