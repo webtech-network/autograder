@@ -1,10 +1,15 @@
 import asyncio
-from cmd import PROMPT
-from typing import List
-import json
+from pydantic import BaseModel
 from openai import OpenAI
 from autograder.core.test_engine.engine_port import EnginePort
 import os
+
+
+class TestOutput(BaseModel):
+    title: str
+    status: str
+    message: str
+    subject: str
 
 class AiEngine(EnginePort):
     """
@@ -55,13 +60,11 @@ class AiEngine(EnginePort):
                 else:
                     print("Failed to install OpenAI library.")
                     print(f"STDERR: {stderr.decode().strip()}")
-
         except FileNotFoundError:
             # This would happen if 'pip' is not in the system's PATH.
             print("Error: 'pip' command not found. Please ensure Python and pip are installed correctly.")
         except Exception as e:
             print(f"An unexpected error occurred while installing OpenAI dependency: {e}")
-
 
     async def run_tests(self):
         """
@@ -93,17 +96,24 @@ class AiEngine(EnginePort):
                             submission_content += f.read()
                             submission_content += f"\n--- END OF FILE: {filename} ---\n\n"
 
-        context = ""
-        prompt = ""
         client = OpenAI()
+        instructions = "Você é um corretor. Você receberá "
         try:
             response = client.responses.create(
                 model="gpt-4.1-mini",
-                messages=[
-                    {"role": "system",
-                     "content": "Você é um professor fazendo uma análise qualitativa de uma atividade baseado em critérios base (essenciais) de penalidade (descontam pontos) e bônus (não obrigatórios mas adicionam pontos caso cumpridos)"},
-                    {"role": "user", "content": prompt}
+                reasoning={"effort": "high"},
+                instructions= instructions,
+                input=[
+                    {
+                        "role": "system",
+                        "content": instructions
+                    },
+                    {
+                        "role": "tool",
+                        "content": ""
+                    }
                 ],
+                text_format=TestOutput
             )
             test_results = response.choices[0].message.content
             return test_results
@@ -115,7 +125,7 @@ class AiEngine(EnginePort):
         str -> List[Dict[str]]
 
         Takes is the results from the test results given by the AI
-        and puts them into the 'standardized_test_report' format:
+        and puts them into the TestOutput format:
 
         {
            'title': 'test_title',
@@ -125,7 +135,7 @@ class AiEngine(EnginePort):
         }
 
         The message should contain a short explanation on how and why the AI got that result, pinpointing specific
-        sections of the submission.
+        sections of the submission. The other fields are self-explanatory
 
         :return:
         """
