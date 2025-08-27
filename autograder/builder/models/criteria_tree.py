@@ -79,20 +79,24 @@ class Subject:
 
 class TestCategory:
     """Represents one of the three main categories: base, bonus, or penalty."""
-    def __init__(self, name):
+    def __init__(self, name,max_score = 100):
         self.name = name
+        self.max_score = max_score
         self.subjects: dict[str, Subject] = {}
+
+    def set_weight(self,weight):
+        self.max_score = weight
 
     def add_subject(self, subject: Subject):
         self.subjects[subject.name] = subject
 
     def __repr__(self):
-        return f"TestCategory(name='{self.name}', subjects={list(self.subjects.keys())})"
+        return f"TestCategory(name='{self.name}', max_score={self.max_score},subjects={list(self.subjects.keys())})"
 
 
 class Criteria:
     """The ROOT of the criteria tree."""
-    def __init__(self):
+    def __init__(self,bonus_weight=30,penalty_weight=30):
         self.base = TestCategory("base")
         self.bonus = TestCategory("bonus")
         self.penalty = TestCategory("penalty")
