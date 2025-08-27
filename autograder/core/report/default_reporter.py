@@ -1,11 +1,8 @@
 import os
 
-from autograder.core.grading.models.result import Result
 from autograder.core.report.base_reporter import BaseReporter
 import json
 from datetime import datetime
-
-from autograder.core.utils.result_processor import ResultProcessor
 
 
 class DefaultReporter(BaseReporter):
