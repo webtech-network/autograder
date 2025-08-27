@@ -82,81 +82,80 @@ class CriteriaTree:
 # 3. Example Usage
 # ===============================================================
 
-if __name__ == '__main__':
+def custom_tree():
     example_config = {
-  "base": {
-    "subjects": {
-      "html": {
-        "tests": [
-          {"has_tag": [["div",50], ["span",10], ["h1", 10], ["h2", 10], ["h3", 10], ["p", 10]]},
-          {"has_attribute": [["class",20], ["id", 20], ["src", 20], ["href", 20], ["alt", 20]]},
-          {"has_structure": ["header", "nav", "main", "section", "article", "footer"]},
-          "check_no_unclosed_tags",
-          "check_no_inline_styles",
-          "check_css_linked"
-        ]
-      },
-      "css": {
-        "weight": 30
-      },
-      "javascript": {
-        "weight": 20
-      }
+        "base": {
+            "subjects": {
+                "html": {
+                    "tests": [
+                        {"has_tag": [["div", 50], ["span", 10], ["h1", 10], ["h2", 10], ["h3", 10], ["p", 10]]},
+                        {"has_attribute": [["class", 20], ["id", 20], ["src", 20], ["href", 20], ["alt", 20]]},
+                        {"has_structure": ["header", "nav", "main", "section", "article", "footer"]},
+                        "check_no_unclosed_tags",
+                        "check_no_inline_styles",
+                        "check_css_linked"
+                    ]
+                },
+                "css": {
+                    "weight": 30
+                },
+                "javascript": {
+                    "weight": 20
+                }
+            }
+        },
+        "bonus": {
+            "subjects": {
+                "accessibility": {
+                    "weight": 15,
+                    "tests": [
+                        {"has_attribute": [["aria-label", 10], ["role", 5], ["tabindex", 5]]},
+                        "check_headings_sequential",
+                        "check_all_images_have_alt"
+                    ]
+                },
+                "advanced_features": {
+                    "weight": 10,
+                    "tests": [
+                        {"css_uses_property": [["display", "grid"], ["--*", "css-variable"]]},
+                        {"js_uses_feature": ["arrow_function", "template_literal", "let_const"]}
+                    ]
+                },
+                "responsiveness": {
+                    "weight": 5,
+                    "tests": [
+                        "check_has_media_queries",
+                        "check_viewport_meta_tag"
+                    ]
+                }
+            }
+        },
+        "penalty": {
+            "subjects": {
+                "html_validation": {
+                    "weight": 10,
+                    "tests": [
+                        {"has_deprecated_tag": [["font", 5], ["center", 5], ["marquee", 10]]}
+                    ]
+                },
+                "css_malpractice": {
+                    "weight": 10,
+                    "tests": [
+                        {"count_usage": [["!important", 5]]}
+                    ]
+                },
+                "js_malpractice": {
+                    "weight": 15,
+                    "tests": [
+                        {"uses_forbidden_method": [["eval", 50], ["document.write", 20]]},
+                        {"count_global_vars": [5]}
+                    ]
+                }
+            }
+        }
     }
-  },
-  "bonus": {
-    "subjects": {
-      "accessibility": {
-        "weight": 15,
-        "tests": [
-          {"has_attribute": [["aria-label", 10], ["role", 5], ["tabindex", 5]]},
-          "check_headings_sequential",
-          "check_all_images_have_alt"
-        ]
-      },
-      "advanced_features": {
-        "weight": 10,
-        "tests": [
-          {"css_uses_property": [["display", "grid"], ["--*", "css-variable"]]},
-          {"js_uses_feature": ["arrow_function", "template_literal", "let_const"]}
-        ]
-      },
-      "responsiveness": {
-          "weight": 5,
-          "tests": [
-              "check_has_media_queries",
-              "check_viewport_meta_tag"
-          ]
-      }
-    }
-  },
-  "penalty": {
-    "subjects": {
-      "html_validation": {
-        "weight": 10,
-        "tests": [
-          {"has_deprecated_tag": [["font", 5], ["center", 5], ["marquee", 10]]},
-          {"per_error": ["html_validator", 1]}
-        ]
-      },
-      "css_malpractice": {
-        "weight": 10,
-        "tests": [
-          {"count_usage": ["!important", 5]},
-          {"per_error": ["css_validator", 1]}
-        ]
-      },
-      "js_malpractice": {
-          "weight": 15,
-          "tests": [
-              {"uses_forbidden_method": [["eval", 50], ["document.write", 20]]},
-              {"count_global_vars": [5]}
-          ]
-      }
-    }
-  }
-}
 
-    # Use the factory to build the tree
-    criteria_tree_root = CriteriaTree.build(example_config)
-    criteria_tree_root.print_tree()
+    return CriteriaTree.build(example_config)
+if __name__ == '__main__':
+    root = custom_tree()
+    root.print_tree()
