@@ -1,5 +1,5 @@
 from typing import List
-from test_result import TestResult
+from autograder.core.models.test_result import TestResult
 class Result:
     """
     Represents the result of an assignment submission.
@@ -9,12 +9,28 @@ class Result:
     def __init__(self,final_score,author,submission_file,base_results: List[TestResult],bonus_results:List[TestResult],penalty_results:List[TestResult]):
         self.final_score = final_score
         self.author = author
-        self.submission_file = submission_file
+        self.submission_files = submission_file
         self.base_results = base_results
         self.bonus_results = bonus_results
         self.penalty_results = penalty_results
 
     def __repr__(self):
-        return f"Result(final_score={self.final_score}, author={self.author}, submission_file={self.submission_file}, base_results={self.base_results}, bonus_results={self.bonus_results}, penalty_results={self.penalty_results})"
-
-
+        lines = [
+            "Result Summary:",
+            f"  Author: {self.author}",
+            f"  Submission Files:",
+        ]
+        for file in self.submission_files:
+            lines.append(f"       - {file}")
+        lines.append(f"  Final Score: {self.final_score:.2f}")
+        lines.append(f"  Base Results: {len(self.base_results)} tests")
+        lines.append(f"  Bonus Results: {len(self.bonus_results)} tests")
+        lines.append(f"  Penalty Results: {len(self.penalty_results)} tests")
+        content = "\n".join(lines)
+        width = max(len(line) for line in lines)
+        border = "+" + "-" * (width + 2) + "+"
+        result = [border]
+        for line in lines:
+            result.append(f"| {line.ljust(width)} |")
+        result.append(border)
+        return "\n".join(result)
