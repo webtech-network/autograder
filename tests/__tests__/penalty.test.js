@@ -6,6 +6,27 @@ const {describe, beforeEach, afterEach, beforeAll, test, expect} = require("@jes
 
 axios.defaults.timeout = 10000;
 
+async function registerAndLoginUser(properUser) {
+    try {
+        await axios.post(`${BASE_URL}/auth/register`, properUser);
+
+        const properUserLoginPayload = {
+            email: properUser.email,
+            senha: properUser.senha
+        }
+
+        let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
+
+        createdUserJWT = await userLoginResponse.data.access_token;
+
+        if (!createdUserJWT) return { Authorization: `Bearer TESTE` };
+
+        return { Authorization: `Bearer ${createdUserJWT}` };
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 describe('Penalty Tests - ', () => {
 
     /**
@@ -25,30 +46,20 @@ describe('Penalty Tests - ', () => {
         let createdCaseId = null;
         let createdUserJWT = "";
         let requestHeaders;
+        const properUser = {
+            nome: "Gabriel testador",
+            email: "gabrieltestador@gmail.com",
+            senha: "G4br13lT35t4d0r!!!"
+        }
+
+        const properUserLoginPayload = {
+            email: properUser.email,
+            senha: properUser.senha
+        }
 
         //This block is used to register a user and log him in to get a valid JWT token
         beforeAll(async ()=>{
-            try {
-                const properUser = {
-                    nome: "Gabriel testador",
-                    email: "gabrieltestador@gmail.com",
-                    senha: "G4br13lT35t4d0r!!!"
-                }
-
-                const properUserLoginPayload = {
-                    email: properUser.email,
-                    senha: properUser.senha
-                }
-
-                await axios.post(`${BASE_URL}/auth/register`, properUser);
-                let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
-                createdUserJWT = userLoginResponse.data.access_token;
-
-                requestHeaders = {'Authorization': `Bearer ${createdUserJWT}`};
-                
-            } catch (error) {
-                console.log(error);
-            }
+            requestHeaders = await registerAndLoginUser(properUser);
         });
 
         // CREATES TEST DATA

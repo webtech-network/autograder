@@ -4,6 +4,27 @@ const {describe, beforeEach, afterEach, expect, beforeAll} = require("@jest/glob
 
 axios.defaults.timeout = 10000;
 
+async function registerAndLoginUser(properUser) {
+    try {
+        await axios.post(`${BASE_URL}/auth/register`, properUser);
+
+        const properUserLoginPayload = {
+            email: properUser.email,
+            senha: properUser.senha
+        }
+
+        let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
+
+        createdUserJWT = await userLoginResponse.data.access_token;
+
+        if (!createdUserJWT) return { Authorization: `Bearer TESTE` };
+
+        return { Authorization: `Bearer ${createdUserJWT}` };
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 describe('Bonus Tests - ', () => {
 
     // Variables to hold the IDs of all created resources for cleanup
@@ -15,7 +36,6 @@ describe('Bonus Tests - ', () => {
     // Variables to hold specific resources for individual tests
     let olderAgent, newerAgent, openCase, solvedCase;
 
-    let createdUserJWT = "";
     let requestHeaders;
     const properUser = {
         nome: "Gabriel testador",
@@ -23,21 +43,13 @@ describe('Bonus Tests - ', () => {
         senha: "G4br13lT35t4d0r!!!"
     }
 
+    const properUserLoginPayload = {
+        email: properUser.email,
+        senha: properUser.senha
+    }
+
     beforeAll(async ()=>{
-        try {
-            const properUserLoginPayload = {
-                email: properUser.email,
-                senha: properUser.senha
-            }
-
-            await axios.post(`${BASE_URL}/auth/register`, properUser);
-            let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
-            createdUserJWT = userLoginResponse.data.access_token;
-
-            requestHeaders = {'Authorization': `Bearer: ${createdUserJWT}`};
-        } catch (error) {
-            console.log(error);
-        }
+        requestHeaders = await registerAndLoginUser(properUser);
     });
 
     beforeEach(async () => {

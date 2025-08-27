@@ -1,6 +1,6 @@
 const axios = require('axios');
 const BASE_URL = require('../request-config');
-const {describe, beforeEach, afterEach, expect, beforeAll} = require("@jest/globals");
+const { describe, beforeEach, afterEach, expect, beforeAll, fail } = require("@jest/globals");
 const jwt = require('jsonwebtoken');
 
 axios.defaults.timeout = 10000;
@@ -22,23 +22,32 @@ function validateJwtFormat(token) {
     }
 }
 
+async function registerAndLoginUser(properUser) {
+    try {
+        await axios.post(`${BASE_URL}/auth/register`, properUser);
+
+        const properUserLoginPayload = {
+            email: properUser.email,
+            senha: properUser.senha
+        }
+
+        let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
+
+        createdUserJWT = await userLoginResponse.data.access_token;
+
+        if (!createdUserJWT) return { Authorization: `Bearer TESTE` };
+
+        return { Authorization: `Bearer ${createdUserJWT}` };
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 describe('Base Tests - ', () => {
-
-    let testAgent = {
-        nome: "GabigOps",
-        dataDeIncorporacao: "2023-11-30",
-        cargo: "Delegado"
-    };
-
-    // These variables will hold the IDs and tokens of the created entities
-    let createdAgentId = null;
-    let createdCaseId = null;
-    let createdUserJWT = "";
-    let requestHeaders;
 
     const properUser = {
         nome: "Gabriel testador",
-        email: "gabrieltestador@gmail.com",
+        email: "gabrieltestadoralegria@gmail.com",
         senha: "G4br13lT35t4d0r!!!"
     }
 
@@ -47,60 +56,13 @@ describe('Base Tests - ', () => {
         senha: properUser.senha
     }
 
+    let requestHeaders = { Authorization: `Bearer DIDN'T WORK` }
+
     //This block is used to register a user and log him in to get a valid JWT token
-    beforeAll(async ()=>{
-        try {
-            await axios.post(`${BASE_URL}/auth/register`, properUser);
-            let userLoginResponse = await axios.post(`${BASE_URL}/auth/login`, properUserLoginPayload);
-            createdUserJWT = userLoginResponse.data.access_token;
-            requestHeaders = {'Authorization': `Bearer ${createdUserJWT}`};
-        } catch (error) {
-            console.log(error);
-        }
+    beforeAll(async () => {
+        requestHeaders = await registerAndLoginUser(properUser);
     });
 
-    // CREATES TEST DATA FOR AGENTS AND CASES
-    beforeEach(async () => {
-        try {
-            //Creates agent and fetches id from response
-            const agentResponse = await axios.post(`${BASE_URL}/agentes`, testAgent);
-            createdAgentId = agentResponse.data.id;
-
-            //Creates testCase using the id from the newly generated agentResponse
-            let testCase = {
-                titulo: "Roubo do Banco Central",
-                descricao: "Alguém hackeou o banco central",
-                status: "aberto",
-                agente_id: createdAgentId
-            };
-
-            //Creates the case and waits for the response
-            const caseResponse = await axios.post(`${BASE_URL}/casos`, testCase, {headers: requestHeaders});
-            createdCaseId = caseResponse.data.id;
-
-        } catch (error) {
-            console.log(error)
-        }
-    });
-
-    // DELETES TEST DATA FROM AGENTS AND CASES
-    afterEach(async () => {
-        try {
-            // Only attempt to delete entities if they exist
-            if (createdCaseId) {
-                await axios.delete(`${BASE_URL}/casos/${createdCaseId}`, {headers: requestHeaders});
-            }
-            if (createdAgentId) {
-                await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`, {headers: requestHeaders});
-            }
-        } catch (error) {
-            console.log(error)
-        }
-
-        // Reset IDs for the next test
-        createdAgentId = null;
-        createdCaseId = null;
-    });
 
     describe('Route: /usuarios - ', () => {
 
@@ -111,7 +73,7 @@ describe('Base Tests - ', () => {
                     email: "isa@gmail.com",
                     senha: "SenhaConfiavel1234."
                 }
-                
+
                 let response = await axios.post(`${BASE_URL}/auth/register`, user);
                 expect(response.status).toBe(201);
                 expect(response.data).toMatchObject(user);
@@ -146,7 +108,7 @@ describe('Base Tests - ', () => {
 
                 await axios.post(`${BASE_URL}/auth/register`, extraUser);
                 let loginResponse = await axios.post(`${BASE_URL}/auth/login`, loginPayload);
-                let authHeaders = {'Authorization': `Bearer ${loginResponse.data.access_token}`};
+                let authHeaders = { Authorization: `Bearer ${loginResponse.data.access_token}` };
 
                 let response = await axios.post(`${BASE_URL}/auth/logout`, {
                     headers: authHeaders
@@ -175,7 +137,7 @@ describe('Base Tests - ', () => {
 
                 await axios.post(`${BASE_URL}/auth/register`, extraUser2);
                 let loginResponse = await axios.post(`${BASE_URL}/auth/login`, loginPayload2);
-                let authHeaders = {'Authorization': `Bearer ${loginResponse.data.access_token}`};
+                let authHeaders = { Authorization: `Bearer ${loginResponse.data.access_token}` };
 
                 let response = await axios.delete(`${BASE_URL}/auth/logout`, {
                     headers: authHeaders
@@ -421,7 +383,7 @@ describe('Base Tests - ', () => {
 
                 await axios.post(`${BASE_URL}/auth/register`, extraUser);
                 let loginResponse = await axios.post(`${BASE_URL}/auth/login`, loginPayload);
-                let authHeaders = {'Authorization': `Bearer ${loginResponse.data.access_token}`};
+                let authHeaders = { Authorization: `Bearer ${loginResponse.data.access_token}` };
 
                 await axios.post(`${BASE_URL}/auth/logout`, {
                     headers: authHeaders
@@ -438,579 +400,641 @@ describe('Base Tests - ', () => {
         });
     });
 
-    describe('Route: /agentes - ', () => {
+    describe('Protected endpoints - ', () => {
 
-        //Successful scenarios
+         let testAgent = {
+            nome: "GabigOps",
+            dataDeIncorporacao: "2023-11-30",
+            cargo: "Delegado"
+        };
 
-        safeTest("AGENTS: Cria agentes corretamente com status code 201 e os dados inalterados do agente mais seu ID", async () => {
-            let newAgent = {
-                nome: "Sophie",
-                dataDeIncorporacao: "2024-08-15",
-                cargo: "Delegado"
-            }
+        // These variables will hold the IDs and tokens of the created entities
+        let createdAgentId = null;
+        let createdCaseId = null;
 
-            const response = await axios.post(`${BASE_URL}/agentes`, newAgent, {headers: requestHeaders});
-            expect(response.status).toBe(201);
-            expect(response.data).toMatchObject(newAgent);
-        });
-
-        safeTest('AGENTS: Lista todos os agente corretamente com status code 200 e todos os dados de cada agente listados corretamente', async () => {
-            const response = await axios.get(`${BASE_URL}/agentes`, {headers: requestHeaders});
-            expect(response.status).toBe(200);
-            expect(Array.isArray(response.data)).toBe(true);
-            expect(response.data).toEqual(
-                expect.arrayContaining([
-                    expect.objectContaining({ id: createdAgentId })
-                ])
-            );
-        });
-
-        safeTest('AGENTS: Busca agente por ID corretamente com status code 200 e todos os dados do agente listados dentro de um objeto JSON', async () => {
-            const response = await axios.get(`${BASE_URL}/agentes/${createdAgentId}`, {headers: requestHeaders});
-            expect(response.status).toBe(200);
-            expect(response.data.id).toBe(createdAgentId);
-        });
-
-        safeTest('AGENTS: Atualiza dados do agente com por completo (com PUT) corretamente com status code 200 e dados atualizados do agente listados num objeto JSON', async () => {
-            const updatedData = {
-                nome: "Agent Smith",
-                dataDeIncorporacao: "1999-03-31",
-                cargo: "Vilão"
-            };
-            const response = await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, updatedData, {headers: requestHeaders});
-            expect(response.status).toBe(200);
-            expect(response.data).toMatchObject(updatedData);
-        });
-
-        safeTest('AGENTS: Atualiza dados do agente com por completo (com PATCH) corretamente com status code 200 e dados atualizados do agente listados num objeto JSON', async () => {
-            const partialUpdate = { cargo: "Agente Especial" };
-            const response = await axios.patch(`${BASE_URL}/agentes/${createdAgentId}`, partialUpdate, {headers: requestHeaders});
-            expect(response.status).toBe(200);
-            expect(response.data.cargo).toBe("Agente Especial");
-            expect(response.data.nome).toBe(testAgent.nome);
-
-        });
-
-        safeTest('AGENTS: Deleta dados de agente corretamente com status code 204 e corpo vazio', async () => {
-            const response = await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`, {headers: requestHeaders});
-            expect(response.status).toBe(204);
-            expect(response.data).toBeFalsy();
-
-            //Verify that the user
+        
+        // CREATES TEST DATA FOR AGENTS AND CASES
+        beforeEach(async () => {
             try {
-                await axios.get(`${BASE_URL}/agentes/${createdAgentId}`, {headers: requestHeaders});
-                expect(true).toBeFalsy();
+                console.table(requestHeaders);
+
+                //Creates agent and fetches id from response
+                const agentResponse = await axios.post(`${BASE_URL}/agentes`, testAgent, { headers: requestHeaders });
+                createdAgentId = agentResponse.data.id;
+
+                console.log(`DEBUG: Created agent ID ${createdAgentId}`)
+
+                //Creates testCase using the id from the newly generated agentResponse
+                let testCase = {
+                    titulo: "Roubo do Banco Central",
+                    descricao: "Alguém hackeou o banco central",
+                    status: "aberto",
+                    agente_id: createdAgentId
+                };
+
+                //Creates the case and waits for the response
+                const caseResponse = await axios.post(`${BASE_URL}/casos`, testCase, { headers: requestHeaders });
+                createdCaseId = caseResponse.data.id;
+                console.log(`DEBUG: Creted case ID ${createdCaseId}`);
+
             } catch (error) {
-                expect(true).toBe(true);
+                console.log(error.message)
+            }
+        });
+
+        // DELETES TEST DATA FROM AGENTS AND CASES
+        afterEach(async () => {
+            try {
+                if (createdCaseId) {
+                    await axios.delete(`${BASE_URL}/casos/${createdCaseId}`, { headers: requestHeaders });
+                }
+                if (createdAgentId) {
+                    await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`, { headers: requestHeaders });
+                }
+            } catch (error) {
+                console.log(error)
             }
 
-            // Nullify the ID to prevent afterEach from trying to delete it again
+            // Reset IDs for the next test
             createdAgentId = null;
-        });
-
-        /**
-         * ERROR SCENARIOS
-         * These include proper error handling as described in the assignment. It mainly validates proper status codes
-         * for different error scenarios.
-         */
-        safeTest('AGENTS: Recebe status code 400 ao tentar criar agente com payload em formato incorreto', async () => {
-            const invalidPayload = {
-                dataDeIncorporacao: "2023-11-30",
-                cargo: "Delegado"
-            };
-
-            try {
-                await axios.post(`${BASE_URL}/agentes`, invalidPayload, {headers: requestHeaders});
-                //Fail the test if no error is thrown
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(400);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 401 ao tentar criar agente corretamente mas sem header de autorização com token JWT', async ()=> {
-            let newAgent = {
-                nome: "Sophie",
-                dataDeIncorporacao: "2024-08-15",
-                cargo: "Delegado"
-            }
-            try {
-                const response = await axios.post(`${BASE_URL}/agentes`, newAgent);
-                expect(response.status).toBe(401);
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
-            
-        });
-
-        safeTest('AGENTS: Recebe status 404 ao tentar buscar um agente inexistente', async () => {
-            const inexistentId = 173128973;
-
-            try {
-                await axios.get(`${BASE_URL}/agentes/${inexistentId}`, {headers: requestHeaders});
-                //Fail the test if no error is thrown
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status 404 ao tentar buscar um agente com ID em formato inválido', async () => {
-            const inexistentId = "Id n aceitavel";
-
-            try {
-                await axios.get(`${BASE_URL}/agentes/${inexistentId}`, {headers: requestHeaders});
-                //Fail the test if no error is thrown
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 401 ao tentar buscar agente corretamente mas sem header de autorização com token JWT', async ()=> {
-            try {
-                const response = await axios.post(`${BASE_URL}/agentes/${createdAgentId}`);
-                expect(response.status).toBe(401);
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 401 ao tentar buscar todos os agentes corretamente mas sem header de autorização com token JWT', async ()=> {
-            try {
-                const response = await axios.get(`${BASE_URL}/agentes`);
-                expect(response.status).toBe(401);
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
-        });
-
-        //Specify more
-        safeTest('AGENTS: Recebe status code 400 ao tentar atualizar agente por completo com método PUT e payload em formato incorreto', async () => {
-            const invalidPayload = {
-                nome: "Agent Smith",
-                dataDeIncorporacao: "1999-03-31",
-            };
-
-            try {
-                await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, invalidPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(400);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 404 ao tentar atualizar agente por completo com método PUT de agente inexistente', async () => {
-            const nonExistentId = 378192;
-            const validPayload = {
-                nome: "Agente Fantasma",
-                dataDeIncorporacao: "2025-01-01",
-                cargo: "Assombração"
-            };
-
-            try {
-                await axios.put(`${BASE_URL}/agentes/${nonExistentId}`, validPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 404 ao tentar atualizar agente por completo com método PUT de agente de ID em formato incorreto', async () => {
-            const nonExistentId = "Id n aceitavel";
-            const validPayload = {
-                nome: "Agente Fantasma",
-                dataDeIncorporacao: "2025-01-01",
-                cargo: "Assombração"
-            };
-
-            try {
-                await axios.put(`${BASE_URL}/agentes/${nonExistentId}`, validPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 401 ao tentar atualizar agente corretamente com PUT mas sem header de autorização com token JWT', async ()=> {
-            const updatedData = {
-                nome: "Agent Smith",
-                dataDeIncorporacao: "1999-03-31",
-                cargo: "Vilão"
-            };
-
-            try {
-                await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, updatedData);
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
-        });
-
-        //Specify more
-        safeTest('AGENTS: Recebe status code 400 ao tentar atualizar agente parcialmente com método PATCH e payload em formato incorreto', async () => {
-            const invalidPartialPayload = {
-                campoInexistente: "testing"
-            };
-
-            try {
-                await axios.patch(`${BASE_URL}/agentes/${createdAgentId}`, invalidPartialPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(400);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 404 ao tentar atualizar agente por parcialmente com método PATCH de agente inexistente', async () => {
-            const nonExistentId = 37812731;
-            const validPartialPayload = { cargo: "Agente Secreto" };
-
-            try {
-                await axios.patch(`${BASE_URL}/agentes/${nonExistentId}`, validPartialPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 401 ao tentar atualizar agente corretamente com PATCH mas sem header de autorização com token JWT', async ()=> {
-            const updatedData = {
-                nome: "Agent Smith",
-                dataDeIncorporacao: "1999-03-31",
-                cargo: "Vilão"
-            };
-
-            try {
-                await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, updatedData);
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 404 ao tentar deletar agente inexistente', async () => {
-            const nonExistentId = 34267;
-
-            try {
-                await axios.delete(`${BASE_URL}/agentes/${nonExistentId}`, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 404 ao tentar deletar agente com ID inválido', async () => {
-            const nonExistentId = "Not a valid ID";
-
-            try {
-                await axios.delete(`${BASE_URL}/agentes/${nonExistentId}`, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest('AGENTS: Recebe status code 401 ao tentar deletar agente corretamente mas sem header de autorização com token JWT', async ()=> {
-            try {
-                await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`);
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
-        });
-    });
-
-    describe('Route: /casos - ', () => {
-
-        //Successfull scenarios
-
-        safeTest("CASES: Cria casos corretamente com status code 201 e retorna dados inalterados do caso criado mais seu ID", async () => {
-            let newCase = {
-                titulo: "Titulo",
-                descricao: "Description",
-                status: "aberto",
-                agente_id: createdAgentId
-            }
-
-            const response = await axios.post(`${BASE_URL}/casos`, newCase, {headers: requestHeaders});
-            expect(response.status).toBe(201);
-            expect(response.data.titulo).toBe(newCase.titulo);
-            expect(response.data.descricao).toBe(newCase.descricao);
-            expect(response.data.status).toBe(newCase.status);
-            expect(response.data.agente_id).toBe(newCase.agente_id);
-        });
-
-        safeTest('CASES: Lista todos os casos corretamente com status code 200 e retorna lista com todos os dados de todos os casos', async () => {
-            const response = await axios.get(`${BASE_URL}/casos`, {headers: requestHeaders});
-            expect(response.status).toBe(200);
-            expect(Array.isArray(response.data)).toBe(true);
-            expect(response.data).toEqual(
-                expect.arrayContaining([
-                    expect.objectContaining({ id: createdCaseId })
-                ])
-            );
-        });
-
-        safeTest('CASES: Busca caso por ID corretamente com status code 200 e retorna dados do caso', async () => {
-            const response = await axios.get(`${BASE_URL}/casos/${createdCaseId}`, {headers: requestHeaders});
-
-            expect(response.status).toBe(200);
-            expect(response.data.id).toBe(createdCaseId);
-        });
-
-        safeTest('CASES: Atualiza dados de um caso com por completo (com PUT) corretamente com status code 200 e retorna dados atualizados', async () => {
-            const updatedData = {
-                titulo: "Caso Resolvido",
-                descricao: "O ladrão foi pego.",
-                status: "solucionado",
-                agente_id: createdAgentId
-            };
-            const response = await axios.put(`${BASE_URL}/casos/${createdCaseId}`, updatedData, {headers: requestHeaders});
-            expect(response.status).toBe(200);
-            expect(response.data).toMatchObject(updatedData);
-        });
-
-        safeTest('CASES: Atualiza dados de um caso parcialmente (com PATCH) corretamente com status code 200 e retorna dados atualizados', async () => {
-            const partialUpdate = { status: "solucionado" };
-            const response = await axios.patch(`${BASE_URL}/casos/${createdCaseId}`, partialUpdate, {headers: requestHeaders});
-            expect(response.status).toBe(200);
-            expect(response.data.status).toBe("solucionado");
-            expect(response.data.titulo).toBe("Roubo do Banco Central");
-        });
-
-        safeTest('CASES: Deleta dados de um caso corretamente com status code 204 e retorna corpo vazio', async () => {
-            const temp = createdCaseId;
-            const response = await axios.delete(`${BASE_URL}/casos/${createdCaseId}`, {headers: requestHeaders});
-            expect(response.status).toBe(204);
-            expect(response.data).toBeFalsy();
-
-            try{
-                await axios.get(`${BASE_URL}/casos/${temp}`);
-                expect(true).toBeFalsy();
-            } catch(error){
-                expect(true).toBeTruthy();
-            }
-
-            // Nullify the ID to prevent afterEach from trying to delete it again
             createdCaseId = null;
         });
 
 
-        /**
-         * ERROR SCENARIOS
-         * These include error handling scenarios as described in the assignment
-         * It mostly tests the proper status codes in error cases
-         */
-        //Specify more
-        safeTest("CASES: Recebe status code 400 ao tentar criar caso com payload em formato incorreto", async () => {
-            const invalidPayload = {
-                descricao: "Descrição de um caso inválido",
-                status: "aberto",
-                agente_id: createdAgentId
-            };
-            try {
-                await axios.post(`${BASE_URL}/casos`, invalidPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(400);
-            }
+        describe('Route: /agentes - ', () => {
+
+            //Successful scenarios
+
+            safeTest("AGENTS: Cria agentes corretamente com status code 201 e os dados inalterados do agente mais seu ID", async () => {
+                let newAgent = {
+                    nome: "Sophie",
+                    dataDeIncorporacao: "2024-08-15",
+                    cargo: "Delegado"
+                }
+
+                const response = await axios.post(`${BASE_URL}/agentes`, newAgent, { headers: requestHeaders });
+                expect(response.status).toBe(201);
+                expect(response.data).toMatchObject(newAgent);
+            });
+
+            safeTest('AGENTS: Lista todos os agente corretamente com status code 200 e todos os dados de cada agente listados corretamente', async () => {
+                const response = await axios.get(`${BASE_URL}/agentes`, { headers: requestHeaders });
+                expect(response.status).toBe(200);
+                expect(Array.isArray(response.data)).toBe(true);
+                expect(response.data).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({ id: createdAgentId })
+                    ])
+                );
+            });
+
+            safeTest('AGENTS: Busca agente por ID corretamente com status code 200 e todos os dados do agente listados dentro de um objeto JSON', async () => {
+                const response = await axios.get(`${BASE_URL}/agentes/${createdAgentId}`, { headers: requestHeaders });
+                expect(response.status).toBe(200);
+                expect(response.data.id).toBe(createdAgentId);
+            });
+
+            safeTest('AGENTS: Atualiza dados do agente com por completo (com PUT) corretamente com status code 200 e dados atualizados do agente listados num objeto JSON', async () => {
+                const updatedData = {
+                    nome: "Agent Smith",
+                    dataDeIncorporacao: "1999-03-31",
+                    cargo: "Vilão"
+                };
+                const response = await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, updatedData, { headers: requestHeaders });
+                expect(response.status).toBe(200);
+                expect(response.data).toMatchObject(updatedData);
+            });
+
+            safeTest('AGENTS: Atualiza dados do agente com por completo (com PATCH) corretamente com status code 200 e dados atualizados do agente listados num objeto JSON', async () => {
+                const partialUpdate = { cargo: "Agente Especial" };
+                const response = await axios.patch(`${BASE_URL}/agentes/${createdAgentId}`, partialUpdate, { headers: requestHeaders });
+                expect(response.status).toBe(200);
+                expect(response.data.cargo).toBe("Agente Especial");
+                expect(response.data.nome).toBe(testAgent.nome);
+
+            });
+
+            safeTest('AGENTS: Deleta dados de agente corretamente com status code 204 e corpo vazio', async () => {
+                const response = await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`, { headers: requestHeaders });
+                expect(response.status).toBe(204);
+                expect(response.data).toBeFalsy();
+
+                //Verify that the user
+                try {
+                    await axios.get(`${BASE_URL}/agentes/${createdAgentId}`, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(true).toBe(true);
+                }
+
+                // Nullify the ID to prevent afterEach from trying to delete it again
+                createdAgentId = null;
+            });
+
+            /**
+             * ERROR SCENARIOS
+             * These include proper error handling as described in the assignment. It mainly validates proper status codes
+             * for different error scenarios.
+             */
+            safeTest('AGENTS: Recebe status code 400 ao tentar criar agente com payload em formato incorreto', async () => {
+                const invalidPayload = {
+                    dataDeIncorporacao: "2023-11-30",
+                    cargo: "Delegado"
+                };
+
+                try {
+                    await axios.post(`${BASE_URL}/agentes`, invalidPayload, { headers: requestHeaders });
+                    //Fail the test if no error is thrown
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(400);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 401 ao tentar criar agente corretamente mas sem header de autorização com token JWT', async () => {
+                let newAgent = {
+                    nome: "Sophie",
+                    dataDeIncorporacao: "2024-08-15",
+                    cargo: "Delegado"
+                }
+                try {
+                    const response = await axios.post(`${BASE_URL}/agentes`, newAgent);
+                    expect(response.status).toBe(401);
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+
+            });
+
+            safeTest('AGENTS: Recebe status 404 ao tentar buscar um agente inexistente', async () => {
+                const inexistentId = 173128973;
+
+                try {
+                    await axios.get(`${BASE_URL}/agentes/${inexistentId}`, { headers: requestHeaders });
+                    //Fail the test if no error is thrown
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status 404 ao tentar buscar um agente com ID em formato inválido', async () => {
+                const inexistentId = "Id n aceitavel";
+
+                try {
+                    await axios.get(`${BASE_URL}/agentes/${inexistentId}`, { headers: requestHeaders });
+                    //Fail the test if no error is thrown
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 401 ao tentar buscar agente corretamente mas sem header de autorização com token JWT', async () => {
+                try {
+                    const response = await axios.post(`${BASE_URL}/agentes/${createdAgentId}`);
+                    expect(response.status).toBe(401);
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 401 ao tentar buscar todos os agentes corretamente mas sem header de autorização com token JWT', async () => {
+                try {
+                    const response = await axios.get(`${BASE_URL}/agentes`);
+                    expect(response.status).toBe(401);
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+            });
+
+            //Specify more
+            safeTest('AGENTS: Recebe status code 400 ao tentar atualizar agente por completo com método PUT e payload em formato incorreto', async () => {
+                const invalidPayload = {
+                    nome: "Agent Smith",
+                    dataDeIncorporacao: "1999-03-31",
+                };
+
+                try {
+                    await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, invalidPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(400);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 404 ao tentar atualizar agente por completo com método PUT de agente inexistente', async () => {
+                const nonExistentId = 378192;
+                const validPayload = {
+                    nome: "Agente Fantasma",
+                    dataDeIncorporacao: "2025-01-01",
+                    cargo: "Assombração"
+                };
+
+                try {
+                    await axios.put(`${BASE_URL}/agentes/${nonExistentId}`, validPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 404 ao tentar atualizar agente por completo com método PUT de agente de ID em formato incorreto', async () => {
+                const nonExistentId = "Id n aceitavel";
+                const validPayload = {
+                    nome: "Agente Fantasma",
+                    dataDeIncorporacao: "2025-01-01",
+                    cargo: "Assombração"
+                };
+
+                try {
+                    await axios.put(`${BASE_URL}/agentes/${nonExistentId}`, validPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 401 ao tentar atualizar agente corretamente com PUT mas sem header de autorização com token JWT', async () => {
+                const updatedData = {
+                    nome: "Agent Smith",
+                    dataDeIncorporacao: "1999-03-31",
+                    cargo: "Vilão"
+                };
+
+                try {
+                    await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, updatedData);
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+            });
+
+            //Specify more
+            safeTest('AGENTS: Recebe status code 400 ao tentar atualizar agente parcialmente com método PATCH e payload em formato incorreto', async () => {
+                const invalidPartialPayload = {
+                    campoInexistente: "testing"
+                };
+
+                try {
+                    await axios.patch(`${BASE_URL}/agentes/${createdAgentId}`, invalidPartialPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(400);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 404 ao tentar atualizar agente por parcialmente com método PATCH de agente inexistente', async () => {
+                const nonExistentId = 37812731;
+                const validPartialPayload = { cargo: "Agente Secreto" };
+
+                try {
+                    await axios.patch(`${BASE_URL}/agentes/${nonExistentId}`, validPartialPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 401 ao tentar atualizar agente corretamente com PATCH mas sem header de autorização com token JWT', async () => {
+                const updatedData = {
+                    nome: "Agent Smith",
+                    dataDeIncorporacao: "1999-03-31",
+                    cargo: "Vilão"
+                };
+
+                try {
+                    await axios.put(`${BASE_URL}/agentes/${createdAgentId}`, updatedData);
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 404 ao tentar deletar agente inexistente', async () => {
+                const nonExistentId = 34267;
+
+                try {
+                    await axios.delete(`${BASE_URL}/agentes/${nonExistentId}`, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 404 ao tentar deletar agente com ID inválido', async () => {
+                const nonExistentId = "Not a valid ID";
+
+                try {
+                    await axios.delete(`${BASE_URL}/agentes/${nonExistentId}`, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest('AGENTS: Recebe status code 401 ao tentar deletar agente corretamente mas sem header de autorização com token JWT', async () => {
+                try {
+                    await axios.delete(`${BASE_URL}/agentes/${createdAgentId}`);
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+            });
         });
 
-        safeTest("CASES: Recebe status code 404 ao tentar criar caso com ID de agente inexistente", async () => {
-            const nonExistentAgentId = 435345;
-            const payloadWithInvalidAgent = {
-                titulo: "Caso para agente fantasma",
-                descricao: "Este agente não existe",
-                status: "aberto",
-                agente_id: nonExistentAgentId
-            };
-            try {
-                await axios.post(`${BASE_URL}/casos`, payloadWithInvalidAgent, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
+        describe('Route: /casos - ', () => {
 
-        safeTest("CASES: Recebe status code 404 ao tentar criar caso com ID de agente inválido", async () => {
-            const nonExistentAgentId = 435345;
-            const payloadWithInvalidAgent = {
-                titulo: "Caso para agente fantasma",
-                descricao: "Este agente não existe",
-                status: "aberto",
-                agente_id: nonExistentAgentId
-            };
-            try {
-                await axios.post(`${BASE_URL}/casos`, payloadWithInvalidAgent, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
+            //Successfull scenarios
 
-        safeTest("CASES: Recebe status code 401 ao tentar criar caso sem header de autorização com JWT", async ()=> {
+            safeTest("CASES: Cria casos corretamente com status code 201 e retorna dados inalterados do caso criado mais seu ID", async () => {
+                let newCase = {
+                    titulo: "Titulo",
+                    descricao: "Description",
+                    status: "aberto",
+                    agente_id: createdAgentId
+                }
 
-        });
+                const response = await axios.post(`${BASE_URL}/casos`, newCase, { headers: requestHeaders });
+                expect(response.status).toBe(201);
+                expect(response.data.titulo).toBe(newCase.titulo);
+                expect(response.data.descricao).toBe(newCase.descricao);
+                expect(response.data.status).toBe(newCase.status);
+                expect(response.data.agente_id).toBe(newCase.agente_id);
+            });
 
-        safeTest("CASES: Recebe status code 404 ao tentar buscar um caso por ID inválido", async () => {
-            const nonExistentCaseId = 3.17;
-            try {
-                await axios.get(`${BASE_URL}/casos/${nonExistentCaseId}`, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
+            safeTest('CASES: Lista todos os casos corretamente com status code 200 e retorna lista com todos os dados de todos os casos', async () => {
+                const response = await axios.get(`${BASE_URL}/casos`, { headers: requestHeaders });
+                expect(response.status).toBe(200);
+                expect(Array.isArray(response.data)).toBe(true);
+                expect(response.data).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({ id: createdCaseId })
+                    ])
+                );
+            });
 
-        safeTest("CASES: Recebe status code 404 ao tentar buscar um caso por ID inexistente", async () => {
-            const nonExistentCaseId = 3420697;
-            try {
-                await axios.get(`${BASE_URL}/casos/${nonExistentCaseId}`, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
+            safeTest('CASES: Busca caso por ID corretamente com status code 200 e retorna dados do caso', async () => {
+                const response = await axios.get(`${BASE_URL}/casos/${createdCaseId}`, { headers: requestHeaders });
 
-        safeTest("CASES: Recebe status code 401 ao tentar buscar caso sem header de autorização com JWT", async ()=> {
-            try {
-                await axios.get(`${BASE_URL}/casos/${createdCaseId}`);
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
-        });
+                expect(response.status).toBe(200);
+                expect(response.data.id).toBe(createdCaseId);
+            });
 
-        safeTest("CASES: Recebe status code 401 ao tentar listar todos os casos sem header de autorização com JWT", async ()=> {
-            try {
-                await axios.get(`${BASE_URL}/casos`);
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(401)
-            }
-        });
+            safeTest('CASES: Atualiza dados de um caso com por completo (com PUT) corretamente com status code 200 e retorna dados atualizados', async () => {
+                const updatedData = {
+                    titulo: "Caso Resolvido",
+                    descricao: "O ladrão foi pego.",
+                    status: "solucionado",
+                    agente_id: createdAgentId
+                };
+                const response = await axios.put(`${BASE_URL}/casos/${createdCaseId}`, updatedData, { headers: requestHeaders });
+                expect(response.status).toBe(200);
+                expect(response.data).toMatchObject(updatedData);
+            });
 
-        //Specify more
-        safeTest("CASES: Recebe status code 400 ao tentar atualizar um caso por completo com método PUT com payload em formato incorreto", async () => {
-            const invalidPayload = {
-                titulo: "Título Válido",
-                descricao: "Descrição Válida",
-                agente_id: createdAgentId
-            };
-            try {
-                await axios.put(`${BASE_URL}/casos/${createdCaseId}`, invalidPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(400);
-            }
-        });
-
-        safeTest("CASES: Recebe status code 404 ao tentar atualizar um caso por completo com método PUT de um caso inexistente", async () => {
-            const nonExistentCaseId = 567765;
-            const validPayload = {
-                titulo: "Caso Fantasma",
-                descricao: "Atualizando um caso que não existe.",
-                status: "solucionado",
-                agente_id: createdAgentId
-            };
-            try {
-                await axios.put(`${BASE_URL}/casos/${nonExistentCaseId}`, validPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest("CASES: Recebe status code 404 ao tentar atualizar um caso por completo com método PUT de um caso com ID inválido", async () => {
-            const nonExistentCaseId = "Invalid ID";
-            const validPayload = {
-                titulo: "Caso Fantasma",
-                descricao: "Atualizando um caso que não existe.",
-                status: "solucionado",
-                agente_id: createdAgentId
-            };
-            try {
-                await axios.put(`${BASE_URL}/casos/${nonExistentCaseId}`, validPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest("CASES: Recebe status code 401 ao tentar criar caso sem header de autorização com JWT", async ()=> {
-            const updatedData = {
-                titulo: "Caso Resolvido",
-                descricao: "O ladrão foi pego.",
-                status: "solucionado",
-                agente_id: createdAgentId
-            };
-            try {
-                await axios.put(`${BASE_URL}/casos/${createdCaseId}`, updatedData, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
-        });
-
-        safeTest("CASES: Recebe status code 404 ao tentar atualizar um caso parcialmente com método PATCH de um caso inexistente", async () => {
-            const nonExistentCaseId = 65757;
-            const validPartialPayload = { status: "solucionado" };
-            try {
-                await axios.patch(`${BASE_URL}/casos/${nonExistentCaseId}`, validPartialPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest("CASES: Recebe status code 404 ao tentar atualizar um caso parcialmente com método PATCH de um caso com ID inválido", async () => {
-            const nonExistentCaseId = "Invalid ID";
-            const validPartialPayload = { status: "solucionado" };
-            try {
-                await axios.patch(`${BASE_URL}/casos/${nonExistentCaseId}`, validPartialPayload, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
-
-        safeTest("CASES: Recebe status code 401 ao tentar atualizar caso parcialmente com método PATCH de um caso sem header de autorização com JWT", async () => {
-            try {
+            safeTest('CASES: Atualiza dados de um caso parcialmente (com PATCH) corretamente com status code 200 e retorna dados atualizados', async () => {
                 const partialUpdate = { status: "solucionado" };
-                response = await axios.patch(`${BASE_URL}/casos/${createdCaseId}`, partialUpdate);
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
-        });
+                const response = await axios.patch(`${BASE_URL}/casos/${createdCaseId}`, partialUpdate, { headers: requestHeaders });
+                expect(response.status).toBe(200);
+                expect(response.data.status).toBe("solucionado");
+                expect(response.data.titulo).toBe("Roubo do Banco Central");
+            });
 
-        safeTest("CASES: Recebe status code 404 ao tentar deletar um caso inexistente", async () => {
-            const nonExistentCaseId = 456646;
-            try {
-                await axios.delete(`${BASE_URL}/casos/${nonExistentCaseId}`, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
+            safeTest('CASES: Deleta dados de um caso corretamente com status code 204 e retorna corpo vazio', async () => {
+                const temp = createdCaseId;
+                const response = await axios.delete(`${BASE_URL}/casos/${createdCaseId}`, { headers: requestHeaders });
+                expect(response.status).toBe(204);
+                expect(response.data).toBeFalsy();
 
-        safeTest("CASES: Recebe status code 404 ao tentar deletar um caso com ID inválido", async () => {
-            const nonExistentCaseId = 456646;
-            try {
-                await axios.delete(`${BASE_URL}/casos/${nonExistentCaseId}`, {headers: requestHeaders});
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(404);
-            }
-        });
+                try {
+                    await axios.get(`${BASE_URL}/casos/${temp}`);
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(true).toBeTruthy();
+                }
 
-        safeTest("CASES: Recebe status code 401 ao tentar deletar um caso sem o header de autorização com JWT", async () => {
-            try {
-                await axios.delete(`${BASE_URL}/casos/${createdCaseId}`);
-                expect(true).toBeFalsy();
-            } catch (error) {
-                expect(error.response.status).toBe(401);
-            }
+                // Nullify the ID to prevent afterEach from trying to delete it again
+                createdCaseId = null;
+            });
+
+
+            /**
+             * ERROR SCENARIOS
+             * These include error handling scenarios as described in the assignment
+             * It mostly tests the proper status codes in error cases
+             */
+            //Specify more
+            safeTest("CASES: Recebe status code 400 ao tentar criar caso com payload em formato incorreto", async () => {
+                const invalidPayload = {
+                    descricao: "Descrição de um caso inválido",
+                    status: "aberto",
+                    agente_id: createdAgentId
+                };
+                try {
+                    await axios.post(`${BASE_URL}/casos`, invalidPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(400);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar criar caso com ID de agente inexistente", async () => {
+                const nonExistentAgentId = 435345;
+                const payloadWithInvalidAgent = {
+                    titulo: "Caso para agente fantasma",
+                    descricao: "Este agente não existe",
+                    status: "aberto",
+                    agente_id: nonExistentAgentId
+                };
+                try {
+                    await axios.post(`${BASE_URL}/casos`, payloadWithInvalidAgent, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar criar caso com ID de agente inválido", async () => {
+                const nonExistentAgentId = 435345;
+                const payloadWithInvalidAgent = {
+                    titulo: "Caso para agente fantasma",
+                    descricao: "Este agente não existe",
+                    status: "aberto",
+                    agente_id: nonExistentAgentId
+                };
+                try {
+                    await axios.post(`${BASE_URL}/casos`, payloadWithInvalidAgent, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 401 ao tentar criar caso sem header de autorização com JWT", async () => {
+
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar buscar um caso por ID inválido", async () => {
+                const nonExistentCaseId = 3.17;
+                try {
+                    await axios.get(`${BASE_URL}/casos/${nonExistentCaseId}`, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar buscar um caso por ID inexistente", async () => {
+                const nonExistentCaseId = 3420697;
+                try {
+                    await axios.get(`${BASE_URL}/casos/${nonExistentCaseId}`, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 401 ao tentar buscar caso sem header de autorização com JWT", async () => {
+                try {
+                    await axios.get(`${BASE_URL}/casos/${createdCaseId}`);
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 401 ao tentar listar todos os casos sem header de autorização com JWT", async () => {
+                try {
+                    await axios.get(`${BASE_URL}/casos`);
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(401)
+                }
+            });
+
+            //Specify more
+            safeTest("CASES: Recebe status code 400 ao tentar atualizar um caso por completo com método PUT com payload em formato incorreto", async () => {
+                const invalidPayload = {
+                    titulo: "Título Válido",
+                    descricao: "Descrição Válida",
+                    agente_id: createdAgentId
+                };
+                try {
+                    await axios.put(`${BASE_URL}/casos/${createdCaseId}`, invalidPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(400);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar atualizar um caso por completo com método PUT de um caso inexistente", async () => {
+                const nonExistentCaseId = 567765;
+                const validPayload = {
+                    titulo: "Caso Fantasma",
+                    descricao: "Atualizando um caso que não existe.",
+                    status: "solucionado",
+                    agente_id: createdAgentId
+                };
+                try {
+                    await axios.put(`${BASE_URL}/casos/${nonExistentCaseId}`, validPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar atualizar um caso por completo com método PUT de um caso com ID inválido", async () => {
+                const nonExistentCaseId = "Invalid ID";
+                const validPayload = {
+                    titulo: "Caso Fantasma",
+                    descricao: "Atualizando um caso que não existe.",
+                    status: "solucionado",
+                    agente_id: createdAgentId
+                };
+                try {
+                    await axios.put(`${BASE_URL}/casos/${nonExistentCaseId}`, validPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 401 ao tentar criar caso sem header de autorização com JWT", async () => {
+                const updatedData = {
+                    titulo: "Caso Resolvido",
+                    descricao: "O ladrão foi pego.",
+                    status: "solucionado",
+                    agente_id: createdAgentId
+                };
+                try {
+                    await axios.put(`${BASE_URL}/casos/${createdCaseId}`, updatedData);
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar atualizar um caso parcialmente com método PATCH de um caso inexistente", async () => {
+                const nonExistentCaseId = 65757;
+                const validPartialPayload = { status: "solucionado" };
+                try {
+                    await axios.patch(`${BASE_URL}/casos/${nonExistentCaseId}`, validPartialPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar atualizar um caso parcialmente com método PATCH de um caso com ID inválido", async () => {
+                const nonExistentCaseId = "Invalid ID";
+                const validPartialPayload = { status: "solucionado" };
+                try {
+                    await axios.patch(`${BASE_URL}/casos/${nonExistentCaseId}`, validPartialPayload, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 401 ao tentar atualizar caso parcialmente com método PATCH de um caso sem header de autorização com JWT", async () => {
+                try {
+                    const partialUpdate = { status: "solucionado" };
+                    response = await axios.patch(`${BASE_URL}/casos/${createdCaseId}`, partialUpdate);
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar deletar um caso inexistente", async () => {
+                const nonExistentCaseId = 456646;
+                try {
+                    await axios.delete(`${BASE_URL}/casos/${nonExistentCaseId}`, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 404 ao tentar deletar um caso com ID inválido", async () => {
+                const nonExistentCaseId = 456646;
+                try {
+                    await axios.delete(`${BASE_URL}/casos/${nonExistentCaseId}`, { headers: requestHeaders });
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(404);
+                }
+            });
+
+            safeTest("CASES: Recebe status code 401 ao tentar deletar um caso sem o header de autorização com JWT", async () => {
+                try {
+                    await axios.delete(`${BASE_URL}/casos/${createdCaseId}`);
+                    expect(true).toBeFalsy();
+                } catch (error) {
+                    expect(error.response.status).toBe(401);
+                }
+            });
         });
     });
 });
