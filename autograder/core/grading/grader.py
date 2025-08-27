@@ -29,7 +29,7 @@ class Grader:
         base_score = self._grade_subject_or_category(self.criteria.base, submission_files, self.base_results)
         bonus_score = self._grade_subject_or_category(self.criteria.bonus, submission_files, self.bonus_results)
         penalty_score = self._grade_subject_or_category(self.criteria.penalty, submission_files, self.penalty_results)
-
+        penalty_score = 100 - penalty_score
         # Step 2: Apply the final scoring logic based on category outcomes
         final_score = self._calculate_final_score(base_score, bonus_score, penalty_score)
 
@@ -122,7 +122,6 @@ class Grader:
         final_score = min(100.0, final_score)
         if final_score >= 100:
             print(f"Score capped at 100.00")
-
         penalty_points_to_subtract = (penalty_score / 100) * penalty_weight
         final_score -= penalty_points_to_subtract
         print(
