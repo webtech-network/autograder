@@ -31,25 +31,30 @@ class Test:
     def add_call(self, call: TestCall):
         self.calls.append(call)
 
-    def execute(self, test_library, submission_files) -> List['TestResult']:
+    def execute(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
         """
-        Finds and executes a function from the test library for each TestCall
-        and returns a list of all the resulting TestResult objects.
+        Executes a function from the test library for each TestCall and returns
+        a list of all resulting TestResult objects, now including the subject name.
         """
         try:
             test_function = getattr(test_library, self.name)
         except AttributeError:
-            # If the function is missing, return a single failed result
-            return [TestResult(self.name, 0, f"ERROR: Test function '{self.name}' not found in library.")]
+            return [TestResult(self.name, 0, f"ERROR: Test function '{self.name}' not found.", subject_name)]
 
-        # If there are no specific calls, run the function once with no arguments
         if not self.calls:
-            return [test_function(submission_files)]
+            result = test_function(submission_files)
+            # Manually add the subject name to the result
+            result.subject_name = subject_name
+            return [result]
 
-        # --- Execute each call and collect all TestResult objects ---
-        return [
-            test_function(submission_files, *call.args) for call in self.calls
-        ]
+        # Execute each call and add the subject name to each result
+        results = []
+        for call in self.calls:
+            print("Calling test:", self.name, "with args:", call.args)
+            result = test_function(submission_files, *call.args) # The preset functions are responsible for returning a TestResult
+            result.subject_name = subject_name  # Assign the subject name here
+            results.append(result)
+        return results
 
     def __repr__(self):
         return f"Test(name='{self.name}', calls={len(self.calls)})"
