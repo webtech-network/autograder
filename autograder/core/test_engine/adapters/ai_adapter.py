@@ -1,15 +1,19 @@
 import asyncio
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import List, Literal
 from openai import OpenAI
 from autograder.core.test_engine.engine_port import EnginePort
 import os
 
 
 class TestOutput(BaseModel):
-    title: str
-    status: str
-    message: str
-    subject: str
+    title: str = Field(..., description="Title of the test being evaluated.")
+    status: Literal["passed", "failed"] = Field(..., description="Result of the test.")
+    message: str = Field(..., description="Description of why and how this response was achieved, pinpointing specific parts of the prompt that lead you to that conclusion.")
+    subject: str = Field(..., description="The subject of the test, usually specified at the beginning of its title before a colon")
+
+class AIResponseModel(BaseModel):
+    results: List[TestOutput]
 
 class AiEngine(EnginePort):
     """
@@ -68,7 +72,7 @@ class AiEngine(EnginePort):
 
     async def run_tests(self):
         """
-        void -> str
+        void -> list
 
         Runs all specified tests in the JSON test files in the following format:
 
@@ -77,9 +81,9 @@ class AiEngine(EnginePort):
             'prompt': 'prompt with test instructions'
         }
 
-        Returns the AI prompt containing the results to all tests simultaneously in a batch
+        Returns the AI strucutured output of the AI response
 
-        :return: str
+        :return: List[TestOutput]
         """
         await self._install_openai_dependency()
 
@@ -97,12 +101,30 @@ class AiEngine(EnginePort):
                             submission_content += f"\n--- END OF FILE: {filename} ---\n\n"
 
         client = OpenAI()
-        instructions = "Você é um corretor. Você receberá "
+
+        system_prompt = f"""
+                Você é um assistente de avaliação de código especialista e rigoroso. Sua tarefa é avaliar os arquivos de uma submissão de usuário em relação a uma lista de testes.
+                Você DEVE responder com um único objeto JSON válido. Este objeto deve conter uma única chave, "results", que é um array de objetos de resultado de teste, um para cada teste fornecido.
+                NÃO inclua nenhum texto, explicação ou formatação fora do objeto JSON principal.
+                O esquema JSON para a sua resposta DEVE ser o seguinte:
+                {AIResponseModel.model_json_schema()}
+                """
+
+        user_prompt = f"""
+                Por favor, avalie os arquivos de submissão do usuário abaixo em relação a todos os casos de teste listados.
+
+                ## ARQUIVOS DE SUBMISSÃO DO USUÁRIO ##
+                {submission_content}
+
+                ## CASOS DE TESTE PARA AVALIAR ##
+                {tests_json_string}
+                """
+
         try:
             response = client.responses.create(
                 model="gpt-4.1-mini",
                 reasoning={"effort": "high"},
-                instructions= instructions,
+                instructions= "",
                 input=[
                     {
                         "role": "system",
@@ -118,7 +140,7 @@ class AiEngine(EnginePort):
             test_results = response.choices[0].message.content
             return test_results
         except Exception as e:
-            print("")
+            print("There was an error when running the tests")
 
     def normalize_output(self, report_paths: str):
         """
