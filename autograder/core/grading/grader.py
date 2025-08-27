@@ -5,10 +5,13 @@ from typing import List, Dict
 from autograder.builder.tree_builder import *
 from template_library.web_dev import WebDevLibrary
 from autograder.builder.tree_builder import custom_tree
+
+
 class Grader:
     """
     Traverses a Criteria tree, executes tests, and calculates a weighted score.
     """
+
     def __init__(self, criteria_tree: 'Criteria', test_library: object):
         self.criteria = criteria_tree
         self.test_library = test_library
@@ -21,6 +24,7 @@ class Grader:
         """
         Runs the entire grading process and returns the final calculated score.
         """
+        print("\n--- STARTING GRADING PROCESS ---")
         # Step 1: Recursively grade each category to get their weighted scores (0-100)
         base_score = self._grade_subject_or_category(self.criteria.base, submission_files, self.base_results)
         bonus_score = self._grade_subject_or_category(self.criteria.bonus, submission_files, self.bonus_results)
@@ -38,78 +42,98 @@ class Grader:
 
         return final_score
 
-    def _grade_subject_or_category(self, current_node: 'Subject' or 'TestCategory', submission_files: Dict, results_list: List['TestResult']) -> float:
+    def _grade_subject_or_category(self, current_node: 'Subject' or 'TestCategory', submission_files: Dict,
+                                   results_list: List['TestResult'], depth=0) -> float:
         """
         Recursively grades a subject or a category, calculating a weighted score.
         """
+        prefix = "    " * depth
+        print(f"\n{prefix}📘 Grading {current_node.name}...")
+
         # --- Base Case: This is a leaf-subject containing tests ---
         if hasattr(current_node, 'tests') and current_node.tests is not None:
             subject_test_results = []
             for test in current_node.tests:
-                # Execute test and get a list of TestResult objects
                 test_results = test.execute(self.test_library, submission_files, current_node.name)
                 subject_test_results.extend(test_results)
 
-            # Store all raw results in the category's master list
             results_list.extend(subject_test_results)
 
-            # Return the simple average score for this leaf subject's tests
             if not subject_test_results:
+                print(f"{prefix}  -> No tests found. Score: 100.00")
                 return 100.0
-            return sum(res.score for res in subject_test_results) / len(subject_test_results)
+
+            # --- Pretty Print Test Score Averaging ---
+            scores = [res.score for res in subject_test_results]
+            average_score = sum(scores) / len(scores)
+            calculation_str = " + ".join(map(str, scores))
+            print(f"{prefix}  -> Calculating average of test scores:")
+            print(f"{prefix}     ({calculation_str}) / {len(scores)} = {average_score:.2f}")
+            return average_score
 
         # --- Recursive Step: This is a branch with sub-subjects ---
         child_subjects = current_node.subjects.values()
         if not child_subjects:
-            return 100.0  # An empty branch gets a perfect score
+            print(f"{prefix}  -> No sub-subjects found. Score: 100.00")
+            return 100.0
 
         total_weight = sum(sub.weight for sub in child_subjects)
+
+        child_scores_map = {sub.name: self._grade_subject_or_category(sub, submission_files, results_list, depth + 1)
+                            for sub in child_subjects}
+
         if total_weight == 0:
-            # If no weights are defined, fall back to a simple average
-            child_scores = [self._grade_subject_or_category(sub, submission_files, results_list) for sub in child_subjects]
-            return sum(child_scores) / len(child_scores)
+            # --- Pretty Print Simple Average for Unweighted Subjects ---
+            scores = list(child_scores_map.values())
+            average_score = sum(scores) / len(scores)
+            calculation_str = " + ".join([f"{score:.2f}" for score in scores])
+            print(f"\n{prefix}  -> Calculating simple average for unweighted subjects in '{current_node.name}':")
+            print(f"{prefix}     ({calculation_str}) / {len(scores)} = {average_score:.2f}")
+            return average_score
 
-        # Calculate the weighted score for the branch
+        # --- Pretty Print Weighted Score Calculation ---
         weighted_score = 0
+        calculation_steps = []
         for sub in child_subjects:
-            child_score = self._grade_subject_or_category(sub, submission_files, results_list)
-            # The score contribution of the child is its score scaled by its weight percentage
-            weighted_score += child_score * (sub.weight / total_weight)
+            child_score = child_scores_map[sub.name]
+            contribution = child_score * (sub.weight / total_weight)
+            weighted_score += contribution
+            calculation_steps.append(f"({child_score:.2f} * {sub.weight}/{total_weight})")
 
+        calculation_str = " + ".join(calculation_steps)
+        print(f"\n{prefix}  -> Calculating weighted score for '{current_node.name}':")
+        print(f"{prefix}     {calculation_str} = {weighted_score:.2f}")
         return weighted_score
 
     def _calculate_final_score(self, base_score: float, bonus_score: float, penalty_score: float) -> float:
         """
         Applies the final scoring logic, mirroring your Scorer class.
         """
-        # For this example, we'll assume the bonus/penalty weights from your config
-        # represent the maximum points they can affect.
-        bonus_weight = self.criteria.bonus.subjects.get("bonus", {"weight": 40})["weight"]
-        penalty_weight = self.criteria.penalty.subjects.get("penalty", {"weight": 100})["weight"]
-
+        bonus_weight = self.criteria.bonus.max_score
+        penalty_weight = self.criteria.penalty.max_score
 
         final_score = base_score
 
-        # Add bonus points if the base score is not perfect
         if final_score < 100:
-            # Calculate how many bonus points were actually earned
             bonus_points_earned = (bonus_score / 100) * bonus_weight
             final_score += bonus_points_earned
+            print(f"\nApplying Bonus: {base_score:.2f} + ({bonus_score:.2f}/100 * {bonus_weight}) = {final_score:.2f}")
 
-        # Cap score at 100 after applying bonus
         final_score = min(100.0, final_score)
+        if final_score >= 100:
+            print(f"Score capped at 100.00")
 
-        # Apply penalty
         penalty_points_to_subtract = (penalty_score / 100) * penalty_weight
         final_score -= penalty_points_to_subtract
+        print(
+            f"Applying Penalty: {min(100.0, base_score + (bonus_score / 100) * bonus_weight):.2f} - ({penalty_score:.2f}/100 * {penalty_weight}) = {final_score:.2f}")
 
-        # Ensure the final score is not below 0
         return max(0.0, final_score)
 
 
 if __name__ == '__main__':
     root = custom_tree()
-    grader = Grader(root,WebDevLibrary)
+    grader = Grader(root, WebDevLibrary)
     submission_files = {
         "index.html": """
     <!DOCTYPE html>
@@ -135,6 +159,7 @@ if __name__ == '__main__':
 
             <a href="#">Este é um link de teste.</a>
         </main>
+
 
         <footer>
             <p>&copy; 2024 Autograder Test Page</p>
@@ -187,4 +212,9 @@ if __name__ == '__main__':
     };
     """
     }
+    root.print_tree()
     final_score = grader.run(submission_files)
+
+    print("\n--- DETAILED TEST RESULTS ---")
+    for result in grader.base_results + grader.bonus_results + grader.penalty_results:
+        print(f"[{result.subject_name}] {result.test_name}: Score {result.score} > Report: {result.report}")
