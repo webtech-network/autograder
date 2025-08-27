@@ -1,10 +1,11 @@
-from typing import List, Dict
-
 # Assuming the data structure classes (TestResult, Criteria, etc.)
 # and the test library are defined in other files as previously discussed.
+from autograder.builder.models.criteria_tree import TestCategory
 from autograder.builder.tree_builder import *
-from template_library.web_dev import WebDevLibrary
+from autograder.builder.template_library.web_dev import WebDevLibrary
 from autograder.builder.tree_builder import custom_tree
+from autograder.core.models.result import Result
+from autograder.core.models.test_result import TestResult
 
 
 class Grader:
@@ -20,7 +21,7 @@ class Grader:
         self.bonus_results: List['TestResult'] = []
         self.penalty_results: List['TestResult'] = []
 
-    def run(self, submission_files: Dict) -> float:
+    def _run(self, submission_files: Dict) -> float:
         """
         Runs the entire grading process and returns the final calculated score.
         """
@@ -39,8 +40,14 @@ class Grader:
         print(f"Aggregated Penalty Score: {penalty_score:.2f}")
         print("-" * 25)
         print(f"Final Calculated Score: {final_score:.2f}")
+        print("-" * 25)
+
 
         return final_score
+
+    def run(self, submission_files: Dict, author_name) -> 'Result':
+        final_score = self._run(submission_files)
+        return Result(final_score, author_name, submission_files, self.base_results, self.bonus_results, self.penalty_results)
 
     def _grade_subject_or_category(self, current_node: 'Subject' or 'TestCategory', submission_files: Dict,
                                    results_list: List['TestResult'], depth=0) -> float:
