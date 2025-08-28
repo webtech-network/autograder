@@ -1,4 +1,7 @@
 from autograder.core.grading.grader import Grader
+from autograder.core.models.autograder_response import AutograderResponse
+from autograder.core.report.reporter_factory import Reporter
+from autograder.core.utils.upstash_driver import Driver
 from connectors.models.assignment_config import AssignmentConfig
 from connectors.models.autograder_request import AutograderRequest
 from autograder.builder.tree_builder import CriteriaTree
@@ -13,7 +16,28 @@ class Autograder:
             raise ValueError(f"Unsupported template: {'web dev'}")
         grader = Grader(criteria_tree, test_template)
         result = grader.run(autograder_request.submission_files,autograder_request.student_name)
-        return result
+        reporter = None
+        if autograder_request.feedback_mode == "default":
+            reporter = Reporter.create_default_reporter(result)
+        elif autograder_request.feedback_mode == "ai":
+            if not autograder_request.openai_key:
+                raise ValueError("OpenAI key is required for AI feedback mode.")
+            if not autograder_request.redis_url:
+                raise ValueError("Redis URL is required for AI feedback mode.")
+            if not autograder_request.redis_token:
+                raise ValueError("Redis token is required for AI feedback mode.")
+            driver = Driver.create(autograder_request.redis_token, autograder_request.redis_url)
+            if not driver.token_exists(autograder_request.student_credentials):
+                driver.create_token(autograder_request.student_credentials)
+            allowed = driver.decrement_token_quota(autograder_request.student_credentials)
+            if allowed:
+                quota = driver.get_quota(autograder_request.student_credentials)
+                reporter = Reporter.create_ai_reporter(result, autograder_request.openai_key, quota)
+        else:
+            raise ValueError(f"Unsupported feedback mode: {autograder_request.feedback_mode}")
+        feedback = reporter.generate_feedback()
+        return AutograderResponse("Success",result.final_score,feedback)
+
 
 
 # Example usage:
