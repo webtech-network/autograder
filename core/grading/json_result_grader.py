@@ -7,6 +7,7 @@ class JsonResultGrader(BaseGrader):
     def get_test_results(self):
         """Get the tests results from a json results file"""
         results_dict = ResultProcessor.load_results(f"tests/results/{self.test_file.split('.')[0]}_results.json")  # Load the test results from the specified file
+        print(results_dict)
         passed_tests = [test['test'] for test in results_dict[0]]
         failed_tests = [test['test'] for test in results_dict[1]]
         quantitative_tests = []
