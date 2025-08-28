@@ -91,3 +91,64 @@ class FeedbackPreferences:
         prefs.default = cls.DefaultReporterPreferences(**default_prefs_data)
 
         return prefs
+
+if __name__ == '__main__':
+    feedback_config = {
+        "general": {
+            "report_title": "Relatório Final - Desafio Web",
+            "add_report_summary": True,
+            "online_content": [
+                {
+                    "url": "https://developer.mozilla.org/pt-BR/docs/Web/HTML/Element/img",
+                    "description": "Guia completo sobre a tag <img>.",
+                    "linked_tests": ["check_all_images_have_alt"]
+                }
+            ]
+        },
+        "ai": {
+            "assignment_context": "Este é um desafio focado em HTML semântico e CSS responsivo.",
+            "feedback_persona": "Professor Sênior"
+        },
+        "default": {
+            "category_headers": {
+                "base": "✔️ Requisitos Obrigatórios",
+                "penalty": "🚨 Pontos de Atenção"
+            }
+        }
+    }
+
+    # ===============================================================
+    # 2. CREATE THE PREFERENCES OBJECT FROM THE DICTIONARY
+    # ===============================================================
+    # The .from_dict() method will parse the dictionary and fill in any missing
+    # values with the defaults defined in the class.
+    try:
+        preferences = FeedbackPreferences.from_dict(feedback_config)
+
+        # ===============================================================
+        # 3. VERIFY THE PARSED VALUES
+        # ===============================================================
+        print("--- FeedbackPreferences object created successfully ---\n")
+
+        # --- Verify General Preferences ---
+        print("✅ General Preferences:")
+        print(f"  - Report Title: '{preferences.general.report_title}' (Loaded from config)")
+        print(f"  - Show Score: {preferences.general.show_score} (Using default value)")
+        print(f"  - Online Content Items: {len(preferences.general.online_content)} (Loaded from config)")
+        print(f"    - First item URL: {preferences.general.online_content[0].url}")
+        print(f"    - Linked to tests: {preferences.general.online_content[0].linked_tests}")
+
+        # --- Verify AI Preferences ---
+        print("\n🤖 AI Reporter Preferences:")
+        print(f"  - Feedback Persona: '{preferences.ai.feedback_persona}' (Loaded from config)")
+        print(f"  - Feedback Tone: '{preferences.ai.feedback_tone}' (Using default value)")
+        print(f"  - Assignment Context: '{preferences.ai.assignment_context}' (Loaded from config)")
+
+        # --- Verify Default Reporter Preferences ---
+        print("\n📝 Default Reporter Preferences:")
+        print(f"  - Base Header: '{preferences.default.category_headers['base']}' (Loaded from config)")
+        # 'bonus' was not in the config, so it should use the default from the class
+        print(f"  - Bonus Header: '{preferences.default.category_headers['bonus']}' (Using default value)")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
