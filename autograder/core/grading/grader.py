@@ -2,7 +2,7 @@
 # and the test library are defined in other files as previously discussed.
 from autograder.builder.models.criteria_tree import TestCategory
 from autograder.builder.tree_builder import *
-from autograder.builder.template_library.web_dev import WebDevLibrary
+from autograder.builder.template_library.templates.web_dev import WebDevLibrary
 from autograder.builder.tree_builder import custom_tree
 from autograder.core.models.result import Result
 from autograder.core.models.test_result import TestResult
@@ -219,7 +219,7 @@ if __name__ == '__main__':
     """
     }
     root.print_tree()
-    final_score = grader.run(submission_files)
+    final_score = grader.run(submission_files,"Arthur")
 
     print("\n--- DETAILED TEST RESULTS ---")
     for result in grader.base_results + grader.bonus_results + grader.penalty_results:
