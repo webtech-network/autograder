@@ -4,15 +4,24 @@ from typing import List, Literal
 from openai import OpenAI
 from autograder.core.test_engine.engine_port import EnginePort
 import os
+import json
 
+# Pydantic models to better structure the AI's input and output
+
+class TestInput(BaseModel):
+    """Defines the structure of a single test case from the JSON files."""
+    test: str
+    prompt: str
 
 class TestOutput(BaseModel):
+    """Defines the structure of a single test output"""
     title: str = Field(..., description="Title of the test being evaluated.")
     status: Literal["passed", "failed"] = Field(..., description="Result of the test.")
     message: str = Field(..., description="Description of why and how this response was achieved, pinpointing specific parts of the prompt that lead you to that conclusion.")
     subject: str = Field(..., description="The subject of the test, usually specified at the beginning of its title before a colon")
 
 class AIResponseModel(BaseModel):
+    """Defines the structure of a complete AI response"""
     results: List[TestOutput]
 
 class AiEngine(EnginePort):
@@ -24,7 +33,7 @@ class AiEngine(EnginePort):
     # Pathing logic from the PytestAdapter for consistency.
     _THIS_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
     _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_THIS_FILE_DIR)))
-    VALIDATION_DIR = os.path.join(_PROJECT_ROOT, 'validation')
+    VALIDATION_DIR = os.path.join(_PROJECT_ROOT, 'validation') #I am assuming this is the DIR with the tests (I forgot which one it should come from, so it will probably change soon)
     REQUEST_BUCKET_DIR = os.path.join(_PROJECT_ROOT, 'request_bucket')
     RESULTS_DIR = os.path.join(VALIDATION_DIR, 'tests', 'results')
     SUBMISSION_DIR = os.path.join(REQUEST_BUCKET_DIR, 'submission')
@@ -70,10 +79,8 @@ class AiEngine(EnginePort):
         except Exception as e:
             print(f"An unexpected error occurred while installing OpenAI dependency: {e}")
 
-    async def run_tests(self):
+    async def run_tests(self) -> List[TestOutput]:
         """
-        void -> list
-
         Runs all specified tests in the JSON test files in the following format:
 
         {
@@ -85,7 +92,29 @@ class AiEngine(EnginePort):
 
         :return: List[TestOutput]
         """
+
+        # Start by installing the openai dependencies (although it seems to not be recommended, I followed the pattern of other adapters
         await self._install_openai_dependency()
+
+        # Fetches the tests files, opens them and adds their content to the all_tests List (**still have to separate everything by file)
+        all_tests: List[TestInput] = []
+        for test_file in self.TEST_FILES:
+            file_path = os.path.join(self.VALIDATION_DIR, test_file) # Change the usage of VALIDATION_DIR once the folder containing the tests is defined
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    tests_data = json.load(f)
+                    all_tests.extend([TestInput(**test) for test in tests_data])
+            except FileNotFoundError:
+                print(f"Warning: Test file not found at {file_path}, skipping.")
+            except Exception as e:
+                print(f"Error reading or parsing {file_path}: {e}")
+
+        if not all_tests:
+            print("No test cases found. Aborting...")
+            return []
+
+        # Converts all tests to a single string
+        tests_json_string = json.dumps([t.model_dump() for t in all_tests], indent=2)
 
         # Fetches user submission content by listing all files in the directory, opening them and adding their content to submission_content
         submission_content = ""
@@ -121,43 +150,31 @@ class AiEngine(EnginePort):
                 """
 
         try:
+            print("Sending AI engine batch request...")
             response = client.responses.create(
-                model="gpt-4.1-mini",
-                reasoning={"effort": "high"},
-                instructions= "",
+                model="gpt-4.1-mini", # Still have to do some research on the best model for this job. gpt-4o seems promising
                 input=[
                     {
                         "role": "system",
-                        "content": instructions
+                        "content": system_prompt
                     },
                     {
-                        "role": "tool",
-                        "content": ""
+                        "role": "user",
+                        "content": user_prompt
                     }
                 ],
-                text_format=TestOutput
+                text_format={"type": "json_object"}
             )
             test_results = response.choices[0].message.content
-            return test_results
+
+            validated_output = AIResponseModel.model_validate_json(test_results)
+            print("Successfully received and validated test results")
+
+            return validated_output.results
+
         except Exception as e:
-            print("There was an error when running the tests")
+            print(f"An error occurred while running the AI tests: {e}")
+            return []
 
-    def normalize_output(self, report_paths: str):
-        """
-        str -> List[Dict[str]]
-
-        Takes is the results from the test results given by the AI
-        and puts them into the TestOutput format:
-
-        {
-           'title': 'test_title',
-           'status': 'passed or failed',
-           'message': 'short message about the test',
-           'subject': 'test_subject'
-        }
-
-        The message should contain a short explanation on how and why the AI got that result, pinpointing specific
-        sections of the submission. The other fields are self-explanatory
-
-        :return:
-        """
+    def normalize_output(self):
+        pass
