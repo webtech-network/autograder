@@ -19,14 +19,11 @@ class Autograder:
 
         try:
             # Step 1: Build criteria tree
-            print(autograder_request.assignment_config.criteria)
 
             logger.info("Building criteria tree from assignment configuration:")
-            print(autograder_request.assignment_config.criteria)
             logger.debug(f"Criteria configuration: {autograder_request.assignment_config.criteria}")
             criteria_tree = CriteriaTree.build(autograder_request.assignment_config.criteria)
             logger.info("Criteria tree built successfully")
-
             # Step 2: Get test template
             template_name = autograder_request.assignment_config.template
             logger.info(f"Loading test template: '{template_name}'")

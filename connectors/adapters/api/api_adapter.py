@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import UploadFile
 from connectors.models.autograder_request import AutograderRequest
 from connectors.models.assignment_config import AssignmentConfig
@@ -53,7 +53,7 @@ class ApiAdapter(Port):
 
 
     async def load_assignment_config(self, template: str, criteria: UploadFile, feedback: UploadFile,
-                               setup: UploadFile):
+                               setup: Optional[UploadFile] = None) -> AssignmentConfig:
         """
         Loads the assignment configuration based on the provided template preset.
         """
@@ -72,12 +72,13 @@ class ApiAdapter(Port):
             feedback_dict = json.loads(feedback_content.decode("utf-8")) if feedback else None
             logger.info(f"Feedback config loaded: {feedback_dict is not None}")
 
+            setup_dict = None
             if setup:
                 setup_content = await setup.read()
                 setup_dict = json.loads(setup_content.decode("utf-8")) if setup else None
                 logger.info(f"Setup config loaded: {setup_dict is not None}")
 
-            return AssignmentConfig(criteria=criteria_dict, feedback=feedback_dict, setup=None,
+            return AssignmentConfig(criteria=criteria_dict, feedback=feedback_dict, setup=setup_dict,
                                     template=template_name)
 
         except json.JSONDecodeError as e:

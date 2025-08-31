@@ -69,7 +69,7 @@ async def grade_submission_endpoint(
             logging.info("Custom grading preset loaded.")
         else:
             logging.info(f"Using preset: {template_preset}. Loading template preset configuration.")
-            assignment_config = await adapter.load_assignment_config(template=template_preset, criteria=criteria_json, feedback=feedback_json, setup=None)
+            assignment_config = await adapter.load_assignment_config(template=template_preset, criteria=criteria_json, feedback=feedback_json, setup=setup_json)
             logging.info(f"Preset {template_preset} loaded successfully.")
 
         logging.info(f"Creating autograder request....")
