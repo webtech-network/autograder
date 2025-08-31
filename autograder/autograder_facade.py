@@ -8,7 +8,7 @@ from connectors.models.assignment_config import AssignmentConfig
 from connectors.models.autograder_request import AutograderRequest
 from autograder.builder.tree_builder import CriteriaTree
 from autograder.builder.template_library.library import TemplateLibrary
-
+from autograder.builder.pre_flight import PreFlight
 
 class Autograder:
 
@@ -19,7 +19,14 @@ class Autograder:
 
         try:
             # Step 1: Build criteria tree
-
+            if autograder_request.assignment_config.setup:
+                logger.info("Running pre-flight setup commands")
+                impediments = PreFlight.run(autograder_request.assignment_config.setup,autograder_request.submission_files)
+                if impediments:
+                    error_messages = [impediment['message'] for impediment in impediments]
+                    logger.error(f"Pre-flight checks failed with errors: {error_messages}")
+                    return AutograderResponse("Error", 0, "\n".join(error_messages))
+                logger.info("Pre-flight setup completed with no impediments")
             logger.info("Building criteria tree from assignment configuration:")
             logger.debug(f"Criteria configuration: {autograder_request.assignment_config.criteria}")
             criteria_tree = CriteriaTree.build(autograder_request.assignment_config.criteria)
