@@ -33,17 +33,6 @@ class WebDevLibrary(Template):
         report = f"The attribute `{attribute}` was found {found_count} time(s) out of {required_count} required."
         return TestResult("has_attribute", score, report, parameters={"attribute": attribute, "required_count": required_count})
 
-    @staticmethod
-    def has_deprecated_tag(submission_files, tag: str, count: int) -> TestResult:
-        html_content = submission_files.get("index.html", "")
-        soup = BeautifulSoup(html_content, 'html.parser')
-        found_count = len(soup.find_all(tag))
-        score = 0 if found_count > 0 else 100
-        report = (
-            f"Penalty: Deprecated tag `<{tag}>` found {found_count} time(s)." if found_count > 0
-            else f"Great! Deprecated tag `<{tag}>` was not used."
-        )
-        return TestResult("has_deprecated_tag", score, report, parameters={"tag": tag, "count": count})
 
     @staticmethod
     def has_structure(submission_files, tag_name: str) -> TestResult:
@@ -142,7 +131,7 @@ class WebDevLibrary(Template):
     def uses_forbidden_method(submission_files, method: str, count: int) -> TestResult:
         js_content = submission_files.get("script.js", "")
         found = method in js_content
-        score = 0 if found else 100
+        score = 100 if found else 0
         report = (
             f"Penalty: Forbidden method `{method}()` detected." if found
             else f"Great! Forbidden method `{method}()` was not used."
