@@ -13,8 +13,8 @@ if [[ -z "$GITHUB_TOKEN" ]]; then
   exit 1
 fi
 
-if [[ -z "$GRADING_PRESET" ]]; then
-  echo "Error: Environment variable GRADING_PRESET is not set." >&2
+if [[ -z "$TEMPLATE_PRESET" ]]; then
+  echo "Error: Environment variable TEMPLATE_PRESET is not set." >&2
   exit 1
 fi
 
@@ -41,10 +41,6 @@ args=(
 # Note: The argument flags (e.g., --app_token) match the ones in your Python script.
 if [[ -n "$APP_TOKEN" ]]; then
     args+=("--app_token" "$APP_TOKEN")
-fi
-
-if [[ -n "$TEST_FRAMEWORK" ]]; then
-    args+=("--test_framework" "$TEST_FRAMEWORK")
 fi
 
 if [[ -n "$FEEDBACK_TYPE" ]]; then

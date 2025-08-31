@@ -4,11 +4,11 @@ from connectors.models.assignment_config import AssignmentConfig
 from connectors.utils.load_preset import load_preset
 parser = ArgumentParser(description="GitHub Action Adapter for Autograder")
 parser.add_argument("--github-token", type=str, required=True, help="GitHub Token")
-parser.add_argument("--grading-preset", type=str, required=True, help="The grading preset to use (e.g., api, html, python, etc.)")
+parser.add_argument("--template_preset", type=str, required=True, help="The grading preset to use (e.g., api, html, python, etc.)")
 parser.add_argument("--student-name", type=str, required=True, help="The name of the student")
 parser.add_argument("--feedback_type", type=str, default="default",help="The type of feedback to provide (default or ai)")
+parser.add_argument("--custom_template", type=str, required=False, help="Test Files for the submission (in case of custom preset)")
 parser.add_argument("--app_token", type=str, required=False, help="GitHub App Token")
-parser.add_argument("--test_framework", type=str, required=False, help="The test framework to use (e.g., pytest)")
 parser.add_argument("--openai_key", type=str, required=False, help="OpenAI API key for AI feedback")
 parser.add_argument("--redis_url", type=str, required=False, help="Redis URL for AI feedback")
 parser.add_argument("--redis_token", type=str, required=False, help="Redis token for AI feedback")
