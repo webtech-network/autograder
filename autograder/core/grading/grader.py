@@ -29,8 +29,15 @@ class Grader:
         # Step 1: Recursively grade each category to get their weighted scores (0-100)
         base_score = self._grade_subject_or_category(self.criteria.base, submission_files, self.base_results)
         bonus_score = self._grade_subject_or_category(self.criteria.bonus, submission_files, self.bonus_results)
-        penalty_score = self._grade_subject_or_category(self.criteria.penalty, submission_files, self.penalty_results)
-        penalty_score = 100 - penalty_score
+
+        # Special handling for penalties. An empty penalty category should result in a score of 0.
+        if not self.criteria.penalty.subjects:
+            penalty_score = 0.0
+        else:
+            # If subjects exist, calculate the score, which represents the magnitude of the penalty.
+            # A score of 100 means 100% of the penalty weight should be applied.
+            penalty_score = self._grade_subject_or_category(self.criteria.penalty, submission_files, self.penalty_results)
+
         # Step 2: Apply the final scoring logic based on category outcomes
         final_score = self._calculate_final_score(base_score, bonus_score, penalty_score)
 
@@ -41,7 +48,6 @@ class Grader:
         print("-" * 25)
         print(f"Final Calculated Score: {final_score:.2f}")
         print("-" * 25)
-
 
         return final_score
 
@@ -72,17 +78,17 @@ class Grader:
 
             # --- Pretty Print Test Score Averaging ---
             scores = [res.score for res in subject_test_results]
-            average_score = sum(scores) / len(scores)
+            average_score = sum(scores) / len(scores) if scores else 0.0
             calculation_str = " + ".join(map(str, scores))
             print(f"{prefix}  -> Calculating average of test scores:")
-            print(f"{prefix}     ({calculation_str}) / {len(scores)} = {average_score:.2f}")
+            print(f"{prefix}     ({calculation_str}) / {len(scores) if scores else 1} = {average_score:.2f}")
             return average_score
 
         # --- Recursive Step: This is a branch with sub-subjects ---
         child_subjects = current_node.subjects.values()
         if not child_subjects:
-            print(f"{prefix}  -> No sub-subjects found. Score: 100.00")
-            return 100.0
+            print(f"{prefix}  -> No sub-subjects found. Score: 0.00")
+            return 0.0
 
         total_weight = sum(sub.weight for sub in child_subjects)
 
@@ -92,10 +98,10 @@ class Grader:
         if total_weight == 0:
             # --- Pretty Print Simple Average for Unweighted Subjects ---
             scores = list(child_scores_map.values())
-            average_score = sum(scores) / len(scores)
+            average_score = sum(scores) / len(scores) if scores else 0.0
             calculation_str = " + ".join([f"{score:.2f}" for score in scores])
             print(f"\n{prefix}  -> Calculating simple average for unweighted subjects in '{current_node.name}':")
-            print(f"{prefix}     ({calculation_str}) / {len(scores)} = {average_score:.2f}")
+            print(f"{prefix}     ({calculation_str}) / {len(scores) if scores else 1} = {average_score:.2f}")
             return average_score
 
         # --- Pretty Print Weighted Score Calculation ---
@@ -135,92 +141,3 @@ class Grader:
             f"Applying Penalty: {min(100.0, base_score + (bonus_score / 100) * bonus_weight):.2f} - ({penalty_score:.2f}/100 * {penalty_weight}) = {final_score:.2f}")
 
         return max(0.0, final_score)
-
-
-if __name__ == '__main__':
-    root = custom_tree()
-    grader = Grader(root, WebDevLibrary)
-    submission_files = {
-        "index.html": """
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Página de Teste</title>
-        <link rel="stylesheet" href="style.css">
-    </head>
-    <body>
-
-        <header>
-            <h1>Bem-vindo à Página de Teste</h1>
-            <h3>Sub-cabeçalho H3</h3> </header>
-
-        <main id="main-content">
-            <p class="intro">Este é um parágrafo de introdução para testar o sistema.</p>
-
-            <img src="image1.jpg" alt="Descrição da imagem 1">
-            <img src="image2.jpg"> <div>
-                <p>Este é um div com um <font color="red">texto antigo</font> dentro.</p> </div>
-
-            <a href="#">Este é um link de teste.</a>
-        </main>
-
-
-        <footer>
-            <p>&copy; 2024 Autograder Test Page</p>
-        </footer>
-
-        <script src="script.js"></script>
-    </body>
-    </html>
-    """,
-
-        "style.css": """
-    /* Arquivo CSS para Teste */
-
-    body {
-        font-family: sans-serif;
-        color: #333; /* Passa no teste 'css_uses_property' */
-    }
-
-    #main-content {
-        display: flex; /* Passa no teste 'css_uses_property' */
-        width: 80%;
-    }
-
-    .intro {
-        font-size: 16px;
-        /* Penalidade: Uso de !important */
-        color: navy !important; 
-    }
-
-    /* Penalidade: Regra de CSS vazia */
-    .empty-rule {
-
-    }
-    """,
-
-        "script.js": """
-    // Arquivo JavaScript para Teste
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const header = document.getElementById('main-content');
-        console.log('Página carregada e script executado.');
-    });
-
-    // Penalidade: Uso do método proibido 'document.write'
-    document.write("<p>Este texto foi adicionado com document.write</p>");
-
-    // Teste de feature: usa arrow function
-    const simpleFunction = () => {
-        return true;
-    };
-    """
-    }
-    root.print_tree()
-    final_score = grader.run(submission_files,"Arthur")
-
-    print("\n--- DETAILED TEST RESULTS ---")
-    for result in grader.base_results + grader.bonus_results + grader.penalty_results:
-        print(f"[{result.subject_name}] {result.test_name}: Score {result.score} > Report: {result.report}")
