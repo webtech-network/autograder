@@ -32,7 +32,7 @@ args=(
     "-m"
     "connectors.adapters.github_action_adapter.github_entrypoint"
     "--github-token" "$GITHUB_TOKEN"
-    "--grading-preset" "$GRADING_PRESET"
+    "--template-preset" "$TEMPLATE_PRESET"
     "--student-name" "$GITHUB_ACTOR"
 )
 
