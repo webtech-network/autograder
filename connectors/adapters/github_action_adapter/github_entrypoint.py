@@ -22,17 +22,17 @@ async def main():
     github_token = args.github_token
     if not args.app_token:
         args.app_token = github_token
-    test_framework = args.test_framework
+    template_preset = args.template_preset
     student_name = args.student_name
     feedback_type = args.feedback_type
     if feedback_type == "ai":
         if not args.openai_key or not args.redis_url or not args.redis_token:
             raise ValueError("OpenAI key, Redis URL, and Redis token are required for AI feedback.")
     adapter = GithubAdapter(github_token,args.app_token)
-    if args.grading_preset == "custom":
+    if args.template_preset == "custom":
         assignment_config = adapter.create_custom_assignment_config(test_files=None, criteria=None, feedback=None, ai_feedback=None, setup=None, test_framework=test_framework)
     else:
-        assignment_config = AssignmentConfig.load_preset(args.grading_preset)
+        assignment_config = adapter.create_assigment_config(template_preset)
         print(assignment_config)
 
     adapter.create_request(submission_files=None,assignment_config=assignment_config,student_name=student_name,student_credentials=github_token,feedback_mode=feedback_type,openai_key=args.openai_key,redis_url=args.redis_url,redis_token=args.redis_token)
