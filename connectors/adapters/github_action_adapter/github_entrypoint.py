@@ -30,7 +30,8 @@ async def main():
             raise ValueError("OpenAI key, Redis URL, and Redis token are required for AI feedback.")
     adapter = GithubAdapter(github_token,args.app_token)
     if args.template_preset == "custom":
-        assignment_config = adapter.create_custom_assignment_config(test_files=None, criteria=None, feedback=None, ai_feedback=None, setup=None, test_framework=test_framework)
+        # Validate and load the custom template preset
+        pass
     else:
         assignment_config = adapter.create_assigment_config(template_preset)
         print(assignment_config)
