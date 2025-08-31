@@ -1,20 +1,21 @@
+import logging
 
 class PreFlight:
     def __init__(self,required_files=None,setup_commands=None):
         self.required_files = required_files if required_files else []
         self.setup_commands = setup_commands if setup_commands else []
         self.fatal_errors = []
-
+        self.logger = logging.getLogger("PreFlight")
 
     def check_required_files(self, submission_files: dict):
         """
         Checks for the existence of required files in the submission.
         """
-        print("🔬 Checking for required files...")
+        self.logger.debug("Checking required files")
         for file in self.required_files:
             if file not in submission_files:
                 error_msg = f"Required file or directory not found: '{file}'"
-                print(f"❌ {error_msg}")
+                self.logger.error(error_msg)
                 self.fatal_errors.append({"type": "file_check", "message": error_msg})
 
     @classmethod
