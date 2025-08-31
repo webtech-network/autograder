@@ -1,9 +1,6 @@
-import os
 from openai import OpenAI
 
-from autograder.builder.template_library.templates.web_dev import WebDevLibrary
-from autograder.builder.tree_builder import custom_tree
-from autograder.core.grading.grader import Grader
+
 from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.base_reporter import BaseReporter
 
@@ -13,7 +10,7 @@ from autograder.core.report.base_reporter import BaseReporter
 # from autograder.core.models.feedback_preferences import FeedbackPreferences
 # from autograder.core.models.result import Result
 
-class AiReporter(BaseReporter):
+class AIReporter(BaseReporter):
     """
     Gera um feedback sofisticado e humanizado, enviando um prompt detalhado
     para um modelo de IA.
