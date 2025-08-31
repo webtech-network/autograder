@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # It's good practice to import the module/class you are testing
 from autograder.autograder_facade import Autograder
