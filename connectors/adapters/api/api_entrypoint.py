@@ -8,6 +8,7 @@ from connectors.models.assignment_config import AssignmentConfig
 import uvicorn
 
 from api_adapter import ApiAdapter
+from connectors.models.custom_assignment_config import CustomAssignmentConfig
 
 # Initialize the FastAPI app
 app = FastAPI(
@@ -46,16 +47,14 @@ logging.basicConfig(
 @app.post("/grade_submission/")
 async def grade_submission_endpoint(
         submission_files: List[UploadFile] = File(..., description="The student's source code files (HTML, CSS, JS)"),
-        grading_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.) or custom for custom configuration"),
+        template_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.) or custom for custom configuration"),
         student_name: str = Form(..., description="The name of the student"),
         student_credentials: str = Form(..., description="The credentials of the student (e.g., GitHub token)"),
         feedback_type: Optional[str] = Form("default", description="The type of feedback to provide (default or ai)"),
-        test_files: Optional[List[UploadFile]] = File(None,description="Test Files for the submission (in case of custom preset)"),
+        custom_template: Optional[UploadFile] = File(None,description="Test Files for the submission (in case of custom preset)"),
         criteria_json: Optional[UploadFile] = File(None, description="JSON file with grading criteria (in case of custom preset)"),
         feedback_json: Optional[UploadFile] = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
-        ai_feedback_json: Optional[UploadFile] = File(None, description="JSON file with AI feedback configuration (in case of custom preset)"),
         setup_json: Optional[UploadFile] = File(None, description="JSON file with commands configuration (in case of custom preset)"),
-        test_framework: Optional[str] = Form("custom", description="The test framework to use (e.g., pytest)"),
         openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
         redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
         redis_token: Optional[str] = Form(None, description="Redis token for AI feedback"),
@@ -63,14 +62,15 @@ async def grade_submission_endpoint(
     try:
         logging.info("Received API request to grade submission.")
         adapter = ApiAdapter()
-        if grading_preset == "custom":
+        if template_preset == "custom":
             logging.info("Custom grading preset selected. Loading custom configuration.")
-            assignment_config = await adapter.create_custom_assignment_config(test_files, criteria_json, feedback_json, ai_feedback= ai_feedback_json,setup=setup_json,test_framework=test_framework)
+            assignment_config = CustomAssignmentConfig(criteria_json,feedback=feedback_json,setup=setup_json,library_file=custom_template)
+            # Validate the custom template test library provided
             logging.info("Custom grading preset loaded.")
         else:
-            logging.info(f"Using preset: {grading_preset}. Loading preset configuration.")
-            assignment_config = AssignmentConfig.load_preset(grading_preset)
-            logging.info(f"Preset {grading_preset} loaded successfully.")
+            logging.info(f"Using preset: {template_preset}. Loading template preset configuration.")
+            assignment_config = await adapter.load_assignment_config(template=template_preset, criteria=criteria_json, feedback=feedback_json, setup=None)
+            logging.info(f"Preset {template_preset} loaded successfully.")
 
         logging.info(f"Creating autograder request....")
         await adapter.create_request(submission_files=submission_files,
@@ -86,7 +86,7 @@ async def grade_submission_endpoint(
 
         # 3. Run the autograder and await its completion (asynchronous)
         logging.info("Running the autograder...")
-        await adapter.run_autograder()
+        adapter.run_autograder()
 
 
         # 4. Get the results from the adapter (synchronous)
