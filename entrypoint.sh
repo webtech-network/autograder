@@ -40,23 +40,23 @@ args=(
 # The '-n' flag checks if the variable's string length is non-zero.
 # Note: The argument flags (e.g., --app_token) match the ones in your Python script.
 if [[ -n "$APP_TOKEN" ]]; then
-    args+=("--app_token" "$APP_TOKEN")
+    args+=("--app-token" "$APP_TOKEN")
 fi
 
 if [[ -n "$FEEDBACK_TYPE" ]]; then
-    args+=("--feedback_type" "$FEEDBACK_TYPE")
+    args+=("--feedback-type" "$FEEDBACK_TYPE")
 fi
 
 if [[ -n "$OPENAI_KEY" ]]; then
-    args+=("--openai_key" "$OPENAI_KEY")
+    args+=("--openai-key" "$OPENAI_KEY")
 fi
 
 if [[ -n "$REDIS_URL" ]]; then
-    args+=("--redis_url" "$REDIS_URL")
+    args+=("--redis-url" "$REDIS_URL")
 fi
 
 if [[ -n "$REDIS_TOKEN" ]]; then
-    args+=("--redis_token" "$REDIS_TOKEN")
+    args+=("--redis-token" "$REDIS_TOKEN")
 fi
 
 
