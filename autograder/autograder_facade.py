@@ -1,47 +1,154 @@
+import logging
 from autograder.core.grading.grader import Grader
 from autograder.core.models.autograder_response import AutograderResponse
+from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.reporter_factory import Reporter
 from autograder.core.utils.upstash_driver import Driver
 from connectors.models.assignment_config import AssignmentConfig
 from connectors.models.autograder_request import AutograderRequest
 from autograder.builder.tree_builder import CriteriaTree
-from builder.template_library.library import TemplateLibrary
+from autograder.builder.template_library.library import TemplateLibrary
+
+
 class Autograder:
 
     @staticmethod
-    def grade(autograder_request:AutograderRequest):
-        criteria_tree = CriteriaTree.build(autograder_request.assignment_config.criteria)
-        test_template = TemplateLibrary.get_template("web dev")
-        if test_template is None:
-            raise ValueError(f"Unsupported template: {'web dev'}")
-        grader = Grader(criteria_tree, test_template)
-        result = grader.run(autograder_request.submission_files,autograder_request.student_name)
-        reporter = None
-        if autograder_request.feedback_mode == "default":
-            reporter = Reporter.create_default_reporter(result)
-        elif autograder_request.feedback_mode == "ai":
-            if not autograder_request.openai_key:
-                raise ValueError("OpenAI key is required for AI feedback mode.")
-            if not autograder_request.redis_url:
-                raise ValueError("Redis URL is required for AI feedback mode.")
-            if not autograder_request.redis_token:
-                raise ValueError("Redis token is required for AI feedback mode.")
-            driver = Driver.create(autograder_request.redis_token, autograder_request.redis_url)
-            if not driver.token_exists(autograder_request.student_credentials):
-                driver.create_token(autograder_request.student_credentials)
-            allowed = driver.decrement_token_quota(autograder_request.student_credentials)
-            if allowed:
-                quota = driver.get_quota(autograder_request.student_credentials)
-                reporter = Reporter.create_ai_reporter(result, autograder_request.openai_key, quota)
-        else:
-            raise ValueError(f"Unsupported feedback mode: {autograder_request.feedback_mode}")
-        feedback = reporter.generate_feedback()
-        return AutograderResponse("Success",result.final_score,feedback)
+    def grade(autograder_request: AutograderRequest):
+        logger = logging.getLogger(__name__)
+        logger.info("Starting autograder process")
 
+        try:
+            # Step 1: Build criteria tree
+            print(autograder_request.assignment_config.criteria)
+
+            logger.info("Building criteria tree from assignment configuration:")
+            print(autograder_request.assignment_config.criteria)
+            logger.debug(f"Criteria configuration: {autograder_request.assignment_config.criteria}")
+            criteria_tree = CriteriaTree.build(autograder_request.assignment_config.criteria)
+            logger.info("Criteria tree built successfully")
+
+            # Step 2: Get test template
+            template_name = autograder_request.assignment_config.template
+            logger.info(f"Loading test template: '{template_name}'")
+            test_template = TemplateLibrary.get_template(template_name)
+
+            if test_template is None:
+                logger.error(f"Template '{template_name}' not found in TemplateLibrary")
+                raise ValueError(f"Unsupported template: {template_name}")
+
+            logger.info(f"Test template '{template_name}' loaded successfully")
+
+            # Step 3: Initialize grader
+            logger.info("Initializing grader with criteria tree and test template")
+            grader = Grader(criteria_tree, test_template)
+            logger.debug(f"Grader initialized for student: {autograder_request.student_name}")
+
+            # Step 4: Run grading
+            logger.info("Running grading process")
+            logger.debug(f"Submission files: {list(autograder_request.submission_files.keys())}")
+            result = grader.run(autograder_request.submission_files, autograder_request.student_name)
+            logger.info(f"Grading completed. Final score: {result.final_score}")
+
+            # Step 5: Setup feedback preferences
+            logger.info("Processing feedback preferences")
+            feedback = FeedbackPreferences.from_dict(autograder_request.assignment_config.feedback)
+            logger.debug(f"Feedback mode: {autograder_request.feedback_mode}")
+
+            # Step 6: Create reporter based on feedback mode
+            reporter = None
+            feedback_mode = autograder_request.feedback_mode
+
+            if feedback_mode == "default":
+                logger.info("Creating default reporter")
+                reporter = Reporter.create_default_reporter(result, feedback)
+                logger.info("Default reporter created successfully")
+
+            elif feedback_mode == "ai":
+                logger.info("Creating AI reporter")
+
+                # Validate AI requirements
+                if not autograder_request.openai_key:
+                    logger.error("OpenAI key is required for AI feedback mode but not provided")
+                    raise ValueError("OpenAI key is required for AI feedback mode.")
+
+                if not autograder_request.redis_url:
+                    logger.error("Redis URL is required for AI feedback mode but not provided")
+                    raise ValueError("Redis URL is required for AI feedback mode.")
+
+                if not autograder_request.redis_token:
+                    logger.error("Redis token is required for AI feedback mode but not provided")
+                    raise ValueError("Redis token is required for AI feedback mode.")
+
+                logger.info("All AI requirements validated successfully")
+
+                # Setup Redis driver
+                logger.info("Creating Redis driver connection")
+                driver = Driver.create(autograder_request.redis_token, autograder_request.redis_url)
+                logger.info("Redis driver created successfully")
+
+                # Check and create token if needed
+                student_credentials = autograder_request.student_credentials
+                logger.info(f"Checking token existence for student: {student_credentials}")
+
+                if not driver.token_exists(student_credentials):
+                    logger.info("Token not found, creating new token for student")
+                    driver.create_token(student_credentials)
+                    logger.info("New token created successfully")
+                else:
+                    logger.info("Token already exists for student")
+
+                # Check quota and decrement
+                logger.info("Checking and decrementing token quota")
+                allowed = driver.decrement_token_quota(student_credentials)
+
+                if allowed:
+                    quota = driver.get_quota(student_credentials)
+                    logger.info(f"Quota check passed. Remaining quota: {quota}")
+                    logger.info("Creating AI reporter")
+                    reporter = Reporter.create_ai_reporter(result, autograder_request.openai_key, quota)
+                    logger.info("AI reporter created successfully")
+                else:
+                    logger.warning("Quota exceeded for student, proceeding without AI feedback")
+                    # You might want to handle this case differently
+                    reporter = Reporter.create_default_reporter(result, feedback)
+                    logger.info("Fallback to default reporter due to quota limits")
+
+            else:
+                logger.error(f"Unsupported feedback mode: {feedback_mode}")
+                raise ValueError(f"Unsupported feedback mode: {feedback_mode}")
+
+            # Step 7: Generate feedback
+            logger.info("Generating feedback report")
+            feedback_report = reporter.generate_feedback()
+            logger.info("Feedback report generated successfully")
+            logger.debug(f"Feedback report length: {len(feedback_report)} characters")
+
+            # Step 8: Create response
+            logger.info("Creating autograder response")
+            response = AutograderResponse("Success", result.final_score, feedback_report)
+            logger.info("Autograder process completed successfully")
+            logger.info(f"Final response - Status: {response.status}, Score: {response.final_score}")
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error during autograder process: {str(e)}")
+            logger.exception("Full exception traceback:")
+            raise
 
 
 # Example usage:
 if __name__ == "__main__":
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler('autograder.log')
+        ]
+    )
+
     # Create a mock AutograderRequest object
     criteria_json = {
         "base": {
@@ -117,6 +224,7 @@ if __name__ == "__main__":
             }
         }
     }
+
     submission_files = {
         "index.html": """
     <!DOCTYPE html>
@@ -169,7 +277,7 @@ if __name__ == "__main__":
     .intro {
         font-size: 16px;
         /* Penalidade: Uso de !important */
-        color: navy !important; 
+        color: navy !important;
     }
 
     /* Penalidade: Regra de CSS vazia */
@@ -195,6 +303,34 @@ if __name__ == "__main__":
     };
     """
     }
-    assignment_config = AssignmentConfig(None,criteria_json,None,None,None,None,None)
-    autograder_request = AutograderRequest(submission_files,assignment_config,"student123")
-    print(Autograder.grade(autograder_request))
+
+    feedback_preferences = {
+        "general": {
+            "report_title": "Relatório Final - Desafio Web",
+            "add_report_summary": True,
+            "online_content": [
+                {
+                    "url": "https://developer.mozilla.org/pt-BR/docs/Web/HTML/Element/img",
+                    "description": "Guia completo sobre a tag <img>.",
+                    "linked_tests": ["check_all_images_have_alt"]
+                }
+            ]
+        },
+        "ai": {
+            "assignment_context": "Este é um desafio focado em HTML semântico e CSS responsivo.",
+            "feedback_persona": "Professor Sênior"
+        },
+        "default": {
+            "category_headers": {
+                "base": "✔️ Requisitos Obrigatórios",
+                "bonus": "🎉 Pontos Bônus",
+                "penalty": "🚨 Pontos de Atenção"
+            }
+        }
+    }
+
+    assignment_config = AssignmentConfig(criteria_json, feedback_preferences, None, template="web dev")
+    autograder_request = AutograderRequest(submission_files, assignment_config, "student123")
+    response = Autograder.grade(autograder_request)
+    print(response)
+    print(response.feedback)
