@@ -99,7 +99,7 @@ class DefaultReporter(BaseReporter):
 
                 feedback_item = [
                     f"> {status_text} no teste `{res.test_name}`{params_str}",
-                    f"> - **Detalhes:** {report_prefix} {res.report}"
+                    f"> - **Detalhes:** {report_prefix} {res.report}\n\n"
                 ]
 
                 # Conditionally add learning resources ONLY for failed tests
