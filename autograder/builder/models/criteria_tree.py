@@ -3,6 +3,9 @@ from typing import List, Any
 from autograder.core.models.test_result import TestResult
 
 
+# Assuming TestResult is defined in a separate, importable file
+# from autograder.core.models.test_result import TestResult
+
 # ===============================================================
 # 1. Classes for Test Execution
 # ===============================================================
@@ -32,15 +35,15 @@ class Test:
     def add_call(self, call: TestCall):
         self.calls.append(call)
 
-    def execute(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
+    def run(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
         """
-        Selects the correct file content based on self.file, then executes the
-        test function from the library for each TestCall.
+        Retrieves a TestFunction object from the library and executes it for each TestCall.
         """
         try:
-            test_function = getattr(test_library, self.name)
-        except AttributeError:
-            return [TestResult(self.name, 0, f"ERROR: Test function '{self.name}' not found in library.", subject_name)]
+            # Get the TestFunction instance (e.g., HasTag()) from the library
+            test_function_instance = test_library.get_test(self.name)
+        except AttributeError as e:
+            return [TestResult(self.name, 0, f"ERROR: {e}", subject_name)]
 
         # --- File Injection Logic ---
         file_content_to_pass = None
@@ -49,20 +52,19 @@ class Test:
         else:
             file_content_to_pass = submission_files.get(self.file)
             if file_content_to_pass is None:
-                # Return a failure if the required file is missing
                 return [TestResult(self.name, 0, f"Erro: O arquivo necessário '{self.file}' não foi encontrado na submissão.", subject_name)]
 
         # --- Execution Logic ---
         if not self.calls:
-            # Pass the selected file content to the test function
-            result = test_function(file_content_to_pass)
+            # Execute with just the file content if no specific calls are defined
+            result = test_function_instance.execute(file_content_to_pass)
             result.subject_name = subject_name
             return [result]
 
         results = []
         for call in self.calls:
-            # Pass the selected file content along with the other arguments
-            result = test_function(file_content_to_pass, *call.args)
+            # Execute the 'execute' method of the TestFunction instance
+            result = test_function_instance.execute(file_content_to_pass, *call.args)
             result.subject_name = subject_name
             results.append(result)
         return results
@@ -89,12 +91,12 @@ class Subject:
 
 class TestCategory:
     """Represents one of the three main categories: base, bonus, or penalty."""
-    def __init__(self, name,max_score = 100):
+    def __init__(self, name, max_score=100):
         self.name = name
         self.max_score = max_score
         self.subjects: dict[str, Subject] = {}
 
-    def set_weight(self,weight):
+    def set_weight(self, weight):
         self.max_score = weight
 
     def add_subject(self, subject: Subject):
@@ -106,10 +108,10 @@ class TestCategory:
 
 class Criteria:
     """The ROOT of the criteria tree."""
-    def __init__(self,bonus_weight=30,penalty_weight=30):
+    def __init__(self, bonus_weight=30, penalty_weight=30):
         self.base = TestCategory("base")
-        self.bonus = TestCategory("bonus")
-        self.penalty = TestCategory("penalty")
+        self.bonus = TestCategory("bonus", max_score=bonus_weight)
+        self.penalty = TestCategory("penalty", max_score=penalty_weight)
 
     def __repr__(self):
         return f"Criteria(categories=['base', 'bonus', 'penalty'])"
@@ -125,7 +127,7 @@ class Criteria:
         """Helper method to print a category and its subjects."""
         if not category.subjects:
             return
-        print(f"{prefix}📁 {category.name.upper()}")
+        print(f"{prefix}📁 {category.name.upper()} (max_score: {category.max_score})")
         for subject in category.subjects.values():
             self._print_subject(subject, prefix=prefix + "    ")
 
@@ -133,15 +135,13 @@ class Criteria:
         """Recursive helper method to print a subject and its contents."""
         print(f"{prefix}📘 {subject.name} (weight: {subject.weight})")
 
-        # If the subject has sub-subjects, recurse
         if subject.subjects is not None:
             for sub in subject.subjects.values():
                 self._print_subject(sub, prefix=prefix + "    ")
 
-        # If the subject has tests, print them
         if subject.tests is not None:
             for test in subject.tests:
-                print(f"{prefix}  - 🧪 {test.name}")
+                print(f"{prefix}  - 🧪 {test.name} (file: {test.file})")
                 for call in test.calls:
                     print(f"{prefix}    - Parameters: {call.args}")
 

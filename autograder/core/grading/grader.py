@@ -62,7 +62,7 @@ class Grader:
             # ... (rest of the function is the same as before)
             subject_test_results = []
             for test in current_node.tests:
-                test_results = test.execute(self.test_library, submission_files, current_node.name)
+                test_results = test.run(self.test_library, submission_files, current_node.name)
                 subject_test_results.extend(test_results)
             results_list.extend(subject_test_results)
             if not subject_test_results: return 100.0
@@ -118,7 +118,7 @@ class Grader:
             # This is a leaf subject, calculate penalty from its tests
             test_penalties = []
             for test in subject.tests:
-                test_results = test.execute(self.test_library, submission_files, subject.name)
+                test_results = test.run(self.test_library, submission_files, subject.name)
                 results_list.extend(test_results)
                 # Penalty incurred = 100 - score. If score is 0, penalty is 100. If score is 100, penalty is 0.
                 penalty_incurred = sum(100 - res.score for res in test_results) / len(test_results)
