@@ -138,7 +138,7 @@ class WebDevLibrary(Template):
         Checks if a specific CSS property and value pair exists in `style.css`.
         It uses a case-insensitive regular expression for a flexible match.
         """
-        css_content = submission_files.get("style.css", "")
+        css_content = submission_files.get("css/styles.css", "")
         pattern = re.compile(rf"{re.escape(prop)}\s*:\s*.*{re.escape(value)}", re.IGNORECASE)
         found = pattern.search(css_content) is not None
         score = 100 if found else 0
@@ -154,7 +154,7 @@ class WebDevLibrary(Template):
         Penalizes the use of a specific text string in `style.css` if it exceeds a
         maximum allowed count. Useful for disallowing `!important` or specific selectors.
         """
-        css_content = submission_files.get("style.css", "")
+        css_content = submission_files.get("css/styles.css", "")
         found_count = css_content.count(text)
         score = 100 if found_count >= max_allowed else 0
         report = (
@@ -321,7 +321,7 @@ class WebDevLibrary(Template):
         Checks if a specific css style rule appears a minimum number of times in `style.css`.
         ex: font-size, font-family, color, background-color
         """
-        css_content = submission_files.get("style.css", "")
+        css_content = submission_files.get("css/styles.css", "")
         found_count = len(re.findall(rf"{re.escape(style)}\s*:\s*[^;]+;", css_content, re.IGNORECASE))
         score = min(100, int((found_count / count) * 100)) if count > 0 else 100
         report = (
@@ -398,7 +398,7 @@ class WebDevLibrary(Template):
         """
         Counts the number of ID selectors used in style.css and penalizes if it exceeds max_allowed.
         """
-        css_content = submission_files.get("style.css", "")
+        css_content = submission_files.get("css/styles.css", "")
         found_count = len(re.findall(r"#\w+", css_content))
         score = 100 if found_count <= max_allowed else 0
         report = (
@@ -410,7 +410,7 @@ class WebDevLibrary(Template):
     @staticmethod
     def uses_relative_units(submission_files):
         """Check is the css file uses relative units like em, rem, %, vh, vw"""
-        css_content = submission_files.get("style.css", "")
+        css_content = submission_files.get("css/styles.css", "")
         found = re.search(r"\b(em|rem|%|vh|vw)\b", css_content) is not None
         score = 100 if found else 0
         report = (
@@ -424,7 +424,7 @@ class WebDevLibrary(Template):
         """
         Checks if there are any media queries in the CSS file.
         """
-        css_content = submission_files.get("style.css", "")
+        css_content = submission_files.get("css/styles.css", "")
         found = re.search(r"@media\s+[^{]+\{", css_content) is not None
         score = 100 if found else 0
         report = (
@@ -438,7 +438,7 @@ class WebDevLibrary(Template):
         """
         Checks if Flexbox properties are used in the CSS file.
         """
-        css_content = submission_files.get("style.css", "")
+        css_content = submission_files.get("css/styles.css", "")
         found = re.search(r"\b(display\s*:\s*flex|flex-)", css_content) is not None
         score = 100 if found else 0
         report = (
