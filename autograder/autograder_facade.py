@@ -12,7 +12,6 @@ from autograder.builder.template_library.library import TemplateLibrary
 from autograder.builder.pre_flight import PreFlight
 
 class Autograder:
-
     @staticmethod
     def grade(autograder_request: AutograderRequest):
         logger = logging.getLogger(__name__)

@@ -182,9 +182,9 @@ class GithubAdapter(Port):
         submission_path = os.path.join(base_path, 'submission')
         configuration_path = os.path.join(submission_path, '.github','autograder')
 
-        criteria_path = os.path.join(submission_path, 'criteria.json')
-        feedback_path = os.path.join(submission_path, 'feedback.json')
-        setup_path = os.path.join(submission_path, 'setup.json')
+        criteria_path = os.path.join(configuration_path, 'criteria.json')
+        feedback_path = os.path.join(configuration_path, 'feedback.json')
+        setup_path = os.path.join(configuration_path, 'setup.json')
 
         criteria_dict = None
         feedback_dict = None
