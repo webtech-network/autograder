@@ -1,11 +1,93 @@
-from random import weibullvariate
-from typing import List, Dict
-
-from autograder.builder.models.criteria_tree import Criteria, TestCall, Test, Subject
+from typing import List, Dict, Any
 
 
+# Assuming these models are in a separate file, e.g., autograder.builder.models.criteria_tree
+class TestCall:
+    def __init__(self, args: List[Any]):
+        self.args = args
 
-class CriteriaTree:
+    def __repr__(self):
+        return f"TestCall(args={self.args})"
+
+
+class Test:
+    def __init__(self, name: str, filename: str):
+        self.name = name
+        self.file = filename
+        self.calls: List[TestCall] = []
+
+    def add_call(self, call: TestCall):
+        self.calls.append(call)
+
+    def __repr__(self):
+        return f"Test(name='{self.name}', file='{self.file}', calls={len(self.calls)})"
+
+
+class Subject:
+    def __init__(self, name, weight=0):
+        self.name = name
+        self.weight = weight
+        self.tests: List[Test] | None = None
+        self.subjects: Dict[str, 'Subject'] | None = None
+
+    def __repr__(self):
+        if self.subjects is not None:
+            return f"Subject(name='{self.name}', weight={self.weight}, subjects={len(self.subjects)})"
+        return f"Subject(name='{self.name}', weight={self.weight}, tests={len(self.tests)})"
+
+
+class TestCategory:
+    def __init__(self, name: str):
+        self.name = name
+        self.max_score = 100
+        self.subjects: Dict[str, Subject] = {}
+
+    def add_subject(self, subject: Subject):
+        self.subjects[subject.name] = subject
+
+    def set_weight(self, weight: int):
+        self.max_score = weight
+
+    def __repr__(self):
+        return f"TestCategory(name='{self.name}', max_score={self.max_score}, subjects={list(self.subjects.keys())})"
+
+
+class Criteria:
+    def __init__(self):
+        self.base = TestCategory("base")
+        self.bonus = TestCategory("bonus")
+        self.penalty = TestCategory("penalty")
+
+    def __repr__(self):
+        return f"Criteria(categories=['base', 'bonus', 'penalty'])"
+
+    def print_tree(self):
+        print(f"🌲 Criteria Tree")
+        self._print_category(self.base, prefix="  ")
+        self._print_category(self.bonus, prefix="  ")
+        self._print_category(self.penalty, prefix="  ")
+
+    def _print_category(self, category: TestCategory, prefix: str):
+        if not category.subjects:
+            return
+        print(f"{prefix}📁 {category.name.upper()} (max_score: {category.max_score})")
+        for subject in category.subjects.values():
+            self._print_subject(subject, prefix=prefix + "    ")
+
+    def _print_subject(self, subject: Subject, prefix: str):
+        weight_display = int(subject.weight) if subject.weight == int(subject.weight) else f"{subject.weight:.2f}"
+        print(f"{prefix}📘 {subject.name} (weight: {weight_display})")
+        if subject.subjects is not None:
+            for sub in subject.subjects.values():
+                self._print_subject(sub, prefix=prefix + "    ")
+        if subject.tests is not None:
+            for test in subject.tests:
+                print(f"{prefix}  - 🧪 {test.name} (file: {test.file})")
+                for call in test.calls:
+                    print(f"{prefix}    - Parameters: {call.args}")
+
+
+class CriteriaTreeFactory:
     """A factory for creating a Criteria object from a configuration dictionary."""
 
     @staticmethod
@@ -16,17 +98,18 @@ class CriteriaTree:
         for category_name in ["base", "bonus", "penalty"]:
             if category_name in config_dict:
                 category = getattr(criteria, category_name)
-                if category != "base":
-                    category.set_weight(config_dict[category_name].get("weight", 100))
-                print("category",category)
                 category_data = config_dict[category_name]
+
+                # Set max_score for bonus and penalty categories
+                if "weight" in category_data:
+                    category.max_score = category_data.get("weight", 100)
+
                 if "subjects" in category_data:
                     subjects = [
-                        CriteriaTree._parse_subject(s_name, s_data)
+                        CriteriaTreeFactory._parse_subject(s_name, s_data)
                         for s_name, s_data in category_data["subjects"].items()
                     ]
-                    # Balance the weights of the top-level subjects in the category
-                    CriteriaTree._balance_subject_weights(subjects)
+                    CriteriaTreeFactory._balance_subject_weights(subjects)
                     for subject in subjects:
                         category.add_subject(subject)
         return criteria
@@ -49,14 +132,13 @@ class CriteriaTree:
         subject = Subject(subject_name, subject_data.get("weight", 0))
 
         if "tests" in subject_data:
-            subject.tests = CriteriaTree._parse_tests(subject_data["tests"])
+            subject.tests = CriteriaTreeFactory._parse_tests(subject_data["tests"])
         elif "subjects" in subject_data:
             child_subjects = [
-                CriteriaTree._parse_subject(sub_name, sub_data)
+                CriteriaTreeFactory._parse_subject(sub_name, sub_data)
                 for sub_name, sub_data in subject_data["subjects"].items()
             ]
-            # Balance the weights of the children of this subject
-            CriteriaTree._balance_subject_weights(child_subjects)
+            CriteriaTreeFactory._balance_subject_weights(child_subjects)
             subject.subjects = {s.name: s for s in child_subjects}
         else:
             subject.tests = []
@@ -64,35 +146,41 @@ class CriteriaTree:
 
     @staticmethod
     def _parse_tests(test_data: list) -> List[Test]:
-        tests_dict: Dict[str, Test] = {}
+        """Parses a list of test definitions from the configuration."""
+        parsed_tests = []
         for test_item in test_data:
             if isinstance(test_item, str):
-                test_name = test_item
-                if test_name not in tests_dict:
-                    tests_dict[test_name] = Test(name=test_name)
-                tests_dict[test_name].add_call(TestCall(args=[]))
+                # Handle simple test names (e.g., "check_no_unclosed_tags")
+                # Assume a default file if not specified, or raise an error
+                # For this example, we'll assume a default, but a real case might need a file attribute
+                test = Test(name=test_item, filename="index.html")  # Default file
+                test.add_call(TestCall(args=[]))
+                parsed_tests.append(test)
+
             elif isinstance(test_item, dict):
-                for test_name, calls_data in test_item.items():
-                    if test_name not in tests_dict:
-                        tests_dict[test_name] = Test(name=test_name)
-                    for call_args in calls_data:
-                        if isinstance(call_args, list):
-                            tests_dict[test_name].add_call(TestCall(args=call_args))
-                        elif isinstance(call_args, dict):
-                            key, value = list(call_args.items())[0]
-                            tests_dict[test_name].add_call(TestCall(args=[key, value]))
-                        else:
-                            tests_dict[test_name].add_call(TestCall(args=[call_args]))
-        return list(tests_dict.values())
+                # Handle complex test definitions (e.g., {"file": "...", "name": "...", "calls": [...]})
+                test_name = test_item.get("name")
+                test_file = test_item.get("file")
+                if not test_name or not test_file:
+                    raise ValueError(f"Test definition is missing 'name' or 'file': {test_item}")
+
+                test = Test(name=test_name, filename=test_file)
+
+                if "calls" in test_item:
+                    for call_args in test_item["calls"]:
+                        test.add_call(TestCall(args=call_args))
+                else:
+                    # If no 'calls' are specified, it's a single call with no arguments
+                    test.add_call(TestCall(args=[]))
+
+                parsed_tests.append(test)
+
+        return parsed_tests
 
 
-
-# ===============================================================
-# 3. Example Usage
-# ===============================================================
-
-def custom_tree():
-    example_config = {
+if __name__ == "__main__":
+    criteria_json = {
+  "test_library": "web_dev",
   "base": {
     "weight": 100,
     "subjects": {
@@ -103,59 +191,27 @@ def custom_tree():
             "weight": 40,
             "tests": [
               {
-                "has_tag": [
-                  [
-                    "body",
-                    1
-                  ],
-                  [
-                    "header",
-                    1
-                  ],
-                  [
-                    "nav",
-                    1
-                  ],
-                  [
-                    "main",
-                    1
-                  ],
-                  [
-                    "article",
-                    4
-                  ],
-                  [
-                    "img",
-                    5
-                  ],
-                  [
-                    "footer",
-                    1
-                  ],
-                  [
-                    "div",
-                    1
-                  ],
-                  [
-                    "form",
-                    1
-                  ],
-                  [
-                    "input",
-                    1
-                  ],
-                  [
-                    "button",
-                    1
-                  ]
+                "file": "index.html",
+                "name": "has_tag",
+                "calls": [
+                  ["body", 1],
+                  ["header", 1],
+                  ["nav", 1],
+                  ["main", 1],
+                  ["article", 4],
+                  ["img", 5],
+                  ["footer", 1],
+                  ["div", 1],
+                  ["form", 1],
+                  ["input", 1],
+                  ["button", 1]
                 ]
               },
               {
-                "has_attribute": [
-                  [
-                    "class",
-                    2
-                  ]
+                "file": "index.html",
+                "name": "has_attribute",
+                "calls": [
+                  ["class", 2]
                 ]
               }
             ]
@@ -163,12 +219,15 @@ def custom_tree():
           "link": {
             "weight": 20,
             "tests": [
-              "check_css_linked",
               {
-                "check_internal_links_to_articles": [
-                  [
-                    4
-                  ]
+                "file": "index.html",
+                "name": "check_css_linked"
+              },
+              {
+                "file": "index.html",
+                "name": "check_internal_links_to_articles",
+                "calls": [
+                  [4]
                 ]
               }
             ]
@@ -181,37 +240,34 @@ def custom_tree():
           "responsivity": {
             "weight": 50,
             "tests": [
-              "uses_relative_units",
-              "check_media_queries",
-              "check_flexbox_usage"
+              {
+                "file": "css/styles.css",
+                "name": "uses_relative_units"
+              },
+              {
+                "file": "css/styles.css",
+                "name": "check_media_queries"
+              },
+              {
+                "file": "css/styles.css",
+                "name": "check_flexbox_usage"
+              }
             ]
           },
           "style": {
             "weight": 50,
             "tests": [
               {
-                "has_style": [
-                  [
-                    "font-size"
-                  ],
-                  [
-                    "font-family"
-                  ],
-                  [
-                    "text-align"
-                  ],
-                  [
-                    "display"
-                  ],
-                  [
-                    "position"
-                  ],
-                  [
-                    "margin"
-                  ],
-                  [
-                    "padding"
-                  ]
+                "file": "css/styles.css",
+                "name": "has_style",
+                "calls": [
+                  ["font-size", 1],
+                  ["font-family", 1],
+                  ["text-align", 1],
+                  ["display", 1],
+                  ["position", 1],
+                  ["margin", 1],
+                  ["padding", 1]
                 ]
               }
             ]
@@ -226,49 +282,32 @@ def custom_tree():
       "accessibility": {
         "weight": 20,
         "tests": [
-          "check_all_images_have_alt"
+          {
+            "file": "index.html",
+            "name": "check_all_images_have_alt"
+          }
         ]
       },
       "head_detail": {
         "weight": 80,
         "tests": [
           {
-            "check_head_details": [
-              [
-                "title"
-              ],
-              [
-                "meta"
-              ]
+            "file": "index.html",
+            "name": "check_head_details",
+            "calls": [
+              ["title"],
+              ["meta"]
             ]
           },
           {
-            "check_attribute_and_value": [
-              [
-                "meta",
-                "charset",
-                "UTF-8"
-              ],
-              [
-                "meta",
-                "name",
-                "viewport"
-              ],
-              [
-                "meta",
-                "name",
-                "description"
-              ],
-              [
-                "meta",
-                "name",
-                "author"
-              ],
-              [
-                "meta",
-                "name",
-                "keywords"
-              ]
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "calls": [
+              ["meta", "charset", "UTF-8"],
+              ["meta", "name", "viewport"],
+              ["meta", "name", "description"],
+              ["meta", "name", "author"],
+              ["meta", "name", "keywords"]
             ]
           }
         ]
@@ -281,25 +320,34 @@ def custom_tree():
       "html": {
         "weight": 50,
         "tests": [
-          "check_bootstrap_usage",
           {
-            "check_id_selector_over_usage": [
-              [
-                1
-              ]
+            "file": "index.html",
+            "name": "check_bootstrap_usage"
+          },
+          {
+            "file": "css/styles.css",
+            "name": "check_id_selector_over_usage",
+            "calls": [
+              [2]
             ]
           },
-          "check_html_direct_children",
           {
-            "check_tag_not_inside": [
-              [
-                "header",
-                "main"
-              ],
-              [
-                "footer",
-                "main"
-              ]
+            "file": "index.html",
+            "name": "has_forbidden_tag",
+            "calls": [
+              ["script"]
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "check_html_direct_children"
+          },
+          {
+            "file": "index.html",
+            "name": "check_tag_not_inside",
+            "calls": [
+              ["header", "main"],
+              ["footer", "main"]
             ]
           }
         ]
@@ -308,20 +356,18 @@ def custom_tree():
         "weight": 50,
         "tests": [
           {
-            "check_dir_exists": [
-              [
-                "css"
-              ],
-              [
-                "imgs"
-              ]
+            "file": "all",
+            "name": "check_dir_exists",
+            "calls": [
+              ["css"],
+              ["imgs"]
             ]
           },
           {
-            "check_project_structure": [
-              [
-                "css/styles.css"
-              ]
+            "file": "all",
+            "name": "check_project_structure",
+            "calls": [
+              ["css/styles.css"]
             ]
           }
         ]
@@ -329,9 +375,5 @@ def custom_tree():
     }
   }
 }
-
-
-    return CriteriaTree.build(example_config)
-if __name__ == '__main__':
-    root = custom_tree()
-    root.print_tree()
+    criteria = CriteriaTreeFactory.build(criteria_json)
+    criteria.print_tree()
