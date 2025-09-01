@@ -93,79 +93,243 @@ class CriteriaTree:
 
 def custom_tree():
     example_config = {
-        "base": {
-            "subjects": {
-                "html": {
-                    "weight": 100,
-                    "tests": [
-                        {"has_tag": [["div", 50], ["span", 10], ["h1", 10], ["h2", 10], ["h3", 10], ["p", 10]]},
-                        {"has_attribute": [["class", 20], ["id", 20], ["src", 20], ["href", 20], ["alt", 20]]},
-                        {"has_structure": ["header", "nav", "main", "section", "article", "footer"]},
-                        "check_no_unclosed_tags",
-                        "check_no_inline_styles",
-                        "check_css_linked"
-                    ]
-                },
-                "css": {
-                    "weight": 0
-                },
-                "javascript": {
-                    "weight": 0
-                }
-            }
-        },
-        "bonus": {
+  "base": {
+    "weight": 100,
+    "subjects": {
+      "html": {
+        "weight": 60,
+        "subjects": {
+          "structure": {
             "weight": 40,
-            "subjects": {
-                "accessibility": {
-                    "weight": 15,
-                    "tests": [
-                        {"has_attribute": [["aria-label", 10], ["role", 5], ["tabindex", 5]]},
-                        "check_headings_sequential",
-                        "check_all_images_have_alt"
-                    ]
-                },
-                "advanced_features": {
-                    "weight": 10,
-                    "tests": [
-                        {"css_uses_property": [["display", "grid"], ["--*", "css-variable"]]},
-                        {"js_uses_feature": ["arrow_function", "template_literal", "let_const"]}
-                    ]
-                },
-                "responsiveness": {
-                    "weight": 5,
-                    "tests": [
-                        "check_has_media_queries",
-                        "check_viewport_meta_tag"
-                    ]
-                }
-            }
-        },
-        "penalty": {
+            "tests": [
+              {
+                "has_tag": [
+                  [
+                    "body",
+                    1
+                  ],
+                  [
+                    "header",
+                    1
+                  ],
+                  [
+                    "nav",
+                    1
+                  ],
+                  [
+                    "main",
+                    1
+                  ],
+                  [
+                    "article",
+                    4
+                  ],
+                  [
+                    "img",
+                    5
+                  ],
+                  [
+                    "footer",
+                    1
+                  ],
+                  [
+                    "div",
+                    1
+                  ],
+                  [
+                    "form",
+                    1
+                  ],
+                  [
+                    "input",
+                    1
+                  ],
+                  [
+                    "button",
+                    1
+                  ]
+                ]
+              },
+              {
+                "has_attribute": [
+                  [
+                    "class",
+                    2
+                  ]
+                ]
+              }
+            ]
+          },
+          "link": {
             "weight": 20,
-            "subjects": {
-                "html_validation": {
-                    "weight": 10,
-                    "tests": [
-                        {"has_deprecated_tag": [["font", 5], ["center", 5], ["marquee", 10]]}
-                    ]
-                },
-                "css_malpractice": {
-                    "weight": 10,
-                    "tests": [
-                        {"count_usage": [["!important", 5]]}
-                    ]
-                },
-                "js_malpractice": {
-                    "weight": 15,
-                    "tests": [
-                        {"uses_forbidden_method": [["eval", 50], ["document.write", 20]]},
-                        {"count_global_vars": [5]}
-                    ]
-                }
-            }
+            "tests": [
+              "check_css_linked",
+              {
+                "check_internal_links_to_articles": [
+                  [
+                    4
+                  ]
+                ]
+              }
+            ]
+          }
         }
+      },
+      "css": {
+        "weight": 40,
+        "subjects": {
+          "responsivity": {
+            "weight": 50,
+            "tests": [
+              "uses_relative_units",
+              "check_media_queries",
+              "check_flexbox_usage"
+            ]
+          },
+          "style": {
+            "weight": 50,
+            "tests": [
+              {
+                "has_style": [
+                  [
+                    "font-size"
+                  ],
+                  [
+                    "font-family"
+                  ],
+                  [
+                    "text-align"
+                  ],
+                  [
+                    "display"
+                  ],
+                  [
+                    "position"
+                  ],
+                  [
+                    "margin"
+                  ],
+                  [
+                    "padding"
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      }
     }
+  },
+  "bonus": {
+    "weight": 40,
+    "subjects": {
+      "accessibility": {
+        "weight": 20,
+        "tests": [
+          "check_all_images_have_alt"
+        ]
+      },
+      "head_detail": {
+        "weight": 80,
+        "tests": [
+          {
+            "check_head_details": [
+              [
+                "title"
+              ],
+              [
+                "meta"
+              ]
+            ]
+          },
+          {
+            "check_attribute_and_value": [
+              [
+                "meta",
+                "charset",
+                "UTF-8"
+              ],
+              [
+                "meta",
+                "name",
+                "viewport"
+              ],
+              [
+                "meta",
+                "name",
+                "description"
+              ],
+              [
+                "meta",
+                "name",
+                "author"
+              ],
+              [
+                "meta",
+                "name",
+                "keywords"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "penalty": {
+    "weight": 50,
+    "subjects": {
+      "html": {
+        "weight": 50,
+        "tests": [
+          "check_bootstrap_usage",
+          {
+            "check_id_selector_over_usage": [
+              [
+                1
+              ]
+            ]
+          },
+          "check_html_direct_children",
+          {
+            "check_tag_not_inside": [
+              [
+                "header",
+                "main"
+              ],
+              [
+                "footer",
+                "main"
+              ]
+            ]
+          }
+        ]
+      },
+      "project_structure": {
+        "weight": 50,
+        "tests": [
+          {
+            "check_dir_exists": [
+              [
+                "css"
+              ],
+              [
+                "imgs"
+              ]
+            ]
+          },
+          {
+            "check_project_structure": [
+              [
+                "css/styles.css"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
+
 
     return CriteriaTree.build(example_config)
 if __name__ == '__main__':
