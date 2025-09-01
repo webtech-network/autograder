@@ -12,6 +12,7 @@ from autograder.core.models.test_result import TestResult
 class WebDevLibrary(Template):
     # ... (constructor and other unchanged methods)
 
+
     @staticmethod
     def has_tag(submission_files, tag: str, required_count: int) -> TestResult:
         """
@@ -22,10 +23,7 @@ class WebDevLibrary(Template):
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(tag))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
-        report = (
-            f"Good job! Found {found_count} of {required_count} `<{tag}>` tags required." if score >= 100
-            else f"Attention: Found {found_count} of {required_count} `<{tag}>` tags required."
-        )
+        report = f"Foram encontradas {found_count} de {required_count} tags `<{tag}>`  necessárias."
         return TestResult("has_tag", score, report, parameters={"tag": tag, "required_count": required_count})
 
     @staticmethod
@@ -38,7 +36,7 @@ class WebDevLibrary(Template):
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(attrs={attribute: True}))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
-        report = f"The attribute `{attribute}` was found {found_count} time(s) out of {required_count} required."
+        report = f"O atributo `{attribute}` foi encontrado {found_count} vez(es) de {required_count} necessárias."
         return TestResult("has_attribute", score, report, parameters={"attribute": attribute, "required_count": required_count})
 
 
@@ -64,8 +62,8 @@ class WebDevLibrary(Template):
         is_well_formed = soup.html and soup.body and soup.head
         score = 100 if is_well_formed else 20
         report = (
-            "The HTML structure appears well-formed." if is_well_formed
-            else "Problems in HTML structure, which may indicate unclosed tags."
+            "Você possui uma boa estrutura HTML sem tags abertas." if is_well_formed
+            else "Foram identificadas tags HTML abertas ou estrutura incorreta no seu arquivo."
         )
         return TestResult("check_no_unclosed_tags", score, report)
 
@@ -79,7 +77,7 @@ class WebDevLibrary(Template):
         found_count = len(BeautifulSoup(html_content, 'html.parser').find_all(style=True))
         score = 0 if found_count > 0 else 100
         report = (
-            f"Penalty: Found {found_count} inline styles (`style='...'`). Move all style rules to your `.css` file." if found_count > 0
+            f"Foi encontrado {found_count} inline styles (`style='...'`). Move all style rules to your `.css` file." if found_count > 0
             else "Excellent! No inline styles found."
         )
         return TestResult("check_no_inline_styles", score, report)
@@ -97,8 +95,8 @@ class WebDevLibrary(Template):
         found = soup.find(("article", "section", "nav", "aside", "figure")) is not None
         score = 100 if found else 40
         report = (
-            "Good use of semantic tags detected." if found
-            else "Consider using more semantic tags (`<article>`, `<section>`, `<nav>`) to improve your HTML structure."
+            "Utilizou tags semânticas" if found
+            else "Não usou nenhuma tag do tipo (`<article>`, `<section>`, `<nav>`) na estrutura do HTML."
         )
         return TestResult("uses_semantic_tags", score, report)
 
@@ -113,8 +111,8 @@ class WebDevLibrary(Template):
         found = soup.find("link", rel="stylesheet") is not None
         score = 100 if found else 0
         report = (
-            "CSS file is correctly linked in the HTML." if found
-            else "No `<link rel='stylesheet'>` tag found in your HTML."
+            "Arquivo CSS está corretamente linkado com o HTML" if found
+            else "Não foi encontrada a tag `<link rel='stylesheet'>` no seu HTML."
         )
         return TestResult("check_css_linked", score, report)
 
@@ -129,8 +127,8 @@ class WebDevLibrary(Template):
         found = pattern.search(css_content) is not None
         score = 100 if found else 0
         report = (
-            f"The property `{prop}: {value};` was used." if found
-            else f"The CSS property `{prop}: {value};` was not found."
+            f"A propriedade`{prop}: {value};` foi encontrada." if found
+            else f"A propriedade CSS `{prop}: {value};` não foi encontrada."
         )
         return TestResult("css_uses_property", score, report, parameters={"prop": prop, "value": value})
 
@@ -144,8 +142,8 @@ class WebDevLibrary(Template):
         found_count = css_content.count(text)
         score = 100 if found_count >= max_allowed else 0
         report = (
-            f"Penalty: Over Usage of `{text}` detected {found_count} time(s) (max allowed: {max_allowed})." if score > 0
-            else f"Great! No over usage of `{text}` detected."
+            f"Uso exagerado de `{text}` detectado {found_count} vezes (máximo permitido: {max_allowed})." if score > 0
+            else f"Uso exagerado de `{text}` não detectado."
         )
         return TestResult("count_usage", score, report, parameters={"text": text, "max_allowed": max_allowed})
 
@@ -226,7 +224,7 @@ class WebDevLibrary(Template):
             return TestResult("check_all_images_have_alt", 100, "No images found to check.")
         with_alt = sum(1 for img in images if img.has_attr('alt') and img['alt'].strip())
         score = int((with_alt / len(images)) * 100)
-        report = f"{with_alt} of {len(images)} images have the `alt` attribute, which is essential for accessibility."
+        report = f"{with_alt} de {len(images)} imagens tem o atributo `alt` preenchido."
         return TestResult("check_all_images_have_alt", score, report)
 
     @staticmethod
@@ -251,7 +249,7 @@ class WebDevLibrary(Template):
             return TestResult("check_html_direct_children", 100, "Estrutura da tag <html> está correta.")
 
         return TestResult("check_html_direct_children", 0,
-                          "Penalidade: A tag <html> deve conter apenas as tags <head> e <body> como filhos diretos.")
+                          " A tag <html> deve conter apenas as tags <head> e <body> como filhos diretos.")
 
     @staticmethod
     def check_tag_not_inside(submission_files, child_tag: str, parent_tag: str) -> TestResult:
@@ -264,11 +262,11 @@ class WebDevLibrary(Template):
 
         parent = soup.find(parent_tag)
         if parent and parent.find(child_tag):
-            report = f"Penalidade: A tag `<{child_tag}>` não deve ser usada dentro da tag `<{parent_tag}>`."
+            report = f"A tag `<{child_tag}>` não deve ser usada dentro da tag `<{parent_tag}>`."
             return TestResult("check_tag_not_inside", 0, report,
                               parameters={"child_tag": child_tag, "parent_tag": parent_tag})
 
-        report = f"Estrutura correta: A tag `<{child_tag}>` não foi encontrada dentro da tag `<{parent_tag}>`."
+        report = f"A tag `<{child_tag}>` não foi encontrada dentro da tag `<{parent_tag}>`."
         return TestResult("check_tag_not_inside", 100, report, parameters={"child_tag": child_tag, "parent_tag": parent_tag})
 
     @staticmethod
@@ -298,7 +296,7 @@ class WebDevLibrary(Template):
         score = min(100, int((valid_links / required_count) * 100))
         report = (f"Encontrados {valid_links} de {required_count} links internos válidos para tags <article>."
                   if score >= 100
-                  else f"Atenção: Encontrados {valid_links} de {required_count} links internos válidos. Links devem apontar para IDs em tags <article>.")
+                  else f"Encontrados {valid_links} de {required_count} links internos válidos. Links devem apontar para IDs em tags <article>.")
         return TestResult("check_internal_links", score, report, parameters={"required_count": required_count})
 
     @staticmethod
@@ -311,8 +309,8 @@ class WebDevLibrary(Template):
         found_count = len(re.findall(rf"{re.escape(style)}\s*:\s*[^;]+;", css_content, re.IGNORECASE))
         score = min(100, int((found_count / count) * 100)) if count > 0 else 100
         report = (
-            f"Good job! Found {found_count} of {count} `{style}` style rules required." if score >= 100
-            else f"Attention: Found {found_count} of {count} `{style}` style rules required."
+            f"Encontrados {found_count} de {count} `{style}` regras de estilização determinadas." if score >= 100
+            else f"Encontradas{found_count} de {count} `{style}` regras de estilização determinadas."
         )
         return TestResult("has_style", score, report, parameters={"style": style, "required_count": count})
 
@@ -331,8 +329,8 @@ class WebDevLibrary(Template):
         found = head.find(detail_tag) is not None
         score = 100 if found else 0
         report = (
-            f"The detail tag `<{detail_tag}>` was found in the <head> section." if found
-            else f"The detail tag `<{detail_tag}>` was not found in the <head> section."
+            f"A tag de detalhe `<{detail_tag}>` foi encontrada na seção `<head>`." if found
+            else f"A tag de detalhe `<{detail_tag}>` não foi encontrada na seção `<head>`."
         )
         return TestResult("check_head_details", score, report, parameters={"detail_tag": detail_tag})
 
@@ -347,8 +345,8 @@ class WebDevLibrary(Template):
         found_count = len(elements)
         score = 100 if found_count > 0 else 0
         report = (
-            f"Good job! Found {found_count} `<{tag}>` tags with `{attribute}='{value}'`." if score == 100
-            else f"Attention: No `<{tag}>` tags with `{attribute}='{value}'` found."
+            f"Encontradas {found_count} `<{tag}>` tags com `{attribute}='{value}'`." if score == 100
+            else f"Não foram encontradas tags `<{tag}>` com `{attribute}='{value}'`"
         )
         return TestResult("check_attribute_and_value", score, report, parameters={"tag": tag, "attribute": attribute, "value": value})
 
@@ -360,8 +358,8 @@ class WebDevLibrary(Template):
         exists = any(f.startswith(dir_path.rstrip('/') + '/') for f in submission_files.keys())
         score = 100 if exists else 0
         report = (
-            f"The directory '{dir_path}' exists." if exists
-            else f"The directory '{dir_path}' does not exist."
+            f"O diretório'{dir_path}' existe." if exists
+            else f"O diretório '{dir_path}' não existe."
         )
         return TestResult("check_dir_exists", score, report, parameters={"dir_path": dir_path})
 
@@ -374,8 +372,8 @@ class WebDevLibrary(Template):
         exists = expected_structure in submission_files
         score = 100 if exists else 0
         report = (
-            f"The file '{expected_structure}' exists." if exists
-            else f"The file '{expected_structure}' does not exist."
+            f"O arquivo'{expected_structure}' existe." if exists
+            else f"O arquivo '{expected_structure}' não existe."
         )
         return TestResult("check_project_structure", score, report, parameters={"expected_structure": expected_structure})
 
@@ -388,8 +386,8 @@ class WebDevLibrary(Template):
         found_count = len(re.findall(r"#\w+", css_content))
         score = 100 if found_count <= max_allowed else 0
         report = (
-            f"Attention: {found_count} ID selectors detected (max allowed: {max_allowed})." if score == 0
-            else "Good job keeping ID selectors within the allowed limit."
+            f"{found_count}  seletores de ID detecados (limite: {max_allowed})." if score == 0
+            else "Uso controlado de seletores de id."
         )
         return TestResult("check_id_selector_over_usage", score, report, parameters={"max_allowed": max_allowed})
 
@@ -400,8 +398,8 @@ class WebDevLibrary(Template):
         found = re.search(r"\b(em|rem|%|vh|vw)\b", css_content) is not None
         score = 100 if found else 0
         report = (
-            "Good job! Relative units are used in the CSS." if found
-            else "Consider using relative units (em, rem, %, vh, vw) in your CSS for better responsiveness."
+            "Estão sendo utilizadas medidas relativas no CSS" if found
+            else "Não foram utilizadas medidas relativas como (em, rem, %, vh, vw) no seu CSS."
         )
         return TestResult("uses_relative_units", score, report)
 
@@ -414,8 +412,8 @@ class WebDevLibrary(Template):
         found = re.search(r"@media\s+[^{]+\{", css_content) is not None
         score = 100 if found else 0
         report = (
-            "Good job! Media queries are used in the CSS." if found
-            else "Consider using media queries in your CSS to enhance responsiveness."
+            "Media queries estão sendo utilizadas no CSS." if found
+            else "Não foi encontrado o uso de media queries no seu CSS."
         )
         return TestResult("check_media_queries", score, report)
 
@@ -428,8 +426,8 @@ class WebDevLibrary(Template):
         found = re.search(r"\b(display\s*:\s*flex|flex-)", css_content) is not None
         score = 100 if found else 0
         report = (
-            "Good job! Flexbox properties are used in the CSS." if found
-            else "Consider using Flexbox properties in your CSS for flexible layouts."
+            "Propriedades `flexbox` estão sendo utilizadas no CSS" if found
+            else "Propriedades `flexbox` não foram encontradas no seu CSS."
         )
         return TestResult("check_flexbox_usage", score, report)
 
@@ -444,8 +442,8 @@ class WebDevLibrary(Template):
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 100 if found else 0
         report = (
-            "Good job! Bootstrap is linked in the HTML." if found
-            else "Consider linking Bootstrap in your HTML for responsive design and pre-built components."
+            "Você está usando bootstrap no seu CSS" if found
+            else "Você não está usando bootstrap no seu CSS."
         )
         return TestResult("check_bootstrap_usage", score, report)
 
