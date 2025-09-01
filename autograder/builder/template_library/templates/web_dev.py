@@ -14,12 +14,11 @@ class WebDevLibrary(Template):
 
 
     @staticmethod
-    def has_tag(submission_files, tag: str, required_count: int) -> TestResult:
+    def has_tag(html_content, tag: str, required_count: int) -> TestResult:
         """
         Verifies that a specific HTML tag appears a minimum number of times in `index.html`.
         The score is calculated as the ratio of found tags to required tags, capped at 100%.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(tag))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
@@ -27,12 +26,11 @@ class WebDevLibrary(Template):
         return TestResult("has_tag", score, report, parameters={"tag": tag, "required_count": required_count})
 
     @staticmethod
-    def has_forbidden_tag(submission_files, tag: str) -> TestResult:
+    def has_forbidden_tag(html_content, tag: str) -> TestResult:
         """
         Checks for the presence of a forbidden HTML tag in `index.html`.
         The score is 0 if the tag is found, otherwise 100.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(tag) is not None
         score = 0 if found else 100
@@ -43,12 +41,11 @@ class WebDevLibrary(Template):
         return TestResult("has_forbidden_tag", score, report, parameters={"tag": tag})
 
     @staticmethod
-    def has_attribute(submission_files, attribute: str, required_count: int) -> TestResult:
+    def has_attribute(html_content, attribute: str, required_count: int) -> TestResult:
         """
         Checks if a specific HTML attribute is present on any tag, a minimum number of times.
         The score is proportional to the count found versus the count required.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(attrs={attribute: True}))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
@@ -57,23 +54,12 @@ class WebDevLibrary(Template):
 
 
     @staticmethod
-    def has_structure(submission_files, tag_name: str) -> TestResult:
-        """
-        A convenience method to check for the existence of at least one instance of a specific HTML tag.
-        This wraps `has_tag` with a required count of 1, useful for verifying basic document structure.
-        """
-        result = WebDevLibrary.has_tag(submission_files, tag_name, 1)
-        result.parameters = {"tag_name": tag_name} # Override parameters for clarity
-        return result
-
-    @staticmethod
-    def check_no_unclosed_tags(submission_files) -> TestResult:
+    def check_no_unclosed_tags(html_content) -> TestResult:
         """
         Performs a basic check for a well-formed HTML document by verifying that
         BeautifulSoup can successfully parse the `<html>`, `<head>`, and `<body>` tags.
         This serves as a proxy for detecting major structural issues.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         is_well_formed = soup.html and soup.body and soup.head
         score = 100 if is_well_formed else 20
@@ -84,12 +70,11 @@ class WebDevLibrary(Template):
         return TestResult("check_no_unclosed_tags", score, report)
 
     @staticmethod
-    def check_no_inline_styles(submission_files) -> TestResult:
+    def check_no_inline_styles(html_content) -> TestResult:
         """
         Ensures that no inline styles are used in `index.html`. It searches for any
         tag with a `style` attribute and gives a score of 0 if any are found.
         """
-        html_content = submission_files.get("index.html", "")
         found_count = len(BeautifulSoup(html_content, 'html.parser').find_all(style=True))
         score = 0 if found_count > 0 else 100
         report = (
@@ -100,13 +85,12 @@ class WebDevLibrary(Template):
 
 
     @staticmethod
-    def uses_semantic_tags(submission_files) -> TestResult:
+    def uses_semantic_tags(html_content) -> TestResult:
         """
         Checks if the HTML uses at least one common semantic tag to encourage
         proper document structure over generic `<div>` elements. It looks for
         `<article>`, `<section>`, `<nav>`, `<aside>`, or `<figure>`.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(("article", "section", "nav", "aside", "figure")) is not None
         score = 100 if found else 40
@@ -117,12 +101,11 @@ class WebDevLibrary(Template):
         return TestResult("uses_semantic_tags", score, report)
 
     @staticmethod
-    def check_css_linked(submission_files) -> TestResult:
+    def check_css_linked(html_content) -> TestResult:
         """
         Verifies that an external CSS stylesheet is linked in `index.html`.
         It specifically looks for a `<link>` tag with the `rel='stylesheet'` attribute.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", rel="stylesheet") is not None
         score = 100 if found else 0
@@ -133,12 +116,11 @@ class WebDevLibrary(Template):
         return TestResult("check_css_linked", score, report)
 
     @staticmethod
-    def css_uses_property(submission_files, prop: str, value: str) -> TestResult:
+    def css_uses_property(css_content, prop: str, value: str) -> TestResult:
         """
         Checks if a specific CSS property and value pair exists in `style.css`.
         It uses a case-insensitive regular expression for a flexible match.
         """
-        css_content = submission_files.get("css/styles.css", "")
         pattern = re.compile(rf"{re.escape(prop)}\s*:\s*.*{re.escape(value)}", re.IGNORECASE)
         found = pattern.search(css_content) is not None
         score = 100 if found else 0
@@ -149,12 +131,11 @@ class WebDevLibrary(Template):
         return TestResult("css_uses_property", score, report, parameters={"prop": prop, "value": value})
 
     @staticmethod
-    def count_over_usage(submission_files, text: str, max_allowed: int) -> TestResult:
+    def count_over_usage(css_content, text: str, max_allowed: int) -> TestResult:
         """
         Penalizes the use of a specific text string in `style.css` if it exceeds a
         maximum allowed count. Useful for disallowing `!important` or specific selectors.
         """
-        css_content = submission_files.get("css/styles.css", "")
         found_count = css_content.count(text)
         score = 100 if found_count >= max_allowed else 0
         report = (
@@ -164,12 +145,11 @@ class WebDevLibrary(Template):
         return TestResult("count_usage", score, report, parameters={"text": text, "max_allowed": max_allowed})
 
     @staticmethod
-    def js_uses_feature(submission_files, feature: str) -> TestResult:
+    def js_uses_feature(js_content, feature: str) -> TestResult:
         """
         Performs a simple string search to check if a specific feature (e.g., a
         function name, keyword like 'async') is present in `script.js`.
         """
-        js_content = submission_files.get("script.js", "")
         found = feature in js_content
         score = 100 if found else 0
         report = (
@@ -179,12 +159,11 @@ class WebDevLibrary(Template):
         return TestResult("js_uses_feature", score, report, parameters={"feature": feature})
 
     @staticmethod
-    def uses_forbidden_method(submission_files, method: str) -> TestResult:
+    def uses_forbidden_method(js_content, method: str) -> TestResult:
         """
         Checks for and penalizes the use of a forbidden method or keyword in `script.js`.
         The score is 0 if the forbidden string is found.
         """
-        js_content = submission_files.get("script.js", "")
         found = method in js_content
         score = 0 if found else 100  # Corrected logic: score is 0 if found
         report = (
@@ -194,12 +173,11 @@ class WebDevLibrary(Template):
         return TestResult("uses_forbidden_method", score, report, parameters={"method": method})
 
     @staticmethod
-    def count_global_vars(submission_files, max_allowed: int) -> TestResult:
+    def count_global_vars(js_content, max_allowed: int) -> TestResult:
         """
         Counts the number of variables declared in the global scope of `script.js`.
         It penalizes the submission if the count exceeds the maximum allowed.
         """
-        js_content = submission_files.get("script.js", "")
         # This regex looks for var, let, or const at the beginning of a line
         found_count = len(re.findall(r"^\s*(var|let|const)\s+", js_content, re.MULTILINE))
         score = 100 if found_count <= max_allowed else 0
