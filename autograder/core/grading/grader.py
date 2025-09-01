@@ -3,7 +3,6 @@ from typing import List, Dict
 # Assuming the data structure classes (TestResult, Criteria, etc.)
 # and the test library are defined in other files as previously discussed.
 from autograder.builder.tree_builder import *
-from template_library.web_dev import WebDevLibrary
 from autograder.builder.tree_builder import custom_tree
 from autograder.core.models.result import Result
 from autograder.core.models.test_result import TestResult
