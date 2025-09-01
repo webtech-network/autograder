@@ -27,6 +27,22 @@ class WebDevLibrary(Template):
         return TestResult("has_tag", score, report, parameters={"tag": tag, "required_count": required_count})
 
     @staticmethod
+    def has_forbidden_tag(submission_files, tag: str) -> TestResult:
+        """
+        Checks for the presence of a forbidden HTML tag in `index.html`.
+        The score is 0 if the tag is found, otherwise 100.
+        """
+        html_content = submission_files.get("index.html", "")
+        soup = BeautifulSoup(html_content, 'html.parser')
+        found = soup.find(tag) is not None
+        score = 0 if found else 100
+        report = (
+            f"A tag `<{tag}>` foi encontrada e é proibida." if found
+            else f"A tag `<{tag}>` não foi encontrada, ótimo!"
+        )
+        return TestResult("has_forbidden_tag", score, report, parameters={"tag": tag})
+
+    @staticmethod
     def has_attribute(submission_files, attribute: str, required_count: int) -> TestResult:
         """
         Checks if a specific HTML attribute is present on any tag, a minimum number of times.
