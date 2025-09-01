@@ -151,6 +151,7 @@ class GithubAdapter(Port):
                      submission_files_dict[relative_path] = f.read()
              except Exception as e:
                  print(f"Could not read file {file_path}: {e}")
+        print(submission_files_dict)
 
         return submission_files_dict
 
