@@ -176,10 +176,11 @@ class GithubAdapter(Port):
 
     def create_assigment_config(self,template_preset):
         """
-        Looks inside $GITHUB_WORKSPACE/submission for the criteria.json, feedback.json and setup.json files.
+        Looks inside $GITHUB_WORKSPACE/submission/.github/autograder for the criteria.json, feedback.json and setup.json files.
         """
         base_path = os.getenv("GITHUB_WORKSPACE", ".")
         submission_path = os.path.join(base_path, 'submission')
+        configuration_path = os.path.join(submission_path, '.github','autograder')
 
         criteria_path = os.path.join(submission_path, 'criteria.json')
         feedback_path = os.path.join(submission_path, 'feedback.json')
