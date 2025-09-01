@@ -107,7 +107,7 @@ class DefaultReporter(BaseReporter):
                     linked_content = self._content_map.get(res.test_name)
                     if linked_content:
                         feedback_item.append(
-                            f"> - 📚 **Recurso Sugerido:** [{linked_content.description}]({linked_content.url})")
+                            f"> - 📚 **Recurso Sugerido:** [{linked_content.description}]({linked_content.url})\n\n")
 
                 section_parts.append("\n".join(feedback_item))
 
