@@ -14,7 +14,7 @@ class PreFlight:
         self.logger.debug("Checking required files")
         for file in self.required_files:
             if file not in submission_files:
-                error_msg = f"Required file or directory not found: '{file}'"
+                error_msg = f"**Erro:** Arquivo ou diretório obrigatório não encontrado: `'{file}'`"
                 self.logger.error(error_msg)
                 self.fatal_errors.append({"type": "file_check", "message": error_msg})
 
