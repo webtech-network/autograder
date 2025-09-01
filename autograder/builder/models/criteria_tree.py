@@ -24,8 +24,9 @@ class Test:
     Represents a group of calls to a single test function in the library.
     This is a LEAF node in the grading tree.
     """
-    def __init__(self, name: str):
+    def __init__(self, name: str, filename: str):
         self.name = name
+        self.file = filename  # The file this test operates on (e.g., "index.html")
         self.calls: List[TestCall] = []
 
     def add_call(self, call: TestCall):
@@ -33,32 +34,41 @@ class Test:
 
     def execute(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
         """
-        Executes a function from the test library for each TestCall and returns
-        a list of all resulting TestResult objects, now including the subject name.
+        Selects the correct file content based on self.file, then executes the
+        test function from the library for each TestCall.
         """
         try:
             test_function = getattr(test_library, self.name)
         except AttributeError:
-            return [TestResult(self.name, 0, f"ERROR: Test function '{self.name}' not found.", subject_name)]
+            return [TestResult(self.name, 0, f"ERROR: Test function '{self.name}' not found in library.", subject_name)]
 
+        # --- File Injection Logic ---
+        file_content_to_pass = None
+        if self.file == "all":
+            file_content_to_pass = submission_files
+        else:
+            file_content_to_pass = submission_files.get(self.file)
+            if file_content_to_pass is None:
+                # Return a failure if the required file is missing
+                return [TestResult(self.name, 0, f"Erro: O arquivo necessário '{self.file}' não foi encontrado na submissão.", subject_name)]
+
+        # --- Execution Logic ---
         if not self.calls:
-            result = test_function(submission_files)
-            # Manually add the subject name to the result
+            # Pass the selected file content to the test function
+            result = test_function(file_content_to_pass)
             result.subject_name = subject_name
             return [result]
 
-        # Execute each call and add the subject name to each result
         results = []
         for call in self.calls:
-            print("Calling test:", self.name, "with args:", call.args)
-            result = test_function(submission_files, *call.args) # The preset functions are responsible for returning a TestResult
-            result.subject_name = subject_name  # Assign the subject name here
+            # Pass the selected file content along with the other arguments
+            result = test_function(file_content_to_pass, *call.args)
+            result.subject_name = subject_name
             results.append(result)
         return results
 
     def __repr__(self):
-        return f"Test(name='{self.name}', calls={len(self.calls)})"
-
+        return f"Test(name='{self.name}', file='{self.file}', calls={len(self.calls)})"
 
 class Subject:
     """
