@@ -188,12 +188,11 @@ class WebDevLibrary(Template):
         return TestResult("count_global_vars", score, report, parameters={"max_allowed": max_allowed})
 
     @staticmethod
-    def check_headings_sequential(submission_files) -> TestResult:
+    def check_headings_sequential(html_content) -> TestResult:
         """
         Checks if heading levels (`<h1>`, `<h2>`, etc.) are sequential and do not skip
         levels (e.g., an `<h3>` following an `<h1>`), which is important for accessibility.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         headings = [int(h.name[1]) for h in soup.find_all(re.compile(r"^h[1-6]$"))]
         # Check if each heading is at most one level greater than the previous one
@@ -206,12 +205,11 @@ class WebDevLibrary(Template):
         return TestResult("check_headings_sequential", score, report)
 
     @staticmethod
-    def check_all_images_have_alt(submission_files) -> TestResult:
+    def check_all_images_have_alt(html_content) -> TestResult:
         """
         Verifies that all `<img>` tags in `index.html` have a non-empty `alt` attribute.
         The score is proportional to the percentage of images meeting this accessibility rule.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         images = soup.find_all("img")
         if not images:
@@ -222,12 +220,11 @@ class WebDevLibrary(Template):
         return TestResult("check_all_images_have_alt", score, report)
 
     @staticmethod
-    def check_html_direct_children(submission_files) -> TestResult:
+    def check_html_direct_children(html_content) -> TestResult:
         """
         Ensures the only direct children of the `<html>` tag are `<head>` and `<body>`,
         enforcing the fundamental and correct structure of an HTML document.
         """
-        html_content = submission_files.get("index.html", "") # Standardized to index.html
         soup = BeautifulSoup(html_content, 'html.parser')
 
         html_tag = soup.find('html')
@@ -246,12 +243,11 @@ class WebDevLibrary(Template):
                           " A tag <html> deve conter apenas as tags <head> e <body> como filhos diretos.")
 
     @staticmethod
-    def check_tag_not_inside(submission_files, child_tag: str, parent_tag: str) -> TestResult:
+    def check_tag_not_inside(html_content, child_tag: str, parent_tag: str) -> TestResult:
         """
         Checks that a specific tag (`child_tag`) is not nested anywhere inside another
         specific tag (`parent_tag`). Useful for enforcing structural rules.
         """
-        html_content = submission_files.get("index.html", "") # Standardized to index.html
         soup = BeautifulSoup(html_content, 'html.parser')
 
         parent = soup.find(parent_tag)
@@ -264,12 +260,11 @@ class WebDevLibrary(Template):
         return TestResult("check_tag_not_inside", 100, report, parameters={"child_tag": child_tag, "parent_tag": parent_tag})
 
     @staticmethod
-    def check_internal_links_to_article(submission_files, required_count: int) -> TestResult:
+    def check_internal_links_to_article(html_content, required_count: int) -> TestResult:
         """
         Checks for a minimum number of internal anchor links pointing to IDs
         that exist exclusively on <article> tags.
         """
-        html_content = submission_files.get("home.html", "")
         if not html_content:
             return TestResult("check_internal_links", 0, "Arquivo home.html não encontrado.",
                               parameters={"required_count": required_count})
@@ -294,12 +289,11 @@ class WebDevLibrary(Template):
         return TestResult("check_internal_links", score, report, parameters={"required_count": required_count})
 
     @staticmethod
-    def has_style(submission_files: dict, style: str, count: int) -> TestResult:
+    def has_style(css_content: str, style: str, count: int) -> TestResult:
         """
         Checks if a specific css style rule appears a minimum number of times in `style.css`.
         ex: font-size, font-family, color, background-color
         """
-        css_content = submission_files.get("css/styles.css", "")
         found_count = len(re.findall(rf"{re.escape(style)}\s*:\s*[^;]+;", css_content, re.IGNORECASE))
         score = min(100, int((found_count / count) * 100)) if count > 0 else 100
         report = (
@@ -309,12 +303,11 @@ class WebDevLibrary(Template):
         return TestResult("has_style", score, report, parameters={"style": style, "required_count": count})
 
     @staticmethod
-    def check_head_details(submission_files,detail_tag: str) -> TestResult:
+    def check_head_details(html_content,detail_tag: str) -> TestResult:
         """
         Checks if a specific detail tag exists within the <head> section of index.html.
         detail_tag: meta, title, link, script, style
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         head = soup.find('head')
         if not head:
@@ -329,11 +322,10 @@ class WebDevLibrary(Template):
         return TestResult("check_head_details", score, report, parameters={"detail_tag": detail_tag})
 
     @staticmethod
-    def check_atribute_and_value(submission_files, tag: str, attribute: str, value: str) -> TestResult:
+    def check_atribute_and_value(html_content, tag: str, attribute: str, value: str) -> TestResult:
         """
         Checks if a specific HTML tag contains a specific attribute with a given value.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         elements = soup.find_all(tag, attrs={attribute: value})
         found_count = len(elements)
@@ -372,11 +364,10 @@ class WebDevLibrary(Template):
         return TestResult("check_project_structure", score, report, parameters={"expected_structure": expected_structure})
 
     @staticmethod
-    def check_id_selector_over_usage(submission_files, max_allowed: int) -> TestResult:
+    def check_id_selector_over_usage(css_content, max_allowed: int) -> TestResult:
         """
         Counts the number of ID selectors used in style.css and penalizes if it exceeds max_allowed.
         """
-        css_content = submission_files.get("css/styles.css", "")
         found_count = len(re.findall(r"#\w+", css_content))
         score = 100 if found_count <= max_allowed else 0
         report = (
@@ -386,9 +377,8 @@ class WebDevLibrary(Template):
         return TestResult("check_id_selector_over_usage", score, report, parameters={"max_allowed": max_allowed})
 
     @staticmethod
-    def uses_relative_units(submission_files):
+    def uses_relative_units(css_content):
         """Check is the css file uses relative units like em, rem, %, vh, vw"""
-        css_content = submission_files.get("css/styles.css", "")
         found = re.search(r"\b(em|rem|%|vh|vw)\b", css_content) is not None
         score = 100 if found else 0
         report = (
@@ -398,11 +388,10 @@ class WebDevLibrary(Template):
         return TestResult("uses_relative_units", score, report)
 
     @staticmethod
-    def check_media_queries(submission_files) -> TestResult:
+    def check_media_queries(css_content) -> TestResult:
         """
         Checks if there are any media queries in the CSS file.
         """
-        css_content = submission_files.get("css/styles.css", "")
         found = re.search(r"@media\s+[^{]+\{", css_content) is not None
         score = 100 if found else 0
         report = (
@@ -412,11 +401,10 @@ class WebDevLibrary(Template):
         return TestResult("check_media_queries", score, report)
 
     @staticmethod
-    def check_flexbox_usage(submission_files) -> TestResult:
+    def check_flexbox_usage(css_content) -> TestResult:
         """
         Checks if Flexbox properties are used in the CSS file.
         """
-        css_content = submission_files.get("css/styles.css", "")
         found = re.search(r"\b(display\s*:\s*flex|flex-)", css_content) is not None
         score = 100 if found else 0
         report = (
@@ -426,11 +414,10 @@ class WebDevLibrary(Template):
         return TestResult("check_flexbox_usage", score, report)
 
     @staticmethod
-    def check_bootstrap_usage(submission_files) -> TestResult:
+    def check_bootstrap_usage(html_content) -> TestResult:
         """
         Checks if Bootstrap is linked in the HTML file.
         """
-        html_content = submission_files.get("index.html", "")
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None

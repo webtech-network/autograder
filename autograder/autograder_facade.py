@@ -117,3 +117,79 @@ class Autograder:
             logger.error(error_message)
             logger.exception("Full exception traceback:")
             return AutograderResponse(status="fail", final_score=0.0, feedback=error_message)
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    # Example usage (this would normally come from an external request)
+    example_request = AutograderRequest(
+        submission_files={"indext.html": """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalago de filmes e series</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="header">
+        <h1>Catálogo de Filmes e Séries</h1>
+        <p>Descubra novas aventuras em um só lugar</p>
+        <p2>Saiba onde estão suas series e filmes favoritos e onde assisti-los!</p2>
+    </header>
+
+    <nav class="menu">
+         <div class="menu-item"><a href="">Filmes</a></div>   
+         <div class="menu-item"><a href="">Séries</a></div>
+         <div class="menu-item"><a href="">Melhores avaliações</a></div>
+         <div class="menu-item"><a href="">Lançamentos</a></div>
+         <div class="menu-item"><a href="">Em alta</a></div>
+
+    </nav>
+
+    <main class="main">
+
+        <section class="search">
+          <form action="#" method="get">
+            <input type="text" placeholder="Pesquisar títulos..." name="search" required>
+            <button type="submit">Buscar</button>
+          </form>
+        </section>
+    
+    
+        <section class="catalogo">
+    
+          <article class="item">
+            <img src="https://picsum.photos/id/11/900/500" alt="">
+            <h2>Filme 1</h2>
+            <p>Descricao do filme q sera escolhido</p>
+          </article>
+    
+          <article class="item">
+            <img src="https://picsum.photos/id/8/200/300" alt="">
+            <h2>Filme 2</h2>
+            <p>Descricao do filme q sera escolhido.</p>
+          </article>
+    
+        </section>
+      </main>
+    
+    
+      <footer class="footer">
+        <p> Catalogo de filmes e series.Por Lucca Maximo.</p>
+      </footer>
+    </body>
+    </html>
+"""},
+        assignment_config={
+            "criteria": {},
+            "template": "python",
+            "feedback": {}
+        },
+        student_name="test_student",
+        student_credentials="test_token",
+        feedback_mode="default"
+    )
+    response = Autograder.grade(example_request)
+    print(response)
