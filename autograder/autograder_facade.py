@@ -4,6 +4,7 @@ from autograder.core.models.autograder_response import AutograderResponse
 from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.reporter_factory import Reporter
 from autograder.core.utils.upstash_driver import Driver
+from connectors.models.assignment_config import AssignmentConfig
 from connectors.models.autograder_request import AutograderRequest
 from autograder.builder.tree_builder import CriteriaTree
 from autograder.builder.template_library.library import TemplateLibrary
@@ -181,15 +182,4 @@ if __name__ == "__main__":
       </footer>
     </body>
     </html>
-"""},
-        assignment_config={
-            "criteria": {},
-            "template": "python",
-            "feedback": {}
-        },
-        student_name="test_student",
-        student_credentials="test_token",
-        feedback_mode="default"
-    )
-    response = Autograder.grade(example_request)
-    print(response)
+"""})

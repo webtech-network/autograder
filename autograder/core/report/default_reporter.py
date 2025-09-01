@@ -1,4 +1,3 @@
-
 from autograder.builder.template_library.templates.web_dev import WebDevLibrary
 from autograder.builder.tree_builder import custom_tree
 from autograder.core.grading.grader import Grader

@@ -1,6 +1,3 @@
-from autograder.builder.template_library.templates.template import Template
-
-
 class TemplateLibrary:
     @staticmethod
     def get_template(template_name: str):
