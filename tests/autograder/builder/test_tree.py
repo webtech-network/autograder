@@ -1,6 +1,6 @@
 import unittest
 # Assuming your tree builder and models are in this path
-from autograder.builder.tree_builder import CriteriaTreeFactory, Criteria, Subject, Test, TestCall
+from autograder.builder.tree_builder import CriteriaTree, Criteria, Subject, Test, TestCall
 
 class TestCriteriaTree(unittest.TestCase):
 
@@ -9,7 +9,7 @@ class TestCriteriaTree(unittest.TestCase):
         Tests that building a tree from an empty config results in an empty Criteria object.
         """
         config = {}
-        criteria = CriteriaTreeFactory.build(config)
+        criteria = CriteriaTree.build(config)
         self.assertIsInstance(criteria, Criteria)
         self.assertEqual(len(criteria.base.subjects), 0)
 
@@ -28,7 +28,7 @@ class TestCriteriaTree(unittest.TestCase):
             }
         }
         with self.assertRaises(ValueError):
-            CriteriaTreeFactory.build(config)
+            CriteriaTree.build(config)
 
     def test_weight_balancing(self):
         """
@@ -50,7 +50,7 @@ class TestCriteriaTree(unittest.TestCase):
                 }
             }
         }
-        criteria = CriteriaTreeFactory.build(config)
+        criteria = CriteriaTree.build(config)
 
         # Check base subjects (already sum to 100)
         self.assertAlmostEqual(criteria.base.subjects["html"].weight, 60)
@@ -86,7 +86,7 @@ class TestCriteriaTree(unittest.TestCase):
             },
             "penalty": {"weight": 75}
         }
-        criteria = CriteriaTreeFactory.build(config)
+        criteria = CriteriaTree.build(config)
 
         # Test category weights
         self.assertEqual(criteria.penalty.max_score, 75)
@@ -145,7 +145,7 @@ class TestCriteriaTree(unittest.TestCase):
                 }
             }
         }
-        criteria = CriteriaTreeFactory.build(config)
+        criteria = CriteriaTree.build(config)
 
         # Top-level subjects should not be re-balanced as they sum to 100
         self.assertAlmostEqual(criteria.base.subjects["frontend"].weight, 75)
