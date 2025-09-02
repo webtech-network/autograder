@@ -87,4 +87,10 @@ class ApiAdapter(Port):
         except UnicodeDecodeError as e:
             logger.error(f"Encoding error reading configuration files: {e}")
             raise ValueError(f"Unable to decode configuration files: {e}")
+    def get_template_info(self, template_name: str):
+        """
+        Retrieves information about a specific grading template preset.
+        """
+        # Mock implementation - in a real scenario, this would fetch details from the Library
+        return "Info for template: {template_name}"
 
