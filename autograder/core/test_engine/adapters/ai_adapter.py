@@ -19,10 +19,11 @@ class TestOutput(BaseModel):
     status: Literal["passed", "failed"] = Field(..., description="Result of the test.")
     message: str = Field(..., description="Description of why and how this response was achieved, pinpointing specific parts of the prompt that lead you to that conclusion.")
     subject: str = Field(..., description="The subject of the test, usually specified at the beginning of its title before a colon")
+    score: float = Field(..., description="Based on whether the submission follows this correction criterion and how well it does, grade it from 0 to 100")
 
 class AIResponseModel(BaseModel):
     """Defines the structure of a complete AI response"""
-    results: List[TestOutput]
+    results: List[TestOutput] = Field(description="A list of test results each test performed following the TestOutput format")
 
 class AiEngine(EnginePort):
     """    Adapter for the AI test engine, which performs text processing and prompt driven tests.
