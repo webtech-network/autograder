@@ -4,11 +4,11 @@ class Template(ABC):
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def template_name(self) -> str:
         pass
-    #@property
-    #@abstractmethod
-    #def description(self) -> str:
+    @property
+    @abstractmethod
+    def template_description(self) -> str:
         pass
 
     

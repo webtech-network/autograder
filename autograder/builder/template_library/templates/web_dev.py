@@ -419,7 +419,10 @@ class WebDevLibrary(Template):
     """
     @property
     def template_name(self):
-        return "Web Dev"
+        return "Html Css Js Template"
+    @property
+    def template_description(self):
+        return "A comprehensive template for web development assignments, including tests for HTML, CSS, and JavaScript."
 
     def __init__(self):
         self.tests = {
