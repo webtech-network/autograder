@@ -25,8 +25,7 @@ class AIResponseModel(BaseModel):
     results: List[TestOutput]
 
 class AiEngine(EnginePort):
-    """
-    Adapter for the AI test engine, which performs text processing and prompt driven tests.
+    """    Adapter for the AI test engine, which performs text processing and prompt driven tests.
     """
     TEST_FILES = ["test_base.json", "test_bonus.json", "test_penalty.json"]
 
@@ -42,42 +41,6 @@ class AiEngine(EnginePort):
         super().__init__()
         self.client = OpenAI(api_key=openai_key)
 
-    async def _install_openai_dependency(self):
-        """
-        Installs the OpenAI Python library asynchronously if it's not already installed.
-        """
-        print("Checking and installing OpenAI dependency...")
-        try:
-            # Check if the openai library is installed using pip show
-            check_proc = await asyncio.create_subprocess_exec(
-                "pip", "show", "openai",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            await check_proc.wait()
-
-            if check_proc.returncode == 0:
-                print("OpenAI library is already installed.")
-            else:
-                # If 'pip show' returns a non-zero code, the package is not installed.
-                print("OpenAI library not found. Installing...")
-                installer_proc = await asyncio.create_subprocess_exec(
-                    "pip", "install", "openai",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                stdout, stderr = await installer_proc.communicate()
-
-                if installer_proc.returncode == 0:
-                    print("OpenAI library installed successfully.")
-                else:
-                    print("Failed to install OpenAI library.")
-                    print(f"STDERR: {stderr.decode().strip()}")
-        except FileNotFoundError:
-            # This would happen if 'pip' is not in the system's PATH.
-            print("Error: 'pip' command not found. Please ensure Python and pip are installed correctly.")
-        except Exception as e:
-            print(f"An unexpected error occurred while installing OpenAI dependency: {e}")
 
     async def run_tests(self) -> List[TestOutput]:
         """
@@ -178,3 +141,7 @@ class AiEngine(EnginePort):
 
     def normalize_output(self):
         pass
+
+    if __name__ == "main":
+        api_key = ""
+        ai_engine = AiEngine(api_key)
