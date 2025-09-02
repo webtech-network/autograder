@@ -108,7 +108,7 @@ class TestCategory:
 
 class Criteria:
     """The ROOT of the criteria tree."""
-    def __init__(self, bonus_weight=30, penalty_weight=30):
+    def __init__(self, bonus_weight=0, penalty_weight=0):
         self.base = TestCategory("base")
         self.bonus = TestCategory("bonus", max_score=bonus_weight)
         self.penalty = TestCategory("penalty", max_score=penalty_weight)
