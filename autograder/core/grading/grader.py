@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 # Assuming the data structure classes (TestResult, Criteria, etc.)
 # and the test library are defined in other files as previously discussed.
@@ -11,6 +11,7 @@ from autograder.core.models.test_result import TestResult
 class Grader:
     """
     Traverses a Criteria tree, executes tests, and calculates a weighted score.
+    Only includes scores from categories (base, bonus, penalty) that contain tests.
     """
 
     def __init__(self, criteria_tree: 'Criteria', test_library: object):
@@ -30,12 +31,12 @@ class Grader:
         Runs the entire grading process and returns the final calculated score.
         """
         print("\n--- STARTING GRADING PROCESS ---")
-        # Step 1: Grade base and bonus categories to get their scores (0-100)
-        base_score = self._grade_subject_or_category(self.criteria.base, submission_files, self.base_results)
-        bonus_score = self._grade_subject_or_category(self.criteria.bonus, submission_files, self.bonus_results)
-
-        # Step 2: Calculate the total penalty points incurred
-        penalty_points = self._calculate_penalty_points(self.criteria.penalty, submission_files, self.penalty_results)
+        # Step 1: Grade categories. The methods will return None if no tests exist.
+        ## CHANGED: Coalesce None to 0.0 to signify that an empty category contributes nothing to the score.
+        base_score = self._grade_subject_or_category(self.criteria.base, submission_files, self.base_results) or 0.0
+        bonus_score = self._grade_subject_or_category(self.criteria.bonus, submission_files, self.bonus_results) or 0.0
+        penalty_points = self._calculate_penalty_points(self.criteria.penalty, submission_files,
+                                                        self.penalty_results) or 0.0
 
         # Step 3: Apply the final scoring logic
         final_score = self._calculate_final_score(base_score, bonus_score, penalty_points)
@@ -51,95 +52,120 @@ class Grader:
         return final_score
 
     def _grade_subject_or_category(self, current_node: 'Subject' or 'TestCategory', submission_files: Dict,
-                                   results_list: List['TestResult'], depth=0) -> float:
+                                   results_list: List['TestResult'], depth=0) -> Optional[float]:
         """
-        Recursively grades a subject or category for BASE and BONUS, calculating a weighted score.
+        Recursively grades a subject or category, returning a weighted score or None if no tests are found.
         """
         prefix = "    " * depth
-        print(f"\n{prefix}📘 Grading {current_node.name}...")
 
-        if hasattr(current_node, 'tests') and current_node.tests is not None:
-            # ... (rest of the function is the same as before)
+        # Base case: Node is a leaf with tests
+        if hasattr(current_node, 'tests') and current_node.tests:
+            print(f"\n{prefix}📘 Grading {current_node.name}...")
             subject_test_results = []
             for test in current_node.tests:
                 test_results = test.run(self.test_library, submission_files, current_node.name)
                 subject_test_results.extend(test_results)
+
+            if not subject_test_results:
+                return None  # No tests were actually run
+
             results_list.extend(subject_test_results)
-            if not subject_test_results: return 100.0
             scores = [res.score for res in subject_test_results]
-            average_score = sum(scores) / len(scores) if scores else 0.0
+            average_score = sum(scores) / len(scores)
             print(f"{prefix}  -> Average score: {average_score:.2f}")
             return average_score
 
-        child_subjects = current_node.subjects.values()
-        if not child_subjects: return 100.0
+        # Recursive case: Node is a branch (category or subject with sub-subjects)
+        child_subjects = getattr(current_node, 'subjects', {}).values()
+        if not child_subjects:
+            return None  # No tests and no children means this branch is empty
 
-        total_weight = sum(sub.weight for sub in child_subjects)
+        print(f"\n{prefix}📘 Grading {current_node.name}...")
+
         child_scores_map = {sub.name: self._grade_subject_or_category(sub, submission_files, results_list, depth + 1)
                             for sub in child_subjects}
 
-        if total_weight == 0:
-            scores = list(child_scores_map.values())
-            return sum(scores) / len(scores) if scores else 0.0
+        # Filter out children that had no tests (returned None)
+        valid_children = [sub for sub in child_subjects if child_scores_map[sub.name] is not None]
 
+        if not valid_children:
+            return None  # No children in this branch contained any tests
+
+        total_weight = sum(sub.weight for sub in valid_children)
+
+        # If weights are 0, calculate a simple average of the valid children
+        if total_weight == 0:
+            scores = [child_scores_map[sub.name] for sub in valid_children]
+            return sum(scores) / len(scores)
+
+        # Otherwise, calculate the weighted score based only on valid children
         weighted_score = 0
-        for sub in child_subjects:
+        for sub in valid_children:
             child_score = child_scores_map[sub.name]
             weighted_score += child_score * (sub.weight / total_weight)
+
         print(f"\n{prefix}  -> Weighted score for '{current_node.name}': {weighted_score:.2f}")
         return weighted_score
 
     def _calculate_penalty_points(self, penalty_category: 'TestCategory', submission_files: Dict,
-                                  results_list: List['TestResult'], depth=0) -> float:
+                                  results_list: List['TestResult']) -> Optional[float]:
         """
-        Recursively calculates the total penalty points incurred for the penalty category.
+        Calculates the total penalty points. Returns None if no penalty tests exist.
         """
-        prefix = "    " * depth
-        print(f"\n{prefix} Penalizing {penalty_category.name}...")
+        print(f"\n Penalizing {penalty_category.name}...")
 
-        child_subjects = penalty_category.subjects.values()
-        if not child_subjects:
-            return 0.0
-
-        total_penalty = 0
-        for subject in child_subjects:
-            # The penalty for a subject is its weighted contribution to the total penalty
-            subject_penalty = self._calculate_subject_penalty(subject, submission_files, results_list, depth + 1)
-            total_penalty += subject_penalty
-
-        return total_penalty
+        # This is a simplified entry point; the main logic is in _calculate_subject_penalty
+        # We treat the main penalty category like a subject to start the recursion.
+        return self._calculate_subject_penalty(penalty_category, submission_files, results_list, depth=0)
 
     def _calculate_subject_penalty(self, subject: 'Subject', submission_files: Dict, results_list: List['TestResult'],
-                                   depth=0) -> float:
-        """Helper to calculate penalty for a single subject."""
+                                   depth=0) -> Optional[float]:
+        """
+        Helper to calculate penalty for a single subject or category.
+        Returns penalty points (0-100) or None if no tests are found.
+        """
         prefix = "    " * depth
 
-        if hasattr(subject, 'tests') and subject.tests is not None:
-            # This is a leaf subject, calculate penalty from its tests
+        # Base Case: This node is a leaf with tests
+        if hasattr(subject, 'tests') and subject.tests:
             test_penalties = []
             for test in subject.tests:
                 test_results = test.run(self.test_library, submission_files, subject.name)
+                if not test_results:
+                    continue
                 results_list.extend(test_results)
-                # Penalty incurred = 100 - score. If score is 0, penalty is 100. If score is 100, penalty is 0.
-                penalty_incurred = sum(100 - res.score for res in test_results) / len(test_results)
+                # Penalty incurred = 100 - score
+                penalty_incurred = (100 - sum(res.score for res in test_results) / len(test_results))
                 test_penalties.append(penalty_incurred)
 
-            if not test_penalties: return 0.0
+            if not test_penalties:
+                return None  # No tests were actually run
 
             avg_penalty_for_subject = sum(test_penalties) / len(test_penalties)
-            print(f"{prefix}  -> Average penalty for subject '{subject.name}': {avg_penalty_for_subject:.2f}")
+            print(f"{prefix}  -> Average penalty for '{subject.name}': {avg_penalty_for_subject:.2f}")
             return avg_penalty_for_subject
 
-        # This is a branch subject, calculate penalty from its children
-        child_subjects = subject.subjects.values()
-        if not child_subjects: return 0.0
+        # Recursive Case: This node is a branch with children
+        child_subjects = getattr(subject, 'subjects', {}).values()
+        if not child_subjects:
+            return None  # No tests and no children
 
-        total_weight = sum(sub.weight for sub in child_subjects)
-        if total_weight == 0: return 0.0
+        child_penalties_map = {sub.name: self._calculate_subject_penalty(sub, submission_files, results_list, depth + 1)
+                               for sub in child_subjects}
+
+        valid_children = [sub for sub in child_subjects if child_penalties_map[sub.name] is not None]
+
+        if not valid_children:
+            return None  # No children had penalty tests
+
+        total_weight = sum(sub.weight for sub in valid_children)
+        if total_weight == 0:
+            penalties = [child_penalties_map[sub.name] for sub in valid_children]
+            return sum(penalties) / len(penalties)  # Average of valid penalties
 
         weighted_penalty = 0
-        for sub in child_subjects:
-            child_penalty = self._calculate_subject_penalty(sub, submission_files, results_list, depth + 1)
+        for sub in valid_children:
+            child_penalty = child_penalties_map[sub.name]
             weighted_penalty += child_penalty * (sub.weight / total_weight)
 
         print(f"\n{prefix}  -> Weighted penalty for '{subject.name}': {weighted_penalty:.2f}")
