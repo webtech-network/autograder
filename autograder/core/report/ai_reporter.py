@@ -1,176 +1,168 @@
-
-
-from autograder.core.report.base_reporter import BaseReporter
 from openai import OpenAI
-from autograder.core.config_processing.ai_config import AiConfig
-import os
 
 
+from autograder.core.models.feedback_preferences import FeedbackPreferences
+from autograder.core.report.base_reporter import BaseReporter
+
+
+# Supondo que estas classes estão em seus respectivos arquivos e são importáveis
+# from .base_reporter import BaseReporter
+# from autograder.core.models.feedback_preferences import FeedbackPreferences
+# from autograder.core.models.result import Result
 
 class AIReporter(BaseReporter):
-    def __init__(self, result, quota, openai_key=None,config=None):
-        super().__init__(result)
+    """
+    Gera um feedback sofisticado e humanizado, enviando um prompt detalhado
+    para um modelo de IA.
+    """
+
+    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', openai_key: str, quota: int):
+        super().__init__(result, feedback)
+        if not openai_key:
+            raise ValueError("A chave da API da OpenAI é necessária para o AiReporter.")
         self.client = OpenAI(api_key=openai_key)
         self.quota = quota
-        self.config = config if config else AiConfig.parse_config()
 
-    def _prepare_test_results_str(self):
-        results = f"Testes base que falharam:{self.result.base_results['failed']}\n\n"
-        results += f"Testes base que passaram:{self.result.base_results['passed']}\n\n"
-        results += f"Testes bonus que passaram:{self.result.bonus_results['passed']}\n\n"
-        results += f"Testes bonus que falharam:{self.result.bonus_results['failed']}\n\n"
-        results += f"Penalidades detectadas:{self.result.penalty_results['passed']}\n\n"
-        return results
-    def get_system_prompt(self):
-        return self.config.system_prompt
-
-    def assemble_user_prompt(self):
-        """Assembles the final user prompt by injecting dynamic data into the template."""
-
-        # 1. Get all the dynamic parts
-        test_results_str = self._prepare_test_results_str()
-        files_str = self.get_files()
-        resources_str = self._prepare_learning_resources_str()
-
-        # Extract author and final_score directly
-        author_name = self.result.author
-        final_score_value = self.result.final_score
-
-        # 2. Assemble the prompt using a single, readable f-string
-        return f"""Olá, Code Buddy! 🚀 Prepare um feedback inspirador e super útil para o(a) estudante: {author_name}.
-
-        ---
-
-        {self.config.assignment_context}
-
-        ---
-
-        🌟 A nota final do estudante é: **{final_score_value:.1f}/100**
-
-        ### 1. O Código Enviado pelo Aluno (A Fonte de Todas as Respostas)
-
-        {files_str}
-
-        ### 3. Onde o Código Precisa de Atenção (Onde você vai fazer sua análise 🕵️)
-
-        Em seguida, você vai receber os testes feitos na submissão do aluno:
-
-        {test_results_str}
-
-        ### 4. O que cada grupo de teste significa (O que você vai usar para entender o que o aluno fez de errado, ou parabenizá-lo pelo que fez certo):
-
-        Testes base são os requisitos obrigatórios do projeto, ou seja, o que o aluno precisa entregar para ser aprovado.
-
-        Testes bônus são os requisitos opcionais do projeto, ou seja, o que o aluno pode entregar para melhorar sua nota, você recebeu apenas os testes bonus que passaram, ou seja, você deve apenas mostrar que reconhece os extras que ele conseguiu.
-
-        Penalidades são os requisitos que o aluno não pode entregar, ou seja, o que o aluno fez de errado e que não pode estar presente em sua submissão.
-
-        LEMBRE-SE: Sempre que for abordar um erro detectado, busque entender o que está acontecendo no código do aluno, e por que aquele teste falhou. Muitas vezes, os testes falhados são os mais importantes, pois eles indicam problemas fundamentais no código do aluno.
-        É crucial que você preste atenção neles, pois geralmente indicam problemas fundamentais que, uma vez corrigidos, destravam diversas outras funcionalidades. Ou seja, certifique-se de analisar o código do aluno com muita atenção para entender o porque daquele teste ter falhado, e assim conseguir explicar pro aluno o que está errado.
-
-        ### 📚 Recursos de Aprendizado Adicionais
-
-        Os recursos abaixo devem ser recomendados ao usuário (por url) na lógica de: quando você encontrar um erro no código do aluno, busque por um recurso que se encaixe naquele problema e recomende ao aluno para que ele tenha onde aprender. Verifique com atenção o erro do aluno e forneça o conteúdo que realmente aborda aquele problema. Aqui estão os recursos e seus casos de uso:
-
-        {resources_str}
-
-        ### 📝 Suas Instruções Detalhadas (Siga à Risca!):
-
-        Crie um feedback em markdown que flua como uma conversa natural, amigável e construtiva. Use bastante emojis!
-        Você deve SEMPRE mostrar trechos de código para mostrar os erros do aluno e também para mostrar possíveis soluções. 
-
-        **Seu Checklist para o Feedback:**
-
-        {self.config.extra_orientations}
+    def generate_feedback(self) -> str:
         """
-
-    def get_files(self):
+        Constrói um prompt detalhado e chama o modelo de IA para gerar o feedback.
         """
-        Reads files and directories listed in the config from the submission directory
-        and formats their content into a single string for the AI prompt.
-        """
-        base_path = os.getenv("GITHUB_WORKSPACE", ".")
-        submission_dir = os.path.join(base_path, 'submission')
-        formatted_files_content = []
+        final_prompt = self._build_prompt()
 
-        # Iterate through each item specified in the config
-        for item_path in self.config.files:
-            full_path = os.path.join(submission_dir, item_path)
+        try:
+            response = self.client.chat.completions.create(
+                 model="gpt-4",  # Ou outro modelo de sua escolha
+                 messages=[
+                     {"role": "system", "content": self.feedback.ai.feedback_persona},
+                     {"role": "user", "content": final_prompt}
+                 ],
+                 temperature=0.6)
+            ai_generated_text = response.choices[0].message.content
 
-            # Check if the item is a directory
-            if os.path.isdir(full_path):
-                try:
-                    # Read all files within the directory
-                    for filename in os.listdir(full_path):
-                        file_path = os.path.join(full_path, filename)
-                        # Make sure it's actually a file and not a subdirectory
-                        if os.path.isfile(file_path):
-                            # Prepend the directory name to the file name for clarity in the output
-                            relative_file_path = os.path.join(item_path, filename)
-                            with open(file_path, "r", encoding="utf-8") as f:
-                                content = f.read()
-                                formatted_files_content.append(f"# ARQUIVO: {relative_file_path}\n```\n{content}\n```")
-                except FileNotFoundError:
-                    formatted_files_content.append(
-                        f"# DIRETÓRIO: {item_path}\n---\n**O DIRETÓRIO NÃO EXISTE NO REPOSITÓRIO DO ALUNO!**\n---")
 
-            # If it's not a directory, treat it as a single file
-            elif os.path.isfile(full_path):
-                try:
-                    with open(full_path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                        formatted_files_content.append(f"# ARQUIVO: {item_path}\n```\n{content}\n```")
-                except FileNotFoundError:
-                    formatted_files_content.append(
-                        f"# ARQUIVO: {item_path}\n---\n**O ARQUIVO NÃO EXISTE NO REPOSITÓRIO DO ALUNO!**\n---")
+        except Exception as e:
+            ai_generated_text = f"**Ocorreu um erro ao gerar o feedback da IA:** {e}\n\nRetornando para o feedback padrão."
 
-            # Handle cases where the path is neither a file nor a directory
-            else:
-                formatted_files_content.append(
-                    f"# ITEM: {item_path}\n---\n**O CAMINHO NÃO É UM ARQUIVO NEM UM DIRETÓRIO VÁLIDO NO REPOSITÓRIO DO ALUNO!**\n---")
+        # --- Formata o relatório final ---
+        report_parts = [
+            f"# {self.feedback.general.report_title}",
+            f"<sup>Este é um feedback gerado por IA e pode conter erros. Você tem {self.quota} créditos restantes.</sup>",
+            f"\nOlá, **{self.result.author}**! Aqui está um feedback detalhado sobre sua atividade.",
+            f"> **Nota Final:** **`{self.result.final_score:.2f} / 100`**",
+            "---",
+            ai_generated_text  # O conteúdo principal vem da IA
+        ]
 
-        return "\n\n".join(formatted_files_content)
+        if self.feedback.general.add_report_summary:
+            report_parts.append(self._build_summary())
 
-    def _prepare_learning_resources_str(self):
-        """Prepares a formatted string of learning resources."""
-        if not self.config.learning_resources:
-            return "Essa atividade não possui recursos de aprendizado adicionais."
+        report_parts.append("\n\n---\n" + "> Caso queira tirar uma dúvida específica, entre em contato com o Chapter.")
 
-        resource_list = []
-        for resource in self.config.learning_resources:
-            resource_list.append(f"- {resource.subject}: " + ", ".join(
-                f"{res['url']} ({res['description']})" for res in resource.resources))
+        return "\n".join(filter(None, report_parts))
 
-        return "\n".join(resource_list) if resource_list else "Essa atividade não possui recursos de aprendizado adicionais."
+    def _build_prompt(self) -> str:
+        """Monta todas as informações necessárias em um único e grande prompt para a IA."""
 
-    def generate_feedback(self):
-        """Generates feedback using the OpenAI API based on the assembled prompt."""
+        prompt_parts = [
+            f"**Persona da IA:**\n{self.feedback.ai.feedback_persona}",
+            f"**Contexto da Atividade:**\n{self.feedback.ai.assignment_context}",
+            f"**Orientações Adicionais:**\n{self.feedback.ai.extra_orientations}",
+            f"**Tom do Feedback:**\n{self.feedback.ai.feedback_tone}",
+            f"**Nível de Ajuda com Soluções:**\n{self.feedback.ai.provide_solutions}",
+            "---",
+            self._get_submission_files_as_text(),
+            "---",
+            self._format_test_results_for_prompt(),
+            "---",
+            self._format_learning_resources_for_prompt(),
+            "---",
+            "**Sua Tarefa:**\nCom base em todo o contexto, código e resultados dos testes fornecidos, escreva um feedback em markdown que seja útil e educativo, seguindo todas as orientações."
+        ]
+        return "\n\n".join(filter(None, prompt_parts))
 
-        system_prompt = self.config.system_prompt
-        final_user_prompt = self.assemble_user_prompt()
+    def _get_submission_files_as_text(self) -> str:
+        """Lê o conteúdo dos arquivos do aluno especificados nas preferências."""
+        files_to_read = self.feedback.ai.submission_files_to_read
+        if not files_to_read:
+            return "**Código do Aluno:**\nNenhum arquivo foi especificado para leitura."
 
-        response = self.client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": final_user_prompt}
-            ],
-            temperature=0.5  # Lowered for more deterministic feedback
+        file_contents = ["**Código do Aluno:**"]
+        for filename in files_to_read:
+            content = self.result.submission_files.get(filename, f"Arquivo '{filename}' não encontrado.")
+            file_contents.append(f"\n---\n`{filename}`\n---\n```\n{content}\n```")
+
+        return "\n".join(file_contents)
+
+    def _format_test_results_for_prompt(self) -> str:
+        """Formata os resultados dos testes em uma string para a IA analisar."""
+        results_parts = ["**Resultados dos Testes para Análise:**"]
+
+        failed_base = [res for res in self.result.base_results if res.score < 100]
+        passed_bonus = [res for res in self.result.bonus_results if res.score >= 100]
+        failed_penalty = [res for res in self.result.penalty_results if res.score < 100]
+
+        if failed_base:
+            results_parts.append("\n**Testes Obrigatórios que Falharam (Erros Críticos):**")
+            for res in failed_base:
+                results_parts.append(
+                    f"- Teste: `{res.test_name}`, Parâmetros: `{res.parameters}`, Mensagem: {res.report}")
+
+        if passed_bonus and self.feedback.general.show_passed_tests:
+            results_parts.append("\n**Testes Bônus Concluídos com Sucesso (Elogiar):**")
+            for res in passed_bonus:
+                results_parts.append(f"- Teste: `{res.test_name}`, Parâmetros: `{res.parameters}`")
+
+        if failed_penalty:
+            results_parts.append("\n**Penalidades Aplicadas (Más Práticas Detectadas):**")
+            for res in failed_penalty:
+                results_parts.append(
+                    f"- Teste: `{res.test_name}`, Parâmetros: `{res.parameters}`, Mensagem: {res.report}")
+
+        return "\n".join(results_parts)
+
+    def _format_learning_resources_for_prompt(self) -> str:
+        """Formata o conteúdo online para que a IA saiba qual link sugerir para cada erro."""
+        if not self.feedback.general.online_content:
+            return ""
+
+        resource_parts = [
+            "**Recursos de Aprendizagem Disponíveis:**\nSe um teste que falhou estiver listado abaixo, sugira o link correspondente."]
+
+        for resource in self.feedback.general.online_content:
+            tests = ", ".join(f"`{t}`" for t in resource.linked_tests)
+            resource_parts.append(
+                f"- Se os testes {tests} falharem, recomende este link: [{resource.description}]({resource.url})")
+
+        return "\n".join(resource_parts)
+
+    def _build_summary(self) -> str:
+        """Constrói um resumo estruturado como fallback ou complemento ao texto da IA."""
+        summary_parts = ["\n---\n", "### 📝 Resumo dos Pontos de Atenção"]
+
+        failed_base = [res for res in self.result.base_results if res.score < 100]
+        failed_penalty = [res for res in self.result.penalty_results if res.score < 100]
+
+        if not failed_base and not failed_penalty:
+            return ""
+
+        summary_parts.append("| Ação | Tópico | Teste |")
+        summary_parts.append("|:---|:---|:---|")
+
+        for res in failed_base:
+            summary_parts.append(f"| Revisar | `{res.subject_name}` | `{res.test_name}` |")
+        for res in failed_penalty:
+            summary_parts.append(f"| Corrigir (Penalidade) | `{res.subject_name}` | `{res.test_name}` |")
+
+        return "\n".join(summary_parts)
+
+    def _get_mock_ai_response(self) -> str:
+        """Uma resposta mockada para fins de teste, já que não estamos fazendo uma chamada de API real."""
+        return (
+            "### Análise Geral\n"
+            "Seu projeto está bem estruturado, mas notei alguns pontos de atenção, principalmente relacionados à acessibilidade das imagens e à responsividade.\n\n"
+            "#### Pontos a Melhorar\n"
+            "> **Acessibilidade de Imagens**\n"
+            "> Percebi que uma de suas imagens está sem o atributo `alt`. Este atributo é fundamental para que leitores de tela possam descrever a imagem para usuários com deficiência visual. Analisando seu `index.html`, a segunda tag `<img>` precisa ser corrigida.\n\n"
+            "> **Responsividade com Media Queries**\n"
+            "> Seu CSS não inclui `@media` queries. Sem elas, seu layout não conseguirá se adaptar a telas menores, como as de celulares. Recomendo fortemente a leitura do material sobre Media Queries para implementar essa funcionalidade."
         )
-
-        # Now, format the final report
-        feedback = "<sup>Esse é um feedback gerado por IA, ele pode conter erros.</sup>\n\n"
-        feedback += f"Você tem {self.quota} créditos restantes para usar o sistema de feedback AI.\n\n"
-        feedback += f"# Feedback para {self.result.author}:\n\n"
-        feedback += f"Nota final: **{self.result.final_score:.1f}/100**\n\n"
-        feedback += response.choices[0].message.content
-        feedback += "\n\n> Caso queira tirar uma dúvida específica, entre em contato com o Chapter no nosso [discord](https://discord.gg/DryuHVnz).\n\n"
-        feedback += "\n\n---\n"
-        feedback += "<sup>Made By the Autograder Team.</sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Carvalho](https://github.com/ArthurCRodrigues)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Drumond](https://github.com/drumondpucminas)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Gabriel Resende](https://github.com/gnvr29)</sup></sup>"
-        return feedback
-
-    @classmethod
-    def create(cls, result, openai_key, quota):
-        """Factory method to create an AIReporter instance."""
-        response = cls(result,openai_key,quota)
-        return response

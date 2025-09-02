@@ -13,8 +13,8 @@ if [[ -z "$GITHUB_TOKEN" ]]; then
   exit 1
 fi
 
-if [[ -z "$GRADING_PRESET" ]]; then
-  echo "Error: Environment variable GRADING_PRESET is not set." >&2
+if [[ -z "$TEMPLATE_PRESET" ]]; then
+  echo "Error: Environment variable TEMPLATE_PRESET is not set." >&2
   exit 1
 fi
 
@@ -32,7 +32,7 @@ args=(
     "-m"
     "connectors.adapters.github_action_adapter.github_entrypoint"
     "--github-token" "$GITHUB_TOKEN"
-    "--grading-preset" "$GRADING_PRESET"
+    "--template-preset" "$TEMPLATE_PRESET"
     "--student-name" "$GITHUB_ACTOR"
 )
 
@@ -40,27 +40,23 @@ args=(
 # The '-n' flag checks if the variable's string length is non-zero.
 # Note: The argument flags (e.g., --app_token) match the ones in your Python script.
 if [[ -n "$APP_TOKEN" ]]; then
-    args+=("--app_token" "$APP_TOKEN")
-fi
-
-if [[ -n "$TEST_FRAMEWORK" ]]; then
-    args+=("--test_framework" "$TEST_FRAMEWORK")
+    args+=("--app-token" "$APP_TOKEN")
 fi
 
 if [[ -n "$FEEDBACK_TYPE" ]]; then
-    args+=("--feedback_type" "$FEEDBACK_TYPE")
+    args+=("--feedback-type" "$FEEDBACK_TYPE")
 fi
 
 if [[ -n "$OPENAI_KEY" ]]; then
-    args+=("--openai_key" "$OPENAI_KEY")
+    args+=("--openai-key" "$OPENAI_KEY")
 fi
 
 if [[ -n "$REDIS_URL" ]]; then
-    args+=("--redis_url" "$REDIS_URL")
+    args+=("--redis-url" "$REDIS_URL")
 fi
 
 if [[ -n "$REDIS_TOKEN" ]]; then
-    args+=("--redis_token" "$REDIS_TOKEN")
+    args+=("--redis-token" "$REDIS_TOKEN")
 fi
 
 

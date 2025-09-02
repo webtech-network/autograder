@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Optional
 from fastapi import UploadFile
 from connectors.models.autograder_request import AutograderRequest
 from connectors.models.assignment_config import AssignmentConfig
-from connectors.models.test_files import TestFiles
+import json
 from connectors.port import Port
-
+import logging
 
 class ApiAdapter(Port):
 
@@ -50,26 +50,41 @@ class ApiAdapter(Port):
             redis_url=redis_url,
             redis_token=redis_token
         )
-    async def create_custom_assignment_config(self,
-                                       test_files: List[UploadFile],
-                                       criteria,
-                                       feedback,
-                                       preset="custom",
-                                       ai_feedback=None,
-                                       setup=None,
-                                       test_framework="pytest"):
-        files = TestFiles()
-        for file in test_files:
-            if file.filename.startswith("base_tests"):
-                base_content = await file.read()
-                files.test_base = base_content.decode("utf-8")
-            elif file.filename.startswith("bonus_tests"):
-                bonus_content = await file.read()
-                files.test_bonus = bonus_content.decode("utf-8")
-            elif file.filename.startswith("penalty_tests"):
-                penalty_content = await file.read()
-                files.test_penalty = penalty_content.decode("utf-8")
-            else:
-                other_files_content = await file.read()
-                files.other_files[file.filename] = other_files_content.decode("utf-8")
-        return AssignmentConfig.load_custom(files,criteria,feedback,ai_feedback=ai_feedback,setup=setup,test_framework=test_framework)
+
+
+    async def load_assignment_config(self, template: str, criteria: UploadFile, feedback: UploadFile,
+                               setup: Optional[UploadFile] = None) -> AssignmentConfig:
+        """
+        Loads the assignment configuration based on the provided template preset.
+        """
+        logger = logging.getLogger(__name__)
+        try:
+            # Read and parse template name
+            template_name = template
+            logger.info(f"Template name: {template_name}")
+
+            # Loads the raw json strings (template,criteria,feedback and setup) into dictionaries
+            criteria_content = await criteria.read()
+            criteria_dict = json.loads(criteria_content.decode("utf-8")) if criteria else None
+            logger.info(f"Criteria loaded: {criteria_dict is not None}")
+
+            feedback_content = await feedback.read()
+            feedback_dict = json.loads(feedback_content.decode("utf-8")) if feedback else None
+            logger.info(f"Feedback config loaded: {feedback_dict is not None}")
+
+            setup_dict = None
+            if setup:
+                setup_content = await setup.read()
+                setup_dict = json.loads(setup_content.decode("utf-8")) if setup else None
+                logger.info(f"Setup config loaded: {setup_dict is not None}")
+
+            return AssignmentConfig(criteria=criteria_dict, feedback=feedback_dict, setup=setup_dict,
+                                    template=template_name)
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in configuration files: {e}")
+            raise ValueError(f"Invalid JSON format in configuration files: {e}")
+        except UnicodeDecodeError as e:
+            logger.error(f"Encoding error reading configuration files: {e}")
+            raise ValueError(f"Unable to decode configuration files: {e}")
+

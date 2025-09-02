@@ -12,9 +12,9 @@ class Port(ABC):
         self.autograder_request = None
         self.autograder_response = None
 
-    async def run_autograder(self):
+    def run_autograder(self):
         try:
-            response = await Autograder.connect(self.autograder_request)
+            response = Autograder.grade(self.autograder_request)
             self.autograder_response = response
             return self
         except Exception as e:
@@ -41,19 +41,6 @@ class Port(ABC):
                        redis_token=None):
         """
         Abstract method to create an AutograderRequest object.
-        This method should be implemented by the concrete Port classes.
-        """
-        pass
-
-    @abstractmethod
-    def create_custom_assignment_config(self, test_files,
-                                       criteria,
-                                       feedback,
-                                       preset="custom",
-                                       ai_feedback=None,
-                                       test_framework="pytest"):
-        """
-        Abstract method to create an AssignmentConfig object.
         This method should be implemented by the concrete Port classes.
         """
         pass
