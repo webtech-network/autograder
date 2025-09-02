@@ -580,7 +580,7 @@ describe('Base Tests - ', () => {
 
             safeTest('AGENTS: Recebe status 404 ao tentar buscar um agente com ID em formato inválido', async () => {
                 const inexistentId = "Id n aceitavel";
-
+ 
                 try {
                     await axios.get(`${BASE_URL}/agentes/${inexistentId}`, { headers: requestHeaders });
                     //Fail the test if no error is thrown
