@@ -1,10 +1,15 @@
-from typing import List, Optional
+import inspect
+import textwrap
+from typing import List, Optional, Dict, Any
 from fastapi import UploadFile
+
 from connectors.models.autograder_request import AutograderRequest
 from connectors.models.assignment_config import AssignmentConfig
 import json
 from connectors.port import Port
 import logging
+from autograder.builder.template_library.library import TemplateLibrary
+
 
 class ApiAdapter(Port):
 
@@ -87,10 +92,50 @@ class ApiAdapter(Port):
         except UnicodeDecodeError as e:
             logger.error(f"Encoding error reading configuration files: {e}")
             raise ValueError(f"Unable to decode configuration files: {e}")
-    def get_template_info(self, template_name: str):
+
+    def get_template_info(self,template_name: str) -> Dict[str, Any]:
         """
-        Retrieves information about a specific grading template preset.
+        Retrieves a dictionary containing all the information of a Template,
+        including its name, description, and full details for each test function
+        (name, description, parameters, and source code).
         """
-        # Mock implementation - in a real scenario, this would fetch details from the Library
-        return "Info for template: {template_name}"
+        # 1. Retrieve an instance of the template from the library
+        template_instance = TemplateLibrary.get_template(template_name)
+        if not template_instance:
+            raise ValueError(f"Template '{template_name}' not found.")
+
+        # 2. Prepare the main dictionary with basic template info
+        template_data = {
+            "template_name": template_instance.template_name,
+            "template_description": template_instance.template_description,
+            "tests": []
+        }
+
+        # 3. Iterate through each test function in the template
+        for test_name, test_instance in template_instance.get_tests().items():
+            try:
+                # 4. Use 'inspect' to get the source code of the 'execute' method
+                source_code = inspect.getsource(test_instance.execute)
+                # Use 'textwrap.dedent' to remove common leading whitespace
+                cleaned_code = textwrap.dedent(source_code)
+            except (TypeError, OSError):
+                # Fallback in case the source code is not available
+                cleaned_code = "Source code could not be retrieved."
+
+            # 5. Build a dictionary for the current test function
+            test_info = {
+                "name": test_instance.name,
+                "description": test_instance.description,
+                "parameter_description": test_instance.parameter_description,
+                "code": cleaned_code
+            }
+            template_data["tests"].append(test_info)
+
+        return template_data
+
+
+if __name__ == "__main__":
+    adapter = ApiAdapter()
+    template_info = adapter.get_template_info("web dev")
+    print(template_info)
 
