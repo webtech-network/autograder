@@ -95,10 +95,10 @@ async def grade_submission_endpoint(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
-@app.get("template/{template_name}")
+@app.get("/template/{template_name}")
 async def get_template_info(template_name: str):
     adapter = ApiAdapter()
-    adapter.get_template_info(template_name)
+    return adapter.get_template_info(template_name.replace("_"," "))
 
 # To run this API service:
 # uvicorn submission_api:app --host 0.0.0.0 --port 8000 --reload
