@@ -592,7 +592,7 @@ describe('Base Tests - ', () => {
 
             safeTest('AGENTS: Recebe status code 401 ao tentar buscar agente corretamente mas sem header de autorização com token JWT', async () => {
                 try {
-                    const response = await axios.post(`${BASE_URL}/agentes/${createdAgentId}`);
+                    const response = await axios.get(`${BASE_URL}/agentes/1`);
                     expect(response.status).toBe(401);
                 } catch (error) {
                     expect(error.response.status).toBe(401);
