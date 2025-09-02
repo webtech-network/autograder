@@ -90,7 +90,7 @@ class TestCriteriaTree(unittest.TestCase):
 
         # Test category weights
         self.assertEqual(criteria.penalty.max_score, 75)
-        self.assertEqual(criteria.bonus.max_score, 100)  # Default
+        self.assertEqual(criteria.bonus.max_score, 0)  # Default
 
         # Test subject structure
         self.assertIn("html", criteria.base.subjects)
