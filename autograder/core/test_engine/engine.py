@@ -1,6 +1,9 @@
 """
 Handles the adapter for the test language selected.
 """
+import os
+
+
 class TestEngine:
     """
     TestEngine is the factory class for the test engine adapters.
@@ -21,6 +24,10 @@ class TestEngine:
         elif test_framework == "jest":
             from autograder.core.test_engine.adapters.jest_adapter import JestAdapter
             runner = JestAdapter()
+        elif test_framework == "ai_engine":
+            from autograder.core.test_engine.adapters.ai_adapter import AiEngine
+            openai_key = os.getenv("OPENAI_KEY")
+            runner = AiEngine(openai_key=openai_key)
         else:
             raise ValueError(f"Unsupported test framework: {test_framework}")
 
