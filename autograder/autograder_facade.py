@@ -30,20 +30,29 @@ class Autograder:
                      return AutograderResponse("fail", 0.0, "\n".join(error_messages))
                 logger.info("Pre-flight setup completed with no impediments")
 
-            # Step 2: Build criteria tree
-            logger.info("Building criteria tree from assignment configuration:")
-            logger.debug(f"Criteria configuration: {autograder_request.assignment_config.criteria}")
-            criteria_tree = CriteriaTree.build(autograder_request.assignment_config.criteria)
-            logger.info("Criteria tree built successfully")
-
-            # Step 3: Get test template
+            # Step 2: Get test template
             template_name = autograder_request.assignment_config.template
             logger.info(f"Loading test template: '{template_name}'")
             test_template = TemplateLibrary.get_template(template_name)
-
             if test_template is None:
                 logger.error(f"Template '{template_name}' not found in TemplateLibrary")
                 raise ValueError(f"Unsupported template: {template_name}")
+
+            # Step 3: Build criteria tree
+            logger.info("Building criteria tree from assignment configuration:")
+            logger.debug(f"Criteria configuration: {autograder_request.assignment_config.criteria}")
+            if test_template.requires_pre_executed_tree:
+                logger.info("Template requires pre-executed criteria tree.")
+                criteria_tree = CriteriaTree.build_pre_executed_tree(autograder_request.assignment_config.criteria,test_template,autograder_request.submission_files)
+            elif not test_template.requires_pre_executed_tree:
+                logger.info("Template does not require pre-executed criteria tree.")
+                criteria_tree = CriteriaTree.build_non_executed_tree(autograder_request.assignment_config.criteria)
+            else:
+                error_msg = f"Template '{template_name}' has an invalid 'requires_pre_executed_tree' setting."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            logger.info("Criteria tree built successfully")
+
 
             logger.info(f"Test template '{template_name}' loaded successfully")
 
