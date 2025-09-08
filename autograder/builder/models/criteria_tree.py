@@ -35,7 +35,7 @@ class Test:
     def add_call(self, call: TestCall):
         self.calls.append(call)
 
-    def run(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
+    def get_result(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
         """
         Retrieves a TestFunction object from the library and executes it for each TestCall.
         """

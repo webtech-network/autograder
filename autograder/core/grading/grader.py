@@ -63,7 +63,7 @@ class Grader:
             print(f"\n{prefix}📘 Grading {current_node.name}...")
             subject_test_results = []
             for test in current_node.tests:
-                test_results = test.run(self.test_library, submission_files, current_node.name)
+                test_results = test.get_result(self.test_library, submission_files, current_node.name)
                 subject_test_results.extend(test_results)
 
             if not subject_test_results:

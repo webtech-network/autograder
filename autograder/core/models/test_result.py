@@ -8,5 +8,8 @@ class TestResult:
         self.subject_name = subject_name # Added reference to the subject
         self.parameters = parameters if parameters is not None else {}
 
+    def get_result(self):
+        return self
+
     def __repr__(self):
         return f"TestResult(subject='{self.subject_name}', name='{self.test_name}', score={self.score})"
