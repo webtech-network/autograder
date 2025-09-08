@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 
 from autograder.builder.models.criteria_tree import Criteria, Subject, Test, TestCall, TestResult
 from autograder.builder.models.template import Template
+from autograder.builder.template_library.templates.web_dev import WebDevLibrary
 
 
 class CriteriaTree:
@@ -70,7 +71,6 @@ class CriteriaTree:
             raise ValueError(f"Config error: Subject '{subject_name}' cannot have both 'tests' and 'subjects'.")
 
         subject = Subject(subject_name, subject_data.get("weight", 0))
-
         if "tests" in subject_data:
             subject.tests = CriteriaTree._parse_tests(subject_data["tests"])
         elif "subjects" in subject_data:
@@ -97,7 +97,7 @@ class CriteriaTree:
             executed_tests = []
             for test in parsed_tests:
                 # The run method executes the test and returns a list of TestResult objects
-                test_results = test.run(template, submission_files, subject_name)
+                test_results = test.get_result(template, submission_files, subject_name)
                 executed_tests.extend(test_results)
             subject.tests = executed_tests  # Store TestResult objects instead of Test objects
         elif "subjects" in subject_data:
@@ -141,3 +141,350 @@ class CriteriaTree:
                 parsed_tests.append(test)
 
         return parsed_tests
+
+
+
+if __name__ == "__main__":
+    criteria_json = {
+  "test_library": "web_dev",
+  "base": {
+    "weight": 100,
+    "subjects": {
+      "semana_5": {
+        "weight": 40,
+        "subjects": {
+        "html": {
+          "weight": 60,
+          "subjects": {
+            "structure": {
+              "weight": 40,
+              "tests": [
+                {
+                  "file": "index.html",
+                  "name": "has_tag",
+                  "calls": [
+                    ["body", 1],
+                    ["header", 1],
+                    ["nav", 1],
+                    ["main", 1],
+                    ["article", 4],
+                    ["img", 5],
+                    ["footer", 1],
+                    ["div", 1],
+                    ["form", 1],
+                    ["input", 1],
+                    ["button", 1]
+                  ]
+                },
+                {
+                  "file": "index.html",
+                  "name": "has_attribute",
+                  "calls": [
+                    ["class", 2]
+                  ]
+                }
+              ]
+            },
+            "link": {
+              "weight": 20,
+              "tests": [
+                {
+                  "file": "index.html",
+                  "name": "check_css_linked"
+                },
+                {
+                  "file": "index.html",
+                  "name": "check_internal_links_to_article",
+                  "calls": [
+                    [4]
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "css": {
+          "weight": 40,
+          "subjects": {
+            "responsivity": {
+              "weight": 50,
+              "tests": [
+                {
+                  "file": "css/styles.css",
+                  "name": "uses_relative_units"
+                },
+                {
+                  "file": "css/styles.css",
+                  "name": "check_media_queries"
+                },
+                {
+                  "file": "css/styles.css",
+                  "name": "check_flexbox_usage"
+                }
+              ]
+            },
+            "style": {
+              "weight": 50,
+              "tests": [
+                {
+                  "file": "css/styles.css",
+                  "name": "has_style",
+                  "calls": [
+                    ["font-size", 1],
+                    ["font-family", 1],
+                    ["text-align", 1],
+                    ["display", 1],
+                    ["position", 1],
+                    ["margin", 1],
+                    ["padding", 1]
+                  ]
+                }
+              ]
+            }
+          }
+        }
+    }
+      },
+      "semana_6": {
+        "weight": 60,
+        "subjects": {
+        "bootstrap_fundamentals": {
+            "weight": 70,
+            "tests": [
+              {
+                "file": "index.html",
+                "name": "check_bootstrap_linked"
+              },
+              {
+                "file": "index.html",
+                "name": "check_internal_links",
+                "calls": [
+                  [3]
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_class",
+                "calls": [
+                  [["container", "container-fluid"], 1],
+                  [["row"], 1],
+                  [["col-*"], 3],
+                  [["text-center"], 1],
+                  [["d-flex", "d-*-flex"], 1],
+                  [["bg-*"], 1]
+                ]
+              }
+            ]
+        },
+        "css_and_docs": {
+            "weight": 30,
+            "tests": [
+              {
+                "file": "css/styles.css",
+                "name": "check_media_queries"
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "calls": [
+                  ["margin", 1],
+                  ["padding", 1],
+                  ["width", 1]
+                ]
+              },
+              {
+                "file": "all",
+                "name": "check_project_structure",
+                "calls": [
+                  ["README.md"]
+                ]
+              }
+            ]
+        }
+      }
+    }
+    }
+  },
+  "bonus": {
+    "weight": 40,
+    "subjects": {
+      "semana_5": {
+        "weight": 40,
+        "subjects": {
+        "accessibility": {
+          "weight": 20,
+          "tests": [
+            {
+              "file": "index.html",
+              "name": "check_all_images_have_alt"
+            }
+          ]
+        },
+        "head_detail": {
+          "weight": 80,
+          "tests": [
+            {
+              "file": "index.html",
+              "name": "check_head_details",
+              "calls": [
+                ["title"],
+                ["meta"]
+              ]
+            },
+            {
+              "file": "index.html",
+              "name": "check_attribute_and_value",
+              "calls": [
+                ["meta", "charset", "UTF-8"],
+                ["meta", "name", "viewport"],
+                ["meta", "name", "description"],
+                ["meta", "name", "author"],
+                ["meta", "name", "keywords"]
+              ]
+            }
+          ]
+        }
+    }
+      },
+      "semana_6": {
+        "weight": 60,
+        "subjects": {
+        "bootstrap_components": {
+            "weight": 60,
+            "tests": [
+                 {
+                    "file": "index.html",
+                    "name": "has_class",
+                    "calls": [
+                      [["card"], 1],
+                      [["card-body"], 1],
+                      [["card-title"], 1],
+                      [["navbar"], 1],
+                      [["navbar-nav"], 1],
+                      [["breadcrumb"], 1],
+                      [["breadcrumb-item"], 1],
+                      [["carousel"], 1],
+                      [["slide"], 1],
+                      [["carousel-item"], 1]
+                    ]
+                 }
+            ]
+        },
+        "formatting_classes": {
+            "weight": 40,
+            "tests": [
+                 {
+                    "file": "index.html",
+                    "name": "has_class",
+                    "calls": [
+                      [["mt-*", "ms-*", "me-*", "mb-*", "pt-*", "ps-*", "pe-*", "pb-*", "gap-*"], 8]
+                    ]
+                 },
+                 {
+                    "file": "index.html",
+                    "name": "has_class",
+                    "calls": [
+                      [["w-*", "mh-*", "mw-*", "vw-*", "vh-*"], 4]
+                    ]
+                 }
+            ]
+        }
+    }
+      }
+    }
+  },
+  "penalty": {
+    "weight": 50,
+    "subjects": {
+      "semana_5": {
+        "weight": 40,
+        "subjects": {
+        "html": {
+          "weight": 50,
+          "tests": [
+            {
+              "file": "index.html",
+              "name": "check_bootstrap_usage"
+            },
+            {
+              "file": "css/styles.css",
+              "name": "check_id_selector_over_usage",
+              "calls": [
+                [2]
+              ]
+            },
+            {
+              "file": "index.html",
+              "name": "has_tag",
+              "calls": [
+                ["script", 1]
+              ]
+            },
+            {
+              "file": "index.html",
+              "name": "check_html_direct_children"
+            },
+            {
+              "file": "index.html",
+              "name": "check_tag_not_inside",
+              "calls": [
+                ["header", "main"],
+                ["footer", "main"]
+              ]
+            }
+          ]
+        },
+        "project_structure": {
+          "weight": 50,
+          "tests": [
+            {
+              "file": "all",
+              "name": "check_dir_exists",
+              "calls": [
+                ["css"],
+                ["imgs"]
+              ]
+            },
+            {
+              "file": "all",
+              "name": "check_project_structure",
+              "calls": [
+                ["css/styles.css"]
+              ]
+            }
+          ]
+        }
+    }
+      }
+    }
+  }
+}
+    submission_files = {"index.html":"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Welcome to My Page</h1> <!-- ✅ Matches test requirement -->
+    <p>This is a simple webpage.</p> <!-- ✅ Just needs a paragraph -->
+
+    <button id="myButton">Click Me!</button> <!-- ✅ Button with correct ID & text -->
+
+    <script src="script.js"></script>
+</body>
+</html>""",
+                        "style.css":"""body {}
+    font-size: 16px; /* ✅ Uses relative unit (px is acceptable here) */
+    font-family: Arial, sans-serif; /* ✅ Valid font family */
+    text-align: center; /* ✅ Valid text alignment */
+    display: flex; /* ✅ Uses Flexbox */
+    position: relative; /* ✅ Valid position */
+    margin: 0; /* ✅ Valid margin */
+    padding: 0; /* ✅ Valid padding */"""
+}
+    #tree = CriteriaTree.build_pre_executed_tree(criteria_json, WebDevLibrary(), submission_files)
+    tree = CriteriaTree.build_non_executed_tree(criteria_json)
+    #tree.print_pre_executed_tree()
+    tree.print_tree()
