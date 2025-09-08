@@ -35,7 +35,7 @@ class Test:
     def add_call(self, call: TestCall):
         self.calls.append(call)
 
-    def run(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
+    def get_result(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
         """
         Retrieves a TestFunction object from the library and executes it for each TestCall.
         """
@@ -86,7 +86,7 @@ class Subject:
     def __repr__(self):
         if self.subjects is not None:
             return f"Subject(name='{self.name}', weight={self.weight}, subjects={len(self.subjects)})"
-        return f"Subject(name='{self.name}', weight={self.weight}, tests={len(self.tests)})"
+        return f"Subject(name='{self.name}', weight={self.weight}, tests={self.tests})"
 
 
 class TestCategory:
@@ -144,6 +144,39 @@ class Criteria:
                 print(f"{prefix}  - 🧪 {test.name} (file: {test.file})")
                 for call in test.calls:
                     print(f"{prefix}    - Parameters: {call.args}")
+
+    def print_pre_executed_tree(self):
+        """Prints a visual representation of the entire pre-executed criteria tree."""
+        print(f"🌲 Pre-Executed Criteria Tree")
+        self._print_pre_executed_category(self.base, prefix="  ")
+        self._print_pre_executed_category(self.bonus, prefix="  ")
+        self._print_pre_executed_category(self.penalty, prefix="  ")
+
+    def _print_pre_executed_category(self, category: TestCategory, prefix: str):
+        """Helper method to print a category and its pre-executed subjects."""
+        if not category.subjects:
+            return
+        print(f"{prefix}📁 {category.name.upper()} (max_score: {category.max_score})")
+        for subject in category.subjects.values():
+            self._print_pre_executed_subject(subject, prefix=prefix + "    ")
+
+    def _print_pre_executed_subject(self, subject: Subject, prefix: str):
+        """Recursive helper method to print a subject and its pre-executed test results."""
+        print(f"{prefix}📘 {subject.name} (weight: {subject.weight})")
+
+        if subject.subjects is not None:
+            for sub in subject.subjects.values():
+                self._print_pre_executed_subject(sub, prefix=prefix + "    ")
+
+        if subject.tests is not None:
+            # In a pre-executed tree, subject.tests contains TestResult objects
+            for result in subject.tests:
+                if isinstance(result, TestResult):
+                    params_str = f" (Parameters: {result.parameters})" if result.parameters else ""
+                    print(f"{prefix}  - 📝 {result.test_name}{params_str} -> Score: {result.score}")
+                else:
+                    # Fallback for unexpected types
+                    print(f"{prefix}  - ? Unexpected item in tests list: {result}")
 
 
 

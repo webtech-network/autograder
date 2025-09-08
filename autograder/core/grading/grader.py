@@ -3,7 +3,6 @@ from typing import List, Dict, Optional
 # Assuming the data structure classes (TestResult, Criteria, etc.)
 # and the test library are defined in other files as previously discussed.
 from autograder.builder.tree_builder import *
-from autograder.builder.tree_builder import custom_tree
 from autograder.core.models.result import Result
 from autograder.core.models.test_result import TestResult
 
@@ -62,7 +61,7 @@ class Grader:
             print(f"\n{prefix}📘 Grading {current_node.name}...")
             subject_test_results = []
             for test in current_node.tests:
-                test_results = test.run(self.test_library, submission_files, current_node.name)
+                test_results = test.get_result(self.test_library, submission_files, current_node.name)
                 subject_test_results.extend(test_results)
 
             if not subject_test_results:
@@ -129,7 +128,7 @@ class Grader:
         if hasattr(subject, 'tests') and subject.tests:
             test_penalties = []
             for test in subject.tests:
-                test_results = test.run(self.test_library, submission_files, subject.name)
+                test_results = test.get_result(self.test_library, submission_files, subject.name)
                 if not test_results:
                     continue
                 results_list.extend(test_results)

@@ -10,7 +10,96 @@ from autograder.core.models.test_result import TestResult
 # ===============================================================
 # region: Concrete TestFunction Implementations
 # ===============================================================
+class HasClass(TestFunction):
+    @property
+    def name(self):
+        return "has_class"
 
+    @property
+    def description(self):
+        return "Checks for the presence of specific CSS classes, with wildcard support, a minimum number of times."
+
+    @property
+    def parameter_description(self):
+        return {
+            "html_content": "The HTML content to analyze.",
+            "class_names": "A list of class names to search for. Wildcards (*) are supported (e.g., 'col-*').",
+            "required_count": "The minimum number of times the classes must appear in total."
+        }
+
+    def execute(self, html_content: str, class_names: list[str], required_count: int) -> TestResult:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        found_count = 0
+
+        # Compile regex patterns from class names with wildcards
+        patterns = [re.compile(name.replace('*', r'\S*')) for name in class_names]
+
+        # Find all tags that have a 'class' attribute
+        all_elements_with_class = soup.find_all(class_=True)
+
+        found_classes = []
+        for element in all_elements_with_class:
+            # element['class'] is a list of all classes on that tag
+            for pattern in patterns:
+                for cls in element['class']:
+                    if pattern.fullmatch(cls):
+                        found_count += 1
+                        found_classes.append(cls)
+
+        score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
+        report = f"Foram encontradas {found_count} de {required_count} classes CSS necessárias. Classes encontradas: {list(set(found_classes))}"
+        return TestResult(self.name, score, report,
+                          parameters={"class_names": class_names, "required_count": required_count})
+
+
+class CheckBootstrapLinked(TestFunction):
+    @property
+    def name(self): return "check_bootstrap_linked"
+
+    @property
+    def description(self): return "Verifies that the Bootstrap framework (CSS or JS) is linked in the HTML file."
+
+    @property
+    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+
+    def execute(self, html_content: str) -> TestResult:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
+                soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
+        score = 100 if found else 0
+        report = "O framework Bootstrap foi encontrado no seu HTML." if found else "Não foi encontrado um link para o CSS ou JS do Bootstrap."
+        return TestResult(self.name, score, report)
+
+
+class CheckInternalLinks(TestFunction):
+    @property
+    def name(self):
+        return "check_internal_links"
+
+    @property
+    def description(self):
+        return "Checks for a minimum number of internal anchor links pointing to valid element IDs."
+
+    @property
+    def parameter_description(self):
+        return {"html_content": "The HTML content to analyze.", "required_count": "The minimum number of valid links."}
+
+    def execute(self, html_content: str, required_count: int) -> TestResult:
+        if not html_content:
+            return TestResult(self.name, 0, "Conteúdo HTML não encontrado.",
+                              parameters={"required_count": required_count})
+        soup = BeautifulSoup(html_content, 'html.parser')
+        links = soup.select('a[href^="#"]')
+        valid_links = 0
+        for link in links:
+            target_id = link['href'][1:]
+            if not target_id: continue
+            # Check if any element has this ID
+            if soup.find(id=target_id):
+                valid_links += 1
+        score = min(100, int((valid_links / required_count) * 100)) if required_count > 0 else 100
+        report = f"Encontrados {valid_links} de {required_count} links internos válidos ('âncoras')."
+        return TestResult(self.name, score, report, parameters={"required_count": required_count})
 class HasTag(TestFunction):
     @property
     def name(self): return "has_tag"
@@ -424,8 +513,15 @@ class WebDevTemplate(Template):
     def template_description(self):
         return "A comprehensive template for web development assignments, including tests for HTML, CSS, and JavaScript."
 
+    @property
+    def requires_pre_executed_tree(self) -> bool:
+        return False
+
     def __init__(self):
         self.tests = {
+            "has_class": HasClass(),
+            "check_bootstrap_linked": CheckBootstrapLinked(),
+            "check_internal_links": CheckInternalLinks(),
             "has_tag": HasTag(),
             "has_forbidden_tag": HasForbiddenTag(),
             "has_attribute": HasAttribute(),
