@@ -13,6 +13,11 @@ class Template(ABC):
     def template_description(self) -> str:
         pass
 
+    @property
+    @abstractmethod
+    def requires_pre_executed_tree(self) -> bool:
+        pass
+
     def get_tests(self):
         return self.tests
 
