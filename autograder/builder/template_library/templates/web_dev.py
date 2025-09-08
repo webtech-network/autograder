@@ -412,7 +412,7 @@ class CheckBootstrapUsage(TestFunction):
 # endregion
 # ===============================================================
 
-class WebDevLibrary(Template):
+class WebDevTemplate(Template):
     """
     A template for web development assignments, containing a collection of
     all available test functions related to HTML, CSS, and JS.

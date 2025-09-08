@@ -23,8 +23,7 @@ class Grader:
 
     def run(self, submission_files: Dict, author_name) -> 'Result':
         final_score = self._run(submission_files)
-        return Result(final_score, author_name, submission_files, self.base_results, self.bonus_results,
-                      self.penalty_results)
+        return Result(final_score, author_name, submission_files, self.base_results, self.bonus_results,self.penalty_results)
 
     def _run(self, submission_files: Dict) -> float:
         """
