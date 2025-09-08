@@ -1,13 +1,17 @@
 from typing import List, Dict, Any
 
 from autograder.builder.models.criteria_tree import Criteria, Subject, Test, TestCall
+from autograder.builder.models.template import Template
 
 
 class CriteriaTree:
     """A factory for creating a Criteria object from a configuration dictionary."""
-
     @staticmethod
-    def build(config_dict: dict) -> Criteria:
+    def build_pre_executed_tree(configt_dict: dict, template: Template, submission_files: dict) -> Criteria:
+        """ Builds a Criteria tree and pre-executes all tests, having leaves as TestResult objects."""
+        pass
+    @staticmethod
+    def build_non_executed_tree(config_dict: dict) -> Criteria:
         """Builds the entire criteria tree, including balancing subject weights."""
         criteria = Criteria()
 
