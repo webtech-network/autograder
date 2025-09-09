@@ -11,72 +11,72 @@ class ClarityAndCohesionTest(TestFunction):
     @property
     def name(self): return "clarity_and_cohesion"
     @property
-    def description(self): return "Evaluates the overall clarity and flow of the essay."
+    def description(self): return "Avalia a clareza geral e o fluxo do ensaio."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale from 0 to 100, how clear and well-structured is the essay? Assess the logical flow of arguments, the transitions between paragraphs, and the overall readability."
+        prompt = "Em uma escala de 0 a 100, quão claro e bem estruturado é o ensaio? Avalie o fluxo lógico dos argumentos, as transições entre parágrafos e a legibilidade geral."
         return ai_executor.add_test(self.name,  prompt)
 
 class GrammarAndSpellingTest(TestFunction):
     @property
     def name(self): return "grammar_and_spelling"
     @property
-    def description(self): return "Checks the essay for grammatical errors, spelling mistakes, and punctuation."
+    def description(self): return "Verifica o ensaio em busca de erros gramaticais, de ortografia e de pontuação."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale from 0 to 100, evaluate the essay for grammatical accuracy. Consider spelling, punctuation, sentence structure, and subject-verb agreement."
+        prompt = "Em uma escala de 0 a 100, avalie a precisão gramatical do ensaio. Considere ortografia, pontuação, estrutura das frases e concordância verbal."
         return ai_executor.add_test(self.name,  prompt)
 
 class ArgumentStrengthTest(TestFunction):
     @property
     def name(self): return "argument_strength"
     @property
-    def description(self): return "Assesses the strength and support of the arguments presented."
+    def description(self): return "Avalia a força e o suporte dos argumentos apresentados."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "Evaluate the strength of the arguments in the essay on a scale from 0 to 100. Are the claims well-supported with evidence and examples? Is the reasoning sound and persuasive?"
+        prompt = "Avalie a força dos argumentos no ensaio em uma escala de 0 a 100. As alegações são bem apoiadas com evidências e exemplos? O raciocínio é sólido e persuasivo?"
         return ai_executor.add_test(self.name,  prompt)
 
 class ThesisStatementTest(TestFunction):
     @property
     def name(self): return "thesis_statement"
     @property
-    def description(self): return "Evaluates the clarity and effectiveness of the thesis statement."
+    def description(self): return "Avalia a clareza e a eficácia da declaração de tese."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale of 0 to 100, how strong and clear is the essay's thesis statement? Does it present a clear, arguable position that is maintained throughout the text?"
+        prompt = "Em uma escala de 0 a 100, quão forte e clara é a declaração de tese do ensaio? Ela apresenta uma posição clara e defensável que é mantida ao longo do texto?"
         return ai_executor.add_test(self.name,  prompt)
 
 class AdherenceToPromptTest(TestFunction):
     @property
     def name(self): return "adherence_to_prompt"
     @property
-    def description(self): return "Checks how well the essay addresses the specific requirements of the prompt."
+    def description(self): return "Verifica quão bem o ensaio aborda os requisitos específicos do tema proposto."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze.", "prompt_requirements": "The specific prompt the essay should be addressing."}
+        return { "essay_content": "O texto do ensaio a ser analisado.", "prompt_requirements": "O tema específico que o ensaio deveria abordar."}
     def execute(self,  prompt_requirements: str) -> TestResult:
-        prompt = f"Given the essay prompt '{prompt_requirements}', how well does the submitted essay address all parts of the question? Rate on a scale of 0 to 100."
+        prompt = f"Dado o tema do ensaio '{prompt_requirements}', quão bem o ensaio enviado aborda todas as partes da questão? Avalie em uma escala de 0 a 100."
         return ai_executor.add_test(self.name,  prompt)
 
 class OriginalityAndPlagiarismTest(TestFunction):
     @property
     def name(self): return "originality_and_plagiarism"
     @property
-    def description(self): return "A simplified check for originality by looking for common phrases or copied content."
+    def description(self): return "Uma verificação simplificada de originalidade procurando por frases comuns ou conteúdo copiado."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale of 0 to 100, assess the originality of this essay. While you cannot perform a web search, evaluate the text for signs of unoriginal content, such as generic phrasing or overly common arguments that might suggest plagiarism."
+        prompt = "Em uma escala de 0 a 100, avalie a originalidade deste ensaio. Embora você não possa realizar uma pesquisa na web, avalie o texto em busca de sinais de conteúdo não original, como frases genéricas ou argumentos excessivamente comuns que possam sugerir plágio."
         return ai_executor.add_test(self.name,  prompt)
 
 # ===============================================================
@@ -91,120 +91,120 @@ class TopicConnectionTest(TestFunction):
     @property
     def name(self): return "topic_connection"
     @property
-    def description(self): return "Checks if the essay successfully makes a connection between two specified topics."
+    def description(self): return "Verifica se o ensaio estabelece com sucesso uma conexão entre dois tópicos especificados."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay.", "topic1": "The first topic.", "topic2": "The second topic." }
+        return { "essay_content": "O texto do ensaio.", "topic1": "O primeiro tópico.", "topic2": "O segundo tópico." }
     def execute(self,  topic1: str, topic2: str) -> TestResult:
-        prompt = f"On a scale of 0 to 100, how effectively does the essay establish a meaningful connection between the concepts of '{topic1}' and '{topic2}'? Evaluate the depth and clarity of the linkage."
+        prompt = f"Em uma escala de 0 a 100, quão eficazmente o ensaio estabelece uma conexão significativa entre os conceitos de '{topic1}' e '{topic2}'? Avalie a profundidade e a clareza da ligação."
         return ai_executor.add_test(self.name,  prompt)
 
 class CounterargumentHandlingTest(TestFunction):
     @property
     def name(self): return "counterargument_handling"
     @property
-    def description(self): return "Assesses how well the essay acknowledges and refutes potential counterarguments."
+    def description(self): return "Avalia quão bem o ensaio reconhece e refuta potenciais contra-argumentos."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale of 0 to 100, evaluate how well the essay addresses potential counterarguments. Does it anticipate opposing viewpoints and provide thoughtful refutations?"
+        prompt = "Em uma escala de 0 a 100, avalie quão bem o ensaio aborda potenciais contra-argumentos. Ele antecipa pontos de vista opostos e fornece refutações bem pensadas?"
         return ai_executor.add_test(self.name,  prompt)
 
 class IntroductionAndConclusionTest(TestFunction):
     @property
     def name(self): return "introduction_and_conclusion"
     @property
-    def description(self): return "Evaluates the effectiveness of the essay's introduction and conclusion."
+    def description(self): return "Avalia a eficácia da introdução e da conclusão do ensaio."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale of 0 to 100, assess the quality of the introduction and conclusion. Does the introduction effectively engage the reader and present the thesis? Does the conclusion provide a strong summary and offer final insights?"
+        prompt = "Em uma escala de 0 a 100, avalie a qualidade da introdução e da conclusão. A introdução consegue engajar o leitor e apresentar a tese de forma eficaz? A conclusão fornece um resumo sólido e oferece percepções finais?"
         return ai_executor.add_test(self.name,  prompt)
 
 class EvidenceQualityTest(TestFunction):
     @property
     def name(self): return "evidence_quality"
     @property
-    def description(self): return "Assesses the relevance and quality of the evidence used to support claims."
+    def description(self): return "Avalia a relevância e a qualidade das evidências usadas para apoiar as alegações."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale of 0 to 100, evaluate the quality of the evidence used in the essay. Is the evidence relevant, credible, and sufficient to support the main arguments?"
+        prompt = "Em uma escala de 0 a 100, avalie a qualidade das evidências usadas no ensaio. As evidências são relevantes, críveis e suficientes para apoiar os argumentos principais?"
         return ai_executor.add_test(self.name,  prompt)
 
 class ToneAndStyleTest(TestFunction):
     @property
     def name(self): return "tone_and_style"
     @property
-    def description(self): return "Evaluates if the essay's tone and writing style are appropriate for the topic and audience."
+    def description(self): return "Avalia se o tom e o estilo de escrita do ensaio são apropriados para o tópico e o público."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay.", "expected_tone": "The expected tone (e.g., formal, persuasive, objective)." }
+        return { "essay_content": "O texto do ensaio.", "expected_tone": "O tom esperado (ex: formal, persuasivo, objetivo)." }
     def execute(self,  expected_tone: str) -> TestResult:
-        prompt = f"On a scale of 0 to 100, does the essay maintain an appropriate '{expected_tone}' tone and style throughout? Evaluate the author's voice, word choice, and overall professionalism."
+        prompt = f"Em uma escala de 0 a 100, o ensaio mantém um tom e estilo '{expected_tone}' apropriados? Avalie a voz do autor, a escolha de palavras e o profissionalismo geral."
         return ai_executor.add_test(self.name,  prompt)
 
 class VocabularyAndDictionTest(TestFunction):
     @property
     def name(self): return "vocabulary_and_diction"
     @property
-    def description(self): return "Assesses the sophistication and variety of the vocabulary used."
+    def description(self): return "Avalia a sofisticação e a variedade do vocabulário utilizado."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale from 0 to 100, evaluate the author's use of vocabulary. Is the language precise, varied, and appropriately sophisticated for the topic?"
+        prompt = "Em uma escala de 0 a 100, avalie o uso de vocabulário pelo autor. A linguagem é precisa, variada e apropriadamente sofisticada para o tópico?"
         return ai_executor.add_test(self.name,  prompt)
 
 class SentenceStructureVarietyTest(TestFunction):
     @property
     def name(self): return "sentence_structure_variety"
     @property
-    def description(self): return "Checks for varied and complex sentence structures."
+    def description(self): return "Verifica a presença de estruturas de frase variadas e complexas."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale of 0 to 100, assess the variety of sentence structures in the essay. Does the author use a mix of simple, compound, and complex sentences to create a more engaging rhythm?"
+        prompt = "Em uma escala de 0 a 100, avalie a variedade das estruturas de frase no ensaio. O autor usa uma mistura de frases simples, compostas e complexas para criar um ritmo mais envolvente?"
         return ai_executor.add_test(self.name,  prompt)
 
 class BiasDetectionTest(TestFunction):
     @property
     def name(self): return "bias_detection"
     @property
-    def description(self): return "Identifies potential bias or unsupported opinions in the essay."
+    def description(self): return "Identifica potencial viés ou opiniões não suportadas no ensaio."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale from 0 to 100, evaluate the essay for objectivity and bias. Does the author present a balanced view, or does the text rely on unsupported opinions and emotionally charged language?"
+        prompt = "Em uma escala de 0 a 100, avalie a objetividade e o viés do ensaio. O autor apresenta uma visão equilibrada, ou o texto se baseia em opiniões não suportadas e linguagem emocionalmente carregada?"
         return ai_executor.add_test(self.name,  prompt)
 
 class ExampleClarityTest(TestFunction):
     @property
     def name(self): return "example_clarity"
     @property
-    def description(self): return "Evaluates how clear and illustrative the examples are."
+    def description(self): return "Avalia quão claros e ilustrativos são os exemplos."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale of 0 to 100, how clear and effective are the examples used in the essay? Do they genuinely illustrate the points the author is trying to make?"
+        prompt = "Em uma escala de 0 a 100, quão claros e eficazes são os exemplos usados no ensaio? Eles realmente ilustram os pontos que o autor está tentando defender?"
         return ai_executor.add_test(self.name,  prompt)
 
 class LogicalFallacyCheckTest(TestFunction):
     @property
     def name(self): return "logical_fallacy_check"
     @property
-    def description(self): return "Checks for common logical fallacies in the arguments."
+    def description(self): return "Verifica a presença de falácias lógicas comuns nos argumentos."
     @property
     def parameter_description(self):
-        return { "essay_content": "The text of the essay to analyze." }
+        return { "essay_content": "O texto do ensaio a ser analisado." }
     def execute(self,  *args, **kwargs) -> TestResult:
-        prompt = "On a scale of 0 to 100, evaluate the essay for logical fallacies (e.g., ad hominem, straw man, false dilemma). How sound is the reasoning throughout the text?"
+        prompt = "Em uma escala de 0 a 100, avalie o ensaio em busca de falácias lógicas (ex: ad hominem, espantalho, falso dilema). Quão sólido é o raciocínio ao longo do texto?"
         return ai_executor.add_test(self.name,  prompt)
 
 
@@ -242,11 +242,11 @@ class EssayGraderTemplate(Template):
 
     @property
     def template_name(self):
-        return "Essay AI Grader"
+        return "Corretor de Ensaios com IA"
 
     @property
     def template_description(self) -> str:
-        return "A template for grading essays using AI."
+        return "Um modelo para corrigir ensaios usando IA."
 
     @property
     def requires_pre_executed_tree(self) -> bool:
@@ -265,9 +265,9 @@ class EssayGraderTemplate(Template):
 
     def get_test(self, name: str) -> TestFunction:
         """
-        Retrieves a specific test function instance from the template.
+        Recupera uma instância de função de teste específica do modelo.
         """
         test_function = self.tests.get(name)
         if not test_function:
-            raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
+            raise AttributeError(f"Teste '{name}' não encontrado no modelo '{self.template_name}'.")
         return test_function
