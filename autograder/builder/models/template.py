@@ -18,8 +18,18 @@ class Template(ABC):
     def requires_pre_executed_tree(self) -> bool:
         pass
 
+    @property
+    @abstractmethod
+    def requires_execution_helper(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
+    def execution_helper(self):
+        pass
     def get_tests(self):
         return self.tests
+
 
 
 
