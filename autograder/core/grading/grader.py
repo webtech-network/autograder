@@ -1,7 +1,6 @@
 from typing import List, Dict, Optional
 
-# Assuming the data structure classes (TestResult, Criteria, etc.)
-# and the test library are defined in other files as previously discussed.
+from autograder.context import request_context
 from autograder.builder.tree_builder import *
 from autograder.core.models.result import Result
 from autograder.core.models.test_result import TestResult
@@ -20,7 +19,10 @@ class Grader:
         self.bonus_results: List['TestResult'] = []
         self.penalty_results: List['TestResult'] = []
 
-    def run(self, submission_files: Dict, author_name) -> 'Result':
+    def run(self) -> 'Result':
+        request = request_context.get_request()
+        submission_files = request.submission_files
+        author_name = request.student_name
         final_score = self._run(submission_files)
         return Result(final_score, author_name, submission_files, self.base_results, self.bonus_results,self.penalty_results)
 

@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-
+from autograder.context import request_context
 
 class FeedbackPreferences:
     """
@@ -68,10 +68,12 @@ class FeedbackPreferences:
         self.default = self.DefaultReporterPreferences()
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> 'FeedbackPreferences':
+    def from_dict(cls) -> 'FeedbackPreferences':
         """
         Creates a FeedbackPreferences object from a dictionary, with defaults.
         """
+        request = request_context.get_request()
+        config_dict = request.assignment_config.feedback
         prefs = cls()
 
         # --- Parse General Preferences, including the new online_content ---

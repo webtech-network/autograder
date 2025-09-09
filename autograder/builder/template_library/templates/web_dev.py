@@ -512,7 +512,12 @@ class WebDevTemplate(Template):
     @property
     def template_description(self):
         return "A comprehensive template for web development assignments, including tests for HTML, CSS, and JavaScript."
-
+    @property
+    def requires_execution_helper(self) -> bool:
+        return False
+    @property
+    def execution_helper(self):
+        return None
     @property
     def requires_pre_executed_tree(self) -> bool:
         return False
@@ -550,6 +555,9 @@ class WebDevTemplate(Template):
             "check_flexbox_usage": CheckFlexboxUsage(),
             "check_bootstrap_usage": CheckBootstrapUsage(),
         }
+
+    def stop(self):
+        pass
 
     def get_test(self, name: str) -> TestFunction:
         """
