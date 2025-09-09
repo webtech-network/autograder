@@ -37,13 +37,19 @@ class Autograder:
             if test_template is None:
                 logger.error(f"Template '{template_name}' not found in TemplateLibrary")
                 raise ValueError(f"Unsupported template: {template_name}")
-
+            if test_template.requires_execution_helper:
+                executor = test_template.execution_helper
+                executor.send_submission_files(autograder_request.submission_files)
             # Step 3: Build criteria tree
             logger.info("Building criteria tree from assignment configuration:")
             logger.debug(f"Criteria configuration: {autograder_request.assignment_config.criteria}")
             if test_template.requires_pre_executed_tree:
                 logger.info("Template requires pre-executed criteria tree.")
                 criteria_tree = CriteriaTree.build_pre_executed_tree(autograder_request.assignment_config.criteria,test_template,autograder_request.submission_files)
+                criteria_tree.print_pre_executed_tree()
+                if test_template.requires_execution_helper:
+                    executor.stop()
+                    criteria_tree.print_pre_executed_tree()
             elif not test_template.requires_pre_executed_tree:
                 logger.info("Template does not require pre-executed criteria tree.")
                 criteria_tree = CriteriaTree.build_non_executed_tree(autograder_request.assignment_config.criteria)
@@ -131,823 +137,98 @@ class Autograder:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # Example usage (this would normally come from an external request)
-    submission_files = {"index.html":"""
-    <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mock Submission</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-
-    <nav class="navbar navbar-expand-lg bg-dark navbar-dark">
-        <div class="container">
-            <a class="navbar-brand" href="#">Project</a>
-            <div class="navbar-nav">
-                <a class="nav-link" href="#section1">Section 1</a>
-                <a class="nav-link" href="#section2">Section 2</a>
-                <a class="nav-link" href="#section3">Section 3</a>
-            </div>
-        </div>
-    </nav>
-
-    <main class="container mt-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">Home</li>
-                <li class="breadcrumb-item active" aria-current="page">Mock Page</li>
-            </ol>
-        </nav>
-
-        <div class="row text-center mb-5">
-            <h1 class="pt-3">Grid System Example</h1>
-            <div class="col-md-4">
-                <div class="card w-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Card One</h5>
-                        <p class="card-text">Some content here.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Card Two</h5>
-                        <p class="card-text">Some more content.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Card Three</h5>
-                        <p class="card-text">Final card content.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="d-flex justify-content-center bg-light p-5 gap-3">
-            <div>Flex Item 1</div>
-            <div>Flex Item 2</div>
-        </div>
-        
-        <div id="myCarousel" class="carousel slide mt-5" data-bs-ride="carousel">
-            <div class="carousel-inner">
-                <div class="carousel-item active">
-                    <svg class="bd-placeholder-img bd-placeholder-img-lg d-block w-100" width="800" height="400" xmlns="http://www.w3.org/2000/svg" role="img"><title>Placeholder</title><rect width="100%" height="100%" fill="#777"></rect></svg>
-                </div>
-                <div class="carousel-item">
-                    <svg class="bd-placeholder-img bd-placeholder-img-lg d-block w-100" width="800" height="400" xmlns="http://www.w3.org/2000/svg" role="img"><title>Placeholder</title><rect width="100%" height="100%" fill="#666"></rect></svg>
-                </div>
-            </div>
-        </div>
-
-        <section id="section1" class="p-5 vh-100">
-            <h2>Section 1</h2>
-        </section>
-        <section id="section2" class="p-5 vh-100">
-            <h2>Section 2</h2>
-        </section>
-        <section id="section3" class="p-5 vh-100">
-            <h2>Section 3</h2>
-        </section>
-
-    </main>
-
-    <footer class="text-center p-4 bg-dark text-white mt-auto">
-        <p>Mock Footer</p>
-    </footer>
-
-</body>
-</html>
-    """,
-                        "css/styles.css":"""
-                        <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mock Submission</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-
-    <nav class="navbar navbar-expand-lg bg-dark navbar-dark">
-        <div class="container">
-            <a class="navbar-brand" href="#">Project</a>
-            <div class="navbar-nav">
-                <a class="nav-link" href="#section1">Section 1</a>
-                <a class="nav-link" href="#section2">Section 2</a>
-                <a class="nav-link" href="#section3">Section 3</a>
-            </div>
-        </div>
-    </nav>
-
-    <main class="container mt-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item">Home</li>
-                <li class="breadcrumb-item active" aria-current="page">Mock Page</li>
-            </ol>
-        </nav>
-
-        <div class="row text-center mb-5">
-            <h1 class="pt-3">Grid System Example</h1>
-            <div class="col-md-4">
-                <div class="card w-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Card One</h5>
-                        <p class="card-text">Some content here.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Card Two</h5>
-                        <p class="card-text">Some more content.</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Card Three</h5>
-                        <p class="card-text">Final card content.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="d-flex justify-content-center bg-light p-5 gap-3">
-            <div>Flex Item 1</div>
-            <div>Flex Item 2</div>
-        </div>
-        
-        <div id="myCarousel" class="carousel slide mt-5" data-bs-ride="carousel">
-            <div class="carousel-inner">
-                <div class="carousel-item active">
-                    <svg class="bd-placeholder-img bd-placeholder-img-lg d-block w-100" width="800" height="400" xmlns="http://www.w3.org/2000/svg" role="img"><title>Placeholder</title><rect width="100%" height="100%" fill="#777"></rect></svg>
-                </div>
-                <div class="carousel-item">
-                    <svg class="bd-placeholder-img bd-placeholder-img-lg d-block w-100" width="800" height="400" xmlns="http://www.w3.org/2000/svg" role="img"><title>Placeholder</title><rect width="100%" height="100%" fill="#666"></rect></svg>
-                </div>
-            </div>
-        </div>
-
-        <section id="section1" class="p-5 vh-100">
-            <h2>Section 1</h2>
-        </section>
-        <section id="section2" class="p-5 vh-100">
-            <h2>Section 2</h2>
-        </section>
-        <section id="section3" class="p-5 vh-100">
-            <h2>Section 3</h2>
-        </section>
-
-    </main>
-
-    <footer class="text-center p-4 bg-dark text-white mt-auto">
-        <p>Mock Footer</p>
-    </footer>
-
-</body>
-</html>"""}
     criteria_json = {
-  "test_library": "web_dev",
-  "base": {
-    "weight": 100,
-    "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "html": {
-          "weight": 60,
-          "subjects": {
-            "structure": {
-              "weight": 40,
-              "tests": [
-                {
-                  "file": "index.html",
-                  "name": "has_tag",
-                  "calls": [
-                    ["body", 1],
-                    ["header", 1],
-                    ["nav", 1],
-                    ["main", 1],
-                    ["article", 4],
-                    ["img", 5],
-                    ["footer", 1],
-                    ["div", 1],
-                    ["form", 1],
-                    ["input", 1],
-                    ["button", 1]
-                  ]
+        "test_library": "essay ai grader",
+        "base": {
+            "weight": 100,
+            "subjects": {
+                "foundations": {
+                    "weight": 60,
+                    "tests": [
+                        {
+                            "name": "thesis_statement"
+                        },
+                        {
+                            "name": "clarity_and_cohesion"
+                        },
+                        {
+                            "name": "grammar_and_spelling"
+                        }
+                    ]
                 },
-                {
-                  "file": "index.html",
-                  "name": "has_attribute",
-                  "calls": [
-                    ["class", 2]
-                  ]
+                "prompt_adherence": {
+                    "weight": 40,
+                    "tests": [
+                        {
+                            "name": "adherence_to_prompt",
+                            "calls": [
+                                ["Analyze the primary causes of the Industrial Revolution and its impact on 19th-century society."]
+                            ]
+                        }
+                    ]
                 }
-              ]
-            },
-            "link": {
-              "weight": 20,
-              "tests": [
-                {
-                  "file": "index.html",
-                  "name": "check_css_linked"
-                },
-                {
-                  "file": "index.html",
-                  "name": "check_internal_links_to_article",
-                  "calls": [
-                    [4]
-                  ]
-                }
-              ]
             }
-          }
         },
-        "css": {
-          "weight": 40,
-          "subjects": {
-            "responsivity": {
-              "weight": 50,
-              "tests": [
-                {
-                  "file": "css/styles.css",
-                  "name": "uses_relative_units"
-                },
-                {
-                  "file": "css/styles.css",
-                  "name": "check_media_queries"
-                },
-                {
-                  "file": "css/styles.css",
-                  "name": "check_flexbox_usage"
-                }
-              ]
-            },
-            "style": {
-              "weight": 50,
-              "tests": [
-                {
-                  "file": "css/styles.css",
-                  "name": "has_style",
-                  "calls": [
-                    ["font-size", 1],
-                    ["font-family", 1],
-                    ["text-align", 1],
-                    ["display", 1],
-                    ["position", 1],
-                    ["margin", 1],
-                    ["padding", 1]
-                  ]
-                }
-              ]
-            }
-          }
-        }
-    }
-      },
-      "semana_6": {
-        "weight": 60,
-        "subjects": {
-        "bootstrap_fundamentals": {
-            "weight": 70,
-            "tests": [
-              {
-                "file": "index.html",
-                "name": "check_bootstrap_linked"
-              },
-              {
-                "file": "index.html",
-                "name": "check_internal_links",
-                "calls": [
-                  [3]
-                ]
-              },
-              {
-                "file": "index.html",
-                "name": "has_class",
-                "calls": [
-                  [["container", "container-fluid"], 1],
-                  [["row"], 1],
-                  [["col-*"], 3],
-                  [["text-center"], 1],
-                  [["d-flex", "d-*-flex"], 1],
-                  [["bg-*"], 1]
-                ]
-              }
-            ]
-        },
-        "css_and_docs": {
+        "bonus": {
             "weight": 30,
-            "tests": [
-              {
-                "file": "css/styles.css",
-                "name": "check_media_queries"
-              },
-              {
-                "file": "css/styles.css",
-                "name": "has_style",
-                "calls": [
-                  ["margin", 1],
-                  ["padding", 1],
-                  ["width", 1]
-                ]
-              },
-              {
-                "file": "all",
-                "name": "check_project_structure",
-                "calls": [
-                  ["README.md"]
-                ]
-              }
-            ]
-        }
-      }
-    }
-    }
-  },
-  "bonus": {
-    "weight": 40,
-    "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "accessibility": {
-          "weight": 20,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_all_images_have_alt"
-            }
-          ]
-        },
-        "head_detail": {
-          "weight": 80,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_head_details",
-              "calls": [
-                ["title"],
-                ["meta"]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "check_attribute_and_value",
-              "calls": [
-                ["meta", "charset", "UTF-8"],
-                ["meta", "name", "viewport"],
-                ["meta", "name", "description"],
-                ["meta", "name", "author"],
-                ["meta", "name", "keywords"]
-              ]
-            }
-          ]
-        }
-    }
-      },
-      "semana_6": {
-        "weight": 60,
-        "subjects": {
-        "bootstrap_components": {
-            "weight": 60,
-            "tests": [
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["card"], 1],
-                      [["card-body"], 1],
-                      [["card-title"], 1],
-                      [["navbar"], 1],
-                      [["navbar-nav"], 1],
-                      [["breadcrumb"], 1],
-                      [["breadcrumb-item"], 1],
-                      [["carousel"], 1],
-                      [["slide"], 1],
-                      [["carousel-item"], 1]
+            "subjects": {
+                "rhetorical_skill": {
+                    "weight": 70,
+                    "tests": [
+                        {
+                            "name": "counterargument_handling"
+                        },
+                        {
+                            "name": "vocabulary_and_diction"
+                        },
+                        {
+                            "name": "sentence_structure_variety"
+                        }
                     ]
-                 }
-            ]
-        },
-        "formatting_classes": {
-            "weight": 40,
-            "tests": [
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["mt-*", "ms-*", "me-*", "mb-*", "pt-*", "ps-*", "pe-*", "pb-*", "gap-*"], 8]
-                    ]
-                 },
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["w-*", "mh-*", "mw-*", "vw-*", "vh-*"], 4]
-                    ]
-                 }
-            ]
-        }
-    }
-      }
-    }
-  },
-  "penalty": {
-    "weight": 50,
-    "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "html": {
-          "weight": 50,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_bootstrap_usage"
-            },
-            {
-              "file": "css/styles.css",
-              "name": "check_id_selector_over_usage",
-              "calls": [
-                [2]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "has_tag",
-              "calls": [
-                ["script", 1]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "check_html_direct_children"
-            },
-            {
-              "file": "index.html",
-              "name": "check_tag_not_inside",
-              "calls": [
-                ["header", "main"],
-                ["footer", "main"]
-              ]
-            }
-          ]
-        },
-        "project_structure": {
-          "weight": 50,
-          "tests": [
-            {
-              "file": "all",
-              "name": "check_dir_exists",
-              "calls": [
-                ["css"],
-                ["imgs"]
-              ]
-            },
-            {
-              "file": "all",
-              "name": "check_project_structure",
-              "calls": [
-                ["css/styles.css"]
-              ]
-            }
-          ]
-        }
-    }
-      }
-    }
-  }
-}
-    setup_json = {
-  "test_library": "web_dev",
-  "base": {
-    "weight": 100,
-    "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "html": {
-          "weight": 60,
-          "subjects": {
-            "structure": {
-              "weight": 40,
-              "tests": [
-                {
-                  "file": "index.html",
-                  "name": "has_tag",
-                  "calls": [
-                    ["body", 1],
-                    ["header", 1],
-                    ["nav", 1],
-                    ["main", 1],
-                    ["article", 4],
-                    ["img", 5],
-                    ["footer", 1],
-                    ["div", 1],
-                    ["form", 1],
-                    ["input", 1],
-                    ["button", 1]
-                  ]
                 },
-                {
-                  "file": "index.html",
-                  "name": "has_attribute",
-                  "calls": [
-                    ["class", 2]
-                  ]
-                }
-              ]
-            },
-            "link": {
-              "weight": 20,
-              "tests": [
-                {
-                  "file": "index.html",
-                  "name": "check_css_linked"
-                },
-                {
-                  "file": "index.html",
-                  "name": "check_internal_links_to_article",
-                  "calls": [
-                    [4]
-                  ]
-                }
-              ]
-            }
-          }
-        },
-        "css": {
-          "weight": 40,
-          "subjects": {
-            "responsivity": {
-              "weight": 50,
-              "tests": [
-                {
-                  "file": "css/styles.css",
-                  "name": "uses_relative_units"
-                },
-                {
-                  "file": "css/styles.css",
-                  "name": "check_media_queries"
-                },
-                {
-                  "file": "css/styles.css",
-                  "name": "check_flexbox_usage"
-                }
-              ]
-            },
-            "style": {
-              "weight": 50,
-              "tests": [
-                {
-                  "file": "css/styles.css",
-                  "name": "has_style",
-                  "calls": [
-                    ["font-size", 1],
-                    ["font-family", 1],
-                    ["text-align", 1],
-                    ["display", 1],
-                    ["position", 1],
-                    ["margin", 1],
-                    ["padding", 1]
-                  ]
-                }
-              ]
-            }
-          }
-        }
-    }
-      },
-      "semana_6": {
-        "weight": 60,
-        "subjects": {
-        "bootstrap_fundamentals": {
-            "weight": 70,
-            "tests": [
-              {
-                "file": "index.html",
-                "name": "check_bootstrap_linked"
-              },
-              {
-                "file": "index.html",
-                "name": "check_internal_links",
-                "calls": [
-                  [3]
-                ]
-              },
-              {
-                "file": "index.html",
-                "name": "has_class",
-                "calls": [
-                  [["container", "container-fluid"], 1],
-                  [["row"], 1],
-                  [["col-*"], 3],
-                  [["text-center"], 1],
-                  [["d-flex", "d-*-flex"], 1],
-                  [["bg-*"], 1]
-                ]
-              }
-            ]
-        },
-        "css_and_docs": {
-            "weight": 30,
-            "tests": [
-              {
-                "file": "css/styles.css",
-                "name": "check_media_queries"
-              },
-              {
-                "file": "css/styles.css",
-                "name": "has_style",
-                "calls": [
-                  ["margin", 1],
-                  ["padding", 1],
-                  ["width", 1]
-                ]
-              },
-              {
-                "file": "all",
-                "name": "check_project_structure",
-                "calls": [
-                  ["README.md"]
-                ]
-              }
-            ]
-        }
-      }
-    }
-    }
-  },
-  "bonus": {
-    "weight": 40,
-    "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "accessibility": {
-          "weight": 20,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_all_images_have_alt"
-            }
-          ]
-        },
-        "head_detail": {
-          "weight": 80,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_head_details",
-              "calls": [
-                ["title"],
-                ["meta"]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "check_attribute_and_value",
-              "calls": [
-                ["meta", "charset", "UTF-8"],
-                ["meta", "name", "viewport"],
-                ["meta", "name", "description"],
-                ["meta", "name", "author"],
-                ["meta", "name", "keywords"]
-              ]
-            }
-          ]
-        }
-    }
-      },
-      "semana_6": {
-        "weight": 60,
-        "subjects": {
-        "bootstrap_components": {
-            "weight": 60,
-            "tests": [
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["card"], 1],
-                      [["card-body"], 1],
-                      [["card-title"], 1],
-                      [["navbar"], 1],
-                      [["navbar-nav"], 1],
-                      [["breadcrumb"], 1],
-                      [["breadcrumb-item"], 1],
-                      [["carousel"], 1],
-                      [["slide"], 1],
-                      [["carousel-item"], 1]
+                "deeper_analysis": {
+                    "weight": 30,
+                    "tests": [
+                        {
+                            "name": "topic_connection",
+                            "calls": [
+                                ["technological innovation", "social inequality"]
+                            ]
+                        }
                     ]
-                 }
-            ]
+                }
+            }
         },
-        "formatting_classes": {
-            "weight": 40,
-            "tests": [
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["mt-*", "ms-*", "me-*", "mb-*", "pt-*", "ps-*", "pe-*", "pb-*", "gap-*"], 8]
+        "penalty": {
+            "weight": 25,
+            "subjects": {
+                "logical_integrity": {
+                    "weight": 100,
+                    "tests": [
+                        {
+                            "name": "logical_fallacy_check"
+                        },
+                        {
+                            "name": "bias_detection"
+                        },
+                        {
+                            "name": "originality_and_plagiarism"
+                        }
                     ]
-                 },
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["w-*", "mh-*", "mw-*", "vw-*", "vh-*"], 4]
-                    ]
-                 }
-            ]
+                }
+            }
         }
     }
-      }
-    }
-  },
-  "penalty": {
-    "weight": 50,
-    "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "html": {
-          "weight": 50,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_bootstrap_usage"
-            },
-            {
-              "file": "css/styles.css",
-              "name": "check_id_selector_over_usage",
-              "calls": [
-                [2]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "has_tag",
-              "calls": [
-                ["script", 1]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "check_html_direct_children"
-            },
-            {
-              "file": "index.html",
-              "name": "check_tag_not_inside",
-              "calls": [
-                ["header", "main"],
-                ["footer", "main"]
-              ]
-            }
-          ]
-        },
-        "project_structure": {
-          "weight": 50,
-          "tests": [
-            {
-              "file": "all",
-              "name": "check_dir_exists",
-              "calls": [
-                ["css"],
-                ["imgs"]
-              ]
-            },
-            {
-              "file": "all",
-              "name": "check_project_structure",
-              "calls": [
-                ["css/styles.css"]
-              ]
-            }
-          ]
-        }
-    }
-      }
-    }
-  }
-}
+    submission_files = {"essay.txt": """Artificial intelligence (AI) is no longer a concept confined to science fiction; it is a transformative force actively reshaping industries and redefining the nature of work. Its integration into the modern workforce presents a profound duality: on one hand, it offers unprecedented opportunities for productivity and innovation, while on the other, it poses significant challenges related to job displacement and economic inequality. Navigating this transition successfully requires a proactive and nuanced approach from policymakers, businesses, and individuals alike.
+    The primary benefit of AI in the workplace is its capacity to augment human potential and drive efficiency. AI-powered systems can analyze vast datasets in seconds, automating routine cognitive and manual tasks, which frees human workers to focus on more complex, creative, and strategic endeavors. For instance, in medicine, AI algorithms assist radiologists in detecting tumors with greater accuracy, while in finance, they identify fraudulent transactions far more effectively than any human team. This collaboration between human and machine not only boosts output but also creates new roles centered around AI development, ethics, and system maintenance—jobs that did not exist a decade ago.
+    However, this technological advancement casts a significant shadow of disruption. The same automation that drives efficiency also leads to job displacement, particularly for roles characterized by repetitive tasks. Assembly line workers, data entry clerks, and even some paralegal roles face a high risk of obsolescence. This creates a widening skills gap, where demand for high-level technical skills soars while demand for traditional skills plummets. Without robust mechanisms for reskilling and upskilling the existing workforce, this gap threatens to exacerbate socio-economic inequality, creating a divide between those who can command AI and those who are displaced by it. There are many gramatical errors in this sentence, for testing purposes.
+    The most critical challenge, therefore, is not to halt technological progress but to manage its societal impact. A multi-pronged strategy is essential. Governments and educational institutions must collaborate to reform curricula, emphasizing critical thinking, digital literacy, and lifelong learning. Furthermore, corporations have a responsibility to invest in their employees through continuous training programs. Finally, strengthening social safety nets, perhaps through concepts like Universal Basic Income (UBI) or enhanced unemployment benefits, may be necessary to support individuals as they navigate this volatile transition period.
+    In conclusion, AI is a double-edged sword. Its potential to enhance productivity and create new avenues for growth is undeniable, but so are the risks of displacement and inequality. The future of work will not be a battle of humans versus machines, but rather a story of adaptation. By investing in education, promoting equitable policies, and fostering a culture of continuous learning, we can harness the power of AI to build a more prosperous and inclusive workforce for all."""}
+
+
+
     feedback_json = {
-  "test_library": "web_dev",
+  "test_library": "essay",
   "base": {
     "weight": 100,
     "subjects": {
@@ -1260,6 +541,7 @@ if __name__ == "__main__":
     }
   }
 }
-    config = AssignmentConfig(criteria_json,feedback_json,setup_json,"web dev")
+    config = AssignmentConfig(criteria_json,feedback_json,setup=None,template="essay")
     request = AutograderRequest(submission_files,config,"Arthur","123","default")
     facade = Autograder.grade(request)
+    print(facade.feedback)
