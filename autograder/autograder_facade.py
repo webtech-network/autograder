@@ -1,4 +1,6 @@
 import logging
+
+from autograder.context import request_context
 from autograder.core.grading.grader import Grader
 from autograder.core.models.autograder_response import AutograderResponse
 from autograder.core.models.feedback_preferences import FeedbackPreferences
@@ -18,12 +20,21 @@ class Autograder:
         logger = logging.getLogger(__name__)
         logger.info("Starting autograder process")
 
+        # Set the request in the global context at the beginning of the process
+        request_context.set_request(autograder_request)
+        if autograder_request.openai_key:
+            logger.info("OpenAI key provided, AI feedback mode may be used")
+            logger.info("Setting environment variable for OpenAI key")
+            import os
+            os.environ["OPENAI_API_KEY"] = autograder_request.openai_key
         try:
             # Step 1: Handle Pre-flight checks if setup is defined
             if autograder_request.assignment_config.setup:
                 logger.info("Running pre-flight setup commands")
-                # Assuming PreFlight class exists and has a 'run' method
-                impediments = PreFlight.run(autograder_request.assignment_config.setup, autograder_request.submission_files)
+
+
+
+                impediments = PreFlight.run()
                 if impediments:
                      error_messages = [impediment['message'] for impediment in impediments]
                      logger.error(f"Pre-flight checks failed with errors: {error_messages}")
@@ -37,26 +48,23 @@ class Autograder:
             if test_template is None:
                 logger.error(f"Template '{template_name}' not found in TemplateLibrary")
                 raise ValueError(f"Unsupported template: {template_name}")
-            if test_template.requires_execution_helper:
-                executor = test_template.execution_helper
-                executor.send_submission_files(autograder_request.submission_files) #This is not cool, fix it later
+
             # Step 3: Build criteria tree
             logger.info("Building criteria tree from assignment configuration:")
             logger.debug(f"Criteria configuration: {autograder_request.assignment_config.criteria}")
             if test_template.requires_pre_executed_tree:
                 logger.info("Template requires pre-executed criteria tree.")
-                criteria_tree = CriteriaTree.build_pre_executed_tree(autograder_request.assignment_config.criteria,test_template,autograder_request.submission_files)
+                criteria_tree = CriteriaTree.build_pre_executed_tree(test_template)
                 criteria_tree.print_pre_executed_tree()
-                if test_template.requires_execution_helper:
-                    executor.stop() #This is not cool, fix it later
-                    criteria_tree.print_pre_executed_tree()
             elif not test_template.requires_pre_executed_tree:
                 logger.info("Template does not require pre-executed criteria tree.")
-                criteria_tree = CriteriaTree.build_non_executed_tree(autograder_request.assignment_config.criteria)
+                criteria_tree = CriteriaTree.build_non_executed_tree()
             else:
                 error_msg = f"Template '{template_name}' has an invalid 'requires_pre_executed_tree' setting."
                 logger.error(error_msg)
                 raise ValueError(error_msg)
+            test_template.stop()
+            criteria_tree.print_pre_executed_tree() # print tree again to show result injection from ai executor
             logger.info("Criteria tree built successfully")
 
 
@@ -70,12 +78,12 @@ class Autograder:
             # Step 5: Run grading
             logger.info("Running grading process")
             logger.debug(f"Submission files: {list(autograder_request.submission_files.keys())}")
-            result = grader.run(autograder_request.submission_files, autograder_request.student_name)
+            result = grader.run()
             logger.info(f"Grading completed. Final score: {result.final_score}")
 
             # Step 6: Setup feedback preferences
             logger.info("Processing feedback preferences")
-            feedback = FeedbackPreferences.from_dict(autograder_request.assignment_config.feedback)
+            feedback = FeedbackPreferences.from_dict()
             logger.debug(f"Feedback mode: {autograder_request.feedback_mode}")
 
             # Step 7: Create reporter based on feedback mode

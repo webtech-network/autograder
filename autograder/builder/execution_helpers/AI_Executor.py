@@ -4,8 +4,10 @@ from typing import Dict, List
 from openai import OpenAI
 from autograder.core.models.test_result import TestResult
 from pydantic import BaseModel, Field
+from autograder.context import request_context
 
 
+request = request_context.get_request()
 class TestInput(BaseModel):
     """
     This class represents the input of a single test to be sent to the AI model, defined using Pydantic.
@@ -42,7 +44,7 @@ class AiExecutor:
         self.tests = []  # List[TestInput]
         self.test_result_references = []  # List[TestResult]
         # Fixed: Initialized submission_files as an empty dictionary
-        self.submission_files = {}  # Dict[filename:str, content:str]
+        self.submission_files = request.submission_files # Dict[filename:str, content:str]
         self.test_results = None  # The raw json response from the AI model.
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 

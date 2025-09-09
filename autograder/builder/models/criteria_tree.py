@@ -1,5 +1,5 @@
 from typing import List, Any
-
+from autograder.context import request_context
 from autograder.core.models.test_result import TestResult
 
 
@@ -9,7 +9,6 @@ from autograder.core.models.test_result import TestResult
 # ===============================================================
 # 1. Classes for Test Execution
 # ===============================================================
-
 class TestCall:
     """Represents a single invocation of a test function with its arguments."""
     def __init__(self, args: List[Any]):

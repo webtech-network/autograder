@@ -2,15 +2,17 @@ from typing import List, Dict, Any
 
 from autograder.builder.models.criteria_tree import Criteria, Subject, Test, TestCall, TestResult
 from autograder.builder.models.template import Template
-from autograder.builder.template_library.templates.web_dev import WebDevTemplate
-
+from autograder.context import request_context
 
 class CriteriaTree:
     """A factory for creating a Criteria object from a configuration dictionary."""
-
     @staticmethod
-    def build_pre_executed_tree(config_dict: dict, template: Template, submission_files: dict) -> Criteria:
+    def build_pre_executed_tree(template: Template) -> Criteria:
         """ Builds a Criteria tree and pre-executes all tests, having leaves as TestResult objects."""
+
+        request = request_context.get_request()
+        config_dict = request.assignment_config.criteria
+        submission_files = request.submission_files
         criteria = Criteria()
 
         for category_name in ["base", "bonus", "penalty"]:
@@ -32,10 +34,11 @@ class CriteriaTree:
         return criteria
 
     @staticmethod
-    def build_non_executed_tree(config_dict: dict) -> Criteria:
+    def build_non_executed_tree() -> Criteria:
         """Builds the entire criteria tree, including balancing subject weights."""
         criteria = Criteria()
-
+        request = request_context.get_request()
+        config_dict = request.assignment_config
         for category_name in ["base", "bonus", "penalty"]:
             if category_name in config_dict:
                 category = getattr(criteria, category_name)
