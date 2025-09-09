@@ -1,4 +1,4 @@
-from autograder.builder.template_library.templates.web_dev import WebDevLibrary
+from autograder.builder.template_library.templates.web_dev import WebDevTemplate
 from autograder.core.grading.grader import Grader
 from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.base_reporter import BaseReporter
@@ -67,10 +67,10 @@ class DefaultReporter(BaseReporter):
         if category_name == "bonus":
             is_bonus = True
             if self.feedback.general.show_passed_tests:
-                results_to_show = [res for res in category_results if res.score >= 100]
+                results_to_show = [res for res in category_results if res.score >= 60]
                 intro_text = "Parabéns! Você completou os seguintes itens bônus, demonstrando um ótimo conhecimento:" if results_to_show else "Nenhum item bônus foi completado desta vez. Continue se desafiando!"
         else:  # base and penalty
-            results_to_show = [res for res in category_results if res.score < 100]
+            results_to_show = [res for res in category_results if res.score < 60]
             if category_name == "base":
                 intro_text = "Encontramos alguns pontos nos requisitos essenciais que precisam de sua atenção:" if results_to_show else "Excelente! Todos os requisitos essenciais foram atendidos com sucesso."
             elif category_name == "penalty":

@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 
 from autograder.builder.models.criteria_tree import Criteria, Subject, Test, TestCall, TestResult
 from autograder.builder.models.template import Template
-from autograder.builder.template_library.templates.web_dev import WebDevLibrary
+from autograder.builder.template_library.templates.web_dev import WebDevTemplate
 
 
 class CriteriaTree:
@@ -118,7 +118,7 @@ class CriteriaTree:
         for test_item in test_data:
             if isinstance(test_item, str):
                 # Handle simple test names (e.g., "check_no_unclosed_tags")
-                test = Test(name=test_item, filename="index.html")  # Default file
+                test = Test(name=test_item)  # Default file
                 test.add_call(TestCall(args=[]))
                 parsed_tests.append(test)
 
@@ -126,8 +126,8 @@ class CriteriaTree:
                 # Handle complex test definitions
                 test_name = test_item.get("name")
                 test_file = test_item.get("file")
-                if not test_name or not test_file:
-                    raise ValueError(f"Test definition is missing 'name' or 'file': {test_item}")
+                if not test_name:
+                    raise ValueError(f"Test definition is missing 'name': {test_item}")
 
                 test = Test(name=test_name, filename=test_file)
 
@@ -146,344 +146,103 @@ class CriteriaTree:
 
 if __name__ == "__main__":
     criteria_json = {
-  "test_library": "web_dev",
+  "test_library": "essay ai grader",
   "base": {
     "weight": 100,
     "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "html": {
-          "weight": 60,
-          "subjects": {
-            "structure": {
-              "weight": 40,
-              "tests": [
-                {
-                  "file": "index.html",
-                  "name": "has_tag",
-                  "calls": [
-                    ["body", 1],
-                    ["header", 1],
-                    ["nav", 1],
-                    ["main", 1],
-                    ["article", 4],
-                    ["img", 5],
-                    ["footer", 1],
-                    ["div", 1],
-                    ["form", 1],
-                    ["input", 1],
-                    ["button", 1]
-                  ]
-                },
-                {
-                  "file": "index.html",
-                  "name": "has_attribute",
-                  "calls": [
-                    ["class", 2]
-                  ]
-                }
-              ]
-            },
-            "link": {
-              "weight": 20,
-              "tests": [
-                {
-                  "file": "index.html",
-                  "name": "check_css_linked"
-                },
-                {
-                  "file": "index.html",
-                  "name": "check_internal_links_to_article",
-                  "calls": [
-                    [4]
-                  ]
-                }
-              ]
-            }
-          }
-        },
-        "css": {
-          "weight": 40,
-          "subjects": {
-            "responsivity": {
-              "weight": 50,
-              "tests": [
-                {
-                  "file": "css/styles.css",
-                  "name": "uses_relative_units"
-                },
-                {
-                  "file": "css/styles.css",
-                  "name": "check_media_queries"
-                },
-                {
-                  "file": "css/styles.css",
-                  "name": "check_flexbox_usage"
-                }
-              ]
-            },
-            "style": {
-              "weight": 50,
-              "tests": [
-                {
-                  "file": "css/styles.css",
-                  "name": "has_style",
-                  "calls": [
-                    ["font-size", 1],
-                    ["font-family", 1],
-                    ["text-align", 1],
-                    ["display", 1],
-                    ["position", 1],
-                    ["margin", 1],
-                    ["padding", 1]
-                  ]
-                }
-              ]
-            }
-          }
-        }
-    }
-      },
-      "semana_6": {
+      "foundations": {
         "weight": 60,
-        "subjects": {
-        "bootstrap_fundamentals": {
-            "weight": 70,
-            "tests": [
-              {
-                "file": "index.html",
-                "name": "check_bootstrap_linked"
-              },
-              {
-                "file": "index.html",
-                "name": "check_internal_links",
-                "calls": [
-                  [3]
-                ]
-              },
-              {
-                "file": "index.html",
-                "name": "has_class",
-                "calls": [
-                  [["container", "container-fluid"], 1],
-                  [["row"], 1],
-                  [["col-*"], 3],
-                  [["text-center"], 1],
-                  [["d-flex", "d-*-flex"], 1],
-                  [["bg-*"], 1]
-                ]
-              }
+        "tests": [
+          {
+            "file": "essay.txt",
+            "name": "thesis_statement"
+          },
+          {
+            "file": "essay.txt",
+            "name": "clarity_and_cohesion"
+          },
+          {
+            "file": "essay.txt",
+            "name": "grammar_and_spelling"
+          }
+        ]
+      },
+      "prompt_adherence": {
+        "weight": 40,
+        "tests": [
+          {
+            "file": "essay.txt",
+            "name": "adherence_to_prompt",
+            "calls": [
+              [ "Analyze the primary causes of the Industrial Revolution and its impact on 19th-century society." ]
             ]
-        },
-        "css_and_docs": {
-            "weight": 30,
-            "tests": [
-              {
-                "file": "css/styles.css",
-                "name": "check_media_queries"
-              },
-              {
-                "file": "css/styles.css",
-                "name": "has_style",
-                "calls": [
-                  ["margin", 1],
-                  ["padding", 1],
-                  ["width", 1]
-                ]
-              },
-              {
-                "file": "all",
-                "name": "check_project_structure",
-                "calls": [
-                  ["README.md"]
-                ]
-              }
-            ]
-        }
+          }
+        ]
       }
-    }
     }
   },
   "bonus": {
-    "weight": 40,
+    "weight": 30,
     "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "accessibility": {
-          "weight": 20,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_all_images_have_alt"
-            }
-          ]
-        },
-        "head_detail": {
-          "weight": 80,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_head_details",
-              "calls": [
-                ["title"],
-                ["meta"]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "check_attribute_and_value",
-              "calls": [
-                ["meta", "charset", "UTF-8"],
-                ["meta", "name", "viewport"],
-                ["meta", "name", "description"],
-                ["meta", "name", "author"],
-                ["meta", "name", "keywords"]
-              ]
-            }
-          ]
-        }
-    }
+      "rhetorical_skill": {
+        "weight": 70,
+        "tests": [
+          {
+            "file": "essay.txt",
+            "name": "counterargument_handling"
+          },
+          {
+            "file": "essay.txt",
+            "name": "vocabulary_and_diction"
+          },
+          {
+            "file": "essay.txt",
+            "name": "sentence_structure_variety"
+          }
+        ]
       },
-      "semana_6": {
-        "weight": 60,
-        "subjects": {
-        "bootstrap_components": {
-            "weight": 60,
-            "tests": [
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["card"], 1],
-                      [["card-body"], 1],
-                      [["card-title"], 1],
-                      [["navbar"], 1],
-                      [["navbar-nav"], 1],
-                      [["breadcrumb"], 1],
-                      [["breadcrumb-item"], 1],
-                      [["carousel"], 1],
-                      [["slide"], 1],
-                      [["carousel-item"], 1]
-                    ]
-                 }
+      "deeper_analysis": {
+        "weight": 30,
+        "tests": [
+          {
+            "file": "essay.txt",
+            "name": "topic_connection",
+            "calls": [
+              [ "technological innovation", "social inequality" ]
             ]
-        },
-        "formatting_classes": {
-            "weight": 40,
-            "tests": [
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["mt-*", "ms-*", "me-*", "mb-*", "pt-*", "ps-*", "pe-*", "pb-*", "gap-*"], 8]
-                    ]
-                 },
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["w-*", "mh-*", "mw-*", "vw-*", "vh-*"], 4]
-                    ]
-                 }
-            ]
-        }
-    }
+          }
+        ]
       }
     }
   },
   "penalty": {
-    "weight": 50,
+    "weight": 25,
     "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "html": {
-          "weight": 50,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_bootstrap_usage"
-            },
-            {
-              "file": "css/styles.css",
-              "name": "check_id_selector_over_usage",
-              "calls": [
-                [2]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "has_tag",
-              "calls": [
-                ["script", 1]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "check_html_direct_children"
-            },
-            {
-              "file": "index.html",
-              "name": "check_tag_not_inside",
-              "calls": [
-                ["header", "main"],
-                ["footer", "main"]
-              ]
-            }
-          ]
-        },
-        "project_structure": {
-          "weight": 50,
-          "tests": [
-            {
-              "file": "all",
-              "name": "check_dir_exists",
-              "calls": [
-                ["css"],
-                ["imgs"]
-              ]
-            },
-            {
-              "file": "all",
-              "name": "check_project_structure",
-              "calls": [
-                ["css/styles.css"]
-              ]
-            }
-          ]
-        }
-    }
+      "logical_integrity": {
+        "weight": 100,
+        "tests": [
+          {
+            "file": "essay.txt",
+            "name": "logical_fallacy_check"
+          },
+          {
+            "file": "essay.txt",
+            "name": "bias_detection"
+          },
+          {
+              "file": "essay.txt",
+              "name": "originality_and_plagiarism"
+          }
+        ]
       }
     }
   }
 }
-    submission_files = {"index.html":"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <h1>Welcome to My Page</h1> <!-- ✅ Matches test requirement -->
-    <p>This is a simple webpage.</p> <!-- ✅ Just needs a paragraph -->
-
-    <button id="myButton">Click Me!</button> <!-- ✅ Button with correct ID & text -->
-
-    <script src="script.js"></script>
-</body>
-</html>""",
-                        "style.css":"""body {}
-    font-size: 16px; /* ✅ Uses relative unit (px is acceptable here) */
-    font-family: Arial, sans-serif; /* ✅ Valid font family */
-    text-align: center; /* ✅ Valid text alignment */
-    display: flex; /* ✅ Uses Flexbox */
-    position: relative; /* ✅ Valid position */
-    margin: 0; /* ✅ Valid margin */
-    padding: 0; /* ✅ Valid padding */"""
-}
+    submission_files = {"essay.txt": """Artificial intelligence (AI) is no longer a concept confined to science fiction; it is a transformative force actively reshaping industries and redefining the nature of work. Its integration into the modern workforce presents a profound duality: on one hand, it offers unprecedented opportunities for productivity and innovation, while on the other, it poses significant challenges related to job displacement and economic inequality. Navigating this transition successfully requires a proactive and nuanced approach from policymakers, businesses, and individuals alike.
+The primary benefit of AI in the workplace is its capacity to augment human potential and drive efficiency. AI-powered systems can analyze vast datasets in seconds, automating routine cognitive and manual tasks, which frees human workers to focus on more complex, creative, and strategic endeavors. For instance, in medicine, AI algorithms assist radiologists in detecting tumors with greater accuracy, while in finance, they identify fraudulent transactions far more effectively than any human team. This collaboration between human and machine not only boosts output but also creates new roles centered around AI development, ethics, and system maintenance—jobs that did not exist a decade ago.
+However, this technological advancement casts a significant shadow of disruption. The same automation that drives efficiency also leads to job displacement, particularly for roles characterized by repetitive tasks. Assembly line workers, data entry clerks, and even some paralegal roles face a high risk of obsolescence. This creates a widening skills gap, where demand for high-level technical skills soars while demand for traditional skills plummets. Without robust mechanisms for reskilling and upskilling the existing workforce, this gap threatens to exacerbate socio-economic inequality, creating a divide between those who can command AI and those who are displaced by it. There are many gramatical errors in this sentence, for testing purposes.
+The most critical challenge, therefore, is not to halt technological progress but to manage its societal impact. A multi-pronged strategy is essential. Governments and educational institutions must collaborate to reform curricula, emphasizing critical thinking, digital literacy, and lifelong learning. Furthermore, corporations have a responsibility to invest in their employees through continuous training programs. Finally, strengthening social safety nets, perhaps through concepts like Universal Basic Income (UBI) or enhanced unemployment benefits, may be necessary to support individuals as they navigate this volatile transition period.
+In conclusion, AI is a double-edged sword. Its potential to enhance productivity and create new avenues for growth is undeniable, but so are the risks of displacement and inequality. The future of work will not be a battle of humans versus machines, but rather a story of adaptation. By investing in education, promoting equitable policies, and fostering a culture of continuous learning, we can harness the power of AI to build a more prosperous and inclusive workforce for all."""}
     #tree = CriteriaTree.build_pre_executed_tree(criteria_json, WebDevLibrary(), submission_files)
     tree = CriteriaTree.build_non_executed_tree(criteria_json)
     #tree.print_pre_executed_tree()

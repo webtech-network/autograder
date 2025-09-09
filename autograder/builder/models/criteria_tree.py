@@ -27,7 +27,7 @@ class Test:
     Represents a group of calls to a single test function in the library.
     This is a LEAF node in the grading tree.
     """
-    def __init__(self, name: str, filename: str):
+    def __init__(self, name: str, filename: str = None):
         self.name = name
         self.file = filename  # The file this test operates on (e.g., "index.html")
         self.calls: List[TestCall] = []
@@ -45,26 +45,33 @@ class Test:
         except AttributeError as e:
             return [TestResult(self.name, 0, f"ERROR: {e}", subject_name)]
 
-        # --- File Injection Logic ---
         file_content_to_pass = None
-        if self.file == "all":
-            file_content_to_pass = submission_files
-        else:
-            file_content_to_pass = submission_files.get(self.file)
-            if file_content_to_pass is None:
-                return [TestResult(self.name, 0, f"Erro: O arquivo necessário '{self.file}' não foi encontrado na submissão.", subject_name)]
+        if self.file:
+            # --- File Injection Logic ---
+            if self.file == "all":
+                file_content_to_pass = submission_files
+            else:
+                file_content_to_pass = submission_files.get(self.file)
+                if file_content_to_pass is None:
+                    return [TestResult(self.name, 0, f"Erro: O arquivo necessário '{self.file}' não foi encontrado na submissão.", subject_name)]
 
         # --- Execution Logic ---
         if not self.calls:
             # Execute with just the file content if no specific calls are defined
-            result = test_function_instance.execute(file_content_to_pass)
+            if file_content_to_pass:
+                result = test_function_instance.execute(file_content_to_pass)
+            else:
+                result = test_function_instance.execute()
             result.subject_name = subject_name
             return [result]
 
         results = []
         for call in self.calls:
             # Execute the 'execute' method of the TestFunction instance
-            result = test_function_instance.execute(file_content_to_pass, *call.args)
+            if file_content_to_pass:
+                result = test_function_instance.execute(file_content_to_pass, *call.args)
+            else:
+                result = test_function_instance.execute(*call.args)
             result.subject_name = subject_name
             results.append(result)
         return results
