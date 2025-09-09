@@ -39,7 +39,7 @@ class Autograder:
                 raise ValueError(f"Unsupported template: {template_name}")
             if test_template.requires_execution_helper:
                 executor = test_template.execution_helper
-                executor.send_submission_files(autograder_request.submission_files)
+                executor.send_submission_files(autograder_request.submission_files) #This is not cool, fix it later
             # Step 3: Build criteria tree
             logger.info("Building criteria tree from assignment configuration:")
             logger.debug(f"Criteria configuration: {autograder_request.assignment_config.criteria}")
@@ -48,7 +48,7 @@ class Autograder:
                 criteria_tree = CriteriaTree.build_pre_executed_tree(autograder_request.assignment_config.criteria,test_template,autograder_request.submission_files)
                 criteria_tree.print_pre_executed_tree()
                 if test_template.requires_execution_helper:
-                    executor.stop()
+                    executor.stop() #This is not cool, fix it later
                     criteria_tree.print_pre_executed_tree()
             elif not test_template.requires_pre_executed_tree:
                 logger.info("Template does not require pre-executed criteria tree.")
