@@ -27,6 +27,10 @@ class Template(ABC):
     @abstractmethod
     def execution_helper(self):
         pass
+
+    @abstractmethod
+    def stop(self):
+        pass
     def get_tests(self):
         return self.tests
 

@@ -556,6 +556,9 @@ class WebDevTemplate(Template):
             "check_bootstrap_usage": CheckBootstrapUsage(),
         }
 
+    def stop(self):
+        pass
+
     def get_test(self, name: str) -> TestFunction:
         """
         Retrieves a specific test function instance from the template.

@@ -260,6 +260,9 @@ class EssayGraderTemplate(Template):
     def execution_helper(self):
         return self.executor
 
+    def stop(self):
+        self.executor.stop()
+
     def get_test(self, name: str) -> TestFunction:
         """
         Retrieves a specific test function instance from the template.
