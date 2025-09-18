@@ -38,7 +38,7 @@ class CriteriaTree:
         """Builds the entire criteria tree, including balancing subject weights."""
         criteria = Criteria()
         request = request_context.get_request()
-        config_dict = request.assignment_config
+        config_dict = request.assignment_config.criteria
         for category_name in ["base", "bonus", "penalty"]:
             if category_name in config_dict:
                 category = getattr(criteria, category_name)
