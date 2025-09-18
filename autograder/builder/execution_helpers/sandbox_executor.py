@@ -1,8 +1,11 @@
 import docker
 import tarfile
 import io
+import logging
 from autograder.context import request_context
 
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class SandboxExecutor:
     """
@@ -18,6 +21,7 @@ class SandboxExecutor:
 
         self.client = docker.from_env()
         self.container = None
+        self.logger = logging.getLogger(__name__)
 
     @classmethod
     def start(cls):
@@ -45,10 +49,10 @@ class SandboxExecutor:
         if container_port:
             # By setting the host port to None, we tell Docker to pick a random one.
             ports_to_map = {f"{container_port}/tcp": None}
-            print(f"Configuring dynamic port mapping for container port: {container_port}")
+            self.logger.info(f"Configuring dynamic port mapping for container port: {container_port}")
 
         try:
-            print(f"Starting sandbox container with image: {self.image}...")
+            self.logger.info(f"Starting sandbox container with image: {self.image}...")
             self.container = self.client.containers.run(
                 self.image,
                 command="sleep infinity",
@@ -61,10 +65,10 @@ class SandboxExecutor:
 
             self.container.exec_run("mkdir -p /home/user")
             self._place_submission_files()
-            print(f"Sandbox container {self.container.short_id} started successfully.")
+            self.logger.info(f"Sandbox container {self.container.short_id} started successfully.")
 
         except Exception as e:
-            print(f"Failed to start sandbox container: {e}")
+            self.logger.error(f"Failed to start sandbox container: {e}")
             self.stop()
             raise
 
@@ -106,7 +110,7 @@ class SandboxExecutor:
         tar_stream.seek(0)
 
         self.container.put_archive(path='/home/user/', data=tar_stream)
-        print("Student submission files placed in container at /home/user/.")
+        self.logger.info("Student submission files placed in container at /home/user/.")
 
     def run_command(self, command: str, in_background=False):
         """
@@ -115,7 +119,7 @@ class SandboxExecutor:
         if not self.container:
             raise Exception("Container is not running.")
 
-        print(f"Executing command: '{command}' (Background: {in_background})")
+        self.logger.info(f"Executing command: '{command}' (Background: {in_background})")
 
         if in_background:
             self.container.exec_run(cmd=f"sh -c '{command}'", detach=True, workdir="/home/user")
@@ -138,13 +142,12 @@ class SandboxExecutor:
         """Stops and removes the container to ensure a clean state."""
         if self.container:
             try:
-                print(f"Stopping sandbox container {self.container.short_id}...")
+                self.logger.info(f"Stopping sandbox container {self.container.short_id}...")
                 self.container.remove(force=True)
-                print("Sandbox container stopped and removed.")
+                self.logger.info("Sandbox container stopped and removed.")
             except docker.errors.NotFound:
-                print("Sandbox container was already removed.")
+                self.logger.warning("Sandbox container was already removed.")
             except Exception as e:
-                print(f"An error occurred during container cleanup: {e}")
+                self.logger.error(f"An error occurred during container cleanup: {e}")
             finally:
                 self.container = None
-
