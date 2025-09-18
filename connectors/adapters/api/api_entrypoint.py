@@ -7,9 +7,7 @@ from typing import List, Optional
 from connectors.models.assignment_config import AssignmentConfig
 import uvicorn
 
-from api_adapter import ApiAdapter
-from connectors.models.custom_assignment_config import CustomAssignmentConfig
-
+from connectors.adapters.api.api_adapter import ApiAdapter
 # Initialize the FastAPI app
 app = FastAPI(
     title="WebTech Autograder API Service",
