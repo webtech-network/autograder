@@ -3,7 +3,7 @@ from connectors.models.test_files import TestFiles
 
 
 class AssignmentConfig:
-    def __init__(self, criteria, feedback, setup ,template="custom"):
+    def __init__(self, criteria: dict, feedback: dict, setup: dict ,template="custom"):
         """
         Initializes the Preset model with the provided test files and configuration files.
 
