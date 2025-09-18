@@ -35,11 +35,20 @@ class HealthCheckTest(TestFunction):
     def execute(self, endpoint: str) -> TestResult:
         """Executes the health check test."""
 
-        url = f"http://localhost:{self.executor.HOST_PORT}{endpoint}"
         report = ""
         score = 0
 
         try:
+            # Get the internal port from the config to know which mapping to look up
+            container_port = self.executor.config.get("container_port")
+            if not container_port:
+                raise ValueError("Container port not specified in setup.json")
+
+            # Ask the executor for the dynamically mapped host port
+            host_port = self.executor.get_mapped_port(container_port)
+
+            url = f"http://localhost:{host_port}{endpoint}"
+
             print(f"Making request to sandboxed API at: {url}")
             response = requests.get(url, timeout=10)
 
@@ -51,9 +60,9 @@ class HealthCheckTest(TestFunction):
                 report = f"The endpoint '{endpoint}' is running but returned a status code of {response.status_code}. Expected 200."
 
         except requests.ConnectionError:
-            report = f"Connection failed. Could not connect to the API at '{url}'. Is the server running correctly?"
+            report = f"Connection failed. Could not connect to the API. Is the server running and bound to '0.0.0.0'?"
         except requests.Timeout:
-            report = f"The request timed out. The API at '{url}' did not respond in time."
+            report = f"The request timed out. The API did not respond in time."
         except Exception as e:
             report = f"An unexpected error occurred: {e}"
 
@@ -85,11 +94,20 @@ class CheckResponseJsonTest(TestFunction):
     def execute(self, endpoint: str, expected_key: str, expected_value: any) -> TestResult:
         """Executes the JSON validation test."""
 
-        url = f"http://localhost:{self.executor.HOST_PORT}{endpoint}"
         report = ""
         score = 0
 
         try:
+            # Get the internal port from the config to know which mapping to look up
+            container_port = self.executor.config.get("container_port")
+            if not container_port:
+                raise ValueError("Container port not specified in setup.json")
+
+            # Ask the executor for the dynamically mapped host port
+            host_port = self.executor.get_mapped_port(container_port)
+
+            url = f"http://localhost:{host_port}{endpoint}"
+
             response = requests.get(url, timeout=10)
             if response.status_code != 200:
                 return TestResult(self.name, 0, f"Request failed with status code {response.status_code}.")
@@ -105,7 +123,7 @@ class CheckResponseJsonTest(TestFunction):
                 report = f"Response from '{endpoint}' was not valid JSON."
 
         except requests.RequestException as e:
-            report = f"API request to '{url}' failed: {e}"
+            report = f"API request to the container failed: {e}"
         except Exception as e:
             report = f"An unexpected error occurred: {e}"
 
@@ -160,9 +178,9 @@ class ApiTestingTemplate(Template):
         # Install dependencies (e.g., npm install)
         install_command = self.executor.config.get("commands", {}).get("install_dependencies")
         if install_command:
-            exit_code, _, _ = self.executor.run_command(install_command)
+            exit_code, _, stderr = self.executor.run_command(install_command)
             if exit_code != 0:
-                raise RuntimeError("Failed to install dependencies. Halting grading.")
+                raise RuntimeError(f"Failed to install dependencies: {stderr}")
 
         # Start the student's API server in the background
         start_command = self.executor.config.get("start_command")
@@ -184,3 +202,114 @@ class ApiTestingTemplate(Template):
         if not test_function:
             raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
         return test_function
+
+
+if __name__ == "__main__":
+    import sys
+    import os
+
+    # This allows the script to find the other autograder modules
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from connectors.models.autograder_request import AutograderRequest
+    from connectors.models.assignment_config import AssignmentConfig
+    from autograder.context import request_context
+
+
+    def create_mock_submission():
+        """Creates the in-memory files for a simple student Express.js API."""
+        package_json = {
+            "name": "student-api", "version": "1.0.0", "main": "server.js",
+            "scripts": {"start": "node server.js"},
+            "dependencies": {"express": "^4.17.1"}
+        }
+        server_js = """
+           const express = require('express');
+           const app = express();
+           const port = 8000;
+
+           app.get('/health', (req, res) => res.status(200).send({ status: 'ok' }));
+           app.get('/api/user', (req, res) => res.json({ userId: 1, name: 'John Doe' }));
+
+           // The second argument '0.0.0.0' is the key.
+           app.listen(port, '0.0.0.0', () => {
+              console.log(`Server listening on port ${port}`);
+            });
+           """
+        return {
+            "package.json": json.dumps(package_json, indent=2),
+            "server.js": server_js
+        }
+
+
+    def create_mock_configs():
+        """Creates the mock setup and criteria configurations."""
+        setup_config = {
+            "runtime_image": "node:18-alpine",
+            "container_port": 8000,
+            "start_command": "node server.js",
+            "commands": {"install_dependencies": "npm install"}
+        }
+        criteria_config = {
+            "base": {
+                "subjects": {
+                    "api_functionality": {
+                        "weight": 100,
+                        "tests": [
+                            {"name": "health_check", "calls": [["/health"]]},
+                            {"name": "check_response_json", "calls": [["/api/user", "userId", 1]]}
+                        ]
+                    }
+                }
+            }
+        }
+        return setup_config, criteria_config
+
+
+    # --- Main Simulation Logic ---
+    print("--- 1. Setting up mock environment ---")
+    submission_files = create_mock_submission()
+    setup_config, criteria_config = create_mock_configs()
+
+    assignment_config = AssignmentConfig(criteria=criteria_config, feedback=None, setup=setup_config)
+    autograder_request = AutograderRequest(
+        submission_files=submission_files,
+        assignment_config=assignment_config,
+        student_name="MockStudent"
+    )
+    request_context.set_request(autograder_request)
+
+    template = None
+    try:
+        print("\n--- 2. Initializing API Testing Template (this will start the sandbox) ---")
+        template = ApiTestingTemplate()
+
+        print("\n--- 3. Running Tests ---")
+
+        health_check_test = template.get_test("health_check")
+        health_result = health_check_test.execute("/health")
+
+        print("\n[Health Check Result]")
+        print(f"  Score: {health_result.score}")
+        print(f"  Report: {health_result.report}")
+
+        json_check_test = template.get_test("check_response_json")
+        json_result = json_check_test.execute("/api/user", "userId", 1)
+
+        print("\n[JSON Check Result]")
+        print(f"  Score: {json_result.score}")
+        print(f"  Report: {json_result.report}")
+
+    except Exception as e:
+        print(f"\nAN ERROR OCCURRED: {e}")
+        import traceback
+
+        traceback.print_exc()
+
+    finally:
+        if template:
+            print("\n--- 4. Cleaning up sandbox environment ---")
+            template.stop()
+
