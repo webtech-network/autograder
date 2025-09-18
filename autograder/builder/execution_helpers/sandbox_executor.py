@@ -1,7 +1,6 @@
 import docker
 import tarfile
 import io
-import time
 from autograder.context import request_context
 
 

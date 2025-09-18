@@ -31,9 +31,6 @@ class Autograder:
             # Step 1: Handle Pre-flight checks if setup is defined
             if autograder_request.assignment_config.setup:
                 logger.info("Running pre-flight setup commands")
-
-
-
                 impediments = PreFlight.run()
                 if impediments:
                      error_messages = [impediment['message'] for impediment in impediments]
@@ -43,11 +40,15 @@ class Autograder:
 
             # Step 2: Get test template
             template_name = autograder_request.assignment_config.template
-            logger.info(f"Loading test template: '{template_name}'")
+            if template_name == "custom":
+                logger.info(f"Loading custom test template provided!")
+            else:
+                logger.info(f"Loading test template: '{template_name}'")
             test_template = TemplateLibrary.get_template(template_name)
             if test_template is None:
                 logger.error(f"Template '{template_name}' not found in TemplateLibrary")
                 raise ValueError(f"Unsupported template: {template_name}")
+            logger.info(f"Test template '{test_template.template_name}' instantiated successfully")
 
             # Step 3: Build criteria tree
             logger.info("Building criteria tree from assignment configuration:")
