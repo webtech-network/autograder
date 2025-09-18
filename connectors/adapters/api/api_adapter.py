@@ -58,7 +58,7 @@ class ApiAdapter(Port):
 
 
     async def load_assignment_config(self, template: str, criteria: UploadFile, feedback: UploadFile,
-                               setup: Optional[UploadFile] = None) -> AssignmentConfig:
+                               setup: Optional[UploadFile] = None, custom_template: Optional[UploadFile] = None) -> AssignmentConfig:
         """
         Loads the assignment configuration based on the provided template preset.
         """
@@ -82,9 +82,13 @@ class ApiAdapter(Port):
                 setup_content = await setup.read()
                 setup_dict = json.loads(setup_content.decode("utf-8")) if setup else None
                 logger.info(f"Setup config loaded: {setup_dict is not None}")
+            custom_template_str = None
+            if custom_template:
+                custom_template_content = await custom_template.read()
+                custom_template_str = custom_template_content.decode("utf-8")
 
             return AssignmentConfig(criteria=criteria_dict, feedback=feedback_dict, setup=setup_dict,
-                                    template=template_name)
+                                    template=template_name, custom_template_str = custom_template_str)
 
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in configuration files: {e}")

@@ -51,9 +51,9 @@ async def grade_submission_endpoint(
         student_name: str = Form(..., description="The name of the student"),
         student_credentials: str = Form(..., description="The credentials of the student (e.g., GitHub token)"),
         feedback_type: Optional[str] = Form("default", description="The type of feedback to provide (default or ai)"),
-        custom_template: Optional[UploadFile] = File(None,description="Test Files for the submission (in case of custom preset)"),
-        criteria_json: Optional[UploadFile] = File(None, description="JSON file with grading criteria (in case of custom preset)"),
-        feedback_json: Optional[UploadFile] = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
+        custom_template: Optional[UploadFile] = File(None,description="A python file with custom tests that follows the template structure (in case of custom preset)"),
+        criteria_json: UploadFile = File(None, description="JSON file with grading criteria (in case of custom preset)"),
+        feedback_json: UploadFile = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
         setup_json: Optional[UploadFile] = File(None, description="JSON file with commands configuration (in case of custom preset)"),
         openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
         redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
@@ -63,10 +63,10 @@ async def grade_submission_endpoint(
         logging.info("Received API request to grade submission.")
         adapter = ApiAdapter()
         if template_preset == "custom":
-            logging.info("Custom grading preset selected. Loading custom configuration.")
-            assignment_config = CustomAssignmentConfig(criteria_json,feedback=feedback_json,setup=setup_json,library_file=custom_template)
-            # Validate the custom template test library provided
-            logging.info("Custom grading preset loaded.")
+            # Handles custom template
+            if not custom_template:
+                raise HTTPException(status_code=400, detail="Custom template file not given.")
+            assignment_config = await adapter.load_assignment_config(template="custom",criteria=criteria_json,feedback=feedback_json,setup = setup_json, custom_template=custom_template)
         else:
             logging.info(f"Using preset: {template_preset}. Loading template preset configuration.")
             assignment_config = await adapter.load_assignment_config(template=template_preset, criteria=criteria_json, feedback=feedback_json, setup=setup_json)
