@@ -1,12 +1,14 @@
 import time
 import requests
 import json
-
+import logging
 from autograder.builder.models.template import Template
 from autograder.builder.models.test_function import TestFunction
 from autograder.core.models.test_result import TestResult
 from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
 
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # ===============================================================
 # region: Concrete TestFunction Implementations for API Testing
@@ -31,6 +33,7 @@ class HealthCheckTest(TestFunction):
 
     def __init__(self, executor: SandboxExecutor):
         self.executor = executor
+        self.logger = logging.getLogger(__name__)
 
     def execute(self, endpoint: str) -> TestResult:
         """Executes the health check test."""
@@ -49,7 +52,7 @@ class HealthCheckTest(TestFunction):
 
             url = f"http://localhost:{host_port}{endpoint}"
 
-            print(f"Making request to sandboxed API at: {url}")
+            self.logger.info(f"Making request to sandboxed API at: {url}")
             response = requests.get(url, timeout=10)
 
             if response.status_code == 200:
@@ -107,7 +110,7 @@ class CheckResponseJsonTest(TestFunction):
             host_port = self.executor.get_mapped_port(container_port)
 
             url = f"http://localhost:{host_port}{endpoint}"
-
+            logging.info(f"Making request to sandboxed API at: {url}")
             response = requests.get(url, timeout=10)
             if response.status_code != 200:
                 return TestResult(self.name, 0, f"Request failed with status code {response.status_code}.")
@@ -150,7 +153,7 @@ class ApiTestingTemplate(Template):
 
     @property
     def requires_pre_executed_tree(self) -> bool:
-        return False
+        return True
 
     @property
     def requires_execution_helper(self) -> bool:
@@ -162,6 +165,7 @@ class ApiTestingTemplate(Template):
 
     def __init__(self):
         self.executor = SandboxExecutor.start()
+        self.logger = logging.getLogger(__name__)
 
         # Prepare the environment by running setup commands
         self._setup_environment()
@@ -173,7 +177,7 @@ class ApiTestingTemplate(Template):
 
     def _setup_environment(self):
         """Runs initial setup commands like installing dependencies and starting the server."""
-        print("--- Setting up API environment ---")
+        self.logger.info("--- Setting up API environment ---")
 
         # Install dependencies (e.g., npm install)
         install_command = self.executor.config.get("commands", {}).get("install_dependencies")
@@ -188,9 +192,9 @@ class ApiTestingTemplate(Template):
             raise ValueError("A 'start_command' must be defined in setup.json for the API template.")
 
         self.executor.run_command(start_command, in_background=True)
-        print("API server start command issued. Waiting for it to initialize...")
+        self.logger.info("API server start command issued. Waiting for it to initialize...")
         time.sleep(5)  # Give the server a few seconds to start up
-        print("--- Environment setup complete ---")
+        self.logger.info("--- Environment setup complete ---")
 
     def stop(self):
         """Stops the sandbox executor, which cleans up the container."""
@@ -269,7 +273,7 @@ if __name__ == "__main__":
 
 
     # --- Main Simulation Logic ---
-    print("--- 1. Setting up mock environment ---")
+    logging.info("--- 1. Setting up mock environment ---")
     submission_files = create_mock_submission()
     setup_config, criteria_config = create_mock_configs()
 
@@ -283,33 +287,31 @@ if __name__ == "__main__":
 
     template = None
     try:
-        print("\n--- 2. Initializing API Testing Template (this will start the sandbox) ---")
+        logging.info("\n--- 2. Initializing API Testing Template (this will start the sandbox) ---")
         template = ApiTestingTemplate()
 
-        print("\n--- 3. Running Tests ---")
+        logging.info("\n--- 3. Running Tests ---")
 
         health_check_test = template.get_test("health_check")
         health_result = health_check_test.execute("/health")
 
-        print("\n[Health Check Result]")
-        print(f"  Score: {health_result.score}")
-        print(f"  Report: {health_result.report}")
+        logging.info("\n[Health Check Result]")
+        logging.info(f"  Score: {health_result.score}")
+        logging.info(f"  Report: {health_result.report}")
 
         json_check_test = template.get_test("check_response_json")
         json_result = json_check_test.execute("/api/user", "userId", 1)
 
-        print("\n[JSON Check Result]")
-        print(f"  Score: {json_result.score}")
-        print(f"  Report: {json_result.report}")
+        logging.info("\n[JSON Check Result]")
+        logging.info(f"  Score: {json_result.score}")
+        logging.info(f"  Report: {json_result.report}")
 
     except Exception as e:
-        print(f"\nAN ERROR OCCURRED: {e}")
+        logging.error(f"\nAN ERROR OCCURRED: {e}")
         import traceback
-
         traceback.print_exc()
 
     finally:
         if template:
-            print("\n--- 4. Cleaning up sandbox environment ---")
+            logging.info("\n--- 4. Cleaning up sandbox environment ---")
             template.stop()
-
