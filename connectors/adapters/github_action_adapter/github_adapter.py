@@ -184,35 +184,44 @@ class GithubAdapter(Port):
         configuration_path = os.path.join(submission_path, '.github','autograder')
 
         criteria_path = os.path.join(configuration_path, 'criteria.json')
+        if not os.path.exists(criteria_path):
+            raise FileNotFoundError("criteria.json file not found in the autograder configuration directory.")
         feedback_path = os.path.join(configuration_path, 'feedback.json')
+        if not os.path.exists(feedback_path):
+            raise FileNotFoundError("feedback.json file not found in the autograder configuration directory.")
         setup_path = os.path.join(configuration_path, 'setup.json')
+
 
         criteria_dict = None
         feedback_dict = None
         setup_dict = None
 
-        if os.path.exists(criteria_path):
-            with open(criteria_path, 'r', encoding='utf-8') as f:
-                criteria_dict = json.load(f)
-            print("Criteria loaded successfully.")
-        else:
-            print("criteria.json not found.")
+        with open(criteria_path, 'r', encoding='utf-8') as f:
+            criteria_dict = json.load(f)
+        print("Criteria loaded successfully.")
 
-        if os.path.exists(feedback_path):
-            with open(feedback_path, 'r', encoding='utf-8') as f:
-                feedback_dict = json.load(f)
-            print("Feedback config loaded successfully.")
-        else:
-            print("feedback.json not found.")
 
-        if os.path.exists(setup_path):
-            with open(setup_path, 'r', encoding='utf-8') as f:
-                setup_dict = json.load(f)
-            print("Setup config loaded successfully.")
-        else:
-            print("setup.json not found.")
 
-        assignment_config = AssignmentConfig(criteria_dict, feedback=feedback_dict, setup=setup_dict, template=template_preset)
+        with open(feedback_path, 'r', encoding='utf-8') as f:
+            feedback_dict = json.load(f)
+        print("Feedback config loaded successfully.")
+
+
+
+        with open(setup_path, 'r', encoding='utf-8') as f:
+            setup_dict = json.load(f)
+        print("Setup config loaded successfully.")
+
+        custom_template_str = None
+        if template_preset == "custom":
+            custom_template_path = os.path.join(configuration_path, 'template.py')
+            if not os.path.exists(custom_template_path):
+                raise FileNotFoundError("Custom template file 'template.py' not found in the autograder configuration directory.")
+            with open(custom_template_path, 'r', encoding='utf-8') as f:
+                custom_template_str = f.read()
+            print("Custom template loaded successfully.")
+
+        assignment_config = AssignmentConfig(criteria_dict, feedback=feedback_dict, setup=setup_dict, template=template_preset,custom_template_str=custom_template_str)
         return assignment_config
 
 
