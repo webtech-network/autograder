@@ -1,4 +1,6 @@
 import re
+from urllib.parse import parse_qs, urlparse
+
 from bs4 import BeautifulSoup
 
 from autograder.builder.models.template import Template
@@ -497,6 +499,162 @@ class CheckBootstrapUsage(TestFunction):
         return TestResult(self.name, score, report)
 
 
+class LinkPointsToPageWithQueryParam(TestFunction):
+    @property
+    def name(self):
+        return "link_points_to_page_with_query_param"
+
+    @property
+    def description(self):
+        return "Checks for anchor tags linking to a specific page with a required query string parameter."
+
+    @property
+    def parameter_description(self):
+        return {
+            "html_content": "The HTML content to analyze.",
+            "target_page": "The expected page the link should point to (e.g., 'detalhes.html').",
+            "query_param": "The name of the query string parameter to check for (e.g., 'id').",
+            "required_count": "The minimum number of valid links that must be present."
+        }
+
+    def execute(self, html_content: str, target_page: str, query_param: str, required_count: int) -> TestResult:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        links = soup.find_all("a", href=True)
+        valid_link_count = 0
+        for link in links:
+            href = link['href']
+            parsed_url = urlparse(href)
+            # Check if the path matches the target page
+            if parsed_url.path == target_page:
+                # Parse query parameters and check if the required param exists
+                query_params = parse_qs(parsed_url.query)
+                if query_param in query_params:
+                    valid_link_count += 1
+
+        score = min(100, int((valid_link_count / required_count) * 100)) if required_count > 0 else 100
+        report = f"Encontrados {valid_link_count} de {required_count} links válidos para '{target_page}' com o parâmetro de consulta '{query_param}'."
+        return TestResult(self.name, score, report, parameters={"target_page": target_page, "query_param": query_param,
+                                                                "required_count": required_count})
+
+
+class JsUsesQueryStringParsing(TestFunction):
+    @property
+    def name(self):
+        return "js_uses_query_string_parsing"
+
+    @property
+    def description(self):
+        return "Verifies that the JavaScript code contains patterns for reading URL query strings."
+
+    @property
+    def parameter_description(self):
+        return {"js_content": "The JavaScript code to analyze."}
+
+    def execute(self, js_content: str) -> TestResult:
+        # Regex to find 'URLSearchParams' or 'window.location.search'
+        pattern = re.compile(r"URLSearchParams|window\.location\.search")
+        found = pattern.search(js_content) is not None
+        score = 100 if found else 0
+        report = "O código JavaScript implementa a leitura de parâmetros da URL." if found else "Não foi encontrada a lógica para ler parâmetros da URL (ex: URLSearchParams) no seu JavaScript."
+        return TestResult(self.name, score, report)
+
+
+class JsHasJsonArrayWithId(TestFunction):
+    @property
+    def name(self):
+        return "js_has_json_array_with_id"
+
+    @property
+    def description(self):
+        return "Checks for a JS array of objects where each object has a specific required key."
+
+    @property
+    def parameter_description(self):
+        return {
+            "js_content": "The JavaScript code to analyze.",
+            "required_key": "The key that must exist in each object (e.g., 'id').",
+            "min_items": "The minimum number of items expected in the array."
+        }
+
+    def execute(self, js_content: str, required_key: str, min_items: int) -> TestResult:
+        # Regex to find an array assignment: var/let/const variable = [...]
+        # It captures the content of the array
+        match = re.search(r"(?:var|let|const)\s+\w+\s*=\s*(\[.*?\]);?", js_content, re.DOTALL)
+        if not match:
+            return TestResult(self.name, 0,
+                              "Não foi encontrada uma estrutura de dados (array) no formato JSON em seu arquivo JavaScript.",
+                              parameters={"required_key": required_key, "min_items": min_items})
+
+        array_content = match.group(1)
+        # A simple heuristic: count how many times the required key appears as a key
+        key_pattern = f'"{required_key}"\s*:'
+        found_items = len(re.findall(key_pattern, array_content))
+
+        score = min(100, int((found_items / min_items) * 100)) if min_items > 0 else 100
+        report = f"Encontrada estrutura de dados com {found_items} de {min_items} itens necessários, todos com a chave '{required_key}'."
+        return TestResult(self.name, score, report, parameters={"required_key": required_key, "min_items": min_items})
+
+
+class JsUsesDomManipulation(TestFunction):
+    @property
+    def name(self):
+        return "js_uses_dom_manipulation"
+
+    @property
+    def description(self):
+        return "Checks if the JS code uses a minimum number of common DOM manipulation methods."
+
+    @property
+    def parameter_description(self):
+        return {
+            "js_content": "The JavaScript code to analyze.",
+            "methods": "A list of methods to search for (e.g., ['createElement', 'appendChild']).",
+            "required_count": "Minimum total number of times these methods should appear."
+        }
+
+    def execute(self, js_content: str, methods: list, required_count: int) -> TestResult:
+        found_count = 0
+        for method in methods:
+            found_count += len(re.findall(r"\." + re.escape(method), js_content))
+
+        score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
+        report = f"Foram encontradas {found_count} de {required_count} chamadas a métodos de manipulação do DOM necessárias."
+        return TestResult(self.name, score, report, parameters={"methods": methods, "required_count": required_count})
+
+
+class HasNoJsFramework(TestFunction):
+    @property
+    def name(self):
+        return "has_no_js_framework"
+
+    @property
+    def description(self):
+        return "Checks for the presence of forbidden JavaScript frameworks (React, Vue, Angular)."
+
+    @property
+    def parameter_description(self):
+        return {
+            "html_content": "The HTML content to analyze.",
+            "js_content": "The JavaScript code to analyze."
+        }
+
+    def execute(self, html_content: str, js_content: str) -> TestResult:
+        # Combine content for a single search
+        combined_content = html_content + js_content
+
+        forbidden_patterns = [
+            "react.js", "react.dom", "ReactDOM.render",  # React
+            "vue.js", "new Vue",  # Vue
+            "angular.js", "@angular/core",  # Angular
+        ]
+
+        found = any(pattern in combined_content for pattern in forbidden_patterns)
+
+        score = 0 if found else 100  # Penalty test: score is 0 if found
+        report = "Uso de framework JavaScript (React, Vue, Angular) detectado. O uso de frameworks não é permitido nesta atividade." if found else "Ótimo! Nenhum framework JavaScript proibido foi detectado."
+        return TestResult(self.name, score, report)
+
+
 # ===============================================================
 # endregion
 # ===============================================================
@@ -554,6 +712,11 @@ class WebDevTemplate(Template):
             "check_media_queries": CheckMediaQueries(),
             "check_flexbox_usage": CheckFlexboxUsage(),
             "check_bootstrap_usage": CheckBootstrapUsage(),
+            "link_points_to_page_with_query_param": LinkPointsToPageWithQueryParam(),
+            "js_uses_query_string_parsing": JsUsesQueryStringParsing(),
+            "js_has_json_array_with_id": JsHasJsonArrayWithId(),
+            "js_uses_dom_manipulation": JsUsesDomManipulation(),
+            "has_no_js_framework": HasNoJsFramework()
         }
 
     def stop(self):
