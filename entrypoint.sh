@@ -26,7 +26,10 @@ if [[ -z "$OPENAI_KEY" ]]; then
   echo "aaaa"
 fi
 cd /app
-echo "$OPENAI_KEY"
+
+if [[ -z "$OPENAI_KEY" ]]; then
+  echo "aaaa"
+fi
 
 # --- 2. Dynamically Build Command Arguments ---
 # Initialize a bash array with the base command and the required arguments.
