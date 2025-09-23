@@ -19,7 +19,7 @@ class AIReporter(BaseReporter):
     """
 
     def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', quota: int, test_library: 'Template'):
-        super().__init__(result, feedback)
+        super().__init__(result, feedback,test_library)
         openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
             raise ValueError("A chave da API da OpenAI é necessária para o AiReporter.")
