@@ -1,17 +1,6 @@
-from autograder.builder.template_library.templates.web_dev import WebDevTemplate
-from autograder.core.grading.grader import Grader
+from autograder.builder.models.template import Template
 from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.base_reporter import BaseReporter
-
-
-# Assuming these classes are in their respective, importable files
-# from .base_reporter import BaseReporter
-# from autograder.core.models.feedback_preferences import FeedbackPreferences
-# from autograder.core.models.result import Result
-# from autograder.builder.tree_builder import TestResult
-
-
-
 
 
 class DefaultReporter(BaseReporter):
@@ -19,6 +8,10 @@ class DefaultReporter(BaseReporter):
     Generates a structured and visually appealing markdown feedback report
     designed to be a clear and helpful learning tool for students.
     """
+
+    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', test_library: 'Template'):
+        super().__init__(result, feedback, test_library)
+        self.test_library = test_library
 
     def generate_feedback(self) -> str:
         """
@@ -32,7 +25,9 @@ class DefaultReporter(BaseReporter):
         ]
 
         if self.feedback.general.add_report_summary:
-            report_parts.append(self._build_summary())
+            summary = self._build_summary()
+            if summary:  # Only add summary if it's not empty
+                report_parts.append(summary)
 
         report_parts.append(self._build_footer())
         return "\n".join(filter(None, report_parts))
@@ -41,7 +36,7 @@ class DefaultReporter(BaseReporter):
         """Helper function to format parameters into a readable code string."""
         if not params:
             return ""
-        parts = [f"{k}: `{v}`" if isinstance(v, str) else f"{k}: {v}" for k, v in params.items()]
+        parts = [f"`{k}`: `{v}`" if isinstance(v, str) else f"`{k}`: `{v}`" for k, v in params.items()]
         return f" (Parâmetros: {', '.join(parts)})"
 
     def _build_header(self) -> str:
@@ -97,15 +92,14 @@ class DefaultReporter(BaseReporter):
 
                 feedback_item = [
                     f"> {status_text} no teste `{res.test_name}`{params_str}",
-                    f"> - **Detalhes:** {report_prefix} {res.report}\n\n"
+                    f"> - **Detalhes:** {report_prefix} {res.report}\n"
                 ]
 
-                # Conditionally add learning resources ONLY for failed tests
                 if not is_bonus:
                     linked_content = self._content_map.get(res.test_name)
                     if linked_content:
                         feedback_item.append(
-                            f"> - 📚 **Recurso Sugerido:** [{linked_content.description}]({linked_content.url})\n\n")
+                            f"> - 📚 **Recurso Sugerido:** [{linked_content.description}]({linked_content.url})\n")
 
                 section_parts.append("\n".join(feedback_item))
 
@@ -120,20 +114,36 @@ class DefaultReporter(BaseReporter):
         if not failed_base and not failed_penalty:
             return ""  # No need for a summary if everything is okay
 
-        summary_parts.append("| Ação | Tópico | Teste e Parâmetros |")
+        summary_parts.append("| Ação | Tópico | Detalhes do Teste |")
         summary_parts.append("|:---|:---|:---|")
 
-        for res in failed_base:
+        all_failed = failed_base + failed_penalty
+        for res in all_failed:
+            try:
+                # Get the test function from the library to access its description
+                test_func = self.test_library.get_test(res.test_name)
+                description = test_func.description
+            except AttributeError:
+                description = "Descrição não disponível."
+
             params_str = self._format_parameters(res.parameters).replace(" (Parâmetros: ", "").replace(")", "")
-            summary_parts.append(f"| Revisar | `{res.subject_name}` | `{res.test_name}`<br><sub>{params_str}</sub> |")
-        for res in failed_penalty:
-            params_str = self._format_parameters(res.parameters).replace(" (Parâmetros: ", "").replace(")", "")
-            summary_parts.append(
-                f"| Corrigir (Penalidade) | `{res.subject_name}` | `{res.test_name}`<br><sub>{params_str}</sub> |")
+
+            # Determine the action type
+            action = "Revisar"
+            if res in failed_penalty:
+                action = "Corrigir (Penalidade)"
+
+            # Build the detailed cell content
+            details_cell = (
+                f"**Teste:** `{res.test_name}`<br>"
+                f"**O que foi verificado:** *{description}*<br>"
+                f"**Parâmetros:** <sub>{params_str or 'N/A'}</sub>"
+            )
+
+            summary_parts.append(f"| {action} | `{res.subject_name}` | {details_cell} |")
 
         return "\n".join(summary_parts)
 
     def _build_footer(self) -> str:
         """Constructs the footer of the report."""
         return "\n---\n" + "> Continue praticando e melhorando seu código. Cada desafio é uma oportunidade de aprender! 🚀"
-

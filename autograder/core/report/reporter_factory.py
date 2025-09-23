@@ -4,13 +4,13 @@ from autograder.core.report.ai_reporter import AIReporter
 from autograder.core.report.default_reporter import DefaultReporter
 class Reporter:
     @classmethod
-    def create_ai_reporter(cls, result: Result, feedback: FeedbackPreferences,quota):
+    def create_ai_reporter(cls, result: Result, feedback: FeedbackPreferences,template, quota):
         """Creates an AIReporter instance with the students results"""
-        return AIReporter.create(result,feedback,quota)
+        return AIReporter.create(result,feedback,template,quota)
 
     @classmethod
-    def create_default_reporter(cls, result: Result,feedback: FeedbackPreferences):
+    def create_default_reporter(cls, result: Result,feedback: FeedbackPreferences,template):
         """Creates a DefaultReporter instance with the students results"""
-        return DefaultReporter.create(result,feedback)
+        return DefaultReporter.create(result,feedback,template)
 
 

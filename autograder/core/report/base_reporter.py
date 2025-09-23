@@ -8,9 +8,10 @@ from typing import List, Dict
 
 class BaseReporter(ABC):
     """Abstract base class for reporting test results."""
-    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences'):
+    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences',template):
         self.result = result
         self.feedback = feedback
+        self.template = template
         # A map to quickly find learning resources for a given test name
         self._content_map = self._build_content_map()
 
@@ -43,6 +44,6 @@ class BaseReporter(ABC):
         pass
 
     @classmethod
-    def create(cls, result: 'Result', feedback: 'FeedbackPreferences'):
-        response = cls(result, feedback)
+    def create(cls, result: 'Result', feedback: 'FeedbackPreferences',template):
+        response = cls(result, feedback,template)
         return response
