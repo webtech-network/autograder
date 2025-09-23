@@ -22,7 +22,9 @@ if [[ -z "$GITHUB_ACTOR" ]]; then
   echo "Error: Environment variable GITHUB_ACTOR is not set." >&2
   exit 1
 fi
-echo "$OPENAI_KEY"
+if [[ -z "$GITHUB_ACTOR" ]]; then
+  echo "$OPENAI_KEY"
+fi
 cd /app
 echo "$OPENAI_KEY"
 
