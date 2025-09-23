@@ -1,3 +1,5 @@
+import os
+
 from openai import OpenAI
 
 
@@ -16,8 +18,9 @@ class AIReporter(BaseReporter):
     para um modelo de IA.
     """
 
-    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', openai_key: str, quota: int):
+    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', quota: int):
         super().__init__(result, feedback)
+        openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
             raise ValueError("A chave da API da OpenAI é necessária para o AiReporter.")
         self.client = OpenAI(api_key=openai_key)
@@ -166,3 +169,7 @@ class AIReporter(BaseReporter):
             "> **Responsividade com Media Queries**\n"
             "> Seu CSS não inclui `@media` queries. Sem elas, seu layout não conseguirá se adaptar a telas menores, como as de celulares. Recomendo fortemente a leitura do material sobre Media Queries para implementar essa funcionalidade."
         )
+    @classmethod
+    def create( cls, result: 'Result', feedback: 'FeedbackPreferences', quota: int):
+        response = cls(result, feedback, quota)
+        return response

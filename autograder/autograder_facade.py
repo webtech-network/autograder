@@ -118,7 +118,7 @@ class Autograder:
                 if driver.decrement_token_quota(student_credentials):
                     quota = driver.get_token_quota(student_credentials)
                     logger.info(f"Quota check passed. Remaining quota: {quota}")
-                    reporter = Reporter.create_ai_reporter(result, feedback, autograder_request.openai_key, quota)
+                    reporter = Reporter.create_ai_reporter(result,feedback, quota)
                 else:
                     logger.warning("Quota exceeded for student, falling back to default feedback.")
                     reporter = Reporter.create_default_reporter(result, feedback)
