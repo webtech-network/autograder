@@ -634,12 +634,15 @@ class HasNoJsFramework(TestFunction):
     @property
     def parameter_description(self):
         return {
-            "html_content": "The HTML content to analyze.",
-            "js_content": "The JavaScript code to analyze."
+            "submission_files": "The dictionary of submission files.",
+            "html_file": "The HTML filename to analyze.",
+            "js_file": "The JavaScript filename to analyze."
         }
 
-    def execute(self, html_content: str, js_content: str) -> TestResult:
+    def execute(self,submission_files, html_file: str, js_file: str) -> TestResult:
         # Combine content for a single search
+        html_content = submission_files.get(html_file, "")
+        js_content = submission_files.get(js_file, "")
         combined_content = html_content + js_content
 
         forbidden_patterns = [
