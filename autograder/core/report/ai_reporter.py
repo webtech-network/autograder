@@ -165,7 +165,7 @@ class AIReporter(BaseReporter):
             try:
                 # Get the test function from the library to access its description
                 print("Looking for mother function of test:", res.test_name)
-                print("WHyyyy")
+                print(self.test_library)
                 print("Available tests in library:", self.test_library.template_name)
                 test_func = self.test_library.get_test(res.test_name)
                 print("Testing function:", test_func)
