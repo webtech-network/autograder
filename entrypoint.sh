@@ -22,8 +22,9 @@ if [[ -z "$GITHUB_ACTOR" ]]; then
   echo "Error: Environment variable GITHUB_ACTOR is not set." >&2
   exit 1
 fi
-
+echo "$OPENAI_KEY"
 cd /app
+echo "$OPENAI_KEY"
 
 # --- 2. Dynamically Build Command Arguments ---
 # Initialize a bash array with the base command and the required arguments.
