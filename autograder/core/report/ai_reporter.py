@@ -164,7 +164,11 @@ class AIReporter(BaseReporter):
         for res in all_failed:
             try:
                 # Get the test function from the library to access its description
+                print("Looking for mother function of test:", res.test_name)
                 test_func = self.test_library.get_test(res.test_name)
+                print("Testing function:", test_func)
+                print("Testing function:", test_func.name)
+                print("Testing function:", test_func.description)
                 description = test_func.description
             except AttributeError:
                 description = "Descrição não disponível."
