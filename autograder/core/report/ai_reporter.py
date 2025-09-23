@@ -183,7 +183,7 @@ class AIReporter(BaseReporter):
             # Build the detailed cell content
             details_cell = (
                 f"**Teste:** `{res.test_name}`<br>"
-                f"**O que foi verificado:** *{description}*<br>"
+                f"**O que ele faz:** *{description}*<br>"
                 f"**Parâmetros:** <sub>{params_str or 'N/A'}</sub>"
             )
 
