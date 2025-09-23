@@ -19,14 +19,14 @@ class HasClass(TestFunction):
 
     @property
     def description(self):
-        return "Checks for the presence of specific CSS classes, with wildcard support, a minimum number of times."
+        return "Verifica a presença de classes CSS específicas, com suporte a curingas, um número mínimo de vezes."
 
     @property
     def parameter_description(self):
         return {
-            "html_content": "The HTML content to analyze.",
-            "class_names": "A list of class names to search for. Wildcards (*) are supported (e.g., 'col-*').",
-            "required_count": "The minimum number of times the classes must appear in total."
+            "html_content": "O conteúdo HTML a ser analisado.",
+            "class_names": "Uma lista de nomes de classes a serem pesquisadas. Curingas (*) são suportados (por exemplo, 'col-*').",
+            "required_count": "O número mínimo de vezes que as classes devem aparecer no total."
         }
 
     def execute(self, html_content: str, class_names: list[str], required_count: int) -> TestResult:
@@ -59,10 +59,10 @@ class CheckBootstrapLinked(TestFunction):
     def name(self): return "check_bootstrap_linked"
 
     @property
-    def description(self): return "Verifies that the Bootstrap framework (CSS or JS) is linked in the HTML file."
+    def description(self): return "Verifica se o framework Bootstrap (CSS ou JS) está vinculado no arquivo HTML."
 
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado."}
 
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -80,11 +80,11 @@ class CheckInternalLinks(TestFunction):
 
     @property
     def description(self):
-        return "Checks for a minimum number of internal anchor links pointing to valid element IDs."
+        return "Verifica a existência de um número mínimo de links âncora internos que apontam para IDs de elementos válidos."
 
     @property
     def parameter_description(self):
-        return {"html_content": "The HTML content to analyze.", "required_count": "The minimum number of valid links."}
+        return {"html_content": "O conteúdo HTML a ser analisado.", "required_count": "O número mínimo de links válidos."}
 
     def execute(self, html_content: str, required_count: int) -> TestResult:
         if not html_content:
@@ -106,13 +106,13 @@ class HasTag(TestFunction):
     @property
     def name(self): return "has_tag"
     @property
-    def description(self): return "Verifies that a specific HTML tag appears a minimum number of times."
+    def description(self): return "Verifica se uma tag HTML específica aparece um número mínimo de vezes."
     @property
     def parameter_description(self):
         return {
-            "html_content": "The HTML content to analyze.",
-            "tag": "The HTML tag to search for (e.g., 'div').",
-            "required_count": "The minimum number of times the tag must appear."
+            "html_content": "O conteúdo HTML a ser analisado.",
+            "tag": "A tag HTML a ser pesquisada (por exemplo, 'div').",
+            "required_count": "O número mínimo de vezes que a tag deve aparecer."
         }
     def execute(self, html_content: str, tag: str, required_count: int) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -125,9 +125,9 @@ class HasForbiddenTag(TestFunction):
     @property
     def name(self): return "has_forbidden_tag"
     @property
-    def description(self): return "Checks for the presence of a forbidden HTML tag."
+    def description(self): return "Verifica a presença de uma tag HTML proibida."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze.", "tag": "The forbidden HTML tag to search for."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado.", "tag": "A tag HTML proibida a ser pesquisada."}
     def execute(self, html_content: str, tag: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(tag) is not None
@@ -139,13 +139,13 @@ class HasAttribute(TestFunction):
     @property
     def name(self): return "has_attribute"
     @property
-    def description(self): return "Checks if a specific HTML attribute is present on any tag, a minimum number of times."
+    def description(self): return "Verifica se um atributo HTML específico está presente em qualquer tag, um número mínimo de vezes."
     @property
     def parameter_description(self):
         return {
-            "html_content": "The HTML content to analyze.",
-            "attribute": "The attribute to search for (e.g., 'alt').",
-            "required_count": "The minimum number of times the attribute must appear."
+            "html_content": "O conteúdo HTML a ser analisado.",
+            "attribute": "O atributo a ser pesquisado (por exemplo, 'alt').",
+            "required_count": "O número mínimo de vezes que o atributo deve aparecer."
         }
     def execute(self, html_content: str, attribute: str, required_count: int) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -158,9 +158,9 @@ class CheckNoUnclosedTags(TestFunction):
     @property
     def name(self): return "check_no_unclosed_tags"
     @property
-    def description(self): return "Performs a basic check for a well-formed HTML document."
+    def description(self): return "Realiza uma verificação básica para um documento HTML bem formado."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado."}
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         is_well_formed = soup.html and soup.body and soup.head
@@ -172,9 +172,9 @@ class CheckNoInlineStyles(TestFunction):
     @property
     def name(self): return "check_no_inline_styles"
     @property
-    def description(self): return "Ensures that no inline styles are used in the HTML file."
+    def description(self): return "Garante que nenhum estilo em linha (inline) seja usado no arquivo HTML."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado."}
     def execute(self, html_content: str) -> TestResult:
         found_count = len(BeautifulSoup(html_content, 'html.parser').find_all(style=True))
         score = 0 if found_count > 0 else 100
@@ -185,9 +185,9 @@ class UsesSemanticTags(TestFunction):
     @property
     def name(self): return "uses_semantic_tags"
     @property
-    def description(self): return "Checks if the HTML uses at least one common semantic tag."
+    def description(self): return "Verifica se o HTML usa pelo menos uma tag semântica comum."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado."}
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(("article", "section", "nav", "aside", "figure")) is not None
@@ -199,9 +199,9 @@ class CheckCssLinked(TestFunction):
     @property
     def name(self): return "check_css_linked"
     @property
-    def description(self): return "Verifies that an external CSS stylesheet is linked in the HTML."
+    def description(self): return "Verifica se uma folha de estilo CSS externa está vinculada no HTML."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado."}
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", rel="stylesheet") is not None
@@ -213,9 +213,9 @@ class CssUsesProperty(TestFunction):
     @property
     def name(self): return "css_uses_property"
     @property
-    def description(self): return "Checks if a specific CSS property and value pair exists."
+    def description(self): return "Verifica se um par de propriedade e valor CSS específico existe."
     @property
-    def parameter_description(self): return {"css_content": "The CSS content to analyze.", "prop": "The CSS property.", "value": "The expected value."}
+    def parameter_description(self): return {"css_content": "O conteúdo CSS a ser analisado.", "prop": "A propriedade CSS.", "value": "O valor esperado."}
     def execute(self, css_content: str, prop: str, value: str) -> TestResult:
         pattern = re.compile(rf"{re.escape(prop)}\s*:\s*.*{re.escape(value)}", re.IGNORECASE)
         found = pattern.search(css_content) is not None
@@ -227,9 +227,9 @@ class CountOverUsage(TestFunction):
     @property
     def name(self): return "count_over_usage"
     @property
-    def description(self): return "Penalizes the use of a specific text string if it exceeds a maximum allowed count."
+    def description(self): return "Penaliza o uso de uma string de texto específica se exceder uma contagem máxima permitida."
     @property
-    def parameter_description(self): return {"css_content": "The CSS content to analyze.", "text": "The text to count.", "max_allowed": "The maximum allowed occurrences."}
+    def parameter_description(self): return {"css_content": "O conteúdo CSS a ser analisado.", "text": "O texto a ser contado.", "max_allowed": "O número máximo de ocorrências permitidas."}
     def execute(self, css_content: str, text: str, max_allowed: int) -> TestResult:
         found_count = css_content.count(text)
         score = 100 if found_count <= max_allowed else 0
@@ -240,68 +240,68 @@ class JsUsesFeature(TestFunction):
     @property
     def name(self): return "js_uses_feature"
     @property
-    def description(self): return "Performs a simple string search to check if a specific feature is present."
+    def description(self): return "Realiza uma busca de string simples para verificar se uma funcionalidade específica está presente."
     @property
-    def parameter_description(self): return {"js_content": "The JavaScript content to analyze.", "feature": "The feature to search for."}
+    def parameter_description(self): return {"js_content": "O conteúdo JavaScript a ser analisado.", "feature": "A funcionalidade a ser pesquisada."}
     def execute(self, js_content: str, feature: str) -> TestResult:
         found = feature in js_content
         score = 100 if found else 0
-        report = f"The feature `{feature}` was implemented." if found else f"The JavaScript feature `{feature}` was not found in your code."
+        report = f"A funcionalidade `{feature}` foi implementada." if found else f"A funcionalidade JavaScript `{feature}` não foi encontrada no seu código."
         return TestResult(self.name, score, report, parameters={"feature": feature})
 
 class UsesForbiddenMethod(TestFunction):
     @property
     def name(self): return "uses_forbidden_method"
     @property
-    def description(self): return "Checks for and penalizes the use of a forbidden method or keyword."
+    def description(self): return "Verifica e penaliza o uso de um método ou palavra-chave proibida."
     @property
-    def parameter_description(self): return {"js_content": "The JavaScript content to analyze.", "method": "The forbidden method name."}
+    def parameter_description(self): return {"js_content": "O conteúdo JavaScript a ser analisado.", "method": "O nome do método proibido."}
     def execute(self, js_content: str, method: str) -> TestResult:
         found = method in js_content
         score = 0 if found else 100
-        report = f"Penalty: Forbidden method `{method}()` detected." if found else f"Great! Forbidden method `{method}()` was not used."
+        report = f"Penalidade: Método proibido `{method}()` detectado." if found else f"Ótimo! O método proibido `{method}()` não foi usado."
         return TestResult(self.name, score, report, parameters={"method": method})
 
 class CountGlobalVars(TestFunction):
     @property
     def name(self): return "count_global_vars"
     @property
-    def description(self): return "Counts the number of variables declared in the global scope."
+    def description(self): return "Conta o número de variáveis declaradas no escopo global."
     @property
-    def parameter_description(self): return {"js_content": "The JavaScript content to analyze.", "max_allowed": "The maximum allowed global variables."}
+    def parameter_description(self): return {"js_content": "O conteúdo JavaScript a ser analisado.", "max_allowed": "O número máximo de variáveis globais permitidas."}
     def execute(self, js_content: str, max_allowed: int) -> TestResult:
         found_count = len(re.findall(r"^\s*(var|let|const)\s+", js_content, re.MULTILINE))
         score = 100 if found_count <= max_allowed else 0
-        report = f"Attention: {found_count} global variables detected (max allowed: {max_allowed})." if score == 0 else "Good job keeping the global scope clean."
+        report = f"Atenção: {found_count} variáveis globais detectadas (máximo permitido: {max_allowed})." if score == 0 else "Bom trabalho mantendo o escopo global limpo."
         return TestResult(self.name, score, report, parameters={"max_allowed": max_allowed})
 
 class CheckHeadingsSequential(TestFunction):
     @property
     def name(self): return "check_headings_sequential"
     @property
-    def description(self): return "Checks if heading levels are sequential and do not skip levels."
+    def description(self): return "Verifica se os níveis de cabeçalho são sequenciais e não pulam níveis."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado."}
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         headings = [int(h.name[1]) for h in soup.find_all(re.compile(r"^h[1-6]$"))]
         is_sequential = all(headings[i] <= headings[i + 1] for i in range(len(headings) - 1))
         score = 100 if is_sequential else 30
-        report = "Heading hierarchy is well structured." if is_sequential else "Heading order (`<h1>`, `<h2>`, etc.) is not sequential. Avoid skipping levels."
+        report = "A hierarquia de cabeçalhos está bem estruturada." if is_sequential else "A ordem dos cabeçalhos (`<h1>`, `<h2>`, etc.) não é sequencial. Evite pular níveis."
         return TestResult(self.name, score, report)
 
 class CheckAllImagesHaveAlt(TestFunction):
     @property
     def name(self): return "check_all_images_have_alt"
     @property
-    def description(self): return "Verifies that all `<img>` tags have a non-empty `alt` attribute."
+    def description(self): return "Verifica se todas as tags `<img>` possuem um atributo `alt` não vazio."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado."}
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         images = soup.find_all("img")
         if not images:
-            return TestResult(self.name, 100, "No images found to check.")
+            return TestResult(self.name, 100, "Nenhuma imagem encontrada para verificar.")
         with_alt = sum(1 for img in images if img.has_attr('alt') and img['alt'].strip())
         score = int((with_alt / len(images)) * 100)
         report = f"{with_alt} de {len(images)} imagens tem o atributo `alt` preenchido."
@@ -311,9 +311,9 @@ class CheckHtmlDirectChildren(TestFunction):
     @property
     def name(self): return "check_html_direct_children"
     @property
-    def description(self): return "Ensures the only direct children of the `<html>` tag are `<head>` and `<body>`."
+    def description(self): return "Garante que os únicos filhos diretos da tag `<html>` são `<head>` e `<body>`."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado."}
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         html_tag = soup.find('html')
@@ -328,9 +328,9 @@ class CheckTagNotInside(TestFunction):
     @property
     def name(self): return "check_tag_not_inside"
     @property
-    def description(self): return "Checks that a specific tag is not nested anywhere inside another specific tag."
+    def description(self): return "Verifica se uma tag específica não está aninhada em nenhum lugar dentro de outra tag específica."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze.", "child_tag": "The child tag.", "parent_tag": "The parent tag."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado.", "child_tag": "A tag filha.", "parent_tag": "A tag pai."}
     def execute(self, html_content: str, child_tag: str, parent_tag: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         parent = soup.find(parent_tag)
@@ -342,9 +342,9 @@ class CheckInternalLinksToArticle(TestFunction):
     @property
     def name(self): return "check_internal_links_to_article"
     @property
-    def description(self): return "Checks for a minimum number of internal anchor links pointing to IDs on <article> tags."
+    def description(self): return "Verifica a existência de um número mínimo de links âncora internos apontando para IDs em tags `<article>`."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze.", "required_count": "The minimum number of valid links."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado.", "required_count": "O número mínimo de links válidos."}
     def execute(self, html_content: str, required_count: int) -> TestResult:
         if not html_content:
             return TestResult(self.name, 0, "Arquivo home.html não encontrado.", parameters={"required_count": required_count})
@@ -365,9 +365,9 @@ class HasStyle(TestFunction):
     @property
     def name(self): return "has_style"
     @property
-    def description(self): return "Checks if a specific css style rule appears a minimum number of times."
+    def description(self): return "Verifica se uma regra de estilo CSS específica aparece um número mínimo de vezes."
     @property
-    def parameter_description(self): return {"css_content": "The CSS content to analyze.", "style": "The style rule.", "count": "The minimum number of occurrences."}
+    def parameter_description(self): return {"css_content": "O conteúdo CSS a ser analisado.", "style": "A regra de estilo.", "count": "O número mínimo de ocorrências."}
     def execute(self, css_content: str, style: str, count: int) -> TestResult:
         found_count = len(re.findall(rf"{re.escape(style)}\s*:\s*[^;]+;", css_content, re.IGNORECASE))
         score = min(100, int((found_count / count) * 100)) if count > 0 else 100
@@ -378,9 +378,9 @@ class CheckHeadDetails(TestFunction):
     @property
     def name(self): return "check_head_details"
     @property
-    def description(self): return "Checks if a specific detail tag exists within the <head> section."
+    def description(self): return "Verifica se uma tag de detalhe específica existe na seção `<head>`."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze.", "detail_tag": "The tag to check for."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado.", "detail_tag": "A tag a ser verificada."}
     def execute(self, html_content: str, detail_tag: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         head = soup.find('head')
@@ -395,9 +395,9 @@ class CheckAttributeAndValue(TestFunction):
     @property
     def name(self): return "check_attribute_and_value"
     @property
-    def description(self): return "Checks if a specific HTML tag contains a specific attribute with a given value."
+    def description(self): return "Verifica se uma tag HTML específica contém um atributo específico com um determinado valor."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze.", "tag": "The tag.", "attribute": "The attribute.", "value": "The expected value."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado.", "tag": "A tag.", "attribute": "O atributo.", "value": "O valor esperado."}
     def execute(self, html_content: str, tag: str, attribute: str, value: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         elements = soup.find_all(tag, attrs={attribute: value})
@@ -409,9 +409,9 @@ class CheckDirExists(TestFunction):
     @property
     def name(self): return "check_dir_exists"
     @property
-    def description(self): return "Checks if a specific directory exists in the submission."
+    def description(self): return "Verifica se um diretório específico existe no envio."
     @property
-    def parameter_description(self): return {"submission_files": "The dictionary of submission files.", "dir_path": "The directory path."}
+    def parameter_description(self): return {"submission_files": "O dicionário de arquivos enviados.", "dir_path": "O caminho do diretório."}
     def execute(self, submission_files: dict, dir_path: str) -> TestResult:
         exists = any(f.startswith(dir_path.rstrip('/') + '/') for f in submission_files.keys())
         score = 100 if exists else 0
@@ -422,9 +422,9 @@ class CheckProjectStructure(TestFunction):
     @property
     def name(self): return "check_project_structure"
     @property
-    def description(self): return "Check if the expected structure path exists in the submission files."
+    def description(self): return "Verifica se o caminho da estrutura esperada existe nos arquivos de envio."
     @property
-    def parameter_description(self): return {"submission_files": "The dictionary of submission files.", "expected_structure": "The expected file path."}
+    def parameter_description(self): return {"submission_files": "O dicionário de arquivos enviados.", "expected_structure": "O caminho do arquivo esperado."}
     def execute(self, submission_files: dict, expected_structure: str) -> TestResult:
         exists = expected_structure in submission_files
         score = 100 if exists else 0
@@ -435,9 +435,9 @@ class CheckIdSelectorOverUsage(TestFunction):
     @property
     def name(self): return "check_id_selector_over_usage"
     @property
-    def description(self): return "Counts the number of ID selectors used and penalizes if it exceeds max_allowed."
+    def description(self): return "Conta o número de seletores de ID usados e penaliza se exceder o máximo permitido."
     @property
-    def parameter_description(self): return {"css_content": "The CSS content to analyze.", "max_allowed": "The maximum allowed ID selectors."}
+    def parameter_description(self): return {"css_content": "O conteúdo CSS a ser analisado.", "max_allowed": "O número máximo de seletores de ID permitidos."}
     def execute(self, css_content: str, max_allowed: int) -> TestResult:
         found_count = len(re.findall(r"#\w+", css_content))
         score = 100 if found_count <= max_allowed else 0
@@ -448,9 +448,9 @@ class UsesRelativeUnits(TestFunction):
     @property
     def name(self): return "uses_relative_units"
     @property
-    def description(self): return "Check if the css file uses relative units like em, rem, %, vh, vw."
+    def description(self): return "Verifica se o arquivo CSS usa unidades relativas como em, rem, %, vh, vw."
     @property
-    def parameter_description(self): return {"css_content": "The CSS content to analyze."}
+    def parameter_description(self): return {"css_content": "O conteúdo CSS a ser analisado."}
     def execute(self, css_content: str) -> TestResult:
         found = re.search(r"\b(em|rem|%|vh|vw)\b", css_content) is not None
         score = 100 if found else 0
@@ -461,9 +461,9 @@ class CheckMediaQueries(TestFunction):
     @property
     def name(self): return "check_media_queries"
     @property
-    def description(self): return "Checks if there are any media queries in the CSS file."
+    def description(self): return "Verifica se existem media queries no arquivo CSS."
     @property
-    def parameter_description(self): return {"css_content": "The CSS content to analyze."}
+    def parameter_description(self): return {"css_content": "O conteúdo CSS a ser analisado."}
     def execute(self, css_content: str) -> TestResult:
         found = re.search(r"@media\s+[^{]+\{", css_content) is not None
         score = 100 if found else 0
@@ -474,9 +474,9 @@ class CheckFlexboxUsage(TestFunction):
     @property
     def name(self): return "check_flexbox_usage"
     @property
-    def description(self): return "Checks if Flexbox properties are used in the CSS file."
+    def description(self): return "Verifica se propriedades Flexbox são usadas no arquivo CSS."
     @property
-    def parameter_description(self): return {"css_content": "The CSS content to analyze."}
+    def parameter_description(self): return {"css_content": "O conteúdo CSS a ser analisado."}
     def execute(self, css_content: str) -> TestResult:
         found = re.search(r"\b(display\s*:\s*flex|flex-)", css_content) is not None
         score = 100 if found else 0
@@ -487,9 +487,9 @@ class CheckBootstrapUsage(TestFunction):
     @property
     def name(self): return "check_bootstrap_usage"
     @property
-    def description(self): return "Checks if Bootstrap is linked in the HTML file."
+    def description(self): return "Verifica se o Bootstrap está vinculado no arquivo HTML."
     @property
-    def parameter_description(self): return {"html_content": "The HTML content to analyze."}
+    def parameter_description(self): return {"html_content": "O conteúdo HTML a ser analisado."}
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
@@ -506,15 +506,15 @@ class LinkPointsToPageWithQueryParam(TestFunction):
 
     @property
     def description(self):
-        return "Checks for anchor tags linking to a specific page with a required query string parameter."
+        return "Verifica a existência de tags âncora que levam a uma página específica com um parâmetro de query string obrigatório."
 
     @property
     def parameter_description(self):
         return {
-            "html_content": "The HTML content to analyze.",
-            "target_page": "The expected page the link should point to (e.g., 'detalhes.html').",
-            "query_param": "The name of the query string parameter to check for (e.g., 'id').",
-            "required_count": "The minimum number of valid links that must be present."
+            "html_content": "O conteúdo HTML a ser analisado.",
+            "target_page": "A página de destino esperada para o link (ex: 'detalhes.html').",
+            "query_param": "O nome do parâmetro de query string a ser verificado (ex: 'id').",
+            "required_count": "O número mínimo de links válidos que devem estar presentes."
         }
 
     def execute(self, html_content: str, target_page: str, query_param: str, required_count: int) -> TestResult:
@@ -544,11 +544,11 @@ class JsUsesQueryStringParsing(TestFunction):
 
     @property
     def description(self):
-        return "Verifies that the JavaScript code contains patterns for reading URL query strings."
+        return "Verifica se o código JavaScript contém padrões para ler query strings da URL."
 
     @property
     def parameter_description(self):
-        return {"js_content": "The JavaScript code to analyze."}
+        return {"js_content": "O código JavaScript a ser analisado."}
 
     def execute(self, js_content: str) -> TestResult:
         # Regex to find 'URLSearchParams' or 'window.location.search'
@@ -566,14 +566,14 @@ class JsHasJsonArrayWithId(TestFunction):
 
     @property
     def description(self):
-        return "Checks for a JS array of objects where each object has a specific required key."
+        return "Verifica a existência de um array de objetos JS onde cada objeto possui uma chave específica obrigatória."
 
     @property
     def parameter_description(self):
         return {
-            "js_content": "The JavaScript code to analyze.",
-            "required_key": "The key that must exist in each object (e.g., 'id').",
-            "min_items": "The minimum number of items expected in the array."
+            "js_content": "O código JavaScript a ser analisado.",
+            "required_key": "A chave que deve existir em cada objeto (ex: 'id').",
+            "min_items": "O número mínimo de itens esperados no array."
         }
 
     def execute(self, js_content: str, required_key: str, min_items: int) -> TestResult:
@@ -602,14 +602,14 @@ class JsUsesDomManipulation(TestFunction):
 
     @property
     def description(self):
-        return "Checks if the JS code uses a minimum number of common DOM manipulation methods."
+        return "Verifica se o código JS usa um número mínimo de métodos comuns de manipulação do DOM."
 
     @property
     def parameter_description(self):
         return {
-            "js_content": "The JavaScript code to analyze.",
-            "methods": "A list of methods to search for (e.g., ['createElement', 'appendChild']).",
-            "required_count": "Minimum total number of times these methods should appear."
+            "js_content": "O código JavaScript a ser analisado.",
+            "methods": "Uma lista de métodos a serem pesquisados (ex: ['createElement', 'appendChild']).",
+            "required_count": "Número mínimo total de vezes que esses métodos devem aparecer."
         }
 
     def execute(self, js_content: str, methods: list, required_count: int) -> TestResult:
@@ -629,14 +629,14 @@ class HasNoJsFramework(TestFunction):
 
     @property
     def description(self):
-        return "Checks for the presence of forbidden JavaScript frameworks (React, Vue, Angular)."
+        return "Verifica a presença de frameworks JavaScript proibidos (React, Vue, Angular)."
 
     @property
     def parameter_description(self):
         return {
-            "submission_files": "The dictionary of submission files.",
-            "html_file": "The HTML filename to analyze.",
-            "js_file": "The JavaScript filename to analyze."
+            "submission_files": "O dicionário de arquivos enviados.",
+            "html_file": "O nome do arquivo HTML a ser analisado.",
+            "js_file": "O nome do arquivo JavaScript a ser analisado."
         }
 
     def execute(self,submission_files, html_file: str, js_file: str) -> TestResult:
@@ -672,7 +672,7 @@ class WebDevTemplate(Template):
         return "Html Css Js Template"
     @property
     def template_description(self):
-        return "A comprehensive template for web development assignments, including tests for HTML, CSS, and JavaScript."
+        return "Um template abrangente para trabalhos de desenvolvimento web, incluindo testes para HTML, CSS e JavaScript."
     @property
     def requires_execution_helper(self) -> bool:
         return False
