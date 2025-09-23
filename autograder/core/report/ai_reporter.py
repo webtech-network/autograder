@@ -18,7 +18,7 @@ class AIReporter(BaseReporter):
     para um modelo de IA.
     """
 
-    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', quota: int, test_library: 'Template'):
+    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', test_library: 'Template', quota: int):
         super().__init__(result, feedback,test_library)
         openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
@@ -168,9 +168,7 @@ class AIReporter(BaseReporter):
                 print(self.test_library)
                 print("Available tests in library:", self.test_library.template_name)
                 test_func = self.test_library.get_test(res.test_name)
-                print("Testing function:", test_func)
                 print("Testing function:", test_func.name)
-                print("Testing function:", test_func.description)
                 description = test_func.description
             except AttributeError:
                 description = "Descrição não disponível."
