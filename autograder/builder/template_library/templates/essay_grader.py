@@ -4,7 +4,7 @@ from autograder.builder.models.test_function import TestFunction
 from autograder.core.models.test_result import TestResult
 
 # ===============================================================
-# region: Original TestFunction Implementations
+# region: TestFunction Implementations
 # ===============================================================
 
 class ClarityAndCohesionTest(TestFunction):
@@ -78,14 +78,6 @@ class OriginalityAndPlagiarismTest(TestFunction):
     def execute(self,  *args, **kwargs) -> TestResult:
         prompt = "Em uma escala de 0 a 100, avalie a originalidade deste ensaio. Embora você não possa realizar uma pesquisa na web, avalie o texto em busca de sinais de conteúdo não original, como frases genéricas ou argumentos excessivamente comuns que possam sugerir plágio."
         return ai_executor.add_test(self.name,  prompt)
-
-# ===============================================================
-# endregion
-# ===============================================================
-
-# ===============================================================
-# region: 10 New Advanced TestFunction Implementations
-# ===============================================================
 
 class TopicConnectionTest(TestFunction):
     @property
