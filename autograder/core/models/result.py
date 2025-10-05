@@ -14,6 +14,8 @@ class Result:
         self.bonus_results = bonus_results
         self.penalty_results = penalty_results
 
+    def get_test_report(self) -> List[TestResult]:
+        return self.base_results + self.bonus_results + self.penalty_results
     def __repr__(self):
         lines = [
             "Result Summary:",

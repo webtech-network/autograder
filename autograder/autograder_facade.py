@@ -132,7 +132,7 @@ class Autograder:
 
             # Step 9: Create and return the successful response
             logger.info("Creating successful autograder response")
-            response = AutograderResponse("Success", result.final_score, feedback_report)
+            response = AutograderResponse("Success", result.final_score, feedback_report,result.get_test_report())
             logger.info("Autograder process completed successfully")
             return response
 
