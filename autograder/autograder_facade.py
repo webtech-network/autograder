@@ -42,9 +42,10 @@ class Autograder:
             template_name = autograder_request.assignment_config.template
             if template_name == "custom":
                 logger.info(f"Loading custom test template provided!")
+                test_template = TemplateLibrary.get_template(template_name,autograder_request.assignment_config.custom_template_str)
             else:
                 logger.info(f"Loading test template: '{template_name}'")
-            test_template = TemplateLibrary.get_template(template_name)
+                test_template = TemplateLibrary.get_template(template_name)
             if test_template is None:
                 logger.error(f"Template '{template_name}' not found in TemplateLibrary")
                 raise ValueError(f"Unsupported template: {template_name}")
@@ -82,59 +83,63 @@ class Autograder:
             result = grader.run()
             logger.info(f"Grading completed. Final score: {result.final_score}")
 
-            # Step 6: Setup feedback preferences
-            logger.info("Processing feedback preferences")
-            feedback = FeedbackPreferences.from_dict()
-            logger.debug(f"Feedback mode: {autograder_request.feedback_mode}")
+            if autograder_request.include_feedback:
+                # Step 6: Setup feedback preferences
+                logger.info("Processing feedback preferences")
+                feedback = FeedbackPreferences.from_dict()
+                logger.debug(f"Feedback mode: {autograder_request.feedback_mode}")
 
-            # Step 7: Create reporter based on feedback mode
-            reporter = None
-            feedback_mode = autograder_request.feedback_mode
+                # Step 7: Create reporter based on feedback mode
+                reporter = None
+                feedback_mode = autograder_request.feedback_mode
 
-            if feedback_mode == "default":
-                logger.info("Creating default reporter")
-                reporter = Reporter.create_default_reporter(result, feedback)
-                logger.info("Default reporter created successfully")
+                if feedback_mode == "default":
+                    logger.info("Creating default reporter")
+                    reporter = Reporter.create_default_reporter(result, feedback)
+                    logger.info("Default reporter created successfully")
 
-            elif feedback_mode == "ai":
-                logger.info("Creating AI reporter")
+                elif feedback_mode == "ai":
+                    logger.info("Creating AI reporter")
 
-                # Validate AI requirements
-                if not all(
-                        [autograder_request.openai_key, autograder_request.redis_url, autograder_request.redis_token]):
-                    error_msg = "OpenAI key, Redis URL, and Redis token are required for AI feedback mode."
-                    logger.error(error_msg)
-                    raise ValueError(error_msg)
+                    # Validate AI requirements
+                    if not all(
+                            [autograder_request.openai_key, autograder_request.redis_url, autograder_request.redis_token]):
+                        error_msg = "OpenAI key, Redis URL, and Redis token are required for AI feedback mode."
+                        logger.error(error_msg)
+                        raise ValueError(error_msg)
 
-                logger.info("All AI requirements validated successfully")
+                    logger.info("All AI requirements validated successfully")
 
-                # Setup Redis driver
-                driver = Driver.create(autograder_request.redis_token, autograder_request.redis_url)
-                student_credentials = autograder_request.student_credentials
+                    # Setup Redis driver
+                    driver = Driver.create(autograder_request.redis_token, autograder_request.redis_url)
+                    student_credentials = autograder_request.student_credentials
 
-                if not driver.token_exists(student_credentials):
-                    driver.create_token(student_credentials)
+                    if not driver.token_exists(student_credentials):
+                        driver.create_token(student_credentials)
 
-                if driver.decrement_token_quota(student_credentials):
-                    quota = driver.get_token_quota(student_credentials)
-                    logger.info(f"Quota check passed. Remaining quota: {quota}")
-                    reporter = Reporter.create_ai_reporter(result,feedback, test_template, quota)
+                    if driver.decrement_token_quota(student_credentials):
+                        quota = driver.get_token_quota(student_credentials)
+                        logger.info(f"Quota check passed. Remaining quota: {quota}")
+                        reporter = Reporter.create_ai_reporter(result,feedback, test_template, quota)
+                    else:
+                        logger.warning("Quota exceeded for student, falling back to default feedback.")
+                        reporter = Reporter.create_default_reporter(result, feedback,test_template)
                 else:
-                    logger.warning("Quota exceeded for student, falling back to default feedback.")
-                    reporter = Reporter.create_default_reporter(result, feedback,test_template)
+                    raise ValueError(f"Unsupported feedback mode: {feedback_mode}")
+
+                # Step 8: Generate feedback
+                logger.info("Generating feedback report")
+                feedback_report = reporter.generate_feedback()
+                logger.info("Feedback report generated successfully")
+
+                # Step 9: Create and return the successful response
+                logger.info("Creating successful autograder response")
+                response = AutograderResponse("Success", result.final_score, feedback_report,result.get_test_report())
+                logger.info("Autograder process completed successfully")
+                return response
             else:
-                raise ValueError(f"Unsupported feedback mode: {feedback_mode}")
-
-            # Step 8: Generate feedback
-            logger.info("Generating feedback report")
-            feedback_report = reporter.generate_feedback()
-            logger.info("Feedback report generated successfully")
-
-            # Step 9: Create and return the successful response
-            logger.info("Creating successful autograder response")
-            response = AutograderResponse("Success", result.final_score, feedback_report,result.get_test_report())
-            logger.info("Autograder process completed successfully")
-            return response
+                logger.info("Feedback not requested, returning score only")
+                return AutograderResponse("Success", result.final_score, feedback="",test_report=result.get_test_report())
 
         except Exception as e:
             # Catch any exception, log it, and return a failure response
