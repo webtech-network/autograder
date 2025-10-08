@@ -11,5 +11,13 @@ class TestResult:
     def get_result(self, *args, **kwargs):
         return [self]
 
+    def to_dict(self):
+        return {
+            "test_name": self.test_name,
+            "score": self.score,
+            "report": self.report,
+            "subject_name": self.subject_name,
+            "parameters": self.parameters
+        }
     def __repr__(self):
         return f"TestResult(subject='{self.subject_name}', name='{self.test_name}', score={self.score})"
