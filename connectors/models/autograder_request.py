@@ -7,6 +7,7 @@ class AutograderRequest:
             assignment_config: AssignmentConfig,
             student_name,
             student_credentials=None,
+            include_feedback=False,
             feedback_mode="default",
             openai_key=None,
             redis_url=None,
@@ -15,6 +16,7 @@ class AutograderRequest:
         self.assignment_config = assignment_config
         self.student_name = student_name
         self.student_credentials = student_credentials
+        self.include_feedback = include_feedback
         self.feedback_mode = feedback_mode
         self.openai_key = openai_key
         self.redis_url = redis_url
