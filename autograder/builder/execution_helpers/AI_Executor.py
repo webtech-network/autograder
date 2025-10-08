@@ -5,7 +5,9 @@ from openai import OpenAI
 from autograder.core.models.test_result import TestResult
 from pydantic import BaseModel, Field
 from autograder.context import request_context
+import dotenv
 
+dotenv.load_dotenv()  # Load environment variables from .env file
 
 request = request_context.get_request()
 class TestInput(BaseModel):
@@ -76,6 +78,7 @@ class AiExecutor:
             matching_refs = [ref for ref in self.test_result_references if ref.test_name == ai_result.title]
             if matching_refs:
                 ref = matching_refs[0]
+                print("Found matching TestResult for AI result:",ref)
                 ref.score = ai_result.score
                 ref.report = ai_result.feedback
                 print(f"Mapped AI result '{ai_result.title}' with score {ai_result.score} to TestResult.")
@@ -132,6 +135,7 @@ class AiExecutor:
                                NÃO inclua nenhum texto, explicação ou formatação fora do objeto JSON principal.
                                O esquema JSON para a sua resposta DEVE ser o seguinte:
                                {AIResponseModel.model_json_schema()}
+                               lembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. não mude a formatação ou a estrutura dos titulos dos tests.
                                """
         user_prompt = f"""
                                 Por favor, avalie os arquivos de submissão do usuário abaixo em relação a todos os casos de teste listados.
@@ -141,6 +145,8 @@ class AiExecutor:
 
                                 ## CASOS DE TESTE PARA AVALIAR ##
                                 {tests}
+                                lembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. não mude a formatação ou a estrutura dos titulos dos tests.
+
                               """
         print("System Prompt:\n", system_prompt)
         print("User Prompt:\n", user_prompt)
