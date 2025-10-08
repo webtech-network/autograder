@@ -26,7 +26,8 @@ class ApiAdapter(Port):
             "server_status": "Sever connection happened successfully",
             "autograding_status": self.autograder_response.status,
             "final_score": self.autograder_response.final_score,
-            "feedback": self.autograder_response.feedback
+            "feedback": self.autograder_response.feedback,
+            "test_report": [test_result.to_dict() for test_result in self.autograder_response.test_report],
         }
 
         return response
@@ -36,6 +37,7 @@ class ApiAdapter(Port):
                        assignment_config: AssignmentConfig,
                        student_name,
                        student_credentials,
+                       include_feedback=False,
                        feedback_mode="default",
                        openai_key=None,
                        redis_url=None,
@@ -50,6 +52,7 @@ class ApiAdapter(Port):
             submission_files_dict,
             assignment_config,
             student_name,
+            include_feedback,
             feedback_mode=feedback_mode,
             openai_key=openai_key,
             redis_url=redis_url,
