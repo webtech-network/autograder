@@ -18,4 +18,4 @@ COPY . .
 EXPOSE 8000
 
 # 7. Define the command to run the API
-CMD ["uvicorn", "connectors.adapters.api.api_entrypoint:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "connectors.adapters.api.api_entrypoint:app", "--host", "0.0.0.0", "--port", "8001"]
