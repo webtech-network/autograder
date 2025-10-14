@@ -62,7 +62,7 @@ Defines the grading criteria as a tree structure:
 - Pass/fail conditions
 - Grading rubric hierarchy
 
-📄 **Detailed documentation**: See [criteria_config.md](./criteria_config.md) _(to be created)_
+📄 **Detailed documentation**: See [criteria_config.md](/docs/configuration/criteria_config.md)
 
 #### 3. **Setup Configuration** (JSON)
 Controls the pre-grading environment setup:
@@ -70,7 +70,7 @@ Controls the pre-grading environment setup:
 - **Template-Specific Settings**: Container startup commands, environment variables, etc.
 - **Pre-execution Checks**: Validation steps before running tests
 
-📄 **Detailed documentation**: See [setup_config.md](./setup_config.md) _(to be created)_
+📄 **Detailed documentation**: See [setup_config.md](docs/configuration/setup_config.md)
 
 #### 4. **Feedback Configuration** (JSON)
 Defines how feedback should be presented to students:
@@ -79,7 +79,7 @@ Defines how feedback should be presented to students:
 - Formatting preferences
 - AI feedback customization options
 
-📄 **Detailed documentation**: See [feedback_config.md](./feedback_config.md) _(to be created)_
+📄 **Detailed documentation**: See [feedback_config.md](docs/configuration/feedback_config.md)
 
 #### 5. **Custom Template Code** (optional)
 When using `template="custom"`, you can provide:
@@ -158,15 +158,15 @@ print(f"Feedback: {response.feedback}")
 
 Now that you understand the overall structure, dive deeper into each configuration file:
 
-- 📋 **[Criteria Configuration](./criteria_config.md)** - Define your grading rubric
-- ⚙️ **[Setup Configuration](./setup_config.md)** - Configure the grading environment
-- 💬 **[Feedback Configuration](./feedback_config.md)** - Customize student feedback
-- 🎨 **[Templates Guide](./templates/)** - Use pre-built grading templates
+- 📋 **[Criteria Configuration](docs/configuration/criteria_config.md)** - Define your grading rubric
+- ⚙️ **[Setup Configuration](docs/configuration/setup_config.md)** - Configure the grading environment
+- 💬 **[Feedback Configuration](docs/configuration/feedback_config.md)** - Customize student feedback
+- 🎨 **[Templates Guide](docs/templates/)** - Use pre-built grading templates
 
 ---
 
 ## Need Help?
 
-- Review the [Core Concepts](./core_concepts.md) documentation
-- Check the [System Architecture](./system_architecture.md) for technical details
+- Review the [Core Concepts](docs/core_concepts.md) documentation
+- Check the [System Architecture](docs/system_architecture.md) for technical details
 - Examine example configurations in the repository
