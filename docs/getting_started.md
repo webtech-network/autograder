@@ -53,7 +53,7 @@ Specifies the grading template to use. Templates provide pre-built grading logic
 
 - **Template Options**: `"custom"`, `"web dev"`, and others
 - **Purpose**: Simplifies setup for standard assignment types
-- 📚 **[Learn more about templates →](/docs/templates/grading_templates.md)** 
+- 📚 **[Learn more about templates →](/docs/templates/grading_templates.md)** _(grading_templates.md)_
 
 #### 2. **Criteria Configuration** (JSON)
 Defines the grading criteria as a tree structure:
