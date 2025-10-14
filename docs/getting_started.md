@@ -1,84 +1,172 @@
-# 1. Getting Started
+# Getting Started with the Autograder
 
-Welcome to the Getting Started guide for the WebTech Autograder! This guide will walk you through the essential steps to configure and run your first grading session. We'll cover how to use presets and explain the role of each configuration file.
+## Overview
 
----
+The autograder provides an automated grading system that allows teachers to evaluate student submissions programmatically. This guide explains how the autograder works and how to set up assignments.
 
-## How to Use Presets
+## How It Works
 
-Presets are pre-configured sets of tests and grading criteria for common assignments. They are the fastest way to get started with the autograder. The system comes with two built-in presets:
+The autograder follows a simple workflow:
 
-* **`html-css-js`**: For basic web development assignments.
-* **`etapa-2`**: A more complex preset for a specific multi-stage project involving a Node.js API.
-
-To use a preset, you simply need to specify its name when running the autograder (e.g., through the GitHub Action or the API).
-
----
-
-## Anatomy of a Preset
-
-Each preset is a directory that contains all the necessary files to run a grading session. Here's a breakdown of the files you'll find in a typical preset and what they do:
-
-### The `tests/` Folder
-
-This folder contains the test suites that will be run against the student's submission.
-
-* **`test_base.py` / `test_base.js`**: This file contains the **mandatory** tests for the assignment. These are the core requirements that a student must meet to pass.
-* **`test_bonus.py` / `test_bonus.js`**: This file contains tests for **optional** features or requirements. Passing these tests will add points to the student's score, but they are not required to pass the assignment.
-* **`test_penalty.py` / `test_penalty.js`**: This file contains tests that check for things that are **forbidden** in the assignment. If a student's submission passes any of these tests, points will be deducted from their score.
-
-### `criteria.json`
-
-This file defines the grading criteria for the assignment. It's where you specify how the tests are grouped into subjects and how much each subject is worth.
-
-* **`weight`**: The total weight of the test suite (e.g., `base`, `bonus`, or `penalty`).
-* **`subjects`**: An object that defines the different subjects within the test suite. Each subject has its own `weight` and a `test_path` that is used to identify the tests that belong to it.
-
-### `feedback.json`
-
-This file allows you to provide custom feedback messages for each test. For each test, you can specify a message for both the "pass" and "fail" cases. This is a great way to give students targeted feedback that helps them understand their mistakes.
-
-### `ai-feedback.json`
-
-This file is used to configure the AI-powered feedback feature. It contains prompts and other settings that guide the AI in generating helpful and human-like feedback for students.
-
-* **`prompts`**: Contains the `system_prompt`, `assignment_context`, and `extra_orientations` that the AI will use to generate the feedback.
-* **`submission_files`**: A list of the student's files that the AI should analyze.
-* **`learning_resources`**: A list of URLs and descriptions of learning resources that the AI can recommend to students.
-
-### `autograder-setup.json`
-
-This file allows you to specify commands that should be run before the tests are executed. This is useful for installing dependencies, setting up a database, or starting a server.
-
-* **`commands`**: A list of commands to be executed. Each command has a `name`, the `command` itself, and an optional `background` flag.
-* **`file_checks`**: A list of files that must be present in the student's submission for the tests to run.
+1. **Teacher sends an `AutograderRequest`** containing grading preferences and assignment configuration
+2. **Autograder processes** the submission files according to the configuration
+3. **Autograder returns an `AutograderResponse`** with scores, feedback, and detailed test reports
 
 ---
 
-## Running the Autograder
+## The AutograderRequest
 
-To run a grading session, you need to provide a set of required parameters, either through the GitHub Actions environment or the API.
+The `AutograderRequest` is the entry point for the grading system. It contains all the information needed to grade a student's submission.
 
-### Required Parameters
+### Core Components
 
-* **`grading_preset`**: The name of the preset to use (e.g., `html-css-js`).
-* **`feedback-type`**: The type of feedback to generate. See **Feedback Modes** below for more details.
+#### 1. Student Information
+- **Student Name**: Identifies the student being graded
+- **Student Credentials** (optional): Additional authentication or identification data
 
-### Feedback Modes
+#### 2. Grading Preferences
+- **Include Feedback**: Boolean flag to determine if feedback should be generated
+- **Feedback Mode**: Specifies the type of feedback generation
+  - `"default"`: Standard rule-based feedback
+  - `"AI"`: AI-powered contextual feedback using OpenAI
 
-The autograder supports two feedback modes:
+#### 3. External Service Configuration
+- **OpenAI Key**: Required when using AI-powered feedback mode
+- **Redis URL & Token**: For caching and distributed grading operations
 
-* **`default`**: This mode generates a feedback report based on the messages defined in the `feedback.json` file.
-* **`ai`**: This is an **optional** mode that uses an AI model to generate more detailed and personalized feedback. If you choose this mode, you must provide the following:
-    * An **`ai-feedback.json`** file in your preset.
-    * An **`openai_key`** for accessing the OpenAI API.
-    * A **`redis_token`** and **`redis_url`** for caching and managing AI usage quotas.
+#### 4. Submission Files
+A dictionary containing all the student's submitted files to be graded.
+
+#### 5. Assignment Config
+The core configuration package that defines how the assignment should be graded. See below for details.
 
 ---
 
-## Recommended Practices
+## The AssignmentConfig
 
-* **Start with a Preset**: If you're new to the autograder, start by using one of the built-in presets. This will help you get a feel for how the system works before you start creating your own custom assignments.
-* **Clear and Concise Tests**: Write tests that are easy to understand and that test a single concept. This will make it easier for students to understand their mistakes.
-* **Meaningful Feedback**: Provide feedback that is helpful and constructive. Avoid generic messages and try to explain *why* a student's code is incorrect.
-* **Use Subjects to Group Tests**: Grouping tests into subjects makes it easier to manage your grading criteria and to provide students with a clear overview of their performance.
+The `AssignmentConfig` is the heart of the grading setup. It contains all configurations for the **pre-grading**, **grading**, and **post-grading** processes.
+
+### Components
+
+#### 1. **Template**
+Specifies the grading template to use. Templates provide pre-built grading logic for common assignment types.
+
+- **Template Options**: `"custom"`, `"web dev"`, and others
+- **Purpose**: Simplifies setup for standard assignment types
+- 📚 **[Learn more about templates →](/docs/templates/grading_templates.md)** _(grading_templates.md)_
+
+#### 2. **Criteria Configuration** (JSON)
+Defines the grading criteria as a tree structure:
+- Test cases and their point values
+- Nested criteria with dependencies
+- Pass/fail conditions
+- Grading rubric hierarchy
+
+📄 **Detailed documentation**: See [criteria_config.md](/docs/configuration/criteria_config.md)
+
+#### 3. **Setup Configuration** (JSON)
+Controls the pre-grading environment setup:
+- **Mandatory Files**: List of files that must be present before grading
+- **Template-Specific Settings**: Container startup commands, environment variables, etc.
+- **Pre-execution Checks**: Validation steps before running tests
+
+📄 **Detailed documentation**: See [setup_config.md](docs/configuration/setup_config.md)
+
+#### 4. **Feedback Configuration** (JSON)
+Defines how feedback should be presented to students:
+- Feedback verbosity level
+- Which test details to include/exclude
+- Formatting preferences
+- AI feedback customization options
+
+📄 **Detailed documentation**: See [feedback_config.md](docs/configuration/feedback_config.md)
+
+#### 5. **Custom Template Code** (optional)
+When using `template="custom"`, you can provide:
+- Custom Python code defining the grading logic
+- Allows complete control over the grading process
+- Bypasses pre-built templates for specialized assignments
+
+---
+
+## The Grading Process
+
+Once the autograder receives an `AutograderRequest`:
+
+1. **Pre-Flight Checks**: Validates mandatory files and setup requirements
+2. **Environment Setup**: Prepares the grading environment (containers, dependencies, etc.)
+3. **Test Execution**: Runs all tests defined in the criteria configuration
+4. **Result Processing**: Calculates scores based on the criteria tree
+5. **Feedback Generation**: Creates student feedback based on configuration and mode
+6. **Response Assembly**: Packages everything into an `AutograderResponse`
+
+---
+
+## The AutograderResponse
+
+The autograder returns an `AutograderResponse` object containing:
+
+### Response Fields
+
+- **Status**: Indicates success or failure of the grading process
+- **Final Score**: The calculated grade (typically 0.0 to 100.0)
+- **Feedback**: Human-readable feedback text for the student
+- **Test Report**: Detailed list of `TestResult` objects showing:
+  - Individual test outcomes
+  - Points earned/lost
+  - Error messages and diagnostics
+  - Execution details
+
+---
+
+## Quick Start Example
+
+Here's a minimal example of setting up an autograder request:
+
+```python
+from connectors.models.autograder_request import AutograderRequest
+from connectors.models.assignment_config import AssignmentConfig
+
+# Define your configuration
+assignment_config = AssignmentConfig(
+    template="custom",
+    criteria=criteria_json,      # Your criteria tree
+    setup=setup_json,             # Your setup requirements
+    feedback=feedback_json        # Your feedback preferences
+)
+
+# Create the request
+request = AutograderRequest(
+    submission_files={"main.py": "student code here..."},
+    assignment_config=assignment_config,
+    student_name="Jane Doe",
+    include_feedback=True,
+    feedback_mode="AI",
+    openai_key="your-key-here"
+)
+
+# Send to autograder and receive response
+response = autograder.grade(request)
+
+print(f"Score: {response.final_score}")
+print(f"Feedback: {response.feedback}")
+```
+
+---
+
+## Next Steps
+
+Now that you understand the overall structure, dive deeper into each configuration file:
+
+- 📋 **[Criteria Configuration](docs/configuration/criteria_config.md)** - Define your grading rubric
+- ⚙️ **[Setup Configuration](docs/configuration/setup_config.md)** - Configure the grading environment
+- 💬 **[Feedback Configuration](docs/configuration/feedback_config.md)** - Customize student feedback
+- 🎨 **[Templates Guide](docs/templates/)** - Use pre-built grading templates
+
+---
+
+## Need Help?
+
+- Review the [Core Concepts](docs/core_concepts.md) documentation
+- Check the [System Architecture](docs/system_architecture.md) for technical details
+- Examine example configurations in the repository
