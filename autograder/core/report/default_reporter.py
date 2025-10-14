@@ -1,94 +1,149 @@
-import os
-
-from autograder.core.grading.models.result import Result
+from autograder.builder.models.template import Template
+from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.base_reporter import BaseReporter
-import json
-from datetime import datetime
-
-from autograder.core.utils.result_processor import ResultProcessor
 
 
 class DefaultReporter(BaseReporter):
-    """Default reporter for test results.
-    Checks for feedback texts from feedback.json"""
-    _PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    """
+    Generates a structured and visually appealing markdown feedback report
+    designed to be a clear and helpful learning tool for students.
+    """
 
-    @classmethod
-    def get_key_value(cls,list, name):
+    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', test_library: 'Template'):
+        super().__init__(result, feedback, test_library)
+        self.test_library = test_library
+
+    def generate_feedback(self) -> str:
         """
-        :param list:
-        :param name:
-        :return:
+        Builds the entire markdown report by assembling its various sections.
         """
-        for item in list:
-            for key in item:
-                if key == name:
-                    return item[key]
+        report_parts = [
+            self._build_header(),
+            self._build_category_section("bonus"),
+            self._build_category_section("base"),
+            self._build_category_section("penalty")
+        ]
 
-    def generate_feedback(self,feedback_file="feedback.json"):
-        """
-        Generate a Markdown report for autograding feedback.
-        Takes dictionaries for base, bonus, and penalty with keys `passed` and `failed` containing test names.
-        """
+        if self.feedback.general.add_report_summary:
+            summary = self._build_summary()
+            if summary:  # Only add summary if it's not empty
+                report_parts.append(summary)
 
+        report_parts.append(self._build_footer())
+        return "\n".join(filter(None, report_parts))
 
-        absolute_path = os.path.join(DefaultReporter._PROJECT_ROOT,"request_bucket","feedback.json")
-        print(f"Attempting to load FEEDBACK from: {absolute_path}")
+    def _format_parameters(self, params: dict) -> str:
+        """Helper function to format parameters into a readable code string."""
+        if not params:
+            return ""
+        parts = [f"`{k}`: `{v}`" if isinstance(v, str) else f"`{k}`: `{v}`" for k, v in params.items()]
+        return f" (Parâmetros: {', '.join(parts)})"
 
-        # Load feedback data from the JSON file
-        with open(absolute_path, "r", encoding="utf-8") as file:
-            #tests_feedback = json.load(file)
-            print("Made it! Reading feedback file...")
-            tests_feedback = json.load(file)
-        passed = True if self.result.final_score >= 70 else False
-        # Initialize feedback
-        feedback = "<sup>Suas cotas de feedback AI acabaram, o sistema de feedback voltou ao padrão.</sup>\n\n"
-        feedback += f"# 🧪 Relatório de Avaliação – Journey Levty Etapa 1 - {self.result.author}\n\n"
-        feedback += f"**Data:** {datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
-        feedback += f"**Nota Final:** `{format(self.result.final_score, '.2f')}/100`\n"
-        feedback += f"**Status:** {'✅ Aprovado' if passed else '❌ Reprovado'}\n\n"
-        feedback += "---\n"
+    def _build_header(self) -> str:
+        """Constructs the top section of the report."""
+        header_parts = [f"# {self.feedback.general.report_title}"]
+        if self.feedback.general.show_score:
+            header_parts.append(f"> **Nota Final:** **`{self.result.final_score:.2f} / 100`**")
 
-        # Base Feedback (Requisitos Obrigatórios)
-        feedback += "## ✅ Requisitos Obrigatórios\n"
-        if len(self.result.base_results["failed"]) == 0:
-            feedback += "- Todos os requisitos básicos foram atendidos. Excelente trabalho!\n"
-        else:
-            feedback += f"- Foram encontrados `{len(self.result.base_results['failed'])}` problemas nos requisitos obrigatórios. Veja abaixo os testes que falharam:\n"
-            for test_name in self.result.base_results["failed"]:
-                # Get the feedback from the JSON structure based on pass/fail
-                passed_feedback = self.get_key_value(tests_feedback["base_tests"], test_name)[1]  # Failed feedback
-                feedback += f"  - ⚠️ **Falhou no teste**: `{test_name}`\n"
-                feedback += f"    - **Melhoria sugerida**: {passed_feedback}\n"
+        header_parts.append(
+            f"\nOlá, **{self.result.author}**! 👋\n\nAqui está o feedback detalhado sobre sua atividade. Use este guia para entender seus acertos e os pontos que podem ser melhorados.")
+        return "\n".join(header_parts)
 
-        # Bonus Feedback
-        feedback += "\n## ⭐ Itens de Destaque (recupera até 40 pontos)\n"
-        if len(self.result.bonus_results["passed"]) > 0:
-            feedback += f"- Você conquistou `{len(self.result.bonus_results['passed'])}` bônus! Excelente trabalho nos detalhes adicionais!\n"
-            for passed_test in self.result.bonus_results["passed"]:
-                # Get the feedback for passed bonus validation
-                passed_feedback = self.get_key_value(tests_feedback["bonus_tests"], passed_test)[0]  # Failed feedback
-                feedback += f"  - 🌟 **Testes bônus passados**: `{passed_test}`\n"
-                feedback += f"    - {passed_feedback}\n"
-        else:
-            feedback += "- Nenhum item bônus foi identificado. Tente adicionar mais estilo e complexidade ao seu código nas próximas tentativas!\n"
+    def _build_category_section(self, category_name: str) -> str:
+        """Builds a report section for a specific category with enhanced formatting and text."""
+        category_results = getattr(self.result, f"{category_name}_results", [])
+        header = self.feedback.default.category_headers.get(category_name, category_name.capitalize())
+        section_parts = [f"\n---\n\n## {header}"]
 
-        # Penalty Feedback
-        feedback += "\n## ❌ Problemas Detectados (Descontos de até 100 pontos)\n"
-        if len(self.result.penalty_results["passed"]) > 0:
-            feedback += f"- Foram encontrados `{len(self.result.penalty_results['passed'])}` problemas que acarretam descontos. Veja abaixo os testes penalizados:\n"
-            for failed_test in self.result.penalty_results["passed"]:
-                # Get the feedback for failed penalty validation
-                failed_feedback = self.get_key_value(tests_feedback["penalty_tests"], failed_test)[0]  # Failed feedback
-                feedback += f"  - ⚠️ **Falhou no teste de penalidade**: `{failed_test}`\n"
-                feedback += f"    - **Correção sugerida**: {failed_feedback}\n"
-        else:
-            feedback += "- Nenhuma infração grave foi detectada. Muito bom nesse aspecto!\n"
+        results_to_show = []
+        intro_text = ""
+        is_bonus = False
 
-        feedback += "\n---\n"
-        feedback += "Continue praticando e caprichando no código. Cada detalhe conta! 💪\n"
-        feedback += "Se precisar de ajuda, não hesite em perguntar nos canais da guilda. Estamos aqui para ajudar! 🤝\n"
-        feedback += "\n---\n"
-        feedback += "<sup>Made By the Autograder Team.</sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Carvalho](https://github.com/ArthuCRodrigues)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Arthur Drumond](https://github.com/drumondpucminas)</sup></sup><br>&nbsp;&nbsp;&nbsp;&nbsp;<sup><sup>- [Gabriel Resende](https://github.com/gnvr29)</sup></sup>"
-        return feedback
+        if category_name == "bonus":
+            is_bonus = True
+            if self.feedback.general.show_passed_tests:
+                results_to_show = [res for res in category_results if res.score >= 60]
+                intro_text = "Parabéns! Você completou os seguintes itens bônus, demonstrando um ótimo conhecimento:" if results_to_show else "Nenhum item bônus foi completado desta vez. Continue se desafiando!"
+        else:  # base and penalty
+            results_to_show = [res for res in category_results if res.score < 60]
+            if category_name == "base":
+                intro_text = "Encontramos alguns pontos nos requisitos essenciais que precisam de sua atenção:" if results_to_show else "Excelente! Todos os requisitos essenciais foram atendidos com sucesso."
+            elif category_name == "penalty":
+                intro_text = "Foram detectadas algumas práticas que resultaram em penalidades. Veja os detalhes abaixo para entender como corrigi-las:" if results_to_show else "Ótimo trabalho! Nenhuma má prática foi detectada no seu projeto."
 
+        section_parts.append(intro_text)
+
+        if not results_to_show:
+            return "\n".join(section_parts)
+
+        grouped_results = self._group_results_by_subject(results_to_show)
+
+        for subject, results in grouped_results.items():
+            section_parts.append(f"\n#### Tópico: {subject.replace('_', ' ').capitalize()}")
+            for res in results:
+                params_str = self._format_parameters(res.parameters)
+
+                if is_bonus:
+                    status_text = "✅ **Passou**"
+                    report_prefix = "Parabéns!"
+                else:
+                    status_text = "❌ **Falhou**"
+                    report_prefix = "Atenção:" if category_name == "base" else "Cuidado!"
+
+                feedback_item = [
+                    f"> {status_text} no teste `{res.test_name}`{params_str}",
+                    f"> - **Detalhes:** {report_prefix} {res.report}\n"
+                ]
+
+                if not is_bonus:
+                    linked_content = self._content_map.get(res.test_name)
+                    if linked_content:
+                        feedback_item.append(
+                            f"> - 📚 **Recurso Sugerido:** [{linked_content.description}]({linked_content.url})\n")
+
+                section_parts.append("\n".join(feedback_item))
+
+        return "\n".join(section_parts)
+
+    def _build_summary(self) -> str:
+        """Constructs the final summary section of the report using a markdown table."""
+        summary_parts = ["\n---\n\n### 📝 Resumo dos Pontos de Atenção"]
+        failed_base = [res for res in self.result.base_results if res.score < 100]
+        failed_penalty = [res for res in self.result.penalty_results if res.score < 100]
+
+        if not failed_base and not failed_penalty:
+            return ""  # No need for a summary if everything is okay
+
+        summary_parts.append("| Ação | Tópico | Detalhes do Teste |")
+        summary_parts.append("|:---|:---|:---|")
+
+        all_failed = failed_base + failed_penalty
+        for res in all_failed:
+            try:
+                # Get the test function from the library to access its description
+                test_func = self.test_library.get_test(res.test_name)
+                description = test_func.description
+            except AttributeError:
+                description = "Descrição não disponível."
+
+            params_str = self._format_parameters(res.parameters).replace(" (Parâmetros: ", "").replace(")", "")
+
+            # Determine the action type
+            action = "Revisar"
+            if res in failed_penalty:
+                action = "Corrigir (Penalidade)"
+
+            # Build the detailed cell content
+            details_cell = (
+                f"**Teste:** `{res.test_name}`<br>"
+                f"**O que foi verificado:** *{description}*<br>"
+                f"**Parâmetros:** <sub>{params_str or 'N/A'}</sub>"
+            )
+
+            summary_parts.append(f"| {action} | `{res.subject_name}` | {details_cell} |")
+
+        return "\n".join(summary_parts)
+
+    def _build_footer(self) -> str:
+        """Constructs the footer of the report."""
+        return "\n---\n" + "> Continue praticando e melhorando seu código. Cada desafio é uma oportunidade de aprender! 🚀"

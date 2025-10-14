@@ -10,12 +10,15 @@ inputs:
       GitHub token for API access. Defaults to the token provided by GitHub Actions.
     required: false
     default: ${{ github.token }}
-  grading_preset:
+  template_preset:
     description: 'Defines the set of grading rules and point values to apply. To create your own grading preset, use "custom".'
     required: true
   feedback-type:
     description: 'The type or style of feedback to provide to the student (e.g., summary, detailed).'
     required: true
+  custom_template:
+    description: 'Optional custom grading template in JSON format. Required if template_preset is set to "custom".'
+    required: false
   openai_key:
     description: 'Optional OpenAI API key for generating AI-assisted feedback.'
     required: false
@@ -27,9 +30,6 @@ inputs:
     required: false
   app_token:
     description: 'The application token for the autograder service.'
-    required: false
-  test_framework:
-    description: 'Specifies the test framework to use for grading (e.g., jest, cypress).'
     required: false
 
 # Defines the output variable of the action.
@@ -45,8 +45,8 @@ runs:
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
     APP_TOKEN: ${{ inputs.app_token }}
-    TEST_FRAMEWORK: ${{ inputs.test_framework }}
-    GRADING_PRESET: ${{ inputs.grading_preset }}
+    CUSTOM_TEMPLATE: ${{ inputs.custom_template }}
+    TEMPLATE_PRESET: ${{ inputs.template_preset }}
     FEEDBACK_TYPE: ${{ inputs.feedback-type }}
     OPENAI_KEY: ${{ inputs.openai_key }}
     REDIS_URL: ${{ inputs.redis_url }}

@@ -122,40 +122,7 @@ class GithubAdapter(Port):
                                        ai_feedback=None,
                                        setup=None,
                                        test_framework="pytest"):
-        # Look for test_base,test_penalty and test_bonus files in $submission/.github/autograder/tests
-        # Look for criteria.json, feedback.json and ai-feedback.json,autograder-setup.json in $submisison/.github/autograder
-        submission_path = os.getenv("GITHUB_WORKSPACE/submission", ".")
-        files = TestFiles()
-        with open(os.path.join(submission_path, ".github", "autograder", "tests", "test_base.py"), "r") as f:
-            files.test_base = f.read()
-        with open(os.path.join(submission_path, ".github", "autograder", "tests", "test_bonus.py"), "r") as f:
-            files.test_bonus = f.read()
-        with open(os.path.join(submission_path, ".github", "autograder", "tests", "test_penalty.py"), "r") as f:
-            files.test_penalty = f.read()
-        # Add other files ({filename: file_content}) to files.other_files
-        with open(os.path.join(submission_path, ".github", "autograder", "tests", "other_files.json"), "r") as f:
-            other_files = json.load(f)
-            for filename, content in other_files.items():
-                files.other_files[filename] = content
-        # Saves criteria.json
-        with open(os.path.join(submission_path, ".github", "autograder", "criteria.json"), "r") as f:
-            criteria_content = f.read()
-        # Saves feedback.json
-        with open(os.path.join(submission_path, ".github", "autograder", "feedback.json"), "r") as f:
-            feedback_content = f.read()
-        # Saves ai-feedback.json (if present)
-        ai_feedback_content = None
-        ai_feedback_path = os.path.join(submission_path, ".github", "autograder", "ai-feedback.json")
-        if os.path.exists(ai_feedback_path):
-            with open(ai_feedback_path, "r") as f:
-                ai_feedback_content = f.read()
-        # Saves autograder-setup.json (if present)
-        setup_content = None
-        setup_path = os.path.join(submission_path, ".github", "autograder", "autograder-setup.json")
-        if os.path.exists(setup_path):
-            with open(setup_path, "r") as f:
-                setup_content = f.read()
-        return AssignmentConfig.load_custom(files,criteria_content,feedback_content,ai_feedback=ai_feedback_content,setup=setup_content,test_framework=test_framework)
+        pass
 
     def get_submission_files(self):
 
@@ -184,6 +151,7 @@ class GithubAdapter(Port):
                      submission_files_dict[relative_path] = f.read()
              except Exception as e:
                  print(f"Could not read file {file_path}: {e}")
+        print(submission_files_dict)
 
         return submission_files_dict
 
@@ -207,10 +175,58 @@ class GithubAdapter(Port):
         )
         print(f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode")
 
+    def create_assigment_config(self,template_preset):
+        """
+        Looks inside $GITHUB_WORKSPACE/submission/.github/autograder for the criteria.json, feedback.json and setup.json files.
+        """
+        base_path = os.getenv("GITHUB_WORKSPACE", ".")
+        submission_path = os.path.join(base_path, 'submission')
+        configuration_path = os.path.join(submission_path, '.github','autograder')
+
+        criteria_path = os.path.join(configuration_path, 'criteria.json')
+        if not os.path.exists(criteria_path):
+            raise FileNotFoundError("criteria.json file not found in the autograder configuration directory.")
+        feedback_path = os.path.join(configuration_path, 'feedback.json')
+        if not os.path.exists(feedback_path):
+            raise FileNotFoundError("feedback.json file not found in the autograder configuration directory.")
+        setup_path = os.path.join(configuration_path, 'setup.json')
+
+
+        criteria_dict = None
+        feedback_dict = None
+        setup_dict = None
+
+        with open(criteria_path, 'r', encoding='utf-8') as f:
+            criteria_dict = json.load(f)
+        print("Criteria loaded successfully.")
+
+
+
+        with open(feedback_path, 'r', encoding='utf-8') as f:
+            feedback_dict = json.load(f)
+        print("Feedback config loaded successfully.")
+
+
+
+        with open(setup_path, 'r', encoding='utf-8') as f:
+            setup_dict = json.load(f)
+        print("Setup config loaded successfully.")
+
+        custom_template_str = None
+        if template_preset == "custom":
+            custom_template_path = os.path.join(configuration_path, 'template.py')
+            if not os.path.exists(custom_template_path):
+                raise FileNotFoundError("Custom template file 'template.py' not found in the autograder configuration directory.")
+            with open(custom_template_path, 'r', encoding='utf-8') as f:
+                custom_template_str = f.read()
+            print("Custom template loaded successfully.")
+
+        assignment_config = AssignmentConfig(criteria_dict, feedback=feedback_dict, setup=setup_dict, template=template_preset,custom_template_str=custom_template_str)
+        return assignment_config
 
 
     @classmethod
     def create(cls,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
         response = cls(test_framework,github_author)
-        response.get_repository()
+        response.get_repository(app_token)
         return response
