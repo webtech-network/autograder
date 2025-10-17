@@ -1,0 +1,92 @@
+{
+  // VSCode Settings for Development
+  "python.defaultInterpreterPath": "${workspaceFolder}/venv/bin/python",
+  
+  // Linting
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": true,
+  "python.linting.flake8Args": [
+    "--max-line-length=88",
+    "--extend-ignore=E203"
+  ],
+  "python.linting.pylintEnabled": false,
+  "python.linting.mypyEnabled": true,
+  
+  // Testing
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+  
+  // Formatting
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.rulers": [88],
+    "editor.tabSize": 4
+  },
+  
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  
+  "[yaml]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  
+  "[markdown]": {
+    "editor.defaultFormatter": "vscode.markdown-language-features",
+    "editor.wordWrap": "on"
+  },
+  
+  // File exclusions
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.coverage": true,
+    "**/*.egg-info": true
+  },
+  
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.venv/**": true,
+    "**/venv/**": true
+  },
+  
+  // Terminal
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.defaultProfile.osx": "bash",
+  
+  // Git
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+  
+  // Editor
+  "editor.rulers": [88],
+  "editor.trimAutoWhitespace": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  
+  // Search
+  "search.exclude": {
+    "**/venv": true,
+    "**/.venv": true,
+    "**/htmlcov": true,
+    "**/.pytest_cache": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true
+  }
+}
