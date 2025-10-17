@@ -68,13 +68,6 @@ repos:
         args: [-c, pyproject.toml]
         additional_dependencies: ["bandit[toml]"]
 
-  # Markdown linting
-  - repo: https://github.com/markdownlint/markdownlint
-    rev: v0.12.0
-    hooks:
-      - id: markdownlint
-        args: [--rules, "~MD013,~MD033"]  # Ignore line length and inline HTML
-
   # Check for TODO/FIXME comments
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
@@ -83,7 +76,7 @@ repos:
       - id: check-docstring-first
 
 # Run these hooks on every commit
-default_stages: [commit]
+default_install_hook_types: [pre-commit, commit-msg]
 
 # Fail fast on first error
 fail_fast: false
