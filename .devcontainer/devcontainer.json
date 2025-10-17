@@ -6,7 +6,7 @@
     "dockerfile": "Dockerfile.dev",
     "context": ".."
   },
-  
+
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
@@ -57,9 +57,9 @@
   },
 
   "postCreateCommand": "pip install -r requirements.txt && pip install -r requirements-dev.txt && pre-commit install",
-  
+
   "remoteUser": "vscode",
-  
+
   "mounts": [
     "source=${localWorkspaceFolder}/.git,target=/workspace/.git,type=bind,consistency=cached"
   ]

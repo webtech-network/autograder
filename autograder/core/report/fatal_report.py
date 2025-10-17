@@ -1,7 +1,7 @@
-import os
+"""Fatal Report module."""
+
 import json
-
-
+import os
 
 
 class FatalReporter:
@@ -10,13 +10,14 @@ class FatalReporter:
     It reads a JSON file containing error details and formats it into a
     user-friendly markdown report.
     """
+
     # --- Project Directory Setup ---
     # These paths are configured to locate necessary files within the project structure.
     _THIS_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
     _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_THIS_FILE_DIR)))
-    VALIDATION_DIR = os.path.join(_PROJECT_ROOT, "autograder",'validation')
-    REQUEST_BUCKET_DIR = os.path.join(_PROJECT_ROOT, 'request_bucket')
-    RESULTS_DIR = os.path.join(VALIDATION_DIR, 'tests', 'results')
+    VALIDATION_DIR = os.path.join(_PROJECT_ROOT, "autograder", "validation")
+    REQUEST_BUCKET_DIR = os.path.join(_PROJECT_ROOT, "request_bucket")
+    RESULTS_DIR = os.path.join(VALIDATION_DIR, "tests", "results")
 
     @staticmethod
     def generate_feedback(report_path=None):
@@ -38,11 +39,11 @@ class FatalReporter:
         # If no specific path is provided, construct the default path
         if report_path is None:
             print(FatalReporter.RESULTS_DIR)
-            report_path = os.path.join(FatalReporter.RESULTS_DIR, 'fatal_report.json')
+            report_path = os.path.join(FatalReporter.RESULTS_DIR, "fatal_report.json")
 
         # --- Read and Validate Report File ---
         try:
-            with open(report_path, 'r', encoding='utf-8') as f:
+            with open(report_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
         except FileNotFoundError:
             return "## ❌ Error\nCould not find the fatal error report file. Please contact an administrator."
@@ -59,19 +60,23 @@ class FatalReporter:
             error_type = error.get("type", "unknown_error")
             if error_type not in grouped_errors:
                 grouped_errors[error_type] = []
-            grouped_errors[error_type].append(error.get("message", "No message provided."))
+            grouped_errors[error_type].append(
+                error.get("message", "No message provided.")
+            )
 
         # --- Build the Markdown Report ---
         markdown_report = ["# 🚨 Autograder Fatal Error Report\n"]
         markdown_report.append(
-            "We're sorry, but the autograder could not run due to the following critical issues with your submission. Please fix them and resubmit.\n")
+            "We're sorry, but the autograder could not run due to the following critical issues with your submission. Please fix them and resubmit.\n"
+        )
 
         # Handle specific, common error types with custom formatting
         if "file_check" in grouped_errors:
             markdown_report.append("---")
             markdown_report.append("## 📁 Missing Files")
             markdown_report.append(
-                "The following required files were not found. Please ensure they are named correctly and are located in the root directory of your project.\n")
+                "The following required files were not found. Please ensure they are named correctly and are located in the root directory of your project.\n"
+            )
             for msg in grouped_errors.pop("file_check"):
                 # Attempt to extract the filename for cleaner display
                 try:
@@ -84,7 +89,7 @@ class FatalReporter:
         # Handle any other error types generically
         for error_type, messages in grouped_errors.items():
             markdown_report.append("---")
-            heading = error_type.replace('_', ' ').title()
+            heading = error_type.replace("_", " ").title()
             markdown_report.append(f"## ❗ {heading}")
             for msg in messages:
                 markdown_report.append(f"- {msg}")
@@ -92,7 +97,8 @@ class FatalReporter:
 
         markdown_report.append("---\n")
         markdown_report.append(
-            "**Next Steps:** Please review the errors listed above, correct your project files accordingly, and submit your work again.")
+            "**Next Steps:** Please review the errors listed above, correct your project files accordingly, and submit your work again."
+        )
 
         return "\n".join(markdown_report)
 
@@ -108,6 +114,7 @@ class FatalReporter:
         # with open(report_path, 'w', encoding='utf-8') as f:
         #     json.dump(result, f, indent=2)
         pass
+
 
 if __name__ == "__main__":
     # Example usage

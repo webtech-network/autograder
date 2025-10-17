@@ -84,7 +84,7 @@ For assignments where you need to **run student code** (APIs, web servers, scrip
 
 **Purpose**: List of files that **must exist** in the student's submission before grading begins.
 
-**Behavior**: 
+**Behavior**:
 - The autograder checks if each file exists in the submission
 - If any file is missing, grading is halted and a fatal error is reported
 - Paths are relative to the submission root

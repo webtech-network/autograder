@@ -1,3 +1,5 @@
+"""Context module."""
+
 from connectors.models.autograder_request import AutograderRequest
 
 
@@ -7,6 +9,7 @@ class RequestContext:
     This provides a global point of access to request data, avoiding the need
     to pass the request object through multiple layers of the application.
     """
+
     _instance = None
 
     @classmethod
@@ -24,8 +27,11 @@ class RequestContext:
     def get_request(self):
         """Gets the active autograder request."""
         if self.request is None:
-            raise Exception("RequestContext has not been initialized. Call set_request() first.")
+            raise Exception(
+                "RequestContext has not been initialized. Call set_request() first."
+            )
         return self.request
+
 
 # Create a globally accessible instance
 request_context = RequestContext.get_instance()

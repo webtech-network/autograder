@@ -1,30 +1,36 @@
+"""Github Adapter module."""
+
 import json
 import os
 import shutil
+
+from github import Github
+from github.GithubException import UnknownObjectException
 
 from connectors.models.assignment_config import AssignmentConfig
 from connectors.models.autograder_request import AutograderRequest
 from connectors.models.test_files import TestFiles
 from connectors.port import Port
-from github import Github
-from github.GithubException import UnknownObjectException
+
 
 class GithubAdapter(Port):
-    def __init__(self,github_token,app_token):
+    def __init__(self, github_token, app_token):
         super().__init__()
         self.github_token = github_token
         self.app_token = app_token
         self.repo = self.get_repository(app_token)
 
-    def get_repository(self,app_token):
+    def get_repository(self, app_token):
         try:
             repos = os.getenv("GITHUB_REPOSITORY")
             g = Github(app_token)
             repo = g.get_repo(repos)
             print("This repo is: ", repo)
             return repo
-        except:
-            raise Exception("Failed to get repository. Please check your GitHub token and repository settings.")
+        except Exception as e:
+            raise Exception(
+                f"Failed to get repository. Please check your GitHub token and repository settings. Error: {e}"
+            )
 
     def notify_classroom(self):
         final_score = self.autograder_response.final_score
@@ -55,11 +61,13 @@ class GithubAdapter(Port):
 
         # Find the check suite run ID
         check_suite_url = workflow_run.check_suite_url
-        check_suite_id = int(check_suite_url.split('/')[-1])
+        check_suite_id = int(check_suite_url.split("/")[-1])
 
         # Get the check runs for this suite
         check_runs = repo.get_check_suite(check_suite_id)
-        check_run = next((run for run in check_runs.get_check_runs() if run.name == "grading"), None)
+        check_run = next(
+            (run for run in check_runs.get_check_runs() if run.name == "grading"), None
+        )
         if not check_run:
             print("Check run not found.")
             return
@@ -72,16 +80,20 @@ class GithubAdapter(Port):
             output={
                 "title": "Autograding Result",
                 "summary": text,
-                "text": json.dumps({"totalPoints": format(final_score, '.2f'), "maxPoints": 100}),
-                "annotations": [{
-                    "path": ".github",
-                    "start_line": 1,
-                    "end_line": 1,
-                    "annotation_level": "notice",
-                    "message": text,
-                    "title": "Autograding complete"
-                }]
-            }
+                "text": json.dumps(
+                    {"totalPoints": format(final_score, ".2"), "maxPoints": 100}
+                ),
+                "annotations": [
+                    {
+                        "path": ".github",
+                        "start_line": 1,
+                        "end_line": 1,
+                        "annotation_level": "notice",
+                        "message": text,
+                        "title": "Autograding complete",
+                    }
+                ],
+            },
         )
 
         print(f"Final grade updated: {format(final_score, '.2f')}/100")
@@ -103,59 +115,78 @@ class GithubAdapter(Port):
         # 2. Fora do try/except, decida se cria ou atualiza
         if file_sha:
             commit_message = f"Atualizando relatório: {file_path}"
-            self.repo.update_file(path=file_path, message=commit_message, content=new_content, sha=file_sha)
+            self.repo.update_file(
+                path=file_path,
+                message=commit_message,
+                content=new_content,
+                sha=file_sha,
+            )
             print("Relatório atualizado com sucesso.")
         else:
             commit_message = f"Criando relatório: {file_path}"
-            self.repo.create_file(path=file_path, message=commit_message, content=new_content)
+            self.repo.create_file(
+                path=file_path, message=commit_message, content=new_content
+            )
             print("Relatório criado com sucesso.")
+
     def export_results(self):
         self.commit_feedback()
         self.notify_classroom()
 
-
-    def create_custom_assignment_config(self,
-                                       test_files,
-                                       criteria,
-                                       feedback,
-                                       preset="custom",
-                                       ai_feedback=None,
-                                       setup=None,
-                                       test_framework="pytest"):
+    def create_custom_assignment_config(
+        self,
+        test_files,
+        criteria,
+        feedback,
+        preset="custom",
+        ai_feedback=None,
+        setup=None,
+        test_framework="pytest",
+    ):
         pass
 
     def get_submission_files(self):
 
         base_path = os.getenv("GITHUB_WORKSPACE", ".")
-        submission_path = os.path.join(base_path, 'submission')
+        submission_path = os.path.join(base_path, "submission")
         submission_files_dict = {}
 
         # take all files in the submission directory and add them to the submission_files_dict
         for root, dirs, files in os.walk(submission_path):
-         # Skip .git directory
-         if '.git' in dirs:
-             dirs.remove('.git')
-         if '.github' in dirs:
-             dirs.remove('.github')
-         for file in files:
-             # Full path to the file
-             file_path = os.path.join(root, file)
+            # Skip .git directory
+            if ".git" in dirs:
+                dirs.remove(".git")
+            if ".github" in dirs:
+                dirs.remove(".github")
+            for file in files:
+                # Full path to the file
+                file_path = os.path.join(root, file)
 
-             # Key: Path relative to the starting directory to ensure uniqueness
-             relative_path = os.path.relpath(file_path, submission_path)
+                # Key: Path relative to the starting directory to ensure uniqueness
+                relative_path = os.path.relpath(file_path, submission_path)
 
-             try:
-                 with open(file_path, "r", encoding='utf-8', errors='ignore') as f:
-                     print("Adding file to submission_files_dict: ", relative_path)
-                     # Use the unique relative_path as the key
-                     submission_files_dict[relative_path] = f.read()
-             except Exception as e:
-                 print(f"Could not read file {file_path}: {e}")
+                try:
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        print("Adding file to submission_files_dict: ", relative_path)
+                        # Use the unique relative_path as the key
+                        submission_files_dict[relative_path] = f.read()
+                except Exception as e:
+                    print(f"Could not read file {file_path}: {e}")
         print(submission_files_dict)
 
         return submission_files_dict
 
-    def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None):
+    def create_request(
+        self,
+        submission_files,
+        assignment_config,
+        student_name,
+        student_credentials,
+        feedback_mode="default",
+        openai_key=None,
+        redis_url=None,
+        redis_token=None,
+    ):
         """
         Creates an AutograderRequest object with the provided parameters.
         """
@@ -171,62 +202,80 @@ class GithubAdapter(Port):
             feedback_mode=feedback_mode,
             openai_key=openai_key,
             redis_url=redis_url,
-            redis_token=redis_token
+            redis_token=redis_token,
         )
-        print(f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode")
+        print(
+            f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode"
+        )
 
-    def create_assigment_config(self,template_preset):
+    def create_assigment_config(self, template_preset):
         """
         Looks inside $GITHUB_WORKSPACE/submission/.github/autograder for the criteria.json, feedback.json and setup.json files.
         """
         base_path = os.getenv("GITHUB_WORKSPACE", ".")
-        submission_path = os.path.join(base_path, 'submission')
-        configuration_path = os.path.join(submission_path, '.github','autograder')
+        submission_path = os.path.join(base_path, "submission")
+        configuration_path = os.path.join(submission_path, ".github", "autograder")
 
-        criteria_path = os.path.join(configuration_path, 'criteria.json')
+        criteria_path = os.path.join(configuration_path, "criteria.json")
         if not os.path.exists(criteria_path):
-            raise FileNotFoundError("criteria.json file not found in the autograder configuration directory.")
-        feedback_path = os.path.join(configuration_path, 'feedback.json')
+            raise FileNotFoundError(
+                "criteria.json file not found in the autograder configuration directory."
+            )
+        feedback_path = os.path.join(configuration_path, "feedback.json")
         if not os.path.exists(feedback_path):
-            raise FileNotFoundError("feedback.json file not found in the autograder configuration directory.")
-        setup_path = os.path.join(configuration_path, 'setup.json')
-
+            raise FileNotFoundError(
+                "feedback.json file not found in the autograder configuration directory."
+            )
+        setup_path = os.path.join(configuration_path, "setup.json")
 
         criteria_dict = None
         feedback_dict = None
         setup_dict = None
 
-        with open(criteria_path, 'r', encoding='utf-8') as f:
+        with open(criteria_path, "r", encoding="utf-8") as f:
             criteria_dict = json.load(f)
         print("Criteria loaded successfully.")
 
-
-
-        with open(feedback_path, 'r', encoding='utf-8') as f:
+        with open(feedback_path, "r", encoding="utf-8") as f:
             feedback_dict = json.load(f)
         print("Feedback config loaded successfully.")
 
-
-
-        with open(setup_path, 'r', encoding='utf-8') as f:
+        with open(setup_path, "r", encoding="utf-8") as f:
             setup_dict = json.load(f)
         print("Setup config loaded successfully.")
 
         custom_template_str = None
         if template_preset == "custom":
-            custom_template_path = os.path.join(configuration_path, 'template.py')
+            custom_template_path = os.path.join(configuration_path, "template.py")
             if not os.path.exists(custom_template_path):
-                raise FileNotFoundError("Custom template file 'template.py' not found in the autograder configuration directory.")
-            with open(custom_template_path, 'r', encoding='utf-8') as f:
+                raise FileNotFoundError(
+                    "Custom template file 'template.py' not found in the autograder configuration directory."
+                )
+            with open(custom_template_path, "r", encoding="utf-8") as f:
                 custom_template_str = f.read()
             print("Custom template loaded successfully.")
 
-        assignment_config = AssignmentConfig(criteria_dict, feedback=feedback_dict, setup=setup_dict, template=template_preset,custom_template_str=custom_template_str)
+        assignment_config = AssignmentConfig(
+            criteria_dict,
+            feedback=feedback_dict,
+            setup=setup_dict,
+            template=template_preset,
+            custom_template_str=custom_template_str,
+        )
         return assignment_config
 
-
     @classmethod
-    def create(cls,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
-        response = cls(test_framework,github_author)
+    def create(
+        cls,
+        test_framework,
+        github_author,
+        feedback_type,
+        github_token,
+        app_token,
+        openai_key=None,
+        redis_url=None,
+        redis_token=None,
+    ):
+        response = cls(test_framework, github_author)
         response.get_repository(app_token)
         return response

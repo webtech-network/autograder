@@ -1,3 +1,5 @@
+"""Ai Reporter module."""
+
 import os
 
 from openai import OpenAI
@@ -6,11 +8,11 @@ from autograder.builder.models.template import Template
 from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.base_reporter import BaseReporter
 
-
 # Supondo que estas classes estão em seus respectivos arquivos e são importáveis
 # from .base_reporter import BaseReporter
 # from autograder.core.models.feedback_preferences import FeedbackPreferences
 # from autograder.core.models.result import Result
+
 
 class AIReporter(BaseReporter):
     """
@@ -18,8 +20,14 @@ class AIReporter(BaseReporter):
     para um modelo de IA.
     """
 
-    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', test_library: 'Template', quota: int):
-        super().__init__(result, feedback,test_library)
+    def __init__(
+        self,
+        result: "Result",
+        feedback: "FeedbackPreferences",
+        test_library: "Template",
+        quota: int,
+    ):
+        super().__init__(result, feedback, test_library)
         openai_key = os.getenv("OPENAI_API_KEY")
         if not openai_key:
             raise ValueError("A chave da API da OpenAI é necessária para o AiReporter.")
@@ -38,11 +46,11 @@ class AIReporter(BaseReporter):
                 model="gpt-4",  # Ou outro modelo de sua escolha
                 messages=[
                     {"role": "system", "content": self.feedback.ai.feedback_persona},
-                    {"role": "user", "content": final_prompt}
+                    {"role": "user", "content": final_prompt},
                 ],
-                temperature=0.6)
+                temperature=0.6,
+            )
             ai_generated_text = response.choices[0].message.content
-
 
         except Exception as e:
             ai_generated_text = f"**Ocorreu um erro ao gerar o feedback da IA:** {e}\n\nRetornando para o feedback padrão."
@@ -54,7 +62,7 @@ class AIReporter(BaseReporter):
             f"\nOlá, **{self.result.author}**! Aqui está um feedback detalhado sobre sua atividade.",
             f"> **Nota Final:** **`{self.result.final_score:.2f} / 100`**",
             "---",
-            ai_generated_text  # O conteúdo principal vem da IA
+            ai_generated_text,  # O conteúdo principal vem da IA
         ]
 
         if self.feedback.general.add_report_summary:
@@ -62,7 +70,10 @@ class AIReporter(BaseReporter):
             if summary:
                 report_parts.append(summary)
 
-        report_parts.append("\n\n---\n" + "> Caso queira tirar uma dúvida específica, entre em contato com o Chapter.")
+        report_parts.append(
+            "\n\n---\n"
+            + "> Caso queira tirar uma dúvida específica, entre em contato com o Chapter."
+        )
 
         return "\n".join(filter(None, report_parts))
 
@@ -70,7 +81,10 @@ class AIReporter(BaseReporter):
         """Helper function to format parameters into a readable code string."""
         if not params:
             return ""
-        parts = [f"`{k}`: `{v}`" if isinstance(v, str) else f"`{k}`: `{v}`" for k, v in params.items()]
+        parts = [
+            f"`{k}`: `{v}`" if isinstance(v, str) else f"`{k}`: `{v}`"
+            for k, v in params.items()
+        ]
         return f" (Parâmetros: {', '.join(parts)})"
 
     def _build_prompt(self) -> str:
@@ -89,7 +103,7 @@ class AIReporter(BaseReporter):
             "---",
             self._format_learning_resources_for_prompt(),
             "---",
-            "**Sua Tarefa:**\nCom base em todo o contexto, código e resultados dos testes fornecidos, escreva um feedback em markdown que seja útil e educativo, seguindo todas as orientações."
+            "**Sua Tarefa:**\nCom base em todo o contexto, código e resultados dos testes fornecidos, escreva um feedback em markdown que seja útil e educativo, seguindo todas as orientações.",
         ]
         return "\n\n".join(filter(None, prompt_parts))
 
@@ -101,7 +115,9 @@ class AIReporter(BaseReporter):
 
         file_contents = ["**Código do Aluno:**"]
         for filename in files_to_read:
-            content = self.result.submission_files.get(filename, f"Arquivo '{filename}' não encontrado.")
+            content = self.result.submission_files.get(
+                filename, f"Arquivo '{filename}' não encontrado."
+            )
             file_contents.append(f"\n---\n`{filename}`\n---\n```\n{content}\n```")
 
         return "\n".join(file_contents)
@@ -115,21 +131,29 @@ class AIReporter(BaseReporter):
         failed_penalty = [res for res in self.result.penalty_results if res.score < 100]
 
         if failed_base:
-            results_parts.append("\n**Testes Obrigatórios que Falharam (Erros Críticos):**")
+            results_parts.append(
+                "\n**Testes Obrigatórios que Falharam (Erros Críticos):**"
+            )
             for res in failed_base:
                 results_parts.append(
-                    f"- Teste: `{res.test_name}`, Parâmetros: `{res.parameters}`, Mensagem: {res.report}")
+                    f"- Teste: `{res.test_name}`, Parâmetros: `{res.parameters}`, Mensagem: {res.report}"
+                )
 
         if passed_bonus and self.feedback.general.show_passed_tests:
             results_parts.append("\n**Testes Bônus Concluídos com Sucesso (Elogiar):**")
             for res in passed_bonus:
-                results_parts.append(f"- Teste: `{res.test_name}`, Parâmetros: `{res.parameters}`")
+                results_parts.append(
+                    f"- Teste: `{res.test_name}`, Parâmetros: `{res.parameters}`"
+                )
 
         if failed_penalty:
-            results_parts.append("\n**Penalidades Aplicadas (Más Práticas Detectadas):**")
+            results_parts.append(
+                "\n**Penalidades Aplicadas (Más Práticas Detectadas):**"
+            )
             for res in failed_penalty:
                 results_parts.append(
-                    f"- Teste: `{res.test_name}`, Parâmetros: `{res.parameters}`, Mensagem: {res.report}")
+                    f"- Teste: `{res.test_name}`, Parâmetros: `{res.parameters}`, Mensagem: {res.report}"
+                )
 
         return "\n".join(results_parts)
 
@@ -139,12 +163,14 @@ class AIReporter(BaseReporter):
             return ""
 
         resource_parts = [
-            "**Recursos de Aprendizagem Disponíveis:**\nSe um teste que falhou estiver listado abaixo, sugira o link correspondente."]
+            "**Recursos de Aprendizagem Disponíveis:**\nSe um teste que falhou estiver listado abaixo, sugira o link correspondente."
+        ]
 
         for resource in self.feedback.general.online_content:
             tests = ", ".join(f"`{t}`" for t in resource.linked_tests)
             resource_parts.append(
-                f"- Se os testes {tests} falharem, recomende este link: [{resource.description}]({resource.url})")
+                f"- Se os testes {tests} falharem, recomende este link: [{resource.description}]({resource.url})"
+            )
 
         return "\n".join(resource_parts)
 
@@ -173,7 +199,11 @@ class AIReporter(BaseReporter):
             except AttributeError:
                 description = "Descrição não disponível."
 
-            params_str = self._format_parameters(res.parameters).replace(" (Parâmetros: ", "").replace(")", "")
+            params_str = (
+                self._format_parameters(res.parameters)
+                .replace(" (Parâmetros: ", "")
+                .replace(")", "")
+            )
 
             # Determine the action type
             action = "Revisar"
@@ -187,7 +217,9 @@ class AIReporter(BaseReporter):
                 f"**Parâmetros:** <sub>{params_str or 'N/A'}</sub>"
             )
 
-            summary_parts.append(f"| {action} | `{res.subject_name}` | {details_cell} |")
+            summary_parts.append(
+                f"| {action} | `{res.subject_name}` | {details_cell} |"
+            )
 
         return "\n".join(summary_parts)
 
@@ -204,6 +236,12 @@ class AIReporter(BaseReporter):
         )
 
     @classmethod
-    def create(cls, result: 'Result', feedback: 'FeedbackPreferences', quota: int, test_library: 'Template'):
+    def create(
+        cls,
+        result: "Result",
+        feedback: "FeedbackPreferences",
+        quota: int,
+        test_library: "Template",
+    ):
         response = cls(result, feedback, quota, test_library)
         return response

@@ -192,7 +192,30 @@ ignore_errors = true
 # Bandit security configuration
 [tool.bandit]
 exclude_dirs = ["tests", "venv", ".venv"]
-skips = ["B101"]  # Skip assert_used check in tests
+skips = [
+    "B101",  # Skip assert_used check in tests
+    "B102",  # Skip exec_used (needed for dynamic template loading)
+    "B104",  # Skip hardcoded_bind_all_interfaces (API server binding)
+]
+
+# Flake8 configuration (read from .flake8 or setup.cfg in practice)
+# Note: pyproject.toml support for flake8 requires flake8-pyproject plugin
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "E501", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv",
+    "venv",
+    ".eggs",
+    "*.egg",
+]
+per-file-ignores = [
+    "__init__.py:F401",
+]
 
 # Pylint configuration
 [tool.pylint.messages_control]

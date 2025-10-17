@@ -1,21 +1,25 @@
+"""Base Reporter module."""
+
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import Dict, List
 
 # Assuming these classes are in their respective, importable files
 # from autograder.core.models.feedback_preferences import FeedbackPreferences
 # from autograder.core.models.result import Result
 # from autograder.builder.tree_builder import TestResult
 
+
 class BaseReporter(ABC):
     """Abstract base class for reporting test results."""
-    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences',template):
+
+    def __init__(self, result: "Result", feedback: "FeedbackPreferences", template):
         self.result = result
         self.feedback = feedback
         self.template = template
         # A map to quickly find learning resources for a given test name
         self._content_map = self._build_content_map()
 
-    def _build_content_map(self) -> Dict[str, 'FeedbackPreferences.LearningResource']:
+    def _build_content_map(self) -> Dict[str, "FeedbackPreferences.LearningResource"]:
         """
         Creates a dictionary for fast lookups of learning resources by test name.
         This is a shared utility for any reporter.
@@ -26,7 +30,9 @@ class BaseReporter(ABC):
                 content_map[test_name] = resource
         return content_map
 
-    def _group_results_by_subject(self, results: List['TestResult']) -> Dict[str, List['TestResult']]:
+    def _group_results_by_subject(
+        self, results: List["TestResult"]
+    ) -> Dict[str, List["TestResult"]]:
         """
         Groups a flat list of TestResult objects into a dictionary keyed by subject name.
         This is a shared utility for any reporter.
@@ -44,6 +50,6 @@ class BaseReporter(ABC):
         pass
 
     @classmethod
-    def create(cls, result: 'Result', feedback: 'FeedbackPreferences',template):
-        response = cls(result, feedback,template)
+    def create(cls, result: "Result", feedback: "FeedbackPreferences", template):
+        response = cls(result, feedback, template)
         return response

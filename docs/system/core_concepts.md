@@ -133,11 +133,11 @@ def _grade_subject_or_category(node, submission_files, depth=0):
         # Execute all tests
         for test in node.tests:
             test_results = test.execute(submission_files)
-        
+
         # Calculate average score
         average_score = sum(result.score for result in test_results) / len(test_results)
         return average_score
-    
+
     # RECURSIVE CASE: Node has child subjects
     else:
         # Recursively grade each child subject
@@ -146,7 +146,7 @@ def _grade_subject_or_category(node, submission_files, depth=0):
             child_scores[child_subject.name] = _grade_subject_or_category(
                 child_subject, submission_files, depth + 1
             )
-        
+
         # Weight and aggregate child scores
         weighted_score = calculate_weighted_average(child_scores, weights)
         return weighted_score
@@ -212,19 +212,19 @@ Once all three categories are scored, the final score is calculated:
 ```python
 def _calculate_final_score(base_score, bonus_score, penalty_points):
     final_score = base_score  # Start with base (0-100)
-    
+
     # Add bonus only if base didn't reach 100
     if final_score < 100:
         bonus_to_add = (bonus_score / 100) × bonus_weight
         final_score += bonus_to_add
-    
+
     # Cap at 100 before penalties
     final_score = min(100, final_score)
-    
+
     # Subtract penalty
     penalty_to_subtract = (penalty_points / 100) × penalty_weight
     final_score -= penalty_to_subtract
-    
+
     # Ensure score stays in valid range
     return max(0, min(100, final_score))
 ```
@@ -241,7 +241,7 @@ Step 1: Start with base
 Step 2: Add bonus (base < 100)
   bonus_to_add = (90/100) × 40 = 36
   final = 82 + 36 = 118
-  
+
 Step 3: Cap at 100
   final = 100
 

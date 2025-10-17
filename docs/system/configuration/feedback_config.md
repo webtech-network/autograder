@@ -304,23 +304,23 @@ You've successfully implemented DOM manipulation in your app.js file! I can see 
 ⚠️ Areas for Improvement:
 
 1. Query String Parsing (Lost 10 points)
-   
+
    **What happened:** Your detalhes.html page isn't reading the 'id' parameter from the URL.
-   
+
    **Why it matters:** Without this, users clicking on a news card won't see the correct article details - they'll always see the same content or nothing at all.
-   
+
    **Hint:** Look into the URLSearchParams API. You can use it like this:
    const urlParams = new URLSearchParams(window.location.search);
    const id = urlParams.get('id');
-   
+
    Then use that id to find the right article in your data array.
 
 2. Image Accessibility (Bonus opportunity missed)
-   
+
    **What happened:** Two of your images don't have 'alt' attributes.
-   
+
    **Why it matters:** Screen readers can't describe these images to visually impaired users. It's both an accessibility and SEO best practice.
-   
+
    **Hint:** Add descriptive alt text to all <img> tags, like: alt="Breaking news headline photo"
 
 📚 Resources to Help You:

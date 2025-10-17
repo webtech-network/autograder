@@ -1,11 +1,18 @@
-import docker
-import tarfile
+"""Sandbox Executor module."""
+
 import io
 import logging
+import tarfile
+
+import docker
+
 from autograder.context import request_context
 
 # Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 class SandboxExecutor:
     """
@@ -49,7 +56,9 @@ class SandboxExecutor:
         if container_port:
             # By setting the host port to None, we tell Docker to pick a random one.
             ports_to_map = {f"{container_port}/tcp": None}
-            self.logger.info(f"Configuring dynamic port mapping for container port: {container_port}")
+            self.logger.info(
+                f"Configuring dynamic port mapping for container port: {container_port}"
+            )
 
         try:
             self.logger.info(f"Starting sandbox container with image: {self.image}...")
@@ -60,12 +69,14 @@ class SandboxExecutor:
                 network_mode="bridge",
                 ports=ports_to_map,
                 security_opt=["no-new-privileges"],
-                user="root"
+                user="root",
             )
 
             self.container.exec_run("mkdir -p /home/user")
             self._place_submission_files()
-            self.logger.info(f"Sandbox container {self.container.short_id} started successfully.")
+            self.logger.info(
+                f"Sandbox container {self.container.short_id} started successfully."
+            )
 
         except Exception as e:
             self.logger.error(f"Failed to start sandbox container: {e}")
@@ -83,10 +94,10 @@ class SandboxExecutor:
         self.container.reload()  # Refresh container data to get network settings
         port_data = self.container.ports.get(port_key)
 
-        if not port_data or 'HostPort' not in port_data[0]:
+        if not port_data or "HostPort" not in port_data[0]:
             raise RuntimeError(f"Port {port_key} is not mapped or visible.")
 
-        return port_data[0]['HostPort']
+        return port_data[0]["HostPort"]
 
     def _place_submission_files(self):
         """
@@ -100,16 +111,16 @@ class SandboxExecutor:
         submission_files = request.submission_files
 
         tar_stream = io.BytesIO()
-        with tarfile.open(fileobj=tar_stream, mode='w') as tar:
+        with tarfile.open(fileobj=tar_stream, mode="w") as tar:
             for filename, content in submission_files.items():
-                file_data = content.encode('utf-8')
+                file_data = content.encode("utf-8")
                 tarinfo = tarfile.TarInfo(name=filename)
                 tarinfo.size = len(file_data)
                 tar.addfile(tarinfo, io.BytesIO(file_data))
 
         tar_stream.seek(0)
 
-        self.container.put_archive(path='/home/user/', data=tar_stream)
+        self.container.put_archive(path="/home/user/", data=tar_stream)
         self.logger.info("Student submission files placed in container at /home/user/.")
 
     def run_command(self, command: str, in_background=False):
@@ -119,19 +130,21 @@ class SandboxExecutor:
         if not self.container:
             raise Exception("Container is not running.")
 
-        self.logger.info(f"Executing command: '{command}' (Background: {in_background})")
+        self.logger.info(
+            f"Executing command: '{command}' (Background: {in_background})"
+        )
 
         if in_background:
-            self.container.exec_run(cmd=f"sh -c '{command}'", detach=True, workdir="/home/user")
+            self.container.exec_run(
+                cmd=f"sh -c '{command}'", detach=True, workdir="/home/user"
+            )
             return None
         else:  # This block runs for foreground commands
             exit_code, (stdout, stderr) = self.container.exec_run(
-                cmd=f"sh -c '{command}'",
-                demux=True,
-                workdir="/home/user"
+                cmd=f"sh -c '{command}'", demux=True, workdir="/home/user"
             )
-            stdout_str = stdout.decode('utf-8').strip() if stdout else ""
-            stderr_str = stderr.decode('utf-8').strip() if stderr else ""
+            stdout_str = stdout.decode("utf-8").strip() if stdout else ""
+            stderr_str = stderr.decode("utf-8").strip() if stderr else ""
 
             # ... it prints the logs ...
 
@@ -142,7 +155,9 @@ class SandboxExecutor:
         """Stops and removes the container to ensure a clean state."""
         if self.container:
             try:
-                self.logger.info(f"Stopping sandbox container {self.container.short_id}...")
+                self.logger.info(
+                    f"Stopping sandbox container {self.container.short_id}..."
+                )
                 self.container.remove(force=True)
                 self.logger.info("Sandbox container stopped and removed.")
             except docker.errors.NotFound:

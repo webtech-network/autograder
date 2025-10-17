@@ -1,6 +1,11 @@
+"""Test Function module."""
+
 from abc import ABC, abstractmethod
 from typing import Dict, List
+
 from autograder.builder.models.criteria_tree import TestResult
+
+
 class TestFunction(ABC):
     """
     An abstract base class for a single, executable test function.

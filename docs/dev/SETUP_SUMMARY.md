@@ -201,13 +201,13 @@ development/
 3. **Develop with confidence**
    ```bash
    # Make changes to code
-   
+
    # Test as you go
    make test
-   
+
    # Format automatically
    make format
-   
+
    # Run all checks
    make all
    ```

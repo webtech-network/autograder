@@ -92,14 +92,14 @@ feature/new-feature → development → main → release v1.0.0
    ```bash
    # Create your feature branch
    git checkout -b feature/my-awesome-feature
-   
+
    # Make changes, then test
    make test
-   
+
    # Format and lint
    make format
    make lint
-   
+
    # Run all checks
    make all
    ```

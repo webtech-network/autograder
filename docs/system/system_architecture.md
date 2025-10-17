@@ -231,34 +231,34 @@ Environment-specific logic is handled by **connectors** (adapters) that:
 def grade(autograder_request: AutograderRequest) -> AutograderResponse:
     # 1. Set global context
     request_context.set_request(autograder_request)
-    
+
     # 2. Run pre-flight checks (Builder Layer)
     if autograder_request.assignment_config.setup:
         impediments = PreFlight.run()
         if impediments:
             return AutograderResponse("fail", 0.0, error_messages)
-    
+
     # 3. Load template (Builder Layer)
     template = TemplateLibrary.get_template(template_name)
-    
+
     # 4. Build criteria tree (Builder Layer)
     if template.requires_pre_executed_tree:
         criteria_tree = CriteriaTree.build_pre_executed_tree(template)
     else:
         criteria_tree = CriteriaTree.build_non_executed_tree()
-    
+
     # 5. Initialize grader (Core Layer)
     grader = Grader(criteria_tree, template)
-    
+
     # 6. Run grading (Core Layer)
     result = grader.run()
-    
+
     # 7. Generate feedback (Core Layer)
     if autograder_request.include_feedback:
         feedback_prefs = FeedbackPreferences.from_dict()
         reporter = Reporter.create(feedback_mode, result, feedback_prefs)
         feedback_text = reporter.generate_feedback()
-    
+
     # 8. Return response
     return AutograderResponse(
         status="Success",

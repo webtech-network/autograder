@@ -1,15 +1,17 @@
-import time
-import json
+"""Input Output module."""
 
+import json
+import time
+
+from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
 from autograder.builder.models.template import Template
 from autograder.builder.models.test_function import TestFunction
 from autograder.core.models.test_result import TestResult
-from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
-
 
 # ===============================================================
 # region: TestFunction for Input/Output Validation
 # ===============================================================
+
 
 class ExpectOutputTest(TestFunction):
     """
@@ -29,7 +31,7 @@ class ExpectOutputTest(TestFunction):
     def parameter_description(self):
         return {
             "inputs": "A list of strings to be sent to the program, each on a new line.",
-            "expected_output": "The single, exact string the program is expected to print to standard output."
+            "expected_output": "The single, exact string the program is expected to print to standard output.",
         }
 
     def __init__(self, executor: SandboxExecutor):
@@ -42,7 +44,9 @@ class ExpectOutputTest(TestFunction):
         """
         start_command = self.executor.config.get("start_command")
         if not start_command:
-            raise ValueError("A 'start_command' must be defined in setup.json for this template.")
+            raise ValueError(
+                "A 'start_command' must be defined in setup.json for this template."
+            )
 
         # Create a single string with all inputs separated by newlines.
         input_string = "\n".join(map(str, inputs))
@@ -53,7 +57,7 @@ class ExpectOutputTest(TestFunction):
             # This is the most reliable way to handle multi-line input in a shell,
             # as it avoids complex quoting issues. Using a quoted delimiter 'EOT'
             # prevents the shell from trying to interpret the content.
-            write_command = f"""
+            write_command = """
 cat <<'EOT' > {temp_input_filename}
 {input_string}
 EOT
@@ -65,7 +69,9 @@ EOT
             exit_code, stdout, stderr = self.executor.run_command(full_command)
 
             if exit_code != 0:
-                return TestResult(self.name, 0, f"The program exited with an error. Stderr: {stderr}")
+                return TestResult(
+                    self.name, 0, f"The program exited with an error. Stderr: {stderr}"
+                )
 
             actual_output = stdout.strip()
             if actual_output == expected_output.strip():
@@ -86,6 +92,7 @@ EOT
 # endregion
 # ===============================================================
 
+
 class InputOutputTemplate(Template):
     """
     A template for command-line I/O assignments. It uses the SandboxExecutor
@@ -98,7 +105,9 @@ class InputOutputTemplate(Template):
 
     @property
     def template_description(self):
-        return "A template for grading assignments based on command-line input and output."
+        return (
+            "A template for grading assignments based on command-line input and output."
+        )
 
     @property
     def requires_pre_executed_tree(self) -> bool:
@@ -122,11 +131,15 @@ class InputOutputTemplate(Template):
     def _setup_environment(self):
         """Runs any initial setup commands, like compilation or dependency installation."""
         print("--- Setting up Input/Output environment ---")
-        install_command = self.executor.config.get("commands", {}).get("install_dependencies")
+        install_command = self.executor.config.get("commands", {}).get(
+            "install_dependencies"
+        )
         if install_command:
             exit_code, _, stderr = self.executor.run_command(install_command)
             if exit_code != 0:
-                raise RuntimeError(f"Failed to run setup command '{install_command}': {stderr}")
+                raise RuntimeError(
+                    f"Failed to run setup command '{install_command}': {stderr}"
+                )
         print("--- Environment setup complete ---")
 
     def stop(self):
@@ -137,22 +150,25 @@ class InputOutputTemplate(Template):
     def get_test(self, name: str) -> TestFunction:
         test_function = self.tests.get(name)
         if not test_function:
-            raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
+            raise AttributeError(
+                f"Test '{name}' not found in the '{self.template_name}' template."
+            )
         return test_function
 
 
 if __name__ == "__main__":
-    import sys
     import os
+    import sys
 
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
+    project_root = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../..")
+    )
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
-    from connectors.models.autograder_request import AutograderRequest
-    from connectors.models.assignment_config import AssignmentConfig
     from autograder.context import request_context
-
+    from connectors.models.assignment_config import AssignmentConfig
+    from connectors.models.autograder_request import AutograderRequest
 
     def create_mock_submission():
         """Creates an in-memory file for a simple Python calculator."""
@@ -180,12 +196,11 @@ if __name__ == "__main__":
 """
         return {"calculator.py": calculator_py}
 
-
     def create_mock_configs():
         """Creates the mock setup and criteria configurations."""
         setup_config = {
             "runtime_image": "python:3.11-slim",
-            "start_command": "python calculator.py"
+            "start_command": "python calculator.py",
         }
         criteria_config = {
             "base": {
@@ -193,26 +208,33 @@ if __name__ == "__main__":
                     "calculation_tests": {
                         "weight": 100,
                         "tests": [
-                            {"name": "expect_output", "calls": [[["sum", 2, 2], "4.0"]]},
-                            {"name": "expect_output", "calls": [[["subtract", 10, 5], "5.0"]]}
-                        ]
+                            {
+                                "name": "expect_output",
+                                "calls": [[["sum", 2, 2], "4.0"]],
+                            },
+                            {
+                                "name": "expect_output",
+                                "calls": [[["subtract", 10, 5], "5.0"]],
+                            },
+                        ],
                     }
                 }
             }
         }
         return setup_config, criteria_config
 
-
     # --- Main Simulation Logic ---
     print("--- 1. Setting up mock environment ---")
     submission_files = create_mock_submission()
     setup_config, criteria_config = create_mock_configs()
 
-    assignment_config = AssignmentConfig(criteria=criteria_config, feedback=None, setup=setup_config)
+    assignment_config = AssignmentConfig(
+        criteria=criteria_config, feedback=None, setup=setup_config
+    )
     autograder_request = AutograderRequest(
         submission_files=submission_files,
         assignment_config=assignment_config,
-        student_name="MockStudent"
+        student_name="MockStudent",
     )
     request_context.set_request(autograder_request)
 
@@ -253,5 +275,3 @@ if __name__ == "__main__":
         if template:
             print("\n--- 4. Cleaning up sandbox environment ---")
             template.stop()
-
-

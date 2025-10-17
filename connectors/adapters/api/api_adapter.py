@@ -1,14 +1,17 @@
+"""Api Adapter module."""
+
 import inspect
+import json
+import logging
 import textwrap
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from fastapi import UploadFile
 
-from connectors.models.autograder_request import AutograderRequest
-from connectors.models.assignment_config import AssignmentConfig
-import json
-from connectors.port import Port
-import logging
 from autograder.builder.template_library.library import TemplateLibrary
+from connectors.models.assignment_config import AssignmentConfig
+from connectors.models.autograder_request import AutograderRequest
+from connectors.port import Port
 
 
 class ApiAdapter(Port):
@@ -19,7 +22,9 @@ class ApiAdapter(Port):
         Also retrieves important data from the request (student_credentiaals)
         """
         if not self.autograder_response:
-            raise Exception("No autograder response available. Please run the autograder first.")
+            raise Exception(
+                "No autograder response available. Please run the autograder first."
+            )
 
         # Prepare the API response
         response = {
@@ -27,28 +32,35 @@ class ApiAdapter(Port):
             "autograding_status": self.autograder_response.status,
             "final_score": self.autograder_response.final_score,
             "feedback": self.autograder_response.feedback,
-            "test_report": [test_result.to_dict() for test_result in self.autograder_response.test_report],
+            "test_report": [
+                test_result.to_dict()
+                for test_result in self.autograder_response.test_report
+            ],
         }
 
         return response
 
-    async def create_request(self,
-                       submission_files: List[UploadFile],
-                       assignment_config: AssignmentConfig,
-                       student_name,
-                       student_credentials,
-                       include_feedback=False,
-                       feedback_mode="default",
-                       openai_key=None,
-                       redis_url=None,
-                       redis_token=None):
+    async def create_request(
+        self,
+        submission_files: List[UploadFile],
+        assignment_config: AssignmentConfig,
+        student_name,
+        student_credentials,
+        include_feedback=False,
+        feedback_mode="default",
+        openai_key=None,
+        redis_url=None,
+        redis_token=None,
+    ):
         submission_files_dict = {}
         for submission_file in submission_files:
             if ".git" in submission_file.filename:
                 continue
             submission_content = await submission_file.read()
-            submission_files_dict[submission_file.filename] =  submission_content.decode("utf-8")
-        self.autograder_request =  AutograderRequest(
+            submission_files_dict[submission_file.filename] = submission_content.decode(
+                "utf-8"
+            )
+        self.autograder_request = AutograderRequest(
             submission_files_dict,
             assignment_config,
             student_name,
@@ -56,12 +68,17 @@ class ApiAdapter(Port):
             feedback_mode=feedback_mode,
             openai_key=openai_key,
             redis_url=redis_url,
-            redis_token=redis_token
+            redis_token=redis_token,
         )
 
-
-    async def load_assignment_config(self, template: str, criteria: UploadFile, feedback: UploadFile,
-                               setup: Optional[UploadFile] = None, custom_template: Optional[UploadFile] = None) -> AssignmentConfig:
+    async def load_assignment_config(
+        self,
+        template: str,
+        criteria: UploadFile,
+        feedback: UploadFile,
+        setup: Optional[UploadFile] = None,
+        custom_template: Optional[UploadFile] = None,
+    ) -> AssignmentConfig:
         """
         Loads the assignment configuration based on the provided template preset.
         """
@@ -73,25 +90,36 @@ class ApiAdapter(Port):
 
             # Loads the raw json strings (template,criteria,feedback and setup) into dictionaries
             criteria_content = await criteria.read()
-            criteria_dict = json.loads(criteria_content.decode("utf-8")) if criteria else None
+            criteria_dict = (
+                json.loads(criteria_content.decode("utf-8")) if criteria else None
+            )
             logger.info(f"Criteria loaded: {criteria_dict is not None}")
 
             feedback_content = await feedback.read()
-            feedback_dict = json.loads(feedback_content.decode("utf-8")) if feedback else None
+            feedback_dict = (
+                json.loads(feedback_content.decode("utf-8")) if feedback else None
+            )
             logger.info(f"Feedback config loaded: {feedback_dict is not None}")
 
             setup_dict = None
             if setup:
                 setup_content = await setup.read()
-                setup_dict = json.loads(setup_content.decode("utf-8")) if setup else None
+                setup_dict = (
+                    json.loads(setup_content.decode("utf-8")) if setup else None
+                )
                 logger.info(f"Setup config loaded: {setup_dict is not None}")
             custom_template_str = None
             if custom_template:
                 custom_template_content = await custom_template.read()
                 custom_template_str = custom_template_content.decode("utf-8")
 
-            return AssignmentConfig(criteria=criteria_dict, feedback=feedback_dict, setup=setup_dict,
-                                    template=template_name, custom_template_str = custom_template_str)
+            return AssignmentConfig(
+                criteria=criteria_dict,
+                feedback=feedback_dict,
+                setup=setup_dict,
+                template=template_name,
+                custom_template_str=custom_template_str,
+            )
 
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in configuration files: {e}")
@@ -100,7 +128,7 @@ class ApiAdapter(Port):
             logger.error(f"Encoding error reading configuration files: {e}")
             raise ValueError(f"Unable to decode configuration files: {e}")
 
-    def get_template_info(self,template_name: str) -> Dict[str, Any]:
+    def get_template_info(self, template_name: str) -> Dict[str, Any]:
         """
         Retrieves a dictionary containing all the information of a Template,
         including its name, description, and full details for each test function
@@ -115,7 +143,7 @@ class ApiAdapter(Port):
         template_data = {
             "template_name": template_instance.template_name,
             "template_description": template_instance.template_description,
-            "tests": []
+            "tests": [],
         }
 
         # 3. Iterate through each test function in the template
@@ -134,7 +162,7 @@ class ApiAdapter(Port):
                 "name": test_instance.name,
                 "description": test_instance.description,
                 "parameter_description": test_instance.parameter_description,
-                "code": cleaned_code
+                "code": cleaned_code,
             }
             template_data["tests"].append(test_info)
 
@@ -145,4 +173,3 @@ if __name__ == "__main__":
     adapter = ApiAdapter()
     template_info = adapter.get_template_info("web dev")
     print(template_info)
-

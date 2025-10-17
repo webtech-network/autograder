@@ -1,3 +1,5 @@
+"""Default Reporter module."""
+
 from autograder.builder.models.template import Template
 from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.base_reporter import BaseReporter
@@ -9,7 +11,12 @@ class DefaultReporter(BaseReporter):
     designed to be a clear and helpful learning tool for students.
     """
 
-    def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', test_library: 'Template'):
+    def __init__(
+        self,
+        result: "Result",
+        feedback: "FeedbackPreferences",
+        test_library: "Template",
+    ):
         super().__init__(result, feedback, test_library)
         self.test_library = test_library
 
@@ -21,7 +28,7 @@ class DefaultReporter(BaseReporter):
             self._build_header(),
             self._build_category_section("bonus"),
             self._build_category_section("base"),
-            self._build_category_section("penalty")
+            self._build_category_section("penalty"),
         ]
 
         if self.feedback.general.add_report_summary:
@@ -36,23 +43,31 @@ class DefaultReporter(BaseReporter):
         """Helper function to format parameters into a readable code string."""
         if not params:
             return ""
-        parts = [f"`{k}`: `{v}`" if isinstance(v, str) else f"`{k}`: `{v}`" for k, v in params.items()]
+        parts = [
+            f"`{k}`: `{v}`" if isinstance(v, str) else f"`{k}`: `{v}`"
+            for k, v in params.items()
+        ]
         return f" (Parâmetros: {', '.join(parts)})"
 
     def _build_header(self) -> str:
         """Constructs the top section of the report."""
         header_parts = [f"# {self.feedback.general.report_title}"]
         if self.feedback.general.show_score:
-            header_parts.append(f"> **Nota Final:** **`{self.result.final_score:.2f} / 100`**")
+            header_parts.append(
+                f"> **Nota Final:** **`{self.result.final_score:.2f} / 100`**"
+            )
 
         header_parts.append(
-            f"\nOlá, **{self.result.author}**! 👋\n\nAqui está o feedback detalhado sobre sua atividade. Use este guia para entender seus acertos e os pontos que podem ser melhorados.")
+            f"\nOlá, **{self.result.author}**! 👋\n\nAqui está o feedback detalhado sobre sua atividade. Use este guia para entender seus acertos e os pontos que podem ser melhorados."
+        )
         return "\n".join(header_parts)
 
     def _build_category_section(self, category_name: str) -> str:
         """Builds a report section for a specific category with enhanced formatting and text."""
         category_results = getattr(self.result, f"{category_name}_results", [])
-        header = self.feedback.default.category_headers.get(category_name, category_name.capitalize())
+        header = self.feedback.default.category_headers.get(
+            category_name, category_name.capitalize()
+        )
         section_parts = [f"\n---\n\n## {header}"]
 
         results_to_show = []
@@ -63,13 +78,25 @@ class DefaultReporter(BaseReporter):
             is_bonus = True
             if self.feedback.general.show_passed_tests:
                 results_to_show = [res for res in category_results if res.score >= 60]
-                intro_text = "Parabéns! Você completou os seguintes itens bônus, demonstrando um ótimo conhecimento:" if results_to_show else "Nenhum item bônus foi completado desta vez. Continue se desafiando!"
+                intro_text = (
+                    "Parabéns! Você completou os seguintes itens bônus, demonstrando um ótimo conhecimento:"
+                    if results_to_show
+                    else "Nenhum item bônus foi completado desta vez. Continue se desafiando!"
+                )
         else:  # base and penalty
             results_to_show = [res for res in category_results if res.score < 60]
             if category_name == "base":
-                intro_text = "Encontramos alguns pontos nos requisitos essenciais que precisam de sua atenção:" if results_to_show else "Excelente! Todos os requisitos essenciais foram atendidos com sucesso."
+                intro_text = (
+                    "Encontramos alguns pontos nos requisitos essenciais que precisam de sua atenção:"
+                    if results_to_show
+                    else "Excelente! Todos os requisitos essenciais foram atendidos com sucesso."
+                )
             elif category_name == "penalty":
-                intro_text = "Foram detectadas algumas práticas que resultaram em penalidades. Veja os detalhes abaixo para entender como corrigi-las:" if results_to_show else "Ótimo trabalho! Nenhuma má prática foi detectada no seu projeto."
+                intro_text = (
+                    "Foram detectadas algumas práticas que resultaram em penalidades. Veja os detalhes abaixo para entender como corrigi-las:"
+                    if results_to_show
+                    else "Ótimo trabalho! Nenhuma má prática foi detectada no seu projeto."
+                )
 
         section_parts.append(intro_text)
 
@@ -79,7 +106,9 @@ class DefaultReporter(BaseReporter):
         grouped_results = self._group_results_by_subject(results_to_show)
 
         for subject, results in grouped_results.items():
-            section_parts.append(f"\n#### Tópico: {subject.replace('_', ' ').capitalize()}")
+            section_parts.append(
+                f"\n#### Tópico: {subject.replace('_', ' ').capitalize()}"
+            )
             for res in results:
                 params_str = self._format_parameters(res.parameters)
 
@@ -88,18 +117,21 @@ class DefaultReporter(BaseReporter):
                     report_prefix = "Parabéns!"
                 else:
                     status_text = "❌ **Falhou**"
-                    report_prefix = "Atenção:" if category_name == "base" else "Cuidado!"
+                    report_prefix = (
+                        "Atenção:" if category_name == "base" else "Cuidado!"
+                    )
 
                 feedback_item = [
                     f"> {status_text} no teste `{res.test_name}`{params_str}",
-                    f"> - **Detalhes:** {report_prefix} {res.report}\n"
+                    f"> - **Detalhes:** {report_prefix} {res.report}\n",
                 ]
 
                 if not is_bonus:
                     linked_content = self._content_map.get(res.test_name)
                     if linked_content:
                         feedback_item.append(
-                            f"> - 📚 **Recurso Sugerido:** [{linked_content.description}]({linked_content.url})\n")
+                            f"> - 📚 **Recurso Sugerido:** [{linked_content.description}]({linked_content.url})\n"
+                        )
 
                 section_parts.append("\n".join(feedback_item))
 
@@ -126,7 +158,11 @@ class DefaultReporter(BaseReporter):
             except AttributeError:
                 description = "Descrição não disponível."
 
-            params_str = self._format_parameters(res.parameters).replace(" (Parâmetros: ", "").replace(")", "")
+            params_str = (
+                self._format_parameters(res.parameters)
+                .replace(" (Parâmetros: ", "")
+                .replace(")", "")
+            )
 
             # Determine the action type
             action = "Revisar"
@@ -140,10 +176,15 @@ class DefaultReporter(BaseReporter):
                 f"**Parâmetros:** <sub>{params_str or 'N/A'}</sub>"
             )
 
-            summary_parts.append(f"| {action} | `{res.subject_name}` | {details_cell} |")
+            summary_parts.append(
+                f"| {action} | `{res.subject_name}` | {details_cell} |"
+            )
 
         return "\n".join(summary_parts)
 
     def _build_footer(self) -> str:
         """Constructs the footer of the report."""
-        return "\n---\n" + "> Continue praticando e melhorando seu código. Cada desafio é uma oportunidade de aprender! 🚀"
+        return (
+            "\n---\n"
+            + "> Continue praticando e melhorando seu código. Cada desafio é uma oportunidade de aprender! 🚀"
+        )

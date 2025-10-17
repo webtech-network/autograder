@@ -57,16 +57,16 @@ jobs:
   grading:
     permissions: write-all
     runs-on: ubuntu-latest
-    if: github.actor != 'github-classroom[bot]' 
+    if: github.actor != 'github-classroom[bot]'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
            path: submission
 
-      - name: Check repository criteria 
+      - name: Check repository criteria
         uses: webtech-network/autograder@v5
-        with: 
+        with:
           template_preset : "web dev"
           feedback-type: "ai"
           openai_key: ${{ secrets.ENGINE }}
@@ -138,18 +138,18 @@ class HasRequiredFile(TestFunction):
     @property
     def name(self):
         return "has_required_file"
-    
+
     @property
     def description(self):
         return "Checks if a required file exists in the submission"
-    
+
     @property
     def parameter_description(self):
         return {
             "file_path": "Path to the required file",
             "file_name": "Name of the required file"
         }
-    
+
     def execute(self, file_path: str, file_name: str) -> TestResult:
         import os
         exists = os.path.exists(file_path)
@@ -162,18 +162,18 @@ class CheckMinimumLines(TestFunction):
     @property
     def name(self):
         return "check_minimum_lines"
-    
+
     @property
     def description(self):
         return "Checks if a file has at least a minimum number of lines"
-    
+
     @property
     def parameter_description(self):
         return {
             "file_content": "Content of the file to check",
             "min_lines": "Minimum number of lines required"
         }
-    
+
     def execute(self, file_content: str, min_lines: int) -> TestResult:
         lines = file_content.strip().split('\n')
         actual_lines = len([line for line in lines if line.strip()])
@@ -190,37 +190,37 @@ class CustomAssignmentTemplate(Template):
     """
     A custom template for a specific assignment.
     """
-    
+
     @property
     def template_name(self):
         return "Custom Assignment Template"
-    
+
     @property
     def template_description(self):
         return "Custom grading template for specific assignment requirements"
-    
+
     @property
     def requires_execution_helper(self) -> bool:
         return False
-    
+
     @property
     def execution_helper(self):
         return None
-    
+
     @property
     def requires_pre_executed_tree(self) -> bool:
         return False
-    
+
     def __init__(self):
         self.tests = {
             "has_required_file": HasRequiredFile(),
             "check_minimum_lines": CheckMinimumLines(),
             # Add more custom tests here
         }
-    
+
     def stop(self):
         pass
-    
+
     def get_test(self, name: str) -> TestFunction:
         """
         Retrieves a specific test function instance from the template.
@@ -233,9 +233,9 @@ class CustomAssignmentTemplate(Template):
 
 Then in your workflow:
 ```yaml
-- name: Check repository criteria 
+- name: Check repository criteria
   uses: webtech-network/autograder@v5
-  with: 
+  with:
     template_preset: "web dev"
     custom_template: true  # This tells the autograder to look for template.py
     feedback-type: "default"
@@ -373,16 +373,16 @@ jobs:
   grading:
     permissions: write-all
     runs-on: ubuntu-latest
-    if: github.actor != 'github-classroom[bot]' 
+    if: github.actor != 'github-classroom[bot]'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
            path: submission
 
-      - name: Check repository criteria 
+      - name: Check repository criteria
         uses: webtech-network/autograder@v5
-        with: 
+        with:
           template_preset : "web dev"
           feedback-type: "ai"
           openai_key: ${{ secrets.ENGINE }}
@@ -436,28 +436,28 @@ class CheckResponsiveImages(TestFunction):
     @property
     def name(self):
         return "check_responsive_images"
-    
+
     @property
     def description(self):
         return "Checks if images use responsive attributes"
-    
+
     @property
     def parameter_description(self):
         return {
             "html_content": "The HTML content to analyze",
             "min_count": "Minimum number of responsive images required"
         }
-    
+
     def execute(self, html_content: str, min_count: int) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         images = soup.find_all('img')
         responsive_count = 0
-        
+
         for img in images:
             # Check for responsive attributes
             if img.get('srcset') or 'responsive' in img.get('class', []):
                 responsive_count += 1
-        
+
         score = min(100, int((responsive_count / min_count) * 100)) if min_count > 0 else 100
         report = f"Found {responsive_count} of {min_count} required responsive images."
         return TestResult(self.name, score, report, parameters={"min_count": min_count})
@@ -467,23 +467,23 @@ class CheckMediaQueries(TestFunction):
     @property
     def name(self):
         return "check_media_queries"
-    
+
     @property
     def description(self):
         return "Checks if CSS contains media queries for responsive design"
-    
+
     @property
     def parameter_description(self):
         return {
             "css_content": "The CSS content to analyze",
             "min_breakpoints": "Minimum number of breakpoints required"
         }
-    
+
     def execute(self, css_content: str, min_breakpoints: int) -> TestResult:
         pattern = r'@media\s*\([^)]+\)'
         matches = re.findall(pattern, css_content)
         breakpoint_count = len(matches)
-        
+
         score = min(100, int((breakpoint_count / min_breakpoints) * 100)) if min_breakpoints > 0 else 100
         report = f"Found {breakpoint_count} of {min_breakpoints} required media queries."
         return TestResult(self.name, score, report, parameters={"min_breakpoints": min_breakpoints})
@@ -497,36 +497,36 @@ class ResponsiveLandingPageTemplate(Template):
     """
     Custom template for responsive landing page assignment.
     """
-    
+
     @property
     def template_name(self):
         return "Responsive Landing Page Template"
-    
+
     @property
     def template_description(self):
         return "Evaluates responsive design implementation in landing pages"
-    
+
     @property
     def requires_execution_helper(self) -> bool:
         return False
-    
+
     @property
     def execution_helper(self):
         return None
-    
+
     @property
     def requires_pre_executed_tree(self) -> bool:
         return False
-    
+
     def __init__(self):
         self.tests = {
             "check_responsive_images": CheckResponsiveImages(),
             "check_media_queries": CheckMediaQueries(),
         }
-    
+
     def stop(self):
         pass
-    
+
     def get_test(self, name: str) -> TestFunction:
         """
         Retrieves a specific test function instance from the template.
@@ -554,16 +554,16 @@ jobs:
   grading:
     permissions: write-all
     runs-on: ubuntu-latest
-    if: github.actor != 'github-classroom[bot]' 
+    if: github.actor != 'github-classroom[bot]'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
            path: submission
 
-      - name: Check repository criteria 
+      - name: Check repository criteria
         uses: webtech-network/autograder@v5
-        with: 
+        with:
           template_preset: "web dev"
           custom_template: true
           feedback-type: "default"
@@ -651,9 +651,9 @@ Begin with a basic preset template and minimal configuration. Add complexity as 
 
 ```yaml
 # Simple starter configuration
-- name: Check repository criteria 
+- name: Check repository criteria
   uses: webtech-network/autograder@v5
-  with: 
+  with:
     template_preset: "web dev"
     feedback-type: "detailed"
 ```

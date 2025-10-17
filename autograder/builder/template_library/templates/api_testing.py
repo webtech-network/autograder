@@ -1,18 +1,25 @@
-import time
-import requests
+"""Api Testing module."""
+
 import json
 import logging
+import time
+
+import requests
+
+from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
 from autograder.builder.models.template import Template
 from autograder.builder.models.test_function import TestFunction
 from autograder.core.models.test_result import TestResult
-from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
 
 # Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 # ===============================================================
 # region: Concrete TestFunction Implementations for API Testing
 # ===============================================================
+
 
 class HealthCheckTest(TestFunction):
     """A simple test to check if an API endpoint is alive and returns a 200 OK status."""
@@ -27,9 +34,7 @@ class HealthCheckTest(TestFunction):
 
     @property
     def parameter_description(self):
-        return {
-            "endpoint": "The endpoint to test (e.g., '/health')."
-        }
+        return {"endpoint": "The endpoint to test (e.g., '/health')."}
 
     def __init__(self, executor: SandboxExecutor):
         self.executor = executor
@@ -65,7 +70,7 @@ class HealthCheckTest(TestFunction):
         except requests.ConnectionError:
             report = f"Connection failed. Could not connect to the API. Is the server running and bound to '0.0.0.0'?"
         except requests.Timeout:
-            report = f"The request timed out. The API did not respond in time."
+            report = "The request timed out. The API did not respond in time."
         except Exception as e:
             report = f"An unexpected error occurred: {e}"
 
@@ -81,20 +86,24 @@ class CheckResponseJsonTest(TestFunction):
 
     @property
     def description(self):
-        return "Checks if an endpoint's JSON response contains a specific key and value."
+        return (
+            "Checks if an endpoint's JSON response contains a specific key and value."
+        )
 
     @property
     def parameter_description(self):
         return {
             "endpoint": "The API endpoint to test (e.g., '/api/data').",
             "expected_key": "The JSON key to check in the response.",
-            "expected_value": "The expected value for the specified key."
+            "expected_value": "The expected value for the specified key.",
         }
 
     def __init__(self, executor: SandboxExecutor):
         self.executor = executor
 
-    def execute(self, endpoint: str, expected_key: str, expected_value: any) -> TestResult:
+    def execute(
+        self, endpoint: str, expected_key: str, expected_value: any
+    ) -> TestResult:
         """Executes the JSON validation test."""
 
         report = ""
@@ -113,7 +122,11 @@ class CheckResponseJsonTest(TestFunction):
             logging.info(f"Making request to sandboxed API at: {url}")
             response = requests.get(url, timeout=10)
             if response.status_code != 200:
-                return TestResult(self.name, 0, f"Request failed with status code {response.status_code}.")
+                return TestResult(
+                    self.name,
+                    0,
+                    f"Request failed with status code {response.status_code}.",
+                )
 
             try:
                 data = response.json()
@@ -136,6 +149,7 @@ class CheckResponseJsonTest(TestFunction):
 # ===============================================================
 # endregion
 # ===============================================================
+
 
 class ApiTestingTemplate(Template):
     """
@@ -180,7 +194,9 @@ class ApiTestingTemplate(Template):
         self.logger.info("--- Setting up API environment ---")
 
         # Install dependencies (e.g., npm install)
-        install_command = self.executor.config.get("commands", {}).get("install_dependencies")
+        install_command = self.executor.config.get("commands", {}).get(
+            "install_dependencies"
+        )
         if install_command:
             exit_code, _, stderr = self.executor.run_command(install_command)
             if exit_code != 0:
@@ -189,10 +205,14 @@ class ApiTestingTemplate(Template):
         # Start the student's API server in the background
         start_command = self.executor.config.get("start_command")
         if not start_command:
-            raise ValueError("A 'start_command' must be defined in setup.json for the API template.")
+            raise ValueError(
+                "A 'start_command' must be defined in setup.json for the API template."
+            )
 
         self.executor.run_command(start_command, in_background=True)
-        self.logger.info("API server start command issued. Waiting for it to initialize...")
+        self.logger.info(
+            "API server start command issued. Waiting for it to initialize..."
+        )
         time.sleep(5)  # Give the server a few seconds to start up
         self.logger.info("--- Environment setup complete ---")
 
@@ -204,30 +224,35 @@ class ApiTestingTemplate(Template):
     def get_test(self, name: str) -> TestFunction:
         test_function = self.tests.get(name)
         if not test_function:
-            raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
+            raise AttributeError(
+                f"Test '{name}' not found in the '{self.template_name}' template."
+            )
         return test_function
 
 
 if __name__ == "__main__":
-    import sys
     import os
+    import sys
 
     # This allows the script to find the other autograder modules
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../..'))
+    project_root = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../..")
+    )
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
-    from connectors.models.autograder_request import AutograderRequest
-    from connectors.models.assignment_config import AssignmentConfig
     from autograder.context import request_context
-
+    from connectors.models.assignment_config import AssignmentConfig
+    from connectors.models.autograder_request import AutograderRequest
 
     def create_mock_submission():
         """Creates the in-memory files for a simple student Express.js API."""
         package_json = {
-            "name": "student-api", "version": "1.0.0", "main": "server.js",
+            "name": "student-api",
+            "version": "1.0.0",
+            "main": "server.js",
             "scripts": {"start": "node server.js"},
-            "dependencies": {"express": "^4.17.1"}
+            "dependencies": {"express": "^4.17.1"},
         }
         server_js = """
            const express = require('express');
@@ -244,9 +269,8 @@ if __name__ == "__main__":
            """
         return {
             "package.json": json.dumps(package_json, indent=2),
-            "server.js": server_js
+            "server.js": server_js,
         }
-
 
     def create_mock_configs():
         """Creates the mock setup and criteria configurations."""
@@ -254,7 +278,7 @@ if __name__ == "__main__":
             "runtime_image": "node:18-alpine",
             "container_port": 8000,
             "start_command": "node server.js",
-            "commands": {"install_dependencies": "npm install"}
+            "commands": {"install_dependencies": "npm install"},
         }
         criteria_config = {
             "base": {
@@ -263,31 +287,37 @@ if __name__ == "__main__":
                         "weight": 100,
                         "tests": [
                             {"name": "health_check", "calls": [["/health"]]},
-                            {"name": "check_response_json", "calls": [["/api/user", "userId", 1]]}
-                        ]
+                            {
+                                "name": "check_response_json",
+                                "calls": [["/api/user", "userId", 1]],
+                            },
+                        ],
                     }
                 }
             }
         }
         return setup_config, criteria_config
 
-
     # --- Main Simulation Logic ---
     logging.info("--- 1. Setting up mock environment ---")
     submission_files = create_mock_submission()
     setup_config, criteria_config = create_mock_configs()
 
-    assignment_config = AssignmentConfig(criteria=criteria_config, feedback=None, setup=setup_config)
+    assignment_config = AssignmentConfig(
+        criteria=criteria_config, feedback=None, setup=setup_config
+    )
     autograder_request = AutograderRequest(
         submission_files=submission_files,
         assignment_config=assignment_config,
-        student_name="MockStudent"
+        student_name="MockStudent",
     )
     request_context.set_request(autograder_request)
 
     template = None
     try:
-        logging.info("\n--- 2. Initializing API Testing Template (this will start the sandbox) ---")
+        logging.info(
+            "\n--- 2. Initializing API Testing Template (this will start the sandbox) ---"
+        )
         template = ApiTestingTemplate()
 
         logging.info("\n--- 3. Running Tests ---")
@@ -309,6 +339,7 @@ if __name__ == "__main__":
     except Exception as e:
         logging.error(f"\nAN ERROR OCCURRED: {e}")
         import traceback
+
         traceback.print_exc()
 
     finally:

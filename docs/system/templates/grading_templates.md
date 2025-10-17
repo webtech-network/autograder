@@ -83,38 +83,38 @@ class ExampleTest(TestFunction):
     def name(self) -> str:
         """The unique identifier for this test."""
         return "example_test"
-    
+
     @property
     def description(self) -> str:
         """Human-readable description of what this test checks."""
         return "Checks if the submission contains valid examples"
-    
+
     @property
     def parameter_description(self) -> str:
         """Explains what parameters this test accepts."""
         return "min_count: Minimum number of examples required"
-    
+
     def execute(self, file_content: str, min_count: int) -> TestResult:
         """
         The actual test logic.
-        
+
         Args:
             file_content: The content of the file being tested
             min_count: Custom parameter from criteria.json
-            
+
         Returns:
             TestResult with score (0-100) and feedback
         """
         # Test logic here
         found_examples = count_examples(file_content)
-        
+
         if found_examples >= min_count:
             score = 100
             feedback = f"Found {found_examples} examples (required: {min_count})"
         else:
             score = (found_examples / min_count) * 100
             feedback = f"Only found {found_examples}/{min_count} required examples"
-        
+
         return TestResult(
             name="example_test",
             score=score,
@@ -162,14 +162,14 @@ class HasTag(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find_all(tag)
         actual_count = len(found)
-        
+
         if actual_count >= required_count:
             score = 100
             feedback = f"✓ Found {actual_count} <{tag}> tags (required: {required_count})"
         else:
             score = (actual_count / required_count) * 100
             feedback = f"✗ Found only {actual_count}/{required_count} <{tag}> tags"
-        
+
         return TestResult("has_tag", score, feedback, "html_structure")
 ```
 
@@ -268,11 +268,11 @@ template.stop()   # Cleanup (removes containers, closes connections)
 class InputOutputTemplate(Template):
     def __init__(self):
         self.executor = None  # Will hold SandboxExecutor
-    
+
     def start(self):
         """Initialize the container before grading."""
         self.executor = SandboxExecutor.start()
-    
+
     def stop(self):
         """Clean up the container after grading."""
         if self.executor:
@@ -285,7 +285,7 @@ class RunScript(TestFunction):
         exit_code, stdout, stderr = self.executor.run_command(
             f"python script.py <<< '{test_input}'"
         )
-        
+
         # Evaluate output
         if exit_code == 0 and stdout == expected_output:
             return TestResult("run_script", 100, "✓ Correct output", "execution")
@@ -320,7 +320,7 @@ class RunScript(TestFunction):
 class EssayGraderTemplate(Template):
     def __init__(self):
         self.ai_executor = AiExecutor()
-    
+
     def stop(self):
         """Trigger batch execution and map results."""
         self.ai_executor.execute_batch()  # Sends one API request
@@ -505,7 +505,7 @@ class DatabaseTest(TestFunction):
     @property
     def name(self):
         return "check_sql_query"
-    
+
     def execute(self, query: str) -> TestResult:
         # Custom test logic
         pass
@@ -513,7 +513,7 @@ class DatabaseTest(TestFunction):
 class DatabaseTemplate(Template):
     def __init__(self):
         self.tests = [DatabaseTest()]
-    
+
     def get_test(self, name: str) -> TestFunction:
         for test in self.tests:
             if test.name == name:
@@ -645,7 +645,7 @@ class ExtendedWebDev(WebDevTemplate):
     def __init__(self):
         super().__init__()
         self.custom_tests = [MyNewTest()]
-    
+
     def get_test(self, name: str):
         # Try custom tests first
         for test in self.custom_tests:
