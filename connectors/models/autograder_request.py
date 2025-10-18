@@ -27,3 +27,12 @@ class AutograderRequest:
         stri += f"Student name: {self.student_name}\n"
         stri += f"Feedback mode: {self.feedback_mode}\n"
         return stri
+
+    @classmethod
+    def build_empty_request(cls):
+        return cls(
+            submission_files={},
+            assignment_config=AssignmentConfig(criteria={}, feedback={}, setup={}, template=""),
+            student_name="",
+            include_feedback=False
+        )

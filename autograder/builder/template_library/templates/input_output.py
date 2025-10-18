@@ -112,9 +112,14 @@ class InputOutputTemplate(Template):
     def execution_helper(self):
         return self.executor
 
-    def __init__(self):
-        self.executor = SandboxExecutor.start()
-        self._setup_environment()
+    def __init__(self, clean=False):
+        
+        if not clean:
+            # Prepare the environment by running setup commands
+            self.executor = SandboxExecutor.start()
+            self._setup_environment()
+        else:
+            self.executor = None
         self.tests = {
             "expect_output": ExpectOutputTest(self.executor),
         }

@@ -17,7 +17,7 @@ class RequestContext:
             cls._instance.request = None
         return cls._instance
 
-    def set_request(self, autograder_request: AutograderRequest):
+    def set_request(self, autograder_request: AutograderRequest | None):
         """Sets the active autograder request for the current session."""
         self.request = autograder_request
 
