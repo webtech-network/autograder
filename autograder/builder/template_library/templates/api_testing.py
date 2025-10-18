@@ -163,17 +163,22 @@ class ApiTestingTemplate(Template):
     def execution_helper(self):
         return self.executor
 
-    def __init__(self):
-        self.executor = SandboxExecutor.start()
+    def __init__(self, clean=False):
+        if not clean:
+            # Prepare the environment by running setup commands
+            self.executor = SandboxExecutor.start()
+            self._setup_environment()
+        else:
+            self.executor = None
+    
         self.logger = logging.getLogger(__name__)
-
-        # Prepare the environment by running setup commands
-        self._setup_environment()
 
         self.tests = {
             "health_check": HealthCheckTest(self.executor),
             "check_response_json": CheckResponseJsonTest(self.executor),
         }
+
+
 
     def _setup_environment(self):
         """Runs initial setup commands like installing dependencies and starting the server."""
