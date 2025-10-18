@@ -9,7 +9,7 @@ import json
 from connectors.port import Port
 import logging
 from autograder.builder.template_library.library import TemplateLibrary
-
+from autograder.context import request_context
 
 class ApiAdapter(Port):
 
@@ -106,8 +106,11 @@ class ApiAdapter(Port):
         including its name, description, and full details for each test function
         (name, description, parameters, and source code).
         """
+
+        request_context.set_request(AutograderRequest.build_empty_request())
+        print("REQUEST_CONTEXT:", request_context.get_request())
         # 1. Retrieve an instance of the template from the library
-        template_instance = TemplateLibrary.get_template(template_name)
+        template_instance = TemplateLibrary.get_template_info(template_name)
         if not template_instance:
             raise ValueError(f"Template '{template_name}' not found.")
 
