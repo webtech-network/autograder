@@ -7,7 +7,7 @@ from autograder.builder.models.template import Template
 
 class TemplateLibrary:
     @staticmethod
-    def get_template(template_name: str, custom_template_content: str = None):
+    def get_template(template_name: str, custom_template_content: str = None, clean=False):
         if template_name == "custom":
             if not custom_template_content:
                 raise ValueError("Custom template content must be provided for 'custom' template type.")
@@ -15,16 +15,16 @@ class TemplateLibrary:
 
         if template_name == "web dev":
             from autograder.builder.template_library.templates.web_dev import WebDevTemplate
-            return WebDevTemplate()
+            return WebDevTemplate(clean)
         if template_name == "api":
             from autograder.builder.template_library.templates.api_testing import ApiTestingTemplate
-            return ApiTestingTemplate()
+            return ApiTestingTemplate(clean)
         if template_name == "essay":
             from autograder.builder.template_library.templates.essay_grader import EssayGraderTemplate
-            return EssayGraderTemplate()
-        if template_name == "I/O":
+            return EssayGraderTemplate(clean)
+        if template_name == "IO":
             from autograder.builder.template_library.templates.input_output import InputOutputTemplate
-            return InputOutputTemplate()
+            return InputOutputTemplate(clean)
         else:
             raise ValueError(f"Template '{template_name}' not found.")
 
@@ -56,3 +56,27 @@ class TemplateLibrary:
                 return obj()
 
         raise ImportError(f"No class inheriting from 'Template' found in {file_path}")
+    
+
+    @staticmethod
+    def get_template_info(template_name: str):
+        """Gets all the details of a template.
+        param template_name: The name of the template to retrieve.
+        return: A dictionary with all the template details.
+        example:
+        {
+            "name": "I/O",
+            "description": "Template for testing input/output functions.",
+            "tests": [
+                {
+                    "name": "test_function_1",
+                    "description": "Tests function 1 with various inputs.",
+                    "parameters": {
+                        "input1": "Description of input1",
+                        "input2": "Description of input2"
+                    },
+
+                }, 
+                ...
+        """
+        return TemplateLibrary.get_template(template_name, clean=True)
