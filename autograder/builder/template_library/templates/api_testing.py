@@ -4,6 +4,7 @@ import json
 import logging
 from autograder.builder.models.template import Template
 from autograder.builder.models.test_function import TestFunction
+from autograder.builder.models.param_description import ParamDescription
 from autograder.core.models.test_result import TestResult
 from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
 
@@ -26,10 +27,14 @@ class HealthCheckTest(TestFunction):
         return "Checks if a specific endpoint is running and returns a 200 OK status."
 
     @property
+    def required_file(self):
+        return None
+
+    @property
     def parameter_description(self):
-        return {
-            "endpoint": "The endpoint to test (e.g., '/health')."
-        }
+        return [
+            ParamDescription("endpoint", "The endpoint to test (e.g., '/health').", "string")
+        ]
 
     def __init__(self, executor: SandboxExecutor):
         self.executor = executor
@@ -84,12 +89,16 @@ class CheckResponseJsonTest(TestFunction):
         return "Checks if an endpoint's JSON response contains a specific key and value."
 
     @property
+    def required_file(self):
+        return None
+
+    @property
     def parameter_description(self):
-        return {
-            "endpoint": "The API endpoint to test (e.g., '/api/data').",
-            "expected_key": "The JSON key to check in the response.",
-            "expected_value": "The expected value for the specified key."
-        }
+        return [
+            ParamDescription("endpoint", "The API endpoint to test (e.g., '/api/data').", "string"),
+            ParamDescription("expected_key", "The JSON key to check in the response.", "string"),
+            ParamDescription("expected_value", "The expected value for the specified key.", "any")
+        ]
 
     def __init__(self, executor: SandboxExecutor):
         self.executor = executor

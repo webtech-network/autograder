@@ -3,6 +3,7 @@ import json
 
 from autograder.builder.models.template import Template
 from autograder.builder.models.test_function import TestFunction
+from autograder.builder.models.param_description import ParamDescription
 from autograder.core.models.test_result import TestResult
 from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
 
@@ -26,11 +27,15 @@ class ExpectOutputTest(TestFunction):
         return "Runs the student's program, feeds it a series of line-separated inputs, and checks if the final output is correct."
 
     @property
+    def required_file(self):
+        return None
+
+    @property
     def parameter_description(self):
-        return {
-            "inputs": "A list of strings to be sent to the program, each on a new line.",
-            "expected_output": "The single, exact string the program is expected to print to standard output."
-        }
+        return [
+            ParamDescription("inputs", "A list of strings to be sent to the program, each on a new line.", "list of strings"),
+            ParamDescription("expected_output", "The single, exact string the program is expected to print to standard output.", "string")
+        ]
 
     def __init__(self, executor: SandboxExecutor):
         self.executor = executor
