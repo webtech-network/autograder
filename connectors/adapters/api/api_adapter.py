@@ -111,7 +111,13 @@ class ApiAdapter(Port):
         print("REQUEST_CONTEXT:", request_context.get_request())
         # 1. Retrieve an instance of the template from the library
         return TemplateLibrary.get_template_info(template_name)
-        
+    
+    def get_templates(self) -> List[str]:
+        """
+        Retrieves a list of all available templates with their names
+        """
+        # 1. Retrieve an instance of the template from the library
+        return TemplateLibrary.get_all_template_names()
 
     
 
