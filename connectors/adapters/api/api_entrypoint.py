@@ -48,11 +48,11 @@ async def grade_submission_endpoint(
         template_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.) or custom for custom configuration"),
         student_name: str = Form(..., description="The name of the student"),
         student_credentials: str = Form(..., description="The credentials of the student (e.g., GitHub token)"),
-        include_feedback: bool = Form(False, description="Whether to include detailed feedback in the response"),
+        include_feedback: bool = Form(..., description="Whether to include detailed feedback in the response"),
+        criteria_json: UploadFile = File(..., description="JSON file with grading criteria (in case of custom preset)"),
         feedback_type: Optional[str] = Form("default", description="The type of feedback to provide (default or ai)"),
         custom_template: Optional[UploadFile] = File(None,description="A python file with custom tests that follows the template structure (in case of custom preset)"),
-        criteria_json: UploadFile = File(None, description="JSON file with grading criteria (in case of custom preset)"),
-        feedback_json: UploadFile = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
+        feedback_json: Optional[UploadFile] = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
         setup_json: Optional[UploadFile] = File(None, description="JSON file with commands configuration (in case of custom preset)"),
         openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
         redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
@@ -95,10 +95,16 @@ async def grade_submission_endpoint(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+
 @app.get("/template/{template_name}")
 async def get_template_info(template_name: str):
-    adapter = ApiAdapter()
-    return adapter.get_template_info(template_name.replace("_"," "))
+    try:
+        adapter = ApiAdapter()
+        return adapter.get_template_info(template_name.replace("_"," "))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
 # To run this API service:
 # uvicorn submission_api:app --host 0.0.0.0 --port 8000 --reload
