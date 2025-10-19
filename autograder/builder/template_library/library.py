@@ -23,7 +23,7 @@ class TemplateLibrary:
                 raise ValueError("Custom template content must be provided for 'custom' template type.")
             return TemplateLibrary._load_custom_template_from_content(custom_template_content)
 
-        return TemplateLibrary.library.get(template_name.lower())() if template_name.lower() in TemplateLibrary.library else None
+        return TemplateLibrary.library.get(template_name.lower())(clean) if template_name.lower() in TemplateLibrary.library else None
 
     @staticmethod
     def _load_custom_template_from_content(template_content: str):
