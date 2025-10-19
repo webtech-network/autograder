@@ -3,9 +3,19 @@ import inspect
 import tempfile
 import os
 from autograder.builder.models.template import Template
-
-
+from autograder.builder.template_library.templates.api_testing import ApiTestingTemplate
+from autograder.builder.template_library.templates.essay_grader import EssayGraderTemplate
+from autograder.builder.template_library.templates.input_output import InputOutputTemplate
+from autograder.builder.template_library.templates.web_dev import WebDevTemplate
+from typing import Dict, Any, List
 class TemplateLibrary:
+
+    library = {
+        "webdev": WebDevTemplate,
+        "api": ApiTestingTemplate,
+        "essay": EssayGraderTemplate,
+        "io": InputOutputTemplate
+    }
     @staticmethod
     def get_template(template_name: str, custom_template_content: str = None, clean=False):
         if template_name == "custom":
@@ -13,20 +23,7 @@ class TemplateLibrary:
                 raise ValueError("Custom template content must be provided for 'custom' template type.")
             return TemplateLibrary._load_custom_template_from_content(custom_template_content)
 
-        if template_name == "web dev":
-            from autograder.builder.template_library.templates.web_dev import WebDevTemplate
-            return WebDevTemplate(clean)
-        if template_name == "api":
-            from autograder.builder.template_library.templates.api_testing import ApiTestingTemplate
-            return ApiTestingTemplate(clean)
-        if template_name == "essay":
-            from autograder.builder.template_library.templates.essay_grader import EssayGraderTemplate
-            return EssayGraderTemplate(clean)
-        if template_name == "io":
-            from autograder.builder.template_library.templates.input_output import InputOutputTemplate
-            return InputOutputTemplate(clean)
-        else:
-            raise ValueError(f"Template '{template_name}' not found.")
+        return TemplateLibrary.library.get(template_name.lower())() if template_name.lower() in TemplateLibrary.library else None
 
     @staticmethod
     def _load_custom_template_from_content(template_content: str):
@@ -109,3 +106,7 @@ class TemplateLibrary:
             template_data["tests"].append(test_data)
 
         return template_data
+    
+    def get_all_template_names() -> List[str]:
+        """Returns a list of all available template names."""
+        return list(TemplateLibrary.library.keys())
