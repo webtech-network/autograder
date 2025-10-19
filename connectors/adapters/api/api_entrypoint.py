@@ -1,12 +1,16 @@
 # src/interfaces/api/submission_api.py
 import logging
+from connectors.models.autograder_request import AutograderRequest
+
+from autograder.context import request_context
+request_context.set_request(AutograderRequest.build_empty_request()) #Gambiarra maxima (eu acho)
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from connectors.models.assignment_config import AssignmentConfig
 import uvicorn
-
+from autograder.context import request_context
 from connectors.adapters.api.api_adapter import ApiAdapter
 # Initialize the FastAPI app
 app = FastAPI(
@@ -96,13 +100,22 @@ async def grade_submission_endpoint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
-@app.get("/template/{template_name}")
+@app.get("/templates/{template_name}")
 async def get_template_info(template_name: str):
     try:
         adapter = ApiAdapter()
         return adapter.get_template_info(template_name.replace("_"," "))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+    
+
+@app.get("/templates/")
+async def get_templates():
+    try:
+        adapter = ApiAdapter()
+        return adapter.get_templates()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
