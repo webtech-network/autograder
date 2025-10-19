@@ -13,7 +13,7 @@ def get_secret(secret_key : str, secret_name : str = None, region : str = "us-ea
     In 'development', it reads from local environment variables using `secret_key`.
     In 'production', it fetches from AWS Secrets Manager using all parameters.
 
-    Meant to be used for sensible info, such as passwords and API keys.
+    Meant to be used for sensitive info, such as passwords and API keys.
 
     :param secret_key: str - The key for the secret value. Used as the environment variable
                          name in development and the key in the JSON secret in production.
