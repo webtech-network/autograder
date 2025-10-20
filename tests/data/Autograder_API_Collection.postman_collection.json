@@ -1,0 +1,329 @@
+{
+  "info": {
+    "name": "Autograder API Collection",
+    "description": "Complete API collection for testing the Autograder API with various templates and scenarios",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Grade Submission - Web Dev",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "submission_files",
+              "type": "file",
+              "src": "tests/data/web_dev/index.html"
+            },
+            {
+              "key": "submission_files",
+              "type": "file",
+              "src": "tests/data/web_dev/style.css"
+            },
+            {
+              "key": "submission_files",
+              "type": "file",
+              "src": "tests/data/web_dev/script.js"
+            },
+            {
+              "key": "criteria_json",
+              "type": "file",
+              "src": "tests/data/web_dev/criteria.json"
+            },
+            {
+              "key": "feedback_json",
+              "type": "file",
+              "src": "tests/data/web_dev/feedback.json"
+            },
+            {
+              "key": "template_preset",
+              "value": "web dev",
+              "type": "text"
+            },
+            {
+              "key": "student_name",
+              "value": "John Doe",
+              "type": "text"
+            },
+            {
+              "key": "student_credentials",
+              "value": "test-token-123",
+              "type": "text"
+            },
+            {
+              "key": "include_feedback",
+              "value": "true",
+              "type": "text"
+            },
+            {
+              "key": "feedback_type",
+              "value": "default",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/grade_submission/",
+          "host": ["{{base_url}}"],
+          "path": ["grade_submission", ""]
+        },
+        "description": "Test web development template with HTML, CSS, and JavaScript files"
+      },
+      "response": []
+    },
+    {
+      "name": "Grade Submission - API Testing",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "submission_files",
+              "type": "file",
+              "src": "tests/data/api_testing/server.js"
+            },
+            {
+              "key": "submission_files",
+              "type": "file",
+              "src": "tests/data/api_testing/package.json"
+            },
+            {
+              "key": "criteria_json",
+              "type": "file",
+              "src": "tests/data/api_testing/criteria.json"
+            },
+            {
+              "key": "feedback_json",
+              "type": "file",
+              "src": "tests/data/api_testing/feedback.json"
+            },
+            {
+              "key": "setup_json",
+              "type": "file",
+              "src": "tests/data/api_testing/setup.json"
+            },
+            {
+              "key": "template_preset",
+              "value": "api",
+              "type": "text"
+            },
+            {
+              "key": "student_name",
+              "value": "Jane Smith",
+              "type": "text"
+            },
+            {
+              "key": "student_credentials",
+              "value": "test-token-456",
+              "type": "text"
+            },
+            {
+              "key": "include_feedback",
+              "value": "true",
+              "type": "text"
+            },
+            {
+              "key": "feedback_type",
+              "value": "default",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/grade_submission/",
+          "host": ["{{base_url}}"],
+          "path": ["grade_submission", ""]
+        },
+        "description": "Test API testing template with Node.js Express server"
+      },
+      "response": []
+    },
+    {
+      "name": "Grade Submission - Input/Output",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "submission_files",
+              "type": "file",
+              "src": "tests/data/input_output/calculator.py"
+            },
+            {
+              "key": "submission_files",
+              "type": "file",
+              "src": "tests/data/input_output/requirements.txt"
+            },
+            {
+              "key": "criteria_json",
+              "type": "file",
+              "src": "tests/data/input_output/criteria.json"
+            },
+            {
+              "key": "feedback_json",
+              "type": "file",
+              "src": "tests/data/input_output/feedback.json"
+            },
+            {
+              "key": "setup_json",
+              "type": "file",
+              "src": "tests/data/input_output/setup.json"
+            },
+            {
+              "key": "template_preset",
+              "value": "io",
+              "type": "text"
+            },
+            {
+              "key": "student_name",
+              "value": "Bob Johnson",
+              "type": "text"
+            },
+            {
+              "key": "student_credentials",
+              "value": "test-token-789",
+              "type": "text"
+            },
+            {
+              "key": "include_feedback",
+              "value": "true",
+              "type": "text"
+            },
+            {
+              "key": "feedback_type",
+              "value": "default",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/grade_submission/",
+          "host": ["{{base_url}}"],
+          "path": ["grade_submission", ""]
+        },
+        "description": "Test input/output template with Python calculator"
+      },
+      "response": []
+    },
+    {
+      "name": "Grade Submission - Custom Template",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "submission_files",
+              "type": "file",
+              "src": "tests/data/custom_template/main.py"
+            },
+            {
+              "key": "criteria_json",
+              "type": "file",
+              "src": "tests/data/custom_template/criteria.json"
+            },
+            {
+              "key": "feedback_json",
+              "type": "file",
+              "src": "tests/data/custom_template/feedback.json"
+            },
+            {
+              "key": "custom_template",
+              "type": "file",
+              "src": "tests/data/custom_template/custom_template.py"
+            },
+            {
+              "key": "template_preset",
+              "value": "custom",
+              "type": "text"
+            },
+            {
+              "key": "student_name",
+              "value": "Alice Williams",
+              "type": "text"
+            },
+            {
+              "key": "student_credentials",
+              "value": "test-token-101",
+              "type": "text"
+            },
+            {
+              "key": "include_feedback",
+              "value": "true",
+              "type": "text"
+            },
+            {
+              "key": "feedback_type",
+              "value": "default",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/grade_submission/",
+          "host": ["{{base_url}}"],
+          "path": ["grade_submission", ""]
+        },
+        "description": "Test custom template with custom grading logic"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Template Info - Web Dev",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/template/web_dev",
+          "host": ["{{base_url}}"],
+          "path": ["template", "web_dev"]
+        },
+        "description": "Get information about the web development template"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Template Info - API",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/template/api",
+          "host": ["{{base_url}}"],
+          "path": ["template", "api"]
+        },
+        "description": "Get information about the API testing template"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Template Info - Input/Output",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/template/io",
+          "host": ["{{base_url}}"],
+          "path": ["template", "io"]
+        },
+        "description": "Get information about the input/output template"
+      },
+      "response": []
+    }
+  ]
+}
