@@ -1,7 +1,7 @@
 # Makefile for Autograder Development
 # Simplifies common development tasks
 
-.PHONY: help install install-dev test test-cov lint format type-check security clean build docs run-api docker-build
+.PHONY: help install install-dev test test-cov lint format type-check security clean build docs run-api run-api-tests docker-build
 
 # Default target
 help:
@@ -21,6 +21,7 @@ help:
 	@echo "  make build          - Build distribution packages"
 	@echo "  make docs           - Build documentation"
 	@echo "  make run-api        - Run API server locally"
+	@echo "  make run-api-tests  - Run API integration tests (optionally specify template: web, api, io, essay, custom, all)"
 	@echo "  make docker-build   - Build Docker image"
 	@echo "  make all            - Format, lint, type-check, and test"
 
@@ -98,6 +99,29 @@ run-api:
 
 run-api-prod:
 	uvicorn connectors.adapters.api.api_entrypoint:app --host 0.0.0.0 --port 8000
+
+# API Testing
+# Usage: 
+#   make run-api-tests           - Run all API tests
+#   make run-api-tests web       - Run only web dev tests
+#   make run-api-tests api       - Run only API tests
+#   make run-api-tests io        - Run only I/O tests
+#   make run-api-tests essay     - Run only essay tests
+#   make run-api-tests custom    - Run only custom template tests
+run-api-tests:
+	@if [ -z "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
+		echo "Running all API tests..."; \
+		python test_api_requests.py --test all; \
+	else \
+		TEMPLATE=$(filter-out $@,$(MAKECMDGOALS)); \
+		echo "Running API tests for template: $$TEMPLATE"; \
+		python test_api_requests.py --test $$TEMPLATE; \
+	fi
+
+# Catch-all target to prevent "make: *** No rule to make target" errors
+# when passing template names as arguments
+%:
+	@:
 
 # Docker
 docker-build:
