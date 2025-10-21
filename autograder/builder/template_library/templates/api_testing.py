@@ -95,9 +95,9 @@ class CheckResponseJsonTest(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("endpoint", "The API endpoint to test (e.g., '/api/data').", "string"),
-            ParamDescription("expected_key", "The JSON key to check in the response.", "string"),
-            ParamDescription("expected_value", "The expected value for the specified key.", "any")
+            ParamDescription("endpoint", "The API endpoint to test (e.g., /api/data).", "string"),
+            ParamDescription("expected_key", "The JSON key to check in the response. (e.g., status)", "string"),
+            ParamDescription("expected_value", "The expected value for the specified key. (e.g., success)", "any")
         ]
 
     def __init__(self, executor: SandboxExecutor):
