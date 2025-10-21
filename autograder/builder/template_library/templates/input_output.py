@@ -24,7 +24,7 @@ class ExpectOutputTest(TestFunction):
 
     @property
     def description(self):
-        return "Runs the student's program, feeds it a series of line-separated inputs, and checks if the final output is correct."
+        return "Executa o programa do aluno, fornece uma série de entradas separadas por linha e verifica se a saída final está correta."
 
     @property
     def required_file(self):
@@ -33,8 +33,8 @@ class ExpectOutputTest(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("inputs", "A list of strings to be sent to the program, each on a new line.", "list of strings"),
-            ParamDescription("expected_output", "The single, exact string the program is expected to print to standard output.", "string")
+            ParamDescription("inputs", "Lista de strings a serem enviadas para o programa, cada uma em uma nova linha.", "list of strings"),
+            ParamDescription("expected_output", "A única stringque o programa deve imprimir na saída padrão.", "string")
         ]
 
     def __init__(self, executor: SandboxExecutor):
@@ -103,7 +103,7 @@ class InputOutputTemplate(Template):
 
     @property
     def template_description(self):
-        return "A template for grading assignments based on command-line input and output."
+        return "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."
 
     @property
     def requires_pre_executed_tree(self) -> bool:
@@ -118,7 +118,7 @@ class InputOutputTemplate(Template):
         return self.executor
 
     def __init__(self, clean=False):
-        
+
         if not clean:
             # Prepare the environment by running setup commands
             self.executor = SandboxExecutor.start()
@@ -263,5 +263,3 @@ if __name__ == "__main__":
         if template:
             print("\n--- 4. Cleaning up sandbox environment ---")
             template.stop()
-
-
