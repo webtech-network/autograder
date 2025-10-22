@@ -34,7 +34,7 @@ class ExpectOutputTest(TestFunction):
     def parameter_description(self):
         return [
             ParamDescription("inputs", "Lista de strings a serem enviadas para o programa, cada uma em uma nova linha.", "list of strings"),
-            ParamDescription("expected_output", "A única stringque o programa deve imprimir na saída padrão.", "string")
+            ParamDescription("expected_output", "A única string que o programa deve imprimir na saída padrão.", "string")
         ]
 
     def __init__(self, executor: SandboxExecutor):
