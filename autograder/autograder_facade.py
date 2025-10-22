@@ -210,413 +210,167 @@ class Autograder:
             return AutograderResponse(status="fail", final_score=0.0, feedback=error_message)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    # Example usage (this would normally come from an external request)
-    criteria_json = {
-        "test_library": "essay ai grader",
-        "base": {
-            "weight": 100,
-            "subjects": {
-                "foundations": {
-                    "weight": 60,
-                    "tests": [
-                        {
-                            "name": "thesis_statement"
-                        },
-                        {
-                            "name": "clarity_and_cohesion"
-                        },
-                        {
-                            "name": "grammar_and_spelling"
-                        }
-                    ]
-                },
-                "prompt_adherence": {
-                    "weight": 40,
-                    "tests": [
-                        {
-                            "name": "adherence_to_prompt",
-                            "calls": [
-                                ["Analyze the primary causes of the Industrial Revolution and its impact on 19th-century society."]
-                            ]
-                        }
-                    ]
-                }
-            }
-        },
-        "bonus": {
-            "weight": 30,
-            "subjects": {
-                "rhetorical_skill": {
-                    "weight": 70,
-                    "tests": [
-                        {
-                            "name": "counterargument_handling"
-                        },
-                        {
-                            "name": "vocabulary_and_diction"
-                        },
-                        {
-                            "name": "sentence_structure_variety"
-                        }
-                    ]
-                },
-                "deeper_analysis": {
-                    "weight": 30,
-                    "tests": [
-                        {
-                            "name": "topic_connection",
-                            "calls": [
-                                ["technological innovation", "social inequality"]
-                            ]
-                        }
-                    ]
-                }
-            }
-        },
-        "penalty": {
-            "weight": 25,
-            "subjects": {
-                "logical_integrity": {
-                    "weight": 100,
-                    "tests": [
-                        {
-                            "name": "logical_fallacy_check"
-                        },
-                        {
-                            "name": "bias_detection"
-                        },
-                        {
-                            "name": "originality_and_plagiarism"
-                        }
-                    ]
-                }
-            }
-        }
-    }
-    submission_files = {"essay.txt": """Artificial intelligence (AI) is no longer a concept confined to science fiction; it is a transformative force actively reshaping industries and redefining the nature of work. Its integration into the modern workforce presents a profound duality: on one hand, it offers unprecedented opportunities for productivity and innovation, while on the other, it poses significant challenges related to job displacement and economic inequality. Navigating this transition successfully requires a proactive and nuanced approach from policymakers, businesses, and individuals alike.
-    The primary benefit of AI in the workplace is its capacity to augment human potential and drive efficiency. AI-powered systems can analyze vast datasets in seconds, automating routine cognitive and manual tasks, which frees human workers to focus on more complex, creative, and strategic endeavors. For instance, in medicine, AI algorithms assist radiologists in detecting tumors with greater accuracy, while in finance, they identify fraudulent transactions far more effectively than any human team. This collaboration between human and machine not only boosts output but also creates new roles centered around AI development, ethics, and system maintenance—jobs that did not exist a decade ago.
-    However, this technological advancement casts a significant shadow of disruption. The same automation that drives efficiency also leads to job displacement, particularly for roles characterized by repetitive tasks. Assembly line workers, data entry clerks, and even some paralegal roles face a high risk of obsolescence. This creates a widening skills gap, where demand for high-level technical skills soars while demand for traditional skills plummets. Without robust mechanisms for reskilling and upskilling the existing workforce, this gap threatens to exacerbate socio-economic inequality, creating a divide between those who can command AI and those who are displaced by it. There are many gramatical errors in this sentence, for testing purposes.
-    The most critical challenge, therefore, is not to halt technological progress but to manage its societal impact. A multi-pronged strategy is essential. Governments and educational institutions must collaborate to reform curricula, emphasizing critical thinking, digital literacy, and lifelong learning. Furthermore, corporations have a responsibility to invest in their employees through continuous training programs. Finally, strengthening social safety nets, perhaps through concepts like Universal Basic Income (UBI) or enhanced unemployment benefits, may be necessary to support individuals as they navigate this volatile transition period.
-    In conclusion, AI is a double-edged sword. Its potential to enhance productivity and create new avenues for growth is undeniable, but so are the risks of displacement and inequality. The future of work will not be a battle of humans versus machines, but rather a story of adaptation. By investing in education, promoting equitable policies, and fostering a culture of continuous learning, we can harness the power of AI to build a more prosperous and inclusive workforce for all."""}
+    if __name__ == "__main__":
+        logging.basicConfig(level=logging.INFO)
 
+        # 1. Define submission files for web dev
+        submission_files = {
+            "index.html": """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Test Page</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <header>
+            <h1>Welcome</h1>
+        </header>
+        <main>
+            <p>This is a paragraph.</p>
+            <img src="image.jpg" alt="A descriptive alt text">
+        </main>
+        <footer>
+            <p>&copy; 2025</p>
+        </footer>
+    </body>
+    </html>
+            """,
+            "style.css": """
+    body {
+        font-family: sans-serif;
+        margin: 20px;
+    }
+    header {
+        background-color: #f0f0f0;
+        padding: 1em;
+    }
+            """
+        }
 
+        # 2. Define criteria_json for web dev
+        criteria_json = {
+            "test_library": "web_dev",  # Match the template name
+            "base": {
+                "weight": 100,
+                "subjects": {
+                    "html_structure": {
+                        "weight": 70,
+                        "tests": [
+                            {
+                                "file": "index.html",
+                                "name": "has_tag",
+                                "calls": [
+                                    ["head", 1],
+                                    ["body", 1],
+                                    ["header", 1],
+                                    ["main", 1],
+                                    ["footer", 1]
+                                ]
+                            },
+                            {
+                                "file": "index.html",
+                                "name": "check_css_linked"
+                            }
+                        ]
+                    },
+                    "accessibility": {
+                        "weight": 30,
+                        "tests": [
+                            {
+                                "file": "index.html",
+                                "name": "check_all_images_have_alt"
+                            }
+                        ]
+                    }
+                }
+            },
+            "bonus": {
+                "weight": 20,  # Example bonus weight
+                "subjects": {
+                    "best_practices": {
+                        "weight": 100,
+                        "tests": [
+                            {
+                                "file": "index.html",
+                                "name": "uses_semantic_tags"
+                            }
+                        ]
+                    }
+                }
+            },
+            "penalty": {
+                "weight": 10,  # Example penalty weight
+                "subjects": {
+                    "bad_practices": {
+                        "weight": 100,
+                        "tests": [
+                            {
+                                "file": "index.html",
+                                "name": "check_no_inline_styles"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
 
-    feedback_json = {
-  "test_library": "essay",
-  "base": {
-    "weight": 100,
-    "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "html": {
-          "weight": 60,
-          "subjects": {
-            "structure": {
-              "weight": 40,
-              "tests": [
-                {
-                  "file": "index.html",
-                  "name": "has_tag",
-                  "calls": [
-                    ["body", 1],
-                    ["header", 1],
-                    ["nav", 1],
-                    ["main", 1],
-                    ["article", 4],
-                    ["img", 5],
-                    ["footer", 1],
-                    ["div", 1],
-                    ["form", 1],
-                    ["input", 1],
-                    ["button", 1]
-                  ]
-                },
-                {
-                  "file": "index.html",
-                  "name": "has_attribute",
-                  "calls": [
-                    ["class", 2]
-                  ]
+        # 3. Define feedback_json (can be simple or complex)
+        feedback_json = {
+            "general": {
+                "report_title": "Web Dev Assignment Report",
+                "show_score": True
+            },
+            "default": {
+                "category_headers": {
+                    "base": "✅ Core HTML/CSS",
+                    "bonus": "⭐ Best Practices Bonus",
+                    "penalty": "🚨 Points Deducted"
                 }
-              ]
-            },
-            "link": {
-              "weight": 20,
-              "tests": [
-                {
-                  "file": "index.html",
-                  "name": "check_css_linked"
-                },
-                {
-                  "file": "index.html",
-                  "name": "check_internal_links_to_article",
-                  "calls": [
-                    [4]
-                  ]
-                }
-              ]
             }
-          }
-        },
-        "css": {
-          "weight": 40,
-          "subjects": {
-            "responsivity": {
-              "weight": 50,
-              "tests": [
-                {
-                  "file": "css/styles.css",
-                  "name": "uses_relative_units"
-                },
-                {
-                  "file": "css/styles.css",
-                  "name": "check_media_queries"
-                },
-                {
-                  "file": "css/styles.css",
-                  "name": "check_flexbox_usage"
-                }
-              ]
-            },
-            "style": {
-              "weight": 50,
-              "tests": [
-                {
-                  "file": "css/styles.css",
-                  "name": "has_style",
-                  "calls": [
-                    ["font-size", 1],
-                    ["font-family", 1],
-                    ["text-align", 1],
-                    ["display", 1],
-                    ["position", 1],
-                    ["margin", 1],
-                    ["padding", 1]
-                  ]
-                }
-              ]
-            }
-          }
         }
-    }
-      },
-      "semana_6": {
-        "weight": 60,
-        "subjects": {
-        "bootstrap_fundamentals": {
-            "weight": 70,
-            "tests": [
-              {
-                "file": "index.html",
-                "name": "check_bootstrap_linked"
-              },
-              {
-                "file": "index.html",
-                "name": "check_internal_links",
-                "calls": [
-                  [3]
-                ]
-              },
-              {
-                "file": "index.html",
-                "name": "has_class",
-                "calls": [
-                  [["container", "container-fluid"], 1],
-                  [["row"], 1],
-                  [["col-*"], 3],
-                  [["text-center"], 1],
-                  [["d-flex", "d-*-flex"], 1],
-                  [["bg-*"], 1]
-                ]
-              }
-            ]
-        },
-        "css_and_docs": {
-            "weight": 30,
-            "tests": [
-              {
-                "file": "css/styles.css",
-                "name": "check_media_queries"
-              },
-              {
-                "file": "css/styles.css",
-                "name": "has_style",
-                "calls": [
-                  ["margin", 1],
-                  ["padding", 1],
-                  ["width", 1]
-                ]
-              },
-              {
-                "file": "all",
-                "name": "check_project_structure",
-                "calls": [
-                  ["README.md"]
-                ]
-              }
-            ]
+
+        # 4. Define setup_json with file checks
+        setup_json = {
+            "file_checks": [
+                "index.html",
+                "style.css"
+            ],
+            "commands": []  # No commands needed for static web dev
         }
-      }
-    }
-    }
-  },
-  "bonus": {
-    "weight": 40,
-    "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "accessibility": {
-          "weight": 20,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_all_images_have_alt"
-            }
-          ]
-        },
-        "head_detail": {
-          "weight": 80,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_head_details",
-              "calls": [
-                ["title"],
-                ["meta"]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "check_attribute_and_value",
-              "calls": [
-                ["meta", "charset", "UTF-8"],
-                ["meta", "name", "viewport"],
-                ["meta", "name", "description"],
-                ["meta", "name", "author"],
-                ["meta", "name", "keywords"]
-              ]
-            }
-          ]
-        }
-    }
-      },
-      "semana_6": {
-        "weight": 60,
-        "subjects": {
-        "bootstrap_components": {
-            "weight": 60,
-            "tests": [
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["card"], 1],
-                      [["card-body"], 1],
-                      [["card-title"], 1],
-                      [["navbar"], 1],
-                      [["navbar-nav"], 1],
-                      [["breadcrumb"], 1],
-                      [["breadcrumb-item"], 1],
-                      [["carousel"], 1],
-                      [["slide"], 1],
-                      [["carousel-item"], 1]
-                    ]
-                 }
-            ]
-        },
-        "formatting_classes": {
-            "weight": 40,
-            "tests": [
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["mt-*", "ms-*", "me-*", "mb-*", "pt-*", "ps-*", "pe-*", "pb-*", "gap-*"], 8]
-                    ]
-                 },
-                 {
-                    "file": "index.html",
-                    "name": "has_class",
-                    "calls": [
-                      [["w-*", "mh-*", "mw-*", "vw-*", "vh-*"], 4]
-                    ]
-                 }
-            ]
-        }
-    }
-      }
-    }
-  },
-  "penalty": {
-    "weight": 50,
-    "subjects": {
-      "semana_5": {
-        "weight": 40,
-        "subjects": {
-        "html": {
-          "weight": 50,
-          "tests": [
-            {
-              "file": "index.html",
-              "name": "check_bootstrap_usage"
-            },
-            {
-              "file": "css/styles.css",
-              "name": "check_id_selector_over_usage",
-              "calls": [
-                [2]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "has_tag",
-              "calls": [
-                ["script", 1]
-              ]
-            },
-            {
-              "file": "index.html",
-              "name": "check_html_direct_children"
-            },
-            {
-              "file": "index.html",
-              "name": "check_tag_not_inside",
-              "calls": [
-                ["header", "main"],
-                ["footer", "main"]
-              ]
-            }
-          ]
-        },
-        "project_structure": {
-          "weight": 50,
-          "tests": [
-            {
-              "file": "all",
-              "name": "check_dir_exists",
-              "calls": [
-                ["css"],
-                ["imgs"]
-              ]
-            },
-            {
-              "file": "all",
-              "name": "check_project_structure",
-              "calls": [
-                ["css/styles.css"]
-              ]
-            }
-          ]
-        }
-    }
-      }
-    }
-  }
-}
-    config = AssignmentConfig(criteria_json,feedback_json,setup=None,template="essay")
-    request = AutograderRequest(submission_files,config,"Arthur","123","default")
-    facade = Autograder.grade(request)
-    print(facade.feedback)
+
+        # 5. Create AssignmentConfig using the web dev template
+        config = AssignmentConfig(
+            criteria=criteria_json,
+            feedback=feedback_json,
+            setup=setup_json,
+            template="web dev"  # Use the web dev template
+        )
+
+        # 6. Create AutograderRequest
+        request = AutograderRequest(
+            submission_files=submission_files,
+            assignment_config=config,
+            student_name="Local Tester",
+            student_credentials="local_tester_01",  # Credentials for local testing
+            include_feedback=True,  # Request feedback
+            feedback_mode="default"  # Use default feedback for simplicity
+        )
+
+        # 7. Run the grading process
+        logger = logging.getLogger(__name__)
+        logger.info("--- Running Local Web Dev Test ---")
+        facade_response = Autograder.grade(request)
+
+        # 8. Print the results
+        logger.info("--- Grading Complete ---")
+        print(f"Status: {facade_response.status}")
+        print(f"Final Score: {facade_response.final_score}")
+        print("\n--- Feedback ---")
+        print(facade_response.feedback)
+        print("\n--- Test Report ---")
+        if facade_response.test_report:
+            for test in facade_response.test_report:
+                print(f"- {test.subject_name}: {test.test_name} -> Score: {test.score}, Report: {test.report}")
+        else:
+            print("No test report generated.")
