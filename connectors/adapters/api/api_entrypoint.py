@@ -1,7 +1,7 @@
 # src/interfaces/api/submission_api.py
 import logging
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from connectors.models.assignment_config import AssignmentConfig
@@ -96,15 +96,39 @@ async def grade_submission_endpoint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
-@app.get("/template/{template_name}")
-async def get_template_info(template_name: str):
+@app.get("/templates/{template_name}")
+async def get_template_info(
+    template_name: str,
+    details: bool = Query(False, description="Return only template details (name, description)"),
+    summary: bool = Query(False, description="Return only template details and test names"),
+):
     try:
         adapter = ApiAdapter()
-        return adapter.get_template_info(template_name.replace("_"," "))
+        template = adapter.get_template_info(template_name.replace("_", " "))
+
+        # 1 Return only template details
+        if details:
+            return {
+                "template_name": template["template_name"],
+                "template_description": template["template_description"]
+            }
+
+        # 2 Return template details and test names
+        if summary:
+            return {
+                "template_name": template["template_name"],
+                "template_description": template["template_description"],
+                "test_names": [t["name"] for t in template.get("tests", [])]
+            }
+
+        # 3 Return full template
+        return template
+
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+
 
 # To run this API service:
 # uvicorn submission_api:app --host 0.0.0.0 --port 8000 --reload
