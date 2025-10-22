@@ -21,7 +21,7 @@ class Autograder:
     @staticmethod
     def _pre_flight_step():
          
-         if request_context.get_request().assignment_config.setup:
+         if request_context.get_request() and request_context.get_request().assignment_config.setup:
                 logger.info("Running pre-flight setup commands")
                 impediments = PreFlight.run()
                 if impediments:
@@ -71,22 +71,30 @@ class Autograder:
             criteria_tree.print_pre_executed_tree() # print tree again to show result injection from ai executor
 
     @staticmethod
-    def _initialize_grader():
-         grader = Grader(criteria_tree, test_template)
+    def _start_and_run_grader():
+         autograder_request = request_context.get_request()
+         criteria_tree = request_context.get_request().criteria_tree
+         test_template = request_context.get_request().test_template
+
+  
+
+     
 
     @staticmethod
-    def _run_grading():
-        logger.debug(f"Submission files: {list(autograder_request.submission_files.keys())}")
-        result = grader.run()
-
-    @staticmethod()
     def _setup_feedback_pref():
         feedback = FeedbackPreferences.from_dict()
 
-    @staticmethod()
+    @staticmethod
     def create_feedback_report():
+       
+        autograder_request = request_context.get_request()
+        result = request_context.get_request().result
+        feedback = request_context.get_request().feedback_preferences
+        test_template = request_context.get_request().test_template
+
         reporter = None
         feedback_mode = autograder_request.feedback_mode
+        
 
         if feedback_mode == "default":
             logger.info("Creating default reporter")
@@ -126,6 +134,7 @@ class Autograder:
 
     @staticmethod 
     def _generate_feedback():
+        reporter = request_context.get_request().reporter
         feedback_report = reporter.generate_feedback()
 
 
@@ -162,7 +171,7 @@ class Autograder:
 
             # Step 4: Initialize grader
             logger.info("Initializing grader with criteria tree and test template")
-            Autograder._initialize_grader()
+            Autograder._start_and_run_grader()
             logger.debug(f"Grader initialized for student: {autograder_request.student_name}")
 
             # Step 5: Run grading
