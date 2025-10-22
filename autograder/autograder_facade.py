@@ -14,25 +14,31 @@ from autograder.builder.template_library.library import TemplateLibrary
 
 from autograder.builder.pre_flight import PreFlight
 
+logger = logging.getLogger(__name__)
+
 class Autograder:
     
     @staticmethod
     def _pre_flight_step():
-         if autograder_request.assignment_config.setup:
+         
+         if request_context.get_request().assignment_config.setup:
                 logger.info("Running pre-flight setup commands")
                 impediments = PreFlight.run()
                 if impediments:
                      error_messages = [impediment['message'] for impediment in impediments]
                      logger.error(f"Pre-flight checks failed with errors: {error_messages}")
                      return AutograderResponse("fail", 0.0, "\n".join(error_messages))
+                
+         logger.info("Pre-flight setup completed with no impediments")
       
 
     @staticmethod
     def _import_template_test():
-        template_name = autograder_request.assignment_config.template
+        template_name = request_context.get_request().assignment_config.template
+        
         if template_name == "custom":
             logger.info(f"Loading custom test template provided!")
-            test_template = TemplateLibrary.get_template(template_name,autograder_request.assignment_config.custom_template_str)
+            test_template = TemplateLibrary.get_template(template_name,request_context.get_request().assignment_config.custom_template_str)
         else:
             logger.info(f"Loading test template: '{template_name}'")
             test_template = TemplateLibrary.get_template(template_name)
@@ -40,9 +46,15 @@ class Autograder:
             logger.error(f"Template '{template_name}' not found in TemplateLibrary")
             raise ValueError(f"Unsupported template: {template_name}")
         
+        logger.info(f"Test template '{test_template.template_name}' instantiated successfully")
+        
 
     @staticmethod
     def _build_criteria_step():
+        
+        autograder_request = request_context.get_request()
+        test_template = request_context.get_request().assignment_config.template
+
         logger.debug(f"Criteria configuration: {autograder_request.assignment_config.criteria}")
         if test_template.requires_pre_executed_tree:
             logger.info("Template requires pre-executed criteria tree.")
@@ -120,7 +132,6 @@ class Autograder:
    
     @staticmethod
     def grade(autograder_request: AutograderRequest):
-        logger = logging.getLogger(__name__)
         logger.info("Starting autograder process")
 
         # Set the request in the global context at the beginning of the process
@@ -133,13 +144,13 @@ class Autograder:
         try:
             
             # Step 1: Handle Pre-flight checks if setup is defined
-            if autograder_request.assignment_conig.setup:
+            if autograder_request.assignment_config.setup:
                 Autograder._pre_flight_step()
-                logger.info("Pre-flight setup completed with no impediments")
+               
               
             # Step 2: Get test template
             Autograder._import_template_test()
-            logger.info(f"Test template '{test_template.template_name}' instantiated successfully")
+        
 
             # Step 3: Build criteria tree
             logger.info("Building criteria tree from assignment configuration:")
