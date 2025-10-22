@@ -95,7 +95,7 @@ class CheckResponseJsonTest(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("endpoint", "O endpoint da API a ser testado (ex, '/api/data').", "string"),
+            ParamDescription("endpoint", "O endpoint da API a ser testado (ex: '/api/data').", "string"),
             ParamDescription("expected_key", "A chave JSON que vai verificar a resposta.", "string"),
             ParamDescription("expected_value", "O valor esperado para a chave especificada.", "any")
         ]
