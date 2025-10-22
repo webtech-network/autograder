@@ -33,7 +33,7 @@ class HealthCheckTest(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("endpoint", "O endpoint a ser testado (ex, '/health').", "string")
+            ParamDescription("endpoint", "O endpoint a ser testado (ex: '/health').", "string")
         ]
 
     def __init__(self, executor: SandboxExecutor):
