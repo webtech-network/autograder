@@ -86,7 +86,7 @@ class CheckResponseJsonTest(TestFunction):
 
     @property
     def description(self):
-        return "Verifica se a resposta em JSON de um endpoint possui a chave e valor especificos."
+        return "Verifica se a resposta em JSON de um endpoint possui a chave e valor específicos."
 
     @property
     def required_file(self):
