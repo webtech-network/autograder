@@ -106,14 +106,14 @@ async def get_template_info(
         adapter = ApiAdapter()
         template = adapter.get_template_info(template_name.replace("_", " "))
 
-        # 1 Return only template details
+        # 1. Return only template details
         if details:
             return {
                 "template_name": template["template_name"],
                 "template_description": template["template_description"]
             }
 
-        # 2 Return template details and test names
+        # 2. Return template details and test names
         if summary:
             return {
                 "template_name": template["template_name"],
@@ -121,7 +121,7 @@ async def get_template_info(
                 "test_names": [t["name"] for t in template.get("tests", [])]
             }
 
-        # 3 Return full template
+        # 3. Return full template
         return template
 
     except ValueError as e:
