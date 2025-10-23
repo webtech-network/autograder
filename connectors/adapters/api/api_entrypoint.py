@@ -99,29 +99,46 @@ async def grade_submission_endpoint(
 @app.get("/templates/{template_name}")
 async def get_template_info(
     template_name: str,
-    details: bool = Query(False, description="Return only template details (name, description)"),
-    summary: bool = Query(False, description="Return only template details and test names"),
+    details_level: str = Query(
+        None,
+        description="Level of detail: 'summary', 'test_names'"
+    ),
+    test_name: str = Query(
+        None,
+        description="Return full details for a specific test"
+    ),
 ):
     try:
         adapter = ApiAdapter()
         template = adapter.get_template_info(template_name.replace("_", " "))
 
-        # 1. Return only template details
-        if details:
+        # Return full details of a specific test
+        if test_name:
+            matching_test = None
+            for t in template.get("tests", []):
+                if t["name"] == test_name:
+                    matching_test = t
+                    break
+            if not matching_test:
+                raise ValueError(f"Test '{test_name}' not found in template '{template_name}'")
+            return matching_test
+
+        # Return only template details 
+        if details_level == "summary":
             return {
-                "template_name": template["template_name"],
-                "template_description": template["template_description"]
+                "template_name": template.get("template_name"),
+                "template_description": template.get("template_description")
             }
 
-        # 2. Return template details and test names
-        if summary:
-            return {
-                "template_name": template["template_name"],
-                "template_description": template["template_description"],
-                "test_names": [t["name"] for t in template.get("tests", [])]
-            }
+        # Return only test names
+        if details_level == "test_names":
+            tests_list = [
+                {"name": t["name"]}
+                for t in template.get("tests", [])
+            ]
+            return {"tests": tests_list}
 
-        # 3. Return full template
+        # Return full template
         return template
 
     except ValueError as e:
