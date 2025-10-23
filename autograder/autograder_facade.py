@@ -28,7 +28,7 @@ class Autograder:
                      error_messages = [impediment['message'] for impediment in impediments]
                      error_text = "\n".join(error_messages)
                      logger.error(f"Pre-flight checks failed with errors: {error_messages}")
-                     raise ValueError(error_text)
+                     raise RuntimeError(error_text)
                 
          logger.info("Pre-flight setup completed with no impediments")
          
@@ -36,11 +36,11 @@ class Autograder:
 
     @staticmethod
     def _import_template_step():
-        
-        template_name = request_context.get_request().assignment_config.template
+        req = request_context.get_request()
+        template_name = req.assignment_config.template
         if template_name == "custom":
             logger.info(f"Loading custom test template provided!")
-            test_template = TemplateLibrary.get_template(template_name,request_context.get_request().assignment_config.custom_template_str)
+            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template_str)
         else:
             logger.info(f"Loading test template: '{template_name}'")
             test_template = TemplateLibrary.get_template(template_name)
@@ -49,16 +49,16 @@ class Autograder:
             raise ValueError(f"Unsupported template: {template_name}")
         
         logger.info(f"Test template '{test_template.template_name}' instantiated successfully")
-        request_context.get_request().test_template = test_template
+        req.test_template = test_template
         return test_template
         
 
     @staticmethod
     def _build_criteria_step():
-        
-        test_template = request_context.get_request().test_template
+        req = request_context.get_request()
+        test_template = req.test_template
 
-        logger.debug(f"Criteria configuration: {request_context.get_request().assignment_config.criteria}")
+        logger.debug(f"Criteria configuration: {req.assignment_config.criteria}")
 
         if test_template.requires_pre_executed_tree:
             logger.info("Template requires pre-executed criteria tree.")
@@ -67,43 +67,55 @@ class Autograder:
         else:
             logger.info("Template does not require pre-executed criteria tree.")
             criteria_tree = CriteriaTree.build_non_executed_tree()
+
+        test_template.stop()
+        criteria_tree.print_pre_executed_tree()
+        logger.info("Criteria tree built successfully")
         
-        request_context.get_request().criteria_tree = criteria_tree
+
+        
+        req.criteria_tree = criteria_tree
         return criteria_tree
 
     @staticmethod
     def _start_and_run_grader():
-        criteria_tree = request_context.get_request().criteria_tree
-        test_template = request_context.get_request().test_template
-        submission_files = request_context.get_request().submission_files
+        req = request_context.get_request()
+        criteria_tree = req.criteria_tree
+        test_template = req.test_template
+       
 
         logger.info("Initializing grader with criteria tree and test template")
         grader = Grader(criteria_tree, test_template)
+        logger.debug(f"Grader initialized for student: {req.student_name}")
 
-        student_name = request_context.get_request().student_name
-        logger.info(f"Running grading process for student: {student_name}")
-        result = grader.grade(submission_files)
+      
+        logger.info(f"Running grading process")
+        logger.debug(f"Submission files: {list(req.submission_files.keys())}")
 
-        request_context.get_request().result = result
+        result = grader.run()
+
         logger.info(f"Grading completed. Final score: {result.final_score}")
+        req.result = result
 
         return result
 
     @staticmethod
     def _setup_feedback_pref():
-        feedback_dict = request_context.get_request().assignment_config.feedback
-        feedback = FeedbackPreferences(feedback_dict)
-        request_context.get_request().feedback_preferences = feedback
+        req = request_context.get_request()
+
+        feedback = FeedbackPreferences.from_dict()
+        req.feedback_preferences = feedback
         return feedback
 
     @staticmethod
     def create_feedback_report():
 
-        autograder_request = request_context.get_request()
-        result = request_context.get_request().result
-        feedback = request_context.get_request().feedback_preferences
-        test_template = request_context.get_request().test_template
-        feedback_mode = request_context.get_request().feedback_mode
+        req = request_context.get_request()
+        result = req.result
+        feedback = req.feedback_preferences
+        test_template = req.test_template
+        feedback_mode = req.feedback_mode
+        
         
         if feedback_mode == "default":
             logger.info("Creating default reporter")
@@ -114,7 +126,7 @@ class Autograder:
             logger.info("Creating AI reporter")
 
             if not all(
-                    [autograder_request.openai_key, autograder_request.redis_url, autograder_request.redis_token]):
+                    [req.openai_key,req.redis_url, req.redis_token]):
                 error_msg = "OpenAI key, Redis URL, and Redis token are required for AI feedback mode."
                 logger.error(error_msg)
                 raise ValueError(error_msg)
@@ -122,8 +134,8 @@ class Autograder:
             logger.info("All AI requirements validated successfully")
 
                     # Setup Redis driver
-            driver = Driver.create(request_context.get_request().redis_token, request_context.get_request().redis_url)
-            student_credentials = request_context.get_request().student_credentials
+            driver = Driver.create(req.redis_token, req.redis_url)
+            student_credentials = req.student_credentials
 
 
             if not driver.token_exists(student_credentials):
@@ -135,19 +147,20 @@ class Autograder:
                 reporter = Reporter.create_ai_reporter(result,feedback, test_template, quota)
             else:
                 logger.warning("Quota exceeded for student, falling back to default feedback.")
-                reporter = Reporter.create_default_reporter(result, feedback)
+                reporter = Reporter.create_default_reporter(result, feedback,test_template)
 
         else:
                 raise ValueError(f"Unsupported feedback mode: {feedback_mode}")
         
-        request_context.get_request().reporter = reporter
+        req.reporter = reporter
         return reporter
 
     @staticmethod 
     def _generate_feedback():
-        reporter = request_context.get_request().reporter
+        req = request_context.get_request()
+        reporter = req.reporter
         feedback_report = reporter.generate_feedback()
-        request_context.get_request().feedback_report = feedback_report
+        req.feedback_report = feedback_report
         return feedback_report
 
     @staticmethod
@@ -176,7 +189,7 @@ class Autograder:
             # Step 3: Build criteria tree
             logger.info("Building criteria tree from assignment configuration:")
             Autograder._build_criteria_step()
-            logger.info("Criteria tree built successfully")
+            
 
             # Step 4: Initialize and run grader
             logger.info("Starting grading process")
