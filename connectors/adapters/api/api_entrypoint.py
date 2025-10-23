@@ -114,16 +114,15 @@ async def get_template_info(
 
         # Return full details of a specific test
         if test_name:
-            matching_test = None
-            for t in template.get("tests", []):
-                if t["name"] == test_name:
-                    matching_test = t
-                    break
+            matching_test = next(
+                (t for t in template.get("tests", []) if t["name"] == test_name),
+                None
+            )
             if not matching_test:
                 raise ValueError(f"Test '{test_name}' not found in template '{template_name}'")
             return matching_test
 
-        # Return only template details 
+        # Return only template details
         if details_level == "summary":
             return {
                 "template_name": template.get("template_name"),
