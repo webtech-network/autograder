@@ -1,9 +1,11 @@
 import logging
 
+from autograder.builder.models.template import Template
 from autograder.context import request_context
 from autograder.core.grading.grader import Grader
 from autograder.core.models.autograder_response import AutograderResponse
 from autograder.core.models.feedback_preferences import FeedbackPreferences
+from autograder.core.models.result import Result
 from autograder.core.report.reporter_factory import Reporter
 from autograder.core.utils.upstash_driver import Driver
 from connectors.models.assignment_config import AssignmentConfig
@@ -17,7 +19,11 @@ from autograder.builder.pre_flight import PreFlight
 logger = logging.getLogger(__name__)
 
 class Autograder:
-    
+
+    # Static member that's accessible by all methods
+    selected_template : Template = None
+    feedback_preferences: FeedbackPreferences = None
+
     @staticmethod
     def _pre_flight_step():
         
@@ -49,14 +55,13 @@ class Autograder:
             raise ValueError(f"Unsupported template: {template_name}")
         
         logger.info(f"Test template '{test_template.template_name}' instantiated successfully")
-        req.test_template = test_template
-        return test_template
+        Autograder.selected_template = test_template
         
 
     @staticmethod
     def _build_criteria_step():
         req = request_context.get_request()
-        test_template = req.test_template
+        test_template = Autograder.selected_template
 
         logger.debug(f"Criteria configuration: {req.assignment_config.criteria}")
 
@@ -81,7 +86,7 @@ class Autograder:
     def _start_and_run_grader():
         req = request_context.get_request()
         criteria_tree = req.criteria_tree
-        test_template = req.test_template
+        test_template = Autograder.selected_template
        
 
         logger.info("Initializing grader with criteria tree and test template")
@@ -95,7 +100,6 @@ class Autograder:
         result = grader.run()
 
         logger.info(f"Grading completed. Final score: {result.final_score}")
-        req.result = result
 
         return result
 
@@ -104,22 +108,20 @@ class Autograder:
         req = request_context.get_request()
 
         feedback = FeedbackPreferences.from_dict()
-        req.feedback_preferences = feedback
-        return feedback
+        Autograder.feedback_preferences = feedback
 
     @staticmethod
-    def create_feedback_report():
+    def create_feedback_report(result: Result):
 
         req = request_context.get_request()
-        result = req.result
-        feedback = req.feedback_preferences
-        test_template = req.test_template
+        template = Autograder.selected_template
+        feedback = Autograder.feedback_preferences
         feedback_mode = req.feedback_mode
         
         
         if feedback_mode == "default":
             logger.info("Creating default reporter")
-            reporter = Reporter.create_default_reporter(result, feedback)
+            reporter = Reporter.create_default_reporter(result, feedback,template)
             logger.info("Default reporter created successfully")
 
         elif feedback_mode == "ai":
@@ -144,10 +146,10 @@ class Autograder:
             if driver.decrement_token_quota(student_credentials):
                 quota = driver.get_token_quota(student_credentials)
                 logger.info(f"Quota check passed. Remaining quota: {quota}")
-                reporter = Reporter.create_ai_reporter(result,feedback, test_template, quota)
+                reporter = Reporter.create_ai_reporter(result,feedback, template, quota)
             else:
                 logger.warning("Quota exceeded for student, falling back to default feedback.")
-                reporter = Reporter.create_default_reporter(result, feedback,test_template)
+                reporter = Reporter.create_default_reporter(result, feedback,template)
 
         else:
                 raise ValueError(f"Unsupported feedback mode: {feedback_mode}")
@@ -205,7 +207,7 @@ class Autograder:
 
                 # Step 6: Create reporter based on feedback mode
                 logger.info("Creating feedback reporter")
-                Autograder.create_feedback_report()
+                Autograder.create_feedback_report(result)
 
                 # Step 7: Generate feedback
                 logger.info("Generating feedback report")
