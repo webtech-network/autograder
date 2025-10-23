@@ -25,6 +25,68 @@ class Autograder:
     feedback_preferences: FeedbackPreferences = None
 
     @staticmethod
+    def grade(autograder_request: AutograderRequest):
+        logger.info("Starting autograder process")
+
+        # Set the request in the global context at the beginning of the process
+        request_context.set_request(autograder_request)
+        if autograder_request.openai_key:
+            logger.info("OpenAI key provided, AI feedback mode may be used")
+            logger.info("Setting environment variable for OpenAI key")
+            import os
+            os.environ["OPENAI_API_KEY"] = autograder_request.openai_key
+        try:
+
+            # Step 1: Handle Pre-flight checks if setup is defined
+            if autograder_request.assignment_config.setup:
+                Autograder._pre_flight_step()
+
+            # Step 2: Get test template
+            logger.info("Importing test template")
+            Autograder._import_template_step()
+
+            # Step 3: Build criteria tree
+            logger.info("Building criteria tree from assignment configuration:")
+            Autograder._build_criteria_step()
+
+            # Step 4: Initialize and run grader
+            logger.info("Starting grading process")
+            result = Autograder._start_and_run_grader()
+            logger.info(f"Grading completed. Final score: {result.final_score}")
+
+            if autograder_request.include_feedback:
+                # Step 5: Setup feedback preferences
+                logger.info("Processing feedback preferences")
+                Autograder._setup_feedback_pref()
+                logger.debug(f"Feedback mode: {autograder_request.feedback_mode}")
+
+                # Step 6: Create reporter based on feedback mode
+                logger.info("Creating feedback reporter")
+                Autograder.create_feedback_report(result)
+
+                # Step 7: Generate feedback
+                logger.info("Generating feedback report")
+                feedback_report = Autograder._generate_feedback()
+                logger.info("Feedback report generated successfully")
+
+                # Step 8: Create and return the successful response
+                logger.info("Creating successful autograder response")
+                response = AutograderResponse("Success", result.final_score, feedback_report, result.get_test_report())
+                logger.info("Autograder process completed successfully")
+                return response
+            else:
+                logger.info("Feedback not requested, returning score only")
+                return AutograderResponse("Success", result.final_score, feedback="",
+                                          test_report=result.get_test_report())
+
+        except Exception as e:
+            # Catch any exception, log it, and return a failure response
+            error_message = f"An unexpected error occurred during the grading process: {str(e)}"
+            logger.error(error_message)
+            logger.exception("Full exception traceback:")
+            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message)
+
+    @staticmethod
     def _pre_flight_step():
         
          if request_context.get_request() and request_context.get_request().assignment_config.setup:
@@ -105,8 +167,6 @@ class Autograder:
 
     @staticmethod
     def _setup_feedback_pref():
-        req = request_context.get_request()
-
         feedback = FeedbackPreferences.from_dict()
         Autograder.feedback_preferences = feedback
 
@@ -165,70 +225,7 @@ class Autograder:
         req.feedback_report = feedback_report
         return feedback_report
 
-    @staticmethod
-    def grade(autograder_request: AutograderRequest):
-        logger.info("Starting autograder process")
 
-        # Set the request in the global context at the beginning of the process
-        request_context.set_request(autograder_request)
-        if autograder_request.openai_key:
-            logger.info("OpenAI key provided, AI feedback mode may be used")
-            logger.info("Setting environment variable for OpenAI key")
-            import os
-            os.environ["OPENAI_API_KEY"] = autograder_request.openai_key
-        try:
-            
-            # Step 1: Handle Pre-flight checks if setup is defined
-            if autograder_request.assignment_config.setup:
-                Autograder._pre_flight_step()
-               
-              
-            # Step 2: Get test template
-            logger.info("Importing test template")
-            Autograder._import_template_step()
-        
-
-            # Step 3: Build criteria tree
-            logger.info("Building criteria tree from assignment configuration:")
-            Autograder._build_criteria_step()
-            
-
-            # Step 4: Initialize and run grader
-            logger.info("Starting grading process")
-            result = Autograder._start_and_run_grader()
-            logger.info(f"Grading completed. Final score: {result.final_score}")
-            
-
-            if autograder_request.include_feedback:
-                # Step 5: Setup feedback preferences
-                logger.info("Processing feedback preferences")
-                Autograder._setup_feedback_pref()
-                logger.debug(f"Feedback mode: {autograder_request.feedback_mode}")
-
-                # Step 6: Create reporter based on feedback mode
-                logger.info("Creating feedback reporter")
-                Autograder.create_feedback_report(result)
-
-                # Step 7: Generate feedback
-                logger.info("Generating feedback report")
-                feedback_report = Autograder._generate_feedback()
-                logger.info("Feedback report generated successfully")
-
-                # Step 8: Create and return the successful response
-                logger.info("Creating successful autograder response")
-                response = AutograderResponse("Success", result.final_score, feedback_report,result.get_test_report())
-                logger.info("Autograder process completed successfully")
-                return response
-            else:
-                logger.info("Feedback not requested, returning score only")
-                return AutograderResponse("Success", result.final_score, feedback="",test_report=result.get_test_report())
-
-        except Exception as e:
-            # Catch any exception, log it, and return a failure response
-            error_message = f"An unexpected error occurred during the grading process: {str(e)}"
-            logger.error(error_message)
-            logger.exception("Full exception traceback:")
-            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message)
 
 if __name__ == "__main__":
     if __name__ == "__main__":
