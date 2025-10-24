@@ -13,7 +13,7 @@ class TemplateLibrary:
                 raise ValueError("Custom template content must be provided for 'custom' template type.")
             return TemplateLibrary._load_custom_template_from_content(custom_template_content)
 
-        if template_name == "web dev":
+        if template_name == "webdev":
             from autograder.builder.template_library.templates.web_dev import WebDevTemplate
             return WebDevTemplate(clean)
         if template_name == "api":
