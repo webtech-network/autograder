@@ -7,7 +7,7 @@ class TestResult(BaseModel):
     test_name: str
     score: int
     report: str
-    subjet_name: str = ""
+    subject_name: str = ""
     paremeters: Dict[str, Any] = Field(default_factory=dict)
 
     def get_result(self, *args, **kwargs) :
@@ -17,10 +17,10 @@ class TestResult(BaseModel):
         return {
             "test_name": self.test_name,
             "score": self.score,
-            "report": self.report,
             "subject_name": self.subject_name,
+            "report": self.report,
             "parameters": self.parameters
         }
 
-    def __rpr__(self):
+    def __repr__(self):
         return f"TestResult(subject='{self.subject_name}', name='{self.test_name}', score={self.score})"

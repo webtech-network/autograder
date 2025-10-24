@@ -1,71 +1,56 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel, Field
 from autograder.context import request_context
 
-class FeedbackPreferences:
+
+class LearningResource(BaseModel):
+    """Represents a single online resource linked to specific test names."""
+    url: str
+    description: str
+    linked_tests: List[str]
+
+    def __repr__(self) -> str:
+        return f"LearningResource(url='{self.url}', tests={self.linked_tests})"
+
+
+class GeneralPreferences(BaseModel):
+    """Preferences applicable to both Default and AI reporters."""
+    report_title: str = "Relatório de Avaliação"
+    show_score: bool = True
+    show_passed_tests: bool = False
+    add_report_summary: bool = True
+    online_content: List[LearningResource] = Field(default_factory=list)
+
+
+class AiReporterPreferences(BaseModel):
+    """Preferences specific to the AI Reporter."""
+    provide_solutions: str = "hint"
+    feedback_tone: str = "encouraging but direct"
+    feedback_persona: str = "Code Buddy"
+    assignment_context: str = ""
+    extra_orientations: str = ""
+    submission_files_to_read: List[str] = Field(default_factory=list)
+
+
+class DefaultReporterPreferences(BaseModel):
+    """Preferences specific to the Default (template-based) Reporter."""
+    category_headers: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "base": "✅ Requisitos Essenciais",
+            "bonus": "⭐ Pontos Extras",
+            "penalty": "❌ Pontos a Melhorar"
+        }
+    )
+
+
+class FeedbackPreferences(BaseModel):
     """
     A unified model to store all feedback preferences, including the new
     test-linked learning resources and legacy AI configurations.
     """
-
-    class LearningResource:
-        """Represents a single online resource linked to specific test names."""
-        def __init__(self, url: str, description: str, linked_tests: List[str]):
-            self.url = url
-            self.description = description
-            self.linked_tests = linked_tests
-
-        def __repr__(self):
-            return f"LearningResource(url='{self.url}', tests={self.linked_tests})"
-
-    class GeneralPreferences:
-        """Preferences applicable to both Default and AI reporters."""
-
-        def __init__(self,
-                     report_title: str = "Relatório de Avaliação",
-                     show_score: bool = True,
-                     show_passed_tests: bool = False,
-                     add_report_summary: bool = True,
-                     online_content: List['FeedbackPreferences.LearningResource'] = None):
-            self.report_title = report_title
-            self.show_score = show_score
-            self.show_passed_tests = show_passed_tests
-            self.add_report_summary = add_report_summary
-            self.online_content = online_content if online_content is not None else []
-
-    class AiReporterPreferences:
-        """Preferences specific to the AI Reporter."""
-
-        def __init__(self,
-                     provide_solutions: str = "hint",
-                     feedback_tone: str = "encouraging but direct",
-                     feedback_persona: str = "Code Buddy",
-                     assignment_context: str = "",
-                     extra_orientations: str = "",
-                     submission_files_to_read: List[str] = None):
-            self.provide_solutions = provide_solutions
-            self.feedback_tone = feedback_tone
-            self.feedback_persona = feedback_persona
-            self.assignment_context = assignment_context
-            self.extra_orientations = extra_orientations
-            self.submission_files_to_read = submission_files_to_read if submission_files_to_read is not None else []
-
-    class DefaultReporterPreferences:
-        """Preferences specific to the Default (template-based) Reporter."""
-
-        def __init__(self, category_headers: Dict[str, str] = None):
-            if category_headers is None:
-                self.category_headers = {
-                    "base": "✅ Requisitos Essenciais",
-                    "bonus": "⭐ Pontos Extras",
-                    "penalty": "❌ Pontos a Melhorar"
-                }
-            else:
-                self.category_headers = category_headers
-
-    def __init__(self):
-        self.general = self.GeneralPreferences()
-        self.ai = self.AiReporterPreferences()
-        self.default = self.DefaultReporterPreferences()
+    general: GeneralPreferences = Field(default_factory=GeneralPreferences)
+    ai: AiReporterPreferences = Field(default_factory=AiReporterPreferences)
+    default: DefaultReporterPreferences = Field(default_factory=DefaultReporterPreferences)
 
     @classmethod
     def from_dict(cls) -> 'FeedbackPreferences':
@@ -74,25 +59,26 @@ class FeedbackPreferences:
         """
         request = request_context.get_request()
         config_dict = request.assignment_config.feedback
-        prefs = cls()
 
         # --- Parse General Preferences, including the new online_content ---
-        general_prefs_data = config_dict.get('general', {})
+        general_prefs_data = config_dict.get('general', {}).copy()
         online_content_data = general_prefs_data.pop('online_content', [])
 
-        prefs.general = cls.GeneralPreferences(**general_prefs_data)
-        prefs.general.online_content = [
-            cls.LearningResource(**res) for res in online_content_data
-        ]
+        # Create LearningResource objects
+        online_resources = [LearningResource(**res) for res in online_content_data]
+        general_prefs_data['online_content'] = online_resources
+        
+        general = GeneralPreferences(**general_prefs_data)
 
         # --- Parse AI and Default Preferences ---
         ai_prefs_data = config_dict.get('ai', {})
         default_prefs_data = config_dict.get('default', {})
 
-        prefs.ai = cls.AiReporterPreferences(**ai_prefs_data)
-        prefs.default = cls.DefaultReporterPreferences(**default_prefs_data)
+        ai = AiReporterPreferences(**ai_prefs_data)
+        default = DefaultReporterPreferences(**default_prefs_data)
 
-        return prefs
+        return cls(general=general, ai=ai, default=default)
+
 
 if __name__ == '__main__':
     feedback_config = {
@@ -125,7 +111,31 @@ if __name__ == '__main__':
     # The .from_dict() method will parse the dictionary and fill in any missing
     # values with the defaults defined in the class.
     try:
-        preferences = FeedbackPreferences.from_dict(feedback_config)
+        # Note: For standalone testing, you'd need to mock request_context
+        # For now, creating directly for demonstration
+        preferences = FeedbackPreferences(
+            general=GeneralPreferences(
+                report_title="Relatório Final - Desafio Web",
+                add_report_summary=True,
+                online_content=[
+                    LearningResource(
+                        url="https://developer.mozilla.org/pt-BR/docs/Web/HTML/Element/img",
+                        description="Guia completo sobre a tag <img>.",
+                        linked_tests=["check_all_images_have_alt"]
+                    )
+                ]
+            ),
+            ai=AiReporterPreferences(
+                assignment_context="Este é um desafio focado em HTML semântico e CSS responsivo.",
+                feedback_persona="Professor Sênior"
+            ),
+            default=DefaultReporterPreferences(
+                category_headers={
+                    "base": "✔️ Requisitos Obrigatórios",
+                    "penalty": "🚨 Pontos de Atenção"
+                }
+            )
+        )
 
         # ===============================================================
         # 3. VERIFY THE PARSED VALUES
