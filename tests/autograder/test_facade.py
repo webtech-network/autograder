@@ -85,9 +85,17 @@ class TestAutograderFacade(unittest.TestCase):
         # Arrange
         mock_template_library.get_template.return_value = None
 
-        invalid_config = AssignmentConfig(self.mock_criteria, self.mock_feedback_prefs, {},
-                                          template="invalid_template")
-        autograder_request = AutograderRequest(self.mock_submission, invalid_config, "student")
+        invalid_config = AssignmentConfig(
+            criteria = self.mock_criteria,
+            feedback = self.mock_feedback_prefs,
+            setup = {},
+            template="invalid template"
+        )
+        autograder_request = AutograderRequest(
+            submission_files=self.mock_submission,
+            assignment_config=invalid_config,
+            student_name="student"
+        )
 
         # Act
         response = Autograder.grade(autograder_request)
@@ -95,7 +103,7 @@ class TestAutograderFacade(unittest.TestCase):
         # Assert
         self.assertEqual(response.status, "fail")
         self.assertEqual(response.final_score, 0.0)
-        self.assertIn("Unsupported template: invalid_template", response.feedback)
+        self.assertIn("Unsupported template: invalid template", response.feedback)
 
     @patch('autograder.autograder_facade.CriteriaTree')
     @patch('autograder.autograder_facade.TemplateLibrary')
@@ -170,9 +178,17 @@ class TestAutograderFacade(unittest.TestCase):
         # Arrange
         mock_preflight.run.return_value = [{'message': 'setup failed due to X'}]
 
-        config_with_setup = AssignmentConfig(self.mock_criteria, self.mock_feedback_prefs, setup={'cmds': []},
-                                             template="web dev")
-        autograder_request = AutograderRequest(self.mock_submission, config_with_setup, "student")
+        config_with_setup = AssignmentConfig(
+             criteria=self.mock_criteria,
+             feedback=self.mock_feedback_prefs,
+             setup={'cmds': []},
+             template="web dev"
+        )
+        autograder_request = AutograderRequest(
+            submission_files=self.mock_submission,
+            assignment_config=config_with_setup,
+            student_name="student"
+        )
 
         # Act
         response = Autograder.grade(autograder_request)
