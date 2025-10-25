@@ -6,6 +6,7 @@ from autograder.core.models.test_result import TestResult
 from pydantic import BaseModel, Field
 from autograder.context import request_context
 import dotenv
+from utils.secrets_fetcher import get_secret
 
 dotenv.load_dotenv()  # Load environment variables from .env file
 
@@ -48,7 +49,7 @@ class AiExecutor:
         # Fixed: Initialized submission_files as an empty dictionary
         self.submission_files = request.submission_files # Dict[filename:str, content:str]
         self.test_results = None  # The raw json response from the AI model.
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.client = OpenAI(api_key=get_secret("OPENAI_API_KEY", "AUTOGRADER_OPENAI_KEY", "us-east-1"))
 
     def send_submission_files(self,submission_files):
         """Sets the submission files to be analyzed."""

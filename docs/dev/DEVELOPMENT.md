@@ -92,14 +92,14 @@ feature/new-feature → development → main → release v1.0.0
    ```bash
    # Create your feature branch
    git checkout -b feature/my-awesome-feature
-   
+
    # Make changes, then test
    make test
-   
+
    # Format and lint
    make format
    make lint
-   
+
    # Run all checks
    make all
    ```
@@ -258,6 +258,21 @@ Environment variables come from:
 - Docker environment variables
 - Platform configuration (AWS, Heroku, etc.)
 
+**OBS:** When accessing sensitive information, such as passwords and API Keys, which
+will be stored in a secrets manager in production, use the ```get_secret``` method
+from ```/utils/secrets_fetcher.py```.
+
+Example:
+```python
+from utils.secrets_fetcher import get_secret
+
+api_key = get_secret("VAR_NAME", "SECRET_NAME", "AWS_REGION")
+```
+
+Non-sensitive information can be directly accessed with ```os.getenv("VAR_NAME")```.
+It is recommended to do so to prevent the function from being overly permissive.
+
+If there are any doubts about environments and secrets management, contact the team.
 ---
 
 ## 🐛 Debug vs Production
