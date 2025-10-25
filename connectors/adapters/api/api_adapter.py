@@ -110,39 +110,10 @@ class ApiAdapter(Port):
         request_context.set_request(AutograderRequest.build_empty_request())
         print("REQUEST_CONTEXT:", request_context.get_request())
         # 1. Retrieve an instance of the template from the library
-        template_instance = TemplateLibrary.get_template_info(template_name)
-        if not template_instance:
-            raise ValueError(f"Template '{template_name}' not found.")
+        return TemplateLibrary.get_template_info(template_name)
+        
 
-        # 2. Prepare the main dictionary with basic template info
-        template_data = {
-            "template_name": template_instance.template_name,
-            "template_description": template_instance.template_description,
-            "tests": []
-        }
-
-        # 3. Iterate through each test function in the template
-        for test_name, test_instance in template_instance.get_tests().items():
-            try:
-                # 4. Use 'inspect' to get the source code of the 'execute' method
-                source_code = inspect.getsource(test_instance.execute)
-                # Use 'textwrap.dedent' to remove common leading whitespace
-                cleaned_code = textwrap.dedent(source_code)
-            except (TypeError, OSError):
-                # Fallback in case the source code is not available
-                cleaned_code = "Source code could not be retrieved."
-
-            # 5. Build a dictionary for the current test function
-            test_info = {
-                "name": test_instance.name,
-                "description": test_instance.description,
-                "parameter_description": test_instance.parameter_description,
-                "code": cleaned_code
-            }
-            template_data["tests"].append(test_info)
-
-        return template_data
-
+    
 
 if __name__ == "__main__":
     adapter = ApiAdapter()

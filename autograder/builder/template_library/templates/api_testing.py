@@ -4,6 +4,7 @@ import json
 import logging
 from autograder.builder.models.template import Template
 from autograder.builder.models.test_function import TestFunction
+from autograder.builder.models.param_description import ParamDescription
 from autograder.core.models.test_result import TestResult
 from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
 
@@ -23,13 +24,17 @@ class HealthCheckTest(TestFunction):
 
     @property
     def description(self):
-        return "Checks if a specific endpoint is running and returns a 200 OK status."
+        return "Verifica se um endpoint específico está em execução e retorna status code 200."
+
+    @property
+    def required_file(self):
+        return None
 
     @property
     def parameter_description(self):
-        return {
-            "endpoint": "The endpoint to test (e.g., '/health')."
-        }
+        return [
+            ParamDescription("endpoint", "O endpoint a ser testado (ex: '/health').", "string")
+        ]
 
     def __init__(self, executor: SandboxExecutor):
         self.executor = executor
@@ -81,15 +86,19 @@ class CheckResponseJsonTest(TestFunction):
 
     @property
     def description(self):
-        return "Checks if an endpoint's JSON response contains a specific key and value."
+        return "Verifica se a resposta em JSON de um endpoint possui a chave e valor específicos."
+
+    @property
+    def required_file(self):
+        return None
 
     @property
     def parameter_description(self):
-        return {
-            "endpoint": "The API endpoint to test (e.g., '/api/data').",
-            "expected_key": "The JSON key to check in the response.",
-            "expected_value": "The expected value for the specified key."
-        }
+        return [
+            ParamDescription("endpoint", "O endpoint da API a ser testado (ex: '/api/data').", "string"),
+            ParamDescription("expected_key", "A chave JSON que vai verificar a resposta.", "string"),
+            ParamDescription("expected_value", "O valor esperado para a chave especificada.", "any")
+        ]
 
     def __init__(self, executor: SandboxExecutor):
         self.executor = executor
@@ -145,11 +154,11 @@ class ApiTestingTemplate(Template):
 
     @property
     def template_name(self):
-        return "API Testing"
+        return "API de Testes"
 
     @property
     def template_description(self):
-        return "A template for grading assignments where students create a web API."
+        return "Um modelo para avaliar tarefas onde alunos criam uma API web."
 
     @property
     def requires_pre_executed_tree(self) -> bool:
@@ -170,7 +179,7 @@ class ApiTestingTemplate(Template):
             self._setup_environment()
         else:
             self.executor = None
-    
+
         self.logger = logging.getLogger(__name__)
 
         self.tests = {

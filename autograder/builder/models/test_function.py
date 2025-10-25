@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Optional
 from autograder.builder.models.criteria_tree import TestResult
+from autograder.builder.models.param_description import ParamDescription
+
+
 class TestFunction(ABC):
     """
     An abstract base class for a single, executable test function.
@@ -20,9 +23,17 @@ class TestFunction(ABC):
 
     @property
     @abstractmethod
-    def parameter_description(self) -> Dict[str, str]:
-        """A dictionary describing each parameter."""
+    def parameter_description(self) -> List[ParamDescription]:
+        """A list of ParamDescription objects describing each parameter (excluding file content)."""
         pass
+
+    @property
+    def required_file(self) -> Optional[str]:
+        """
+        The type of file content this test expects (e.g., 'HTML', 'CSS', 'JavaScript', 'JSON').
+        Return None if the test doesn't require file content.
+        """
+        return None
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> TestResult:

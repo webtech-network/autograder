@@ -20,6 +20,7 @@ class RequestContext:
     def set_request(self, autograder_request: AutograderRequest | None):
         """Sets the active autograder request for the current session."""
         self.request = autograder_request
+        return self.request
 
     def get_request(self):
         """Gets the active autograder request."""

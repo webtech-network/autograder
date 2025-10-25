@@ -13,7 +13,7 @@ class TemplateLibrary:
                 raise ValueError("Custom template content must be provided for 'custom' template type.")
             return TemplateLibrary._load_custom_template_from_content(custom_template_content)
 
-        if template_name == "web dev":
+        if template_name == "webdev":
             from autograder.builder.template_library.templates.web_dev import WebDevTemplate
             return WebDevTemplate(clean)
         if template_name == "api":
@@ -22,7 +22,7 @@ class TemplateLibrary:
         if template_name == "essay":
             from autograder.builder.template_library.templates.essay_grader import EssayGraderTemplate
             return EssayGraderTemplate(clean)
-        if template_name == "IO":
+        if template_name == "io":
             from autograder.builder.template_library.templates.input_output import InputOutputTemplate
             return InputOutputTemplate(clean)
         else:
@@ -59,7 +59,7 @@ class TemplateLibrary:
     
 
     @staticmethod
-    def get_template_info(template_name: str):
+    def get_template_info(template_name: str)-> dict:
         """Gets all the details of a template.
         param template_name: The name of the template to retrieve.
         return: A dictionary with all the template details.
@@ -71,12 +71,41 @@ class TemplateLibrary:
                 {
                     "name": "test_function_1",
                     "description": "Tests function 1 with various inputs.",
-                    "parameters": {
-                        "input1": "Description of input1",
-                        "input2": "Description of input2"
-                    },
-
+                    "parameters": [
+                        {
+                            "name": "input1",
+                            "description": "Description of input1",
+                            "type": "string"
+                        }
+                    ]
                 }, 
                 ...
         """
-        return TemplateLibrary.get_template(template_name, clean=True)
+        #1. Retrieve an instance of the template from the library
+        template = TemplateLibrary.get_template(template_name, clean=True)
+        if not template:
+            raise ValueError(f"Template '{template_name}' not found.")
+        
+        #2. Prepare the main dictionary with basic template info
+        template_data = {
+            "template_name": template.template_name,
+            "template_description": template.template_description,
+            "tests": []
+        }
+
+        for test in template.get_tests().values():
+            test_data = {
+                "name": test.name,
+                "description": test.description,
+                "required_file": test.required_file,
+                "parameters": []
+            }
+            for param in test.parameter_description:
+                test_data["parameters"].append({
+                    "name": param.name,
+                    "description": param.description,
+                    "type": param.type
+                })
+            template_data["tests"].append(test_data)
+
+        return template_data
