@@ -69,15 +69,26 @@ class Autograder:
                 feedback_report = Autograder._generate_feedback()
                 logger.info("Feedback report generated successfully")
 
+
                 # Step 8: Create and return the successful response
                 logger.info("Creating successful autograder response")
-                response = AutograderResponse("Success", result.final_score, feedback_report, result.get_test_report())
+                response = AutograderResponse(
+                    status = "Success",
+                    final_score = result.final_score,
+                    feedback = feedback_report,
+                    test_report = result.get_test_report()
+                )
                 logger.info("Autograder process completed successfully")
                 return response
             else:
                 logger.info("Feedback not requested, returning score only")
-                return AutograderResponse("Success", result.final_score, feedback="",
-                                          test_report=result.get_test_report())
+                return AutograderResponse(
+                     status="Success",
+                     final_score=result.final_score,
+                     feedback="",
+                     test_report=result.get_test_report()
+                )
+
 
         except Exception as e:
             # Catch any exception, log it, and return a failure response
@@ -88,7 +99,7 @@ class Autograder:
 
     @staticmethod
     def _pre_flight_step():
-        
+
          if request_context.get_request() and request_context.get_request().assignment_config.setup:
                 logger.info("Running pre-flight setup commands")
                 impediments = PreFlight.run()
@@ -97,10 +108,10 @@ class Autograder:
                      error_text = "\n".join(error_messages)
                      logger.error(f"Pre-flight checks failed with errors: {error_messages}")
                      raise RuntimeError(error_text)
-                
+
          logger.info("Pre-flight setup completed with no impediments")
-         
-      
+
+
 
     @staticmethod
     def _import_template_step():
@@ -115,10 +126,10 @@ class Autograder:
         if test_template is None:
             logger.error(f"Template '{template_name}' not found in TemplateLibrary")
             raise ValueError(f"Unsupported template: {template_name}")
-        
+
         logger.info(f"Test template '{test_template.template_name}' instantiated successfully")
         Autograder.selected_template = test_template
-        
+
 
     @staticmethod
     def _build_criteria_step():
@@ -138,9 +149,9 @@ class Autograder:
         test_template.stop()
         criteria_tree.print_pre_executed_tree()
         logger.info("Criteria tree built successfully")
-        
 
-        
+
+
         req.criteria_tree = criteria_tree
         return criteria_tree
 
@@ -149,13 +160,13 @@ class Autograder:
         req = request_context.get_request()
         criteria_tree = req.criteria_tree
         test_template = Autograder.selected_template
-       
+
 
         logger.info("Initializing grader with criteria tree and test template")
         grader = Grader(criteria_tree, test_template)
         logger.debug(f"Grader initialized for student: {req.student_name}")
 
-      
+
         logger.info(f"Running grading process")
         logger.debug(f"Submission files: {list(req.submission_files.keys())}")
 
@@ -177,8 +188,8 @@ class Autograder:
         template = Autograder.selected_template
         feedback = Autograder.feedback_preferences
         feedback_mode = req.feedback_mode
-        
-        
+
+
         if feedback_mode == "default":
             logger.info("Creating default reporter")
             reporter = Reporter.create_default_reporter(result, feedback,template)
@@ -192,7 +203,7 @@ class Autograder:
                 error_msg = "OpenAI key, Redis URL, and Redis token are required for AI feedback mode."
                 logger.error(error_msg)
                 raise ValueError(error_msg)
-            
+
             logger.info("All AI requirements validated successfully")
 
                     # Setup Redis driver
@@ -213,11 +224,11 @@ class Autograder:
 
         else:
                 raise ValueError(f"Unsupported feedback mode: {feedback_mode}")
-        
+
         req.reporter = reporter
         return reporter
 
-    @staticmethod 
+    @staticmethod
     def _generate_feedback():
         req = request_context.get_request()
         reporter = req.reporter
