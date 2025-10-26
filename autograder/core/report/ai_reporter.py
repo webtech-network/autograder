@@ -5,6 +5,7 @@ from openai import OpenAI
 from autograder.builder.models.template import Template
 from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.base_reporter import BaseReporter
+from utils.secrets_fetcher import get_secret
 
 
 # Supondo que estas classes estão em seus respectivos arquivos e são importáveis
@@ -20,7 +21,7 @@ class AIReporter(BaseReporter):
 
     def __init__(self, result: 'Result', feedback: 'FeedbackPreferences', test_library: 'Template', quota: int):
         super().__init__(result, feedback,test_library)
-        openai_key = os.getenv("OPENAI_API_KEY")
+        openai_key = get_secret("OPENAI_API_KEY", "AUTOGRADER_OPENAI_KEY", "us-east-1")
         if not openai_key:
             raise ValueError("A chave da API da OpenAI é necessária para o AiReporter.")
         self.client = OpenAI(api_key=openai_key)
