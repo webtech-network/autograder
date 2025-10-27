@@ -1,11 +1,9 @@
-import os
-
 from openai import OpenAI
 
 from autograder.builder.models.template import Template
 from autograder.core.models.feedback_preferences import FeedbackPreferences
 from autograder.core.report.base_reporter import BaseReporter
-from utils.secrets_fetcher import get_secret
+from autograder.core.utils.secrets_fetcher import get_secret
 
 
 # Supondo que estas classes estão em seus respectivos arquivos e são importáveis

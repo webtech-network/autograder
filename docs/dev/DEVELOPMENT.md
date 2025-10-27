@@ -263,8 +263,9 @@ will be stored in a secrets manager in production, use the ```get_secret``` meth
 from ```/utils/secrets_fetcher.py```.
 
 Example:
+
 ```python
-from utils.secrets_fetcher import get_secret
+from autograder.core.utils.secrets_fetcher import get_secret
 
 api_key = get_secret("VAR_NAME", "SECRET_NAME", "AWS_REGION")
 ```

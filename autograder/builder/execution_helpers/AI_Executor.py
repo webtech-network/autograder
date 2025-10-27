@@ -1,12 +1,11 @@
 import json
-import os
-from typing import Dict, List
+from typing import List
 from openai import OpenAI
 from autograder.core.models.test_result import TestResult
 from pydantic import BaseModel, Field
 from autograder.context import request_context
 import dotenv
-from utils.secrets_fetcher import get_secret
+from autograder.core.utils.secrets_fetcher import get_secret
 
 dotenv.load_dotenv()  # Load environment variables from .env file
 
