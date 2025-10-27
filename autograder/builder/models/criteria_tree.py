@@ -180,6 +180,11 @@ class Criteria:
                 if isinstance(result, TestResult):
                     params_str = f" (Parameters: {result.parameters})" if result.parameters else ""
                     print(f"{prefix}  - 📝 {result.test_name}{params_str} -> Score: {result.score}")
+
+                elif isinstance(result, Test):
+                    print(f"{prefix} - 🧪 {result.name} (file: {result.file})")
+                    for call in result.calls:
+                        print(f"{prefix}    - Parameters: {call.args}")
                 else:
                     # Fallback for unexpected types
                     print(f"{prefix}  - ? Unexpected item in tests list: {result}")
