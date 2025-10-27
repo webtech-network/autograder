@@ -176,6 +176,8 @@ class Criteria:
 
         if subject.tests is not None:
             # In a pre-executed tree, subject.tests contains TestResult objects
+
+            # In the regular tree, subject.tests contains "Test" objects
             for result in subject.tests:
                 if isinstance(result, TestResult):
                     params_str = f" (Parameters: {result.parameters})" if result.parameters else ""
@@ -183,6 +185,7 @@ class Criteria:
 
                 elif isinstance(result, Test):
                     print(f"{prefix} - 🧪 {result.name} (file: {result.file})")
+                    """Added the symbol identificator to match the previous formatting"""
                     for call in result.calls:
                         print(f"{prefix}    - Parameters: {call.args}")
                 else:
