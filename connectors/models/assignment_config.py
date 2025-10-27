@@ -1,5 +1,4 @@
 import os
-from connectors.models.test_files import TestFiles
 
 
 class AssignmentConfig:

@@ -4,7 +4,6 @@ import shutil
 
 from connectors.models.assignment_config import AssignmentConfig
 from connectors.models.autograder_request import AutograderRequest
-from connectors.models.test_files import TestFiles
 from connectors.port import Port
 from github import Github
 from github.GithubException import UnknownObjectException
@@ -151,7 +150,6 @@ class GithubAdapter(Port):
                      submission_files_dict[relative_path] = f.read()
              except Exception as e:
                  print(f"Could not read file {file_path}: {e}")
-        print(submission_files_dict)
 
         return submission_files_dict
 
