@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 from connectors.adapters.github_action_adapter.github_adapter import GithubAdapter
 from connectors.models.assignment_config import AssignmentConfig
-from connectors.utils.load_preset import load_preset
 parser = ArgumentParser(description="GitHub Action Adapter for Autograder")
 parser.add_argument("--github-token", type=str, required=True, help="GitHub Token")
 parser.add_argument("--template-preset", type=str, required=True, help="The grading preset to use (e.g., api, html, python, etc.)")
