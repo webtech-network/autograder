@@ -37,10 +37,12 @@ class Grader:
         bonus_score = self._grade_subject_or_category(self.criteria.bonus, submission_files, self.bonus_results) or 0.0
         penalty_percentage = self._calculate_penalty_points(self.criteria.penalty, submission_files,
                                                         self.penalty_results) or 0.0
+        ## CHANGED: Switched the name of the variable "penalty_points" to "penalty_percentage" for further calcu 
 
         # Step 3: Apply the final scoring logic
         final_score = self._calculate_final_score(base_score, bonus_score, penalty_percentage)
 
+        ## ADDED: Added calculations to the actual penalty points for accurate description
         penalty_weight = self.criteria.penalty.max_score
         penalty_points_to_subtract = (penalty_percentage / 100) * penalty_weight
 
