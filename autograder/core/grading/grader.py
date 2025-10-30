@@ -35,16 +35,19 @@ class Grader:
         ## CHANGED: Coalesce None to 0.0 to signify that an empty category contributes nothing to the score.
         base_score = self._grade_subject_or_category(self.criteria.base, submission_files, self.base_results) or 0.0
         bonus_score = self._grade_subject_or_category(self.criteria.bonus, submission_files, self.bonus_results) or 0.0
-        penalty_points = self._calculate_penalty_points(self.criteria.penalty, submission_files,
+        penalty_percentage = self._calculate_penalty_points(self.criteria.penalty, submission_files,
                                                         self.penalty_results) or 0.0
 
         # Step 3: Apply the final scoring logic
-        final_score = self._calculate_final_score(base_score, bonus_score, penalty_points)
+        final_score = self._calculate_final_score(base_score, bonus_score, penalty_percentage)
+
+        penalty_weight = self.criteria.penalty.max_score
+        penalty_points_to_subtract = (penalty_percentage / 100) * penalty_weight
 
         print("\n--- GRADING COMPLETE ---")
         print(f"Aggregated Base Score: {base_score:.2f}")
         print(f"Aggregated Bonus Score: {bonus_score:.2f}")
-        print(f"Total Penalty Points to Subtract: {penalty_points:.2f}")
+        print(f"Total Penalty Points to Subtract: {penalty_points_to_subtract:.2f}")
         print("-" * 25)
         print(f"Final Calculated Score: {final_score:.2f}")
         print("-" * 25)
