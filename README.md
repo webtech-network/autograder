@@ -31,8 +31,6 @@ This documentation is divided into several sections to help you find the informa
 
 * [**2. Core Concepts**](/docs/core_concepts.md): An overview of the fundamental principles behind the autograder.
 
-* [**3. System Architecture**](/docs/system_architecture.md): A technical deep dive into the design of the system.
-
 * [**4. Creating Assignments**](/docs/creating_assignments.md): A practical guide to creating your own custom assignments.
 
 * [**5. Adapters**](/docs/adapters.md): Information on how the autograder integrates with external systems like GitHub and APIs.
