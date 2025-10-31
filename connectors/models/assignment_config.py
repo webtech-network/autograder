@@ -1,5 +1,4 @@
 import os
-from connectors.models.test_files import TestFiles
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 

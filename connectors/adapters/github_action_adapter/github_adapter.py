@@ -113,15 +113,6 @@ class GithubAdapter(Port):
         self.notify_classroom()
 
 
-    def create_custom_assignment_config(self,
-                                       test_files,
-                                       criteria,
-                                       feedback,
-                                       preset="custom",
-                                       ai_feedback=None,
-                                       setup=None,
-                                       test_framework="pytest"):
-        pass
 
     def get_submission_files(self):
 
