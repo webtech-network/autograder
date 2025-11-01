@@ -8,7 +8,7 @@ class AssignmentConfig(BaseModel):
     criteria: Dict[str, Any]
     feedback: Dict[str, Any]
     setup: Dict[str, Any]
-    custom_template_str: Optional[str] = None
+    custom_template: Optional[str] = None
     
     def __str__(self) -> str:
         """
@@ -23,3 +23,15 @@ class AssignmentConfig(BaseModel):
             f"AssignmentConfig(template={self.template}, criteria={criteria}, "
             f"feedback={feedback}, setup={setup}, custom_template_str={template_str})"
         )
+
+
+if __name__ == "__main__":
+    # Example usage
+    config = AssignmentConfig(
+        template="custom",
+        criteria={"test_case_1": "description"},
+        feedback={"style": "detailed"},
+        setup={"environment": "python3.8"},
+        custom_template="def custom_function(): pass"
+    )
+    print(config)
