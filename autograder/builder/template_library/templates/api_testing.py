@@ -74,7 +74,11 @@ class HealthCheckTest(TestFunction):
         except Exception as e:
             report = f"An unexpected error occurred: {e}"
 
-        return TestResult(self.name, score, report)
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report
+        )
 
 
 class CheckResponseJsonTest(TestFunction):
@@ -139,7 +143,11 @@ class CheckResponseJsonTest(TestFunction):
         except Exception as e:
             report = f"An unexpected error occurred: {e}"
 
-        return TestResult(self.name, score, report)
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report
+        )
 
 
 # ===============================================================
