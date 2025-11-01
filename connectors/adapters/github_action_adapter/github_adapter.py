@@ -210,9 +210,13 @@ class GithubAdapter(Port):
                 custom_template_str = f.read()
             print("Custom template loaded successfully.")
 
-        assignment_config = AssignmentConfig(criteria_dict, feedback=feedback_dict, setup=setup_dict, template=template_preset,custom_template_str=custom_template_str)
-        return assignment_config
-
+        return AssignmentConfig(
+            template=template_preset,
+            criteria=criteria_dict,
+            feedback=feedback_dict,
+            setup=setup_dict,
+            custom_template=custom_template_str
+        )
 
     @classmethod
     def create(cls,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
