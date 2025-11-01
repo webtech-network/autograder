@@ -8,7 +8,7 @@ class TestResult(BaseModel):
     score: int
     report: str
     subject_name: str = ""
-    paremeters: Dict[str, Any] = Field(default_factory=dict)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
 
     def get_result(self, *args, **kwargs) :
         return [self]

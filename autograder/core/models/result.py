@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from autograder.core.models.test_result import TestResult
 
 from pydantic import BaseModel, Field
@@ -12,15 +12,15 @@ class Result(BaseModel):
 
     final_score: float
     author: str
-    subsmission_file: List[str] = Field(default_factory=list, alias="subsmission_file")
+    submission_files: Dict[str,str] = Field(default_factory=list, alias="submission_files")
     base_results: List[TestResult] = Field(default_factory=list)
-    bonus_result: List[TestResult] = Field(default_factory=list)
-    penalty_result: List[TestResult] = Field(default_factory=list)
+    bonus_results: List[TestResult] = Field(default_factory=list)
+    penalty_results: List[TestResult] = Field(default_factory=list)
 
     model_config = {"populate_by_name": True}
 
     def get_test_report(self) -> List[TestResult]:
-        return self.base_results + self.bonus_result + self.penalty_result
+        return self.base_results + self.bonus_results + self.penalty_results
 
     def __repr__(self) -> str:
         lines = [
