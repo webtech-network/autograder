@@ -1,5 +1,6 @@
 name: "Global Autograder"
 author: "Arthur Carvalho"
+icon: box
 description: "An autograding tool for GitHub Classroom. flexible,extensive,consistent and generates feedback."
 
 # Defines the inputs that the action can receive.
