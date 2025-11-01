@@ -17,7 +17,7 @@ class AssignmentConfig(BaseModel):
         criteria = "[Loaded]" if self.criteria else "[Not Loaded]"
         feedback = "[Loaded]" if self.feedback else "[Not Loaded]"
         setup = "[Loaded]" if self.setup else "[Not Loaded]"
-        template_str = "[Loaded]" if self.custom_template_str else "[Not Loaded]"
+        template_str = "[Loaded]" if self.custom_template else "[Not Loaded]"
         
         return (
             f"AssignmentConfig(template={self.template}, criteria={criteria}, "
