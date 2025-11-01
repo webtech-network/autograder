@@ -1,6 +1,6 @@
-name: "WebTech-Autograder"
+name: "Global Autograder"
 author: "Arthur Carvalho"
-description: "An autograding tool for GitHub Classroom that allows a flexible and extensive configuration that leads to a consistent and rapid scoring. The final product is a feedback report placed directly in the student's repository."
+description: "An autograding tool for GitHub Classroom that allows a flexible and extensive configuration with consistent scoring and a feedback report placed directly in the student's repository."
 
 # Defines the inputs that the action can receive.
 # These are mapped to the arguments in the `runs` section below.
