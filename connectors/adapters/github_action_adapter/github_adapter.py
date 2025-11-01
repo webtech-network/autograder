@@ -153,9 +153,9 @@ class GithubAdapter(Port):
         print(submission_files_dict)
         print(f"Creating AutograderRequest with {feedback_mode} feedback mode")
         self.autograder_request = AutograderRequest(
-            submission_files_dict,
-            assignment_config,
-            student_name,
+            submission_files=submission_files_dict,
+            assignment_config=assignment_config,
+            student_name=student_name,
             student_credentials=student_credentials,
             feedback_mode=feedback_mode,
             openai_key=openai_key,
