@@ -83,13 +83,26 @@ class Autograder:
             result = grader.run()
             logger.info(f"Grading completed. Final score: {result.final_score}")
 
+            # Step 6: Send final score to Redis (if Redis credentials are available)
+            student_credentials = autograder_request.student_credentials
+            if autograder_request.redis_token and autograder_request.redis_url:
+                logger.info("Sending final score to Redis")
+                driver = Driver.create(autograder_request.redis_token, autograder_request.redis_url)
+                if driver is not None:
+                    if driver.user_exists(student_credentials):
+                        driver.set_score(student_credentials, result.final_score)
+                    else:
+                        driver.create_user(student_credentials)
+                        driver.set_score(student_credentials, result.final_score)
+                    logger.info("Final score sent to Redis successfully")
+
             if autograder_request.include_feedback:
-                # Step 6: Setup feedback preferences
+                # Step 7: Setup feedback preferences
                 logger.info("Processing feedback preferences")
                 feedback = FeedbackPreferences.from_dict()
                 logger.debug(f"Feedback mode: {autograder_request.feedback_mode}")
 
-                # Step 7: Create reporter based on feedback mode
+                # Step 8: Create reporter based on feedback mode
                 reporter = None
                 feedback_mode = autograder_request.feedback_mode
 
@@ -110,10 +123,6 @@ class Autograder:
 
                     logger.info("All AI requirements validated successfully")
 
-                    # Setup Redis driver
-                    driver = Driver.create(autograder_request.redis_token, autograder_request.redis_url)
-                    student_credentials = autograder_request.student_credentials
-
                     if not driver.token_exists(student_credentials):
                         driver.create_token(student_credentials)
 
@@ -127,12 +136,12 @@ class Autograder:
                 else:
                     raise ValueError(f"Unsupported feedback mode: {feedback_mode}")
 
-                # Step 8: Generate feedback
+                # Step 9: Generate feedback
                 logger.info("Generating feedback report")
                 feedback_report = reporter.generate_feedback()
                 logger.info("Feedback report generated successfully")
 
-                # Step 9: Create and return the successful response
+                # Step 10: Create and return the successful response
                 logger.info("Creating successful autograder response")
                 response = AutograderResponse("Success", result.final_score, feedback_report,result.get_test_report())
                 logger.info("Autograder process completed successfully")
