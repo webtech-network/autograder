@@ -11,6 +11,7 @@ parser.add_argument("--app_token", type=str, required=False, help="GitHub App To
 parser.add_argument("--openai-key", type=str, required=False, help="OpenAI API key for AI feedback")
 parser.add_argument("--redis-url", type=str, required=False, help="Redis URL for AI feedback")
 parser.add_argument("--redis-token", type=str, required=False, help="Redis token for AI feedback")
+parser.add_argument("--include-feedback", type=str, required=False, help="Whether to include/generate feedback (true/false).")
 
 async def main():
     """
@@ -35,7 +36,25 @@ async def main():
         assignment_config = adapter.create_assigment_config(template_preset)
         print(assignment_config)
 
-    adapter.create_request(submission_files=None,assignment_config=assignment_config,student_name=student_name,student_credentials=github_token,feedback_mode=feedback_type,openai_key=args.openai_key,redis_url=args.redis_url,redis_token=args.redis_token)
+    # Parse include_feedback value
+    include_feedback = False
+    if args.include_feedback is not None:
+        val = str(args.include_feedback).strip().lower()
+        if val not in ("true", "false"):
+            raise ValueError("Invalid value for --include-feedback. Allowed values: 'true' or 'false'.")
+        include_feedback = (val == "true")
+
+    adapter.create_request(
+        submission_files=None,
+        assignment_config=assignment_config,
+        student_name=student_name,
+        student_credentials=github_token,
+        feedback_mode=feedback_type,
+        openai_key=args.openai_key,
+        redis_url=args.redis_url,
+        redis_token=args.redis_token,
+        include_feedback=include_feedback,
+    )
 
     adapter.run_autograder()
 
