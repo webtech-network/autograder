@@ -1,5 +1,4 @@
 from typing import List, Any
-from autograder.context import request_context
 from autograder.core.models.test_result import TestResult
 
 
@@ -86,13 +85,10 @@ class Subject:
     def __init__(self, name, weight=0):
         self.name = name
         self.weight = weight
-        self.tests: List[Test] | None = None
-        self.subjects: dict[str, 'Subject'] | None = None
+        self.children: List[Subject | Test | TestResult] = []
 
     def __repr__(self):
-        if self.subjects is not None:
-            return f"Subject(name='{self.name}', weight={self.weight}, subjects={len(self.subjects)})"
-        return f"Subject(name='{self.name}', weight={self.weight}, tests={self.tests})"
+        return f"Subject(name='{self.name}', weight={self.weight}, children={self.children})"
 
 
 class TestCategory:
@@ -141,15 +137,15 @@ class Criteria:
         """Recursive helper method to print a subject and its contents."""
         print(f"{prefix}📘 {subject.name} (weight: {subject.weight})")
 
-        if subject.subjects is not None:
-            for sub in subject.subjects.values():
-                self._print_subject(sub, prefix=prefix + "    ")
-
-        if subject.tests is not None:
-            for test in subject.tests:
-                print(f"{prefix}  - 🧪 {test.name} (file: {test.file})")
-                for call in test.calls:
+        for child in subject.children:
+            if isinstance(child, Subject):
+                self._print_subject(child, prefix=prefix + "    ")
+            elif isinstance(child, Test):
+                print(f"{prefix}  - 🧪 {child.name} (file: {child.file})")
+                for call in child.calls:
                     print(f"{prefix}    - Parameters: {call.args}")
+            else:
+                print(f"{prefix}  - ? Unexpected item in tree: {child}")
 
     def print_pre_executed_tree(self):
         """Prints a visual representation of the entire pre-executed criteria tree."""
@@ -170,27 +166,19 @@ class Criteria:
         """Recursive helper method to print a subject and its pre-executed test results."""
         print(f"{prefix}📘 {subject.name} (weight: {subject.weight})")
 
-        if subject.subjects is not None:
-            for sub in subject.subjects.values():
-                self._print_pre_executed_subject(sub, prefix=prefix + "    ")
-
-        if subject.tests is not None:
-            # In a pre-executed tree, subject.tests contains TestResult objects
-
-            # In the regular tree, subject.tests contains "Test" objects
-            for result in subject.tests:
-                if isinstance(result, TestResult):
-                    params_str = f" (Parameters: {result.parameters})" if result.parameters else ""
-                    print(f"{prefix}  - 📝 {result.test_name}{params_str} -> Score: {result.score}")
-
-                elif isinstance(result, Test):
-                    print(f"{prefix} - 🧪 {result.name} (file: {result.file})")
-                    """Added the symbol identificator to match the previous formatting"""
-                    for call in result.calls:
-                        print(f"{prefix}    - Parameters: {call.args}")
-                else:
-                    # Fallback for unexpected types
-                    print(f"{prefix}  - ? Unexpected item in tests list: {result}")
-
-
-
+        for child in subject.children:
+            if isinstance(child, Subject):
+                self._print_pre_executed_subject(child, prefix=prefix + "    ")
+            elif isinstance(child, Test):
+                # In the regular tree, subject.children contains "Test" objects
+                print(f"{prefix} - 🧪 {child.name} (file: {child.file})")
+                """Added the symbol identificator to match the previous formatting"""
+                for call in child.calls:
+                    print(f"{prefix}    - Parameters: {call.args}")
+            if isinstance(child, TestResult):
+                # In a pre-executed tree, subject.children contains TestResult objects
+                params_str = f" (Parameters: {child.parameters})" if child.parameters else ""
+                print(f"{prefix}  - 📝 {child.test_name}{params_str} -> Score: {child.score}")
+            else:
+                # Fallback for unexpected types
+                print(f"{prefix}  - ? Unexpected item in tree: {child}")

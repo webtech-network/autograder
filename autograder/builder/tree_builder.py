@@ -70,49 +70,51 @@ class CriteriaTree:
     @staticmethod
     def _parse_subject(subject_name: str, subject_data: dict) -> Subject:
         """Recursively parses a subject and balances the weights of its children."""
-        if "tests" in subject_data and "subjects" in subject_data:
-            raise ValueError(f"Config error: Subject '{subject_name}' cannot have both 'tests' and 'subjects'.")
-
         subject = Subject(subject_name, subject_data.get("weight", 0))
-        if "tests" in subject_data:
-            subject.tests = CriteriaTree._parse_tests(subject_data["tests"])
-        elif "subjects" in subject_data:
-            child_subjects = [
-                CriteriaTree._parse_subject(sub_name, sub_data)
-                for sub_name, sub_data in subject_data["subjects"].items()
-            ]
-            CriteriaTree._balance_subject_weights(child_subjects)
-            subject.subjects = {s.name: s for s in child_subjects}
-        else:
-            subject.tests = []
+        subject.children.extend(CriteriaTree._parse_subjects(subject_data["subjects"]))
+        subject.children.extend(CriteriaTree._parse_tests(subject_data["tests"]))
         return subject
+
+    @staticmethod
+    def _parse_subjects(data: dict) -> List[Subject]:
+        """Parses multiple subjects from the configuration and balances their weights."""
+        subjects = [
+            CriteriaTree._parse_subject(sub_name, sub_data)
+            for sub_name, sub_data in data.items()
+        ]
+        CriteriaTree._balance_subject_weights(subjects)
+        return subjects
 
     @staticmethod
     def _parse_and_execute_subject(subject_name: str, subject_data: dict, template: Template, submission_files: dict) -> Subject:
         """Recursively parses a subject, executes its tests, and balances the weights of its children."""
-        if "tests" in subject_data and "subjects" in subject_data:
-            raise ValueError(f"Config error: Subject '{subject_name}' cannot have both 'tests' and 'subjects'.")
-
         subject = Subject(subject_name, subject_data.get("weight", 0))
 
-        if "tests" in subject_data:
-            parsed_tests = CriteriaTree._parse_tests(subject_data["tests"])
-            executed_tests = []
-            for test in parsed_tests:
-                # The run method executes the test and returns a list of TestResult objects
-                test_results = test.get_result(template, submission_files, subject_name)
-                executed_tests.extend(test_results)
-            subject.tests = executed_tests  # Store TestResult objects instead of Test objects
-        elif "subjects" in subject_data:
-            child_subjects = [
-                CriteriaTree._parse_and_execute_subject(sub_name, sub_data, template, submission_files)
-                for sub_name, sub_data in subject_data["subjects"].items()
-            ]
-            CriteriaTree._balance_subject_weights(child_subjects)
-            subject.subjects = {s.name: s for s in child_subjects}
-        else:
-            subject.tests = []
+        subject.children.extend(CriteriaTree._parse_and_execute_tests(subject_data.get("tests"), template, submission_files, subject_name))
+        subject.children.extend(CriteriaTree._parse_and_execute_subjects(subject_data.get("subjects"), template, submission_files))
+
         return subject
+
+    @staticmethod
+    def _parse_and_execute_subjects(data: dict, template: Template, submission_files: dict) -> List[Subject]:
+        """Parses and executes multiple subjects from the configuration and balances their weights."""
+        child_subjects = [
+            CriteriaTree._parse_and_execute_subject(sub_name, sub_data, template, submission_files)
+            for sub_name, sub_data in data.items()
+        ]
+        CriteriaTree._balance_subject_weights(child_subjects)
+        return child_subjects
+
+    @staticmethod
+    def _parse_and_execute_tests(test_data: list, template: Template, submission_files: dict, subject_name: str) -> List[TestResult]:
+        """Parses and executes a list of test definitions from the configuration."""
+        parsed_tests = CriteriaTree._parse_tests(test_data)
+        executed_tests = []
+        for test in parsed_tests:
+            # The run method executes the test and returns a list of TestResult objects
+            test_results = test.get_result(template, submission_files, subject_name)
+            executed_tests.extend(test_results)
+        return executed_tests
 
     @staticmethod
     def _parse_tests(test_data: list) -> List[Test]:
