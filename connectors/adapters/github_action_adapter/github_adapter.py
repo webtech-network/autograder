@@ -222,7 +222,13 @@ class GithubAdapter(Port):
                 custom_template_str = f.read()
             print("Custom template loaded successfully.")
 
-        assignment_config = AssignmentConfig(criteria_dict, feedback=feedback_dict, setup=setup_dict, template=template_preset,custom_template_str=custom_template_str)
+        assignment_config = AssignmentConfig(
+            template=template_preset,
+            criteria=criteria_dict,
+            feedback=feedback_dict,
+            setup=setup_dict,
+            custom_template_str=custom_template_str,
+        )
         return assignment_config
 
 
