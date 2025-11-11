@@ -134,7 +134,13 @@ class HasTag(TestFunction):
         found_count = len(soup.find_all(tag))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
         report = f"Foram encontradas {found_count} de {required_count} tags `<{tag}>` necessárias."
-        return TestResult(self.name, score, report, parameters={"tag": tag, "required_count": required_count})
+        return TestResult(
+            name=self.name,
+            score=score,
+            report=report,
+            parameters={"tag": tag, "required_count": required_count}
+        )
+
 
 class HasForbiddenTag(TestFunction):
     @property
