@@ -55,4 +55,4 @@ runs:
     OPENAI_KEY: ${{ inputs.openai_key }}
     REDIS_URL: ${{ inputs.redis_url }}
     REDIS_TOKEN: ${{ inputs.redis_token }}
-  INCLUDE_FEEDBACK: ${{ inputs.include-feedback }}
+    INCLUDE_FEEDBACK: ${{ inputs.include-feedback }}
