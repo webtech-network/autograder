@@ -89,7 +89,18 @@ class GithubAdapter(Port):
         file_path = "relatorio.md"
         file_sha = None
         commit_message = ""
-        new_content = self.autograder_response.feedback
+        # If the autograder_request exists and include_feedback is explicitly False,
+        # skip committing the relatorio.md file.
+        req = getattr(self, 'autograder_request', None)
+        if req is not None and not getattr(req, 'include_feedback', False):
+            print("Feedback generation disabled (include_feedback=False); skipping commit of relatorio.md.")
+            return
+
+        # Safely get feedback content (may be None or autograder_response may not exist)
+        new_content = None
+        resp = getattr(self, 'autograder_response', None)
+        if resp is not None:
+            new_content = getattr(resp, 'feedback', None)
         # 1. Tente obter o arquivo para ver se ele já existe
         try:
             file = self.repo.get_contents(file_path)
@@ -144,7 +155,7 @@ class GithubAdapter(Port):
 
         return submission_files_dict
 
-    def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None):
+    def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None, include_feedback: bool = False):
         """
         Creates an AutograderRequest object with the provided parameters.
         """
@@ -157,6 +168,7 @@ class GithubAdapter(Port):
             assignment_config,
             student_name,
             student_credentials=student_credentials,
+            include_feedback=include_feedback,
             feedback_mode=feedback_mode,
             openai_key=openai_key,
             redis_url=redis_url,
