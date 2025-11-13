@@ -93,7 +93,7 @@ class GithubAdapter(Port):
         # skip committing the relatorio.md file.
         req = getattr(self, 'autograder_request', None)
         if req is not None and not getattr(req, 'include_feedback', False):
-            print("Feedback generation disabled (include_feedback=False); skipping commit of relatorio.md.")
+            print("Feedback generation disabled (include_feedback=False), skipping commit of relatorio.md.")
             return
 
         # Safely get feedback content (may be None or autograder_response may not exist)
@@ -155,7 +155,7 @@ class GithubAdapter(Port):
 
         return submission_files_dict
 
-    def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None, include_feedback: bool = False):
+    def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None, include_feedback = False):
         """
         Creates an AutograderRequest object with the provided parameters.
         """
