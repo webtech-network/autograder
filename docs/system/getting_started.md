@@ -161,12 +161,12 @@ Now that you understand the overall structure, dive deeper into each configurati
 - 📋 **[Criteria Configuration](./configuration/criteria_config.md)** - Define your grading rubric
 - ⚙️ **[Setup Configuration](./configuration/setup_config.md)** - Configure the grading environment
 - 💬 **[Feedback Configuration](./configuration/feedback_config.md)** - Customize student feedback
-- 🎨 **[Templates Guide](/templates/)** - Use pre-built grading templates
+- 🎨 **[Templates Guide](docs/system/templates/)** - Use pre-built grading templates
 
 ---
 
 ## Need Help?
 
-- Review the [Core Concepts](/core_concepts.md) documentation
-- Check the [System Architecture](/system_architecture.md) for technical details
+- Review the [Core Concepts](./core_concepts.md) documentation
+- Check the [System Architecture](./system_architecture.md) for technical details
 - Examine example configurations in the repository
