@@ -1,6 +1,7 @@
-name: "HTML/CSS/JS Autograder"
-author: "Webtech Network"
-description: "An autograding tool for GitHub Classroom that evaluates students' HTML, CSS, and JavaScript projects."
+name: "Global Autograder"
+author: "Arthur Carvalho"
+icon: box
+description: "An autograding tool for GitHub Classroom. flexible,extensive,consistent and generates feedback."
 
 # Defines the inputs that the action can receive.
 # These are mapped to the arguments in the `runs` section below.

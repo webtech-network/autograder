@@ -970,3 +970,4 @@ class WebDevTemplate(Template):
         if not test_function:
             raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
         return test_function
+

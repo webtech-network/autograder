@@ -60,7 +60,13 @@ class AiExecutor:
             prompt=test_prompt
         )
         self.tests.append(test_input_model)
-        empty_test_result = TestResult(test_name, 0, "", "")  # TODO -> how to map to correct subject?
+        empty_test_result = TestResult(
+            test_name=test_name,
+            score=0,
+            report="",
+            subject_name="",
+            parameters={}
+        )
         self.test_result_references.append(empty_test_result)
         return empty_test_result
 

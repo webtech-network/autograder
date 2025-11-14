@@ -70,7 +70,11 @@ EOT
             exit_code, stdout, stderr = self.executor.run_command(full_command)
 
             if exit_code != 0:
-                return TestResult(self.name, 0, f"The program exited with an error. Stderr: {stderr}")
+                return TestResult(
+                    test_name=self.name,
+                    score=0,
+                    report=f"The program exited with an error. Stderr: {stderr}"
+                )
 
             actual_output = stdout.strip()
             if actual_output == expected_output.strip():
@@ -80,7 +84,11 @@ EOT
                 score = 0
                 report = f"Output did not match. Expected: '{expected_output.strip()}', but the program returned: '{actual_output}'"
 
-            return TestResult(self.name, score, report)
+            return TestResult(
+                test_name=self.name,
+                score=score,
+                report=report
+            )
 
         finally:
             # Step 3: Always clean up the temporary file.
