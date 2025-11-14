@@ -375,7 +375,7 @@ These results are then passed to the **Reporter** component to generate human-re
 
 Here is a diagram illustrating the grading tree:
 
-![Grading Artifacts Tree](/docs/system/imgs/tree_structure.png)
+![Grading Artifacts Tree](./imgs/tree_structure.png)
 
 ---
 

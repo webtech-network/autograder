@@ -53,7 +53,7 @@ Specifies the grading template to use. Templates provide pre-built grading logic
 
 - **Template Options**: `"custom"`, `"web dev"`, and others
 - **Purpose**: Simplifies setup for standard assignment types
-- 📚 **[Learn more about templates →](/docs/system/templates/grading_templates.md)** _(grading_templates.md)_
+- 📚 **[Learn more about templates →](./templates/grading_templates.md)** _(grading_templates.md)_
 
 #### 2. **Criteria Configuration** (JSON)
 Defines the grading criteria as a tree structure:
@@ -62,7 +62,7 @@ Defines the grading criteria as a tree structure:
 - Pass/fail conditions
 - Grading rubric hierarchy
 
-📄 **Detailed documentation**: See [criteria_config.md](/docs/system//configuration/criteria_config.md)
+📄 **Detailed documentation**: See [criteria_config.md](./configuration/criteria_config.md)
 
 #### 3. **Setup Configuration** (JSON)
 Controls the pre-grading environment setup:
