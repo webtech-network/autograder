@@ -12,7 +12,7 @@ class Result(BaseModel):
 
     final_score: float
     author: str
-    submission_files: Dict[str,str] = Field(default_factory=list, alias="submission_files")
+    submission_files: Dict[str,str] = Field(default_factory=dict, alias="submission_files")
     base_results: List[TestResult] = Field(default_factory=list)
     bonus_results: List[TestResult] = Field(default_factory=list)
     penalty_results: List[TestResult] = Field(default_factory=list)
