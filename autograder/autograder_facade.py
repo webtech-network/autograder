@@ -169,6 +169,7 @@ class Autograder:
 
         logger.info(f"Running grading process")
         logger.debug(f"Submission files: {list(req.submission_files.keys())}")
+      
 
         result = grader.run()
 
