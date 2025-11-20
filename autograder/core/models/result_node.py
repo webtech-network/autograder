@@ -31,7 +31,38 @@ class ResultNode(BaseModel):
 
     model_config =  {"arbitrary-types-allowed": True}
 
+
+    def add_child(self,child: 'ResultNode'): 
+        self.children.append(child)
+
+    def get_all_tests_results(self) -> List[TestResult]:
+
+        results = list(self.test_results)
+        for child in self.children:
+            results.extend(child.get_all_tests_results())
+        
+        return results
     
+    def find_node(self, name: str, node_type: Optional[NodeType] = None) -> Optional['ResultNode']:
+
+        if self.name == name:
+            if NodeType is None or self.node_type == node_type:
+                return self
+            
+        for child in self.children: 
+            result = child.find_node(name, node_type)
+            if result:
+                return result
+            
+        return None
+    
+    def get_node_path(self, name: str) -> Optional[List['ResultNode']]:
+        
+        if self.name  == name:
+            return [self]
+        
+        
+
 
 
 
