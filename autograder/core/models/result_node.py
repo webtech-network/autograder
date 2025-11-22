@@ -29,7 +29,7 @@ class ResultNode(BaseModel):
 
     total_test: int = 0
 
-    model_config =  {"arbitrary-types-allowed": True}
+    model_config = {"arbitrary-types-allowed": True}
 
 
     def add_child(self,child: 'ResultNode'): 
@@ -60,6 +60,28 @@ class ResultNode(BaseModel):
         
         if self.name  == name:
             return [self]
+        
+        for child in self.children:
+            child_path = child.get_node_path(name)
+            if child_path:
+                return [self] + child_path
+            
+        return None
+    
+    
+    def to_dict(self) -> dict:
+        
+        return {
+            "node_type": self.node_type,
+            "name": self.name,
+            "weighted_score": self.weighted_score,
+            "unweighted_score": self.unweighted_score,
+            "weight": self.weight,
+            "max_score": self.max_score,
+            "total_tests": self.total_test,
+            "test_results": [tr.to_dict() for tr in self.test_results],
+            "children": [child.to_dict() for child in self.children]
+        }
         
         
 
