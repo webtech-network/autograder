@@ -82,6 +82,10 @@ class ResultNode(BaseModel):
             "test_results": [tr.to_dict() for tr in self.test_results],
             "children": [child.to_dict() for child in self.children]
         }
+    
+    def __repr__(self):
+        score_info = f"weighted={self.weighted_score:.2f}" if self.weighted_score is not None else "no score"
+        return f"ResultNode(type={self.node_type}, name='{self.name}', {score_info}, tests={self.total_tests})"
         
         
 
