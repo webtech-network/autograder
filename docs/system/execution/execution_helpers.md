@@ -92,7 +92,7 @@ Key classes / functions:
   - `_place_submission_files()` — packages `request.submission_files` into a
     tar archive and copies them into `/home/user/` inside the container.
   - `run_command(command: str, in_background=False)` — execute commands
-    inside the container; returns `(exit_code, stdout, stderr)` for
+    inside the container, returns `(exit_code, stdout, stderr)` for
     foreground commands or `None` when `in_background=True`.
   - `get_mapped_port(container_port: int)` — read container network mapping to
     discover which host port Docker assigned for a forwarded container port.
@@ -134,7 +134,7 @@ Security and operational notes:
   the current implementation. Review and adjust user privileges according to
   your security posture — running containers as non-root is recommended when
   possible.
-- The sandbox uses Docker; the runtime environment must have Docker available
+- The sandbox uses Docker, the runtime environment must have Docker available
   and the user running the autograder must have permissions to manage
   containers.
 - Containers are started with `sleep infinity` then files are copied inside
@@ -149,7 +149,7 @@ Security and operational notes:
   builder that can choose between `AiExecutor` and `SandboxExecutor`.
 - Unit-test tips:
   - For `AiExecutor`, mock the `OpenAI` client and `get_secret` to return a
-    deterministic response; assert that `mapback()` updates `TestResult`
+    deterministic response, assert that `mapback()` updates `TestResult`
     objects correctly.
   - For `SandboxExecutor`, run tests that mock `docker` to avoid requiring
     actual Docker in CI. For integration tests, use a real Docker host and
@@ -170,5 +170,4 @@ Security and operational notes:
   - `autograder/builder/execution_helpers/AI_Executor.py`
   - `autograder/builder/execution_helpers/sandbox_executor.py`
 
-If you'd like, I can add cross-links from the top-level `README.md` or the
-project docs index pointing to this page.
+
