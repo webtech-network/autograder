@@ -27,7 +27,7 @@ class ResultNode(BaseModel):
 
     test_results: List[TestResult] = Field(default_factory=list)
 
-    total_test: int = 0
+    total_tests: int = 0
 
     model_config = {"arbitrary-types-allowed": True}
 
@@ -78,7 +78,7 @@ class ResultNode(BaseModel):
             "unweighted_score": self.unweighted_score,
             "weight": self.weight,
             "max_score": self.max_score,
-            "total_tests": self.total_test,
+            "total_tests": self.total_tests,
             "test_results": [tr.to_dict() for tr in self.test_results],
             "children": [child.to_dict() for child in self.children]
         }
@@ -86,9 +86,7 @@ class ResultNode(BaseModel):
     def __repr__(self):
         score_info = f"weighted={self.weighted_score:.2f}" if self.weighted_score is not None else "no score"
         return f"ResultNode(type={self.node_type}, name='{self.name}', {score_info}, tests={self.total_tests})"
-        
-        
-
+    
 
 
 
