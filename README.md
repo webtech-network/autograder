@@ -33,8 +33,14 @@ This documentation is divided into several sections to help you find the informa
 
 * [**3. Creating Assignments**](docs/system/creating_assignments.md): A practical guide to creating your own custom assignments.
 
-* [**4. Adapters**](docs/adapters.md): Information on how the autograder integrates with external systems like GitHub and APIs.
+* [**4. Execution Helpers**](docs/system/execution/execution_helpers.md): How the autograder runs and evaluates submissions (AI and sandbox executors).
 
-* [**5. API Reference**](docs/api_reference.md): Detailed documentation for the autograder's API.
+* [**5. Adapters**](docs/adapters.md): Information on how the autograder integrates with external systems like GitHub and APIs.
+
+* [**6. API Reference**](docs/api_reference.md): Detailed documentation for the autograder's API.
+
+
+
+
 
 

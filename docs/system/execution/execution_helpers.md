@@ -64,6 +64,44 @@ ai.add_test('Functionality: prints greeting', 'Does the program print "hi"?')
 ai.stop()  # sends request to AI and populates test_result references
 ```
 
+### Example: AI request payload and expected response
+
+Below is a simplified example of the JSON batch sent to the AI and an example
+of the expected response structure (the real implementation wraps these in
+system/user prompts and uses Pydantic models).
+
+Request (conceptual JSON list of tests):
+
+```json
+[
+  { "test": "Grammar: Check for grammatical errors", "prompt": "On a
+    scale of 0 to 100, how free is the text from grammatical errors?" },
+  { "test": "Clarity: Overall clarity", "prompt": "Rate overall clarity" }
+]
+```
+
+Expected AI response (must match `AIResponseModel`):
+
+```json
+{
+  "results": [
+    {
+      "title": "Grammar: Check for grammatical errors",
+      "subject": "Grammar",
+      "feedback": "The submission contains multiple punctuation errors...",
+      "score": 72.5
+    },
+    {
+      "title": "Clarity: Overall clarity",
+      "subject": "Clarity",
+      "feedback": "The structure is logical but some paragraphs are long...",
+      "score": 80.0
+    }
+  ]
+}
+```
+
+
 When to use:
 - Use `AiExecutor` when you want natural-language-based evaluation, rubric
   synthesis, or when tests are expressed as textual prompts evaluated by an
@@ -123,6 +161,39 @@ host_port = sandbox.get_mapped_port(8000)
 # Cleanup
 sandbox.stop()
 ```
+
+### Example `setup.json` for `SandboxExecutor`
+
+The `SandboxExecutor` reads `setup` configuration from the assignment
+configuration. A minimal example `setup.json` that the executor understands:
+
+```json
+{
+  "file_checks": ["app.py", "requirements.txt"],
+  "runtime_image": "python:3.11-slim",
+  "container_port": 8000,
+  "commands": [
+    "pip install --no-cache-dir -r requirements.txt",
+    "python app.py"
+  ]
+}
+```
+
+Notes:
+- `runtime_image` must be a valid Docker image accessible from the host.
+- `container_port` is optional and only needed when the student code starts a
+  server that needs to be reached from the host (it will be dynamically
+  mapped to a host port).
+
+Practical tips:
+- Put dependency/install commands first and the command that starts the
+  server last (the autograder expects the last command to start the service
+  and remain running so tests can connect to it).
+- Ensure the student's process listens on the configured `container_port`
+  (for example `python app.py --port 8000` or `app.run(host='0.0.0.0', port=8000)`).
+- See `docs/system/configuration/setup_config.md` for the full schema and
+  additional examples.
+
 
 When to use:
 - Use `SandboxExecutor` for any evaluation that requires running student code
