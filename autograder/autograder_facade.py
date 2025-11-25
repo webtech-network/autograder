@@ -178,8 +178,8 @@ class Autograder:
         return result
 
     @staticmethod
-    def export_final_score():
-        req = request_context.get_request(final_score)
+    def export_final_score(final_score):
+        req = request_context.get_request()
         student_credentials = req.student_credentials
         if req.redis_token and req.redis_url:
             logger.info("Sending final score to Redis")
