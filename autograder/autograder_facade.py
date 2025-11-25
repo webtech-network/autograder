@@ -53,6 +53,9 @@ class Autograder:
             logger.info("Starting grading process")
             result = Autograder._start_and_run_grader()
             logger.info(f"Grading completed. Final score: {result.final_score}")
+            
+            if autograder_request.redis_token and autograder_request.redis_url:
+              Autograder.export_final_score(result.final_score)
 
             if autograder_request.include_feedback:
                 # Step 5: Setup feedback preferences
@@ -150,8 +153,6 @@ class Autograder:
         criteria_tree.print_pre_executed_tree()
         logger.info("Criteria tree built successfully")
 
-
-
         req.criteria_tree = criteria_tree
         return criteria_tree
 
@@ -175,6 +176,21 @@ class Autograder:
         logger.info(f"Grading completed. Final score: {result.final_score}")
 
         return result
+
+    @staticmethod
+    def export_final_score(final_score):
+        req = request_context.get_request()
+        student_credentials = req.student_credentials
+        if req.redis_token and req.redis_url:
+            logger.info("Sending final score to Redis")
+            driver = Driver.create(req.redis_token, req.redis_url)
+            if driver is not None:
+                if driver.user_exists(student_credentials):
+                    driver.set_score(student_credentials, final_score)
+                else:
+                    driver.create_user(student_credentials)
+                    driver.set_score(student_credentials, final_score)
+                logger.info("Final score sent to Redis successfully")
 
     @staticmethod
     def _setup_feedback_pref():
@@ -206,16 +222,16 @@ class Autograder:
 
             logger.info("All AI requirements validated successfully")
 
-                    # Setup Redis driver
+            # Setup Redis driver
             driver = Driver.create(req.redis_token, req.redis_url)
             student_credentials = req.student_credentials
 
 
-            if not driver.token_exists(student_credentials):
-                driver.create_token(student_credentials)
+            if not driver.user_exists(student_credentials):
+                driver.create_user(student_credentials)
 
-            if driver.decrement_token_quota(student_credentials):
-                quota = driver.get_token_quota(student_credentials)
+            if driver.decrement_user_quota(student_credentials):
+                quota = driver.get_user_quota(student_credentials)
                 logger.info(f"Quota check passed. Remaining quota: {quota}")
                 reporter = Reporter.create_ai_reporter(result,feedback, template, quota)
             else:
