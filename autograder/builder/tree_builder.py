@@ -23,10 +23,6 @@ class CriteriaTree:
                 if "weight" in category_data:
                     category.max_score = category_data.get("weight", 100)
 
-                # Validate that category doesn't have both subjects and tests
-                if "subjects" in category_data and "tests" in category_data:
-                    raise ValueError(f"Config error: Category '{category_name}' cannot have both 'tests' and 'subjects'.")
-
                 if "subjects" in category_data:
                     subjects = [
                         CriteriaTree._parse_and_execute_subject(s_name, s_data, template, submission_files)
@@ -35,7 +31,8 @@ class CriteriaTree:
                     CriteriaTree._balance_subject_weights(subjects)
                     for subject in subjects:
                         category.add_subject(subject)
-                elif "tests" in category_data:
+
+                if "tests" in category_data:
                     # Handle tests directly at category level
                     parsed_tests = CriteriaTree._parse_tests(category_data["tests"])
                     executed_tests = []
@@ -60,19 +57,13 @@ class CriteriaTree:
                 if "weight" in category_data:
                     category.max_score = category_data.get("weight", 100)
 
-                # Validate that category doesn't have both subjects and tests
-                if "subjects" in category_data and "tests" in category_data:
-                    raise ValueError(f"Config error: Category '{category_name}' cannot have both 'tests' and 'subjects'.")
-
                 if "subjects" in category_data:
-                    subjects = [
-                        CriteriaTree._parse_subject(s_name, s_data)
-                        for s_name, s_data in category_data["subjects"].items()
-                    ]
+                    subjects = CriteriaTree._parse_subjects(category_data["subjects"])
                     CriteriaTree._balance_subject_weights(subjects)
                     for subject in subjects:
                         category.add_subject(subject)
-                elif "tests" in category_data:
+
+                if "tests" in category_data:
                     # Handle tests directly at category level
                     category.tests = CriteriaTree._parse_tests(category_data["tests"])
         return criteria
