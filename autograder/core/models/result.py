@@ -10,7 +10,7 @@ class Result(BaseModel):
     Allows different report generation methods for feedback.
     """
 
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     final_score: float
     author: str
