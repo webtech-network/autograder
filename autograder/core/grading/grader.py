@@ -329,7 +329,7 @@ class Grader:
                 return None
             
             result_node.test_results = subject_tests
-            result_node.total_test = len(subject_tests)
+            result_node.total_tests = len(subject_tests)
             
             # Calculate score(tests averages)
             scores = [tr.score for tr in subject_tests]
@@ -345,6 +345,7 @@ class Grader:
         if not child_subjects:
             return None
         
+        
         total_tests = 0
         valid_children = []
         
@@ -356,7 +357,7 @@ class Grader:
                 depth + 1
             )
             
-            if child_result_node:
+            if child_result_node: # Only add a children if it has tests 
                 result_node.add_child(child_result_node)
                 total_tests += child_result_node.total_tests
                 valid_children.append(child_result_node)
@@ -364,8 +365,9 @@ class Grader:
         if not valid_children:
             return None
         
-        result_node.total_test = total_tests
-        
+        result_node.total_tests = total_tests
+
+        # Calculate weighted and unweighted scores
         total_weight = sum(child.weight for child in valid_children)
         
         if total_weight == 0:

@@ -16,6 +16,8 @@ class Result(BaseModel):
     author: str
     submission_files: Dict[str,str] = Field(default_factory=dict, alias="submission_files")
 
+    """ The hierarchical result tree structure """
+
     result_tree: Optional[ResultNode] = None
 
     base_results: List[TestResult] = Field(default_factory=list)
@@ -27,7 +29,6 @@ class Result(BaseModel):
     def get_test_report(self) -> List[TestResult]:
         return self.base_results + self.bonus_results + self.penalty_results
     
-
 
     def get_category_node(self,category: str) -> Optional[ResultNode]:
         if not self.result_tree:
@@ -49,6 +50,7 @@ class Result(BaseModel):
         return node.get_all_tests_results() if node else []
     
     def get_navigation_path(self, node_name: str) -> Optional[List[ResultNode]]: 
+        # Main method for navigation on the tree
         if not self.result_tree:
             return None
         return self.result_tree.get_node_path(node_name)
@@ -89,7 +91,7 @@ class Result(BaseModel):
     
 
     def print_tree(self, node: Optional[ResultNode] = None, indent: int = 0):
-
+        # Prints the result tree
         if node is None:
             node = self.result_tree
         if not node:
@@ -114,7 +116,7 @@ class Result(BaseModel):
 
 
     def tree_to_dict(self) -> Optional[dict]:
-
+        # Converts the result to dictionary format
         if not self.result_tree:
             return None
         return self.result_tree.to_dict()

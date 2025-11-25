@@ -14,11 +14,11 @@ class AutograderResponse(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
     
-    
     status: str
     final_score: float = 0.0
     feedback: str = ""
     test_report: Optional[List[TestResult]] = Field(default=None)
+    # Added the result_tree field to the new model
     result_tree: Optional[ResultNode] = None
 
     def __repr__(self) -> str:
