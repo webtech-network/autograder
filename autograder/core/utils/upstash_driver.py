@@ -8,31 +8,17 @@ class Driver:
     def __init__(self,redis):
         self.redis = redis
 
-    def token_exists(self,token: str) -> bool:
-        """Function to check if a given token exists in the database"""
-        key = f"token:{token}"
-        result = self.redis.exists(key)
-        return result > 0
-
-    def create_token(self,token: str, quota: int = 10):
-        """Function to create a new token"""
-        key = f"token:{token}"
-        value = {"token": token, "quota": quota}
-        # self.redis.set(key, json.dumps(value))
-        self.redis.hmset(key, value)
-        print(f"✅ Token '{token}' created with quota {quota}")
-
-    def get_token_quota(self,token: str) -> int:
-        """Function to get the quota of a user based on his token"""
-        key = f"token:{token}"
+    def get_user_quota(self,user_credentials: str) -> int:
+        """Function to get the quota of a user based on his username"""
+        key = f"user:{user_credentials}"
         result = self.redis.hget(key, "quota")
         if result is None:
-            raise Exception("Token not found.")
+            raise Exception("User not found.")
         return int(result)
 
-    def decrement_token_quota(self,token: str) -> bool:
-        """Function to decrement the quota of a user based on his token"""
-        key = f"token:{token}"
+    def decrement_user_quota(self,user_credentials: str) -> bool:
+        """Function to decrement the quota of a user based on his username"""
+        key = f"user:{user_credentials}"
 
         current_quota = self.redis.hget(key, "quota")
         if current_quota is None:
@@ -57,7 +43,7 @@ class Driver:
         key = f"user:{username}"
         # Cria o hash com os campos iniciais
         self.redis.hmset(key, {
-            "username": username,
+            "quota": 10,
             "score": -1.0
         })
         print(f"User '{username}' created.")
