@@ -430,9 +430,9 @@ class CheckHeadingsSequential(TestFunction):
                 break
         score = 100 if valid else 0
         report = (
-            "A hierarquia de cabeçalhos está correta."
+            "A hierarquia de cabeçalhos está bem estruturada."
             if valid
-            else "Foram encontrados saltos inválidos na hierarquia de cabeçalhos (ex: h1 → h3)."
+            else "A ordem dos cabeçalhos (`<h1>`, `<h2>`, etc.) não é sequencial. Evite pular níveis."
         )
         return TestResult(test_name=self.name, score=score, report=report)
 
