@@ -123,11 +123,11 @@ class Autograder:
 
                     logger.info("All AI requirements validated successfully")
 
-                    if not driver.token_exists(student_credentials):
-                        driver.create_token(student_credentials)
+                    if not driver.user_exists(student_credentials):
+                      driver.create_user(student_credentials)
 
-                    if driver.decrement_token_quota(student_credentials):
-                        quota = driver.get_token_quota(student_credentials)
+                    if driver.decrement_user_quota(student_credentials):
+                        quota = driver.get_user_quota(student_credentials)
                         logger.info(f"Quota check passed. Remaining quota: {quota}")
                         reporter = Reporter.create_ai_reporter(result,feedback, test_template, quota)
                     else:
