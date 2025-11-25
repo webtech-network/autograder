@@ -89,7 +89,18 @@ class GithubAdapter(Port):
         file_path = "relatorio.md"
         file_sha = None
         commit_message = ""
-        new_content = self.autograder_response.feedback
+        # If the autograder_request exists and include_feedback is explicitly False,
+        # skip committing the relatorio.md file.
+        req = getattr(self, 'autograder_request', None)
+        if req is not None and not getattr(req, 'include_feedback', False):
+            print("Feedback generation disabled (include_feedback=False), skipping commit of relatorio.md.")
+            return
+
+        # Safely get feedback content (may be None or autograder_response may not exist)
+        new_content = None
+        resp = getattr(self, 'autograder_response', None)
+        if resp is not None:
+            new_content = getattr(resp, 'feedback', None)
         # 1. Tente obter o arquivo para ver se ele já existe
         try:
             file = self.repo.get_contents(file_path)
@@ -144,7 +155,7 @@ class GithubAdapter(Port):
 
         return submission_files_dict
 
-    def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None):
+    def create_request(self, submission_files, assignment_config, student_name, student_credentials, feedback_mode="default", openai_key=None, redis_url=None, redis_token=None, include_feedback = False):
         """
         Creates an AutograderRequest object with the provided parameters.
         """
@@ -154,14 +165,14 @@ class GithubAdapter(Port):
         print(f"Creating AutograderRequest with {feedback_mode} feedback mode")
         self.autograder_request = AutograderRequest(
             submission_files=submission_files_dict,
-            include_feedback=True,
             assignment_config=assignment_config,
             student_name=student_name,
             student_credentials=student_credentials,
+            include_feedback=include_feedback,
             feedback_mode=feedback_mode,
             openai_key=openai_key,
             redis_url=redis_url,
-            redis_token=redis_token
+            redis_token=redis_token,
         )
         print(f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode")
 
@@ -211,13 +222,15 @@ class GithubAdapter(Port):
                 custom_template_str = f.read()
             print("Custom template loaded successfully.")
 
-        return AssignmentConfig(
+        assignment_config = AssignmentConfig(
             template=template_preset,
             criteria=criteria_dict,
             feedback=feedback_dict,
             setup=setup_dict,
-            custom_template=custom_template_str
+            custom_template_str=custom_template_str,
         )
+        return assignment_config
+
 
     @classmethod
     def create(cls,test_framework,github_author,feedback_type,github_token,app_token,openai_key=None,redis_url=None,redis_token=None):
