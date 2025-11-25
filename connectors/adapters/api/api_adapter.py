@@ -48,15 +48,16 @@ class ApiAdapter(Port):
                 continue
             submission_content = await submission_file.read()
             submission_files_dict[submission_file.filename] =  submission_content.decode("utf-8")
-        self.autograder_request =  AutograderRequest(
-            submission_files_dict,
-            assignment_config,
-            student_name,
-            include_feedback,
+        self.autograder_request = AutograderRequest(
+            submission_files=submission_files_dict,
+            assignment_config=assignment_config,
+            student_name=student_name,
+            student_credentials=student_credentials,
+            include_feedback=include_feedback,
             feedback_mode=feedback_mode,
             openai_key=openai_key,
             redis_url=redis_url,
-            redis_token=redis_token
+            redis_token=redis_token,
         )
 
 

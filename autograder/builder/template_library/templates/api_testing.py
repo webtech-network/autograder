@@ -24,7 +24,7 @@ class HealthCheckTest(TestFunction):
 
     @property
     def description(self):
-        return "Checks if a specific endpoint is running and returns a 200 OK status."
+        return "Verifica se um endpoint específico está em execução e retorna status code 200."
 
     @property
     def required_file(self):
@@ -33,7 +33,7 @@ class HealthCheckTest(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("endpoint", "The endpoint to test (e.g., '/health').", "string")
+            ParamDescription("endpoint", "O endpoint a ser testado (ex: '/health').", "string")
         ]
 
     def __init__(self, executor: SandboxExecutor):
@@ -74,7 +74,11 @@ class HealthCheckTest(TestFunction):
         except Exception as e:
             report = f"An unexpected error occurred: {e}"
 
-        return TestResult(self.name, score, report)
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report
+        )
 
 
 class CheckResponseJsonTest(TestFunction):
@@ -86,7 +90,7 @@ class CheckResponseJsonTest(TestFunction):
 
     @property
     def description(self):
-        return "Checks if an endpoint's JSON response contains a specific key and value."
+        return "Verifica se a resposta em JSON de um endpoint possui a chave e valor específicos."
 
     @property
     def required_file(self):
@@ -95,9 +99,9 @@ class CheckResponseJsonTest(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("endpoint", "The API endpoint to test (e.g., '/api/data').", "string"),
-            ParamDescription("expected_key", "The JSON key to check in the response.", "string"),
-            ParamDescription("expected_value", "The expected value for the specified key.", "any")
+            ParamDescription("endpoint", "O endpoint da API a ser testado (ex: '/api/data').", "string"),
+            ParamDescription("expected_key", "A chave JSON que vai verificar a resposta.", "string"),
+            ParamDescription("expected_value", "O valor esperado para a chave especificada.", "any")
         ]
 
     def __init__(self, executor: SandboxExecutor):
@@ -139,7 +143,11 @@ class CheckResponseJsonTest(TestFunction):
         except Exception as e:
             report = f"An unexpected error occurred: {e}"
 
-        return TestResult(self.name, score, report)
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report
+        )
 
 
 # ===============================================================
@@ -154,11 +162,11 @@ class ApiTestingTemplate(Template):
 
     @property
     def template_name(self):
-        return "API Testing"
+        return "API de Testes"
 
     @property
     def template_description(self):
-        return "A template for grading assignments where students create a web API."
+        return "Um modelo para avaliar tarefas onde alunos criam uma API web."
 
     @property
     def requires_pre_executed_tree(self) -> bool:
@@ -179,7 +187,7 @@ class ApiTestingTemplate(Template):
             self._setup_environment()
         else:
             self.executor = None
-    
+
         self.logger = logging.getLogger(__name__)
 
         self.tests = {
