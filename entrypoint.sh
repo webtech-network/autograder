@@ -68,6 +68,10 @@ if [[ -n "$REDIS_TOKEN" ]]; then
     args+=("--redis-token" "$REDIS_TOKEN")
 fi
 
+if [[ -n "$INCLUDE_FEEDBACK" ]]; then
+  args+=("--include-feedback" "$INCLUDE_FEEDBACK")
+fi
+
 
 # --- 3. Execute the Python Script ---
 echo "Executing python entrypoint with configured arguments..."

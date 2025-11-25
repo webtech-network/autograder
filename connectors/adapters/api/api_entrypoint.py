@@ -1,7 +1,7 @@
 # src/interfaces/api/submission_api.py
 import logging
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from connectors.models.assignment_config import AssignmentConfig
@@ -96,15 +96,55 @@ async def grade_submission_endpoint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
-@app.get("/template/{template_name}")
-async def get_template_info(template_name: str):
+@app.get("/templates/{template_name}")
+async def get_template_info(
+    template_name: str,
+    details_level: str = Query(
+        None,
+        description="Level of detail: 'summary', 'test_names'"
+    ),
+    test_name: str = Query(
+        None,
+        description="Return full details for a specific test"
+    ),
+):
     try:
         adapter = ApiAdapter()
-        return adapter.get_template_info(template_name.replace("_"," "))
+        template = adapter.get_template_info(template_name.replace("_", " "))
+
+        # Return full details of a specific test
+        if test_name:
+            matching_test = next(
+                (t for t in template.get("tests", []) if t["name"] == test_name),
+                None
+            )
+            if not matching_test:
+                raise ValueError(f"Test '{test_name}' not found in template '{template_name}'")
+            return matching_test
+
+        # Return only template details
+        if details_level == "summary":
+            return {
+                "template_name": template.get("template_name"),
+                "template_description": template.get("template_description")
+            }
+
+        # Return only test names
+        if details_level == "test_names":
+            tests_list = [
+                {"name": t["name"]}
+                for t in template.get("tests", [])
+            ]
+            return {"tests": tests_list}
+
+        # Return full template
+        return template
+
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+
 
 # To run this API service:
 # uvicorn submission_api:app --host 0.0.0.0 --port 8000 --reload
