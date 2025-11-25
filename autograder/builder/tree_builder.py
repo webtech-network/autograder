@@ -86,8 +86,10 @@ class CriteriaTree:
         return subject
 
     @staticmethod
-    def _parse_subjects(data: dict) -> List[Subject]:
+    def _parse_subjects(data: dict | None) -> List[Subject]:
         """Parses multiple subjects from the configuration and balances their weights."""
+        if not data:
+            return []
         subjects = [
             CriteriaTree._parse_subject(sub_name, sub_data)
             for sub_name, sub_data in data.items()
