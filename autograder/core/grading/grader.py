@@ -1,9 +1,11 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 from autograder.context import request_context
 from autograder.builder.tree_builder import *
 from autograder.core.models.result import Result
 from autograder.core.models.test_result import TestResult
+
+from autograder.core.models.result_tree import ResultNode, NodeType
 
 
 class Grader:
@@ -20,34 +22,121 @@ class Grader:
         self.penalty_results: List['TestResult'] = []
 
     def run(self) -> 'Result':
+        """
+        Main entry point for grading.
+        Returns a Result object with final_score and result_tree.
+        """
         request = request_context.get_request()
         submission_files = request.submission_files
         author_name = request.student_name
-        final_score = self._run(submission_files)
+        
+        # Execute grading and build tree
+        final_score, result_tree = self._run(submission_files)
+        
         return Result(
             final_score=final_score,
             author=author_name,
             submission_files=submission_files,
             base_results=self.base_results,
             bonus_results=self.bonus_results,
-            penalty_results=self.penalty_results
+            penalty_results=self.penalty_results,
+            result_tree=result_tree
         )
 
-
-    def _run(self, submission_files: Dict) -> float:
+    
+    def _run(self, submission_files: Dict) -> Tuple[float, ResultNode]:
         """
-        Runs the entire grading process and returns the final calculated score.
+        Runs the entire grading process and returns (final_score, result_tree).
         """
         print("\n--- STARTING GRADING PROCESS ---")
-        # Step 1: Grade categories. The methods will return None if no tests exist.
-        ## CHANGED: Coalesce None to 0.0 to signify that an empty category contributes nothing to the score.
-        base_score = self._grade_subject_or_category(self.criteria.base, submission_files, self.base_results) or 0.0
-        bonus_score = self._grade_subject_or_category(self.criteria.bonus, submission_files, self.bonus_results) or 0.0
-        penalty_points = self._calculate_penalty_points(self.criteria.penalty, submission_files,
-                                                        self.penalty_results) or 0.0
+        
+        # Create root node for the result tree
+        root_node = ResultNode(
+            node_type=NodeType.ROOT,
+            name="Assignment Result"
+        )
 
-        # Step 3: Apply the final scoring logic
+        # Step 1: Grade categories (original grading logic - unchanged)
+        base_score = self._grade_subject_or_category(
+            self.criteria.base, 
+            submission_files, 
+            self.base_results
+        ) or 0.0
+        
+        bonus_score = self._grade_subject_or_category(
+            self.criteria.bonus, 
+            submission_files, 
+            self.bonus_results
+        ) or 0.0
+        
+        penalty_points = self._calculate_penalty_points(
+            self.criteria.penalty, 
+            submission_files,
+            self.penalty_results
+        ) or 0.0
+
+        # Step 2: Build result tree AFTER grading (when all test results exist)
+        print("\n--- BUILDING RESULT TREE ---")
+        
+        base_node = self._build_result_node(
+            self.criteria.base, 
+            "base", 
+            self.base_results,
+            depth=0
+        )
+        
+        bonus_node = self._build_result_node(
+            self.criteria.bonus, 
+            "bonus", 
+            self.bonus_results,
+            depth=0
+        )
+        
+        penalty_node = self._build_result_node(
+            self.criteria.penalty, 
+            "penalty", 
+            self.penalty_results,
+            depth=0
+        )
+        
+        # Step 3: Add category nodes to root and set their scores
+        if base_node:
+            base_node.weighted_score = base_score
+            base_node.unweighted_score = base_score
+            base_node.max_score = self.criteria.base.max_score
+            root_node.add_child(base_node)
+            print(f"✓ Added base_node: {base_node.name} ({base_node.total_tests} tests)")
+        
+        if bonus_node:
+            bonus_node.weighted_score = bonus_score
+            bonus_node.unweighted_score = bonus_score
+            bonus_node.max_score = self.criteria.bonus.max_score
+            root_node.add_child(bonus_node)
+            print(f"✓ Added bonus_node: {bonus_node.name} ({bonus_node.total_tests} tests)")
+        
+        if penalty_node:
+            penalty_node.weighted_score = penalty_points
+            penalty_node.unweighted_score = penalty_points
+            penalty_node.max_score = self.criteria.penalty.max_score
+            root_node.add_child(penalty_node)
+            print(f"✓ Added penalty_node: {penalty_node.name} ({penalty_node.total_tests} tests)")
+
+        # Step 4: Calculate final score (original logic - unchanged)
         final_score = self._calculate_final_score(base_score, bonus_score, penalty_points)
+        
+        # Step 5: Update root node with final values
+        root_node.weighted_score = final_score
+        root_node.total_tests = (
+            (base_node.total_tests if base_node else 0) +
+            (bonus_node.total_tests if bonus_node else 0) +
+            (penalty_node.total_tests if penalty_node else 0)
+        )
+
+        if root_node.children:
+            print("Children:")
+            for child in root_node.children:
+                print(f"  - {child.name}: score={child.weighted_score}, tests={child.total_tests}")
+        print("====================================\n")
 
         print("\n--- GRADING COMPLETE ---")
         print(f"Aggregated Base Score: {base_score:.2f}")
@@ -57,7 +146,7 @@ class Grader:
         print(f"Final Calculated Score: {final_score:.2f}")
         print("-" * 25)
 
-        return final_score
+        return final_score, root_node
 
     def _grade_subject_or_category(self, current_node: 'Subject' or 'TestCategory', submission_files: Dict,
                                    results_list: List['TestResult'], depth=0) -> Optional[float]:
@@ -205,3 +294,91 @@ class Grader:
         print(f"  Penalty Points Subtracted: {penalty_points_to_subtract:.2f}")
 
         return max(0.0, final_score)
+    
+    def _build_result_node(
+        self,
+        criteria_node: 'Subject' or 'TestCategory',
+        node_name: str,
+        results_list: List['TestResult'],
+        depth: int = 0
+    ) -> Optional[ResultNode]:
+        """
+        Recursively builds the ResultNode tree from the criteria tree.
+        """
+        if depth == 0:
+            node_type = NodeType.CATEGORY
+        else:
+            node_type = NodeType.SUBJECT
+        
+        result_node = ResultNode(
+            node_type=node_type,
+            name=node_name,
+            weight=getattr(criteria_node, 'weight', 0.0),
+            max_score=getattr(criteria_node, 'max_score', None)
+        )
+        
+        # Base case: Leaf node with tests   
+        if hasattr(criteria_node, 'tests') and criteria_node.tests:
+            # Filter test results for this subject/category
+            subject_tests = [
+                tr for tr in results_list 
+                if tr.subject_name == node_name
+            ]
+            
+            if not subject_tests:
+                return None
+            
+            result_node.test_results = subject_tests
+            result_node.total_test = len(subject_tests)
+            
+            # Calculate score(tests averages)
+            scores = [tr.score for tr in subject_tests]
+            avg_score = sum(scores) / len(scores)
+            result_node.unweighted_score = avg_score
+            result_node.weighted_score = avg_score
+            
+            print(f"{'    '*depth}Built leaf node: {node_name} with {len(subject_tests)} tests (avg: {avg_score:.2f})")
+            return result_node
+        
+        child_subjects = getattr(criteria_node, 'subjects', {})
+        
+        if not child_subjects:
+            return None
+        
+        total_tests = 0
+        valid_children = []
+        
+        for sub_name, sub_node in child_subjects.items():
+            child_result_node = self._build_result_node(
+                sub_node,
+                sub_name,
+                results_list,
+                depth + 1
+            )
+            
+            if child_result_node:
+                result_node.add_child(child_result_node)
+                total_tests += child_result_node.total_tests
+                valid_children.append(child_result_node)
+        
+        if not valid_children:
+            return None
+        
+        result_node.total_test = total_tests
+        
+        total_weight = sum(child.weight for child in valid_children)
+        
+        if total_weight == 0:
+            avg = sum(child.weighted_score for child in valid_children) / len(valid_children)
+            result_node.weighted_score = avg
+            result_node.unweighted_score = avg
+        else:
+            weighted = sum(
+                child.weighted_score * (child.weight / total_weight)
+                for child in valid_children
+            )
+            result_node.weighted_score = weighted
+            result_node.unweighted_score = weighted
+        
+        print(f"{'    '*depth}Built branch node: {node_name} with {len(valid_children)} children, {total_tests} total tests")
+        return result_node

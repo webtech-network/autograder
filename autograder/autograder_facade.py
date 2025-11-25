@@ -1,4 +1,5 @@
 import logging
+from urllib import response
 
 from autograder.builder.models.template import Template
 from autograder.context import request_context
@@ -12,6 +13,7 @@ from connectors.models.assignment_config import AssignmentConfig
 from connectors.models.autograder_request import AutograderRequest
 from autograder.builder.tree_builder import CriteriaTree
 from autograder.builder.template_library.library import TemplateLibrary
+
 
 
 from autograder.builder.pre_flight import PreFlight
@@ -76,8 +78,10 @@ class Autograder:
                     status = "Success",
                     final_score = result.final_score,
                     feedback = feedback_report,
-                    test_report = result.get_test_report()
+                    test_report = result.get_test_report(),
+                    result_tree= result.result_tree
                 )
+                      
                 logger.info("Autograder process completed successfully")
                 return response
             else:
@@ -86,16 +90,18 @@ class Autograder:
                      status="Success",
                      final_score=result.final_score,
                      feedback="",
-                     test_report=result.get_test_report()
+                     test_report=result.get_test_report(),
+                     result_tree= result.result_tree
                 )
-
+            
+          
 
         except Exception as e:
             # Catch any exception, log it, and return a failure response
             error_message = f"An unexpected error occurred during the grading process: {str(e)}"
             logger.error(error_message)
             logger.exception("Full exception traceback:")
-            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message)
+            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message, result_tree = None)
 
     @staticmethod
     def _pre_flight_step():

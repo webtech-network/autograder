@@ -319,7 +319,6 @@ def define_mock_setup_json() -> dict:
         "commands": []
     }
 
-
 def run_simulation():
     """
     Main function to build and run the autograder simulation.
@@ -372,6 +371,8 @@ def run_simulation():
         print("\n" + "=" * 50)
         print("         END OF SIMULATION")
         print("=" * 50 + "\n")
+
+        
 
     except Exception as e:
         logger.error(f"--- [PLAYROOM] SIMULATION FAILED ---")
