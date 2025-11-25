@@ -81,8 +81,8 @@ class CriteriaTree:
     def _parse_subject(subject_name: str, subject_data: dict) -> Subject:
         """Recursively parses a subject and balances the weights of its children."""
         subject = Subject(subject_name, subject_data.get("weight", 0))
-        subject.children.extend(CriteriaTree._parse_subjects(subject_data["subjects"]))
-        subject.children.extend(CriteriaTree._parse_tests(subject_data["tests"]))
+        subject.children.extend(CriteriaTree._parse_subjects(subject_data.get("subjects", {})))
+        subject.children.extend(CriteriaTree._parse_tests(subject_data.get("tests", [])))
         return subject
 
     @staticmethod
