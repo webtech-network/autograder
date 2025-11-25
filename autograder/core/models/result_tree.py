@@ -48,7 +48,7 @@ class ResultNode(BaseModel):
         Returns the first matching node found."""
 
         if self.name == name:
-            if NodeType is None or self.node_type == node_type:
+            if node_type is None or self.node_type == node_type:
                 return self
             
         for child in self.children: 
