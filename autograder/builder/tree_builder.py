@@ -118,8 +118,10 @@ class CriteriaTree:
         return child_subjects
 
     @staticmethod
-    def _parse_and_execute_tests(test_data: list, template: Template, submission_files: dict, subject_name: str) -> List[TestResult]:
+    def _parse_and_execute_tests(test_data: list | None, template: Template, submission_files: dict, subject_name: str) -> List[TestResult]:
         """Parses and executes a list of test definitions from the configuration."""
+        if not test_data:
+            return []
         parsed_tests = CriteriaTree._parse_tests(test_data)
         executed_tests = []
         for test in parsed_tests:
