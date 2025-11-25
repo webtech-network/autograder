@@ -318,6 +318,36 @@ def define_mock_setup_json() -> dict:
         ],
         "commands": []
     }
+def print_result_tree(node, indent=0):
+    """
+    Recursively prints the result tree in a hierarchical format.
+    
+    """
+    prefix = "  " * indent
+    score_str = f"{node.weighted_score:.2f}" if node.weighted_score is not None else "N/A"
+    
+    # Based on the level chose an icon to output
+    if indent == 0:
+        icon = "🌳"
+    elif indent == 1:
+        icon = "📁"
+    else:
+        icon = "📘"
+    
+    
+    weight_str = f" (w={node.weight:.1f})" if node.weight > 0 else ""
+    test_str = f" [{node.total_test} tests]" if hasattr(node, 'total_test') and node.total_test > 0 else ""
+    
+    # Show unweighted score if different from weighted
+    if node.unweighted_score and node.weighted_score != node.unweighted_score:
+        score_str += f" (raw: {node.unweighted_score:.2f})"
+    
+    print(f"{prefix}{icon} {node.name}{weight_str}: {score_str}{test_str}")
+    
+    # Children recursion    
+    for child in node.children:
+        print_result_tree(child, indent + 1)
+
 
 def run_simulation():
     """
@@ -366,6 +396,15 @@ def run_simulation():
         print("=" * 50 + "\n")
         print(f"Status: {response.status}")
         print(f"Final Score: {response.final_score}")
+
+        print("\n" + "=" * 70)
+        print("          HIERARCHICAL RESULT TREE")
+        print("=" * 70 + "\n")
+        
+        if hasattr(response, 'result_tree') and response.result_tree:
+          # Print the result hierachy tree
+            print_result_tree(response.result_tree)
+
         print("\n--- DETAILED FEEDBACK ---")
         print(response.feedback)
         print("\n" + "=" * 50)
