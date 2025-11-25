@@ -202,7 +202,7 @@ class Criteria:
                 """Added the symbol identificator to match the previous formatting"""
                 for call in child.calls:
                     print(f"{prefix}    - Parameters: {call.args}")
-            if isinstance(child, TestResult):
+            elif isinstance(child, TestResult):
                 # In a pre-executed tree, subject.children contains TestResult objects
                 params_str = f" (Parameters: {child.parameters})" if child.parameters else ""
                 print(f"{prefix}  - 📝 {child.test_name}{params_str} -> Score: {child.score}")
