@@ -96,20 +96,28 @@ class Subject:
 
 
 class TestCategory:
-    """Represents one of the three main categories: base, bonus, or penalty."""
+    """
+    Represents one of the three main categories: base, bonus, or penalty.
+    Can contain EITHER a list of tests OR a dictionary of subjects (not both).
+    """
     def __init__(self, name, max_score=100):
         self.name = name
         self.max_score = max_score
-        self.subjects: dict[str, Subject] = {}
+        self.subjects: dict[str, Subject] | None = None
+        self.tests: List[Test] | None = None
 
     def set_weight(self, weight):
         self.max_score = weight
 
     def add_subject(self, subject: Subject):
+        if self.subjects is None:
+            self.subjects = {}
         self.subjects[subject.name] = subject
 
     def __repr__(self):
-        return f"TestCategory(name='{self.name}', max_score={self.max_score},subjects={list(self.subjects.keys())})"
+        if self.tests is not None:
+            return f"TestCategory(name='{self.name}', max_score={self.max_score}, tests={len(self.tests)})"
+        return f"TestCategory(name='{self.name}', max_score={self.max_score}, subjects={list(self.subjects.keys()) if self.subjects else []})"
 
 
 class Criteria:
@@ -130,12 +138,20 @@ class Criteria:
         self._print_category(self.penalty, prefix="  ")
 
     def _print_category(self, category: TestCategory, prefix: str):
-        """Helper method to print a category and its subjects."""
-        if not category.subjects:
+        """Helper method to print a category and its subjects or tests."""
+        if not category.subjects and not category.tests:
             return
         print(f"{prefix}📁 {category.name.upper()} (max_score: {category.max_score})")
-        for subject in category.subjects.values():
-            self._print_subject(subject, prefix=prefix + "    ")
+        
+        if category.subjects:
+            for subject in category.subjects.values():
+                self._print_subject(subject, prefix=prefix + "    ")
+        
+        if category.tests:
+            for test in category.tests:
+                print(f"{prefix}    - 🧪 {test.name} (file: {test.file})")
+                for call in test.calls:
+                    print(f"{prefix}      - Parameters: {call.args}")
 
     def _print_subject(self, subject: Subject, prefix: str):
         """Recursive helper method to print a subject and its contents."""
@@ -159,12 +175,23 @@ class Criteria:
         self._print_pre_executed_category(self.penalty, prefix="  ")
 
     def _print_pre_executed_category(self, category: TestCategory, prefix: str):
-        """Helper method to print a category and its pre-executed subjects."""
-        if not category.subjects:
+        """Helper method to print a category and its pre-executed subjects or tests."""
+        if not category.subjects and not category.tests:
             return
         print(f"{prefix}📁 {category.name.upper()} (max_score: {category.max_score})")
-        for subject in category.subjects.values():
-            self._print_pre_executed_subject(subject, prefix=prefix + "    ")
+        
+        if category.subjects:
+            for subject in category.subjects.values():
+                self._print_pre_executed_subject(subject, prefix=prefix + "    ")
+        
+        if category.tests:
+            # In a pre-executed tree, category.tests contains TestResult objects
+            for result in category.tests:
+                if isinstance(result, TestResult):
+                    params_str = f" (Parameters: {result.parameters})" if result.parameters else ""
+                    print(f"{prefix}    - 📝 {result.test_name}{params_str} -> Score: {result.score}")
+                else:
+                    print(f"{prefix}    - ? Unexpected item in tests list: {result}")
 
     def _print_pre_executed_subject(self, subject: Subject, prefix: str):
         """Recursive helper method to print a subject and its pre-executed test results."""

@@ -21,20 +21,26 @@ The Autograder is a flexible and extensible system that allows educators to crea
 
 ## Getting Started
 
-Ready to dive in? Our [**Getting Started Guide**](/docs/getting_started.md) will walk you through the process of setting up and running the autograder for the first time.
+Ready to dive in? Our [**Getting Started Guide**](docs/system/getting_started.md) will walk you through the process of setting up and running the autograder for the first time.
 
 ## Documentation
 
 This documentation is divided into several sections to help you find the information you need quickly.
 
-* [**1. Getting Started**](/docs/getting_started.md): A step-by-step guide to installing and running the autograder.
+* [**1. Getting Started**](docs/system/getting_started.md): A step-by-step guide to installing and running the autograder.
 
-* [**2. Core Concepts**](/docs/core_concepts.md): An overview of the fundamental principles behind the autograder.
+* [**2. Core Concepts**](docs/system/core_concepts.md): An overview of the fundamental principles behind the autograder.
 
-* [**4. Creating Assignments**](/docs/creating_assignments.md): A practical guide to creating your own custom assignments.
+* [**3. Creating Assignments**](docs/system/creating_assignments.md): A practical guide to creating your own custom assignments.
 
-* [**5. Adapters**](/docs/adapters.md): Information on how the autograder integrates with external systems like GitHub and APIs.
+* [**4. Execution Helpers**](docs/system/execution/execution_helpers.md): How the autograder runs and evaluates submissions (AI and sandbox executors).
 
-* [**6. API Reference**](/docs/api_reference.md): Detailed documentation for the autograder's API.
+* [**5. Adapters**](docs/adapters.md): Information on how the autograder integrates with external systems like GitHub and APIs.
+
+* [**6. API Reference**](docs/api_reference.md): Detailed documentation for the autograder's API.
+
+
+
+
 
 
