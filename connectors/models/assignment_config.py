@@ -7,7 +7,7 @@ class AssignmentConfig(BaseModel):
     template: str = "custom"
     criteria: Dict[str, Any]
     feedback: Dict[str, Any]
-    setup: Dict[str, Any]
+    setup: Optional[Dict[str, Any]] = None
     custom_template: Optional[str] = None
     
     def __str__(self) -> str:
