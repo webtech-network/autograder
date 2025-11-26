@@ -203,19 +203,49 @@ class HasAttribute(TestFunction):
 
 class CheckNoUnclosedTags(TestFunction):
     @property
-    def name(self): return "check_no_unclosed_tags"
+    def name(self):
+        return "check_no_unclosed_tags"
     @property
-    def description(self): return "Realiza uma verificação básica para um documento HTML bem formado."
+    def description(self):
+        return "Detecta tags HTML que foram abertas mas não foram fechadas."
     @property
-    def required_file(self): return "HTML"
+    def required_file(self):
+        return "HTML"
     @property
     def parameter_description(self):
         return []
     def execute(self, html_content: str) -> TestResult:
-        soup = BeautifulSoup(html_content, 'html.parser')
-        is_well_formed = soup.html and soup.body and soup.head
-        score = 100 if is_well_formed else 20
-        report = "Você possui uma boa estrutura HTML sem tags abertas." if is_well_formed else "Foram identificadas tags HTML abertas ou estrutura incorreta no seu arquivo."
+        VOID = { 
+            "area","base","br","col","embed","hr","img","input","link",
+            "meta","param","source","track","wbr"
+        }
+        IGNORE = {"html", "head", "body"}
+        # Remove comentários para evitar falsos positivos
+        html_no_comments = re.sub(r"<!--.*?-->", "", html_content, flags=re.DOTALL)
+        tag_pattern = re.compile(r"</?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*?>")
+        open_tags = []
+        for match in tag_pattern.finditer(html_no_comments):
+            raw = match.group(0)
+            tag = match.group(1).lower()
+            if tag in VOID or tag in IGNORE:
+                continue
+            if raw.endswith("/>"):
+                continue
+            if raw.startswith("</"):
+                # remove a última abertura correspondente
+                for i in range(len(open_tags) - 1, -1, -1):
+                    if open_tags[i] == tag:
+                        del open_tags[i]
+                        break
+                continue
+            open_tags.append(tag)
+        unclosed = len(open_tags)
+        score = 100 if unclosed == 0 else 0
+        report = (
+            "Você possui uma boa estrutura HTML sem tags abertas."
+            if unclosed == 0
+            else f"Foram identificadas tags HTML abertas ou estrutura incorreta no seu arquivo."
+        )
         return TestResult(test_name=self.name, score=score, report=report)
 
 class CheckNoInlineStyles(TestFunction):
@@ -375,7 +405,8 @@ class CheckHeadingsSequential(TestFunction):
     @property
     def name(self): return "check_headings_sequential"
     @property
-    def description(self): return "Verifica se os níveis de cabeçalho são sequenciais e não pulam níveis."
+    def description(self):
+        return "Verifica se os níveis de cabeçalho não pulam níveis."
     @property
     def required_file(self): return "HTML"
     @property
@@ -384,9 +415,25 @@ class CheckHeadingsSequential(TestFunction):
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         headings = [int(h.name[1]) for h in soup.find_all(re.compile(r"^h[1-6]$"))]
-        is_sequential = all(headings[i] <= headings[i + 1] for i in range(len(headings) - 1))
-        score = 100 if is_sequential else 30
-        report = "A hierarquia de cabeçalhos está bem estruturada." if is_sequential else "A ordem dos cabeçalhos (`<h1>`, `<h2>`, etc.) não é sequencial. Evite pular níveis."
+        if len(headings) < 2:
+            return TestResult(
+                test_name=self.name,
+                score=100,
+                report="Apenas um nível de cabeçalho encontrado, portanto não há saltos."
+            )
+        valid = True
+        for i in range(len(headings) - 1):
+            current = headings[i]
+            next_h = headings[i + 1]
+            if next_h > current + 1:  
+                valid = False
+                break
+        score = 100 if valid else 0
+        report = (
+            "A hierarquia de cabeçalhos está bem estruturada."
+            if valid
+            else "A ordem dos cabeçalhos (`<h1>`, `<h2>`, etc.) não é sequencial. Evite pular níveis."
+        )
         return TestResult(test_name=self.name, score=score, report=report)
 
 class CheckAllImagesHaveAlt(TestFunction):
@@ -616,16 +663,21 @@ class CheckIdSelectorOverUsage(TestFunction):
     @property
     def name(self): return "check_id_selector_over_usage"
     @property
-    def description(self): return "Conta o número de seletores de ID usados e penaliza se exceder o máximo permitido."
+    def description(self): return "Conta seletores de ID válidos no CSS."
     @property
     def required_file(self): return "CSS"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("max_allowed", "O número máximo de seletores de ID permitidos.", "integer")
+            ParamDescription("max_allowed", "Número máximo de seletores de ID permitidos.", "integer")
         ]
     def execute(self, css_content: str, max_allowed: int) -> TestResult:
-        found_count = len(re.findall(r"#\w+", css_content))
+        id_selector_pattern = re.compile(
+            r"(^|{|,)\s*#([A-Za-z_][A-Za-z0-9\-_]*)\b",
+            re.MULTILINE
+        )
+        selectors = id_selector_pattern.findall(css_content)
+        found_count = len(selectors)
         score = 100 if found_count <= max_allowed else 0
         report = f"{found_count} seletores de ID detectados (limite: {max_allowed})." if score == 0 else "Uso controlado de seletores de ID."
         return TestResult(
