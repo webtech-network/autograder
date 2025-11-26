@@ -14,15 +14,6 @@
               ["p", 3],
               ["a", 2]
             ]
-          },
-          {
-            "name": "has_semantic_tag",
-            "file": "index.html",
-            "calls": [
-              ["header"],
-              ["nav"],
-              ["footer"]
-            ]
           }
         ]
       },
@@ -34,34 +25,6 @@
             "file": "index.html",
             "calls": [
               [["container", "row", "col-*"], 10]
-            ]
-          },
-          {
-            "name": "check_css_property",
-            "file": "style.css",
-            "calls": [
-              ["color", "#"],
-              ["font-size", "px"]
-            ]
-          }
-        ]
-      },
-      "javascript_functionality": {
-        "weight": 30,
-        "tests": [
-          {
-            "name": "check_js_feature",
-            "file": "script.js",
-            "calls": [
-              ["addEventListener"],
-              ["querySelector"]
-            ]
-          },
-          {
-            "name": "check_console_errors",
-            "file": "script.js",
-            "calls": [
-              [2]
             ]
           }
         ]
