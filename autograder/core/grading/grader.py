@@ -84,10 +84,12 @@ class Grader:
             return average_score
 
         # Recursive case: Node is a branch (category or subject with sub-subjects)
-        child_subjects = getattr(current_node, 'subjects', {}).values()
-        if not child_subjects:
+        child_subjects_classes = getattr(current_node, 'subjects', {})
+        if not child_subjects_classes:
             return None  # No tests and no children means this branch is empty
-
+        child_subjects = child_subjects_classes.values()
+        if not child_subjects:
+            return None
         print(f"\n{prefix}📘 Grading {current_node.name}...")
 
         child_scores_map = {sub.name: self._grade_subject_or_category(sub, submission_files, results_list, depth + 1)
