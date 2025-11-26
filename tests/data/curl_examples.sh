@@ -4,7 +4,7 @@
 # This script contains cURL commands to test the Autograder API
 
 # Set the base URL (change this to your API endpoint)
-BASE_URL="http://localhost:8001"
+BASE_URL="http://localhost:8000"
 
 # Colors for output
 GREEN='\033[0;32m'
