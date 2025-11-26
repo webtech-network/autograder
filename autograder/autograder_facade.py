@@ -64,7 +64,6 @@ class Autograder:
                 logger.debug(f"Feedback mode: {autograder_request.feedback_mode}")
 
                 # Step 6: Create reporter based on feedback mode
-                logger.info("Creating feedback reporter")
                 Autograder.create_feedback_report(result)
 
                 # Step 7: Generate feedback
@@ -139,8 +138,6 @@ class Autograder:
         req = request_context.get_request()
         test_template = Autograder.selected_template
 
-        logger.debug(f"Criteria configuration: {req.assignment_config.criteria}")
-
         if test_template.requires_pre_executed_tree:
             logger.info("Template requires pre-executed criteria tree.")
             criteria_tree = CriteriaTree.build_pre_executed_tree(test_template)
@@ -169,11 +166,8 @@ class Autograder:
 
 
         logger.info(f"Running grading process")
-        logger.debug(f"Submission files: {list(req.submission_files.keys())}")
 
         result = grader.run()
-
-        logger.info(f"Grading completed. Final score: {result.final_score}")
 
         return result
 
@@ -389,7 +383,7 @@ if __name__ == "__main__":
             criteria=criteria_json,
             feedback=feedback_json,
             setup=setup_json,
-            template="web dev"  # Use the web dev template
+            template="webdev"  # Use the web dev template
         )
 
         # 6. Create AutograderRequest
