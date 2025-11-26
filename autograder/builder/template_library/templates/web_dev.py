@@ -54,8 +54,11 @@ class HasClass(TestFunction):
 
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
         report = f"Foram encontradas {found_count} de {required_count} classes CSS necessárias. Classes encontradas: {list(set(found_classes))}"
-        return TestResult(self.name, score, report,
-                          parameters={"class_names": class_names, "required_count": required_count})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"class_names": class_names, "required_count": required_count})
 
 
 class CheckBootstrapLinked(TestFunction):
@@ -69,7 +72,7 @@ class CheckBootstrapLinked(TestFunction):
     def required_file(self): return "HTML"
 
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
 
     def execute(self, html_content: str) -> TestResult:
@@ -78,7 +81,11 @@ class CheckBootstrapLinked(TestFunction):
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 100 if found else 0
         report = "O framework Bootstrap foi encontrado no seu HTML." if found else "Não foi encontrado um link para o CSS ou JS do Bootstrap."
-        return TestResult(self.name, score, report)
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report
+        )
 
 
 class CheckInternalLinks(TestFunction):
@@ -102,8 +109,12 @@ class CheckInternalLinks(TestFunction):
 
     def execute(self, html_content: str, required_count: int) -> TestResult:
         if not html_content:
-            return TestResult(self.name, 0, "Conteúdo HTML não encontrado.",
-                              parameters={"required_count": required_count})
+            return TestResult(
+                test_name=self.name,
+                score=0,
+                report="Conteúdo HTML não encontrado.",
+                parameters={"required_count": required_count}
+            )
         soup = BeautifulSoup(html_content, 'html.parser')
         links = soup.select('a[href^="#"]')
         valid_links = 0
@@ -115,7 +126,12 @@ class CheckInternalLinks(TestFunction):
                 valid_links += 1
         score = min(100, int((valid_links / required_count) * 100)) if required_count > 0 else 100
         report = f"Encontrados {valid_links} de {required_count} links internos válidos ('âncoras')."
-        return TestResult(self.name, score, report, parameters={"required_count": required_count})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"required_count": required_count}
+        )
 class HasTag(TestFunction):
     @property
     def name(self): return "has_tag"
@@ -134,7 +150,12 @@ class HasTag(TestFunction):
         found_count = len(soup.find_all(tag))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
         report = f"Foram encontradas {found_count} de {required_count} tags `<{tag}>` necessárias."
-        return TestResult(self.name, score, report, parameters={"tag": tag, "required_count": required_count})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"tag": tag, "required_count": required_count}
+        )
 
 class HasForbiddenTag(TestFunction):
     @property
@@ -144,7 +165,7 @@ class HasForbiddenTag(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("tag", "A tag HTML proibida a ser pesquisada.", "string")
         ]
@@ -153,7 +174,7 @@ class HasForbiddenTag(TestFunction):
         found = soup.find(tag) is not None
         score = 0 if found else 100
         report = f"A tag `<{tag}>` foi encontrada e é proibida." if found else f"A tag `<{tag}>` não foi encontrada, ótimo!"
-        return TestResult(self.name, score, report, parameters={"tag": tag})
+        return TestResult(test_name=self.name, score=score, report=report, parameters={"tag": tag})
 
 class HasAttribute(TestFunction):
     @property
@@ -173,7 +194,12 @@ class HasAttribute(TestFunction):
         found_count = len(soup.find_all(attrs={attribute: True}))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
         report = f"O atributo `{attribute}` foi encontrado {found_count} vez(es) de {required_count} necessárias."
-        return TestResult(self.name, score, report, parameters={"attribute": attribute, "required_count": required_count})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"attribute": attribute, "required_count": required_count}
+        )
 
 class CheckNoUnclosedTags(TestFunction):
     @property
@@ -183,14 +209,14 @@ class CheckNoUnclosedTags(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         is_well_formed = soup.html and soup.body and soup.head
         score = 100 if is_well_formed else 20
         report = "Você possui uma boa estrutura HTML sem tags abertas." if is_well_formed else "Foram identificadas tags HTML abertas ou estrutura incorreta no seu arquivo."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 class CheckNoInlineStyles(TestFunction):
     @property
@@ -200,13 +226,13 @@ class CheckNoInlineStyles(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, html_content: str) -> TestResult:
         found_count = len(BeautifulSoup(html_content, 'html.parser').find_all(style=True))
         score = 0 if found_count > 0 else 100
         report = f"Foi encontrado {found_count} inline styles (`style='...'`). Mova todas as regras de estilo para seu arquivo `.css`." if found_count > 0 else "Excelente! Nenhum estilo inline foi encontrado."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 class UsesSemanticTags(TestFunction):
     @property
@@ -216,14 +242,14 @@ class UsesSemanticTags(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(("article", "section", "nav", "aside", "figure")) is not None
         score = 100 if found else 40
         report = "Utilizou tags semânticas." if found else "Não usou nenhuma tag do tipo (`<article>`, `<section>`, `<nav>`) na estrutura do HTML."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 class CheckCssLinked(TestFunction):
     @property
@@ -233,14 +259,14 @@ class CheckCssLinked(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", rel="stylesheet") is not None
         score = 100 if found else 0
         report = "Arquivo CSS está corretamente linkado com o HTML." if found else "Não foi encontrada a tag `<link rel='stylesheet'>` no seu HTML."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 class CssUsesProperty(TestFunction):
     @property
@@ -250,7 +276,7 @@ class CssUsesProperty(TestFunction):
     @property
     def required_file(self): return "CSS"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("prop", "A propriedade CSS.", "string"),
             ParamDescription("value", "O valor esperado.", "string")
@@ -260,7 +286,7 @@ class CssUsesProperty(TestFunction):
         found = pattern.search(css_content) is not None
         score = 100 if found else 0
         report = f"A propriedade `{prop}: {value};` foi encontrada." if found else f"A propriedade CSS `{prop}: {value};` não foi encontrada."
-        return TestResult(self.name, score, report, parameters={"prop": prop, "value": value})
+        return TestResult(test_name=self.name, score=score, report=report, parameters={"prop": prop, "value": value})
 
 class CountOverUsage(TestFunction):
     @property
@@ -270,7 +296,7 @@ class CountOverUsage(TestFunction):
     @property
     def required_file(self): return "CSS"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("text", "O texto a ser contado.", "string"),
             ParamDescription("max_allowed", "O número máximo de ocorrências permitidas.", "integer")
@@ -279,7 +305,12 @@ class CountOverUsage(TestFunction):
         found_count = css_content.count(text)
         score = 100 if found_count <= max_allowed else 0
         report = f"Uso exagerado de `{text}` detectado {found_count} vezes (máximo permitido: {max_allowed})." if score == 0 else f"Uso exagerado de `{text}` não detectado."
-        return TestResult(self.name, score, report, parameters={"text": text, "max_allowed": max_allowed})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"text": text, "max_allowed": max_allowed}
+        )
 
 class JsUsesFeature(TestFunction):
     @property
@@ -289,7 +320,7 @@ class JsUsesFeature(TestFunction):
     @property
     def required_file(self): return "JavaScript"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("feature", "A funcionalidade a ser pesquisada.", "string")
         ]
@@ -297,7 +328,7 @@ class JsUsesFeature(TestFunction):
         found = feature in js_content
         score = 100 if found else 0
         report = f"A funcionalidade `{feature}` foi implementada." if found else f"A funcionalidade JavaScript `{feature}` não foi encontrada no seu código."
-        return TestResult(self.name, score, report, parameters={"feature": feature})
+        return TestResult(test_name=self.name, score=score, report=report, parameters={"feature": feature})
 
 class UsesForbiddenMethod(TestFunction):
     @property
@@ -307,7 +338,7 @@ class UsesForbiddenMethod(TestFunction):
     @property
     def required_file(self): return "JavaScript"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("method", "O nome do método proibido.", "string")
         ]
@@ -315,7 +346,7 @@ class UsesForbiddenMethod(TestFunction):
         found = method in js_content
         score = 0 if found else 100
         report = f"Penalidade: Método proibido `{method}()` detectado." if found else f"Ótimo! O método proibido `{method}()` não foi usado."
-        return TestResult(self.name, score, report, parameters={"method": method})
+        return TestResult(test_name=self.name, score=score, report=report, parameters={"method": method})
 
 class CountGlobalVars(TestFunction):
     @property
@@ -325,7 +356,7 @@ class CountGlobalVars(TestFunction):
     @property
     def required_file(self): return "JavaScript"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("max_allowed", "O número máximo de variáveis globais permitidas.", "integer")
         ]
@@ -333,7 +364,12 @@ class CountGlobalVars(TestFunction):
         found_count = len(re.findall(r"^\s*(var|let|const)\s+", js_content, re.MULTILINE))
         score = 100 if found_count <= max_allowed else 0
         report = f"Atenção: {found_count} variáveis globais detectadas (máximo permitido: {max_allowed})." if score == 0 else "Bom trabalho mantendo o escopo global limpo."
-        return TestResult(self.name, score, report, parameters={"max_allowed": max_allowed})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"max_allowed": max_allowed}
+        )
 
 class CheckHeadingsSequential(TestFunction):
     @property
@@ -343,7 +379,7 @@ class CheckHeadingsSequential(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -351,7 +387,7 @@ class CheckHeadingsSequential(TestFunction):
         is_sequential = all(headings[i] <= headings[i + 1] for i in range(len(headings) - 1))
         score = 100 if is_sequential else 30
         report = "A hierarquia de cabeçalhos está bem estruturada." if is_sequential else "A ordem dos cabeçalhos (`<h1>`, `<h2>`, etc.) não é sequencial. Evite pular níveis."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 class CheckAllImagesHaveAlt(TestFunction):
     @property
@@ -361,17 +397,17 @@ class CheckAllImagesHaveAlt(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         images = soup.find_all("img")
         if not images:
-            return TestResult(self.name, 100, "Nenhuma imagem encontrada para verificar.")
+            return TestResult(test_name=self.name, score=100, report="Nenhuma imagem encontrada para verificar.")
         with_alt = sum(1 for img in images if img.has_attr('alt') and img['alt'].strip())
         score = int((with_alt / len(images)) * 100)
         report = f"{with_alt} de {len(images)} imagens tem o atributo `alt` preenchido."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 class CheckHtmlDirectChildren(TestFunction):
     @property
@@ -381,17 +417,17 @@ class CheckHtmlDirectChildren(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
         html_tag = soup.find('html')
         if not html_tag:
-            return TestResult(self.name, 0, "Tag <html> não encontrada.")
+            return TestResult(test_name=self.name, score=0, report="Tag <html> não encontrada.")
         children_names = [child.name for child in html_tag.findChildren(recursive=False) if child.name]
         is_valid = all(name in ['head', 'body'] for name in children_names) and 'head' in children_names and 'body' in children_names
         report = "Estrutura da tag <html> está correta." if is_valid else "A tag <html> deve conter apenas as tags <head> e <body> como filhos diretos."
-        return TestResult(self.name, 100 if is_valid else 0, report)
+        return TestResult(test_name=self.name, score=100 if is_valid else 0, report=report)
 
 class CheckTagNotInside(TestFunction):
     @property
@@ -401,7 +437,7 @@ class CheckTagNotInside(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("child_tag", "A tag filha.", "string"),
             ParamDescription("parent_tag", "A tag pai.", "string")
@@ -411,7 +447,12 @@ class CheckTagNotInside(TestFunction):
         parent = soup.find(parent_tag)
         found = parent and parent.find(child_tag)
         report = f"A tag `<{child_tag}>` não deve ser usada dentro da tag `<{parent_tag}>`." if found else f"A tag `<{child_tag}>` não foi encontrada dentro da tag `<{parent_tag}>`."
-        return TestResult(self.name, 0 if found else 100, report, parameters={"child_tag": child_tag, "parent_tag": parent_tag})
+        return TestResult(
+            test_name=self.name,
+            score=0 if found else 100,
+            report=report,
+            parameters={"child_tag": child_tag, "parent_tag": parent_tag}
+        )
 
 class CheckInternalLinksToArticle(TestFunction):
     @property
@@ -421,13 +462,18 @@ class CheckInternalLinksToArticle(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("required_count", "O número mínimo de links válidos.", "integer")
         ]
     def execute(self, html_content: str, required_count: int) -> TestResult:
         if not html_content:
-            return TestResult(self.name, 0, "Arquivo home.html não encontrado.", parameters={"required_count": required_count})
+            return TestResult(
+                test_name=self.name,
+                score=0,
+                report="Arquivo home.html não encontrado.",
+                parameters={"required_count": required_count}
+            )
         soup = BeautifulSoup(html_content, 'html.parser')
         links = soup.select('a[href^="#"]')
         valid_links = 0
@@ -439,7 +485,12 @@ class CheckInternalLinksToArticle(TestFunction):
                 valid_links += 1
         score = min(100, int((valid_links / required_count) * 100))
         report = f"Encontrados {valid_links} de {required_count} links internos válidos para tags <article>."
-        return TestResult(self.name, score, report, parameters={"required_count": required_count})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"required_count": required_count}
+        )
 
 class HasStyle(TestFunction):
     @property
@@ -449,7 +500,7 @@ class HasStyle(TestFunction):
     @property
     def required_file(self): return "CSS"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("style", "A regra de estilo.", "string"),
             ParamDescription("count", "O número mínimo de ocorrências.", "integer")
@@ -458,7 +509,12 @@ class HasStyle(TestFunction):
         found_count = len(re.findall(rf"{re.escape(style)}\s*:\s*[^;]+;", css_content, re.IGNORECASE))
         score = min(100, int((found_count / count) * 100)) if count > 0 else 100
         report = f"Encontrados {found_count} de {count} `{style}` regras de estilização."
-        return TestResult(self.name, score, report, parameters={"style": style, "required_count": count})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"style": style, "required_count": count}
+        )
 
 class CheckHeadDetails(TestFunction):
     @property
@@ -468,7 +524,7 @@ class CheckHeadDetails(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("detail_tag", "A tag a ser verificada.", "string")
         ]
@@ -476,11 +532,16 @@ class CheckHeadDetails(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         head = soup.find('head')
         if not head:
-            return TestResult(self.name, 0, "Tag <head> não encontrada.")
+            return TestResult(test_name=self.name, score=0, report="Tag <head> não encontrada.")
         found = head.find(detail_tag) is not None
         score = 100 if found else 0
         report = f"A tag `<{detail_tag}>` foi encontrada na seção `<head>`." if found else f"A tag `<{detail_tag}>` não foi encontrada na seção `<head>`."
-        return TestResult(self.name, score, report, parameters={"detail_tag": detail_tag})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"detail_tag": detail_tag}
+        )
 
 class CheckAttributeAndValue(TestFunction):
     @property
@@ -490,7 +551,7 @@ class CheckAttributeAndValue(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("tag", "A tag.", "string"),
             ParamDescription("attribute", "O atributo.", "string"),
@@ -501,7 +562,12 @@ class CheckAttributeAndValue(TestFunction):
         elements = soup.find_all(tag, attrs={attribute: value})
         score = 100 if elements else 0
         report = f"Encontrada a tag `<{tag}>` com `{attribute}='{value}'`." if score == 100 else f"Não foi encontrada a tag `<{tag}>` com `{attribute}='{value}'`."
-        return TestResult(self.name, score, report, parameters={"tag": tag, "attribute": attribute, "value": value})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"tag": tag, "attribute": attribute, "value": value}
+        )
 
 class CheckDirExists(TestFunction):
     @property
@@ -511,7 +577,7 @@ class CheckDirExists(TestFunction):
     @property
     def required_file(self): return None
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("submission_files", "O dicionário de arquivos enviados.", "dictionary"),
             ParamDescription("dir_path", "O caminho do diretório.", "string")
@@ -520,7 +586,7 @@ class CheckDirExists(TestFunction):
         exists = any(f.startswith(dir_path.rstrip('/') + '/') for f in submission_files.keys())
         score = 100 if exists else 0
         report = f"O diretório '{dir_path}' existe." if exists else f"O diretório '{dir_path}' não existe."
-        return TestResult(self.name, score, report, parameters={"dir_path": dir_path})
+        return TestResult(test_name=self.name, score=score, report=report, parameters={"dir_path": dir_path})
 
 class CheckProjectStructure(TestFunction):
     @property
@@ -530,7 +596,7 @@ class CheckProjectStructure(TestFunction):
     @property
     def required_file(self): return None
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("submission_files", "O dicionário de arquivos enviados.", "dictionary"),
             ParamDescription("expected_structure", "O caminho do arquivo esperado.", "string")
@@ -539,7 +605,12 @@ class CheckProjectStructure(TestFunction):
         exists = expected_structure in submission_files
         score = 100 if exists else 0
         report = f"O arquivo '{expected_structure}' existe." if exists else f"O arquivo '{expected_structure}' não existe."
-        return TestResult(self.name, score, report, parameters={"expected_structure": expected_structure})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"expected_structure": expected_structure}
+        )
 
 class CheckIdSelectorOverUsage(TestFunction):
     @property
@@ -549,7 +620,7 @@ class CheckIdSelectorOverUsage(TestFunction):
     @property
     def required_file(self): return "CSS"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return [
             ParamDescription("max_allowed", "O número máximo de seletores de ID permitidos.", "integer")
         ]
@@ -557,7 +628,12 @@ class CheckIdSelectorOverUsage(TestFunction):
         found_count = len(re.findall(r"#\w+", css_content))
         score = 100 if found_count <= max_allowed else 0
         report = f"{found_count} seletores de ID detectados (limite: {max_allowed})." if score == 0 else "Uso controlado de seletores de ID."
-        return TestResult(self.name, score, report, parameters={"max_allowed": max_allowed})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"max_allowed": max_allowed}
+        )
 
 class UsesRelativeUnits(TestFunction):
     @property
@@ -567,13 +643,13 @@ class UsesRelativeUnits(TestFunction):
     @property
     def required_file(self): return "CSS"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, css_content: str) -> TestResult:
         found = re.search(r"\b(em|rem|%|vh|vw)\b", css_content) is not None
         score = 100 if found else 0
         report = "Estão sendo utilizadas medidas relativas no CSS." if found else "Não foram utilizadas medidas relativas como (em, rem, %, vh, vw) no seu CSS."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 class CheckMediaQueries(TestFunction):
     @property
@@ -583,13 +659,13 @@ class CheckMediaQueries(TestFunction):
     @property
     def required_file(self): return "CSS"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, css_content: str) -> TestResult:
         found = re.search(r"@media\s+[^{]+\{", css_content) is not None
         score = 100 if found else 0
         report = "Media queries estão sendo utilizadas no CSS." if found else "Não foi encontrado o uso de media queries no seu CSS."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 class CheckFlexboxUsage(TestFunction):
     @property
@@ -599,13 +675,13 @@ class CheckFlexboxUsage(TestFunction):
     @property
     def required_file(self): return "CSS"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, css_content: str) -> TestResult:
         found = re.search(r"\b(display\s*:\s*flex|flex-)", css_content) is not None
         score = 100 if found else 0
         report = "Propriedades `flexbox` estão sendo utilizadas no CSS." if found else "Propriedades `flexbox` não foram encontradas no seu CSS."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 class CheckBootstrapUsage(TestFunction):
     @property
@@ -615,7 +691,7 @@ class CheckBootstrapUsage(TestFunction):
     @property
     def required_file(self): return "HTML"
     @property
-    def parameter_description(self): 
+    def parameter_description(self):
         return []
     def execute(self, html_content: str) -> TestResult:
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -623,7 +699,7 @@ class CheckBootstrapUsage(TestFunction):
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 0 if found else 100
         report = "Você está usando bootstrap no seu CSS." if found else "Você não está usando bootstrap no seu CSS."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 
 class LinkPointsToPageWithQueryParam(TestFunction):
@@ -663,8 +739,12 @@ class LinkPointsToPageWithQueryParam(TestFunction):
 
         score = min(100, int((valid_link_count / required_count) * 100)) if required_count > 0 else 100
         report = f"Encontrados {valid_link_count} de {required_count} links válidos para '{target_page}' com o parâmetro de consulta '{query_param}'."
-        return TestResult(self.name, score, report, parameters={"target_page": target_page, "query_param": query_param,
-                                                                "required_count": required_count})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"target_page": target_page, "query_param": query_param, "required_count": required_count}
+        )
 
 
 class JsUsesQueryStringParsing(TestFunction):
@@ -690,7 +770,7 @@ class JsUsesQueryStringParsing(TestFunction):
         found = pattern.search(js_content) is not None
         score = 100 if found else 0
         report = "O código JavaScript implementa a leitura de parâmetros da URL." if found else "Não foi encontrada a lógica para ler parâmetros da URL (ex: URLSearchParams) no seu JavaScript."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 
 class JsHasJsonArrayWithId(TestFunction):
@@ -718,9 +798,12 @@ class JsHasJsonArrayWithId(TestFunction):
         # It captures the content of the array
         match = re.search(r"(?:var|let|const)\s+\w+\s*=\s*(\[.*?\]);?", js_content, re.DOTALL)
         if not match:
-            return TestResult(self.name, 0,
-                              "Não foi encontrada uma estrutura de dados (array) no formato JSON em seu arquivo JavaScript.",
-                              parameters={"required_key": required_key, "min_items": min_items})
+            return TestResult(
+                test_name=self.name,
+                score=0,
+                report="Não foi encontrada uma estrutura de dados (array) no formato JSON em seu arquivo JavaScript.",
+                parameters={"required_key": required_key, "min_items": min_items}
+            )
 
         array_content = match.group(1)
         # A simple heuristic: count how many times the required key appears as a key
@@ -729,7 +812,12 @@ class JsHasJsonArrayWithId(TestFunction):
 
         score = min(100, int((found_items / min_items) * 100)) if min_items > 0 else 100
         report = f"Encontrada estrutura de dados com {found_items} de {min_items} itens necessários, todos com a chave '{required_key}'."
-        return TestResult(self.name, score, report, parameters={"required_key": required_key, "min_items": min_items})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"required_key": required_key, "min_items": min_items}
+        )
 
 
 class JsUsesDomManipulation(TestFunction):
@@ -759,7 +847,12 @@ class JsUsesDomManipulation(TestFunction):
 
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
         report = f"Foram encontradas {found_count} de {required_count} chamadas a métodos de manipulação do DOM necessárias."
-        return TestResult(self.name, score, report, parameters={"methods": methods, "required_count": required_count})
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={"methods": methods, "required_count": required_count}
+        )
 
 
 class HasNoJsFramework(TestFunction):
@@ -799,7 +892,7 @@ class HasNoJsFramework(TestFunction):
 
         score = 0 if found else 100  # Penalty test: score is 0 if found
         report = "Uso de framework JavaScript (React, Vue, Angular) detectado. O uso de frameworks não é permitido nesta atividade." if found else "Ótimo! Nenhum framework JavaScript proibido foi detectado."
-        return TestResult(self.name, score, report)
+        return TestResult(test_name=self.name, score=score, report=report)
 
 
 # ===============================================================
@@ -877,3 +970,4 @@ class WebDevTemplate(Template):
         if not test_function:
             raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
         return test_function
+

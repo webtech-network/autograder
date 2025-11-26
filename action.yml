@@ -1,6 +1,7 @@
-name: "HTML/CSS/JS Autograder"
-author: "Webtech Network"
-description: "An autograding tool for GitHub Classroom that evaluates students' HTML, CSS, and JavaScript projects."
+name: "Global Autograder"
+author: "Arthur Carvalho"
+icon: box
+description: "An autograding tool for GitHub Classroom. flexible,extensive,consistent and generates feedback."
 
 # Defines the inputs that the action can receive.
 # These are mapped to the arguments in the `runs` section below.
@@ -31,6 +32,10 @@ inputs:
   app_token:
     description: 'The application token for the autograder service.'
     required: false
+  include-feedback:
+    description: 'Whether to include/generate feedback. Use "true" or "false". Defaults to false.'
+    required: false
+    default: "false"
 
 # Defines the output variable of the action.
 outputs:
@@ -51,3 +56,4 @@ runs:
     OPENAI_KEY: ${{ inputs.openai_key }}
     REDIS_URL: ${{ inputs.redis_url }}
     REDIS_TOKEN: ${{ inputs.redis_token }}
+    INCLUDE_FEEDBACK: ${{ inputs.include-feedback }}

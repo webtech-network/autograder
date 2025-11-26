@@ -8,44 +8,52 @@ class Driver:
     def __init__(self,redis):
         self.redis = redis
 
-    def token_exists(self,token: str) -> bool:
-        """Function to check if a given token exists in the database"""
-        key = f"token:{token}"
-        result = self.redis.get(key)
-        return result is not None
-
-    def create_token(self,token: str, quota: int = 10):
-        """Function to create a new token"""
-        key = f"token:{token}"
-        value = {"token": token, "quota": quota}
-        self.redis.set(key, json.dumps(value))
-        print(f"✅ Token '{token}' created with quota {quota}")
-
-    def get_token_quota(self,token: str) -> int:
-        """Function to get the quota of a user based on his token"""
-        key = f"token:{token}"
-        result = self.redis.get(key)
+    def get_user_quota(self,user_credentials: str) -> int:
+        """Function to get the quota of a user based on his username"""
+        key = f"user:{user_credentials}"
+        result = self.redis.hget(key, "quota")
         if result is None:
-            raise Exception("Token not found.")
-        return json.loads(result)["quota"]
+            raise Exception("User not found.")
+        return int(result)
 
-    def decrement_token_quota(self,token: str) -> bool:
-        """Function to decrement the quota of a user based on his token"""
-        key = f"token:{token}"
-        result = self.redis.get(key)
-        if result is None:
+    def decrement_user_quota(self,user_credentials: str) -> bool:
+        """Function to decrement the quota of a user based on his username"""
+        key = f"user:{user_credentials}"
+
+        current_quota = self.redis.hget(key, "quota")
+        if current_quota is None:
             return False
 
-        data = json.loads(result)
-        quota = data.get("quota", 0)
+        quota = int(current_quota)
 
         if quota <= 0:
             return False
 
         # Decrease and store updated quota
-        data["quota"] = quota - 1
-        self.redis.set(key, json.dumps(data))
+        self.redis.hincrby(key, "quota", -1)
         return True
+
+    def user_exists(self, username: str) -> bool:
+        key = f"user:{username}"
+        result = self.redis.exists(key)
+        return result > 0
+
+    def create_user(self, username: str):
+        """Function to create a new user"""
+        key = f"user:{username}"
+        # Cria o hash com os campos iniciais
+        self.redis.hmset(key, {
+            "quota": 10,
+            "score": -1.0
+        })
+        print(f"User '{username}' created.")
+
+    def set_score(self, username: str, score: float):
+        """Function to set the score of a user"""
+        key = f"user:{username}"
+        self.redis.hset(key, "score", score)
+        print(f"Score '{score}' set for user '{username}'.")
+
     @classmethod
     def create(cls,redis_token,redis_url):
         redis = Redis(
@@ -53,6 +61,3 @@ class Driver:
             token = redis_token
         )
         return cls(redis)
-
-
-
