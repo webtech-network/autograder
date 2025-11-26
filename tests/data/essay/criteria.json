@@ -1,0 +1,25 @@
+{
+  "test_library": "essay",
+  "base": {
+    "weight": 100,
+    "subjects": {
+      "foundations": {
+        "weight": 60,
+        "tests": [
+          { "file": "essay.txt", "name": "thesis_statement" },
+          { "file": "essay.txt", "name": "clarity_and_cohesion" }
+        ]
+      },
+      "prompt_adherence": {
+        "weight": 40,
+        "tests": [
+          {
+            "file": "essay.txt",
+            "name": "adherence_to_prompt",
+            "calls": [["Discuss the impact of AI on the workforce."]]
+          }
+        ]
+      }
+    }
+  }
+}

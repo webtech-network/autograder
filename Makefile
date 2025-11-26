@@ -1,13 +1,14 @@
 # Makefile for Autograder Development
 # Simplifies common development tasks
 
-.PHONY: help install install-dev test test-cov lint format type-check security clean build docs run-api docker-build
+.PHONY: help install install-dev test test-cov lint format type-check security clean build docs run-api run-api-tests docker-build
 
 # Default target
 help:
 	@echo "Available commands:"
 	@echo "  make install        - Install production dependencies"
 	@echo "  make run-api        - Run API server locally"
+	@echo "  make run-api-tests  - Run API integration tests (optionally specify template: web, api, io, essay, custom, all)"
 	@echo "  make docker-build   - Build Docker image"
 
 # Installation
