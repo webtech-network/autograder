@@ -83,34 +83,82 @@ def create_html_submission():
 def create_criteria_config():
     """Create criteria configuration for web development grading."""
     return {
-        "Bootstrap Integration": {
+        "base": {
+            "weight": 100,
+            "subjects": {
+                "HTML Structure": {
+                    "weight": 50,
+                    "subjects": {
+                        "Bootstrap Integration": {
+                            "weight": 40,
+                            "tests": [
+                                {
+                                    "file": "index.html",
+                                    "name": "check_bootstrap_linked"
+                                }
+                            ]
+                        },
+                        "Bootstrap Grid Classes": {
+                            "weight": 60,
+                            "tests": [
+                                {
+                                    "file": "index.html",
+                                    "name": "has_class",
+                                    "calls": [
+                                        [["col-*"], 3]
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                },
+                "Components": {
+                    "weight": 50,
+                    "subjects": {
+                        "Card Components": {
+                            "weight": 50,
+                            "tests": [
+                                {
+                                    "file": "index.html",
+                                    "name": "has_class",
+                                    "calls": [
+                                        [["card", "card-body"], 6]
+                                    ]
+                                }
+                            ]
+                        },
+                        "Custom Styling": {
+                            "weight": 50,
+                            "tests": [
+                                {
+                                    "file": "index.html",
+                                    "name": "has_class",
+                                    "calls": [
+                                        [["custom-*"], 2]
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "bonus": {
             "weight": 20,
-            "test": "check_bootstrap_linked",
-            "parameters": {}
-        },
-        "Bootstrap Grid Classes": {
-            "weight": 30,
-            "test": "has_class",
-            "parameters": {
-                "class_names": ["col-*"],
-                "required_count": 3
+            "subjects": {
+                "Best Practices": {
+                    "weight": 100,
+                    "tests": [
+                        {
+                            "file": "index.html",
+                            "name": "check_no_inline_styles"
+                        }
+                    ]
+                }
             }
         },
-        "Card Components": {
-            "weight": 25,
-            "test": "has_class",
-            "parameters": {
-                "class_names": ["card", "card-body"],
-                "required_count": 6
-            }
-        },
-        "Custom Styling": {
-            "weight": 25,
-            "test": "has_class",
-            "parameters": {
-                "class_names": ["custom-*"],
-                "required_count": 2
-            }
+        "penalty": {
+            "weight": 10
         }
     }
 
@@ -118,9 +166,25 @@ def create_criteria_config():
 def create_feedback_config():
     """Create feedback preferences for the grading."""
     return {
-        "tone": "encouraging",
-        "detail_level": "detailed",
-        "include_suggestions": True
+        "general": {
+            "report_title": "Relatório de Avaliação - Portfolio Web",
+            "show_score": True,
+            "show_passed_tests": False,
+            "add_report_summary": True
+        },
+        "ai": {
+            "provide_solutions": "hint",
+            "feedback_tone": "encouraging",
+            "feedback_persona": "Web Development Mentor",
+            "assignment_context": "Este é um projeto de portfolio web usando Bootstrap e HTML/CSS."
+        },
+        "default": {
+            "category_headers": {
+                "base": "✅ Requisitos Essenciais",
+                "bonus": "⭐ Pontos Extras",
+                "penalty": "❌ Pontos a Melhorar"
+            }
+        }
     }
 
 

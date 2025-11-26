@@ -89,31 +89,109 @@ environment for all students.
 def create_criteria_config():
     """Create criteria configuration for essay grading."""
     return {
-        "Clarity and Cohesion": {
+        "base": {
+            "weight": 100,
+            "subjects": {
+                "Writing Quality": {
+                    "weight": 40,
+                    "subjects": {
+                        "Clarity and Cohesion": {
+                            "weight": 50,
+                            "tests": [
+                                {
+                                    "file": "essay.txt",
+                                    "name": "clarity_and_cohesion"
+                                }
+                            ]
+                        },
+                        "Grammar and Spelling": {
+                            "weight": 50,
+                            "tests": [
+                                {
+                                    "file": "essay.txt",
+                                    "name": "grammar_and_spelling"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "Content": {
+                    "weight": 60,
+                    "subjects": {
+                        "Thesis Statement": {
+                            "weight": 30,
+                            "tests": [
+                                {
+                                    "file": "essay.txt",
+                                    "name": "thesis_statement"
+                                }
+                            ]
+                        },
+                        "Argument Strength": {
+                            "weight": 40,
+                            "tests": [
+                                {
+                                    "file": "essay.txt",
+                                    "name": "argument_strength"
+                                }
+                            ]
+                        },
+                        "Adherence to Prompt": {
+                            "weight": 30,
+                            "tests": [
+                                {
+                                    "file": "essay.txt",
+                                    "name": "adherence_to_prompt",
+                                    "calls": [
+                                        ["Discuss the impact of artificial intelligence on modern education, including both benefits and challenges"]
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "bonus": {
             "weight": 20,
-            "test": "clarity_and_cohesion",
-            "parameters": {}
+            "subjects": {
+                "Advanced Elements": {
+                    "weight": 100,
+                    "subjects": {
+                        "Counterargument Handling": {
+                            "weight": 50,
+                            "tests": [
+                                {
+                                    "file": "essay.txt",
+                                    "name": "counterargument_handling"
+                                }
+                            ]
+                        },
+                        "Evidence Quality": {
+                            "weight": 50,
+                            "tests": [
+                                {
+                                    "file": "essay.txt",
+                                    "name": "evidence_quality"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         },
-        "Grammar and Spelling": {
-            "weight": 20,
-            "test": "grammar_and_spelling",
-            "parameters": {}
-        },
-        "Argument Strength": {
-            "weight": 25,
-            "test": "argument_strength",
-            "parameters": {}
-        },
-        "Thesis Statement": {
-            "weight": 20,
-            "test": "thesis_statement",
-            "parameters": {}
-        },
-        "Adherence to Prompt": {
-            "weight": 15,
-            "test": "adherence_to_prompt",
-            "parameters": {
-                "prompt_requirements": "Discuss the impact of artificial intelligence on modern education, including both benefits and challenges"
+        "penalty": {
+            "weight": 10,
+            "subjects": {
+                "Issues": {
+                    "weight": 100,
+                    "tests": [
+                        {
+                            "file": "essay.txt",
+                            "name": "logical_fallacy_check"
+                        }
+                    ]
+                }
             }
         }
     }
@@ -122,9 +200,26 @@ def create_criteria_config():
 def create_feedback_config():
     """Create feedback preferences for the grading."""
     return {
-        "tone": "constructive",
-        "detail_level": "comprehensive",
-        "include_suggestions": True
+        "general": {
+            "report_title": "Relatório de Avaliação - Redação sobre IA na Educação",
+            "show_score": True,
+            "show_passed_tests": False,
+            "add_report_summary": True
+        },
+        "ai": {
+            "provide_solutions": "detailed",
+            "feedback_tone": "constructive and encouraging",
+            "feedback_persona": "Essay Writing Coach",
+            "assignment_context": "Este é um ensaio argumentativo sobre o impacto da IA na educação moderna.",
+            "extra_orientations": "Forneça sugestões específicas para melhorar a estrutura dos argumentos e a qualidade das evidências."
+        },
+        "default": {
+            "category_headers": {
+                "base": "✅ Requisitos Essenciais",
+                "bonus": "⭐ Elementos Avançados",
+                "penalty": "❌ Problemas Identificados"
+            }
+        }
     }
 
 
