@@ -62,63 +62,87 @@ if __name__ == "__main__":
 """
 
 
-def create_dockerfile():
-    """Create a Dockerfile for the Python program."""
-    return """FROM python:3.9-slim
-
-WORKDIR /app
-
-COPY calculator.py .
-
-RUN chmod +x calculator.py
-
-CMD ["python3", "calculator.py"]
-"""
-
-
 def create_setup_config():
     """Create setup configuration for I/O testing."""
     return {
-        "dockerfile": "Dockerfile",
-        "start_command": "python3 calculator.py",
-        "build_timeout": 60,
-        "execution_timeout": 10
+        "runtime_image": "python:3.9-slim",
+        "container_port": None,  # No port mapping needed for I/O testing
+        "execution_timeout": 10,
+        "start_command": "python3 calculator.py"
     }
 
 
 def create_criteria_config():
     """Create criteria configuration for I/O grading."""
     return {
-        "Addition Test": {
-            "weight": 25,
-            "test": "expect_output",
-            "parameters": {
-                "inputs": ["10", "+", "5"],
-                "expected_output": "Result: 15.0"
+        "base": {
+            "weight": 100,
+            "subjects": {
+                "Basic Operations": {
+                    "weight": 100,
+                    "subjects": {
+                        "Addition": {
+                            "weight": 25,
+                            "tests": [
+                                {
+                                    "name": "expect_output",
+                                    "calls": [
+                                        [["10", "+", "5"], "Result: 15.0"]
+                                    ]
+                                }
+                            ]
+                        },
+                        "Subtraction": {
+                            "weight": 25,
+                            "tests": [
+                                {
+                                    "name": "expect_output",
+                                    "calls": [
+                                        [["20", "-", "8"], "Result: 12.0"]
+                                    ]
+                                }
+                            ]
+                        },
+                        "Multiplication": {
+                            "weight": 25,
+                            "tests": [
+                                {
+                                    "name": "expect_output",
+                                    "calls": [
+                                        [["6", "*", "7"], "Result: 42.0"]
+                                    ]
+                                }
+                            ]
+                        },
+                        "Division": {
+                            "weight": 25,
+                            "tests": [
+                                {
+                                    "name": "expect_output",
+                                    "calls": [
+                                        [["100", "/", "4"], "Result: 25.0"]
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
             }
         },
-        "Subtraction Test": {
-            "weight": 25,
-            "test": "expect_output",
-            "parameters": {
-                "inputs": ["20", "-", "8"],
-                "expected_output": "Result: 12.0"
-            }
-        },
-        "Multiplication Test": {
-            "weight": 25,
-            "test": "expect_output",
-            "parameters": {
-                "inputs": ["6", "*", "7"],
-                "expected_output": "Result: 42.0"
-            }
-        },
-        "Division Test": {
-            "weight": 25,
-            "test": "expect_output",
-            "parameters": {
-                "inputs": ["100", "/", "4"],
-                "expected_output": "Result: 25.0"
+        "bonus": {
+            "weight": 20,
+            "subjects": {
+                "Error Handling": {
+                    "weight": 100,
+                    "tests": [
+                        {
+                            "name": "expect_output",
+                            "calls": [
+                                [["10", "/", "0"], "Error: Division by zero"]
+                            ]
+                        }
+                    ]
+                }
             }
         }
     }
@@ -127,9 +151,24 @@ def create_criteria_config():
 def create_feedback_config():
     """Create feedback preferences for the grading."""
     return {
-        "tone": "encouraging",
-        "detail_level": "detailed",
-        "include_suggestions": True
+        "general": {
+            "report_title": "Relatório de Avaliação - Calculadora",
+            "show_score": True,
+            "show_passed_tests": False,
+            "add_report_summary": True
+        },
+        "ai": {
+            "provide_solutions": "hint",
+            "feedback_tone": "encouraging but direct",
+            "feedback_persona": "Code Buddy",
+            "assignment_context": "Este é um teste de programa interativo com entrada/saída."
+        },
+        "default": {
+            "category_headers": {
+                "base": "✅ Requisitos Essenciais",
+                "bonus": "⭐ Pontos Extras"
+            }
+        }
     }
 
 
@@ -142,8 +181,7 @@ def run_io_playroom():
     # Create submission files
     print("📄 Creating Python calculator submission...")
     submission_files = {
-        "calculator.py": create_calculator_submission(),
-        "Dockerfile": create_dockerfile()
+        "calculator.py": create_calculator_submission()
     }
 
     # Create assignment configuration
