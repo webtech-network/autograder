@@ -1,5 +1,9 @@
 import time
 import json
+import uuid
+import re
+import logging
+import base64  # Added for robust input handling
 
 from autograder.builder.models.template import Template
 from autograder.builder.models.test_function import TestFunction
@@ -15,7 +19,7 @@ from autograder.builder.execution_helpers.sandbox_executor import SandboxExecuto
 class ExpectOutputTest(TestFunction):
     """
     Tests a command-line program by providing a series of inputs via stdin
-    and comparing the program's stdout with an expected output.
+    and comparing the program's stdout with an expected output using flexible matching strategies.
     """
 
     @property
@@ -24,7 +28,7 @@ class ExpectOutputTest(TestFunction):
 
     @property
     def description(self):
-        return "Executa o programa do aluno, fornece uma série de entradas separadas por linha e verifica se a saída final está correta."
+        return "Executes the student's program with provided inputs and validates the output using configurable matching rules (exact, substring, or regex)."
 
     @property
     def required_file(self):
@@ -33,66 +37,125 @@ class ExpectOutputTest(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("inputs", "Lista de strings a serem enviadas para o programa, cada uma em uma nova linha.", "list of strings"),
-            ParamDescription("expected_output", "A única string que o programa deve imprimir na saída padrão.", "string")
+            ParamDescription("inputs", "List of strings to send to the program (stdin), one per line.",
+                             "list of strings"),
+            ParamDescription("expected_output", "The string or pattern expected in the stdout.", "string"),
+            ParamDescription("match_mode", "Matching strategy: 'exact', 'substring', or 'regex'. Default: 'substring'",
+                             "string"),
+            ParamDescription("ignore_case", "If true, performs case-insensitive matching.", "boolean"),
+            ParamDescription("normalize_whitespace",
+                             "If true, collapses all whitespace (newlines, tabs) to single spaces before matching.",
+                             "boolean")
         ]
 
     def __init__(self, executor: SandboxExecutor):
         self.executor = executor
+        self.logger = logging.getLogger(__name__)
 
-    def execute(self, inputs: list, expected_output: str) -> TestResult:
+    def execute(self, inputs: list, expected_output: str, match_mode: str = "substring", ignore_case: bool = False,
+                normalize_whitespace: bool = True) -> TestResult:
         """
-        Constructs and runs the command using file redirection for robust input handling,
-        then validates the output.
+        Constructs and runs the command using unique temporary files for robustness,
+        then validates the output according to the specified matching mode.
         """
         start_command = self.executor.config.get("start_command")
         if not start_command:
             raise ValueError("A 'start_command' must be defined in setup.json for this template.")
 
-        # Create a single string with all inputs separated by newlines.
+        # Generate a unique filename for input to avoid collisions
+        temp_input_filename = f"input_{uuid.uuid4().hex}.tmp"
+
+        # Prepare input content
         input_string = "\n".join(map(str, inputs))
-        temp_input_filename = "input.tmp"
+
+        # Encode to base64 to avoid shell escaping issues with quotes/special chars
+        # This ensures inputs like "It's a test" don't break the shell command wrapper
+        input_b64 = base64.b64encode(input_string.encode('utf-8')).decode('utf-8')
 
         try:
-            # Step 1: Write the input string to a temporary file using a "here document".
-            # This is the most reliable way to handle multi-line input in a shell,
-            # as it avoids complex quoting issues. Using a quoted delimiter 'EOT'
-            # prevents the shell from trying to interpret the content.
-            write_command = f"""
-cat <<'EOT' > {temp_input_filename}
-{input_string}
-EOT
-"""
+            # Step 1: Write inputs to a temp file using base64 decoding
+            # This is safer than heredocs because it avoids all shell character conflicts
+            write_command = f"echo '{input_b64}' | base64 -d > {temp_input_filename}"
             self.executor.run_command(write_command)
 
-            # Step 2: Execute the student's program, redirecting the temp file to its stdin.
+            # Step 2: Execute the program with input redirection
+            # We don't use a timeout here directly as SandboxExecutor/Docker usually handles generic timeouts,
+            # but individual command timeouts could be added to SandboxExecutor in the future.
             full_command = f"{start_command} < {temp_input_filename}"
             exit_code, stdout, stderr = self.executor.run_command(full_command)
 
+            # Step 3: Process Output
+            actual_output = stdout if stdout else ""
+
+            # If the program crashed, fail immediately but include stderr
             if exit_code != 0:
                 return TestResult(
                     test_name=self.name,
                     score=0,
-                    report=f"The program exited with an error. Stderr: {stderr}"
+                    report=f"❌ Program execution failed (Exit Code: {exit_code}).\n\nSTDERR:\n{stderr}\n\nSTDOUT:\n{actual_output}"
                 )
 
-            actual_output = stdout.strip()
-            if actual_output == expected_output.strip():
-                score = 100
-                report = "Success! The program produced the correct output for the given inputs."
-            else:
-                score = 0
-                report = f"Output did not match. Expected: '{expected_output.strip()}', but the program returned: '{actual_output}'"
+            # Step 4: Normalize and Match
+            if ignore_case:
+                actual_output = actual_output.lower()
+                expected_output = expected_output.lower()
 
-            return TestResult(
-                test_name=self.name,
-                score=score,
-                report=report
-            )
+            if normalize_whitespace:
+                # Collapse all whitespace sequences to a single space and strip edges
+                actual_output = " ".join(actual_output.split())
+                expected_output = " ".join(expected_output.split())
+            else:
+                # Just basic stripping
+                actual_output = actual_output.strip()
+                expected_output = expected_output.strip()
+
+            # Matching Logic
+            passed = False
+            failure_details = ""
+
+            if match_mode == "exact":
+                passed = (actual_output == expected_output)
+                if not passed:
+                    failure_details = f"Expected exact match.\nExpected: '{expected_output}'\nActual:   '{actual_output}'"
+
+            elif match_mode == "substring" or match_mode == "contains":
+                passed = (expected_output in actual_output)
+                if not passed:
+                    failure_details = f"Expected output to contain substring.\nMissing: '{expected_output}'\nActual output: '{actual_output}'"
+
+            elif match_mode == "regex":
+                try:
+                    passed = re.search(expected_output, actual_output) is not None
+                    if not passed:
+                        failure_details = f"Regex pattern not found.\nPattern: '{expected_output}'\nActual output: '{actual_output}'"
+                except re.error as e:
+                    return TestResult(self.name, 0, f"Invalid Regex Pattern provided in criteria: {e}")
+
+            else:
+                return TestResult(self.name, 0,
+                                  f"Invalid match_mode: '{match_mode}'. Use 'exact', 'substring', or 'regex'.")
+
+            # Step 5: Return Result
+            if passed:
+                return TestResult(
+                    test_name=self.name,
+                    score=100,
+                    report="✅ Correct output generated."
+                )
+            else:
+                return TestResult(
+                    test_name=self.name,
+                    score=0,
+                    report=f"❌ Output mismatch.\n{failure_details}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error executing ExpectOutputTest: {e}")
+            return TestResult(self.name, 0, f"An unexpected error occurred during testing: {str(e)}")
 
         finally:
-            # Step 3: Always clean up the temporary file.
-            self.executor.run_command(f"rm {temp_input_filename}")
+            # Clean up the unique temp file
+            self.executor.run_command(f"rm -f {temp_input_filename}")
 
 
 # ===============================================================
@@ -111,7 +174,7 @@ class InputOutputTemplate(Template):
 
     @property
     def template_description(self):
-        return "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."
+        return "A robust template for grading command-line interfaces (CLI) based on input/output sequences."
 
     @property
     def requires_pre_executed_tree(self) -> bool:
@@ -126,13 +189,13 @@ class InputOutputTemplate(Template):
         return self.executor
 
     def __init__(self, clean=False):
-
         if not clean:
             # Prepare the environment by running setup commands
             self.executor = SandboxExecutor.start()
             self._setup_environment()
         else:
             self.executor = None
+
         self.tests = {
             "expect_output": ExpectOutputTest(self.executor),
         }
