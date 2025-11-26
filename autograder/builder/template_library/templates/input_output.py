@@ -115,7 +115,7 @@ class InputOutputTemplate(Template):
 
     @property
     def requires_pre_executed_tree(self) -> bool:
-        return False
+        return True
 
     @property
     def requires_execution_helper(self) -> bool:
