@@ -93,50 +93,80 @@ Werkzeug==2.3.0
 def create_setup_config():
     """Create setup configuration for API testing."""
     return {
-        "dockerfile": "Dockerfile",
+        "runtime_image": "python:3.9-slim",
         "container_port": 5000,
         "start_command": "python app.py",
-        "build_timeout": 120,
-        "startup_wait": 3
+        "commands": {
+            "install_dependencies": "pip install Flask==2.3.0 Werkzeug==2.3.0"
+        }
     }
 
 
 def create_criteria_config():
     """Create criteria configuration for API grading."""
     return {
-        "Health Endpoint": {
+        "base": {
+            "weight": 100,
+            "subjects": {
+                "API Endpoints": {
+                    "weight": 100,
+                    "subjects": {
+                        "Health Check": {
+                            "weight": 30,
+                            "tests": [
+                                {
+                                    "name": "health_check",
+                                    "calls": [
+                                        ["/health"]
+                                    ]
+                                }
+                            ]
+                        },
+                        "Get All Users": {
+                            "weight": 35,
+                            "tests": [
+                                {
+                                    "name": "check_response_json",
+                                    "calls": [
+                                        ["/api/users", "0", {"id": 1}]
+                                    ]
+                                }
+                            ]
+                        },
+                        "Get Single User": {
+                            "weight": 35,
+                            "tests": [
+                                {
+                                    "name": "check_response_json",
+                                    "calls": [
+                                        ["/api/users/1", "id", 1],
+                                        ["/api/users/1", "name", "Alice"]
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "bonus": {
             "weight": 20,
-            "test": "health_check",
-            "parameters": {
-                "endpoint": "/health"
+            "subjects": {
+                "Advanced Features": {
+                    "weight": 100,
+                    "tests": [
+                        {
+                            "name": "check_response_json",
+                            "calls": [
+                                ["/api/users/2", "email", "bob@example.com"]
+                            ]
+                        }
+                    ]
+                }
             }
         },
-        "Get All Users": {
-            "weight": 25,
-            "test": "check_endpoint_response",
-            "parameters": {
-                "endpoint": "/api/users",
-                "method": "GET",
-                "expected_status": 200
-            }
-        },
-        "Get Single User": {
-            "weight": 25,
-            "test": "check_endpoint_response",
-            "parameters": {
-                "endpoint": "/api/users/1",
-                "method": "GET",
-                "expected_status": 200
-            }
-        },
-        "Create User": {
-            "weight": 30,
-            "test": "check_post_endpoint",
-            "parameters": {
-                "endpoint": "/api/users",
-                "payload": {"name": "Charlie", "email": "charlie@example.com"},
-                "expected_status": 201
-            }
+        "penalty": {
+            "weight": 10
         }
     }
 
@@ -144,9 +174,25 @@ def create_criteria_config():
 def create_feedback_config():
     """Create feedback preferences for the grading."""
     return {
-        "tone": "professional",
-        "detail_level": "detailed",
-        "include_suggestions": True
+        "general": {
+            "report_title": "Relatório de Avaliação - API REST",
+            "show_score": True,
+            "show_passed_tests": False,
+            "add_report_summary": True
+        },
+        "ai": {
+            "provide_solutions": "hint",
+            "feedback_tone": "professional",
+            "feedback_persona": "Senior Backend Developer",
+            "assignment_context": "Este é um teste de API REST com Flask."
+        },
+        "default": {
+            "category_headers": {
+                "base": "✅ Requisitos Essenciais",
+                "bonus": "⭐ Pontos Extras",
+                "penalty": "❌ Pontos a Melhorar"
+            }
+        }
     }
 
 
@@ -159,9 +205,7 @@ def run_api_playroom():
     # Create submission files
     print("📄 Creating API submission files...")
     submission_files = {
-        "app.py": create_api_submission(),
-        "Dockerfile": create_dockerfile(),
-        "requirements.txt": create_requirements_txt()
+        "app.py": create_api_submission()
     }
 
     # Create assignment configuration
