@@ -289,7 +289,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{base_url}}/template/web_dev",
+          "raw": "{{base_url}}/templates/webdev",
           "host": ["{{base_url}}"],
           "path": ["template", "web_dev"]
         },
@@ -303,7 +303,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{base_url}}/template/api",
+          "raw": "{{base_url}}/templates/api",
           "host": ["{{base_url}}"],
           "path": ["template", "api"]
         },
@@ -317,7 +317,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{base_url}}/template/io",
+          "raw": "{{base_url}}/templates/io",
           "host": ["{{base_url}}"],
           "path": ["template", "io"]
         },

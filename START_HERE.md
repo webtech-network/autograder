@@ -185,10 +185,10 @@ Grade a student submission using specified template.
 }
 ```
 
-### GET `/template/{template_name}`
+### GET `/templates/{template_name}`
 Get template metadata and available tests.
 
-**Example:** `GET /template/web_dev`
+**Example:** `GET /templates/web_dev`
 
 ## 🎯 Test Scenarios
 
@@ -303,7 +303,7 @@ python -m py_compile test_api_requests.py && echo "✅ Script OK"
 ls tests/data/web_dev/index.html && echo "✅ Test data OK"
 
 # Check API server (if running)
-curl http://localhost:8001/template/web_dev && echo "✅ API OK"
+curl http://localhost:8001/templates/webdev && echo "✅ API OK"
 ```
 
 ---

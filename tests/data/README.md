@@ -125,10 +125,10 @@ python test_api_requests.py --url http://api.example.com:8000
 
 **Example:**
 ```bash
-GET /template/web_dev
-GET /template/api
-GET /template/io
-GET /template/essay
+GET /templates/webdev
+GET /templates/api
+GET /templates/io
+GET /templates/essay
 ```
 
 **Response:** Returns template metadata including available tests and their parameters.

@@ -317,7 +317,7 @@ class AutograderAPITester:
         self.print_header(f"GET TEMPLATE INFO: {template_name}")
         
         try:
-            url = f"{self.base_url}/template/{template_name.replace(' ', '_')}"
+            url = f"{self.base_url}/templates/{template_name.replace(' ', '_')}"
             print(f"GET {url}")
             
             response = requests.get(url, timeout=10)

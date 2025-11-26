@@ -126,7 +126,7 @@ test_custom() {
 test_template_info_web() {
     print_header "TEMPLATE INFO: Web Dev"
     
-    curl -X GET "$BASE_URL/template/web_dev" | jq '.'
+    curl -X GET "$BASE_URL/templates/webdev" | jq '.'
 }
 
 # ========================================
@@ -135,7 +135,7 @@ test_template_info_web() {
 test_template_info_api() {
     print_header "TEMPLATE INFO: API"
     
-    curl -X GET "$BASE_URL/template/api" | jq '.'
+    curl -X GET "$BASE_URL/templates/api" | jq '.'
 }
 
 # ========================================
@@ -144,7 +144,7 @@ test_template_info_api() {
 test_template_info_io() {
     print_header "TEMPLATE INFO: I/O"
     
-    curl -X GET "$BASE_URL/template/io" | jq '.'
+    curl -X GET "$BASE_URL/templates/io" | jq '.'
 }
 
 # ========================================
@@ -153,7 +153,7 @@ test_template_info_io() {
 test_template_info_essay() {
     print_header "TEMPLATE INFO: Essay"
     
-    curl -X GET "$BASE_URL/template/essay" | jq '.'
+    curl -X GET "$BASE_URL/templates/essay" | jq '.'
 }
 
 # ========================================
