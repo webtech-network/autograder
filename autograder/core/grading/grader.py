@@ -154,10 +154,10 @@ class Grader:
             return avg_penalty_for_subject
 
         # Recursive Case: This node is a branch with children
-        child_subjects = getattr(subject, 'subjects', {}).values()
-        if not child_subjects:
+        child_subjects_classes = getattr(subject, 'subjects', {})
+        if not child_subjects_classes:
             return None  # No tests and no children
-
+        child_subjects = child_subjects_classes.values()
         child_penalties_map = {sub.name: self._calculate_subject_penalty(sub, submission_files, results_list, depth + 1)
                                for sub in child_subjects}
 

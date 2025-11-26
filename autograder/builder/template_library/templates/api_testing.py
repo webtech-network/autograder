@@ -181,6 +181,8 @@ class ApiTestingTemplate(Template):
         return self.executor
 
     def __init__(self, clean=False):
+        self.logger = logging.getLogger(__name__)
+
         if not clean:
             # Prepare the environment by running setup commands
             self.executor = SandboxExecutor.start()
@@ -188,7 +190,6 @@ class ApiTestingTemplate(Template):
         else:
             self.executor = None
 
-        self.logger = logging.getLogger(__name__)
 
         self.tests = {
             "health_check": HealthCheckTest(self.executor),
