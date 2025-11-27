@@ -145,6 +145,10 @@ async def get_template_info(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
 
 # To run this API service:
 # uvicorn submission_api:app --host 0.0.0.0 --port 8000 --reload
