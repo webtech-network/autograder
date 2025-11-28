@@ -42,7 +42,7 @@ logging.basicConfig(
 
 # src/interfaces/api/submission_api.py
 
-@app.post("/grade_submission/")
+@app.post("/grade_submission")
 async def grade_submission_endpoint(
         submission_files: List[UploadFile] = File(..., description="The student's source code files (HTML, CSS, JS)"),
         template_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.) or custom for custom configuration"),
