@@ -51,21 +51,22 @@ class CriteriaTree:
         for category_name in ["base", "bonus", "penalty"]:
             if category_name in config_dict:
                 category = getattr(criteria, category_name)
-                category_data = config_dict[category_name]
+                category_data = config_dict.get(category_name)
 
                 # Set max_score for bonus and penalty categories
-                if "weight" in category_data:
-                    category.max_score = category_data.get("weight", 100)
+                category.max_score = category_data.get("weight", 100)
 
-                if "subjects" in category_data:
-                    subjects = CriteriaTree._parse_subjects(category_data["subjects"])
+                subjects = category_data.get("subjects")
+                if subjects:
+                    subjects = CriteriaTree._parse_subjects(subjects)
                     CriteriaTree._balance_subject_weights(subjects)
                     for subject in subjects:
                         category.add_subject(subject)
 
-                if "tests" in category_data:
+                tests = category_data.get("tests")
+                if tests:
                     # Handle tests directly at category level
-                    category.tests = CriteriaTree._parse_tests(category_data["tests"])
+                    category.tests = CriteriaTree._parse_tests(tests)
         return criteria
 
     @staticmethod
@@ -81,8 +82,12 @@ class CriteriaTree:
     def _parse_subject(subject_name: str, subject_data: dict) -> Subject:
         """Recursively parses a subject and balances the weights of its children."""
         subject = Subject(subject_name, subject_data.get("weight", 0))
-        subject.children.extend(CriteriaTree._parse_subjects(subject_data.get("subjects", {})))
-        subject.children.extend(CriteriaTree._parse_tests(subject_data.get("tests", [])))
+        subjects = subject_data.get("subjects")
+        if subjects:
+            subject.children.extend(CriteriaTree._parse_subjects(subjects))
+        tests = subject_data.get("tests")
+        if tests:
+            subject.children.extend(CriteriaTree._parse_tests(tests))
         return subject
 
     @staticmethod
@@ -102,8 +107,13 @@ class CriteriaTree:
         """Recursively parses a subject, executes its tests, and balances the weights of its children."""
         subject = Subject(subject_name, subject_data.get("weight", 0))
 
-        subject.children.extend(CriteriaTree._parse_and_execute_tests(subject_data.get("tests"), template, submission_files, subject_name))
-        subject.children.extend(CriteriaTree._parse_and_execute_subjects(subject_data.get("subjects"), template, submission_files))
+        tests = subject_data.get("tests")
+        if tests:
+            subject.children.extend(CriteriaTree._parse_and_execute_tests(tests, template, submission_files, subject_name))
+
+        subjects = subject_data.get("subjects")
+        if subjects:
+            subject.children.extend(CriteriaTree._parse_and_execute_subjects(subjects, template, submission_files))
 
         return subject
 
