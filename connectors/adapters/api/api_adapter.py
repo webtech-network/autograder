@@ -22,12 +22,13 @@ class ApiAdapter(Port):
             raise Exception("No autograder response available. Please run the autograder first.")
 
         # Prepare the API response
+        test_report = self.autograder_response.test_report
         response = {
-            "server_status": "Sever connection happened successfully",
+            "server_status": "Server connection happened successfully",
             "autograding_status": self.autograder_response.status,
             "final_score": self.autograder_response.final_score,
             "feedback": self.autograder_response.feedback,
-            "test_report": [test_result.to_dict() for test_result in self.autograder_response.test_report],
+            "test_report": [test_result.to_dict() for test_result in test_report] if test_report else [],
         }
 
         return response
