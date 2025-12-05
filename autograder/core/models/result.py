@@ -1,7 +1,7 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from autograder.core.models.test_result import TestResult
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
+from autograder.core.models.result_tree import ResultNode, NodeType
 
 class Result(BaseModel):
     """
@@ -10,17 +10,117 @@ class Result(BaseModel):
     Allows different report generation methods for feedback.
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     final_score: float
     author: str
     submission_files: Dict[str,str] = Field(default_factory=dict, alias="submission_files")
+
+    """ The hierarchical result tree structure """
+
+    result_tree: Optional[ResultNode] = None
+
     base_results: List[TestResult] = Field(default_factory=list)
     bonus_results: List[TestResult] = Field(default_factory=list)
     penalty_results: List[TestResult] = Field(default_factory=list)
 
-    model_config = {"populate_by_name": True}
+   
 
     def get_test_report(self) -> List[TestResult]:
         return self.base_results + self.bonus_results + self.penalty_results
+    
+
+    def get_category_node(self,category: str) -> Optional[ResultNode]:
+        if not self.result_tree:
+            return None
+        return self.result_tree.find_node(category, NodeType.CATEGORY)
+    
+    def get_subject_node(self, subject_name: str) -> Optional[ResultNode]: 
+        if not self.result_tree:
+            return None
+        return self.result_tree.find_node(subject_name, NodeType.SUBJECT)
+    
+    def get_subject_tests(self, subject_name: str) ->  List[TestResult]:
+        node = self.get_subject_node(subject_name)
+        return node.get_all_tests_results() if node else []
+    
+
+    def get_category_tests(self, category: str) -> List[TestResult]:
+        node = self.get_category_node(category)
+        return node.get_all_tests_results() if node else []
+    
+    def get_navigation_path(self, node_name: str) -> Optional[List[ResultNode]]: 
+        # Main method for navigation on the tree
+        if not self.result_tree:
+            return None
+        return self.result_tree.get_node_path(node_name)
+        
+    def get_all_subjects(self) -> List[ResultNode] :
+        subjects = []
+        if not self.result_tree:
+            return subjects
+        
+        for category in self.result_tree.children:
+            subjects.extend(category.children)
+
+        return subjects
+    
+    def get_summary_by_category(self) -> Dict[str, Dict]:
+        summary = {}
+        if not self.result_tree:
+            return summary
+        
+        for category in self.result_tree.children:
+            summary[category.name] = {
+                "weighted_score": category.weighted_score,
+                "unweighted_score": category.unweighted_score,
+                "max_score": category.max_score,
+                "total_tests": category.total_tests,
+                "subjects": [
+                    {
+                        "name": subj.name,
+                        "weighted_score": subj.weighted_score,
+                        "unweighted_score": subj.unweighted_score,
+                        "total_tests": subj.total_tests
+                    }
+                    for subj in category.children
+                ]
+            }
+
+        return summary
+    
+
+    def print_tree(self, node: Optional[ResultNode] = None, indent: int = 0):
+        # Prints the result tree
+        if node is None:
+            node = self.result_tree
+        if not node:
+            print("No result tree available")
+            return
+        
+        prefix = "  " * indent
+        score_str = ""
+        
+        if node.weighted_score is not None:
+            score_str = f" | W: {node.weighted_score:.2f}"
+            if node.unweighted_score is not None and node.weighted_score != node.unweighted_score:
+                score_str += f" | U: {node.unweighted_score:.2f}"
+        
+        weight_str = f" (w={node.weight})" if node.weight > 0 else ""
+        test_str = f" [{node.total_tests} tests]" if node.total_tests > 0 else ""
+        
+        print(f"{prefix}{node.name}{weight_str}{score_str}{test_str}")
+        
+        for child in node.children:
+            self.print_tree(child, indent + 1)
+
+
+    def tree_to_dict(self) -> Optional[dict]:
+        # Converts the result to dictionary format
+        if not self.result_tree:
+            return None
+        return self.result_tree.to_dict()
+    
 
     def __repr__(self) -> str:
         lines = [
@@ -31,9 +131,23 @@ class Result(BaseModel):
         for file in self.submission_files:
             lines.append(f"       - {file}")
         lines.append(f"  Final Score: {self.final_score:.2f}")
+        
+      
+        if self.result_tree:
+            lines.append(f"  Result Tree: Available (use .print_tree() to view)")
+            lines.append(f"  Categories: {len(self.result_tree.children)}")
+            
+         
+            for category in self.result_tree.children:
+                score_info = f"{category.weighted_score:.2f}" if category.weighted_score else "N/A"
+                lines.append(f"    • {category.name}: {score_info} ({len(category.children)} subjects, {category.total_tests} tests)")
+        else:
+            lines.append(f"  Result Tree: Not available")
+        
         lines.append(f"  Base Results: {len(self.base_results)} tests")
         lines.append(f"  Bonus Results: {len(self.bonus_results)} tests")
         lines.append(f"  Penalty Results: {len(self.penalty_results)} tests")
+        
         content = "\n".join(lines)
         width = max(len(line) for line in lines)
         border = "+" + "-" * (width + 2) + "+"
@@ -42,3 +156,7 @@ class Result(BaseModel):
             result.append(f"| {line.ljust(width)} |")
         result.append(border)
         return "\n".join(result)
+        
+    
+
+ 
