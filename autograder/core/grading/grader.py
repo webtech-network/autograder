@@ -56,24 +56,32 @@ class Grader:
             name="Assignment Result"
         )
 
+        
+
         # Step 1: Grade categories (original grading logic - unchanged)
-        base_score = self._grade_subject_or_category(
+        base_score, base_node = self._grade_and_build(                     #Refactor the grading process to grade and build result at the same time                    
             self.criteria.base, 
             submission_files, 
-            self.base_results
-        ) or 0.0
+            self.base_results,
+            "base",
+            NodeType.CATEGORY 
+        ) or (0.0, None)
         
-        bonus_score = self._grade_subject_or_category(
+        bonus_score, bonus_node = self._grade_and_build(                   #While grading, build the nodes for each category
             self.criteria.bonus, 
             submission_files, 
-            self.bonus_results
-        ) or 0.0
+            self.bonus_results,
+            "bonus",
+            NodeType.CATEGORY
+        ) or (0.0, None)
         
-        penalty_points = self._calculate_penalty_points(
+        penalty_points, penaty_node = self._calculate_penalty_and_build(
             self.criteria.penalty, 
             submission_files,
-            self.penalty_results
-        ) or 0.0
+            self.penalty_results,
+            "penalty",
+            NodeType.CATEGORY
+        ) or (0.0, None)
 
         # Step 2: Build result tree AFTER grading (when all test results exist)
         print("\n--- BUILDING RESULT TREE ---")
