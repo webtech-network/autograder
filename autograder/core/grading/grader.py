@@ -56,6 +56,8 @@ class Grader:
             name="Assignment Result"
         )
 
+        print(("\n--- GRADING AND BUILDING RESULT TREE ---"))
+
         
 
         # Step 1: Grade categories (original grading logic - unchanged)
@@ -83,8 +85,6 @@ class Grader:
             NodeType.CATEGORY
         ) or (0.0, None)
 
-        # Step 2: Build result tree AFTER grading (when all test results exist)
-        print("\n--- BUILDING RESULT TREE ---")
         
         base_node = self._build_result_node(
             self.criteria.base, 
@@ -107,7 +107,7 @@ class Grader:
             depth=0
         )
         
-        # Step 3: Add category nodes to root and set their scores
+        # Step : Add category nodes to root and set their scores
         if base_node:
             base_node.weighted_score = base_score
             base_node.unweighted_score = base_score
@@ -155,8 +155,106 @@ class Grader:
         print("-" * 25)
 
         return final_score, root_node
+    
+    def _grade_and_build(self,current_node, submission_files, result_list, node_name, node_type, depth=0) -> Tuple[Optional[float], Optional[ResultNode]]:
+        
 
-    def _grade_subject_or_category(self, current_node: 'Subject' or 'TestCategory', submission_files: Dict,
+
+        result_node = ResultNode(
+            node_type=node_type,
+            name=node_name,
+            weight=getattr(current_node, 'weight', 0.0),
+            max_score=getattr(current_node, 'max_score', None)
+        )
+
+        prefix = "    " * depth
+
+        if hasattr(current_node, 'tests') and current_node.tests:
+            print(f"\n{prefix}📘 Grading {current_node.name}...")
+            subject_test_results = []
+
+            for test in current_node.tests:
+                test_results = test.get_result(self.test_library, submission_files, current_node.name)
+                subject_test_results.extend(test_results)
+
+            if not subject_test_results:
+                return None, None  # No tests were actually run
+
+            result_list.extend(subject_test_results)
+            result_node.test_results= subject_test_results
+            result_node.total_tests= len(subject_test_results)
+
+            #Calculate score
+            scores = [res.score for res in subject_test_results]
+            average_score = sum(scores) / len(scores)
+            result_node.unweighted_score = average_score
+            result_node.weighted_score = average_score
+           
+
+            print(f"{prefix}  -> Average score: {average_score:.2f}")
+            print(f"{prefix} Built leaf node: {node_name} with {len(subject_test_results)} tests")
+
+            return average_score, result_node
+
+
+        child_subjects = getattr(current_node, 'subjects', {}).values()
+        if not child_subjects:  
+            return None, None
+
+        print(f"\n{prefix}📘 Grading {current_node.name}...")
+
+        child_results = []
+        total_tests = 0
+        valid_children = []
+
+        for sub in child_subjects:
+            child_score, child_node = self._grade_and_build(
+                sub, submission_files, result_list, sub.name, NodeType.SUBJECT, depth + 1
+            )
+
+            if child_score is not None and child_node is not None:
+                child_results.append((sub,child_score,child_node))
+                total_tests += child_node.total_tests
+                valid_children.append(child_node)
+
+        if not valid_children:
+            return None, None
+
+        for _, _, child_node in child_results:
+            result_node.add_child(child_node)
+
+        result_node.total_tests = total_tests  
+
+
+        total_weight = sum(sub.weight for sub, _, _ in child_results)
+
+        if total_weight == 0:
+            weighted_score = sum(score for _, score, _ in child_results) / len(child_results)
+
+            unweighted_score = weighted_score
+
+        else:
+            weighted_score = 0
+            unweighted_scores = []
+
+            for sub, child_score, _ in child_results:
+                weighted_score += child_score * (sub.weight / total_weight)
+                unweighted_scores.append(child_score)
+
+            unweighted_score = sum(unweighted_scores) / len(unweighted_scores)
+
+        result_node.weighted_score = weighted_score
+        result_node.unweighted_score = unweighted_score
+
+        print(f"\n{prefix}  -> Weighted score for '{current_node.name}': {weighted_score:.2f}d")
+        print(f"{prefix} Built branch node: {node_name} with {len(valid_children)} children, {total_tests} total tests")
+
+        return weighted_score, result_node
+
+
+        
+
+    ##def _grade_subject_or_category(self, current_node: 'Subject' or 'TestCategory', submission_files: Dict,
                                    results_list: List['TestResult'], depth=0) -> Optional[float]:
         """
         Recursively grades a subject or category, returning a weighted score or None if no tests are found.
