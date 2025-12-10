@@ -93,8 +93,15 @@ async def grade_submission_endpoint(
         result = adapter.export_results()
         return result
 
+    except ValueError as e:
+        logging.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid request. Please check your input parameters.")
+    except FileNotFoundError as e:
+        logging.error(f"File not found: {e}")
+        raise HTTPException(status_code=404, detail="Required file not found.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        logging.exception(f"Unexpected error in grade_submission: {e}")
+        raise HTTPException(status_code=500, detail="An internal error occurred while processing your submission.")
 
 @app.get("/templates/{template_name}")
 async def get_template_info(
@@ -141,9 +148,11 @@ async def get_template_info(
         return template
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logging.error(f"Template not found: {e}")
+        raise HTTPException(status_code=404, detail="Template or test not found.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        logging.exception(f"Error retrieving template info: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while retrieving template information.")
 
 @app.get("/health")
 def health_check():
