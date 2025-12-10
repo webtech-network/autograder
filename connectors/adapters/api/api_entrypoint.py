@@ -96,16 +96,16 @@ async def grade_submission_endpoint(
 
     except ValueError as e:
         logging.error(f"Validation error: {e}")
-        raise HTTPException(status_code=400, detail=f"Validation Error: {e}")
+        raise HTTPException(status_code=400, detail="Validation Error")
     except json.JSONDecodeError as e:
         logging.error(f"JSON parsing error: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {e}")
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
     except FileNotFoundError as e:
         logging.error(f"File not found: {e}")
-        raise HTTPException(status_code=404, detail=f"File not found: {e}")
+        raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
         logging.exception(f"Internal Server Error: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.get("/templates/{template_name}")
 async def get_template_info(
