@@ -6,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from connectors.models.assignment_config import AssignmentConfig
 import uvicorn
-import json
 
 from connectors.adapters.api.api_adapter import ApiAdapter
 # Initialize the FastAPI app
@@ -97,9 +96,6 @@ async def grade_submission_endpoint(
     except ValueError as e:
         logging.error(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail="Validation Error")
-    except json.JSONDecodeError as e:
-        logging.error(f"JSON parsing error: {e}")
-        raise HTTPException(status_code=400, detail="Invalid JSON format")
     except FileNotFoundError as e:
         logging.error(f"File not found: {e}")
         raise HTTPException(status_code=404, detail="File not found")
