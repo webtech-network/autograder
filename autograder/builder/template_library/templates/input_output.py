@@ -20,7 +20,7 @@ class ExpectOutputTest(TestFunction):
 
     @property
     def name(self):
-        return "expect_output"
+        return "Expect Output"
 
     @property
     def description(self):
@@ -134,7 +134,7 @@ class InputOutputTemplate(Template):
         else:
             self.executor = None
         self.tests = {
-            "expect_output": ExpectOutputTest(self.executor),
+            "Expect Output": ExpectOutputTest(self.executor),
         }
 
     def _setup_environment(self):
@@ -211,8 +211,8 @@ if __name__ == "__main__":
                     "calculation_tests": {
                         "weight": 100,
                         "tests": [
-                            {"name": "expect_output", "calls": [[["sum", 2, 2], "4.0"]]},
-                            {"name": "expect_output", "calls": [[["subtract", 10, 5], "5.0"]]}
+                            {"name": "Expect Output", "calls": [[["sum", 2, 2], "4.0"]]},
+                            {"name": "Expect Output", "calls": [[["subtract", 10, 5], "5.0"]]}
                         ]
                     }
                 }
@@ -242,14 +242,14 @@ if __name__ == "__main__":
         print("\n--- 3. Running Tests ---")
 
         # Test 1: Sum (Will pass)
-        test_func = template.get_test("expect_output")
+        test_func = template.get_test("Expect Output")
         sum_result = test_func.execute(["sum", 2, 2], "4.0")
         print("\n[Sum Test Result]")
         print(f"  Score: {sum_result.score}")
         print(f"  Report: {sum_result.report}")
 
         # Test 2: Sum (Will fail)
-        test_func = template.get_test("expect_output")
+        test_func = template.get_test("Expect Output")
         sum_result = test_func.execute(["sum", 2, 2], "3.0")
         print("\n[Sum Test Result]")
         print(f"  Score: {sum_result.score}")
