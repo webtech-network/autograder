@@ -3,7 +3,7 @@ class LazyExecutorProxy:
         self._executor_cls = executor_cls
         self._args = args
         self._kwargs = kwargs
-        self._instance = None  # The real executor (starts as None)
+        self._instance = None
 
     def _ensure_started(self):
         """Initializes the real executor only on first use."""
@@ -14,7 +14,7 @@ class LazyExecutorProxy:
 
     def stop(self):
         """Stops the executor if it was ever started."""
-        if self._instance:
+        if self._instance is not None:
             self._instance.stop()
             self._instance = None
 
@@ -22,3 +22,8 @@ class LazyExecutorProxy:
     def __getattr__(self, name):
         real_executor = self._ensure_started()
         return getattr(real_executor, name)
+    
+    def __repr__(self):
+        """Provide debugging information."""
+        status = "started" if self._instance is not None else "not started"
+        return f"LazyExecutorProxy({self._executor_cls.__name__}, {status})"

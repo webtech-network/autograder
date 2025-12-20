@@ -972,7 +972,7 @@ class WebDevTemplate(Template):
     def requires_pre_executed_tree(self) -> bool:
         return False
 
-    def __init__(self, clean=False):
+    def __init__(self):
         self.tests = {
             "has_class": HasClass(),
             "check_bootstrap_linked": CheckBootstrapLinked(),
