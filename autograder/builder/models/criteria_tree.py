@@ -35,6 +35,7 @@ class Test:
         self.calls.append(call)
 
     def get_result(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
+        #pylint: disable=too-many-function-args
         """
         Retrieves a TestFunction object from the library and executes it for each TestCall.
         """
