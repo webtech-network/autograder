@@ -21,13 +21,13 @@ inputs:
     description: 'Optional custom grading template in JSON format. Required if template_preset is set to "custom".'
     required: false
   openai_key:
-    description: 'Optional OpenAI API key for generating AI-assisted feedback.'
+    description: 'OpenAI API key for AI feedback. REQUIRED for AI feedback mode in GitHub Actions.'
     required: false
   redis_url:
-    description: 'Optional URL for a Redis instance for caching.'
+    description: 'Redis URL for score export and caching. REQUIRED for AI feedback mode or score export in GitHub Actions.'
     required: false
   redis_token:
-    description: 'Optional authentication token for the Redis instance.'
+    description: 'Redis token for authentication. REQUIRED for AI feedback mode or score export in GitHub Actions.'
     required: false
   app_token:
     description: 'The application token for the autograder service.'

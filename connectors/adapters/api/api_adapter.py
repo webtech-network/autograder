@@ -39,10 +39,7 @@ class ApiAdapter(Port):
                        student_name,
                        student_credentials,
                        include_feedback=False,
-                       feedback_mode="default",
-                       openai_key=None,
-                       redis_url=None,
-                       redis_token=None):
+                       feedback_mode="default"):
         submission_files_dict = {}
         for submission_file in submission_files:
             if ".git" in submission_file.filename:
@@ -56,9 +53,6 @@ class ApiAdapter(Port):
             student_credentials=student_credentials,
             include_feedback=include_feedback,
             feedback_mode=feedback_mode,
-            openai_key=openai_key,
-            redis_url=redis_url,
-            redis_token=redis_token,
         )
 
 
