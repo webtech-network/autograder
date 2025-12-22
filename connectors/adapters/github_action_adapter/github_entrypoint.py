@@ -8,9 +8,9 @@ parser.add_argument("--student-name", type=str, required=True, help="The name of
 parser.add_argument("--feedback-type", type=str, default="default",help="The type of feedback to provide (default or ai)")
 parser.add_argument("--custom-template", type=str, required=False, help="Test Files for the submission (in case of custom preset)")
 parser.add_argument("--app_token", type=str, required=False, help="GitHub App Token")
-parser.add_argument("--openai-key", type=str, required=False, help="OpenAI API key for AI feedback (GitHub Actions only)")
-parser.add_argument("--redis-url", type=str, required=False, help="Redis URL for score export and AI feedback (GitHub Actions only)")
-parser.add_argument("--redis-token", type=str, required=False, help="Redis token for score export and AI feedback (GitHub Actions only)")
+parser.add_argument("--openai-key", type=str, required=False, help="OpenAI API key for AI feedback")
+parser.add_argument("--redis-url", type=str, required=False, help="Redis URL for score export and AI feedback")
+parser.add_argument("--redis-token", type=str, required=False, help="Redis token for score export and AI feedback")
 parser.add_argument("--include-feedback", type=str, required=False, help="Whether to include/generate feedback (true/false).")
 
 async def main():
