@@ -32,19 +32,6 @@ class Autograder:
         # Set the request in the global context at the beginning of the process
         request_context.set_request(autograder_request)
         
-        # Set credentials from request if provided
-        if autograder_request.openai_key:
-            logger.info("OpenAI key provided in request, using it for AI feedback")
-            os.environ["OPENAI_API_KEY"] = autograder_request.openai_key
-        
-        if autograder_request.redis_url:
-            logger.info("Redis URL provided in request, using it")
-            os.environ["REDIS_URL"] = autograder_request.redis_url
-        
-        if autograder_request.redis_token:
-            logger.info("Redis token provided in request, using it")
-            os.environ["REDIS_TOKEN"] = autograder_request.redis_token
-            
         try:
 
             # Step 1: Handle Pre-flight checks if setup is defined
@@ -64,8 +51,8 @@ class Autograder:
             result = Autograder._start_and_run_grader()
             logger.info(f"Grading completed. Final score: {result.final_score}")
             
-            # Export final score if Redis credentials are available in the request
-            if autograder_request.redis_token and autograder_request.redis_url:
+            # Export final score if Redis credentials are available in environment
+            if os.environ.get("REDIS_TOKEN") and os.environ.get("REDIS_URL"):
                 Autograder.export_final_score(result.final_score)
 
             if autograder_request.include_feedback:
@@ -187,9 +174,12 @@ class Autograder:
         req = request_context.get_request()
         student_credentials = req.student_credentials
         
-        if req.redis_token and req.redis_url:
+        redis_token = os.environ.get("REDIS_TOKEN")
+        redis_url = os.environ.get("REDIS_URL")
+        
+        if redis_token and redis_url:
             logger.info("Sending final score to Redis")
-            driver = Driver.create(req.redis_token, req.redis_url)
+            driver = Driver.create(redis_token, redis_url)
             if driver is not None:
                 if driver.user_exists(student_credentials):
                     driver.set_score(student_credentials, final_score)
@@ -220,15 +210,19 @@ class Autograder:
         elif feedback_mode == "ai":
             logger.info("Creating AI reporter")
 
-            if not all([req.openai_key, req.redis_url, req.redis_token]):
-                error_msg = "OpenAI key, Redis URL, and Redis token are required for AI feedback mode. GitHub Actions must provide these credentials."
+            openai_key = os.environ.get("OPENAI_API_KEY")
+            redis_url = os.environ.get("REDIS_URL")
+            redis_token = os.environ.get("REDIS_TOKEN")
+
+            if not all([openai_key, redis_url, redis_token]):
+                error_msg = "OpenAI key, Redis URL, and Redis token are required for AI feedback mode. These must be set as environment variables."
                 logger.error(error_msg)
                 raise ValueError(error_msg)
 
             logger.info("All AI requirements validated successfully")
 
             # Setup Redis driver
-            driver = Driver.create(req.redis_token, req.redis_url)
+            driver = Driver.create(redis_token, redis_url)
             student_credentials = req.student_credentials
 
 

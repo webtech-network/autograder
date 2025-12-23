@@ -159,6 +159,15 @@ class GithubAdapter(Port):
         """
         Creates an AutograderRequest object with the provided parameters.
         """
+        
+        # Set credentials as environment variables if provided by GitHub Actions
+        if openai_key:
+            os.environ["OPENAI_API_KEY"] = openai_key
+        if redis_url:
+            os.environ["REDIS_URL"] = redis_url
+        if redis_token:
+            os.environ["REDIS_TOKEN"] = redis_token
+        
         print("Getting submission files from the repository...")
         submission_files_dict = self.get_submission_files()
         print(submission_files_dict)
@@ -170,9 +179,6 @@ class GithubAdapter(Port):
             student_credentials=student_credentials,
             include_feedback=include_feedback,
             feedback_mode=feedback_mode,
-            openai_key=openai_key,
-            redis_url=redis_url,
-            redis_token=redis_token,
         )
         print(f"AutograderRequest created with {self.autograder_request.feedback_mode} feedback mode")
 

@@ -160,8 +160,7 @@ class TestAutograderFacade(unittest.TestCase):
             assignment_config=self.mock_assignment_config,
             student_name="test_student",
             include_feedback=True,
-            feedback_mode="ai",
-            openai_key=None  # missing keys
+            feedback_mode="ai"
         )
 
         # Act
