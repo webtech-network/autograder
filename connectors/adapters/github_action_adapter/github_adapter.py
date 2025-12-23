@@ -160,7 +160,7 @@ class GithubAdapter(Port):
         Creates an AutograderRequest object with the provided parameters.
         """
         
-        # Set credentials as environment variables if provided by GitHub Actions
+        # Set credentials as environment variables
         if openai_key:
             os.environ["OPENAI_API_KEY"] = openai_key
         if redis_url:
