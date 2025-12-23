@@ -4,8 +4,8 @@ from unittest.mock import patch, Mock
 from autograder.autograder_facade import Autograder
 from connectors.models.autograder_request import AutograderRequest
 from connectors.models.assignment_config import AssignmentConfig
-from autograder.core.models.autograder_response import AutograderResponse
-from autograder.core.models.result import Result
+from autograder.models.dataclass.autograder_response import AutograderResponse
+from autograder.models.dataclass.result import Result
 
 
 class TestAutograderFacade(unittest.TestCase):

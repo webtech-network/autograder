@@ -1,13 +1,12 @@
 import unittest
-from typing import Dict, List, Any
 
 # Assuming these classes are in your project structure
-from autograder.builder.tree_builder import CriteriaTree, Criteria, Subject, Test, TestCall
-from autograder.core.models.result import Result
-from autograder.core.models.test_result import TestResult
+from autograder.services.criteria_tree_service import CriteriaTree, Criteria, Subject, Test, TestCall
+from autograder.models.dataclass.result import Result
+from autograder.models.dataclass.test_result import TestResult
 from autograder.builder.models.template import Template
 from autograder.builder.models.test_function import TestFunction
-from autograder.core.grading.grader import Grader
+from autograder.services.grader_service import Grader
 
 # ===============================================================
 # Mock Template Library based on the new TestFunction model

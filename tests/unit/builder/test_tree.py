@@ -1,6 +1,6 @@
 import unittest
 # Assuming your tree builder and models are in this path
-from autograder.builder.tree_builder import CriteriaTree, Criteria, Subject, Test, TestCall
+from autograder.services.criteria_tree_service import CriteriaTree, Criteria, Subject, Test, TestCall
 
 class TestCriteriaTree(unittest.TestCase):
 

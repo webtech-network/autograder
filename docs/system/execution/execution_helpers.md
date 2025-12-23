@@ -56,7 +56,7 @@ Important details:
 Usage example (conceptual):
 
 ```py
-from autograder.builder.execution_helpers.AI_Executor import AiExecutor
+from autograder.utils.executors.ai_executor import AiExecutor
 
 ai = AiExecutor()
 ai.send_submission_files({'main.py': 'print("hi")'})
@@ -147,7 +147,7 @@ Important configuration:
 Usage example (conceptual):
 
 ```py
-from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
+from autograder.utils.executors.sandbox_executor import SandboxExecutor
 
 # Create and start from request context
 sandbox = SandboxExecutor.start()

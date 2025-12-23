@@ -4,7 +4,8 @@
     "subjects": {
       "html_structure": {
         "weight": 40,
-        "tests": [
+        "tests":
+        [
           {
             "name": "has_tag",
             "file": "index.html",

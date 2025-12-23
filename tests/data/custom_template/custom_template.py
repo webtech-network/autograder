@@ -1,7 +1,7 @@
 from autograder.builder.models.template import Template
 from autograder.builder.models.test_function import TestFunction
 from autograder.builder.models.param_description import ParamDescription
-from autograder.core.models.test_result import TestResult
+from autograder.models.dataclass.test_result import TestResult
 from autograder.context import request_context
 
 

@@ -1,8 +1,8 @@
 import unittest
-from autograder.core.report.default_reporter import DefaultReporter
-from autograder.core.models.result import Result
-from autograder.core.models.test_result import TestResult
-from autograder.core.models.feedback_preferences import FeedbackPreferences
+from autograder.services.report import DefaultReporter
+from autograder.models.dataclass.result import Result
+from autograder.models.dataclass.test_result import TestResult
+from autograder.models.dataclass.feedback_preferences import FeedbackPreferences
 
 
 class TestDefaultReporter(unittest.TestCase):
