@@ -8,9 +8,9 @@ parser.add_argument("--student-name", type=str, required=True, help="The name of
 parser.add_argument("--feedback-type", type=str, default="default",help="The type of feedback to provide (default or ai)")
 parser.add_argument("--custom-template", type=str, required=False, help="Test Files for the submission (in case of custom preset)")
 parser.add_argument("--app_token", type=str, required=False, help="GitHub App Token")
-parser.add_argument("--openai-key", type=str, required=False, help="OpenAI API key for AI feedback")
-parser.add_argument("--redis-url", type=str, required=False, help="Redis URL for score export and AI feedback")
-parser.add_argument("--redis-token", type=str, required=False, help="Redis token for score export and AI feedback")
+parser.add_argument("--openai-key", type=str, required=False, help="OpenAI API key for AI feedback (required only for AI feedback mode)")
+parser.add_argument("--redis-url", type=str, required=False, help="Redis URL")
+parser.add_argument("--redis-token", type=str, required=False, help="Redis token")
 parser.add_argument("--include-feedback", type=str, required=False, help="Whether to include/generate feedback (true/false).")
 
 async def main():
@@ -28,8 +28,8 @@ async def main():
     
     # Validate that AI feedback has required credentials
     if feedback_type == "ai":
-        if not args.openai_key or not args.redis_url or not args.redis_token:
-            raise ValueError("OpenAI key, Redis URL, and Redis token are required for AI feedback in GitHub Actions.")
+        if not args.openai_key:
+            raise ValueError("OpenAI API key is required for AI feedback mode in GitHub Actions. Please configure OPENAI_API_KEY as a secret.")
     
     adapter = GithubAdapter(github_token,args.app_token)
     if args.template_preset == "custom":
