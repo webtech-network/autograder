@@ -167,6 +167,7 @@ class GithubAdapter(Port):
             os.environ["REDIS_URL"] = redis_url
         if redis_token:
             os.environ["REDIS_TOKEN"] = redis_token
+
         
         print("Getting submission files from the repository...")
         submission_files_dict = self.get_submission_files()
