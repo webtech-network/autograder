@@ -194,19 +194,15 @@ class CriteriaTree:
                     test.parameters = test_item["parameters"]
                 # Old format: "calls" as an array (backward compatibility)
                 elif "calls" in test_item:
-                    # If there's only one call, convert it to parameters
-                    # If multiple calls, we'll need to create multiple test instances
+                    # In old format, calls were arrays of positional arguments
+                    # We need to create a separate test for each call since
+                    # old format supported multiple calls per test
                     calls = test_item["calls"]
-                    if len(calls) == 1:
-                        # Single call - convert to parameters
-                        test.parameters = calls[0] if isinstance(calls[0], dict) else {}
-                        parsed_tests.append(test)
-                    else:
-                        # Multiple calls - create a separate test for each call
-                        for call_args in calls:
-                            test_copy = Test(name=test_name, filename=test_file)
-                            test_copy.parameters = call_args if isinstance(call_args, dict) else {}
-                            parsed_tests.append(test_copy)
+                    for call_args in calls:
+                        test_copy = Test(name=test_name, filename=test_file)
+                        # Store as list to maintain backward compatibility
+                        test_copy.parameters = call_args if isinstance(call_args, (list, dict)) else []
+                        parsed_tests.append(test_copy)
                     continue  # Skip the append at the end since we already added
                 else:
                     # If no 'parameters' or 'calls' are specified, it's a test with no arguments
