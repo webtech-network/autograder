@@ -54,9 +54,6 @@ async def grade_submission_endpoint(
         custom_template: Optional[UploadFile] = File(None,description="A python file with custom tests that follows the template structure (in case of custom preset)"),
         feedback_json: Optional[UploadFile] = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
         setup_json: Optional[UploadFile] = File(None, description="JSON file with commands configuration (in case of custom preset)"),
-        openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
-        redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
-        redis_token: Optional[str] = Form(None, description="Redis token for AI feedback"),
 ):
     try:
         logging.info("Received API request to grade submission.")
@@ -77,10 +74,7 @@ async def grade_submission_endpoint(
                                student_name=student_name,
                                student_credentials=student_credentials,
                                include_feedback=include_feedback,
-                               feedback_mode=feedback_type,
-                               openai_key=openai_key,
-                               redis_url=redis_url,
-                               redis_token=redis_token)
+                               feedback_mode=feedback_type)
         logging.info(f"Autograder request created successfully.")
 
 
