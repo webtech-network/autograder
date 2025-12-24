@@ -7,8 +7,14 @@
         "subject_name": "foundations",
         "weight": 60,
         "tests": [
-          { "file": "essay.txt", "name": "thesis_statement" },
-          { "file": "essay.txt", "name": "clarity_and_cohesion" }
+          {
+            "file": "essay.txt",
+            "name": "thesis_statement"
+          },
+          {
+            "file": "essay.txt",
+            "name": "clarity_and_cohesion"
+          }
         ]
       },
       {
@@ -18,7 +24,12 @@
           {
             "file": "essay.txt",
             "name": "adherence_to_prompt",
-            "parameters": {"prompt_requirements": "Discuss the impact of AI on the workforce."}
+            "parameters": [
+              {
+                "name": "prompt_requirements",
+                "value": "Discuss the impact of AI on the workforce."
+              }
+            ]
           }
         ]
       }

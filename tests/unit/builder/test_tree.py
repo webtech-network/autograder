@@ -157,6 +157,40 @@ class TestCriteriaTree(unittest.TestCase):
         self.assertIsNone(test3.file)
         self.assertEqual(test3.parameters, {})
 
+    def test_array_based_parameters_format(self):
+        """
+        Tests the new array-based parameters format: [{"name": "...", "value": ...}]
+        """
+        config = {
+            "base": {
+                "subjects": [
+                    {
+                        "subject_name": "html",
+                        "weight": 100,
+                        "tests": [
+                            {
+                                "file": "index.html",
+                                "name": "test_with_array_params",
+                                "parameters": [
+                                    {"name": "tag", "value": "div"},
+                                    {"name": "count", "value": 5}
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        self._create_request(config)
+        criteria = CriteriaTree.build_non_executed_tree()
+
+        html_subject = criteria.base.subjects["html"]
+        test = html_subject.tests[0]
+        
+        # Parameters should be converted to dict
+        self.assertEqual(test.parameters, {"tag": "div", "count": 5})
+        self.assertIsInstance(test.parameters, dict)
+
     def test_backward_compatibility_with_calls(self):
         """
         Tests that the old 'calls' format is still supported for backward compatibility.

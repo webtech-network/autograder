@@ -8,11 +8,21 @@
         "tests": [
           {
             "name": "check_file_exists",
-            "parameters": {"filename": "main.py"}
+            "parameters": [
+              {
+                "name": "filename",
+                "value": "main.py"
+              }
+            ]
           },
           {
             "name": "check_function_exists",
-            "parameters": {"function_name": "greet"}
+            "parameters": [
+              {
+                "name": "function_name",
+                "value": "greet"
+              }
+            ]
           }
         ]
       }

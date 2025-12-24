@@ -9,34 +9,58 @@
           {
             "name": "has_tag",
             "file": "index.html",
-            "parameters": {
-              "tag": "div",
-              "required_count": 5
-            }
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "div"
+              },
+              {
+                "name": "required_count",
+                "value": 5
+              }
+            ]
           },
           {
             "name": "has_tag",
             "file": "index.html",
-            "parameters": {
-              "tag": "h1",
-              "required_count": 2
-            }
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "h1"
+              },
+              {
+                "name": "required_count",
+                "value": 2
+              }
+            ]
           },
           {
             "name": "has_tag",
             "file": "index.html",
-            "parameters": {
-              "tag": "p",
-              "required_count": 3
-            }
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "p"
+              },
+              {
+                "name": "required_count",
+                "value": 3
+              }
+            ]
           },
           {
             "name": "has_tag",
             "file": "index.html",
-            "parameters": {
-              "tag": "a",
-              "required_count": 2
-            }
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "a"
+              },
+              {
+                "name": "required_count",
+                "value": 2
+              }
+            ]
           }
         ]
       },
@@ -47,10 +71,20 @@
           {
             "name": "has_class",
             "file": "index.html",
-            "parameters": {
-              "class_names": ["container", "row", "col-*"],
-              "required_count": 10
-            }
+            "parameters": [
+              {
+                "name": "class_names",
+                "value": [
+                  "container",
+                  "row",
+                  "col-*"
+                ]
+              },
+              {
+                "name": "required_count",
+                "value": 10
+              }
+            ]
           }
         ]
       }

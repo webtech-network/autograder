@@ -14,62 +14,170 @@
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "body", "required_count": 1}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "body"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "header", "required_count": 1}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "header"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "nav", "required_count": 1}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "nav"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "main", "required_count": 1}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "main"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "article", "required_count": 4}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "article"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 4
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "img", "required_count": 5}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "img"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 5
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "footer", "required_count": 1}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "footer"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "div", "required_count": 1}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "div"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "form", "required_count": 1}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "form"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "input", "required_count": 1}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "input"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "parameters": {"tag": "button", "required_count": 1}
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "button"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "index.html",
                 "name": "has_attribute",
-                "parameters": {"attribute": "class", "required_count": 2}
+                "parameters": [
+                  {
+                    "name": "attribute",
+                    "value": "class"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 2
+                  }
+                ]
               }
             ]
           },
@@ -84,7 +192,12 @@
               {
                 "file": "index.html",
                 "name": "check_internal_links_to_article",
-                "parameters": {"required_count": 4}
+                "parameters": [
+                  {
+                    "name": "required_count",
+                    "value": 4
+                  }
+                ]
               }
             ]
           }
@@ -119,37 +232,100 @@
               {
                 "file": "css/styles.css",
                 "name": "has_style",
-                "parameters": {"style": "font-size", "count": 1}
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "font-size"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "css/styles.css",
                 "name": "has_style",
-                "parameters": {"style": "font-family", "count": 1}
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "font-family"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "css/styles.css",
                 "name": "has_style",
-                "parameters": {"style": "text-align", "count": 1}
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "text-align"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "css/styles.css",
                 "name": "has_style",
-                "parameters": {"style": "display", "count": 1}
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "display"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "css/styles.css",
                 "name": "has_style",
-                "parameters": {"style": "position", "count": 1}
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "position"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "css/styles.css",
                 "name": "has_style",
-                "parameters": {"style": "margin", "count": 1}
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "margin"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
               },
               {
                 "file": "css/styles.css",
                 "name": "has_style",
-                "parameters": {"style": "padding", "count": 1}
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "padding"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
               }
             ]
           }
@@ -177,37 +353,112 @@
           {
             "file": "index.html",
             "name": "check_head_details",
-            "parameters": {"detail_tag": "title"}
+            "parameters": [
+              {
+                "name": "detail_tag",
+                "value": "title"
+              }
+            ]
           },
           {
             "file": "index.html",
             "name": "check_head_details",
-            "parameters": {"detail_tag": "meta"}
+            "parameters": [
+              {
+                "name": "detail_tag",
+                "value": "meta"
+              }
+            ]
           },
           {
             "file": "index.html",
             "name": "check_attribute_and_value",
-            "parameters": {"tag": "meta", "attribute": "charset", "value": "UTF-8"}
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "charset"
+              },
+              {
+                "name": "value",
+                "value": "UTF-8"
+              }
+            ]
           },
           {
             "file": "index.html",
             "name": "check_attribute_and_value",
-            "parameters": {"tag": "meta", "attribute": "name", "value": "viewport"}
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "name"
+              },
+              {
+                "name": "value",
+                "value": "viewport"
+              }
+            ]
           },
           {
             "file": "index.html",
             "name": "check_attribute_and_value",
-            "parameters": {"tag": "meta", "attribute": "name", "value": "description"}
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "name"
+              },
+              {
+                "name": "value",
+                "value": "description"
+              }
+            ]
           },
           {
             "file": "index.html",
             "name": "check_attribute_and_value",
-            "parameters": {"tag": "meta", "attribute": "name", "value": "author"}
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "name"
+              },
+              {
+                "name": "value",
+                "value": "author"
+              }
+            ]
           },
           {
             "file": "index.html",
             "name": "check_attribute_and_value",
-            "parameters": {"tag": "meta", "attribute": "name", "value": "keywords"}
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "name"
+              },
+              {
+                "name": "value",
+                "value": "keywords"
+              }
+            ]
           }
         ]
       }
@@ -227,12 +478,22 @@
           {
             "file": "css/styles.css",
             "name": "check_id_selector_over_usage",
-            "parameters": {"max_allowed": 2}
+            "parameters": [
+              {
+                "name": "max_allowed",
+                "value": 2
+              }
+            ]
           },
           {
             "file": "index.html",
             "name": "has_forbidden_tag",
-            "parameters": {"tag": "script"}
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "script"
+              }
+            ]
           },
           {
             "file": "index.html",
@@ -241,12 +502,30 @@
           {
             "file": "index.html",
             "name": "check_tag_not_inside",
-            "parameters": {"child_tag": "header", "parent_tag": "main"}
+            "parameters": [
+              {
+                "name": "child_tag",
+                "value": "header"
+              },
+              {
+                "name": "parent_tag",
+                "value": "main"
+              }
+            ]
           },
           {
             "file": "index.html",
             "name": "check_tag_not_inside",
-            "parameters": {"child_tag": "footer", "parent_tag": "main"}
+            "parameters": [
+              {
+                "name": "child_tag",
+                "value": "footer"
+              },
+              {
+                "name": "parent_tag",
+                "value": "main"
+              }
+            ]
           }
         ]
       },
@@ -257,17 +536,32 @@
           {
             "file": "all",
             "name": "check_dir_exists",
-            "parameters": {"dir_path": "css"}
+            "parameters": [
+              {
+                "name": "dir_path",
+                "value": "css"
+              }
+            ]
           },
           {
             "file": "all",
             "name": "check_dir_exists",
-            "parameters": {"dir_path": "imgs"}
+            "parameters": [
+              {
+                "name": "dir_path",
+                "value": "imgs"
+              }
+            ]
           },
           {
             "file": "all",
             "name": "check_project_structure",
-            "parameters": {"expected_structure": "css/styles.css"}
+            "parameters": [
+              {
+                "name": "expected_structure",
+                "value": "css/styles.css"
+              }
+            ]
           }
         ]
       }

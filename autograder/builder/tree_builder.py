@@ -189,9 +189,15 @@ class CriteriaTree:
 
                 test = Test(name=test_name, filename=test_file)
 
-                # New format: "parameters" as an object
+                # New format: "parameters" as an array of name-value pairs
                 if "parameters" in test_item:
-                    test.parameters = test_item["parameters"]
+                    params = test_item["parameters"]
+                    # New array format: [{"name": "tag", "value": "div"}, ...]
+                    if isinstance(params, list) and params and isinstance(params[0], dict) and "name" in params[0]:
+                        test.parameters = {p["name"]: p["value"] for p in params}
+                    # Old dict format for backward compatibility: {"tag": "div", ...}
+                    else:
+                        test.parameters = params
                 # Old format: "calls" as an array (backward compatibility)
                 elif "calls" in test_item:
                     # In old format, calls were arrays of positional arguments

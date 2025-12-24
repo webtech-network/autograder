@@ -8,19 +8,63 @@
         "tests": [
           {
             "name": "health_check",
-            "parameters": {"endpoint": "/health"}
+            "parameters": [
+              {
+                "name": "endpoint",
+                "value": "/health"
+              }
+            ]
           },
           {
             "name": "check_response_json",
-            "parameters": {"endpoint": "/api/users", "expected_key": "users", "expected_value": []}
+            "parameters": [
+              {
+                "name": "endpoint",
+                "value": "/api/users"
+              },
+              {
+                "name": "expected_key",
+                "value": "users"
+              },
+              {
+                "name": "expected_value",
+                "value": []
+              }
+            ]
           },
           {
             "name": "check_response_json",
-            "parameters": {"endpoint": "/api/user/1", "expected_key": "id", "expected_value": 1}
+            "parameters": [
+              {
+                "name": "endpoint",
+                "value": "/api/user/1"
+              },
+              {
+                "name": "expected_key",
+                "value": "id"
+              },
+              {
+                "name": "expected_value",
+                "value": 1
+              }
+            ]
           },
           {
             "name": "check_response_json",
-            "parameters": {"endpoint": "/api/user/1", "expected_key": "name", "expected_value": "John Doe"}
+            "parameters": [
+              {
+                "name": "endpoint",
+                "value": "/api/user/1"
+              },
+              {
+                "name": "expected_key",
+                "value": "name"
+              },
+              {
+                "name": "expected_value",
+                "value": "John Doe"
+              }
+            ]
           }
         ]
       },
@@ -30,7 +74,23 @@
         "tests": [
           {
             "name": "check_post_request",
-            "parameters": {"endpoint": "/api/users", "data": {"name": "Jane Smith", "email": "jane@example.com"}, "expected_status": 201}
+            "parameters": [
+              {
+                "name": "endpoint",
+                "value": "/api/users"
+              },
+              {
+                "name": "data",
+                "value": {
+                  "name": "Jane Smith",
+                  "email": "jane@example.com"
+                }
+              },
+              {
+                "name": "expected_status",
+                "value": 201
+              }
+            ]
           }
         ]
       }
