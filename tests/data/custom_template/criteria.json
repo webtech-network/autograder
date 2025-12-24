@@ -1,24 +1,21 @@
 {
   "base": {
     "weight": 100,
-    "subjects": {
-      "custom_tests": {
+    "subjects": [
+      {
+        "subject_name": "custom_tests",
         "weight": 100,
         "tests": [
           {
             "name": "check_file_exists",
-            "calls": [
-              ["main.py"]
-            ]
+            "parameters": {"filename": "main.py"}
           },
           {
             "name": "check_function_exists",
-            "calls": [
-              ["greet"]
-            ]
+            "parameters": {"function_name": "greet"}
           }
         ]
       }
-    }
+    ]
   }
 }

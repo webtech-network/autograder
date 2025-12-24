@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 
-from autograder.builder.models.criteria_tree import Criteria, Subject, Test, TestCall, TestResult
+from autograder.builder.models.criteria_tree import Criteria, Subject, Test, TestResult
 from autograder.builder.models.template import Template
 from autograder.context import request_context
 
@@ -28,10 +28,19 @@ class CriteriaTree:
                     raise ValueError(f"Config error: Category '{category_name}' cannot have both 'tests' and 'subjects'.")
 
                 if "subjects" in category_data:
-                    subjects = [
-                        CriteriaTree._parse_and_execute_subject(s_name, s_data, template, submission_files)
-                        for s_name, s_data in category_data["subjects"].items()
-                    ]
+                    subjects_data = category_data["subjects"]
+                    if isinstance(subjects_data, list):
+                        # New format: subjects is an array
+                        subjects = [
+                            CriteriaTree._parse_and_execute_subject(s.get("subject_name"), s, template, submission_files)
+                            for s in subjects_data
+                        ]
+                    else:
+                        # Old format: subjects is a dict (for backward compatibility)
+                        subjects = [
+                            CriteriaTree._parse_and_execute_subject(s_name, s_data, template, submission_files)
+                            for s_name, s_data in subjects_data.items()
+                        ]
                     CriteriaTree._balance_subject_weights(subjects)
                     for subject in subjects:
                         category.add_subject(subject)
@@ -65,10 +74,19 @@ class CriteriaTree:
                     raise ValueError(f"Config error: Category '{category_name}' cannot have both 'tests' and 'subjects'.")
 
                 if "subjects" in category_data:
-                    subjects = [
-                        CriteriaTree._parse_subject(s_name, s_data)
-                        for s_name, s_data in category_data["subjects"].items()
-                    ]
+                    subjects_data = category_data["subjects"]
+                    if isinstance(subjects_data, list):
+                        # New format: subjects is an array
+                        subjects = [
+                            CriteriaTree._parse_subject(s.get("subject_name"), s)
+                            for s in subjects_data
+                        ]
+                    else:
+                        # Old format: subjects is a dict (for backward compatibility)
+                        subjects = [
+                            CriteriaTree._parse_subject(s_name, s_data)
+                            for s_name, s_data in subjects_data.items()
+                        ]
                     CriteriaTree._balance_subject_weights(subjects)
                     for subject in subjects:
                         category.add_subject(subject)
@@ -96,10 +114,19 @@ class CriteriaTree:
         if "tests" in subject_data:
             subject.tests = CriteriaTree._parse_tests(subject_data["tests"])
         elif "subjects" in subject_data:
-            child_subjects = [
-                CriteriaTree._parse_subject(sub_name, sub_data)
-                for sub_name, sub_data in subject_data["subjects"].items()
-            ]
+            subjects_data = subject_data["subjects"]
+            if isinstance(subjects_data, list):
+                # New format: subjects is an array
+                child_subjects = [
+                    CriteriaTree._parse_subject(sub.get("subject_name"), sub)
+                    for sub in subjects_data
+                ]
+            else:
+                # Old format: subjects is a dict (for backward compatibility)
+                child_subjects = [
+                    CriteriaTree._parse_subject(sub_name, sub_data)
+                    for sub_name, sub_data in subjects_data.items()
+                ]
             CriteriaTree._balance_subject_weights(child_subjects)
             subject.subjects = {s.name: s for s in child_subjects}
         else:
@@ -123,10 +150,19 @@ class CriteriaTree:
                 executed_tests.extend(test_results)
             subject.tests = executed_tests  # Store TestResult objects instead of Test objects
         elif "subjects" in subject_data:
-            child_subjects = [
-                CriteriaTree._parse_and_execute_subject(sub_name, sub_data, template, submission_files)
-                for sub_name, sub_data in subject_data["subjects"].items()
-            ]
+            subjects_data = subject_data["subjects"]
+            if isinstance(subjects_data, list):
+                # New format: subjects is an array
+                child_subjects = [
+                    CriteriaTree._parse_and_execute_subject(sub.get("subject_name"), sub, template, submission_files)
+                    for sub in subjects_data
+                ]
+            else:
+                # Old format: subjects is a dict (for backward compatibility)
+                child_subjects = [
+                    CriteriaTree._parse_and_execute_subject(sub_name, sub_data, template, submission_files)
+                    for sub_name, sub_data in subjects_data.items()
+                ]
             CriteriaTree._balance_subject_weights(child_subjects)
             subject.subjects = {s.name: s for s in child_subjects}
         else:
@@ -141,7 +177,7 @@ class CriteriaTree:
             if isinstance(test_item, str):
                 # Handle simple test names (e.g., "check_no_unclosed_tags")
                 test = Test(name=test_item)  # Default file
-                test.add_call(TestCall(args=[]))
+                test.parameters = {}
                 parsed_tests.append(test)
 
             elif isinstance(test_item, dict):
@@ -153,12 +189,28 @@ class CriteriaTree:
 
                 test = Test(name=test_name, filename=test_file)
 
-                if "calls" in test_item:
-                    for call_args in test_item["calls"]:
-                        test.add_call(TestCall(args=call_args))
+                # New format: "parameters" as an object
+                if "parameters" in test_item:
+                    test.parameters = test_item["parameters"]
+                # Old format: "calls" as an array (backward compatibility)
+                elif "calls" in test_item:
+                    # If there's only one call, convert it to parameters
+                    # If multiple calls, we'll need to create multiple test instances
+                    calls = test_item["calls"]
+                    if len(calls) == 1:
+                        # Single call - convert to parameters
+                        test.parameters = calls[0] if isinstance(calls[0], dict) else {}
+                        parsed_tests.append(test)
+                    else:
+                        # Multiple calls - create a separate test for each call
+                        for call_args in calls:
+                            test_copy = Test(name=test_name, filename=test_file)
+                            test_copy.parameters = call_args if isinstance(call_args, dict) else {}
+                            parsed_tests.append(test_copy)
+                    continue  # Skip the append at the end since we already added
                 else:
-                    # If no 'calls' are specified, it's a single call with no arguments
-                    test.add_call(TestCall(args=[]))
+                    # If no 'parameters' or 'calls' are specified, it's a test with no arguments
+                    test.parameters = {}
 
                 parsed_tests.append(test)
 

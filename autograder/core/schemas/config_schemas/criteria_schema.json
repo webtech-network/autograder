@@ -2,40 +2,79 @@
   "test_library": "web_dev",
   "base": {
     "weight": 100,
-    "subjects": {
-      "html": {
+    "subjects": [
+      {
+        "subject_name": "html",
         "weight": 60,
-        "subjects": {
-          "structure": {
+        "subjects": [
+          {
+            "subject_name": "structure",
             "weight": 40,
             "tests": [
               {
                 "file": "index.html",
                 "name": "has_tag",
-                "calls": [
-                  ["body", 1],
-                  ["header", 1],
-                  ["nav", 1],
-                  ["main", 1],
-                  ["article", 4],
-                  ["img", 5],
-                  ["footer", 1],
-                  ["div", 1],
-                  ["form", 1],
-                  ["input", 1],
-                  ["button", 1]
-                ]
+                "parameters": {"tag": "body", "required_count": 1}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "header", "required_count": 1}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "nav", "required_count": 1}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "main", "required_count": 1}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "article", "required_count": 4}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "img", "required_count": 5}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "footer", "required_count": 1}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "div", "required_count": 1}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "form", "required_count": 1}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "input", "required_count": 1}
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": {"tag": "button", "required_count": 1}
               },
               {
                 "file": "index.html",
                 "name": "has_attribute",
-                "calls": [
-                  ["class", 2]
-                ]
+                "parameters": {"attribute": "class", "required_count": 2}
               }
             ]
           },
-          "link": {
+          {
+            "subject_name": "link",
             "weight": 20,
             "tests": [
               {
@@ -44,19 +83,19 @@
               },
               {
                 "file": "index.html",
-                "name": "check_internal_links_to_articles",
-                "calls": [
-                  [4]
-                ]
+                "name": "check_internal_links_to_article",
+                "parameters": {"required_count": 4}
               }
             ]
           }
-        }
+        ]
       },
-      "css": {
+      {
+        "subject_name": "css",
         "weight": 40,
-        "subjects": {
-          "responsivity": {
+        "subjects": [
+          {
+            "subject_name": "responsivity",
             "weight": 50,
             "tests": [
               {
@@ -73,32 +112,56 @@
               }
             ]
           },
-          "style": {
+          {
+            "subject_name": "style",
             "weight": 50,
             "tests": [
               {
                 "file": "css/styles.css",
                 "name": "has_style",
-                "calls": [
-                  ["font-size", 1],
-                  ["font-family", 1],
-                  ["text-align", 1],
-                  ["display", 1],
-                  ["position", 1],
-                  ["margin", 1],
-                  ["padding", 1]
-                ]
+                "parameters": {"style": "font-size", "count": 1}
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": {"style": "font-family", "count": 1}
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": {"style": "text-align", "count": 1}
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": {"style": "display", "count": 1}
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": {"style": "position", "count": 1}
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": {"style": "margin", "count": 1}
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": {"style": "padding", "count": 1}
               }
             ]
           }
-        }
+        ]
       }
-    }
+    ]
   },
   "bonus": {
     "weight": 40,
-    "subjects": {
-      "accessibility": {
+    "subjects": [
+      {
+        "subject_name": "accessibility",
         "weight": 20,
         "tests": [
           {
@@ -107,36 +170,54 @@
           }
         ]
       },
-      "head_detail": {
+      {
+        "subject_name": "head_detail",
         "weight": 80,
         "tests": [
           {
             "file": "index.html",
             "name": "check_head_details",
-            "calls": [
-              ["title"],
-              ["meta"]
-            ]
+            "parameters": {"detail_tag": "title"}
+          },
+          {
+            "file": "index.html",
+            "name": "check_head_details",
+            "parameters": {"detail_tag": "meta"}
           },
           {
             "file": "index.html",
             "name": "check_attribute_and_value",
-            "calls": [
-              ["meta", "charset", "UTF-8"],
-              ["meta", "name", "viewport"],
-              ["meta", "name", "description"],
-              ["meta", "name", "author"],
-              ["meta", "name", "keywords"]
-            ]
+            "parameters": {"tag": "meta", "attribute": "charset", "value": "UTF-8"}
+          },
+          {
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "parameters": {"tag": "meta", "attribute": "name", "value": "viewport"}
+          },
+          {
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "parameters": {"tag": "meta", "attribute": "name", "value": "description"}
+          },
+          {
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "parameters": {"tag": "meta", "attribute": "name", "value": "author"}
+          },
+          {
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "parameters": {"tag": "meta", "attribute": "name", "value": "keywords"}
           }
         ]
       }
-    }
+    ]
   },
   "penalty": {
     "weight": 50,
-    "subjects": {
-      "html": {
+    "subjects": [
+      {
+        "subject_name": "html",
         "weight": 50,
         "tests": [
           {
@@ -146,16 +227,12 @@
           {
             "file": "css/styles.css",
             "name": "check_id_selector_over_usage",
-            "calls": [
-              [2]
-            ]
+            "parameters": {"max_allowed": 2}
           },
           {
             "file": "index.html",
             "name": "has_forbidden_tag",
-            "calls": [
-              ["script"]
-            ]
+            "parameters": {"tag": "script"}
           },
           {
             "file": "index.html",
@@ -164,33 +241,36 @@
           {
             "file": "index.html",
             "name": "check_tag_not_inside",
-            "calls": [
-              ["header", "main"],
-              ["footer", "main"]
-            ]
+            "parameters": {"child_tag": "header", "parent_tag": "main"}
+          },
+          {
+            "file": "index.html",
+            "name": "check_tag_not_inside",
+            "parameters": {"child_tag": "footer", "parent_tag": "main"}
           }
         ]
       },
-      "project_structure": {
+      {
+        "subject_name": "project_structure",
         "weight": 50,
         "tests": [
           {
             "file": "all",
             "name": "check_dir_exists",
-            "calls": [
-              ["css"],
-              ["imgs"]
-            ]
+            "parameters": {"dir_path": "css"}
+          },
+          {
+            "file": "all",
+            "name": "check_dir_exists",
+            "parameters": {"dir_path": "imgs"}
           },
           {
             "file": "all",
             "name": "check_project_structure",
-            "calls": [
-              ["css/styles.css"]
-            ]
+            "parameters": {"expected_structure": "css/styles.css"}
           }
         ]
       }
-    }
+    ]
   }
 }

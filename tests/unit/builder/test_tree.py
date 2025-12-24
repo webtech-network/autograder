@@ -1,6 +1,6 @@
 import unittest
 # Assuming your tree builder and models are in this path
-from autograder.builder.tree_builder import CriteriaTree, Criteria, Subject, Test, TestCall
+from autograder.builder.tree_builder import CriteriaTree, Criteria, Subject, Test
 
 class TestCriteriaTree(unittest.TestCase):
 
@@ -9,9 +9,9 @@ class TestCriteriaTree(unittest.TestCase):
         Tests that building a tree from an empty config results in an empty Criteria object.
         """
         config = {}
-        criteria = CriteriaTree.build(config)
+        criteria = CriteriaTree.build_non_executed_tree()
         self.assertIsInstance(criteria, Criteria)
-        self.assertEqual(len(criteria.base.subjects), 0)
+        self.assertEqual(len(criteria.base.subjects) if criteria.base.subjects else 0, 0)
 
     def test_invalid_subject(self):
         """

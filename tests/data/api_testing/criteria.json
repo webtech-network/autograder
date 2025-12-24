@@ -1,37 +1,39 @@
 {
   "base": {
     "weight": 100,
-    "subjects": {
-      "api_endpoints": {
+    "subjects": [
+      {
+        "subject_name": "api_endpoints",
         "weight": 50,
         "tests": [
           {
             "name": "health_check",
-            "calls": [
-              ["/health"]
-            ]
+            "parameters": {"endpoint": "/health"}
           },
           {
             "name": "check_response_json",
-            "calls": [
-              ["/api/users", "users", []],
-              ["/api/user/1", "id", 1],
-              ["/api/user/1", "name", "John Doe"]
-            ]
+            "parameters": {"endpoint": "/api/users", "expected_key": "users", "expected_value": []}
+          },
+          {
+            "name": "check_response_json",
+            "parameters": {"endpoint": "/api/user/1", "expected_key": "id", "expected_value": 1}
+          },
+          {
+            "name": "check_response_json",
+            "parameters": {"endpoint": "/api/user/1", "expected_key": "name", "expected_value": "John Doe"}
           }
         ]
       },
-      "api_methods": {
+      {
+        "subject_name": "api_methods",
         "weight": 50,
         "tests": [
           {
             "name": "check_post_request",
-            "calls": [
-              ["/api/users", {"name": "Jane Smith", "email": "jane@example.com"}, 201]
-            ]
+            "parameters": {"endpoint": "/api/users", "data": {"name": "Jane Smith", "email": "jane@example.com"}, "expected_status": 201}
           }
         ]
       }
-    }
+    ]
   }
 }
