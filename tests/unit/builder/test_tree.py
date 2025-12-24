@@ -191,6 +191,33 @@ class TestCriteriaTree(unittest.TestCase):
         self.assertEqual(test.parameters, {"tag": "div", "count": 5})
         self.assertIsInstance(test.parameters, dict)
 
+    def test_array_based_parameters_edge_cases(self):
+        """
+        Tests edge cases for array-based parameters format.
+        """
+        # Test empty array
+        config_empty = {
+            "base": {
+                "subjects": [
+                    {
+                        "subject_name": "html",
+                        "weight": 100,
+                        "tests": [
+                            {
+                                "file": "index.html",
+                                "name": "test_empty_params",
+                                "parameters": []
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        self._create_request(config_empty)
+        criteria = CriteriaTree.build_non_executed_tree()
+        test = criteria.base.subjects["html"].tests[0]
+        self.assertEqual(test.parameters, {})
+
     def test_backward_compatibility_with_calls(self):
         """
         Tests that the old 'calls' format is still supported for backward compatibility.

@@ -193,8 +193,24 @@ class CriteriaTree:
                 if "parameters" in test_item:
                     params = test_item["parameters"]
                     # New array format: [{"name": "tag", "value": "div"}, ...]
-                    if isinstance(params, list) and params and isinstance(params[0], dict) and "name" in params[0]:
-                        test.parameters = {p["name"]: p["value"] for p in params}
+                    if isinstance(params, list):
+                        # Empty array -> empty parameters
+                        if not params:
+                            test.parameters = {}
+                        # Check if first item is a dict with 'name' key (new array format)
+                        elif isinstance(params[0], dict) and "name" in params[0]:
+                            # Validate and convert all items
+                            try:
+                                test.parameters = {
+                                    p["name"]: p["value"] 
+                                    for p in params 
+                                    if isinstance(p, dict) and "name" in p and "value" in p
+                                }
+                            except KeyError as e:
+                                raise ValueError(f"Invalid parameter format in test '{test_name}': missing 'name' or 'value' key")
+                        # Old list format (positional args from backward compatibility)
+                        else:
+                            test.parameters = params
                     # Old dict format for backward compatibility: {"tag": "div", ...}
                     else:
                         test.parameters = params
