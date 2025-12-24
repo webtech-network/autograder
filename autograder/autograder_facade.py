@@ -121,7 +121,7 @@ class Autograder:
         template_name = req.assignment_config.template
         if template_name == "custom":
             logger.info(f"Loading custom test template provided!")
-            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template_str)
+            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template)
         else:
             logger.info(f"Loading test template: '{template_name}'")
             test_template = TemplateLibrary.get_template(template_name)
