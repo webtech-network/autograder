@@ -245,7 +245,7 @@ class TestCriteriaTree(unittest.TestCase):
         self._create_request(config_missing_name)
         with self.assertRaises(ValueError) as context:
             CriteriaTree.build_non_executed_tree()
-        self.assertIn("missing 'name' key", str(context.exception))
+        self.assertIn("must have both 'name' and 'value' keys", str(context.exception))
 
         # Test missing 'value' key
         config_missing_value = {
@@ -270,7 +270,7 @@ class TestCriteriaTree(unittest.TestCase):
         self._create_request(config_missing_value)
         with self.assertRaises(ValueError) as context:
             CriteriaTree.build_non_executed_tree()
-        self.assertIn("missing 'value' key", str(context.exception))
+        self.assertIn("must have both 'name' and 'value' keys", str(context.exception))
 
     def test_backward_compatibility_with_calls(self):
         """

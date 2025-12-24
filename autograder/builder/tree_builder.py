@@ -199,8 +199,8 @@ class CriteriaTree:
                             test.parameters = {}
                         # Check if first item is a dict (potential new array format)
                         elif isinstance(params[0], dict):
-                            # Check if it looks like new array format (has 'name' or 'value' key)
-                            if "name" in params[0] or "value" in params[0]:
+                            # Check if it looks like new array format (has BOTH 'name' AND 'value' keys)
+                            if "name" in params[0] and "value" in params[0]:
                                 # Validate and convert all items (new array format)
                                 converted_params = {}
                                 for i, p in enumerate(params):
@@ -213,7 +213,11 @@ class CriteriaTree:
                                     converted_params[p["name"]] = p["value"]
                                 test.parameters = converted_params
                             else:
-                                # Old dict format inside a list (treat as is)
+                                # Not new array format - could be old format or invalid
+                                # If it has 'name' or 'value' but not both, it's likely an error
+                                if "name" in params[0] or "value" in params[0]:
+                                    raise ValueError(f"Invalid parameter format in test '{test_name}': parameters must have both 'name' and 'value' keys")
+                                # Otherwise treat as old format (e.g., list of dicts with other keys)
                                 test.parameters = params
                         # Old list format (positional args from backward compatibility)
                         else:
