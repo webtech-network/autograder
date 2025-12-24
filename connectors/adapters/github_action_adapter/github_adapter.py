@@ -163,10 +163,6 @@ class GithubAdapter(Port):
         # Set credentials as environment variables
         if openai_key:
             os.environ["OPENAI_API_KEY"] = openai_key
-        if redis_url:
-            os.environ["REDIS_URL"] = redis_url
-        if redis_token:
-            os.environ["REDIS_TOKEN"] = redis_token
 
         
         print("Getting submission files from the repository...")

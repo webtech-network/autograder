@@ -9,8 +9,6 @@ parser.add_argument("--feedback-type", type=str, default="default",help="The typ
 parser.add_argument("--custom-template", type=str, required=False, help="Test Files for the submission (in case of custom preset)")
 parser.add_argument("--app_token", type=str, required=False, help="GitHub App Token")
 parser.add_argument("--openai-key", type=str, required=False, help="OpenAI API key for AI feedback (required only for AI feedback mode)")
-parser.add_argument("--redis-url", type=str, required=False, help="Redis URL")
-parser.add_argument("--redis-token", type=str, required=False, help="Redis token")
 parser.add_argument("--include-feedback", type=str, required=False, help="Whether to include/generate feedback (true/false).")
 
 async def main():
@@ -55,8 +53,6 @@ async def main():
         student_credentials=github_token,
         feedback_mode=feedback_type,
         openai_key=args.openai_key,
-        redis_url=args.redis_url,
-        redis_token=args.redis_token,
         include_feedback=include_feedback,
     )
 

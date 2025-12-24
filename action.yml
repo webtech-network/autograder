@@ -48,6 +48,4 @@ runs:
     TEMPLATE_PRESET: ${{ inputs.template_preset }}
     FEEDBACK_TYPE: ${{ inputs.feedback-type }}
     OPENAI_KEY: ${{ inputs.openai_key }}
-    REDIS_URL: ${{ secrets.REDIS_URL }}
-    REDIS_TOKEN: ${{ secrets.REDIS_TOKEN }}
     INCLUDE_FEEDBACK: ${{ inputs.include-feedback }}
