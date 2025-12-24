@@ -1,7 +1,0 @@
-{
-  "runtime_image": "python:3.11-slim",
-  "start_command": "python calculator.py",
-  "commands": {
-    "install_dependencies": "pip install --no-cache-dir -r requirements.txt"
-  }
-}

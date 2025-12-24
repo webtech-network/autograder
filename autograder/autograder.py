@@ -27,7 +27,7 @@ def build_pipeline(
     if include_feedback:
         reporter_service = ReporterFactory.create_reporter_for(feedback_mode)
         pipeline.add_step(FeedbackStep(reporter_service,feedback_config))
-    pipeline.add_step(ExporterStep(UpstashDriver)) # Placeholder for remote driver
+    pipeline.add_step(ExporterStep(UpstashDriver))
     return pipeline
 
 
