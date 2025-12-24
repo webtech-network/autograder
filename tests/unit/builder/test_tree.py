@@ -218,6 +218,60 @@ class TestCriteriaTree(unittest.TestCase):
         test = criteria.base.subjects["html"].tests[0]
         self.assertEqual(test.parameters, {})
 
+    def test_array_based_parameters_validation(self):
+        """
+        Tests that invalid array-based parameters raise proper errors.
+        """
+        # Test missing 'name' key
+        config_missing_name = {
+            "base": {
+                "subjects": [
+                    {
+                        "subject_name": "html",
+                        "weight": 100,
+                        "tests": [
+                            {
+                                "file": "index.html",
+                                "name": "test_invalid",
+                                "parameters": [
+                                    {"value": "div"}  # missing 'name'
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        self._create_request(config_missing_name)
+        with self.assertRaises(ValueError) as context:
+            CriteriaTree.build_non_executed_tree()
+        self.assertIn("missing 'name' key", str(context.exception))
+
+        # Test missing 'value' key
+        config_missing_value = {
+            "base": {
+                "subjects": [
+                    {
+                        "subject_name": "html",
+                        "weight": 100,
+                        "tests": [
+                            {
+                                "file": "index.html",
+                                "name": "test_invalid",
+                                "parameters": [
+                                    {"name": "tag"}  # missing 'value'
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        self._create_request(config_missing_value)
+        with self.assertRaises(ValueError) as context:
+            CriteriaTree.build_non_executed_tree()
+        self.assertIn("missing 'value' key", str(context.exception))
+
     def test_backward_compatibility_with_calls(self):
         """
         Tests that the old 'calls' format is still supported for backward compatibility.

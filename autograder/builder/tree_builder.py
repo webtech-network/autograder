@@ -197,17 +197,24 @@ class CriteriaTree:
                         # Empty array -> empty parameters
                         if not params:
                             test.parameters = {}
-                        # Check if first item is a dict with 'name' key (new array format)
-                        elif isinstance(params[0], dict) and "name" in params[0]:
-                            # Validate and convert all items
-                            try:
-                                test.parameters = {
-                                    p["name"]: p["value"] 
-                                    for p in params 
-                                    if isinstance(p, dict) and "name" in p and "value" in p
-                                }
-                            except KeyError as e:
-                                raise ValueError(f"Invalid parameter format in test '{test_name}': missing 'name' or 'value' key")
+                        # Check if first item is a dict (potential new array format)
+                        elif isinstance(params[0], dict):
+                            # Check if it looks like new array format (has 'name' or 'value' key)
+                            if "name" in params[0] or "value" in params[0]:
+                                # Validate and convert all items (new array format)
+                                converted_params = {}
+                                for i, p in enumerate(params):
+                                    if not isinstance(p, dict):
+                                        raise ValueError(f"Invalid parameter format in test '{test_name}': parameter {i} is not a dict")
+                                    if "name" not in p:
+                                        raise ValueError(f"Invalid parameter format in test '{test_name}': parameter {i} missing 'name' key")
+                                    if "value" not in p:
+                                        raise ValueError(f"Invalid parameter format in test '{test_name}': parameter {i} missing 'value' key")
+                                    converted_params[p["name"]] = p["value"]
+                                test.parameters = converted_params
+                            else:
+                                # Old dict format inside a list (treat as is)
+                                test.parameters = params
                         # Old list format (positional args from backward compatibility)
                         else:
                             test.parameters = params
