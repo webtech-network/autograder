@@ -85,7 +85,7 @@ def create_criteria_config():
                             "weight": 25,
                             "tests": [
                                 {
-                                    "name": "expect_output",
+                                    "name": "Expect Output",
                                     "calls": [
                                         [["10", "+", "5"], "Result: 15.0"]
                                     ]
@@ -96,7 +96,7 @@ def create_criteria_config():
                             "weight": 25,
                             "tests": [
                                 {
-                                    "name": "expect_output",
+                                    "name": "Expect Output",
                                     "calls": [
                                         [["20", "-", "8"], "Result: 12.0"]
                                     ]
@@ -107,7 +107,7 @@ def create_criteria_config():
                             "weight": 25,
                             "tests": [
                                 {
-                                    "name": "expect_output",
+                                    "name": "Expect Output",
                                     "calls": [
                                         [["6", "*", "7"], "Result: 42.0"]
                                     ]
@@ -118,7 +118,7 @@ def create_criteria_config():
                             "weight": 25,
                             "tests": [
                                 {
-                                    "name": "expect_output",
+                                    "name": "Expect Output",
                                     "calls": [
                                         [["100", "/", "4"], "Result: 25.0"]
                                     ]
@@ -136,7 +136,7 @@ def create_criteria_config():
                     "weight": 100,
                     "tests": [
                         {
-                            "name": "expect_output",
+                            "name": "Expect Output",
                             "calls": [
                                 [["10", "/", "0"], "Error: Division by zero"]
                             ]

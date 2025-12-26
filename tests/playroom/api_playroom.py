@@ -115,7 +115,7 @@ def create_criteria_config():
                             "weight": 30,
                             "tests": [
                                 {
-                                    "name": "health_check",
+                                    "name": "Health Check",
                                     "calls": [
                                         ["/health"]
                                     ]
@@ -126,7 +126,7 @@ def create_criteria_config():
                             "weight": 35,
                             "tests": [
                                 {
-                                    "name": "check_response_json",
+                                    "name": "Check Response JSON",
                                     "calls": [
                                         ["/api/users", "0", {"id": 1}]
                                     ]
@@ -137,7 +137,7 @@ def create_criteria_config():
                             "weight": 35,
                             "tests": [
                                 {
-                                    "name": "check_response_json",
+                                    "name": "Check Response JSON",
                                     "calls": [
                                         ["/api/users/1", "id", 1],
                                         ["/api/users/1", "name", "Alice"]
@@ -156,7 +156,7 @@ def create_criteria_config():
                     "weight": 100,
                     "tests": [
                         {
-                            "name": "check_response_json",
+                            "name": "Check Response JSON",
                             "calls": [
                                 ["/api/users/2", "email", "bob@example.com"]
                             ]

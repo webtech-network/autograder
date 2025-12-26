@@ -100,7 +100,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "clarity_and_cohesion"
+                                    "name": "Clarity and Cohesion"
                                 }
                             ]
                         },
@@ -109,7 +109,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "grammar_and_spelling"
+                                    "name": "Grammar and Spelling"
                                 }
                             ]
                         }
@@ -123,7 +123,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "thesis_statement"
+                                    "name": "Thesis Statement"
                                 }
                             ]
                         },
@@ -132,7 +132,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "argument_strength"
+                                    "name": "Argument Strength"
                                 }
                             ]
                         },
@@ -141,7 +141,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "adherence_to_prompt",
+                                    "name": "Adherence to Prompt",
                                     "calls": [
                                         ["Discuss the impact of artificial intelligence on modern education, including both benefits and challenges"]
                                     ]
@@ -163,7 +163,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "counterargument_handling"
+                                    "name": "Counterargument Handling"
                                 }
                             ]
                         },
@@ -172,7 +172,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "evidence_quality"
+                                    "name": "Evidence Quality"
                                 }
                             ]
                         }
@@ -188,7 +188,7 @@ def create_criteria_config():
                     "tests": [
                         {
                             "file": "essay.txt",
-                            "name": "logical_fallacy_check"
+                            "name": "Logical Fallacy Check"
                         }
                     ]
                 }
