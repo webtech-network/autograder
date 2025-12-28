@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List, Any, Optional
 from autograder.models.dataclass.test_result import TestResult
 from autograder.utils.formatters.criteria_tree import PreExecutedTreeFormatter
 from autograder.utils.printers.criteria_tree import CriteriaTreePrinter
@@ -20,7 +20,7 @@ class Test:
     This is a LEAF node in the grading tree.
     """
 
-    def __init__(self, name: str, filename: str | None = None):
+    def __init__(self, name: str, filename: Optional[str] = None):
         self.name: str = name
         self.file: str | None = filename
         self.calls: List[TestCall] = []
@@ -90,9 +90,10 @@ class Subject:
     a list of nested subjects. This is a BRANCH and/or LEAF-HOLDER node.
     """
 
-    def __init__(self, name, weight=0):
-        self.name = name
-        self.weight = weight
+    def __init__(self, name: str, weight: int, subjects_weight: Optional[int] = None):
+        self.name: str = name
+        self.weight: int = weight
+        self.subjects_weight: Optional[int] = subjects_weight
         self.tests: List[Test] = list()
         self.subjects: List[Subject] = list()
 

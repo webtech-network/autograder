@@ -27,6 +27,9 @@ class CriteriaTreeParser:
         if config.weight:
             subject.weight = config.weight
 
+        if config.subjects_weight:
+            subject.subjects_weight = config.subjects_weight
+
         if config.subjects:
             subject.subjects = self.__parse_subjects(config.subjects)
 
