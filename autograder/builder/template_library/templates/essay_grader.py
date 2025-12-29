@@ -10,7 +10,7 @@ from autograder.core.models.test_result import TestResult
 
 class ClarityAndCohesionTest(TestFunction):
     @property
-    def name(self): return "clarity_and_cohesion"
+    def name(self): return "Clarity and Cohesion"
     @property
     def description(self): return "Avalia a clareza geral e o fluxo da redação."
     @property
@@ -22,9 +22,10 @@ class ClarityAndCohesionTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, quão claro e bem estruturado é a redação? Avalie o fluxo lógico dos argumentos, as transições entre parágrafos e a legibilidade geral."
         return ai_executor.add_test(self.name,  prompt)
 
+
 class GrammarAndSpellingTest(TestFunction):
     @property
-    def name(self): return "grammar_and_spelling"
+    def name(self): return "Grammar and Spelling"
     @property
     def description(self): return "Verifica a redação em busca de erros gramaticais, de ortografia e de pontuação."
     @property
@@ -36,9 +37,10 @@ class GrammarAndSpellingTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, avalie a precisão gramatical da redação. Considere ortografia, pontuação, estrutura das frases e concordância verbal."
         return ai_executor.add_test(self.name,  prompt)
 
+
 class ArgumentStrengthTest(TestFunction):
     @property
-    def name(self): return "argument_strength"
+    def name(self): return "Argument Strength"
     @property
     def description(self): return "Avalia a força e o suporte dos argumentos apresentados."
     @property
@@ -50,9 +52,10 @@ class ArgumentStrengthTest(TestFunction):
         prompt = "Avalie a força dos argumentos na redação em uma escala de 0 a 100. As alegações são bem apoiadas com evidências e exemplos? O raciocínio é sólido e persuasivo?"
         return ai_executor.add_test(self.name,  prompt)
 
+
 class ThesisStatementTest(TestFunction):
     @property
-    def name(self): return "thesis_statement"
+    def name(self): return "Thesis Statement"
     @property
     def description(self): return "Avalia a clareza e a eficácia da declaração de tese."
     @property
@@ -64,9 +67,10 @@ class ThesisStatementTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, quão forte e clara é a declaração de tese da redação? Ela apresenta uma posição clara e defensável que é mantida ao longo do texto?"
         return ai_executor.add_test(self.name,  prompt)
 
+
 class AdherenceToPromptTest(TestFunction):
     @property
-    def name(self): return "adherence_to_prompt"
+    def name(self): return "Adherence to Prompt"
     @property
     def description(self): return "Verifica quão bem a redação aborda os requisitos específicos do tema proposto."
     @property
@@ -80,9 +84,10 @@ class AdherenceToPromptTest(TestFunction):
         prompt = f"Dado o tema da redação '{prompt_requirements}', quão bem a redação enviada aborda todas as partes da questão? Avalie em uma escala de 0 a 100."
         return ai_executor.add_test(self.name,  prompt)
 
+
 class OriginalityAndPlagiarismTest(TestFunction):
     @property
-    def name(self): return "originality_and_plagiarism"
+    def name(self): return "Originality and Plagiarism"
     @property
     def description(self): return "Uma verificação simplificada de originalidade procurando por frases comuns ou conteúdo copiado."
     @property
@@ -94,9 +99,10 @@ class OriginalityAndPlagiarismTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, avalie a originalidade da redação. Embora você não possa realizar uma pesquisa na web, avalie o texto em busca de sinais de conteúdo não original, como frases genéricas ou argumentos excessivamente comuns que possam sugerir plágio."
         return ai_executor.add_test(self.name,  prompt)
 
+
 class TopicConnectionTest(TestFunction):
     @property
-    def name(self): return "topic_connection"
+    def name(self): return "Topic Connection"
     @property
     def description(self): return "Verifica se a redação estabelece com sucesso uma conexão entre dois tópicos especificados."
     @property
@@ -111,9 +117,10 @@ class TopicConnectionTest(TestFunction):
         prompt = f"Em uma escala de 0 a 100, quão eficazmente a redação estabelece uma conexão significativa entre os conceitos de '{topic1}' e '{topic2}'? Avalie a profundidade e a clareza da ligação."
         return ai_executor.add_test(self.name,  prompt)
 
+
 class CounterargumentHandlingTest(TestFunction):
     @property
-    def name(self): return "counterargument_handling"
+    def name(self): return "Counterargument Handling"
     @property
     def description(self): return "Avalia quão bem a redação reconhece e refuta potenciais contra-argumentos."
     @property
@@ -125,9 +132,10 @@ class CounterargumentHandlingTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, avalie quão bem a redação aborda potenciais contra-argumentos. Ele antecipa pontos de vista opostos e fornece refutações bem pensadas?"
         return ai_executor.add_test(self.name,  prompt)
 
+
 class IntroductionAndConclusionTest(TestFunction):
     @property
-    def name(self): return "introduction_and_conclusion"
+    def name(self): return "Introduction and Conclusion"
     @property
     def description(self): return "Avalia a eficácia da introdução e da conclusão da redação."
     @property
@@ -139,9 +147,10 @@ class IntroductionAndConclusionTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, avalie a qualidade da introdução e da conclusão. A introdução consegue engajar o leitor e apresentar a tese de forma eficaz? A conclusão fornece um resumo sólido e oferece percepções finais?"
         return ai_executor.add_test(self.name,  prompt)
 
+
 class EvidenceQualityTest(TestFunction):
     @property
-    def name(self): return "evidence_quality"
+    def name(self): return "Evidence Quality"
     @property
     def description(self): return "Avalia a relevância e a qualidade das evidências usadas para apoiar as alegações."
     @property
@@ -153,9 +162,10 @@ class EvidenceQualityTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, avalie a qualidade das evidências usadas na redação. As evidências são relevantes, críveis e suficientes para apoiar os argumentos principais?"
         return ai_executor.add_test(self.name,  prompt)
 
+
 class ToneAndStyleTest(TestFunction):
     @property
-    def name(self): return "tone_and_style"
+    def name(self): return "Tone and Style"
     @property
     def description(self): return "Avalia se o tom e o estilo de escrita da redação são apropriados para o tópico e o público."
     @property
@@ -169,9 +179,10 @@ class ToneAndStyleTest(TestFunction):
         prompt = f"Em uma escala de 0 a 100, a redação mantém um tom e estilo '{expected_tone}' apropriados? Avalie a voz do autor, a escolha de palavras e o profissionalismo geral."
         return ai_executor.add_test(self.name,  prompt)
 
+
 class VocabularyAndDictionTest(TestFunction):
     @property
-    def name(self): return "vocabulary_and_diction"
+    def name(self): return "Vocabulary and Diction"
     @property
     def description(self): return "Avalia a sofisticação e a variedade do vocabulário utilizado."
     @property
@@ -183,9 +194,10 @@ class VocabularyAndDictionTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, avalie o uso de vocabulário pelo autor. A linguagem é precisa, variada e apropriadamente sofisticada para o tópico?"
         return ai_executor.add_test(self.name,  prompt)
 
+
 class SentenceStructureVarietyTest(TestFunction):
     @property
-    def name(self): return "sentence_structure_variety"
+    def name(self): return "Sentence Structure Variety"
     @property
     def description(self): return "Verifica a presença de estruturas de frase variadas e complexas."
     @property
@@ -197,9 +209,10 @@ class SentenceStructureVarietyTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, avalie a variedade das estruturas de frase na redação. O autor usa uma mistura de frases simples, compostas e complexas para criar um ritmo mais envolvente?"
         return ai_executor.add_test(self.name,  prompt)
 
+
 class BiasDetectionTest(TestFunction):
     @property
-    def name(self): return "bias_detection"
+    def name(self): return "Bias Detection"
     @property
     def description(self): return "Identifica potencial viés ou opiniões não suportadas na redação."
     @property
@@ -211,9 +224,10 @@ class BiasDetectionTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, avalie a objetividade e o viés da redação. O autor apresenta uma visão equilibrada, ou o texto se baseia em opiniões não suportadas e linguagem emocionalmente carregada?"
         return ai_executor.add_test(self.name,  prompt)
 
+
 class ExampleClarityTest(TestFunction):
     @property
-    def name(self): return "example_clarity"
+    def name(self): return "Example Clarity"
     @property
     def description(self): return "Avalia quão claros e ilustrativos são os exemplos."
     @property
@@ -225,9 +239,10 @@ class ExampleClarityTest(TestFunction):
         prompt = "Em uma escala de 0 a 100, quão claros e eficazes são os exemplos usados na redação? Eles realmente ilustram os pontos que o autor está tentando defender?"
         return ai_executor.add_test(self.name,  prompt)
 
+
 class LogicalFallacyCheckTest(TestFunction):
     @property
-    def name(self): return "logical_fallacy_check"
+    def name(self): return "Logical Fallacy Check"
     @property
     def description(self): return "Verifica a presença de falácias lógicas comuns nos argumentos."
     @property
@@ -252,24 +267,24 @@ class EssayGraderTemplate(Template):
         self.executor = ai_executor
         self.tests = {
             # Original Tests
-            "clarity_and_cohesion": ClarityAndCohesionTest(),
-            "grammar_and_spelling": GrammarAndSpellingTest(),
-            "argument_strength": ArgumentStrengthTest(),
-            "thesis_statement": ThesisStatementTest(),
-            "adherence_to_prompt": AdherenceToPromptTest(),
-            "originality_and_plagiarism": OriginalityAndPlagiarismTest(),
+            "Clarity and Cohesion": ClarityAndCohesionTest(),
+            "Grammar and Spelling": GrammarAndSpellingTest(),
+            "Argument Strength": ArgumentStrengthTest(),
+            "Thesis Statement": ThesisStatementTest(),
+            "Adherence to Prompt": AdherenceToPromptTest(),
+            "Originality and Plagiarism": OriginalityAndPlagiarismTest(),
 
             # 10 New Advanced Tests
-            "topic_connection": TopicConnectionTest(),
-            "counterargument_handling": CounterargumentHandlingTest(),
-            "introduction_and_conclusion": IntroductionAndConclusionTest(),
-            "evidence_quality": EvidenceQualityTest(),
-            "tone_and_style": ToneAndStyleTest(),
-            "vocabulary_and_diction": VocabularyAndDictionTest(),
-            "sentence_structure_variety": SentenceStructureVarietyTest(),
-            "bias_detection": BiasDetectionTest(),
-            "example_clarity": ExampleClarityTest(),
-            "logical_fallacy_check": LogicalFallacyCheckTest(),
+            "Topic Connection": TopicConnectionTest(),
+            "Counterargument Handling": CounterargumentHandlingTest(),
+            "Introduction and Conclusion": IntroductionAndConclusionTest(),
+            "Evidence Quality": EvidenceQualityTest(),
+            "Tone and Style": ToneAndStyleTest(),
+            "Vocabulary and Diction": VocabularyAndDictionTest(),
+            "Sentence Structure Variety": SentenceStructureVarietyTest(),
+            "Bias Detection": BiasDetectionTest(),
+            "Example Clarity": ExampleClarityTest(),
+            "Logical Fallacy Check": LogicalFallacyCheckTest(),
         }
 
     @property
