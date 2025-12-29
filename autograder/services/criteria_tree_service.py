@@ -1,271 +1,320 @@
-from typing import List, Dict, Any
+"""
+Refactored CriteriaTreeService - builds criteria trees with embedded test functions.
 
-from autograder.builder.models.criteria_tree import Criteria, Subject, Test, TestCall, TestResult
-from autograder.builder.models.template import Template
-from autograder.context import request_context
+This service is responsible for:
+- Building CriteriaTree from validated CriteriaConfig
+- Matching and embedding test functions from templates during tree building
+- Validating that all tests exist in the template
+- Balancing weights across sibling nodes
+"""
+import logging
+from typing import List, Dict, Any, Optional
+
+from autograder.models.criteria_tree import CriteriaTree, CategoryNode, SubjectNode, TestNode
+from autograder.models.abstract.template import Template
+from autograder.models.abstract.test_function import TestFunction
+from autograder.models.dataclass.criteria_config import (
+    CriteriaConfig,
+    CategoryConfig,
+    SubjectConfig,
+    TestConfig
+)
+
 
 class CriteriaTreeService:
-    """A factory for creating a Criteria object from a configuration dictionary."""
-    @staticmethod
-    def build_pre_executed_tree(template: Template) -> Criteria:
-        """ Builds a Criteria tree and pre-executes all tests, having leaves as TestResult objects."""
+    """
+    Service for building criteria trees from validated configuration.
 
-        request = request_context.get_request()
-        config_dict = request.assignment_config.criteria
-        submission_files = request.submission_files
-        criteria = Criteria()
+    The tree building process now:
+    1. Validates criteria config using Pydantic models
+    2. Matches test functions from template during building
+    3. Embeds test functions and parameters directly in TestNodes
+    4. Balances weights across siblings
 
-        for category_name in ["base", "bonus", "penalty"]:
-            if category_name in config_dict:
-                category = getattr(criteria, category_name)
-                category_data = config_dict[category_name]
+    This eliminates the need for pre-executed trees and improves error handling.
+    """
 
-                if "weight" in category_data:
-                    category.max_score = category_data.get("weight", 100)
+    def __init__(self):
+        self.logger = logging.getLogger("CriteriaTreeService")
 
-                # Validate that category doesn't have both subjects and tests
-                if "subjects" in category_data and "tests" in category_data:
-                    raise ValueError(f"Config error: Category '{category_name}' cannot have both 'tests' and 'subjects'.")
+    def build_tree(
+        self,
+        criteria_config: CriteriaConfig,
+        template: Template
+    ) -> CriteriaTree:
+        """
+        Build a complete criteria tree from validated configuration.
 
-                if "subjects" in category_data:
-                    subjects = [
-                        CriteriaTree._parse_and_execute_subject(s_name, s_data, template, submission_files)
-                        for s_name, s_data in category_data["subjects"].items()
-                    ]
-                    CriteriaTree._balance_subject_weights(subjects)
-                    for subject in subjects:
-                        category.add_subject(subject)
-                elif "tests" in category_data:
-                    # Handle tests directly at category level
-                    parsed_tests = CriteriaTree._parse_tests(category_data["tests"])
-                    executed_tests = []
-                    for test in parsed_tests:
-                        test_results = test.get_result(template, submission_files, category_name)
-                        executed_tests.extend(test_results)
-                    category.tests = executed_tests
-        return criteria
+        Args:
+            criteria_config: Validated criteria configuration
+            template: Template containing test functions
 
-    @staticmethod
-    def build_non_executed_tree() -> Criteria:
-        """Builds the entire criteria tree, including balancing subject weights."""
-        criteria = Criteria()
-        request = request_context.get_request()
-        config_dict = request.assignment_config.criteria
-        for category_name in ["base", "bonus", "penalty"]:
-            if category_name in config_dict:
-                category = getattr(criteria, category_name)
-                category_data = config_dict[category_name]
+        Returns:
+            Complete CriteriaTree with embedded test functions
 
-                # Set max_score for bonus and penalty categories
-                if "weight" in category_data:
-                    category.max_score = category_data.get("weight", 100)
+        Raises:
+            ValueError: If test function not found in template
+        """
+        self.logger.info("Building criteria tree")
 
-                # Validate that category doesn't have both subjects and tests
-                if "subjects" in category_data and "tests" in category_data:
-                    raise ValueError(f"Config error: Category '{category_name}' cannot have both 'tests' and 'subjects'.")
+        tree = CriteriaTree()
 
-                if "subjects" in category_data:
-                    subjects = [
-                        CriteriaTree._parse_subject(s_name, s_data)
-                        for s_name, s_data in category_data["subjects"].items()
-                    ]
-                    CriteriaTree._balance_subject_weights(subjects)
-                    for subject in subjects:
-                        category.add_subject(subject)
-                elif "tests" in category_data:
-                    # Handle tests directly at category level
-                    category.tests = CriteriaTree._parse_tests(category_data["tests"])
-        return criteria
+        # Build base category (required)
+        tree.base = self._build_category(
+            "base",
+            criteria_config.base,
+            template
+        )
 
-    @staticmethod
-    def _balance_subject_weights(subjects: List[Subject]):
-        """Balances the weights of a list of sibling subjects to sum to 100."""
-        total_weight = sum(s.weight for s in subjects)
-        if total_weight > 0 and total_weight != 100:
-            scaling_factor = 100 / total_weight
-            for subject in subjects:
-                subject.weight *= scaling_factor
+        # Build bonus category (optional)
+        if criteria_config.bonus:
+            tree.bonus = self._build_category(
+                "bonus",
+                criteria_config.bonus,
+                template
+            )
 
-    @staticmethod
-    def _parse_subject(subject_name: str, subject_data: dict) -> Subject:
-        """Recursively parses a subject and balances the weights of its children."""
-        if "tests" in subject_data and "subjects" in subject_data:
-            raise ValueError(f"Config error: Subject '{subject_name}' cannot have both 'tests' and 'subjects'.")
+        # Build penalty category (optional)
+        if criteria_config.penalty:
+            tree.penalty = self._build_category(
+                "penalty",
+                criteria_config.penalty,
+                template
+            )
 
-        subject = Subject(subject_name, subject_data.get("weight", 0))
-        if "tests" in subject_data:
-            subject.tests = CriteriaTree._parse_tests(subject_data["tests"])
-        elif "subjects" in subject_data:
-            child_subjects = [
-                CriteriaTree._parse_subject(sub_name, sub_data)
-                for sub_name, sub_data in subject_data["subjects"].items()
-            ]
-            CriteriaTree._balance_subject_weights(child_subjects)
-            subject.subjects = {s.name: s for s in child_subjects}
-        else:
-            subject.tests = []
+        self.logger.info("Criteria tree built successfully")
+        return tree
+
+    def _build_category(
+        self,
+        category_name: str,
+        category_config: CategoryConfig,
+        template: Template
+    ) -> CategoryNode:
+        """Build a category node from configuration."""
+        self.logger.debug(f"Building category: {category_name}")
+
+        category = CategoryNode(name=category_name, weight=category_config.weight)
+
+        # Category can have either subjects or tests
+        if category_config.subjects:
+            subjects = []
+            # Subjects are now an array with subject_name field
+            for subject_config in category_config.subjects:
+                subject = self._build_subject(
+                    subject_config.subject_name,
+                    subject_config,
+                    template,
+                    category_name
+                )
+                subjects.append(subject)
+
+            # Balance subject weights
+            self._balance_weights(subjects)
+            category.subjects = subjects
+
+        elif category_config.tests:
+            tests = self._build_tests(
+                category_config.tests,
+                template,
+                category_name,
+                category_name  # Use category as subject name
+            )
+            category.tests = tests
+
+        return category
+
+    def _build_subject(
+        self,
+        subject_name: str,
+        subject_config: SubjectConfig,
+        template: Template,
+        category_name: str
+    ) -> SubjectNode:
+        """Recursively build a subject node from configuration."""
+        self.logger.debug(f"Building subject: {subject_name}")
+
+        subject = SubjectNode(name=subject_name, weight=subject_config.weight)
+
+        # Subject can have either nested subjects or tests
+        if subject_config.subjects:
+            child_subjects = []
+            # Subjects are now an array with subject_name field
+            for child_config in subject_config.subjects:
+                child = self._build_subject(
+                    child_config.subject_name,
+                    child_config,
+                    template,
+                    category_name
+                )
+                child_subjects.append(child)
+
+            # Balance child weights
+            self._balance_weights(child_subjects)
+            subject.subjects = child_subjects
+
+        elif subject_config.tests:
+            tests = self._build_tests(
+                subject_config.tests,
+                template,
+                category_name,
+                subject_name
+            )
+            subject.tests = tests
+
         return subject
 
-    @staticmethod
-    def _parse_and_execute_subject(subject_name: str, subject_data: dict, template: Template, submission_files: dict) -> Subject:
-        """Recursively parses a subject, executes its tests, and balances the weights of its children."""
-        if "tests" in subject_data and "subjects" in subject_data:
-            raise ValueError(f"Config error: Subject '{subject_name}' cannot have both 'tests' and 'subjects'.")
+    def _build_tests(
+        self,
+        test_configs: List[TestConfig],
+        template: Template,
+        category_name: str,
+        subject_name: str
+    ) -> List[TestNode]:
+        """
+        Build test nodes from configuration with embedded test functions.
 
-        subject = Subject(subject_name, subject_data.get("weight", 0))
+        New schema: Each test has named parameters directly (no 'calls' array).
+        Creates one TestNode per test configuration.
+        """
+        test_nodes = []
 
-        if "tests" in subject_data:
-            parsed_tests = CriteriaTree._parse_tests(subject_data["tests"])
-            executed_tests = []
-            for test in parsed_tests:
-                # The run method executes the test and returns a list of TestResult objects
-                test_results = test.get_result(template, submission_files, subject_name)
-                executed_tests.extend(test_results)
-            subject.tests = executed_tests  # Store TestResult objects instead of Test objects
-        elif "subjects" in subject_data:
-            child_subjects = [
-                CriteriaTree._parse_and_execute_subject(sub_name, sub_data, template, submission_files)
-                for sub_name, sub_data in subject_data["subjects"].items()
-            ]
-            CriteriaTree._balance_subject_weights(child_subjects)
-            subject.subjects = {s.name: s for s in child_subjects}
-        else:
-            subject.tests = []
-        return subject
+        for test_index, test_config in enumerate(test_configs):
+            # Find matching test function in template
+            test_function = self._find_test_function(test_config.name, template)
 
-    @staticmethod
-    def _parse_tests(test_data: list) -> List[Test]:
-        """Parses a list of test definitions from the configuration."""
-        parsed_tests = []
-        for test_item in test_data:
-            if isinstance(test_item, str):
-                # Handle simple test names (e.g., "check_no_unclosed_tags")
-                test = Test(name=test_item)  # Default file
-                test.add_call(TestCall(args=[]))
-                parsed_tests.append(test)
+            if not test_function:
+                available_tests = "unknown"
+                if hasattr(template, 'get_available_tests'):
+                    try:
+                        available_tests = ', '.join(template.get_available_tests())
+                    except:
+                        pass
+                error_msg = (
+                    f"Test function '{test_config.name}' not found in template. "
+                    f"Available tests: {available_tests}"
+                )
+                self.logger.error(error_msg)
+                raise ValueError(error_msg)
 
-            elif isinstance(test_item, dict):
-                # Handle complex test definitions
-                test_name = test_item.get("name")
-                test_file = test_item.get("file")
-                if not test_name:
-                    raise ValueError(f"Test definition is missing 'name': {test_item}")
+            # Convert named parameters to args list
+            params = test_config.get_args_list() if test_config.parameters else []
 
-                test = Test(name=test_name, filename=test_file)
+            # Create single test node for this test configuration
+            test_node = TestNode(
+                name=f"{test_config.name}_{test_index}",
+                test_name=test_config.name,
+                test_function=test_function,
+                parameters=params,
+                file_target=test_config.file,
+                category_name=category_name,
+                subject_name=subject_name,
+                weight=100.0  # Will be balanced with siblings
+            )
+            test_nodes.append(test_node)
 
-                if "calls" in test_item:
-                    for call_args in test_item["calls"]:
-                        test.add_call(TestCall(args=call_args))
-                else:
-                    # If no 'calls' are specified, it's a single call with no arguments
-                    test.add_call(TestCall(args=[]))
+            self.logger.debug(
+                f"Created test node: {test_node.name} with params {params}"
+            )
 
-                parsed_tests.append(test)
+        # Balance weights across all test nodes at this level
+        if test_nodes:
+            self._balance_weights(test_nodes)
 
-        return parsed_tests
+        return test_nodes
+
+    def _find_test_function(
+        self,
+        test_name: str,
+        template: Template
+    ) -> Optional[TestFunction]:
+        """
+        Find a test function by name in the template.
+
+        Args:
+            test_name: Name of the test function to find
+            template: Template to search in
+
+        Returns:
+            TestFunction if found, None otherwise
+        """
+        try:
+            return template.get_test(test_name)
+        except (AttributeError, KeyError):
+            return None
+
+    def _balance_weights(self, nodes: List) -> None:
+        """
+        Balance weights of sibling nodes to sum to 100.
+
+        Args:
+            nodes: List of sibling nodes (SubjectNode or TestNode)
+        """
+        if not nodes:
+            return
+
+        total_weight = sum(node.weight for node in nodes)
+
+        if total_weight == 0:
+            # If all weights are 0, distribute equally
+            equal_weight = 100.0 / len(nodes)
+            for node in nodes:
+                node.weight = equal_weight
+            self.logger.debug(f"Distributed equal weights: {equal_weight} each")
+        elif total_weight != 100:
+            # Scale weights to sum to 100
+            scale_factor = 100.0 / total_weight
+            for node in nodes:
+                node.weight *= scale_factor
+            self.logger.debug(f"Balanced weights with scale factor: {scale_factor}")
 
 
+class CriteriaTreeBuilder:
+    """
+    Convenience builder class for creating criteria trees.
 
-if __name__ == "__main__":
-    criteria_json = {
-  "test_library": "essay ai grader",
-  "base": {
-    "weight": 100,
-    "subjects": {
-      "foundations": {
-        "weight": 60,
-        "tests": [
-          {
-            "file": "essay.txt",
-            "name": "thesis_statement"
-          },
-          {
-            "file": "essay.txt",
-            "name": "clarity_and_cohesion"
-          },
-          {
-            "file": "essay.txt",
-            "name": "grammar_and_spelling"
-          }
-        ]
-      },
-      "prompt_adherence": {
-        "weight": 40,
-        "tests": [
-          {
-            "file": "essay.txt",
-            "name": "adherence_to_prompt",
-            "calls": [
-              [ "Analyze the primary causes of the Industrial Revolution and its impact on 19th-century society." ]
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "bonus": {
-    "weight": 30,
-    "subjects": {
-      "rhetorical_skill": {
-        "weight": 70,
-        "tests": [
-          {
-            "file": "essay.txt",
-            "name": "counterargument_handling"
-          },
-          {
-            "file": "essay.txt",
-            "name": "vocabulary_and_diction"
-          },
-          {
-            "file": "essay.txt",
-            "name": "sentence_structure_variety"
-          }
-        ]
-      },
-      "deeper_analysis": {
-        "weight": 30,
-        "tests": [
-          {
-            "file": "essay.txt",
-            "name": "topic_connection",
-            "calls": [
-              [ "technological innovation", "social inequality" ]
-            ]
-          }
-        ]
-      }
-    }
-  },
-  "penalty": {
-    "weight": 25,
-    "subjects": {
-      "logical_integrity": {
-        "weight": 100,
-        "tests": [
-          {
-            "file": "essay.txt",
-            "name": "logical_fallacy_check"
-          },
-          {
-            "file": "essay.txt",
-            "name": "bias_detection"
-          },
-          {
-              "file": "essay.txt",
-              "name": "originality_and_plagiarism"
-          }
-        ]
-      }
-    }
-  }
-}
-    submission_files = {"essay.txt": """Artificial intelligence (AI) is no longer a concept confined to science fiction; it is a transformative force actively reshaping industries and redefining the nature of work. Its integration into the modern workforce presents a profound duality: on one hand, it offers unprecedented opportunities for productivity and innovation, while on the other, it poses significant challenges related to job displacement and economic inequality. Navigating this transition successfully requires a proactive and nuanced approach from policymakers, businesses, and individuals alike.
-The primary benefit of AI in the workplace is its capacity to augment human potential and drive efficiency. AI-powered systems can analyze vast datasets in seconds, automating routine cognitive and manual tasks, which frees human workers to focus on more complex, creative, and strategic endeavors. For instance, in medicine, AI algorithms assist radiologists in detecting tumors with greater accuracy, while in finance, they identify fraudulent transactions far more effectively than any human team. This collaboration between human and machine not only boosts output but also creates new roles centered around AI development, ethics, and system maintenance—jobs that did not exist a decade ago.
-However, this technological advancement casts a significant shadow of disruption. The same automation that drives efficiency also leads to job displacement, particularly for roles characterized by repetitive tasks. Assembly line workers, data entry clerks, and even some paralegal roles face a high risk of obsolescence. This creates a widening skills gap, where demand for high-level technical skills soars while demand for traditional skills plummets. Without robust mechanisms for reskilling and upskilling the existing workforce, this gap threatens to exacerbate socio-economic inequality, creating a divide between those who can command AI and those who are displaced by it. There are many gramatical errors in this sentence, for testing purposes.
-The most critical challenge, therefore, is not to halt technological progress but to manage its societal impact. A multi-pronged strategy is essential. Governments and educational institutions must collaborate to reform curricula, emphasizing critical thinking, digital literacy, and lifelong learning. Furthermore, corporations have a responsibility to invest in their employees through continuous training programs. Finally, strengthening social safety nets, perhaps through concepts like Universal Basic Income (UBI) or enhanced unemployment benefits, may be necessary to support individuals as they navigate this volatile transition period.
-In conclusion, AI is a double-edged sword. Its potential to enhance productivity and create new avenues for growth is undeniable, but so are the risks of displacement and inequality. The future of work will not be a battle of humans versus machines, but rather a story of adaptation. By investing in education, promoting equitable policies, and fostering a culture of continuous learning, we can harness the power of AI to build a more prosperous and inclusive workforce for all."""}
-    #tree = CriteriaTree.build_pre_executed_tree(criteria_json, WebDevLibrary(), submission_files)
-    tree = CriteriaTree.build_non_executed_tree(criteria_json)
-    #tree.print_pre_executed_tree()
-    tree.print_tree()
+    Usage:
+        builder = CriteriaTreeBuilder()
+        tree = (builder
+            .from_dict(criteria_dict)
+            .with_template(template)
+            .build())
+    """
+
+    def __init__(self):
+        self._config: Optional[CriteriaConfig] = None
+        self._template: Optional[Template] = None
+        self._service = CriteriaTreeService()
+
+    def from_dict(self, criteria_dict: dict) -> 'CriteriaTreeBuilder':
+        """Load and validate criteria from dictionary."""
+        self._config = CriteriaConfig.from_dict(criteria_dict)
+        return self
+
+    def from_json(self, criteria_json: str) -> 'CriteriaTreeBuilder':
+        """Load and validate criteria from JSON string."""
+        self._config = CriteriaConfig.from_json(criteria_json)
+        return self
+
+    def with_config(self, config: CriteriaConfig) -> 'CriteriaTreeBuilder':
+        """Use an already validated CriteriaConfig."""
+        self._config = config
+        return self
+
+    def with_template(self, template: Template) -> 'CriteriaTreeBuilder':
+        """Set the template to use."""
+        self._template = template
+        return self
+
+    def build(self) -> CriteriaTree:
+        """Build the criteria tree."""
+        if not self._config:
+            raise ValueError("Criteria configuration not set. Use from_dict() or from_json()")
+        if not self._template:
+            raise ValueError("Template not set. Use with_template()")
+
+        return self._service.build_tree(
+            self._config,
+            self._template
+        )
+
