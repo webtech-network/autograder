@@ -16,7 +16,7 @@ from autograder.core.models.test_result import TestResult
 class HasClass(TestFunction):
     @property
     def name(self):
-        return "has_class"
+        return "Has Class"
 
     @property
     def description(self):
@@ -63,7 +63,7 @@ class HasClass(TestFunction):
 
 class CheckBootstrapLinked(TestFunction):
     @property
-    def name(self): return "check_bootstrap_linked"
+    def name(self): return "Check Bootstrap Linked"
 
     @property
     def description(self): return "Verifica se o framework Bootstrap (CSS ou JS) está vinculado no arquivo HTML."
@@ -91,7 +91,7 @@ class CheckBootstrapLinked(TestFunction):
 class CheckInternalLinks(TestFunction):
     @property
     def name(self):
-        return "check_internal_links"
+        return "Check Internal Links"
 
     @property
     def description(self):
@@ -132,9 +132,11 @@ class CheckInternalLinks(TestFunction):
             report=report,
             parameters={"required_count": required_count}
         )
+
+
 class HasTag(TestFunction):
     @property
-    def name(self): return "has_tag"
+    def name(self): return "Has Tag"
     @property
     def description(self): return "Verifica se uma tag HTML específica aparece um número mínimo de vezes."
     @property
@@ -157,9 +159,10 @@ class HasTag(TestFunction):
             parameters={"tag": tag, "required_count": required_count}
         )
 
+
 class HasForbiddenTag(TestFunction):
     @property
-    def name(self): return "has_forbidden_tag"
+    def name(self): return "Has Forbidden Tag"
     @property
     def description(self): return "Verifica a presença de uma tag HTML proibida."
     @property
@@ -176,9 +179,10 @@ class HasForbiddenTag(TestFunction):
         report = f"A tag `<{tag}>` foi encontrada e é proibida." if found else f"A tag `<{tag}>` não foi encontrada, ótimo!"
         return TestResult(test_name=self.name, score=score, report=report, parameters={"tag": tag})
 
+
 class HasAttribute(TestFunction):
     @property
-    def name(self): return "has_attribute"
+    def name(self): return "Has Attribute"
     @property
     def description(self): return "Verifica se um atributo HTML específico está presente em qualquer tag, um número mínimo de vezes."
     @property
@@ -201,10 +205,11 @@ class HasAttribute(TestFunction):
             parameters={"attribute": attribute, "required_count": required_count}
         )
 
+
 class CheckNoUnclosedTags(TestFunction):
     @property
     def name(self):
-        return "check_no_unclosed_tags"
+        return "Check no Unclosed Tags"
     @property
     def description(self):
         return "Detecta tags HTML que foram abertas mas não foram fechadas."
@@ -248,9 +253,10 @@ class CheckNoUnclosedTags(TestFunction):
         )
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckNoInlineStyles(TestFunction):
     @property
-    def name(self): return "check_no_inline_styles"
+    def name(self): return "Check no Inline Styles"
     @property
     def description(self): return "Garante que nenhum estilo em linha (inline) seja usado no arquivo HTML."
     @property
@@ -264,9 +270,10 @@ class CheckNoInlineStyles(TestFunction):
         report = f"Foi encontrado {found_count} inline styles (`style='...'`). Mova todas as regras de estilo para seu arquivo `.css`." if found_count > 0 else "Excelente! Nenhum estilo inline foi encontrado."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class UsesSemanticTags(TestFunction):
     @property
-    def name(self): return "uses_semantic_tags"
+    def name(self): return "Uses Semantic Tags"
     @property
     def description(self): return "Verifica se o HTML usa pelo menos uma tag semântica comum."
     @property
@@ -281,9 +288,10 @@ class UsesSemanticTags(TestFunction):
         report = "Utilizou tags semânticas." if found else "Não usou nenhuma tag do tipo (`<article>`, `<section>`, `<nav>`) na estrutura do HTML."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckCssLinked(TestFunction):
     @property
-    def name(self): return "check_css_linked"
+    def name(self): return "Check CSS Linked"
     @property
     def description(self): return "Verifica se uma folha de estilo CSS externa está vinculada no HTML."
     @property
@@ -298,9 +306,10 @@ class CheckCssLinked(TestFunction):
         report = "Arquivo CSS está corretamente linkado com o HTML." if found else "Não foi encontrada a tag `<link rel='stylesheet'>` no seu HTML."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CssUsesProperty(TestFunction):
     @property
-    def name(self): return "css_uses_property"
+    def name(self): return "CSS Uses Property"
     @property
     def description(self): return "Verifica se um par de propriedade e valor CSS específico existe."
     @property
@@ -318,9 +327,10 @@ class CssUsesProperty(TestFunction):
         report = f"A propriedade `{prop}: {value};` foi encontrada." if found else f"A propriedade CSS `{prop}: {value};` não foi encontrada."
         return TestResult(test_name=self.name, score=score, report=report, parameters={"prop": prop, "value": value})
 
+
 class CountOverUsage(TestFunction):
     @property
-    def name(self): return "count_over_usage"
+    def name(self): return "Count Over Usage"
     @property
     def description(self): return "Penaliza o uso de uma string de texto específica se exceder uma contagem máxima permitida."
     @property
@@ -342,9 +352,10 @@ class CountOverUsage(TestFunction):
             parameters={"text": text, "max_allowed": max_allowed}
         )
 
+
 class JsUsesFeature(TestFunction):
     @property
-    def name(self): return "js_uses_feature"
+    def name(self): return "JS Uses Feature"
     @property
     def description(self): return "Realiza uma busca de string simples para verificar se uma funcionalidade específica está presente."
     @property
@@ -360,9 +371,10 @@ class JsUsesFeature(TestFunction):
         report = f"A funcionalidade `{feature}` foi implementada." if found else f"A funcionalidade JavaScript `{feature}` não foi encontrada no seu código."
         return TestResult(test_name=self.name, score=score, report=report, parameters={"feature": feature})
 
+
 class UsesForbiddenMethod(TestFunction):
     @property
-    def name(self): return "uses_forbidden_method"
+    def name(self): return "Uses Forbidden Method"
     @property
     def description(self): return "Verifica e penaliza o uso de um método ou palavra-chave proibida."
     @property
@@ -378,9 +390,10 @@ class UsesForbiddenMethod(TestFunction):
         report = f"Penalidade: Método proibido `{method}()` detectado." if found else f"Ótimo! O método proibido `{method}()` não foi usado."
         return TestResult(test_name=self.name, score=score, report=report, parameters={"method": method})
 
+
 class CountGlobalVars(TestFunction):
     @property
-    def name(self): return "count_global_vars"
+    def name(self): return "Count Global Vars"
     @property
     def description(self): return "Conta o número de variáveis declaradas no escopo global."
     @property
@@ -401,9 +414,10 @@ class CountGlobalVars(TestFunction):
             parameters={"max_allowed": max_allowed}
         )
 
+
 class CheckHeadingsSequential(TestFunction):
     @property
-    def name(self): return "check_headings_sequential"
+    def name(self): return "Check Headings Sequential"
     @property
     def description(self):
         return "Verifica se os níveis de cabeçalho não pulam níveis."
@@ -436,9 +450,10 @@ class CheckHeadingsSequential(TestFunction):
         )
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckAllImagesHaveAlt(TestFunction):
     @property
-    def name(self): return "check_all_images_have_alt"
+    def name(self): return "Check all Images Have alt"
     @property
     def description(self): return "Verifica se todas as tags `<img>` possuem um atributo `alt` não vazio."
     @property
@@ -456,9 +471,10 @@ class CheckAllImagesHaveAlt(TestFunction):
         report = f"{with_alt} de {len(images)} imagens tem o atributo `alt` preenchido."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckHtmlDirectChildren(TestFunction):
     @property
-    def name(self): return "check_html_direct_children"
+    def name(self): return "Check HTML Direct Children"
     @property
     def description(self): return "Garante que os únicos filhos diretos da tag `<html>` são `<head>` e `<body>`."
     @property
@@ -476,9 +492,10 @@ class CheckHtmlDirectChildren(TestFunction):
         report = "Estrutura da tag <html> está correta." if is_valid else "A tag <html> deve conter apenas as tags <head> e <body> como filhos diretos."
         return TestResult(test_name=self.name, score=100 if is_valid else 0, report=report)
 
+
 class CheckTagNotInside(TestFunction):
     @property
-    def name(self): return "check_tag_not_inside"
+    def name(self): return "Check Tag not Inside"
     @property
     def description(self): return "Verifica se uma tag específica não está aninhada em nenhum lugar dentro de outra tag específica."
     @property
@@ -501,9 +518,10 @@ class CheckTagNotInside(TestFunction):
             parameters={"child_tag": child_tag, "parent_tag": parent_tag}
         )
 
+
 class CheckInternalLinksToArticle(TestFunction):
     @property
-    def name(self): return "check_internal_links_to_article"
+    def name(self): return "Check Internal Links to Article"
     @property
     def description(self): return "Verifica a existência de um número mínimo de links âncora internos apontando para IDs em tags `<article>`."
     @property
@@ -539,9 +557,10 @@ class CheckInternalLinksToArticle(TestFunction):
             parameters={"required_count": required_count}
         )
 
+
 class HasStyle(TestFunction):
     @property
-    def name(self): return "has_style"
+    def name(self): return "Has Style"
     @property
     def description(self): return "Verifica se uma regra de estilo CSS específica aparece um número mínimo de vezes."
     @property
@@ -563,9 +582,10 @@ class HasStyle(TestFunction):
             parameters={"style": style, "required_count": count}
         )
 
+
 class CheckHeadDetails(TestFunction):
     @property
-    def name(self): return "check_head_details"
+    def name(self): return "Check Head Details"
     @property
     def description(self): return "Verifica se uma tag de detalhe específica existe na seção `<head>`."
     @property
@@ -590,9 +610,10 @@ class CheckHeadDetails(TestFunction):
             parameters={"detail_tag": detail_tag}
         )
 
+
 class CheckAttributeAndValue(TestFunction):
     @property
-    def name(self): return "check_attribute_and_value"
+    def name(self): return "Check Attribute and Value"
     @property
     def description(self): return "Verifica se uma tag HTML específica contém um atributo específico com um determinado valor."
     @property
@@ -616,9 +637,10 @@ class CheckAttributeAndValue(TestFunction):
             parameters={"tag": tag, "attribute": attribute, "value": value}
         )
 
+
 class CheckDirExists(TestFunction):
     @property
-    def name(self): return "check_dir_exists"
+    def name(self): return "Check dir Exists"
     @property
     def description(self): return "Verifica se um diretório específico existe no envio."
     @property
@@ -635,9 +657,10 @@ class CheckDirExists(TestFunction):
         report = f"O diretório '{dir_path}' existe." if exists else f"O diretório '{dir_path}' não existe."
         return TestResult(test_name=self.name, score=score, report=report, parameters={"dir_path": dir_path})
 
+
 class CheckProjectStructure(TestFunction):
     @property
-    def name(self): return "check_project_structure"
+    def name(self): return "Check Project Structure"
     @property
     def description(self): return "Verifica se o caminho da estrutura esperada existe nos arquivos de envio."
     @property
@@ -659,9 +682,10 @@ class CheckProjectStructure(TestFunction):
             parameters={"expected_structure": expected_structure}
         )
 
+
 class CheckIdSelectorOverUsage(TestFunction):
     @property
-    def name(self): return "check_id_selector_over_usage"
+    def name(self): return "Check ID Selector Over Usage"
     @property
     def description(self): return "Conta seletores de ID válidos no CSS."
     @property
@@ -687,9 +711,10 @@ class CheckIdSelectorOverUsage(TestFunction):
             parameters={"max_allowed": max_allowed}
         )
 
+
 class UsesRelativeUnits(TestFunction):
     @property
-    def name(self): return "uses_relative_units"
+    def name(self): return "Uses Relative Units"
     @property
     def description(self): return "Verifica se o arquivo CSS usa unidades relativas como em, rem, %, vh, vw."
     @property
@@ -703,9 +728,10 @@ class UsesRelativeUnits(TestFunction):
         report = "Estão sendo utilizadas medidas relativas no CSS." if found else "Não foram utilizadas medidas relativas como (em, rem, %, vh, vw) no seu CSS."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckMediaQueries(TestFunction):
     @property
-    def name(self): return "check_media_queries"
+    def name(self): return "Check Media Queries"
     @property
     def description(self): return "Verifica se existem media queries no arquivo CSS."
     @property
@@ -719,9 +745,10 @@ class CheckMediaQueries(TestFunction):
         report = "Media queries estão sendo utilizadas no CSS." if found else "Não foi encontrado o uso de media queries no seu CSS."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckFlexboxUsage(TestFunction):
     @property
-    def name(self): return "check_flexbox_usage"
+    def name(self): return "Check Flexbox Usage"
     @property
     def description(self): return "Verifica se propriedades Flexbox são usadas no arquivo CSS."
     @property
@@ -735,9 +762,10 @@ class CheckFlexboxUsage(TestFunction):
         report = "Propriedades `flexbox` estão sendo utilizadas no CSS." if found else "Propriedades `flexbox` não foram encontradas no seu CSS."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckBootstrapUsage(TestFunction):
     @property
-    def name(self): return "check_bootstrap_usage"
+    def name(self): return "Check Bootstrap Usage"
     @property
     def description(self): return "Verifica se o Bootstrap está vinculado no arquivo HTML."
     @property
@@ -757,7 +785,7 @@ class CheckBootstrapUsage(TestFunction):
 class LinkPointsToPageWithQueryParam(TestFunction):
     @property
     def name(self):
-        return "link_points_to_page_with_query_param"
+        return "Link Points to Page with Query Param"
 
     @property
     def description(self):
@@ -802,7 +830,7 @@ class LinkPointsToPageWithQueryParam(TestFunction):
 class JsUsesQueryStringParsing(TestFunction):
     @property
     def name(self):
-        return "js_uses_query_string_parsing"
+        return "JS Uses Query String Parsing"
 
     @property
     def description(self):
@@ -828,7 +856,7 @@ class JsUsesQueryStringParsing(TestFunction):
 class JsHasJsonArrayWithId(TestFunction):
     @property
     def name(self):
-        return "js_has_json_array_with_id"
+        return "JS Has JSON Array with ID"
 
     @property
     def description(self):
@@ -875,7 +903,7 @@ class JsHasJsonArrayWithId(TestFunction):
 class JsUsesDomManipulation(TestFunction):
     @property
     def name(self):
-        return "js_uses_dom_manipulation"
+        return "JS Uses Dom Manipulation"
 
     @property
     def description(self):
@@ -910,7 +938,7 @@ class JsUsesDomManipulation(TestFunction):
 class HasNoJsFramework(TestFunction):
     @property
     def name(self):
-        return "has_no_js_framework"
+        return "Has no JS Framework"
 
     @property
     def description(self):
@@ -974,41 +1002,41 @@ class WebDevTemplate(Template):
 
     def __init__(self):
         self.tests = {
-            "has_class": HasClass(),
-            "check_bootstrap_linked": CheckBootstrapLinked(),
-            "check_internal_links": CheckInternalLinks(),
-            "has_tag": HasTag(),
-            "has_forbidden_tag": HasForbiddenTag(),
-            "has_attribute": HasAttribute(),
-            "check_no_unclosed_tags": CheckNoUnclosedTags(),
-            "check_no_inline_styles": CheckNoInlineStyles(),
-            "uses_semantic_tags": UsesSemanticTags(),
-            "check_css_linked": CheckCssLinked(),
-            "css_uses_property": CssUsesProperty(),
-            "count_over_usage": CountOverUsage(),
-            "js_uses_feature": JsUsesFeature(),
-            "uses_forbidden_method": UsesForbiddenMethod(),
-            "count_global_vars": CountGlobalVars(),
-            "check_headings_sequential": CheckHeadingsSequential(),
-            "check_all_images_have_alt": CheckAllImagesHaveAlt(),
-            "check_html_direct_children": CheckHtmlDirectChildren(),
-            "check_tag_not_inside": CheckTagNotInside(),
-            "check_internal_links_to_article": CheckInternalLinksToArticle(),
-            "has_style": HasStyle(),
-            "check_head_details": CheckHeadDetails(),
-            "check_attribute_and_value": CheckAttributeAndValue(),
-            "check_dir_exists": CheckDirExists(),
-            "check_project_structure": CheckProjectStructure(),
-            "check_id_selector_over_usage": CheckIdSelectorOverUsage(),
-            "uses_relative_units": UsesRelativeUnits(),
-            "check_media_queries": CheckMediaQueries(),
-            "check_flexbox_usage": CheckFlexboxUsage(),
-            "check_bootstrap_usage": CheckBootstrapUsage(),
-            "link_points_to_page_with_query_param": LinkPointsToPageWithQueryParam(),
-            "js_uses_query_string_parsing": JsUsesQueryStringParsing(),
-            "js_has_json_array_with_id": JsHasJsonArrayWithId(),
-            "js_uses_dom_manipulation": JsUsesDomManipulation(),
-            "has_no_js_framework": HasNoJsFramework()
+            "Has Class": HasClass(),
+            "Check Bootstrap Linked": CheckBootstrapLinked(),
+            "Check Internal Links": CheckInternalLinks(),
+            "Has Tag": HasTag(),
+            "Has Forbidden Tag": HasForbiddenTag(),
+            "Has Attribute": HasAttribute(),
+            "Check no Unclosed Tags": CheckNoUnclosedTags(),
+            "Check no Inline Styles": CheckNoInlineStyles(),
+            "Uses Semantic Tags": UsesSemanticTags(),
+            "Check CSS Linked": CheckCssLinked(),
+            "CSS Uses Property": CssUsesProperty(),
+            "Count Over Usage": CountOverUsage(),
+            "JS Uses Feature": JsUsesFeature(),
+            "Uses Forbidden Method": UsesForbiddenMethod(),
+            "Count Global Vars": CountGlobalVars(),
+            "Check Headings Sequential": CheckHeadingsSequential(),
+            "Check all Images Have alt": CheckAllImagesHaveAlt(),
+            "Check HTML Direct Children": CheckHtmlDirectChildren(),
+            "Check Tag not Inside": CheckTagNotInside(),
+            "Check Internal Links to Article": CheckInternalLinksToArticle(),
+            "Has Style": HasStyle(),
+            "Check Head Details": CheckHeadDetails(),
+            "Check Attribute and Value": CheckAttributeAndValue(),
+            "Check dir Exists": CheckDirExists(),
+            "Check Project Structure": CheckProjectStructure(),
+            "Check ID Selector Over Usage": CheckIdSelectorOverUsage(),
+            "Uses Relative Units": UsesRelativeUnits(),
+            "Check Media Queries": CheckMediaQueries(),
+            "Check Flexbox Usage": CheckFlexboxUsage(),
+            "Check Bootstrap Usage": CheckBootstrapUsage(),
+            "Link Points to Page with Query Param": LinkPointsToPageWithQueryParam(),
+            "JS Uses Query String Parsing": JsUsesQueryStringParsing(),
+            "JS Has JSON Array with ID": JsHasJsonArrayWithId(),
+            "JS Uses Dom Manipulation": JsUsesDomManipulation(),
+            "Has no JS Framework": HasNoJsFramework()
         }
 
     def stop(self):

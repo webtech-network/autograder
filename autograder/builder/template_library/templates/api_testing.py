@@ -21,7 +21,7 @@ class HealthCheckTest(TestFunction):
 
     @property
     def name(self):
-        return "health_check"
+        return "Health Check"
 
     @property
     def description(self):
@@ -87,7 +87,7 @@ class CheckResponseJsonTest(TestFunction):
 
     @property
     def name(self):
-        return "check_response_json"
+        return "Check Response JSON"
 
     @property
     def description(self):
@@ -179,8 +179,8 @@ class ApiTestingTemplate(Template):
         self._environment_setup_done = False
         
         self.tests = {
-            "health_check": HealthCheckTest(self.executor),
-            "check_response_json": CheckResponseJsonTest(self.executor),
+            "Health Check": HealthCheckTest(self.executor),
+            "Check Response JSON": CheckResponseJsonTest(self.executor),
         }
 
     def _ensure_environment_setup(self):
@@ -272,8 +272,8 @@ if __name__ == "__main__":
                     "api_functionality": {
                         "weight": 100,
                         "tests": [
-                            {"name": "health_check", "calls": [["/health"]]},
-                            {"name": "check_response_json", "calls": [["/api/user", "userId", 1]]}
+                            {"name": "Health Check", "calls": [["/health"]]},
+                            {"name": "Check Response JSON", "calls": [["/api/user", "userId", 1]]}
                         ]
                     }
                 }
@@ -302,14 +302,14 @@ if __name__ == "__main__":
 
         logging.info("\n--- 3. Running Tests ---")
 
-        health_check_test = template.get_test("health_check")
+        health_check_test = template.get_test("Health Check")
         health_result = health_check_test.execute("/health")
 
         logging.info("\n[Health Check Result]")
         logging.info(f"  Score: {health_result.score}")
         logging.info(f"  Report: {health_result.report}")
 
-        json_check_test = template.get_test("check_response_json")
+        json_check_test = template.get_test("Check Response JSON")
         json_result = json_check_test.execute("/api/user", "userId", 1)
 
         logging.info("\n[JSON Check Result]")

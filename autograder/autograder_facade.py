@@ -97,7 +97,7 @@ class Autograder:
             error_message = f"An unexpected error occurred during the grading process: {str(e)}"
             logger.error(error_message)
             logger.exception("Full exception traceback:")
-            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message)
+            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message, test_report=[])
 
     @staticmethod
     def _pre_flight_step():
@@ -121,7 +121,7 @@ class Autograder:
         template_name = req.assignment_config.template
         if template_name == "custom":
             logger.info(f"Loading custom test template provided!")
-            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template_str)
+            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template)
         else:
             logger.info(f"Loading test template: '{template_name}'")
             test_template = TemplateLibrary.get_template(template_name)
