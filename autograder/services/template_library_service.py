@@ -1,6 +1,6 @@
 import importlib.util
 import inspect
-from autograder.builder.models.template import Template
+from autograder.models.abstract.template import Template
 
 
 class TemplateLibraryService:

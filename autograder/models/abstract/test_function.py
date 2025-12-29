@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
-from autograder.builder.models.criteria_tree import TestResult
-from autograder.builder.models.param_description import ParamDescription
+from autograder.models.dataclass.test_result import TestResult
+from autograder.models.dataclass.param_description import ParamDescription
 
 
 class TestFunction(ABC):
