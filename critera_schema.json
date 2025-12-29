@@ -1,0 +1,570 @@
+{
+  "test_library": "web_dev",
+  "base": {
+    "weight": 100,
+    "subjects": [
+      {
+        "subject_name": "html",
+        "weight": 60,
+        "subjects": [
+          {
+            "subject_name": "structure",
+            "weight": 40,
+            "tests": [
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "body"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "header"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "nav"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "main"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "article"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 4
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "img"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 5
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "footer"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "div"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "form"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "input"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_tag",
+                "parameters": [
+                  {
+                    "name": "tag",
+                    "value": "button"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "index.html",
+                "name": "has_attribute",
+                "parameters": [
+                  {
+                    "name": "attribute",
+                    "value": "class"
+                  },
+                  {
+                    "name": "required_count",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "subject_name": "link",
+            "weight": 20,
+            "tests": [
+              {
+                "file": "index.html",
+                "name": "check_css_linked"
+              },
+              {
+                "file": "index.html",
+                "name": "check_internal_links_to_article",
+                "parameters": [
+                  {
+                    "name": "required_count",
+                    "value": 4
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "subject_name": "css",
+        "weight": 40,
+        "subjects": [
+          {
+            "subject_name": "responsivity",
+            "weight": 50,
+            "tests": [
+              {
+                "file": "css/styles.css",
+                "name": "uses_relative_units"
+              },
+              {
+                "file": "css/styles.css",
+                "name": "check_media_queries"
+              },
+              {
+                "file": "css/styles.css",
+                "name": "check_flexbox_usage"
+              }
+            ]
+          },
+          {
+            "subject_name": "style",
+            "weight": 50,
+            "tests": [
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "font-size"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "font-family"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "text-align"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "display"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "position"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "margin"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "file": "css/styles.css",
+                "name": "has_style",
+                "parameters": [
+                  {
+                    "name": "style",
+                    "value": "padding"
+                  },
+                  {
+                    "name": "count",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bonus": {
+    "weight": 40,
+    "subjects": [
+      {
+        "subject_name": "accessibility",
+        "weight": 20,
+        "tests": [
+          {
+            "file": "index.html",
+            "name": "check_all_images_have_alt"
+          }
+        ]
+      },
+      {
+        "subject_name": "head_detail",
+        "weight": 80,
+        "tests": [
+          {
+            "file": "index.html",
+            "name": "check_head_details",
+            "parameters": [
+              {
+                "name": "detail_tag",
+                "value": "title"
+              }
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "check_head_details",
+            "parameters": [
+              {
+                "name": "detail_tag",
+                "value": "meta"
+              }
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "charset"
+              },
+              {
+                "name": "value",
+                "value": "UTF-8"
+              }
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "name"
+              },
+              {
+                "name": "value",
+                "value": "viewport"
+              }
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "name"
+              },
+              {
+                "name": "value",
+                "value": "description"
+              }
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "name"
+              },
+              {
+                "name": "value",
+                "value": "author"
+              }
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "check_attribute_and_value",
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "meta"
+              },
+              {
+                "name": "attribute",
+                "value": "name"
+              },
+              {
+                "name": "value",
+                "value": "keywords"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "penalty": {
+    "weight": 50,
+    "subjects": [
+      {
+        "subject_name": "html",
+        "weight": 50,
+        "tests": [
+          {
+            "file": "index.html",
+            "name": "check_bootstrap_usage"
+          },
+          {
+            "file": "css/styles.css",
+            "name": "check_id_selector_over_usage",
+            "parameters": [
+              {
+                "name": "max_allowed",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "has_forbidden_tag",
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "script"
+              }
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "check_html_direct_children"
+          },
+          {
+            "file": "index.html",
+            "name": "check_tag_not_inside",
+            "parameters": [
+              {
+                "name": "child_tag",
+                "value": "header"
+              },
+              {
+                "name": "parent_tag",
+                "value": "main"
+              }
+            ]
+          },
+          {
+            "file": "index.html",
+            "name": "check_tag_not_inside",
+            "parameters": [
+              {
+                "name": "child_tag",
+                "value": "footer"
+              },
+              {
+                "name": "parent_tag",
+                "value": "main"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "subject_name": "project_structure",
+        "weight": 50,
+        "tests": [
+          {
+            "file": "all",
+            "name": "check_dir_exists",
+            "parameters": [
+              {
+                "name": "dir_path",
+                "value": "css"
+              }
+            ]
+          },
+          {
+            "file": "all",
+            "name": "check_dir_exists",
+            "parameters": [
+              {
+                "name": "dir_path",
+                "value": "imgs"
+              }
+            ]
+          },
+          {
+            "file": "all",
+            "name": "check_project_structure",
+            "parameters": [
+              {
+                "name": "expected_structure",
+                "value": "css/styles.css"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
