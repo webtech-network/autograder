@@ -21,13 +21,7 @@ inputs:
     description: 'Optional custom grading template in JSON format. Required if template_preset is set to "custom".'
     required: false
   openai_key:
-    description: 'Optional OpenAI API key for generating AI-assisted feedback.'
-    required: false
-  redis_url:
-    description: 'Optional URL for a Redis instance for caching.'
-    required: false
-  redis_token:
-    description: 'Optional authentication token for the Redis instance.'
+    description: 'OpenAI API key for AI feedback. REQUIRED for AI feedback mode in GitHub Actions.'
     required: false
   app_token:
     description: 'The application token for the autograder service.'
@@ -54,6 +48,4 @@ runs:
     TEMPLATE_PRESET: ${{ inputs.template_preset }}
     FEEDBACK_TYPE: ${{ inputs.feedback-type }}
     OPENAI_KEY: ${{ inputs.openai_key }}
-    REDIS_URL: ${{ inputs.redis_url }}
-    REDIS_TOKEN: ${{ inputs.redis_token }}
     INCLUDE_FEEDBACK: ${{ inputs.include-feedback }}
