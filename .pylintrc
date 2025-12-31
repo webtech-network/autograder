@@ -54,12 +54,19 @@ ignore=CVS
 # ignore-list. The regex matches against paths and can be in Posix or Windows
 # format. Because '\\' represents the directory delimiter on Windows systems,
 # it can't be used as an escape character.
-ignore-paths=
+ignore-paths=.\venv
 
 # Files or directories matching the regular expression patterns are skipped.
 # The regex matches against base names, not paths. The default value ignores
 # Emacs file locks
-ignore-patterns=^\.#
+ignore-patterns=^\.,
+            .*yml,
+            .*sh,
+            .*md,
+            .*api,
+            .*txt,
+            .*Dockerfile,
+            .*Makefile,
 
 # List of module names for which member attributes should not be checked and
 # will not be imported (useful for modules/projects where namespaces are
@@ -99,6 +106,8 @@ py-version=3.12
 
 # Discover python modules and packages in the file system subtree.
 recursive=no
+
+output-format=colorized
 
 # Add paths to the list of the source roots. Supports globbing patterns. The
 # source root is an absolute path or a path relative to the current working
@@ -439,35 +448,41 @@ confidence=HIGH,
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
 disable=raw-checker-failed,
-      bad-inline-option,
       locally-disabled,
       file-ignored,
       suppressed-message,
-      useless-suppression,
       deprecated-pragma,
       use-symbolic-message-instead,
       use-implicit-booleaness-not-comparison-to-string,
       use-implicit-booleaness-not-comparison-to-zero,
+      #^^ defined by default
       line-too-long,
       trailing-whitespace,
+      trailing-newlines,
       missing-final-newline,
       missing-module-docstring,
       redefined-outer-name,
       f-string-without-interpolation,
       too-few-public-methods,
       no-member,
-      trailing-newlines
-      
+      multiple-statements,
+      bad-indentation,
+      too-many-positional-arguments,
+
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
 # multiple time (only on the command line, not in the configuration file where
 # it should appear only once). See also the "--disable" option for examples.
 enable=wildcard-import,
+      bad-inline-option,
+      useless-suppression,
       missing-function-docstring,
       missing-class-docstring,
       too-many-locals,
       too-many-return-statements,
+      too-many-arguments,
+      too-many-lines,
       wrong-import-order,
       unused-wildcard-import,
       unused-argument,
@@ -484,7 +499,14 @@ enable=wildcard-import,
       invalid-name,
       pointless-string-statement,
       import-outside-toplevel,
-      exec-used
+      exec-used,
+      super-init-not-called,
+      no-self-argument,
+      ungrouped-imports,
+      attribute-defined-outside-init,
+      arguments-renamed,
+      invalid-overridden-method,
+      raise-missing-from
 
 
 [METHOD_ARGS]

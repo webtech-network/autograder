@@ -409,7 +409,7 @@ if __name__ == "__main__":
         print(facade_response.feedback)
         print("\n--- Test Report ---")
         if facade_response.test_report:
-            for test in facade_response.test_report:
+            for test in facade_response.test_report: #pylint: disable=not-an-iterable
                 print(f"- {test.subject_name}: {test.test_name} -> Score: {test.score}, Report: {test.report}")
         else:
             print("No test report generated.")
