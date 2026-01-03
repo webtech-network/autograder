@@ -29,8 +29,6 @@ class TestNode:
     test_function: Any  # TestFunction instance from template
     parameters: List[Any] = field(default_factory=list)
     file_target: Optional[str] = None
-    category_name: str = ""
-    subject_name: str = ""
     weight: float = 100.0
 
     def __repr__(self):
@@ -53,6 +51,7 @@ class SubjectNode:
     weight: float
     subjects: List["SubjectNode"] = field(default_factory=list)
     tests: List[TestNode] = field(default_factory=list)
+    subjects_weight: Optional[float] = None
 
     def __repr__(self):
         if self.subjects:
@@ -82,6 +81,7 @@ class CategoryNode:
     weight: float
     subjects: List[SubjectNode] = field(default_factory=list)
     tests: List[TestNode] = field(default_factory=list)
+    subjects_weight: Optional[float] = None
 
     def __repr__(self):
         if self.subjects:
@@ -89,6 +89,9 @@ class CategoryNode:
         return (
             f"CategoryNode({self.name}, weight={self.weight}, tests={len(self.tests)})"
         )
+
+    def add_subjects(self, subjects: List[SubjectNode]) -> None:
+        self.subjects.extend(subjects)
 
     def get_all_tests(self) -> List[TestNode]:
         """Recursively collect all test nodes under this category."""

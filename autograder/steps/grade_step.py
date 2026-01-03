@@ -1,4 +1,4 @@
-from typing import Dict, Any, Union
+from typing import Dict, Any, Optional, Union
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.dataclass.grading_result import GradingResult
 from autograder.models.dataclass.step_result import StepResult, StepStatus
@@ -17,7 +17,12 @@ class GradeStep(Step):
     - If input is Template: Use grade_from_config (for single submission)
     """
 
-    def __init__(self, criteria_json: dict = None, submission_files: Dict[str, Any] = None, submission_id: str = None):
+    def __init__(
+        self,
+        submission_files: Dict[str, Any],
+        submission_id: Optional[str],
+        criteria_json: Optional[Dict] = None,
+    ):
         """
         Initialize the grade step.
 
@@ -31,7 +36,9 @@ class GradeStep(Step):
         self._submission_id = submission_id
         self._grader_service = GraderService()
 
-    def execute(self, input: Union[CriteriaTree, Template]) -> StepResult[GradingResult]:
+    def execute(
+        self, input: Union[CriteriaTree, Template]
+    ) -> StepResult[GradingResult]:
         """
         Grade a submission based on the input type.
 
@@ -48,12 +55,14 @@ class GradeStep(Step):
                 result_tree = self._grader_service.grade_from_tree(
                     criteria_tree=input,
                     submission_files=self._submission_files,
-                    submission_id=self._submission_id
+                    submission_id=self._submission_id,
                 )
             elif isinstance(input, Template):
                 # Single submission mode: grade directly from config
                 if not self._criteria_json:
-                    raise ValueError("criteria_json is required when grading from template")
+                    raise ValueError(
+                        "criteria_json is required when grading from template"
+                    )
 
                 # Validate criteria configuration
                 criteria_config = CriteriaConfig.from_dict(self._criteria_json)
@@ -63,27 +72,18 @@ class GradeStep(Step):
                     criteria_config=criteria_config,
                     template=input,
                     submission_files=self._submission_files,
-                    submission_id=self._submission_id
-                )
-            else:
-                raise ValueError(
-                    f"Invalid input type for GradeStep: {type(input).__name__}. "
-                    f"Expected CriteriaTree or Template"
+                    submission_id=self._submission_id,
                 )
 
             # Create grading result
             final_score = result_tree.calculate_final_score()
 
             grading_result = GradingResult(
-                final_score=final_score,
-                status="success",
-                result_tree=result_tree
+                final_score=final_score, status="success", result_tree=result_tree
             )
 
             return StepResult(
-                data=grading_result,
-                status=StepStatus.SUCCESS,
-                original_input=input
+                data=grading_result, status=StepStatus.SUCCESS, original_input=input
             )
 
         except Exception as e:
@@ -92,7 +92,7 @@ class GradeStep(Step):
                 final_score=0.0,
                 status="error",
                 error=f"Grading failed: {str(e)}",
-                failed_at_step=self.__class__.__name__
+                failed_at_step=self.__class__.__name__,
             )
 
             return StepResult(
@@ -100,8 +100,5 @@ class GradeStep(Step):
                 status=StepStatus.FAIL,
                 error=str(e),
                 failed_at_step=self.__class__.__name__,
-                original_input=input
+                original_input=input,
             )
-
-
-
