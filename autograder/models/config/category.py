@@ -1,9 +1,11 @@
 from typing import List, Optional
+
+from autograder.models.config.subject import SubjectConfig
 from .test import TestConfig
 from pydantic import BaseModel, Field, model_validator
 
 
-class SubjectConfig(BaseModel):
+class CategoryConfig(BaseModel):
     subject_name: str = Field(..., description="Name of the subject")
     weight: float = Field(
         ..., ge=0, le=100, description="Weight of this subject (0-100)"
@@ -11,9 +13,7 @@ class SubjectConfig(BaseModel):
     tests: Optional[List[TestConfig]] = Field(
         None, description="Tests under this subject"
     )
-    subjects: Optional[List["SubjectConfig"]] = Field(
-        None, description="Nested subjects"
-    )
+    subjects: Optional[List[SubjectConfig]] = Field(None, description="Nested subjects")
     subjects_weight: Optional[int] = Field(
         ...,
         ge=0,
@@ -24,7 +24,7 @@ class SubjectConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     @model_validator(mode="after")
-    def check_subjects_and_tests(self) -> "SubjectConfig":
+    def check_subjects_and_tests(self) -> "CategoryConfig":
         """Validate that category has at least tests or subjects."""
         has_tests = self.tests is not None and len(self.tests) > 0
         has_subjects = self.subjects is not None and len(self.subjects) > 0

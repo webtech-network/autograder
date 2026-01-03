@@ -1,6 +1,5 @@
 from typing import List, Dict
 from dataclasses import dataclass, field
-from autograder.context import request_context
 
 
 @dataclass

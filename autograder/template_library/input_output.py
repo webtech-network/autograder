@@ -1,6 +1,6 @@
-from autograder.builder.models.template import Template
-from autograder.builder.models.test_function import TestFunction
-from autograder.builder.models.param_description import ParamDescription
+from autograder.models.abstract.template import Template
+from autograder.models.abstract.test_function import TestFunction
+from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
 from autograder.utils.executors.sandbox_executor import SandboxExecutor
 

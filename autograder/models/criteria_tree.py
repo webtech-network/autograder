@@ -1,141 +1,131 @@
-from typing import List, Any, Optional
-from autograder.models.dataclass.test_result import TestResult
+"""
+Updated Criteria Tree models with embedded test functions.
+
+These models represent the grading criteria structure with test functions
+embedded during tree building (no more lazy loading or pre-execution).
+"""
+
+from typing import List, Optional, Any
+from dataclasses import dataclass, field
+
 from autograder.utils.formatters.criteria_tree import PreExecutedTreeFormatter
 from autograder.utils.printers.criteria_tree import CriteriaTreePrinter
 
 
-class TestCall:
-    """Represents a single invocation of a test function with its arguments."""
+@dataclass
+class TestNode:
+    """
+    Leaf node representing a single test execution configuration.
 
-    def __init__(self, args: List[Any]):
-        self.args = args
+    Contains:
+    - Test function reference (from template)
+    - Parameters for execution
+    - File target (if applicable)
+    - Category and subject context
+    """
+
+    name: str
+    test_name: str
+    test_function: Any  # TestFunction instance from template
+    parameters: List[Any] = field(default_factory=list)
+    file_target: Optional[str] = None
+    category_name: str = ""
+    subject_name: str = ""
+    weight: float = 100.0
 
     def __repr__(self):
-        return f"TestCall(args={self.args})"
+        params_str = f", params={self.parameters}" if self.parameters else ""
+        file_str = f", file={self.file_target}" if self.file_target else ""
+        return f"TestNode({self.test_name}{params_str}{file_str})"
 
 
-class Test:
+@dataclass
+class SubjectNode:
     """
-    Represents a group of calls to a single test function in the library.
-    This is a LEAF node in the grading tree.
+    Branch node representing a subject/topic in the grading criteria.
+
+    Can contain either:
+    - Nested subjects (recursive structure)
+    - Test nodes (leaf level)
     """
 
-    def __init__(self, name: str, filename: Optional[str] = None):
-        self.name: str = name
-        self.file: str | None = filename
-        self.calls: List[TestCall] = []
-
-    def add_call(self, call: TestCall):
-        self.calls.append(call)
-
-    def get_result(
-        self, test_library, submission_files, subject_name: str
-    ) -> List[TestResult]:
-        """
-        Retrieves a TestFunction object from the library and executes it for each TestCall.
-        """
-        try:
-            # Get the TestFunction instance (e.g., HasTag()) from the library
-            test_function_instance = test_library.get_test(self.name)
-        except AttributeError as e:
-            return [TestResult(self.name, 0, f"ERROR: {e}", subject_name)]
-
-        file_content_to_pass = None
-        if self.file:
-            # --- File Injection Logic ---
-            if self.file == "all":
-                file_content_to_pass = submission_files
-            else:
-                file_content_to_pass = submission_files.get(self.file)
-                if file_content_to_pass is None:
-                    return [
-                        TestResult(
-                            self.name,
-                            0,
-                            f"Erro: O arquivo necessário '{self.file}' não foi encontrado na submissão.",
-                            subject_name,
-                        )
-                    ]
-
-        # --- Execution Logic ---
-        if not self.calls:
-            # Execute with just the file content if no specific calls are defined
-            if file_content_to_pass:
-                result = test_function_instance.execute(file_content_to_pass)
-            else:
-                result = test_function_instance.execute()
-            result.subject_name = subject_name
-            return [result]
-
-        results = []
-        for call in self.calls:
-            # Execute the 'execute' method of the TestFunction instance
-            if file_content_to_pass:
-                result = test_function_instance.execute(
-                    file_content_to_pass, *call.args
-                )
-            else:
-                result = test_function_instance.execute(*call.args)
-            result.subject_name = subject_name
-            results.append(result)
-        return results
+    name: str
+    weight: float
+    subjects: List["SubjectNode"] = field(default_factory=list)
+    tests: List[TestNode] = field(default_factory=list)
 
     def __repr__(self):
-        return f"Test(name='{self.name}', file='{self.file}', calls={len(self.calls)})"
+        if self.subjects:
+            return f"SubjectNode({self.name}, weight={self.weight}, subjects={len(self.subjects)})"
+        return (
+            f"SubjectNode({self.name}, weight={self.weight}, tests={len(self.tests)})"
+        )
+
+    def get_all_tests(self) -> List[TestNode]:
+        tests = [*self.tests]
+        for subject in self.subjects:
+            tests.extend(subject.get_all_tests())
+        return tests
 
 
-class Subject:
+@dataclass
+class CategoryNode:
     """
-    Represents a subject, which can contain a list of tests AND/OR
-    a list of nested subjects. This is a BRANCH and/or LEAF-HOLDER node.
+    Top-level category node (base, bonus, or penalty).
+
+    Can contain either:
+    - Subjects (organized hierarchy)
+    - Tests (flat structure)
     """
 
-    def __init__(self, name: str, weight: int, subjects_weight: Optional[int] = None):
-        self.name: str = name
-        self.weight: int = weight
-        self.subjects_weight: Optional[int] = subjects_weight
-        self.tests: List[Test] = list()
-        self.subjects: List[Subject] = list()
+    name: str
+    weight: float
+    subjects: List[SubjectNode] = field(default_factory=list)
+    tests: List[TestNode] = field(default_factory=list)
 
     def __repr__(self):
-        return f"Subject(name={self.name}, weight={self.weight}, subjects={len(self.subjects)}, tests={len(self.tests)})"
+        if self.subjects:
+            return f"CategoryNode({self.name}, weight={self.weight}, subjects={len(self.subjects)})"
+        return (
+            f"CategoryNode({self.name}, weight={self.weight}, tests={len(self.tests)})"
+        )
+
+    def get_all_tests(self) -> List[TestNode]:
+        """Recursively collect all test nodes under this category."""
+        tests = []
+
+        if self.tests:
+            tests.extend(self.tests)
+
+        if self.subjects:
+            for subject in self.subjects:
+                tests.extend(subject.get_all_tests())
+
+        return tests
 
 
-class TestCategory:
-    """
-    Represents one of the three main categories: base, bonus, or penalty.
-    Can contain a list of tests AND/OR a list of subjects.
-    """
-
-    def __init__(self, name, max_score=100):
-        self.name = name
-        self.max_score = max_score
-        self.subjects: List[Subject] = list()
-        self.tests: List[Test] = list()
-
-    def set_weight(self, weight):
-        self.max_score = weight
-
-    def add_subject(self, subject: Subject):
-        self.subjects.append(subject)
-
-    def add_subjects(self, subjects: List[Subject]) -> None:
-        self.subjects.extend(subjects)
-
-    def __repr__(self):
-        return f"TestCategory(name='{self.name}', max_score={self.max_score}, subjects={len(self.subjects)}, tests={len(self.tests)})"
-
-
+@dataclass
 class CriteriaTree:
-    """The ROOT of the criteria tree."""
+    """
+    Root of the criteria tree structure.
 
-    def __init__(self, bonus_weight=0, penalty_weight=0):
-        self.base = TestCategory("base")
-        self.bonus = TestCategory("bonus", max_score=bonus_weight)
-        self.penalty = TestCategory("penalty", max_score=penalty_weight)
+    Contains three main categories:
+    - base: Required grading criteria
+    - bonus: Optional bonus points
+    - penalty: Optional penalty points
+    """
+
+    base: CategoryNode
+    bonus: Optional[CategoryNode] = None
+    penalty: Optional[CategoryNode] = None
 
     def __repr__(self):
-        return "Criteria(categories=['base', 'bonus', 'penalty'])"
+        categories = ["base"]
+        if self.bonus:
+            categories.append("bonus")
+        if self.penalty:
+            categories.append("penalty")
+        return f"CriteriaTree(categories={categories})"
 
     def print_tree(self):
         """Prints a visual representation of the entire criteria tree."""

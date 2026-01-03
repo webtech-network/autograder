@@ -29,7 +29,7 @@ class CheckFileExists(TestFunction):
     def execute(self, filename: str) -> TestResult:
         request = request_context.get_request()
         submission_files = request.submission_files
-        
+
         if filename in submission_files:
             return TestResult(
                 self.name,
