@@ -1,5 +1,6 @@
 import logging
-from typing import Dict, Optional, Sequence, override
+from typing import Dict, Optional, Sequence
+from typing_extensions import override
 from autograder.models.criteria_tree import (
     CategoryNode,
     CriteriaTree,

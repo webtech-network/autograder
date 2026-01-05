@@ -19,7 +19,7 @@ class CriteriaTreeFormatter(CriteriaTreeProcesser):
 
     @override
     def process_subject(self, subject: "SubjectNode") -> str:
-        return f"📘{subject.name} (weight: {subject.weight})"
+        return f"📘 {subject.name} (weight: {subject.weight})"
 
     @override
     def process_category(self, category: "CategoryNode") -> str:
