@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class SubjectConfig(BaseModel):
-    subject_name: str = Field(..., description="Name of the subject")
+    name: str = Field(..., description="Name of the subject")
     weight: float = Field(
         ..., ge=0, le=100, description="Weight of this subject (0-100)"
     )
@@ -15,7 +15,7 @@ class SubjectConfig(BaseModel):
         None, description="Nested subjects"
     )
     subjects_weight: Optional[int] = Field(
-        ...,
+        None,
         ge=0,
         le=100,
         description="Weight of the subject when it is a heterogeneous tree",
@@ -31,7 +31,7 @@ class SubjectConfig(BaseModel):
         has_subject_weight = self.subjects_weight is not None
 
         if not has_tests and not has_subjects:
-            raise ValueError("Category must have at least 'tests' or 'subjects'.")
+            raise ValueError("Subject must have at least 'tests' or 'subjects'.")
 
         if has_tests and has_subjects and not has_subject_weight:
             raise ValueError(

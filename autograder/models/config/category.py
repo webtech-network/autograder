@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class CategoryConfig(BaseModel):
-    subject_name: str = Field(..., description="Name of the subject")
+    name: str = Field(..., description="Name of the subject")
     weight: float = Field(
         ..., ge=0, le=100, description="Weight of this subject (0-100)"
     )
@@ -15,7 +15,7 @@ class CategoryConfig(BaseModel):
     )
     subjects: Optional[List[SubjectConfig]] = Field(None, description="Nested subjects")
     subjects_weight: Optional[int] = Field(
-        ...,
+        None,
         ge=0,
         le=100,
         description="Weight of the subject when it is a heterogeneous tree",
@@ -35,7 +35,7 @@ class CategoryConfig(BaseModel):
 
         if has_tests and has_subjects and not has_subject_weight:
             raise ValueError(
-                "Subject needs 'subjects_weight' defined when has tests and subjects"
+                "Category needs 'subjects_weight' defined when has tests and subjects"
             )
 
         return self
