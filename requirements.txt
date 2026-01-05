@@ -8,7 +8,7 @@ openai==1.93.0
 requests~=2.32.4
 beautifulsoup4~=4.13.4
 dotenv~=0.9.9
-pydantic
+pydantic~=2.12.5
 python-dotenv~=1.1.1
 upstash-redis==1.4.0
 fastapi~=0.115.0

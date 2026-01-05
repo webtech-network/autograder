@@ -10,16 +10,16 @@ from autograder.steps.build_tree_step import BuildTreeStep
 
 
 def build_pipeline(
-                 template_name,
-                 include_feedback,
-                 grading_criteria,
-                 feedback_config,
-                 setup_config = None,
-                 custom_template = None,
-                 feedback_mode = None,
-                 submission_files = None,
-                 submission_id = None,
-                 is_multi_submission = False):
+    template_name,
+    include_feedback,
+    grading_criteria,
+    feedback_config,
+    setup_config=None,
+    custom_template=None,
+    feedback_mode=None,
+    submission_files=None,
+    submission_id=None,
+):
     """
     Build an autograder pipeline based on configuration.
 
@@ -47,21 +47,13 @@ def build_pipeline(
     # Load template
     pipeline.add_step(TemplateLoaderStep(template_name, custom_template))
 
-    # Conditional tree building and grading based on submission count
-    if is_multi_submission:
-        # Multi-submission mode: Build tree once, then grade
-        pipeline.add_step(BuildTreeStep(grading_criteria))
-        pipeline.add_step(GradeStep(
-            submission_files=submission_files,
-            submission_id=submission_id
-        ))
-    else:
-        # Single submission mode: Grade directly from config (one-pass)
-        pipeline.add_step(GradeStep(
-            criteria_json=grading_criteria,
-            submission_files=submission_files,
-            submission_id=submission_id
-        ))
+    # Parse the criteria tree
+    pipeline.add_step(BuildTreeStep(grading_criteria))
+
+    # Grade
+    pipeline.add_step(
+        GradeStep(submission_files=submission_files, submission_id=submission_id)
+    )
 
     # Feedback generation (if configured)
     if include_feedback:
@@ -72,9 +64,3 @@ def build_pipeline(
     pipeline.add_step(ExporterStep(UpstashDriver))
 
     return pipeline
-
-
-
-
-
-
