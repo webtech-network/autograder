@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 from autograder.utils.formatters.criteria_tree import CriteriaTreeFormatter
 
 if TYPE_CHECKING:
-    from autograder.models.criteria_tree import CriteriaTree, TestCategory, Subject
+    from autograder.models.criteria_tree import CriteriaTree, CategoryNode, SubjectNode
 
 
 class CriteriaTreePrinter:
@@ -19,7 +19,7 @@ class CriteriaTreePrinter:
     def __print_with_depth(self, formatted: str) -> None:
         print(f"{'    ' * self.__depth}{formatted}")
 
-    def __print_children(self, parent: "TestCategory | Subject") -> None:
+    def __print_children(self, parent: "CategoryNode | SubjectNode") -> None:
         for subject in parent.subjects:
             self.print_subject(subject)
 
@@ -28,18 +28,20 @@ class CriteriaTreePrinter:
             for line in lines:
                 self.__print_with_depth(line)
 
-    def print_subject(self, subject: "Subject") -> None:
+    def print_subject(self, subject: "SubjectNode") -> None:
         self.__increase_depth()
         self.__print_with_depth(self.__formatter.process_subject(subject))
         self.__print_children(subject)
         self.__decrease_depth()
 
-    def print_category(self, category: "TestCategory") -> None:
+    def print_category(self, category: "CategoryNode") -> None:
         self.__print_with_depth(self.__formatter.process_category(category))
         self.__print_children(category)
 
     def print_tree(self, tree: "CriteriaTree") -> None:
         self.__print_with_depth(self.__formatter.header())
         self.print_category(tree.base)
-        self.print_category(tree.bonus)
-        self.print_category(tree.penalty)
+        if tree.bonus:
+            self.print_category(tree.bonus)
+        if tree.penalty:
+            self.print_category(tree.penalty)

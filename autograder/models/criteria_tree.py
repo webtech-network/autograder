@@ -8,7 +8,6 @@ embedded during tree building (no more lazy loading or pre-execution).
 from typing import List, Optional, Any
 from dataclasses import dataclass, field
 
-from autograder.utils.formatters.criteria_tree import PreExecutedTreeFormatter
 from autograder.utils.printers.criteria_tree import CriteriaTreePrinter
 
 
@@ -133,9 +132,4 @@ class CriteriaTree:
     def print_tree(self):
         """Prints a visual representation of the entire criteria tree."""
         printer = CriteriaTreePrinter()
-        printer.print_tree(self)
-
-    def print_pre_executed_tree(self):
-        """Prints a visual representation of the entire pre-executed criteria tree."""
-        printer = CriteriaTreePrinter(PreExecutedTreeFormatter())
         printer.print_tree(self)
