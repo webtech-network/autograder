@@ -19,7 +19,7 @@ class TestConfig(BaseModel):
         None, description="Target file for the test (if applicable)"
     )
     parameters: Optional[List[ParameterConfig]] = Field(
-        default_factory=list, description="Named parameters for the test function"
+        None, description="Named parameters for the test function"
     )
 
     model_config = {"extra": "forbid"}
