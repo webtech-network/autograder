@@ -47,19 +47,21 @@ class CriteriaTreeGrader(CriteriaTreeProcesser):
         if holder.subjects and holder.tests:
             if not holder.subjects_weight:
                 raise ValueError(f"missing 'subjects_weight' for {holder.name}")
-            factor = holder.subjects_weight / 100.0
+            subjects_factor = holder.subjects_weight / 100.0
+            tests_factor = 1 - subjects_factor
         else:
-            factor = 1.0
+            subjects_factor = 1.0
+            tests_factor = 1.0
 
         if holder.subjects:
             subject_results = [
                 self.process_subject(inner_subject) for inner_subject in holder.subjects
             ]
-            self.__balance_nodes(subject_results, factor)
+            self.__balance_nodes(subject_results, subjects_factor)
 
         if holder.tests:
             test_results = [self.process_test(test) for test in holder.tests]
-            self.__balance_nodes(test_results, factor)
+            self.__balance_nodes(test_results, tests_factor)
 
         return result
 
