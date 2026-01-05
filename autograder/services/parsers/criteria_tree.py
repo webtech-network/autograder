@@ -1,6 +1,5 @@
-from typing import Dict, List, Optional, override
+from typing import List, Optional
 
-from autograder.models.abstract import test_function
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.config.category import CategoryConfig

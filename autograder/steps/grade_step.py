@@ -1,10 +1,8 @@
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.dataclass.grading_result import GradingResult
 from autograder.models.dataclass.step_result import StepResult, StepStatus
 from autograder.models.abstract.step import Step
-from autograder.models.abstract.template import Template
-from autograder.models.dataclass.criteria_config import CriteriaConfig
 from autograder.services.grader_service import GraderService
 
 
@@ -21,7 +19,6 @@ class GradeStep(Step):
         self,
         submission_files: Dict[str, Any],
         submission_id: Optional[str],
-        criteria_json: Optional[Dict] = None,
     ):
         """
         Initialize the grade step.
@@ -31,14 +28,11 @@ class GradeStep(Step):
             submission_files: Student submission files
             submission_id: Optional identifier for the submission
         """
-        self._criteria_json = criteria_json
         self._submission_files = submission_files
         self._submission_id = submission_id
         self._grader_service = GraderService()
 
-    def execute(
-        self, input: Union[CriteriaTree, Template]
-    ) -> StepResult[GradingResult]:
+    def execute(self, input: CriteriaTree) -> StepResult[GradingResult]:
         """
         Grade a submission based on the input type.
 
@@ -49,31 +43,11 @@ class GradeStep(Step):
             StepResult containing GradingResult with scores and result tree
         """
         try:
-            # Determine which grading method to use based on input type
-            if isinstance(input, CriteriaTree):
-                # Multi-submission mode: grade from pre-built tree
-                result_tree = self._grader_service.grade_from_tree(
-                    criteria_tree=input,
-                    submission_files=self._submission_files,
-                    submission_id=self._submission_id,
-                )
-            elif isinstance(input, Template):
-                # Single submission mode: grade directly from config
-                if not self._criteria_json:
-                    raise ValueError(
-                        "criteria_json is required when grading from template"
-                    )
-
-                # Validate criteria configuration
-                criteria_config = CriteriaConfig.from_dict(self._criteria_json)
-
-                # Grade directly from config (one-pass)
-                result_tree = self._grader_service.grade_from_config(
-                    criteria_config=criteria_config,
-                    template=input,
-                    submission_files=self._submission_files,
-                    submission_id=self._submission_id,
-                )
+            result_tree = self._grader_service.grade_from_tree(
+                criteria_tree=input,
+                submission_files=self._submission_files,
+                submission_id=self._submission_id,
+            )
 
             # Create grading result
             final_score = result_tree.calculate_final_score()

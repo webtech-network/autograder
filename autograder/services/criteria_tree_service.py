@@ -1,10 +1,9 @@
 import logging
-from typing import Optional
 
 from autograder.models.abstract.template import Template
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import CriteriaTree
-from autograder.parsers.criteria_tree import CriteriaTreeParser
+from autograder.services.parsers.criteria_tree import CriteriaTreeParser
 
 
 class CriteriaTreeService:

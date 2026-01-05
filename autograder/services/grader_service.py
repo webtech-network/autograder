@@ -1,10 +1,10 @@
 import logging
 
 from typing import Dict, Any, Optional
-from autograder.graders.criteria_tree import CriteriaTreeGrader
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.result_tree import ResultTree
 from autograder.services.criteria_tree_service import CriteriaTreeService
+from autograder.services.graders.criteria_tree import CriteriaTreeGrader
 
 
 class GraderService:
