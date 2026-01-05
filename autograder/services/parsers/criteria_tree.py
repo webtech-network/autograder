@@ -26,8 +26,7 @@ class CriteriaTreeParser:
     def __parse_subject(self, config: SubjectConfig) -> SubjectNode:
         subject = SubjectNode(config.name, config.weight)
 
-        if config.subjects_weight:
-            subject.subjects_weight = config.subjects_weight
+        subject.subjects_weight = config.subjects_weight
 
         if config.subjects:
             subject.subjects = self.__parse_subjects(config.subjects)
@@ -70,6 +69,8 @@ class CriteriaTreeParser:
 
     def __parse_category(self, category_name, config: CategoryConfig) -> CategoryNode:
         category = CategoryNode(category_name, config.weight)
+
+        category.subjects_weight = config.subjects_weight
 
         if config.subjects:
             category.add_subjects(self.__parse_subjects(config.subjects))
