@@ -58,10 +58,12 @@ class CriteriaTreeGrader(CriteriaTreeProcesser):
                 self.process_subject(inner_subject) for inner_subject in holder.subjects
             ]
             self.__balance_nodes(subject_results, subjects_factor)
+            result.children.extend(subject_results)
 
         if holder.tests:
             test_results = [self.process_test(test) for test in holder.tests]
             self.__balance_nodes(test_results, tests_factor)
+            result.children.extend(test_results)
 
         return result
 
