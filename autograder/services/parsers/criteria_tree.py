@@ -42,7 +42,7 @@ class CriteriaTreeParser:
         if total_weight > 0 and total_weight != 100:
             scaling_factor = 100 / total_weight
             for subject in subjects:
-                subject.weight = round(subject.weight * scaling_factor)
+                subject.weight = subject.weight * scaling_factor
 
     def __parse_tests(self, test_configs: List[TestConfig]) -> List[TestNode]:
         return [self.__parse_test(test_item) for test_item in test_configs]
