@@ -97,7 +97,7 @@ class Autograder:
             error_message = f"An unexpected error occurred during the grading process: {str(e)}"
             logger.error(error_message)
             logger.exception("Full exception traceback:")
-            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message, test_report=[])
+            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message)
 
     @staticmethod
     def _pre_flight_step():
@@ -121,7 +121,7 @@ class Autograder:
         template_name = req.assignment_config.template
         if template_name == "custom":
             logger.info(f"Loading custom test template provided!")
-            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template)
+            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template_str)
         else:
             logger.info(f"Loading test template: '{template_name}'")
             test_template = TemplateLibrary.get_template(template_name)
@@ -409,7 +409,7 @@ if __name__ == "__main__":
         print(facade_response.feedback)
         print("\n--- Test Report ---")
         if facade_response.test_report:
-            for test in facade_response.test_report:
+            for test in facade_response.test_report: #pylint: disable=not-an-iterable
                 print(f"- {test.subject_name}: {test.test_name} -> Score: {test.score}, Report: {test.report}")
         else:
             print("No test report generated.")
