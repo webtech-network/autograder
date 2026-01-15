@@ -1,4 +1,4 @@
-from typing import List, Any
+from typing import List, Any, Dict
 from autograder.context import request_context
 from autograder.core.models.test_result import TestResult
 
@@ -9,13 +9,6 @@ from autograder.core.models.test_result import TestResult
 # ===============================================================
 # 1. Classes for Test Execution
 # ===============================================================
-class TestCall:
-    """Represents a single invocation of a test function with its arguments."""
-    def __init__(self, args: List[Any]):
-        self.args = args
-
-    def __repr__(self):
-        return f"TestCall(args={self.args})"
 
 # ===============================================================
 # 2. Classes for the Tree Structure
@@ -23,21 +16,18 @@ class TestCall:
 
 class Test:
     """
-    Represents a group of calls to a single test function in the library.
+    Represents a single test function with its parameters.
     This is a LEAF node in the grading tree.
     """
     def __init__(self, name: str, filename: str = None):
         self.name = name
         self.file = filename  # The file this test operates on (e.g., "index.html")
-        self.calls: List[TestCall] = []
-
-    def add_call(self, call: TestCall):
-        self.calls.append(call)
+        self.parameters: Dict[str, Any] = {}
 
     def get_result(self, test_library, submission_files, subject_name: str) -> List[TestResult]:
         #pylint: disable=too-many-function-args
         """
-        Retrieves a TestFunction object from the library and executes it for each TestCall.
+        Retrieves a TestFunction object from the library and executes it with the parameters.
         """
         try:
             # Get the TestFunction instance (e.g., HasTag()) from the library
@@ -56,28 +46,33 @@ class Test:
                     return [TestResult(self.name, 0, f"Erro: O arquivo necessário '{self.file}' não foi encontrado na submissão.", subject_name)]
 
         # --- Execution Logic ---
-        if not self.calls:
-            # Execute with just the file content if no specific calls are defined
-            if file_content_to_pass:
-                result = test_function_instance.execute(file_content_to_pass)
+        # Execute the test with the parameters
+        try:
+            if file_content_to_pass is not None:
+                # If parameters is a dict, pass as kwargs
+                if isinstance(self.parameters, dict):
+                    result = test_function_instance.execute(file_content_to_pass, **self.parameters)
+                # If parameters is a list (old format), pass as args
+                elif isinstance(self.parameters, list):
+                    result = test_function_instance.execute(file_content_to_pass, *self.parameters)
+                else:
+                    result = test_function_instance.execute(file_content_to_pass)
             else:
-                result = test_function_instance.execute()
+                # No file content
+                if isinstance(self.parameters, dict):
+                    result = test_function_instance.execute(**self.parameters)
+                elif isinstance(self.parameters, list):
+                    result = test_function_instance.execute(*self.parameters)
+                else:
+                    result = test_function_instance.execute()
+            
             result.subject_name = subject_name
             return [result]
-
-        results = []
-        for call in self.calls:
-            # Execute the 'execute' method of the TestFunction instance
-            if file_content_to_pass:
-                result = test_function_instance.execute(file_content_to_pass, *call.args)
-            else:
-                result = test_function_instance.execute(*call.args)
-            result.subject_name = subject_name
-            results.append(result)
-        return results
+        except TypeError as e:
+            return [TestResult(self.name, 0, f"ERROR: Incorrect parameters for test '{self.name}': {e}", subject_name)]
 
     def __repr__(self):
-        return f"Test(name='{self.name}', file='{self.file}', calls={len(self.calls)})"
+        return f"Test(name='{self.name}', file='{self.file}', parameters={self.parameters})"
 
 class Subject:
     """
@@ -151,8 +146,8 @@ class Criteria:
         if category.tests:
             for test in category.tests:
                 print(f"{prefix}    - 🧪 {test.name} (file: {test.file})")
-                for call in test.calls:
-                    print(f"{prefix}      - Parameters: {call.args}")
+                if test.parameters:
+                    print(f"{prefix}      - Parameters: {test.parameters}")
 
     def _print_subject(self, subject: Subject, prefix: str):
         """Recursive helper method to print a subject and its contents."""
@@ -165,8 +160,8 @@ class Criteria:
         if subject.tests is not None:
             for test in subject.tests:
                 print(f"{prefix}  - 🧪 {test.name} (file: {test.file})")
-                for call in test.calls:
-                    print(f"{prefix}    - Parameters: {call.args}")
+                if test.parameters:
+                    print(f"{prefix}    - Parameters: {test.parameters}")
 
     def print_pre_executed_tree(self):
         """Prints a visual representation of the entire pre-executed criteria tree."""
@@ -214,8 +209,8 @@ class Criteria:
                 elif isinstance(result, Test):
                     print(f"{prefix} - 🧪 {result.name} (file: {result.file})")
                     """Added the symbol identificator to match the previous formatting"""
-                    for call in result.calls:
-                        print(f"{prefix}    - Parameters: {call.args}")
+                    if result.parameters:
+                        print(f"{prefix}    - Parameters: {result.parameters}")
                 else:
                     # Fallback for unexpected types
                     print(f"{prefix}  - ? Unexpected item in tests list: {result}")

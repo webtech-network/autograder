@@ -2,24 +2,37 @@
   "test_library": "essay",
   "base": {
     "weight": 100,
-    "subjects": {
-      "foundations": {
+    "subjects": [
+      {
+        "subject_name": "foundations",
         "weight": 60,
         "tests": [
-          { "file": "essay.txt", "name": "thesis_statement" },
-          { "file": "essay.txt", "name": "clarity_and_cohesion" }
+          {
+            "file": "essay.txt",
+            "name": "thesis_statement"
+          },
+          {
+            "file": "essay.txt",
+            "name": "clarity_and_cohesion"
+          }
         ]
       },
-      "prompt_adherence": {
+      {
+        "subject_name": "prompt_adherence",
         "weight": 40,
         "tests": [
           {
             "file": "essay.txt",
             "name": "adherence_to_prompt",
-            "calls": [["Discuss the impact of AI on the workforce."]]
+            "parameters": [
+              {
+                "name": "prompt_requirements",
+                "value": "Discuss the impact of AI on the workforce."
+              }
+            ]
           }
         ]
       }
-    }
+    ]
   }
 }

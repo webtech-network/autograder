@@ -7,7 +7,7 @@ from autograder.builder.models.template import Template
 
 class TemplateLibrary:
     @staticmethod
-    def get_template(template_name: str, custom_template_content: str = None, clean=False):
+    def get_template(template_name: str, custom_template_content: str = None):
         if template_name == "custom":
             if not custom_template_content:
                 raise ValueError("Custom template content must be provided for 'custom' template type.")
@@ -15,16 +15,16 @@ class TemplateLibrary:
 
         if template_name == "webdev":
             from autograder.builder.template_library.templates.web_dev import WebDevTemplate
-            return WebDevTemplate(clean)
+            return WebDevTemplate()
         if template_name == "api":
             from autograder.builder.template_library.templates.api_testing import ApiTestingTemplate
-            return ApiTestingTemplate(clean)
+            return ApiTestingTemplate()
         if template_name == "essay":
             from autograder.builder.template_library.templates.essay_grader import EssayGraderTemplate
-            return EssayGraderTemplate(clean)
+            return EssayGraderTemplate()
         if template_name == "io":
             from autograder.builder.template_library.templates.input_output import InputOutputTemplate
-            return InputOutputTemplate(clean)
+            return InputOutputTemplate()
         else:
             raise ValueError(f"Template '{template_name}' not found.")
 
@@ -82,7 +82,7 @@ class TemplateLibrary:
                 ...
         """
         #1. Retrieve an instance of the template from the library
-        template = TemplateLibrary.get_template(template_name, clean=True)
+        template = TemplateLibrary.get_template(template_name)
         if not template:
             raise ValueError(f"Template '{template_name}' not found.")
         
