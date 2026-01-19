@@ -403,13 +403,13 @@ if __name__ == "__main__":
 
         # 8. Print the results
         logger.info("--- Grading Complete ---")
-        print(f"Status: {facade_response.status}")
-        print(f"Final Score: {facade_response.final_score}")
-        print("\n--- Feedback ---")
-        print(facade_response.feedback)
-        print("\n--- Test Report ---")
+        logger.info(f"Status: {facade_response.status}")
+        logger.info(f"Final Score: {facade_response.final_score}")
+        logger.info("\n--- Feedback ---")
+        logger.info(facade_response.feedback)
+        logger.info("\n--- Test Report ---")
         if facade_response.test_report:
             for test in facade_response.test_report:
-                print(f"- {test.subject_name}: {test.test_name} -> Score: {test.score}, Report: {test.report}")
+                logger.info(f"- {test.subject_name}: {test.test_name} -> Score: {test.score}, Report: {test.report}")
         else:
-            print("No test report generated.")
+            logger.info("No test report generated.")
