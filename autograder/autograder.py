@@ -38,9 +38,9 @@ def build_pipeline(
     pipeline = AutograderPipeline()
 
     # Load template
-    pipeline.add_step(TemplateLoaderStep(template_name, custom_template))
+    pipeline.add_step(TemplateLoaderStep(template_name, custom_template)) # Passes the template to the next step
 
-    pipeline.add_step(BuildTreeStep(grading_criteria))
+    pipeline.add_step(BuildTreeStep(grading_criteria)) # Uses template to match selected tests in criteria and builds tree
 
     # Pre-flight checks (if configured)
     if setup_config:
@@ -48,16 +48,15 @@ def build_pipeline(
 
     pipeline.add_step(GradeStep(
         submission_files=submission_files,
-        submission_id=submission_id
-    ))
+    )) # Generates GradingResult with final score and result tree
 
     # Feedback generation (if configured)
     if include_feedback:
-        reporter_service = ReporterFactory.create_reporter_for(feedback_mode)
-        pipeline.add_step(FeedbackStep(reporter_service, feedback_config))
+        reporter_service = ReporterFactory.create_reporter_for(feedback_mode,)
+        pipeline.add_step(FeedbackStep(reporter_service, feedback_config)) # Uses GradingResult to generate feedback and appends it to GradingResult
 
     # Export results
-    pipeline.add_step(ExporterStep(UpstashDriver))
+    pipeline.add_step(ExporterStep(UpstashDriver)) # Exports final results and feedback
 
     return pipeline
 
