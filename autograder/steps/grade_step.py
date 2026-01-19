@@ -18,7 +18,6 @@ class GradeStep(Step):
     def __init__(
         self,
         submission_files: Dict[str, Any],
-        submission_id: Optional[str],
     ):
         """
         Initialize the grade step.
@@ -26,10 +25,8 @@ class GradeStep(Step):
         Args:
             criteria_json: Raw criteria configuration (only needed for single submission mode)
             submission_files: Student submission files
-            submission_id: Optional identifier for the submission
         """
         self._submission_files = submission_files
-        self._submission_id = submission_id
         self._grader_service = GraderService()
 
     def execute(self, input: CriteriaTree) -> StepResult[GradingResult]:
