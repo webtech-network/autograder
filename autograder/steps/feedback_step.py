@@ -12,4 +12,9 @@ class FeedbackStep(Step):
 
     def execute(self, input: GradingResult) -> GradingResult:
         """Adds feedback to the grading result using the reporter service."""
-        pass
+        feedback = self._reporter_service.generate_feedback(
+            grading_result=input,
+            config=self._feedback_config
+        )
+        input.feedback = feedback
+        return input
