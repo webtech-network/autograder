@@ -10,7 +10,7 @@ class AutograderPipeline:
     def add_step(self, step: Step) -> None:
         self._steps.append(step)
 
-    def run(self, input_data):
+    def run(self, input_data:'Submission'):
         result = StepResult(data=input_data, status=StepStatus.SUCCESS, original_input=input_data) #Initialize result object with input data
 
         for step in self._steps:
