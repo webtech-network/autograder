@@ -16,7 +16,6 @@ class GraderService:
         self,
         criteria_tree: CriteriaTree,
         submission_files: Dict[str, Any],
-        submission_id: Optional[str] = None,
     ) -> ResultTree:
         grader = CriteriaTreeGrader(submission_files)
-        return grader.grade(criteria_tree, submission_id)
+        return grader.grade(criteria_tree)

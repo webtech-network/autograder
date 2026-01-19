@@ -189,7 +189,6 @@ class ResultTree:
     and tree traversal.
     """
     root: ResultNode
-    submission_id: Optional[str] = None
     template_name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -227,7 +226,6 @@ class ResultTree:
     def to_dict(self) -> dict:
         """Convert entire result tree to dictionary."""
         return {
-            "submission_id": self.submission_id,
             "template_name": self.template_name,
             "final_score": round(self.root.score, 2),
             "tree": self.root.to_dict(),
@@ -251,8 +249,6 @@ class ResultTree:
         print("=" * 70)
 
         # Print header info
-        if self.submission_id:
-            print(f"📝 Submission: {self.submission_id}")
         if self.template_name:
             print(f"📋 Template: {self.template_name}")
 
@@ -358,8 +354,6 @@ class ResultTree:
         print("📊 GRADING SUMMARY")
         print("=" * 70)
 
-        if self.submission_id:
-            print(f"Submission: {self.submission_id}")
 
         print(f"\n🏆 Final Score: {self.root.score:.2f}/100")
 

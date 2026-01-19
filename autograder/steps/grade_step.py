@@ -45,8 +45,7 @@ class GradeStep(Step):
         try:
             result_tree = self._grader_service.grade_from_tree(
                 criteria_tree=input,
-                submission_files=self._submission_files,
-                submission_id=self._submission_id,
+                submission_files=self._submission_files
             )
 
             # Create grading result

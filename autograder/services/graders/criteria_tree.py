@@ -105,8 +105,7 @@ class CriteriaTreeGrader(CriteriaTreeProcesser):
 
         return None
 
-    def grade(self, tree: CriteriaTree, submission_id: Optional[str]) -> ResultTree:
-        self.logger.info(f"Grading from tree for submission: {submission_id}")
+    def grade(self, tree: CriteriaTree) -> ResultTree:
 
         root = ResultNode(name="root", node_type=NodeType.CATEGORY, weight=100.0)
 
@@ -121,7 +120,7 @@ class CriteriaTreeGrader(CriteriaTreeProcesser):
             penalty_result = self.process_category(tree.penalty)
             root.children.append(penalty_result)
 
-        result_tree = ResultTree(root, submission_id)
+        result_tree = ResultTree(root)
 
         # Handle AI executor batch if needed
         # Note: For tree-based grading, the template is embedded in test nodes
