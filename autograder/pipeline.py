@@ -12,8 +12,9 @@ class AutograderPipeline:
 
     def run(self, input_data:'Submission'):
         result = StepResult(data=input_data, status=StepStatus.SUCCESS, original_input=input_data) #Initialize result object with input data
-
+        print(result)
         for step in self._steps:
+            print("Executing step:", step.__class__.__name__)
             if not result.is_successful:
                 break
             try:

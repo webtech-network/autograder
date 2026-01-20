@@ -1,11 +1,12 @@
 from typing import List
 
-from autograder.models import dataclass
+from dataclasses import dataclass
 
 @dataclass
 class SubmissionFile:
     filename: str
     content: str
+
 @dataclass
 class Submission:
     username: str
