@@ -1,0 +1,12 @@
+{
+  "general": {
+    "report_title": "Custom Template Assignment Feedback",
+    "show_passed_tests": true,
+    "show_test_details": true
+  },
+  "default": {
+    "category_headers": {
+      "base": "Custom Template Requirements"
+    }
+  }
+}

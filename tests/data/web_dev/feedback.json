@@ -1,0 +1,15 @@
+{
+  "general": {
+    "report_title": "Web Development Assignment Feedback",
+    "show_passed_tests": true,
+    "show_test_details": true
+  },
+  "default": {
+    "category_headers": {
+      "base": "Core Web Development Requirements",
+      "html_structure": "HTML Structure & Semantics",
+      "css_styling": "CSS Styling & Design",
+      "javascript_functionality": "JavaScript Functionality"
+    }
+  }
+}
