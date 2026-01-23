@@ -20,4 +20,9 @@ jobs:
         pip install pylint
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py')
+        files=$(git diff --name-only ${{ github.sha }} ${{ github.sha }}^ -- '*.py')
+        if [ -n "$files" ]; then
+          pylint $files
+        else
+          echo "No Python files changed in this commit. Skipping pylint."
+        fi
