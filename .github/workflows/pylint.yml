@@ -20,4 +20,13 @@ jobs:
         pip install pylint
     - name: Analysing the code with pylint
       run: |
-        pylint $(git diff --name-only ${{ github.sha }} ${{ github.sha }}^ -- '*.py')
+        echo CI_COMMIT_SHA=${CI_COMMIT_SHA}
+        echo CI_MERGE_REQUEST_TARGET_BRANCH_NAME=${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}
+        git fetch origin ${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}
+        tmp_files=$(git diff --name-only ${CI_COMMIT_SHA} origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME})
+        echo "Changed files are $tmp_files"
+        if [ -z "$(echo "$tmp_files" | grep "\.py")" ]; then exit 0; else echo "Python files are found"; fi
+        tmp_pfiles=$(echo "$tmp_files" | grep "\.py")
+        echo "Python files are $tmp_pfiles"
+        mkdir ./pylint
+        pylint $tmp_pfiles | tee ./pylint/pylint.log || pylint-exit $?
