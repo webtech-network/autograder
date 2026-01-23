@@ -396,6 +396,7 @@ if __name__ == "__main__":
             feedback_mode="default"  # Use default feedback for simplicity
         )
 
+        # 7. Run the grading process
         logger = logging.getLogger(__name__)
         logger.info("--- Running Local Web Dev Test ---")
         facade_response = Autograder.grade(request)
