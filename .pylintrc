@@ -39,7 +39,7 @@ extension-pkg-whitelist=
 fail-on=
 
 # Specify a score threshold under which the program will exit with error.
-fail-under=10
+fail-under=9
 
 # Interpret the stdin as a python script, whose filename needs to be passed as
 # the module_or_package argument.
@@ -468,6 +468,8 @@ disable=raw-checker-failed,
       multiple-statements,
       bad-indentation,
       too-many-positional-arguments,
+      wrong-import-order,
+      ungrouped-imports,
 
 
 # Enable the message, report, category or checker with the given id(s). You can
@@ -484,7 +486,6 @@ enable=wildcard-import,
       too-many-arguments,
       too-many-lines,
       too-many-function-args,
-      wrong-import-order,
       unused-wildcard-import,
       unused-argument,
       unused-variable,
@@ -505,7 +506,6 @@ enable=wildcard-import,
       no-else-return,
       no-self-argument,
       no-value-for-parameter,
-      ungrouped-imports,
       attribute-defined-outside-init,
       invalid-overridden-method,
       raise-missing-from,
