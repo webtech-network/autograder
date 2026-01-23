@@ -9,6 +9,9 @@ class RequestContext:
     """
     _instance = None
 
+    def __init__(self) -> None:
+        self.request = None
+
     @classmethod
     def get_instance(cls):
         """Gets the single instance of the class."""
@@ -29,4 +32,4 @@ class RequestContext:
         return self.request
 
 # Create a globally accessible instance
-request_context = RequestContext.get_instance()
+REQUEST_CONTEXT = RequestContext.get_instance()
