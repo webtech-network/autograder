@@ -28,4 +28,5 @@ class RequestContext:
             raise Exception("RequestContext has not been initialized. Call set_request() first.")
         return self.request
 
+# Create a globally accessible instance
 request_context = RequestContext.get_instance()
