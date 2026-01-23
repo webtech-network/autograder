@@ -1,7 +1,10 @@
+import logging
 from typing import List, Any, Dict
 from autograder.context import request_context
 from autograder.core.models.test_result import TestResult
 
+
+logger = logging.getLogger(__name__)
 
 # Assuming TestResult is defined in a separate, importable file
 # from autograder.core.models.test_result import TestResult
@@ -128,7 +131,7 @@ class Criteria:
 
     def print_tree(self):
         """Prints a visual representation of the entire criteria tree."""
-        print(f"🌲 Criteria Tree")
+        logger.info("Criteria Tree")
         self._print_category(self.base, prefix="  ")
         self._print_category(self.bonus, prefix="  ")
         self._print_category(self.penalty, prefix="  ")
@@ -145,9 +148,9 @@ class Criteria:
         
         if category.tests:
             for test in category.tests:
-                print(f"{prefix}    - 🧪 {test.name} (file: {test.file})")
+                logger.info(f"    - {test.name} (file: {test.file})")
                 if test.parameters:
-                    print(f"{prefix}      - Parameters: {test.parameters}")
+                    logger.info(f"      - Parameters: {test.parameters}")
 
     def _print_subject(self, subject: Subject, prefix: str):
         """Recursive helper method to print a subject and its contents."""
@@ -159,13 +162,13 @@ class Criteria:
 
         if subject.tests is not None:
             for test in subject.tests:
-                print(f"{prefix}  - 🧪 {test.name} (file: {test.file})")
+                logger.info(f"  - {test.name} (file: {test.file})")
                 if test.parameters:
-                    print(f"{prefix}    - Parameters: {test.parameters}")
+                    logger.info(f"    - Parameters: {test.parameters}")
 
     def print_pre_executed_tree(self):
         """Prints a visual representation of the entire pre-executed criteria tree."""
-        print(f"🌲 Pre-Executed Criteria Tree")
+        logger.info("Pre-Executed Criteria Tree")
         self._print_pre_executed_category(self.base, prefix="  ")
         self._print_pre_executed_category(self.bonus, prefix="  ")
         self._print_pre_executed_category(self.penalty, prefix="  ")
@@ -185,9 +188,9 @@ class Criteria:
             for result in category.tests:
                 if isinstance(result, TestResult):
                     params_str = f" (Parameters: {result.parameters})" if result.parameters else ""
-                    print(f"{prefix}    - 📝 {result.test_name}{params_str} -> Score: {result.score}")
+                    logger.info(f"    - {result.test_name}{params_str} -> Score: {result.score}")
                 else:
-                    print(f"{prefix}    - ? Unexpected item in tests list: {result}")
+                    logger.info(f"    - Unexpected item in tests list: {result}")
 
     def _print_pre_executed_subject(self, subject: Subject, prefix: str):
         """Recursive helper method to print a subject and its pre-executed test results."""
@@ -204,16 +207,16 @@ class Criteria:
             for result in subject.tests:
                 if isinstance(result, TestResult):
                     params_str = f" (Parameters: {result.parameters})" if result.parameters else ""
-                    print(f"{prefix}  - 📝 {result.test_name}{params_str} -> Score: {result.score}")
+                    logger.info(f"  - {result.test_name}{params_str} -> Score: {result.score}")
 
                 elif isinstance(result, Test):
-                    print(f"{prefix} - 🧪 {result.name} (file: {result.file})")
+                    logger.info(f" - {result.name} (file: {result.file})")
                     """Added the symbol identificator to match the previous formatting"""
                     if result.parameters:
-                        print(f"{prefix}    - Parameters: {result.parameters}")
+                        logger.info(f"    - Parameters: {result.parameters}")
                 else:
                     # Fallback for unexpected types
-                    print(f"{prefix}  - ? Unexpected item in tests list: {result}")
+                    logger.info(f"  - Unexpected item in tests list: {result}")
 
 
 

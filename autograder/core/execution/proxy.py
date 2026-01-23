@@ -1,3 +1,5 @@
+import logging
+
 class LazyExecutorProxy:
     def __init__(self, executor_cls, *args, **kwargs):
         self._executor_cls = executor_cls
@@ -8,7 +10,8 @@ class LazyExecutorProxy:
     def _ensure_started(self):
         """Initializes the real executor only on first use."""
         if self._instance is None:
-            print(f"[{self._executor_cls.__name__}] Lazy start triggered...")
+            logger = logging.getLogger(__name__)
+            logger.debug(f"[{self._executor_cls.__name__}] Lazy start triggered...")
             self._instance = self._executor_cls.start(*self._args, **self._kwargs)
         return self._instance
 
