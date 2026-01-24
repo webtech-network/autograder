@@ -260,8 +260,7 @@ def run_essay_playroom():
         assignment_config=assignment_config,
         student_name="Alex Johnson",
         include_feedback=True,
-        feedback_mode="ai",
-        openai_key=openai_key
+        feedback_mode="ai"
     )
 
     # Execute grading
