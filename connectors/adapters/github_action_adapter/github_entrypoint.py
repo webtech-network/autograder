@@ -1,6 +1,10 @@
+import logging
 from argparse import ArgumentParser
 from connectors.adapters.github_action_adapter.github_adapter import GithubAdapter
 from connectors.models.assignment_config import AssignmentConfig
+
+logger = logging.getLogger(__name__)
+
 parser = ArgumentParser(description="GitHub Action Adapter for Autograder")
 parser.add_argument("--github-token", type=str, required=True, help="GitHub Token")
 parser.add_argument("--template-preset", type=str, required=True, help="The grading preset to use (e.g., api, html, python, etc.)")
@@ -35,7 +39,7 @@ async def main():
         pass
     else:
         assignment_config = adapter.create_assigment_config(template_preset)
-        print(assignment_config)
+        logger.info(f"Assignment config created: {assignment_config}")
 
     # Parse include_feedback value
     include_feedback = False
@@ -58,10 +62,11 @@ async def main():
 
     adapter.run_autograder()
 
-    print(f"Final Score for {student_name}: {adapter.autograder_response.final_score}")
+    logger.info(f"Final Score for {student_name}: {adapter.autograder_response.final_score}")
 
     adapter.export_results()
 
 if __name__ == "__main__":
     import asyncio
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     asyncio.run(main())

@@ -1,5 +1,4 @@
 import logging
-import os
 
 from autograder.builder.models.template import Template
 from autograder.context import request_context
@@ -31,7 +30,11 @@ class Autograder:
 
         # Set the request in the global context at the beginning of the process
         request_context.set_request(autograder_request)
-        
+        if autograder_request.openai_key:
+            logger.info("OpenAI key provided, AI feedback mode may be used")
+            logger.info("Setting environment variable for OpenAI key")
+            import os
+            os.environ["OPENAI_API_KEY"] = autograder_request.openai_key
         try:
 
             # Step 1: Handle Pre-flight checks if setup is defined
@@ -51,9 +54,8 @@ class Autograder:
             result = Autograder._start_and_run_grader()
             logger.info(f"Grading completed. Final score: {result.final_score}")
             
-            # Export final score if Redis credentials are available in environment
-            if os.environ.get("REDIS_TOKEN") and os.environ.get("REDIS_URL"):
-                Autograder.export_final_score(result.final_score)
+            if autograder_request.redis_token and autograder_request.redis_url:
+              Autograder.export_final_score(result.final_score)
 
             if autograder_request.include_feedback:
                 # Step 5: Setup feedback preferences
@@ -119,7 +121,7 @@ class Autograder:
         template_name = req.assignment_config.template
         if template_name == "custom":
             logger.info(f"Loading custom test template provided!")
-            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template_str)
+            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template)
         else:
             logger.info(f"Loading test template: '{template_name}'")
             test_template = TemplateLibrary.get_template(template_name)
@@ -173,13 +175,9 @@ class Autograder:
     def export_final_score(final_score):
         req = request_context.get_request()
         student_credentials = req.student_credentials
-        
-        redis_token = os.environ.get("REDIS_TOKEN")
-        redis_url = os.environ.get("REDIS_URL")
-        
-        if redis_token and redis_url:
+        if req.redis_token and req.redis_url:
             logger.info("Sending final score to Redis")
-            driver = Driver.create(redis_token, redis_url)
+            driver = Driver.create(req.redis_token, req.redis_url)
             if driver is not None:
                 if driver.user_exists(student_credentials):
                     driver.set_score(student_credentials, final_score)
@@ -210,19 +208,16 @@ class Autograder:
         elif feedback_mode == "ai":
             logger.info("Creating AI reporter")
 
-            openai_key = os.environ.get("OPENAI_API_KEY")
-            redis_url = os.environ.get("REDIS_URL")
-            redis_token = os.environ.get("REDIS_TOKEN")
-
-            if not all([openai_key, redis_url, redis_token]):
-                error_msg = "OpenAI key, Redis URL, and Redis token are required for AI feedback mode. These must be set as environment variables."
+            if not all(
+                    [req.openai_key,req.redis_url, req.redis_token]):
+                error_msg = "OpenAI key, Redis URL, and Redis token are required for AI feedback mode."
                 logger.error(error_msg)
                 raise ValueError(error_msg)
 
             logger.info("All AI requirements validated successfully")
 
             # Setup Redis driver
-            driver = Driver.create(redis_token, redis_url)
+            driver = Driver.create(req.redis_token, req.redis_url)
             student_credentials = req.student_credentials
 
 
@@ -408,13 +403,13 @@ if __name__ == "__main__":
 
         # 8. Print the results
         logger.info("--- Grading Complete ---")
-        print(f"Status: {facade_response.status}")
-        print(f"Final Score: {facade_response.final_score}")
-        print("\n--- Feedback ---")
-        print(facade_response.feedback)
-        print("\n--- Test Report ---")
+        logger.info(f"Status: {facade_response.status}")
+        logger.info(f"Final Score: {facade_response.final_score}")
+        logger.info("\n--- Feedback ---")
+        logger.info(facade_response.feedback)
+        logger.info("\n--- Test Report ---")
         if facade_response.test_report:
             for test in facade_response.test_report:
-                print(f"- {test.subject_name}: {test.test_name} -> Score: {test.score}, Report: {test.report}")
+                logger.info(f"- {test.subject_name}: {test.test_name} -> Score: {test.score}, Report: {test.report}")
         else:
-            print("No test report generated.")
+            logger.info("No test report generated.")

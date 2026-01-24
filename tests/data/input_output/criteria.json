@@ -1,33 +1,121 @@
 {
   "base": {
     "weight": 100,
-    "subjects": {
-      "basic_operations": {
+    "subjects": [
+      {
+        "subject_name": "basic_operations",
         "weight": 50,
         "tests": [
           {
             "name": "expect_output",
-            "calls": [
-              [["add", "5", "3"], "8"],
-              [["subtract", "10", "4"], "6"],
-              [["multiply", "7", "6"], "42"]
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": [
+                  "add",
+                  "5",
+                  "3"
+                ]
+              },
+              {
+                "name": "expected_output",
+                "value": "8"
+              }
+            ]
+          },
+          {
+            "name": "expect_output",
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": [
+                  "subtract",
+                  "10",
+                  "4"
+                ]
+              },
+              {
+                "name": "expected_output",
+                "value": "6"
+              }
+            ]
+          },
+          {
+            "name": "expect_output",
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": [
+                  "multiply",
+                  "7",
+                  "6"
+                ]
+              },
+              {
+                "name": "expected_output",
+                "value": "42"
+              }
             ]
           }
         ]
       },
-      "edge_cases": {
+      {
+        "subject_name": "edge_cases",
         "weight": 50,
         "tests": [
           {
             "name": "expect_output",
-            "calls": [
-              [["add", "0", "0"], "0"],
-              [["multiply", "5", "0"], "0"],
-              [["divide", "10", "2"], "5.0"]
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": [
+                  "add",
+                  "0",
+                  "0"
+                ]
+              },
+              {
+                "name": "expected_output",
+                "value": "0"
+              }
+            ]
+          },
+          {
+            "name": "expect_output",
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": [
+                  "multiply",
+                  "5",
+                  "0"
+                ]
+              },
+              {
+                "name": "expected_output",
+                "value": "0"
+              }
+            ]
+          },
+          {
+            "name": "expect_output",
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": [
+                  "divide",
+                  "10",
+                  "2"
+                ]
+              },
+              {
+                "name": "expected_output",
+                "value": "5.0"
+              }
             ]
           }
         ]
       }
-    }
+    ]
   }
 }

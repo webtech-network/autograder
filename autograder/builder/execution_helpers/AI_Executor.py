@@ -6,10 +6,9 @@ from pydantic import BaseModel, Field
 from autograder.context import request_context
 import dotenv
 from autograder.core.utils.secrets_fetcher import get_secret
+from autograder.builder.execution_helpers.base import ExecutionHelper
 
 dotenv.load_dotenv()  # Load environment variables from .env file
-
-request = request_context.get_request()
 class TestInput(BaseModel):
     """
     This class represents the input of a single test to be sent to the AI model, defined using Pydantic.
@@ -35,7 +34,7 @@ class AIResponseModel(BaseModel):
     results: List[TestOutput] = Field(description="A list of test results each test performed following the TestOutput format")
 
 
-class AiExecutor:
+class AiExecutor(ExecutionHelper):
     """
     This class is responsible for encapsulating the OpenAI communication logic.
     It handles sending prompts to the AI model and receiving responses.
@@ -45,16 +44,33 @@ class AiExecutor:
     def __init__(self):
         self.tests = []  # List[TestInput]
         self.test_result_references = []  # List[TestResult]
-        # Fixed: Initialized submission_files as an empty dictionary
-        self.submission_files = request.submission_files # Dict[filename:str, content:str]
         self.test_results = None  # The raw json response from the AI model.
-        self.client = OpenAI(api_key=get_secret("OPENAI_API_KEY", "AUTOGRADER_OPENAI_KEY", "us-east-1"))
+        
+        self.submission_files = None
+        self.client = None
+        self._initialized = False
+    
+    def _ensure_context(self):
+        """Lazy initialization of context-dependent resources."""
+        if not self._initialized:
+            request = request_context.get_request()
+            self.submission_files = request.submission_files
+            self.client = OpenAI(api_key=get_secret("OPENAI_API_KEY", "AUTOGRADER_OPENAI_KEY", "us-east-1"))
+            self._initialized = True
+    
+    @classmethod
+    def start(cls, **config):
+        """Create and initialize an AiExecutor instance."""
+        return cls()
 
-    def send_submission_files(self,submission_files):
+    def send_submission_files(self, submission_files):
         """Sets the submission files to be analyzed."""
         self.submission_files = submission_files
-    def add_test(self, test_name: str,test_prompt: str):
+    
+    def add_test(self, test_name: str, test_prompt: str):
         """Creates a Pydantic TestInput model and adds it to the test list."""
+        self._ensure_context()
+        
         test_input_model = TestInput(
             test_name=test_name,
             prompt=test_prompt
@@ -133,6 +149,10 @@ class AiExecutor:
         return submission_files_str
 
     def stop(self):
+        """Execute the AI batch request and cleanup."""
+        # Ensure context is initialized
+        self._ensure_context()
+        
         tests = self._create_test_batch()
         submission_files = self._create_submission_files_string()
         system_prompt = f"""
@@ -178,11 +198,10 @@ class AiExecutor:
             return []
 
 
-ai_executor = AiExecutor()
-
-
-
 if __name__ == "__main__":
+    # Create an instance for testing
+    ai_executor = AiExecutor.start()
+    
     text = {"text.txt":"""Artificial intelligence (AI) is no longer a concept confined to science fiction; it is a transformative force actively reshaping industries and redefining the nature of work. Its integration into the modern workforce presents a profound duality: on one hand, it offers unprecedented opportunities for productivity and innovation, while on the other, it poses significant challenges related to job displacement and economic inequality. Navigating this transition successfully requires a proactive and nuanced approach from policymakers, businesses, and individuals alike.
 The primary benefit of AI in the workplace is its capacity to augment human potential and drive efficiency. AI-powered systems can analyze vast datasets in seconds, automating routine cognitive and manual tasks, which frees human workers to focus on more complex, creative, and strategic endeavors. For instance, in medicine, AI algorithms assist radiologists in detecting tumors with greater accuracy, while in finance, they identify fraudulent transactions far more effectively than any human team. This collaboration between human and machine not only boosts output but also creates new roles centered around AI development, ethics, and system maintenance—jobs that did not exist a decade ago.
 However, this technological advancement casts a significant shadow of disruption. The same automation that drives efficiency also leads to job displacement, particularly for roles characterized by repetitive tasks. Assembly line workers, data entry clerks, and even some paralegal roles face a high risk of obsolescence. This creates a widening skills gap, where demand for high-level technical skills soars while demand for traditional skills plummets. Without robust mechanisms for reskilling and upskilling the existing workforce, this gap threatens to exacerbate socio-economic inequality, creating a divide between those who can command AI and those who are displaced by it. There are many gramatical errors in this sentence, for testing purposes.

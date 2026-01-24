@@ -20,10 +20,10 @@ sys.path.insert(0, str(project_root))
 
 
 # Import all playroom functions
-from tests.playroom.webdev_playroom import run_webdev_playroom
-from tests.playroom.api_playroom import run_api_playroom
-from tests.playroom.essay_playroom import run_essay_playroom
-from tests.playroom.io_playroom import run_io_playroom
+from tests.playroom.webdev_playroom import run_webdev_playroom #pylint: disable=no-name-in-module
+from tests.playroom.api_playroom import run_api_playroom  #pylint: disable=no-name-in-module
+from tests.playroom.essay_playroom import run_essay_playroom  #pylint: disable=no-name-in-module
+from tests.playroom.io_playroom import run_io_playroom  #pylint: disable=no-name-in-module
 
 
 # Map of playroom names to their runner functions
