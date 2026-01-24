@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+
 
 @dataclass
 class TestResult:
@@ -9,7 +10,7 @@ class TestResult:
     score: int
     report: str
     subject_name: str = ""
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
 
     def get_result(self, *args, **kwargs) :
         return [self]
