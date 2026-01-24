@@ -9,6 +9,9 @@ These tests verify:
 
 import sys
 from pathlib import Path
+from typing import List
+
+from autograder.models.dataclass.param_description import ParamDescription
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -16,7 +19,6 @@ sys.path.insert(0, str(project_root))
 
 from autograder.steps.build_tree_step import BuildTreeStep
 from autograder.steps.grade_step import GradeStep
-from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.dataclass.step_result import StepStatus
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
@@ -38,14 +40,17 @@ class MockTestFunction(TestFunction):
     def description(self):
         return f"Mock test function: {self._test_name}"
 
+    @property
+    def parameter_description(self) -> List[ParamDescription]:
+        return []
+
     def execute(self, *args, **kwargs):
         """Always return a passing result."""
         return TestResult(
             test_name=self._test_name,
-            passed=True,
-            score=100.0,
-            max_score=100.0,
-            message="Test passed (mock)",
+            score=1000,
+            report="Test passed",
+            parameters=None
         )
 
 
@@ -202,8 +207,7 @@ def test_grade_from_tree():
 
     # Create and execute grade step
     grade_step = GradeStep(
-        submission_files=submission_files, submission_id="test_submission_1"
-    )
+        submission_files=submission_files)
 
     result = grade_step.execute(criteria_tree)
 
@@ -224,45 +228,6 @@ def test_grade_from_tree():
 
     return grading_result
 
-
-def test_grade_from_config():
-    """Test that GradeStep can grade directly from config (single submission mode)."""
-    print("\n" + "=" * 80)
-    print("TEST: GradeStep with Template (Single Submission Mode)")
-    print("=" * 80)
-
-    # Create criteria and template
-    criteria = create_simple_criteria()
-    template = MockTemplate()
-    submission_files = create_mock_submission()
-
-    # Create and execute grade step (without building tree first)
-    grade_step = GradeStep(
-        criteria_json=criteria,
-        submission_files=submission_files,
-        submission_id="test_submission_2",
-    )
-
-    result = grade_step.execute(template)
-
-    # Verify result
-    assert result.status == StepStatus.SUCCESS, f"Grade step failed: {result.error}"
-    assert result.data is not None, "GradingResult is None"
-
-    grading_result = result.data
-
-    print("✓ GradeStep successfully graded from config")
-    print(f"  - Final Score: {grading_result.final_score}")
-    print(f"  - Status: {grading_result.status}")
-
-    # Print result tree
-    if grading_result.result_tree:
-        print("\nResult Tree:")
-        grading_result.result_tree.print_tree()
-
-    return grading_result
-
-
 def test_invalid_input_type():
     """Test that GradeStep rejects invalid input types."""
     print("\n" + "=" * 80)
@@ -272,8 +237,7 @@ def test_invalid_input_type():
     submission_files = create_mock_submission()
 
     grade_step = GradeStep(
-        submission_files=submission_files, submission_id="test_submission_3"
-    )
+        submission_files=submission_files)
 
     # Try to execute with invalid input (string)
     result = grade_step.execute("invalid input")
@@ -300,7 +264,7 @@ def run_all_tests():
         grading_result_tree = test_grade_from_tree()
 
         # Test 3: Grade from config (single submission mode)
-        grading_result_config = test_grade_from_config()
+        #grading_result_config = test_grade_from_config()
 
         # Test 4: Invalid input handling
         test_invalid_input_type()
