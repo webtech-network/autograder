@@ -24,7 +24,7 @@ class CriteriaTreeParser:
         return subjects
 
     def __parse_subject(self, config: SubjectConfig) -> SubjectNode:
-        subject = SubjectNode(config.name, config.weight)
+        subject = SubjectNode(config.subject_name, config.weight)
 
         subject.subjects_weight = config.subjects_weight
 

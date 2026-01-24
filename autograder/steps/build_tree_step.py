@@ -2,7 +2,7 @@ from autograder.services.criteria_tree_service import CriteriaTreeService
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.abstract.step import Step
 from autograder.models.abstract.template import Template
-from autograder.models.dataclass.criteria_config import CriteriaConfig
+from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.dataclass.step_result import StepResult, StepStatus
 
 
