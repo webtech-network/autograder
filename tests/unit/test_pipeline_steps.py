@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import List
 
 from autograder.models.dataclass.param_description import ParamDescription
+from autograder.pipeline import AutograderPipeline
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -250,43 +251,34 @@ def test_invalid_input_type():
     print(f"  - Error: {result.error}")
 
 
-def run_all_tests():
-    """Run all unit tests."""
-    print("\n" + "#" * 80)
-    print("# RUNNING PIPELINE STEPS UNIT TESTS")
-    print("#" * 80)
+def test_build_tree_and_grade_pipeline():
+    """Test full pipeline: BuildTreeStep followed by GradeStep."""
+    print("\n" + "=" * 80)
+    print("TEST: Full Pipeline (BuildTreeStep + GradeStep)")
+    print("=" * 80)
 
-    try:
-        # Test 1: Build tree
-        criteria_tree = test_build_tree_step()
+    # Create criteria and template
+    criteria = create_simple_criteria()
+    template = MockTemplate()
+    submission_files = create_mock_submission()
 
-        # Test 2: Grade from tree (multi-submission mode)
-        grading_result_tree = test_grade_from_tree()
+    # Build tree
+    build_step = BuildTreeStep(criteria)
+    # Grade submission
+    grade_step = GradeStep(
+        submission_files=submission_files)
 
-        # Test 3: Grade from config (single submission mode)
-        #grading_result_config = test_grade_from_config()
+    pipeline = AutograderPipeline()
+    pipeline.add_step(build_step)
+    pipeline.add_step(grade_step)
+    grading_result = pipeline.run(input_data=template)
 
-        # Test 4: Invalid input handling
-        test_invalid_input_type()
+    # Verify result
+    assert grading_result.status == "success", f"Pipeline failed: {grading_result.error}"
+    print("✓ Full pipeline successfully built tree and graded submission")
+    print(f"  - Final Score: {grading_result.final_score}")
 
-        print("\n" + "#" * 80)
-        print("# ALL TESTS PASSED! ✓")
-        print("#" * 80)
-
-    except AssertionError as e:
-        print("\n" + "#" * 80)
-        print(f"# TEST FAILED: {e}")
-        print("#" * 80)
-        raise
-    except Exception as e:
-        print("\n" + "#" * 80)
-        print(f"# UNEXPECTED ERROR: {e}")
-        print("#" * 80)
-        import traceback
-
-        traceback.print_exc()
-        raise
-
-
-if __name__ == "__main__":
-    run_all_tests()
+    # Print result tree
+    if grading_result.result_tree:
+        print("\nResult Tree:")
+        grading_result.result_tree.print_tree()
