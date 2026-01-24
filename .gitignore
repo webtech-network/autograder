@@ -65,6 +65,7 @@ MANIFEST
 *.swo
 *~
 .DS_Store
+.tool-versions
 
 # Environment variables (NEVER COMMIT THESE!)
 .env

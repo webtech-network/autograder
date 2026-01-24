@@ -1,27 +1,25 @@
 from typing import List, Optional
 from .test import TestConfig
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SubjectConfig(BaseModel):
-    subject_name: str = Field(..., description="Name of the subject")
-    weight: float = Field(
-        ..., ge=0, le=100, description="Weight of this subject (0-100)"
-    )
+    subject_name: str = Field(description="Name of the subject")
+    weight: float = Field(ge=0, le=100, description="Weight of this subject (0-100)")
     tests: Optional[List[TestConfig]] = Field(
-        None, description="Tests under this subject"
+        default=None, description="Tests under this subject"
     )
     subjects: Optional[List["SubjectConfig"]] = Field(
-        None, description="Nested subjects"
+        default=None, description="Nested subjects"
     )
     subjects_weight: Optional[int] = Field(
-        None,
+        default=None,
         ge=0,
         le=100,
         description="Weight of the subject when it is a heterogeneous tree",
     )
 
-    model_config = {"extra": "forbid"}
+    model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode="after")
     def check_subjects_and_tests(self) -> "SubjectConfig":

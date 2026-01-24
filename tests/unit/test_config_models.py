@@ -1,4 +1,5 @@
 """Test suite for configuration models to ensure they align with criteria_schema.json"""
+
 import json
 import pytest
 from pathlib import Path
@@ -18,7 +19,7 @@ def criteria_schema_path():
 @pytest.fixture
 def criteria_schema_dict(criteria_schema_path):
     """Load criteria schema as dictionary"""
-    with open(criteria_schema_path, 'r') as f:
+    with open(criteria_schema_path, "r") as f:
         return json.load(f)
 
 
@@ -60,11 +61,12 @@ class TestTestConfig:
             name="has_tag",
             parameters=[
                 ParameterConfig(name="tag", value="body"),
-                ParameterConfig(name="required_count", value=1)
-            ]
+                ParameterConfig(name="required_count", value=1),
+            ],
         )
         assert test.file == "index.html"
         assert test.name == "has_tag"
+        assert test.parameters is not None
         assert len(test.parameters) == 2
 
     def test_test_config_without_parameters(self):
@@ -81,8 +83,8 @@ class TestTestConfig:
             name="has_tag",
             parameters=[
                 ParameterConfig(name="tag", value="body"),
-                ParameterConfig(name="required_count", value=1)
-            ]
+                ParameterConfig(name="required_count", value=1),
+            ],
         )
         args = test.get_args_list()
         assert args == ["body", 1]
@@ -94,8 +96,8 @@ class TestTestConfig:
             name="has_tag",
             parameters=[
                 ParameterConfig(name="tag", value="body"),
-                ParameterConfig(name="required_count", value=1)
-            ]
+                ParameterConfig(name="required_count", value=1),
+            ],
         )
         kwargs = test.get_kwargs_dict()
         assert kwargs == {"tag": "body", "required_count": 1}
@@ -122,13 +124,16 @@ class TestSubjectConfig:
             subject_name="structure",
             weight=40,
             tests=[
-                TestConfig(file="index.html", name="has_tag", parameters=[
-                    ParameterConfig(name="tag", value="body")
-                ])
-            ]
+                TestConfig(
+                    file="index.html",
+                    name="has_tag",
+                    parameters=[ParameterConfig(name="tag", value="body")],
+                )
+            ],
         )
         assert subject.subject_name == "structure"
         assert subject.weight == 40
+        assert subject.tests is not None
         assert len(subject.tests) == 1
         assert subject.subjects is None
 
@@ -141,18 +146,21 @@ class TestSubjectConfig:
                 SubjectConfig(
                     subject_name="structure",
                     weight=40,
-                    tests=[TestConfig(file="index.html", name="has_tag")]
+                    tests=[TestConfig(file="index.html", name="has_tag")],
                 )
-            ]
+            ],
         )
         assert subject.subject_name == "html"
         assert subject.weight == 60
+        assert subject.subjects is not None
         assert len(subject.subjects) == 1
         assert subject.subjects[0].subject_name == "structure"
 
     def test_subject_config_validation_requires_tests_or_subjects(self):
         """Test that SubjectConfig requires at least tests or subjects"""
-        with pytest.raises(ValueError, match="must have at least 'tests' or 'subjects'"):
+        with pytest.raises(
+            ValueError, match="must have at least 'tests' or 'subjects'"
+        ):
             SubjectConfig(subject_name="invalid", weight=50)
 
     def test_subject_config_with_both_tests_and_subjects_requires_subjects_weight(self):
@@ -162,11 +170,13 @@ class TestSubjectConfig:
                 subject_name="mixed",
                 weight=50,
                 tests=[TestConfig(file="index.html", name="has_tag")],
-                subjects=[SubjectConfig(
-                    subject_name="nested",
-                    weight=30,
-                    tests=[TestConfig(file="index.html", name="has_tag")]
-                )]
+                subjects=[
+                    SubjectConfig(
+                        subject_name="nested",
+                        weight=30,
+                        tests=[TestConfig(file="index.html", name="has_tag")],
+                    )
+                ],
             )
 
     def test_subject_config_with_both_tests_and_subjects_with_weight(self):
@@ -175,12 +185,14 @@ class TestSubjectConfig:
             subject_name="mixed",
             weight=50,
             tests=[TestConfig(file="index.html", name="has_tag")],
-            subjects=[SubjectConfig(
-                subject_name="nested",
-                weight=30,
-                tests=[TestConfig(file="index.html", name="has_tag")]
-            )],
-            subjects_weight=60
+            subjects=[
+                SubjectConfig(
+                    subject_name="nested",
+                    weight=30,
+                    tests=[TestConfig(file="index.html", name="has_tag")],
+                )
+            ],
+            subjects_weight=60,
         )
         assert subject.subject_name == "mixed"
         assert subject.subjects_weight == 60
@@ -197,30 +209,37 @@ class TestCategoryConfig:
                 SubjectConfig(
                     subject_name="html",
                     weight=60,
-                    tests=[TestConfig(file="index.html", name="has_tag")]
+                    tests=[TestConfig(file="index.html", name="has_tag")],
                 )
-            ]
+            ],
         )
         assert category.weight == 100
+        assert category.subjects is not None
         assert len(category.subjects) == 1
         assert category.subjects[0].subject_name == "html"
 
     def test_category_config_validation_requires_tests_or_subjects(self):
         """Test that CategoryConfig requires at least tests or subjects"""
-        with pytest.raises(ValueError, match="must have at least 'tests' or 'subjects'"):
+        with pytest.raises(
+            ValueError, match="must have at least 'tests' or 'subjects'"
+        ):
             CategoryConfig(weight=100)
 
-    def test_category_config_with_both_tests_and_subjects_requires_subjects_weight(self):
+    def test_category_config_with_both_tests_and_subjects_requires_subjects_weight(
+        self,
+    ):
         """Test that having both tests and subjects requires subjects_weight"""
         with pytest.raises(ValueError, match="needs 'subjects_weight' defined"):
             CategoryConfig(
                 weight=100,
                 tests=[TestConfig(file="index.html", name="has_tag")],
-                subjects=[SubjectConfig(
-                    subject_name="nested",
-                    weight=30,
-                    tests=[TestConfig(file="index.html", name="has_tag")]
-                )]
+                subjects=[
+                    SubjectConfig(
+                        subject_name="nested",
+                        weight=30,
+                        tests=[TestConfig(file="index.html", name="has_tag")],
+                    )
+                ],
             )
 
 
@@ -237,10 +256,10 @@ class TestCriteriaConfig:
                     SubjectConfig(
                         subject_name="html",
                         weight=60,
-                        tests=[TestConfig(file="index.html", name="has_tag")]
+                        tests=[TestConfig(file="index.html", name="has_tag")],
                     )
-                ]
-            )
+                ],
+            ),
         )
         assert criteria.test_library == "web_dev"
         assert criteria.base.weight == 100
@@ -257,9 +276,9 @@ class TestCriteriaConfig:
                     SubjectConfig(
                         subject_name="html",
                         weight=60,
-                        tests=[TestConfig(file="index.html", name="has_tag")]
+                        tests=[TestConfig(file="index.html", name="has_tag")],
                     )
-                ]
+                ],
             ),
             bonus=CategoryConfig(
                 weight=40,
@@ -267,9 +286,13 @@ class TestCriteriaConfig:
                     SubjectConfig(
                         subject_name="accessibility",
                         weight=20,
-                        tests=[TestConfig(file="index.html", name="check_all_images_have_alt")]
+                        tests=[
+                            TestConfig(
+                                file="index.html", name="check_all_images_have_alt"
+                            )
+                        ],
                     )
-                ]
+                ],
             ),
             penalty=CategoryConfig(
                 weight=50,
@@ -277,14 +300,18 @@ class TestCriteriaConfig:
                     SubjectConfig(
                         subject_name="html",
                         weight=50,
-                        tests=[TestConfig(file="index.html", name="check_bootstrap_usage")]
+                        tests=[
+                            TestConfig(file="index.html", name="check_bootstrap_usage")
+                        ],
                     )
-                ]
-            )
+                ],
+            ),
         )
         assert criteria.test_library == "web_dev"
         assert criteria.base.weight == 100
+        assert criteria.bonus is not None
         assert criteria.bonus.weight == 40
+        assert criteria.penalty is not None
         assert criteria.penalty.weight == 50
 
 
@@ -429,7 +456,7 @@ class TestSchemaIntegration:
 
     def test_from_json_method(self, criteria_schema_path):
         """Test parsing from JSON string"""
-        with open(criteria_schema_path, 'r') as f:
+        with open(criteria_schema_path, "r") as f:
             json_str = f.read()
 
         criteria = CriteriaConfig.from_json(json_str)
@@ -453,6 +480,7 @@ class TestSchemaIntegration:
         # Verify they match
         assert reparsed.test_library == criteria_config.test_library
         assert reparsed.base.weight == criteria_config.base.weight
+        assert reparsed.base.subjects is not None
         assert len(reparsed.base.subjects) == len(criteria_config.base.subjects)
 
     def test_weight_validation(self):
@@ -461,14 +489,14 @@ class TestSchemaIntegration:
             SubjectConfig(
                 subject_name="invalid",
                 weight=150,  # Over 100
-                tests=[TestConfig(file="test.html", name="test")]
+                tests=[TestConfig(file="test.html", name="test")],
             )
 
         with pytest.raises(ValueError):
             SubjectConfig(
                 subject_name="invalid",
                 weight=-10,  # Negative
-                tests=[TestConfig(file="test.html", name="test")]
+                tests=[TestConfig(file="test.html", name="test")],
             )
 
     def test_extra_fields_forbidden(self):
@@ -483,11 +511,11 @@ class TestSchemaIntegration:
                         SubjectConfig(
                             subject_name="html",
                             weight=60,
-                            tests=[TestConfig(file="index.html", name="has_tag")]
+                            tests=[TestConfig(file="index.html", name="has_tag")],
                         )
-                    ]
+                    ],
                 ),
-                extra_field="not allowed"
+                extra_field="not allowed",
             )
 
 
@@ -515,4 +543,3 @@ class TestWeightCalculations:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
-

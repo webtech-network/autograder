@@ -1,28 +1,28 @@
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ParameterConfig(BaseModel):
     """Named parameter for a test function."""
 
-    name: str = Field(..., description="Parameter name")
-    value: Any = Field(..., description="Parameter value")
+    name: str = Field(description="Parameter name")
+    value: Any = Field(description="Parameter value")
 
-    model_config = {"extra": "forbid"}
+    model_config = ConfigDict(extra="forbid")
 
 
 class TestConfig(BaseModel):
     """Configuration for a single test execution."""
 
-    name: str = Field(..., description="Name of the test function in the template")
+    name: str = Field(description="Name of the test function in the template")
     file: Optional[str] = Field(
-        None, description="Target file for the test (if applicable)"
+        default=None, description="Target file for the test (if applicable)"
     )
     parameters: Optional[List[ParameterConfig]] = Field(
-        None, description="Named parameters for the test function"
+        default=None, description="Named parameters for the test function"
     )
 
-    model_config = {"extra": "forbid"}
+    model_config = ConfigDict(extra="forbid")
 
     def get_args_list(self) -> List[Any]:
         """Convert named parameters to positional arguments list."""
