@@ -24,7 +24,8 @@ jobs:
       - name: Get modified Python files
         id: changed-files
         run: |
-          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- '*.py' | tr '\n' ' ')
+          FILES=$(git diff --name-only --diff-filter=AM \
+            ${{ github.event.before }} ${{ github.sha }} -- '*.py' | tr '\n' ' ')
           echo "files=$FILES" >> $GITHUB_OUTPUT
 
       - name: Analysing the code with pylint
