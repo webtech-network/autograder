@@ -6,6 +6,7 @@ from autograder.builder.models.test_function import TestFunction
 from autograder.builder.models.param_description import ParamDescription
 from autograder.core.models.test_result import TestResult
 from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
+from autograder.core.decorators import With
 
 
 # ===============================================================
@@ -20,7 +21,7 @@ class ExpectOutputTest(TestFunction):
 
     @property
     def name(self):
-        return "expect_output"
+        return "Expect Output"
 
     @property
     def description(self):
@@ -99,6 +100,7 @@ EOT
 # endregion
 # ===============================================================
 
+@With(SandboxExecutor)
 class InputOutputTemplate(Template):
     """
     A template for command-line I/O assignments. It uses the SandboxExecutor
@@ -117,28 +119,17 @@ class InputOutputTemplate(Template):
     def requires_pre_executed_tree(self) -> bool:
         return True
 
-    @property
-    def requires_execution_helper(self) -> bool:
-        return True
-
-    @property
-    def execution_helper(self):
-        return self.executor
-
-    def __init__(self, clean=False):
-
-        if not clean:
-            # Prepare the environment by running setup commands
-            self.executor = SandboxExecutor.start()
-            self._setup_environment()
-        else:
-            self.executor = None
+    def __init__(self):
+        self._environment_setup_done = False
         self.tests = {
-            "expect_output": ExpectOutputTest(self.executor),
+            "Expect Output": ExpectOutputTest(self.executor),
         }
 
-    def _setup_environment(self):
-        """Runs any initial setup commands, like compilation or dependency installation."""
+    def _ensure_environment_setup(self):
+        """Lazy setup: only runs once when first test is executed."""
+        if self._environment_setup_done:
+            return
+        
         print("--- Setting up Input/Output environment ---")
         install_command = self.executor.config.get("commands", {}).get("install_dependencies")
         if install_command:
@@ -146,13 +137,12 @@ class InputOutputTemplate(Template):
             if exit_code != 0:
                 raise RuntimeError(f"Failed to run setup command '{install_command}': {stderr}")
         print("--- Environment setup complete ---")
-
-    def stop(self):
-        """Stops the sandbox executor."""
-        if self.executor:
-            self.executor.stop()
+        
+        self._environment_setup_done = True
 
     def get_test(self, name: str) -> TestFunction:
+        # Ensure environment is set up before returning test
+        self._ensure_environment_setup()
         test_function = self.tests.get(name)
         if not test_function:
             raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
@@ -211,8 +201,8 @@ if __name__ == "__main__":
                     "calculation_tests": {
                         "weight": 100,
                         "tests": [
-                            {"name": "expect_output", "calls": [[["sum", 2, 2], "4.0"]]},
-                            {"name": "expect_output", "calls": [[["subtract", 10, 5], "5.0"]]}
+                            {"name": "Expect Output", "calls": [[["sum", 2, 2], "4.0"]]},
+                            {"name": "Expect Output", "calls": [[["subtract", 10, 5], "5.0"]]}
                         ]
                     }
                 }
@@ -242,14 +232,14 @@ if __name__ == "__main__":
         print("\n--- 3. Running Tests ---")
 
         # Test 1: Sum (Will pass)
-        test_func = template.get_test("expect_output")
+        test_func = template.get_test("Expect Output")
         sum_result = test_func.execute(["sum", 2, 2], "4.0")
         print("\n[Sum Test Result]")
         print(f"  Score: {sum_result.score}")
         print(f"  Report: {sum_result.report}")
 
         # Test 2: Sum (Will fail)
-        test_func = template.get_test("expect_output")
+        test_func = template.get_test("Expect Output")
         sum_result = test_func.execute(["sum", 2, 2], "3.0")
         print("\n[Sum Test Result]")
         print(f"  Score: {sum_result.score}")

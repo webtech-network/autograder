@@ -103,7 +103,7 @@ class Autograder:
             error_message = f"An unexpected error occurred during the grading process: {str(e)}"
             logger.error(error_message)
             logger.exception("Full exception traceback:")
-            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message, result_tree = None)
+            return AutograderResponse(status="fail", final_score=0.0, feedback=error_message, test_report=[])
 
     @staticmethod
     def _pre_flight_step():
@@ -127,7 +127,7 @@ class Autograder:
         template_name = req.assignment_config.template
         if template_name == "custom":
             logger.info(f"Loading custom test template provided!")
-            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template_str)
+            test_template = TemplateLibrary.get_template(template_name,req.assignment_config.custom_template)
         else:
             logger.info(f"Loading test template: '{template_name}'")
             test_template = TemplateLibrary.get_template(template_name)
@@ -409,13 +409,13 @@ if __name__ == "__main__":
 
         # 8. Print the results
         logger.info("--- Grading Complete ---")
-        print(f"Status: {facade_response.status}")
-        print(f"Final Score: {facade_response.final_score}")
-        print("\n--- Feedback ---")
-        print(facade_response.feedback)
-        print("\n--- Test Report ---")
+        logger.info(f"Status: {facade_response.status}")
+        logger.info(f"Final Score: {facade_response.final_score}")
+        logger.info("\n--- Feedback ---")
+        logger.info(facade_response.feedback)
+        logger.info("\n--- Test Report ---")
         if facade_response.test_report:
             for test in facade_response.test_report:
-                print(f"- {test.subject_name}: {test.test_name} -> Score: {test.score}, Report: {test.report}")
+                logger.info(f"- {test.subject_name}: {test.test_name} -> Score: {test.score}, Report: {test.report}")
         else:
-            print("No test report generated.")
+            logger.info("No test report generated.")

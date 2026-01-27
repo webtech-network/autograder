@@ -35,10 +35,7 @@ class Port(ABC):
                        assignment_config: AssignmentConfig,
                        student_name,
                        student_credentials,
-                       feedback_mode="default",
-                       openai_key=None,
-                       redis_url=None,
-                       redis_token=None):
+                       feedback_mode="default"):
         """
         Abstract method to create an AutograderRequest object.
         This method should be implemented by the concrete Port classes.

@@ -42,7 +42,7 @@ logging.basicConfig(
 
 # src/interfaces/api/submission_api.py
 
-@app.post("/grade_submission/")
+@app.post("/grade_submission")
 async def grade_submission_endpoint(
         submission_files: List[UploadFile] = File(..., description="The student's source code files (HTML, CSS, JS)"),
         template_preset: str = Form(..., description="The grading preset to use (e.g., api, html, python, etc.) or custom for custom configuration"),
@@ -54,9 +54,6 @@ async def grade_submission_endpoint(
         custom_template: Optional[UploadFile] = File(None,description="A python file with custom tests that follows the template structure (in case of custom preset)"),
         feedback_json: Optional[UploadFile] = File(None, description="JSON file with feedback configuration (in case of custom preset)"),
         setup_json: Optional[UploadFile] = File(None, description="JSON file with commands configuration (in case of custom preset)"),
-        openai_key: Optional[str] = Form(None, description="OpenAI API key for AI feedback"),
-        redis_url: Optional[str] = Form(None, description="Redis URL for AI feedback"),
-        redis_token: Optional[str] = Form(None, description="Redis token for AI feedback"),
 ):
     try:
         logging.info("Received API request to grade submission.")
@@ -77,10 +74,7 @@ async def grade_submission_endpoint(
                                student_name=student_name,
                                student_credentials=student_credentials,
                                include_feedback=include_feedback,
-                               feedback_mode=feedback_type,
-                               openai_key=openai_key,
-                               redis_url=redis_url,
-                               redis_token=redis_token)
+                               feedback_mode=feedback_type)
         logging.info(f"Autograder request created successfully.")
 
 
@@ -93,8 +87,15 @@ async def grade_submission_endpoint(
         result = adapter.export_results()
         return result
 
+    except ValueError as e:
+        logging.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid request. Please check your input parameters.")
+    except FileNotFoundError as e:
+        logging.error(f"File not found: {e}")
+        raise HTTPException(status_code=404, detail="Required file not found.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        logging.exception(f"Unexpected error in grade_submission: {e}")
+        raise HTTPException(status_code=500, detail="An internal error occurred while processing your submission.")
 
 @app.get("/templates/{template_name}")
 async def get_template_info(
@@ -141,9 +142,15 @@ async def get_template_info(
         return template
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logging.error(f"Template not found: {e}")
+        raise HTTPException(status_code=404, detail="Template or test not found.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        logging.exception(f"Error retrieving template info: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while retrieving template information.")
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
 
 
 # To run this API service:

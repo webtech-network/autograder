@@ -17,9 +17,7 @@ class AutograderResponse(BaseModel):
     status: str
     final_score: float = 0.0
     feedback: str = ""
-    test_report: Optional[List[TestResult]] = Field(default=None)
-    # Added the result_tree field to the new model
-    result_tree: Optional[ResultNode] = None
+    test_report: List[TestResult] = Field(default_factory=list)
 
     def __repr__(self) -> str:
         feedback_size = len(self.feedback) if self.feedback else 0

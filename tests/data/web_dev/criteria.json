@@ -1,71 +1,93 @@
 {
   "base": {
     "weight": 100,
-    "subjects": {
-      "html_structure": {
+    "subjects": [
+      {
+        "subject_name": "html_structure",
         "weight": 40,
         "tests": [
           {
             "name": "has_tag",
             "file": "index.html",
-            "calls": [
-              ["div", 5],
-              ["h1", 2],
-              ["p", 3],
-              ["a", 2]
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "div"
+              },
+              {
+                "name": "required_count",
+                "value": 5
+              }
             ]
           },
           {
-            "name": "has_semantic_tag",
+            "name": "has_tag",
             "file": "index.html",
-            "calls": [
-              ["header"],
-              ["nav"],
-              ["footer"]
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "h1"
+              },
+              {
+                "name": "required_count",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "name": "has_tag",
+            "file": "index.html",
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "p"
+              },
+              {
+                "name": "required_count",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "name": "has_tag",
+            "file": "index.html",
+            "parameters": [
+              {
+                "name": "tag",
+                "value": "a"
+              },
+              {
+                "name": "required_count",
+                "value": 2
+              }
             ]
           }
         ]
       },
-      "css_styling": {
+      {
+        "subject_name": "css_styling",
         "weight": 30,
         "tests": [
           {
             "name": "has_class",
             "file": "index.html",
-            "calls": [
-              [["container", "row", "col-*"], 10]
-            ]
-          },
-          {
-            "name": "check_css_property",
-            "file": "style.css",
-            "calls": [
-              ["color", "#"],
-              ["font-size", "px"]
-            ]
-          }
-        ]
-      },
-      "javascript_functionality": {
-        "weight": 30,
-        "tests": [
-          {
-            "name": "check_js_feature",
-            "file": "script.js",
-            "calls": [
-              ["addEventListener"],
-              ["querySelector"]
-            ]
-          },
-          {
-            "name": "check_console_errors",
-            "file": "script.js",
-            "calls": [
-              [2]
+            "parameters": [
+              {
+                "name": "class_names",
+                "value": [
+                  "container",
+                  "row",
+                  "col-*"
+                ]
+              },
+              {
+                "name": "required_count",
+                "value": 10
+              }
             ]
           }
         ]
       }
-    }
+    ]
   }
 }

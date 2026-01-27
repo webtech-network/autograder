@@ -1,4 +1,5 @@
-from typing import List, Dict, Optional, Tuple
+import logging
+from typing import List, Dict, Optional
 
 from autograder.context import request_context
 from autograder.builder.tree_builder import *
@@ -6,6 +7,9 @@ from autograder.core.models.result import Result
 from autograder.core.models.test_result import TestResult
 
 from autograder.core.models.result_tree import ResultNode, NodeType
+
+
+logger = logging.getLogger(__name__)
 
 
 class Grader:
@@ -48,88 +52,15 @@ class Grader:
         """
         Runs the entire grading process and returns (final_score, result_tree).
         """
-        print("\n--- STARTING GRADING PROCESS ---")
-        
-        # Create root node for the result tree
-        root_node = ResultNode(
-            node_type=NodeType.ROOT,
-            name="Assignment Result"
-        )
+        logger.info("STARTING GRADING PROCESS")
+        # Step 1: Grade categories. The methods will return None if no tests exist.
+        ## CHANGED: Coalesce None to 0.0 to signify that an empty category contributes nothing to the score.
+        base_score = self._grade_subject_or_category(self.criteria.base, submission_files, self.base_results) or 0.0
+        bonus_score = self._grade_subject_or_category(self.criteria.bonus, submission_files, self.bonus_results) or 0.0
+        penalty_points = self._calculate_penalty_points(self.criteria.penalty, submission_files,
+                                                        self.penalty_results) or 0.0
 
-        print(("\n--- GRADING AND BUILDING RESULT TREE ---"))
-
-        
-
-        # Step 1: Grade categories (original grading logic - unchanged)
-        base_score, base_node = self._grade_and_build(                     #Refactor the grading process to grade and build result at the same time                    
-            self.criteria.base, 
-            submission_files, 
-            self.base_results,
-            "base",
-            NodeType.CATEGORY 
-        ) or (0.0, None)
-        
-        bonus_score, bonus_node = self._grade_and_build(                   #While grading, build the nodes for each category
-            self.criteria.bonus, 
-            submission_files, 
-            self.bonus_results,
-            "bonus",
-            NodeType.CATEGORY
-        ) or (0.0, None)
-        
-        penalty_points, penaty_node = self._calculate_penalty_and_build(
-            self.criteria.penalty, 
-            submission_files,
-            self.penalty_results,
-            "penalty",
-            NodeType.CATEGORY
-        ) or (0.0, None)
-
-        
-        base_node = self._build_result_node(
-            self.criteria.base, 
-            "base", 
-            self.base_results,
-            depth=0
-        )
-        
-        bonus_node = self._build_result_node(
-            self.criteria.bonus, 
-            "bonus", 
-            self.bonus_results,
-            depth=0
-        )
-        
-        penalty_node = self._build_result_node(
-            self.criteria.penalty, 
-            "penalty", 
-            self.penalty_results,
-            depth=0
-        )
-        
-        # Step : Add category nodes to root and set their scores
-        if base_node:
-            base_node.weighted_score = base_score
-            base_node.unweighted_score = base_score
-            base_node.max_score = self.criteria.base.max_score
-            root_node.add_child(base_node)
-            print(f"✓ Added base_node: {base_node.name} ({base_node.total_tests} tests)")
-        
-        if bonus_node:
-            bonus_node.weighted_score = bonus_score
-            bonus_node.unweighted_score = bonus_score
-            bonus_node.max_score = self.criteria.bonus.max_score
-            root_node.add_child(bonus_node)
-            print(f"✓ Added bonus_node: {bonus_node.name} ({bonus_node.total_tests} tests)")
-        
-        if penalty_node:
-            penalty_node.weighted_score = penalty_points
-            penalty_node.unweighted_score = penalty_points
-            penalty_node.max_score = self.criteria.penalty.max_score
-            root_node.add_child(penalty_node)
-            print(f"✓ Added penalty_node: {penalty_node.name} ({penalty_node.total_tests} tests)")
-
-        # Step 4: Calculate final score (original logic - unchanged)
+        # Step 3: Apply the final scoring logic
         final_score = self._calculate_final_score(base_score, bonus_score, penalty_points)
         
         # Step 5: Update root node with final values
@@ -146,13 +77,11 @@ class Grader:
                 print(f"  - {child.name}: score={child.weighted_score}, tests={child.total_tests}")
         print("====================================\n")
 
-        print("\n--- GRADING COMPLETE ---")
-        print(f"Aggregated Base Score: {base_score:.2f}")
-        print(f"Aggregated Bonus Score: {bonus_score:.2f}")
-        print(f"Total Penalty Points to Subtract: {penalty_points:.2f}")
-        print("-" * 25)
-        print(f"Final Calculated Score: {final_score:.2f}")
-        print("-" * 25)
+        logger.info("GRADING COMPLETE")
+        logger.info(f"Aggregated Base Score: {base_score:.2f}")
+        logger.info(f"Aggregated Bonus Score: {bonus_score:.2f}")
+        logger.info(f"Total Penalty Points to Subtract: {penalty_points:.2f}")
+        logger.info(f"Final Calculated Score: {final_score:.2f}")
 
         return final_score, root_node
     
@@ -170,7 +99,7 @@ class Grader:
         prefix = "    " * depth
 
         if hasattr(current_node, 'tests') and current_node.tests:
-            print(f"\n{prefix}📘 Grading {current_node.name}...")
+            logger.debug(f"Grading {current_node.name}...")
             subject_test_results = []
 
             for test in current_node.tests:
@@ -393,16 +322,19 @@ class Grader:
             result_list.extend(subject_test_results)
             scores = [res.score for res in subject_test_results]
             average_score = sum(scores) / len(scores)
-            print(f"{prefix}  -> Average score: {average_score:.2f}")
+            logger.debug(f"Average score: {average_score:.2f}")
             return average_score
 
         # Recursive case: Node is a branch (category or subject with sub-subjects)
-        child_subjects = getattr(subject, 'subjects', {}).values()
-        if not child_subjects:
+        child_subjects_classes = getattr(current_node, 'subjects', {})
+        if not child_subjects_classes:
             return None  # No tests and no children means this branch is empty
+        child_subjects = child_subjects_classes.values()
+        if not child_subjects:
+            return None
+        logger.debug(f"Grading {current_node.name}...")
 
-        print(f"\n{prefix}📘 Grading {subject.name}...")
-        child_scores_map = {sub.name: self._grade_subject_or_category(sub, submission_files, result_list, depth + 1)
+        child_scores_map = {sub.name: self._grade_subject_or_category(sub, submission_files, results_list, depth + 1)
                             for sub in child_subjects}
 
         # Filter out children that had no tests (returned None)
@@ -424,7 +356,7 @@ class Grader:
             child_score = child_scores_map[sub.name]
             weighted_score += child_score * (sub.weight / total_weight)
 
-        print(f"\n{prefix}  -> Weighted score for '{subject.name}': {weighted_score:.2f}")
+        logger.debug(f"Weighted score for '{current_node.name}': {weighted_score:.2f}")
         return weighted_score
 
     def _calculate_penalty_points(self, penalty_category: 'TestCategory', submission_files: Dict,
@@ -432,7 +364,7 @@ class Grader:
         """
         Calculates the total penalty points. Returns None if no penalty tests exist.
         """
-        print(f"\n Penalizing {penalty_category.name}...")
+        logger.debug(f"Penalizing {penalty_category.name}...")
 
         # This is a simplified entry point; the main logic is in _calculate_subject_penalty
         # We treat the main penalty category like a subject to start the recursion.
@@ -462,7 +394,7 @@ class Grader:
                 return None  # No tests were actually run
 
             avg_penalty_for_subject = sum(test_penalties) / len(test_penalties)
-            print(f"{prefix}  -> Average penalty for '{subject.name}': {avg_penalty_for_subject:.2f}")
+            logger.debug(f"Average penalty for '{subject.name}': {avg_penalty_for_subject:.2f}")
             return avg_penalty_for_subject
 
         # Recursive Case: This node is a branch with children
@@ -488,7 +420,7 @@ class Grader:
             child_penalty = child_penalties_map[sub.name]
             weighted_penalty += child_penalty * (sub.weight / total_weight)
 
-        print(f"\n{prefix}  -> Weighted penalty for '{subject.name}': {weighted_penalty:.2f}")
+        logger.debug(f"Weighted penalty for '{subject.name}': {weighted_penalty:.2f}")
         return weighted_penalty
 
     def _calculate_final_score(self, base_score: float, bonus_score: float, penalty_points: float) -> float:
@@ -510,11 +442,11 @@ class Grader:
         penalty_points_to_subtract = (penalty_points / 100) * penalty_weight
         final_score -= penalty_points_to_subtract
 
-        print(f"\nApplying Final Calculations:")
-        print(f"  Base Score: {base_score:.2f}")
-        print(f"  Bonus Points Added: {(bonus_score / 100) * bonus_weight:.2f}")
-        print(f"  Score Before Penalty: {min(100.0, final_score + penalty_points_to_subtract):.2f}")
-        print(f"  Penalty Points Subtracted: {penalty_points_to_subtract:.2f}")
+        logger.debug("Applying Final Calculations:")
+        logger.debug(f"  Base Score: {base_score:.2f}")
+        logger.debug(f"  Bonus Points Added: {(bonus_score / 100) * bonus_weight:.2f}")
+        logger.debug(f"  Score Before Penalty: {min(100.0, final_score + penalty_points_to_subtract):.2f}")
+        logger.debug(f"  Penalty Points Subtracted: {penalty_points_to_subtract:.2f}")
 
         return max(0.0, final_score)
     

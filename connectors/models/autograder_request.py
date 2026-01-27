@@ -10,9 +10,6 @@ class AutograderRequest(BaseModel):
     student_credentials: Optional[str] = None
     include_feedback: bool = False
     feedback_mode: str = "default"
-    openai_key: Optional[str] = None
-    redis_url: Optional[str] = None
-    redis_token: Optional[str] = None
     criteria_tree: Optional[Any] = None
     reporter: Optional[Any] = None
     feedback_report: Optional[Any] = None

@@ -94,7 +94,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "index.html",
-                                    "name": "check_bootstrap_linked"
+                                    "name": "Check Bootstrap Linked"
                                 }
                             ]
                         },
@@ -103,7 +103,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "index.html",
-                                    "name": "has_class",
+                                    "name": "Has Class",
                                     "calls": [
                                         [["col-*"], 3]
                                     ]
@@ -120,7 +120,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "index.html",
-                                    "name": "has_class",
+                                    "name": "Has Class",
                                     "calls": [
                                         [["card", "card-body"], 6]
                                     ]
@@ -132,7 +132,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "index.html",
-                                    "name": "has_class",
+                                    "name": "Has Class",
                                     "calls": [
                                         [["custom-*"], 2]
                                     ]
@@ -151,7 +151,7 @@ def create_criteria_config():
                     "tests": [
                         {
                             "file": "index.html",
-                            "name": "check_no_inline_styles"
+                            "name": "Check no Inline Styles"
                         }
                     ]
                 }

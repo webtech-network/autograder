@@ -160,8 +160,7 @@ class TestAutograderFacade(unittest.TestCase):
             assignment_config=self.mock_assignment_config,
             student_name="test_student",
             include_feedback=True,
-            feedback_mode="ai",
-            openai_key=None  # missing keys
+            feedback_mode="ai"
         )
 
         # Act
@@ -170,7 +169,7 @@ class TestAutograderFacade(unittest.TestCase):
         # Assert
         self.assertEqual(response.status, "fail")
         self.assertEqual(response.final_score, 0.0)
-        self.assertIn("OpenAI key, Redis URL, and Redis token are required", response.feedback)
+        self.assertIn("OpenAI key, Redis URL, and Redis token are required for AI feedback mode", response.feedback)
 
     @patch('autograder.autograder_facade.PreFlight')
     def test_preflight_failure_stops_processing(self, mock_preflight):

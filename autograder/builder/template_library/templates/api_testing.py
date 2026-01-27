@@ -7,6 +7,7 @@ from autograder.builder.models.test_function import TestFunction
 from autograder.builder.models.param_description import ParamDescription
 from autograder.core.models.test_result import TestResult
 from autograder.builder.execution_helpers.sandbox_executor import SandboxExecutor
+from autograder.core.decorators import With
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,7 +21,7 @@ class HealthCheckTest(TestFunction):
 
     @property
     def name(self):
-        return "health_check"
+        return "Health Check"
 
     @property
     def description(self):
@@ -86,7 +87,7 @@ class CheckResponseJsonTest(TestFunction):
 
     @property
     def name(self):
-        return "check_response_json"
+        return "Check Response JSON"
 
     @property
     def description(self):
@@ -154,6 +155,7 @@ class CheckResponseJsonTest(TestFunction):
 # endregion
 # ===============================================================
 
+@With(SandboxExecutor)
 class ApiTestingTemplate(Template):
     """
     A template for API testing assignments. It uses the SandboxExecutor to securely
@@ -172,34 +174,20 @@ class ApiTestingTemplate(Template):
     def requires_pre_executed_tree(self) -> bool:
         return True
 
-    @property
-    def requires_execution_helper(self) -> bool:
-        return True
-
-    @property
-    def execution_helper(self):
-        return self.executor
-
-    def __init__(self, clean=False):
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
-
-        if not clean:
-            # Prepare the environment by running setup commands
-            self.executor = SandboxExecutor.start()
-            self._setup_environment()
-        else:
-            self.executor = None
-
-
+        self._environment_setup_done = False
+        
         self.tests = {
-            "health_check": HealthCheckTest(self.executor),
-            "check_response_json": CheckResponseJsonTest(self.executor),
+            "Health Check": HealthCheckTest(self.executor),
+            "Check Response JSON": CheckResponseJsonTest(self.executor),
         }
 
-
-
-    def _setup_environment(self):
-        """Runs initial setup commands like installing dependencies and starting the server."""
+    def _ensure_environment_setup(self):
+        """Lazy setup: only runs once when first test is executed."""
+        if self._environment_setup_done:
+            return
+        
         self.logger.info("--- Setting up API environment ---")
 
         # Install dependencies (e.g., npm install)
@@ -218,13 +206,12 @@ class ApiTestingTemplate(Template):
         self.logger.info("API server start command issued. Waiting for it to initialize...")
         time.sleep(5)  # Give the server a few seconds to start up
         self.logger.info("--- Environment setup complete ---")
-
-    def stop(self):
-        """Stops the sandbox executor, which cleans up the container."""
-        if self.executor:
-            self.executor.stop()
+        
+        self._environment_setup_done = True
 
     def get_test(self, name: str) -> TestFunction:
+        # Ensure environment is set up before returning test
+        self._ensure_environment_setup()
         test_function = self.tests.get(name)
         if not test_function:
             raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
@@ -285,8 +272,8 @@ if __name__ == "__main__":
                     "api_functionality": {
                         "weight": 100,
                         "tests": [
-                            {"name": "health_check", "calls": [["/health"]]},
-                            {"name": "check_response_json", "calls": [["/api/user", "userId", 1]]}
+                            {"name": "Health Check", "calls": [["/health"]]},
+                            {"name": "Check Response JSON", "calls": [["/api/user", "userId", 1]]}
                         ]
                     }
                 }
@@ -315,14 +302,14 @@ if __name__ == "__main__":
 
         logging.info("\n--- 3. Running Tests ---")
 
-        health_check_test = template.get_test("health_check")
+        health_check_test = template.get_test("Health Check")
         health_result = health_check_test.execute("/health")
 
         logging.info("\n[Health Check Result]")
         logging.info(f"  Score: {health_result.score}")
         logging.info(f"  Report: {health_result.report}")
 
-        json_check_test = template.get_test("check_response_json")
+        json_check_test = template.get_test("Check Response JSON")
         json_result = json_check_test.execute("/api/user", "userId", 1)
 
         logging.info("\n[JSON Check Result]")

@@ -1,5 +1,8 @@
 import os
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -37,7 +40,7 @@ class FatalReporter:
         """
         # If no specific path is provided, construct the default path
         if report_path is None:
-            print(FatalReporter.RESULTS_DIR)
+            logger.debug(f"Results directory: {FatalReporter.RESULTS_DIR}")
             report_path = os.path.join(FatalReporter.RESULTS_DIR, 'fatal_report.json')
 
         # --- Read and Validate Report File ---
@@ -45,13 +48,13 @@ class FatalReporter:
             with open(report_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         except FileNotFoundError:
-            return "## ❌ Error\nCould not find the fatal error report file. Please contact an administrator."
+            return "## Error\nCould not find the fatal error report file. Please contact an administrator."
         except json.JSONDecodeError:
-            return "## ❌ Error\nCould not parse the fatal error report file due to a syntax error. Please contact an administrator."
+            return "## Error\nCould not parse the fatal error report file due to a syntax error. Please contact an administrator."
 
         errors = data.get("errors", [])
         if not errors:
-            return "## ✅ No Fatal Errors Found\nYour submission passed all initial checks."
+            return "## No Fatal Errors Found\nYour submission passed all initial checks."
 
         # --- Group Errors for Structured Reporting ---
         grouped_errors = {}
@@ -62,14 +65,14 @@ class FatalReporter:
             grouped_errors[error_type].append(error.get("message", "No message provided."))
 
         # --- Build the Markdown Report ---
-        markdown_report = ["# 🚨 Autograder Fatal Error Report\n"]
+        markdown_report = ["# Autograder Fatal Error Report\n"]
         markdown_report.append(
             "We're sorry, but the autograder could not run due to the following critical issues with your submission. Please fix them and resubmit.\n")
 
         # Handle specific, common error types with custom formatting
         if "file_check" in grouped_errors:
             markdown_report.append("---")
-            markdown_report.append("## 📁 Missing Files")
+            markdown_report.append("## Missing Files")
             markdown_report.append(
                 "The following required files were not found. Please ensure they are named correctly and are located in the root directory of your project.\n")
             for msg in grouped_errors.pop("file_check"):
@@ -85,7 +88,7 @@ class FatalReporter:
         for error_type, messages in grouped_errors.items():
             markdown_report.append("---")
             heading = error_type.replace('_', ' ').title()
-            markdown_report.append(f"## ❗ {heading}")
+            markdown_report.append(f"## {heading}")
             for msg in messages:
                 markdown_report.append(f"- {msg}")
             markdown_report.append("\n")
@@ -112,5 +115,5 @@ class FatalReporter:
 if __name__ == "__main__":
     # Example usage
     report = FatalReporter.generate_feedback()
-    print(report)
+    logger.info(report)
     # Note: In a real scenario, you would call FatalReporter.create(result) to create the initial report file.
