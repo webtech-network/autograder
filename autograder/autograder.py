@@ -16,8 +16,7 @@ def build_pipeline(
                  feedback_config,
                  setup_config = None,
                  custom_template = None,
-                 feedback_mode = None,
-                 submission_files = None):
+                 feedback_mode = None):
     """
     Build an autograder pipeline based on configuration.
 
@@ -29,8 +28,6 @@ def build_pipeline(
         setup_config: Pre-flight setup configuration
         custom_template: Custom template object (if any)
         feedback_mode: Mode for feedback generation
-        submission_files: Student submission files
-        submission_id: Optional submission identifier
     Returns:
         Configured AutograderPipeline
     """
@@ -45,9 +42,7 @@ def build_pipeline(
     if setup_config:
         pipeline.add_step(PreFlightStep(setup_config))
 
-    pipeline.add_step(GradeStep(
-        submission_files=submission_files,
-    )) # Generates GradingResult with final score and result tree
+    pipeline.add_step(GradeStep()) # Generates GradingResult with final score and result tree
 
     # Feedback generation (if configured)
     if include_feedback:
@@ -58,9 +53,5 @@ def build_pipeline(
     pipeline.add_step(ExporterStep(UpstashDriver)) # Exports final results and feedback
 
     return pipeline
-
-
-
-
 
 
