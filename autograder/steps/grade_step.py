@@ -1,7 +1,7 @@
-from typing import Dict, Any, Optional
-from autograder.models.criteria_tree import CriteriaTree
+
 from autograder.models.dataclass.grading_result import GradingResult
-from autograder.models.dataclass.step_result import StepResult, StepStatus
+from autograder.models.dataclass.pipeline_execution import PipelineExecution
+from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 from autograder.models.abstract.step import Step
 from autograder.services.grader_service import GraderService
 
@@ -16,9 +16,7 @@ class GradeStep(Step):
     """
 
     def __init__(
-        self,
-        submission_files: Dict[str, Any],
-    ):
+        self    ):
         """
         Initialize the grade step.
 
@@ -26,23 +24,23 @@ class GradeStep(Step):
             criteria_json: Raw criteria configuration (only needed for single submission mode)
             submission_files: Student submission files
         """
-        self._submission_files = submission_files
         self._grader_service = GraderService()
 
-    def execute(self, input: CriteriaTree) -> StepResult[GradingResult]:
+    def execute(self, input: PipelineExecution) -> PipelineExecution:
         """
         Grade a submission based on the input type.
 
         Args:
-            input: Either a CriteriaTree (multi-submission mode) or Template (single submission mode)
+            _input: Either a CriteriaTree (multi-submission mode) or Template (single submission mode)
 
         Returns:
             StepResult containing GradingResult with scores and result tree
         """
         try:
+            criteria_tree = input.get_step_result(StepName.BUILD_TREE).data
             result_tree = self._grader_service.grade_from_tree(
-                criteria_tree=input,
-                submission_files=self._submission_files
+                criteria_tree=criteria_tree,
+                submission_files=input.submission.submission_files
             )
 
             # Create grading result
@@ -52,23 +50,19 @@ class GradeStep(Step):
                 final_score=final_score, status="success", result_tree=result_tree
             )
 
-            return StepResult(
-                data=grading_result, status=StepStatus.SUCCESS, original_input=input
-            )
+            return input.add_step_result(StepResult(
+                step=StepName.GRADE,
+                data=grading_result,
+                status=StepStatus.SUCCESS,
+                original_input=input
+            ))
 
         except Exception as e:
             # Return error result
-            grading_result = GradingResult(
-                final_score=0.0,
-                status="error",
-                error=f"Grading failed: {str(e)}",
-                failed_at_step=self.__class__.__name__,
-            )
-
-            return StepResult(
-                data=grading_result,
+            return input.add_step_result(StepResult(
+                step="GradeStep",
+                data=None,
                 status=StepStatus.FAIL,
                 error=str(e),
-                failed_at_step=self.__class__.__name__,
                 original_input=input,
-            )
+            ))

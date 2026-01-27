@@ -1,9 +1,8 @@
+from autograder.models.dataclass.pipeline_execution import PipelineExecution
 from autograder.services.criteria_tree_service import CriteriaTreeService
-from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.abstract.step import Step
-from autograder.models.abstract.template import Template
 from autograder.models.config.criteria import CriteriaConfig
-from autograder.models.dataclass.step_result import StepResult, StepStatus
+from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 
 
 class BuildTreeStep(Step):
@@ -24,7 +23,7 @@ class BuildTreeStep(Step):
         self._criteria_json = criteria_json
         self._criteria_tree_service = CriteriaTreeService()
 
-    def execute(self, input: Template) -> StepResult[CriteriaTree]:
+    def execute(self, input: PipelineExecution) -> PipelineExecution:
         """
         Build a criteria tree from the configuration and template.
 
@@ -37,24 +36,25 @@ class BuildTreeStep(Step):
         try:
             # Validate criteria configuration
             criteria_config = CriteriaConfig.from_dict(self._criteria_json)
-
+            template = input.get_step_result(StepName.LOAD_TEMPLATE).data
             # Build the criteria tree with embedded test functions
             criteria_tree = self._criteria_tree_service.build_tree(
                 criteria_config,
-                input
+                template
             )
 
-            return StepResult(
+            return input.add_step_result(StepResult(
+                step="BuildTreeStep",
                 data=criteria_tree,
                 status=StepStatus.SUCCESS,
                 original_input=input
-            )
+            ))
 
         except Exception as e:
-            return StepResult(
+            return input.add_step_result(StepResult(
+                step="BuildTreeStep",
                 data=None,
                 status=StepStatus.FAIL,
                 error=f"Failed to build criteria tree: {str(e)}",
-                failed_at_step=self.__class__.__name__,
                 original_input=input
-            )
+            ))
