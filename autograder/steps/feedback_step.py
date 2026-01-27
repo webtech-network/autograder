@@ -1,6 +1,7 @@
 from autograder.models.dataclass.grading_result import GradingResult
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.pipeline_execution import PipelineExecution
+from autograder.models.dataclass.step_result import StepName
 from autograder.services.report.reporter_service import ReporterService
 
 
@@ -13,6 +14,9 @@ class FeedbackStep(Step):
 
     def execute(self, input: PipelineExecution) -> PipelineExecution:
         """Adds feedback to the grading result using the reporter service."""
-        feedback = self._reporter_service.generate_feedback()
-        input.feedback = feedback
-        return
+        try:
+            result_tree = input.get_step_result(StepName.GRADE).data
+            feedback = self._reporter_service.generate_feedback(
+                grading_result=result_tree,
+                feedback_config=self._feedback_config
+            ) #TODO: Implement generate_feedback method @joaovitoralvarenga
