@@ -9,5 +9,10 @@ class TemplateLoaderStep(Step):
         self._custom_template = custom_template
         self._template_service = TemplateLibraryService()
 
-    def execute(self, input) -> PipelineExecution:
-        pass
+    def execute(self, input: PipelineExecution) -> PipelineExecution:
+        if self._custom_template:
+            return self._template_service.load_custom_template(self._custom_template) #TODO: Implement Custom Template Loading with Sandboxed Env
+        else:
+            return self._template_service.load_builtin_template(self._template_name) # Load built-in template similar to custom to avoid code duplication
+
+
