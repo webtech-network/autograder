@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from autograder.models.dataclass.pipeline_execution import PipelineExecution
+from autograder.models.pipeline_execution import PipelineExecution
 
 
 class Step(ABC):

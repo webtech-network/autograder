@@ -1,4 +1,4 @@
-from autograder.models.dataclass.pipeline_execution import PipelineExecution
+from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.template_library_service import TemplateLibraryService
 from autograder.models.abstract.step import Step
 

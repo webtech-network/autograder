@@ -1,4 +1,4 @@
-from autograder.models.dataclass.pipeline_execution import PipelineExecution
+from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.criteria_tree_service import CriteriaTreeService
 from autograder.models.abstract.step import Step
 from autograder.models.config.criteria import CriteriaConfig

@@ -1,6 +1,6 @@
 
 from autograder.models.dataclass.grading_result import GradingResult
-from autograder.models.dataclass.pipeline_execution import PipelineExecution
+from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 from autograder.models.abstract.step import Step
 from autograder.services.grader_service import GraderService
