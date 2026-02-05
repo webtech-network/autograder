@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Any
 
-from autograder.models.dataclass.step_result import StepResult
+from autograder.models.dataclass.pipeline_execution import PipelineExecution
 
 
 class Step(ABC):
     @abstractmethod
-    def execute(self, input: Any) -> StepResult[Any]:
+    def execute(self, input: PipelineExecution) -> PipelineExecution:
         pass
 
