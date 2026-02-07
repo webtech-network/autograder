@@ -16,9 +16,9 @@ def build_pipeline(
                  feedback_config,
                  setup_config = None,
                  custom_template = None,
-                 feedback_mode = None):
+                 feedback_mode = None) -> AutograderPipeline:
     """
-    Build an autograder pipeline based on configuration.
+    Build the AutograderPipeline object based on configuration.
 
     Args:
         template_name: Name of the template to use
@@ -50,7 +50,7 @@ def build_pipeline(
         pipeline.add_step(FeedbackStep(reporter_service, feedback_config)) # Uses GradingResult to generate feedback and appends it to GradingResult
 
     # Export results
-    pipeline.add_step(ExporterStep(UpstashDriver)) # Exports final results and feedback
+    pipeline.add_step(ExporterStep(UpstashDriver)) # Exports final results and feedback to external system
 
     return pipeline
 

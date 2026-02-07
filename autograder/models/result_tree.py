@@ -6,6 +6,10 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from enum import Enum
 
+from autograder.models.abstract.test_function import TestFunction
+from autograder.models.criteria_tree import TestNode
+from autograder.models.dataclass.test_result import TestResult
+
 
 class NodeType(Enum):
     """Types of nodes in the result tree."""
@@ -103,82 +107,29 @@ class ResultNode:
 
 
 @dataclass
+class SubjectResultNode(ResultNode):
+    """Represents a subject node in the result tree with its score calculated"""
+    subject_name: str
+@dataclass
 class TestResultNode(ResultNode):
-    """
-    Leaf node representing a single test execution.
+    """Stores the outcome of a single test execution from the test library."""
 
-    Contains the actual test result and execution details.
-    """
-    test_name: str = ""
-    test_function: Any = None  # Reference to the actual test function
-    test_params: List[Any] = field(default_factory=list)
-    file_target: Optional[str] = None
-    execution_result: Optional[Any] = None  # TestResult object after execution
-    error_message: Optional[str] = None
-    passed: bool = False
-
-    def __post_init__(self):
-        """Set node type to TEST."""
-        self.node_type = NodeType.TEST
-
-    def execute(self, submission_files: Dict[str, Any]) -> float:
-        """
-        Execute the test function with provided parameters.
-        Updates score, passed status, and execution_result.
-
-        Returns:
-            The test score (0-100)
-        """
-        if not self.test_function:
-            self.error_message = "No test function assigned"
-            self.score = 0.0
-            self.passed = False
-            return 0.0
-
-        try:
-            # Execute the test function
-            # The test function should return a TestResult object
-            self.execution_result = self.test_function.execute(
-                *self.test_params,
-                files=submission_files
-            )
-
-            # Extract score from result
-            if hasattr(self.execution_result, 'score'):
-                self.score = float(self.execution_result.score)
-            else:
-                self.score = 100.0 if self.execution_result else 0.0
-
-            # Check if test passed (score >= 50 is considered passing)
-            self.passed = self.score >= 50
-
-            # Store result report/message
-            if hasattr(self.execution_result, 'report'):
-                self.metadata['report'] = self.execution_result.report
-            elif hasattr(self.execution_result, 'message'):
-                self.metadata['message'] = self.execution_result.message
-
-            return self.score
-
-        except Exception as e:
-            self.error_message = f"Test execution failed: {str(e)}"
-            self.score = 0.0
-            self.passed = False
-            self.metadata['error'] = str(e)
-            return 0.0
+    score: int
+    test_node: TestNode
+    report: str
+    parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
+    def get_result(self, *args, **kwargs) :
+        return [self]
 
     def to_dict(self) -> dict:
-        """Convert test result node to dictionary with execution details."""
-        base_dict = super().to_dict()
-        base_dict.update({
+        return {
             "test_name": self.test_name,
-            "file_target": self.file_target,
-            "passed": self.passed,
-            "error_message": self.error_message,
-            "params": self.test_params
-        })
-        return base_dict
-
+            "score": self.score,
+            "file_target": self.test_node.file_target,
+            "subject_name": self.subject_name,
+            "report": self.report,
+            "parameters": self.parameters
+        }
 
 @dataclass
 class ResultTree:
