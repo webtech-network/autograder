@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
-from autograder.models.dataclass.test_result import TestResult
+
+from autograder.models.dataclass.submission import SubmissionFile
+from autograder.models.result_tree import TestResultNode
 from autograder.models.dataclass.param_description import ParamDescription
 
 
@@ -12,13 +14,13 @@ class TestFunction(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """The machine-readable name of the test (e.g., 'has_tag')."""
+        """The name of the test (e.g., 'has_tag')."""
         pass
 
     @property
     @abstractmethod
     def description(self) -> str:
-        """A human-readable description of what the test does."""
+        """A description of what the test does."""
         pass
 
     @property
@@ -28,7 +30,7 @@ class TestFunction(ABC):
         pass
 
     @property
-    def required_file(self) -> Optional[str]:
+    def required_file_type(self) -> Optional[str]:
         """
         The type of file content this test expects (e.g., 'HTML', 'CSS', 'JavaScript', 'JSON').
         Return None if the test doesn't require file content.
@@ -36,6 +38,6 @@ class TestFunction(ABC):
         return None
 
     @abstractmethod
-    def execute(self, *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]] , *args, **kwargs) -> TestResult:
         """The concrete implementation of the test logic."""
         pass

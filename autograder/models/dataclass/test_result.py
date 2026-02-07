@@ -9,7 +9,6 @@ class TestResult:
     test_name: str
     score: int
     report: str
-    subject_name: str = ""
     parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
 
     def get_result(self, *args, **kwargs) :
