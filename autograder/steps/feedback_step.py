@@ -5,6 +5,11 @@ from autograder.services.report.reporter_service import ReporterService
 
 
 class FeedbackStep(Step):
+    """
+    Step that generates feedback for the grading result using the ReporterService.
+    It takes the grading result from the GRADE step and produces feedback based on the provided feedback configuration.
+    The feedback is a user-faced text that's highly configurable and can include explanations, suggestions and relevant learning resources.
+    """
     def __init__(self,
                  reporter_service: ReporterService,
                  feedback_config: dict):
