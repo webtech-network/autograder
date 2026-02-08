@@ -1,12 +1,35 @@
+from autograder.models.abstract.step import Step
+from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.report.reporter_service import ReporterService
 from autograder.services.upstash_driver import UpstashDriver
-from autograder.pipeline import AutograderPipeline
 from autograder.steps.export_step import ExporterStep
 from autograder.steps.feedback_step import FeedbackStep
 from autograder.steps.grade_step import GradeStep
 from autograder.steps.load_template_step import TemplateLoaderStep
 from autograder.steps.pre_flight_step import PreFlightStep
 from autograder.steps.build_tree_step import BuildTreeStep
+
+class AutograderPipeline:
+    def __init__(self):
+        self._steps = []
+
+    def add_step(self, step: Step) -> None:
+        self._steps.append(step)
+
+    def run(self, submission:'Submission'):
+
+        pipeline_execution = PipelineExecution.create_pipeline_obj(submission)
+
+        for step in self._steps:
+            print("Executing step:", step.__class__.__name__) # TODO: Replace with proper logging
+
+            if not pipeline_execution.get_previous_step.is_successful:
+                pipeline_execution.set_failure()
+                break
+
+            pipeline_execution = step.execute(pipeline_execution)
+
+        return pipeline_execution
 
 
 def build_pipeline(
