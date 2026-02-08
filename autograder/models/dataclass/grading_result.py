@@ -6,9 +6,10 @@ from autograder.models.result_tree import ResultTree
 @dataclass
 class GradingResult:
     final_score: float
-    status: str
+    #status: str I'll evaluate if we keep this attribute or not
     feedback: Optional[str] = None
     result_tree: Optional['ResultTree'] = None
+
     # In case of error
     error: Optional[str] = None
     failed_at_step: Optional[str] = None
