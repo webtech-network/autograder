@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 from dataclasses import dataclass
 
@@ -12,4 +12,4 @@ class Submission:
     username: str
     user_id: int
     assignment_id: int
-    submission_files: List[SubmissionFile]
+    submission_files: Dict[str,SubmissionFile]
