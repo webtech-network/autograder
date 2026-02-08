@@ -1,5 +1,5 @@
 from typing import List, override
-from autograder.utils.processers.criteria_tree import CriteriaTreeProcesser
+from autograder.models.abstract.criteria_tree_processer import CriteriaTreeProcesser
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
