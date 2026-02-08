@@ -11,14 +11,34 @@ from autograder.steps.pre_flight_step import PreFlightStep
 from autograder.steps.build_tree_step import BuildTreeStep
 
 class AutograderPipeline:
+    """
+    AutograderPipeline orchestrates the execution of steps for grading a submission.
+
+        The pipeline is designed to be flexible and configurable, allowing for different grading workflows based on the provided configuration.
+        It holds a PipelineExecution object that keeps all the execution footprint, including the original submission, intermediate results from each step, and the final grading result.
+    """
     def __init__(self):
+        """
+        Initializes the AutograderPipeline with an empty steps dictionary.
+         The steps will be added in the order they should be executed.
+         Each step is identified by a unique StepName.
+         The pipeline execution will pass a PipelineExecution object through each step, allowing them to share data and results.
+         The pipeline handles execution flow, error handling, and finalization of the grading process.
+        """
         self._steps = {}
 
     def add_step(self, step_name: StepName, step: Step) -> None:
         self._steps[step_name] = step
 
     def run(self, submission:'Submission'):
+        """
+        Run the autograder pipeline on a given submission.
+        Args:
+            submission: The submission to be graded, containing all necessary data for grading.
+        Returns:
+            PipelineExecution object containing the results of the grading process, including final score, feedback, and any errors encountered during execution.
 
+        """
         pipeline_execution = PipelineExecution.start_execution(submission)
 
         for step in self._steps:
@@ -56,9 +76,9 @@ def build_pipeline(
         feedback_config: Configuration for feedback generation
         setup_config: Pre-flight setup configuration
         custom_template: Custom template object (if any)
-        feedback_mode: Mode for feedback generation
+        feedback_mode: Mode for feedback generation (default or ai)
     Returns:
-        Configured AutograderPipeline
+        Configured AutograderPipeline object ready to run with submissions
     """
     pipeline = AutograderPipeline()
 
