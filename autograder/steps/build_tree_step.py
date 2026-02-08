@@ -9,7 +9,6 @@ class BuildTreeStep(Step):
     """
     Step that builds a CriteriaTree from validated criteria configuration.
 
-    This step is used when grading multiple submissions with the same criteria.
     The tree is built once and reused for efficiency.
     """
 
@@ -44,7 +43,7 @@ class BuildTreeStep(Step):
             )
 
             return input.add_step_result(StepResult(
-                step="BuildTreeStep",
+                step=StepName.BUILD_TREE,
                 data=criteria_tree,
                 status=StepStatus.SUCCESS,
                 original_input=input
@@ -52,7 +51,7 @@ class BuildTreeStep(Step):
 
         except Exception as e:
             return input.add_step_result(StepResult(
-                step="BuildTreeStep",
+                step=StepName.BUILD_TREE,
                 data=None,
                 status=StepStatus.FAIL,
                 error=f"Failed to build criteria tree: {str(e)}",
