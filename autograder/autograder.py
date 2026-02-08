@@ -1,5 +1,6 @@
 from autograder.models.abstract.step import Step
-from autograder.models.pipeline_execution import PipelineExecution
+from autograder.models.dataclass.step_result import StepName
+from autograder.models.pipeline_execution import PipelineExecution, PipelineStatus
 from autograder.services.report.reporter_service import ReporterService
 from autograder.services.upstash_driver import UpstashDriver
 from autograder.steps.export_step import ExporterStep
@@ -11,24 +12,29 @@ from autograder.steps.build_tree_step import BuildTreeStep
 
 class AutograderPipeline:
     def __init__(self):
-        self._steps = []
+        self._steps = {}
 
-    def add_step(self, step: Step) -> None:
-        self._steps.append(step)
+    def add_step(self, step_name: StepName, step: Step) -> None:
+        self._steps[step_name] = step
 
     def run(self, submission:'Submission'):
 
-        pipeline_execution = PipelineExecution.create_pipeline_obj(submission)
+        pipeline_execution = PipelineExecution.start_execution(submission)
 
         for step in self._steps:
-            print("Executing step:", step.__class__.__name__) # TODO: Replace with proper logging
+            print("Executing step:", step) # TODO: Replace with proper logging
 
             if not pipeline_execution.get_previous_step.is_successful:
                 pipeline_execution.set_failure()
                 break
+            try:
+                pipeline_execution = self._steps[step].execute(pipeline_execution)
+            except Exception as e:
+                pipeline_execution.status = PipelineStatus.INTERRUPTED
+                print(f"Error executing step {step}: {str(e)}") # TODO: Replace with proper logging
+                break
 
-            pipeline_execution = step.execute(pipeline_execution)
-
+        pipeline_execution.finish_execution()
         return pipeline_execution
 
 
@@ -57,23 +63,23 @@ def build_pipeline(
     pipeline = AutograderPipeline()
 
     # Load template
-    pipeline.add_step(TemplateLoaderStep(template_name, custom_template)) # Passes the template to the next step
+    pipeline.add_step(StepName.LOAD_TEMPLATE,TemplateLoaderStep(template_name, custom_template)) # Passes the template to the next step
 
-    pipeline.add_step(BuildTreeStep(grading_criteria)) # Uses template to match selected tests in criteria and builds tree
+    pipeline.add_step(StepName.BUILD_TREE,BuildTreeStep(grading_criteria)) # Uses template to match selected tests in criteria and builds tree
 
     # Pre-flight checks (if configured)
     if setup_config:
-        pipeline.add_step(PreFlightStep(setup_config))
+        pipeline.add_step(StepName.PRE_FLIGHT,PreFlightStep(setup_config))
 
-    pipeline.add_step(GradeStep()) # Generates GradingResult with final score and result tree
+    pipeline.add_step(StepName.GRADE,GradeStep()) # Generates GradingResult with final score and result tree
 
     # Feedback generation (if configured)
     if include_feedback:
         reporter_service = ReporterService(feedback_mode=feedback_mode)
-        pipeline.add_step(FeedbackStep(reporter_service, feedback_config)) # Uses GradingResult to generate feedback and appends it to GradingResult
+        pipeline.add_step(StepName.FEEDBACK,FeedbackStep(reporter_service, feedback_config)) # Uses GradingResult to generate feedback and appends it to GradingResult
 
     # Export results
-    pipeline.add_step(ExporterStep(UpstashDriver)) # Exports final results and feedback to external system
+    pipeline.add_step(StepName.EXPORTER,ExporterStep(UpstashDriver)) # Exports final results and feedback to external system
 
     return pipeline
 
