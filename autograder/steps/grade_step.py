@@ -7,11 +7,10 @@ from autograder.services.grader_service import GraderService
 
 class GradeStep(Step):
     """
-    Step that grades a submission using either a CriteriaTree or raw criteria configuration.
+    Step that grades a submission using the CriteriaTree and the Template over the submission files.
 
-    This step intelligently determines which grading method to use:
-    - If input is CriteriaTree: Use grade_from_tree (for multiple submissions)
-    - If input is Template: Use grade_from_config (for single submission)
+    This step represents the main grading logic, where the CriteriaTree is executed against a submission
+    generating a result tree with scores for each test, subject, category and overall final score.
     """
 
     def __init__(
@@ -23,10 +22,10 @@ class GradeStep(Step):
 
     def execute(self, input: PipelineExecution) -> PipelineExecution:
         """
-        Grade a submission based on the input type.
+        Grade a submission based on the criteria tree and template.
 
         Args:
-            _input: Either a CriteriaTree (multi-submission mode) or Template (single submission mode)
+            input: PipelineExecution containing the built criteria tree and submission files generated from previous steps
 
         Returns:
             StepResult containing GradingResult with scores and result tree
