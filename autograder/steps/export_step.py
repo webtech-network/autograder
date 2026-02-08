@@ -4,9 +4,20 @@ from autograder.models.dataclass.step_result import StepResult, StepStatus, Step
 
 
 class ExporterStep(Step):
+    """
+    Step that exports the final grading result to an external system (e.g., Upstash).
+    """
+
     def __init__(self, remote_driver):
         self._remote_driver = remote_driver # UpstashDriver
     def execute(self, input: PipelineExecution) -> PipelineExecution:
+        """
+        Export the final grading result to an external system.
+        Args:
+            input: PipelineExecution containing the grading result from the GRADE step
+        Returns:
+            PipelineExecution with an added StepResult indicating success or failure of the export operation
+        """
         try:
             # Extract username and score from input
             username = input.submission.username
