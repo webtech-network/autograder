@@ -1,5 +1,4 @@
-
-from autograder.models.dataclass.grading_result import GradingResult
+from autograder.models.dataclass.grade_step_result import GradeStepResult
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 from autograder.models.abstract.step import Step
@@ -19,10 +18,6 @@ class GradeStep(Step):
         self    ):
         """
         Initialize the grade step.
-
-        Args:
-            criteria_json: Raw criteria configuration (only needed for single submission mode)
-            submission_files: Student submission files
         """
         self._grader_service = GraderService()
 
@@ -46,8 +41,8 @@ class GradeStep(Step):
             # Create grading result
             final_score = result_tree.calculate_final_score()
 
-            grading_result = GradingResult(
-                final_score=final_score, status="success", result_tree=result_tree
+            grading_result = GradeStepResult(
+                final_score=final_score, result_tree=result_tree
             )
 
             return input.add_step_result(StepResult(
@@ -60,7 +55,7 @@ class GradeStep(Step):
         except Exception as e:
             # Return error result
             return input.add_step_result(StepResult(
-                step="GradeStep",
+                step=StepName.GRADE,
                 data=None,
                 status=StepStatus.FAIL,
                 error=str(e),
