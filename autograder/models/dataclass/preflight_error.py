@@ -7,6 +7,7 @@ class PreflightCheckType(Enum):
     """Types of preflight checks that can fail."""
     FILE_CHECK = "file_check"
     SETUP_COMMAND = "setup_command"
+    SANDBOX_CREATION = "sandbox_creation"
 
 
 @dataclass
