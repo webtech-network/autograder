@@ -1,20 +1,32 @@
 import threading
 import time
-from typing import Dict, List
+from typing import Dict, List, Optional
 import docker
 from sandbox_manager.language_pool import LanguagePool
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import Language
 from sandbox_manager.sandbox_container import SandboxContainer
 
-client = docker.from_env()
+_manager_instance: Optional['SandboxManager'] = None
+_client = docker.from_env()
 
-def get_sandbox_manager(pool_configs: List[SandboxPoolConfig]) -> 'SandboxManager':
+def initialize_sandbox_manager(pool_configs: List[SandboxPoolConfig]) -> 'SandboxManager':
+    """
+    Should be called upon application startup
+    """
+    global _manager_instance
+
     for config in pool_configs:
         if config.language not in Language:
             raise ValueError(f"Unsupported language: {config.language}")
-    language_pools = {config.language:LanguagePool(config.language, config, client) for config in pool_configs}
-    return SandboxManager(language_pools)
+    language_pools = {config.language:LanguagePool(config.language, config, _client) for config in pool_configs}
+    _manager_instance = SandboxManager(language_pools)
+    return _manager_instance
+
+def get_sandbox_manager() -> 'SandboxManager':
+    if _manager_instance is None:
+        raise ValueError("SandboxManager has not been initialized. Call initialize_sandbox_manager() first.")
+    return _manager_instance
 
 class SandboxManager:
     def __init__(self, language_pools: Dict[Language,LanguagePool]):
