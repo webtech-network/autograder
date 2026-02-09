@@ -23,7 +23,7 @@ class PreFlightStep(Step):
 
     def execute(self, input: PipelineExecution) -> PipelineExecution:
         """
-        Execute pre-flight checks on the submission.
+        Execute pre-flight checks on the submission, returns a reference to the sandbox if the grading process requires it.
 
         Args:
             input: PipelineExecution containing submission data
@@ -54,9 +54,10 @@ class PreFlightStep(Step):
         if self._setup_config.get('setup_commands'):
             setup_ok = self._pre_flight_service.check_setup_commands(sandbox)
             if not setup_ok:
+                # self._pre_flight_service.destroy_sandbox(sandbox) #TODO: Decide when to destroy sandbox (Maybe after grading process finishes?
                 return input.add_step_result(StepResult(
                     step=StepName.PRE_FLIGHT,
-                    data=sandbox,
+                    data=sandbox,#Return Sandbox Here anyway? (How to deal with sandbox destruction)
                     status=StepStatus.FAIL,
                     error=self._format_errors(),
                     original_input=input
