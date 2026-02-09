@@ -4,9 +4,6 @@ from autograder.models.abstract.test_function import TestFunction
 
 
 class Template(ABC):
-    def __init__(self):
-        self.tests = None
-
     @property
     @abstractmethod
     def template_name(self) -> str:
@@ -19,18 +16,14 @@ class Template(ABC):
 
     @property
     @abstractmethod
-    def requires_pre_executed_tree(self) -> bool:
+    def requires_pre_executed_tree(self) -> bool: # TODO: remove pre_executed tree logic
         pass
 
     @property
     @abstractmethod
-    def requires_execution_helper(self) -> bool:
+    def requires_sandbox(self) -> bool:
         pass
 
-    @property
-    @abstractmethod
-    def execution_helper(self):
-        pass
 
     @abstractmethod
     def get_test(self, name: str) -> TestFunction:
