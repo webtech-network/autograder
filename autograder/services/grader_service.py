@@ -5,13 +5,21 @@ from autograder.models.criteria_tree import CriteriaTree, CategoryNode, SubjectN
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.result_tree import ResultTree, ResultNode, NodeType, TestResultNode
 from autograder.services.criteria_tree_service import CriteriaTreeService
-from autograder.services.graders.criteria_tree import CriteriaTreeGrader
+
 
 
 class GraderService():
     def __init__(self):
         self.logger = logging.getLogger("GraderService")
         self.__submission_files = None
+        self._sandbox = None
+
+    def set_sandbox(self, sandbox):
+        self._sandbox = sandbox
+
+    def has_sandbox(self) -> bool:
+        return self._sandbox is not None
+
     def grade_from_tree(
         self,
         criteria_tree: CriteriaTree,
@@ -96,7 +104,12 @@ class GraderService():
 
     def process_test(self, test: TestNode) -> TestResultNode:
         file_target = self.get_file_target(test)
-        test_result = test.test_function.execute(file=file_target, **(test.parameters or {}))
+        test_result = (test.test_function.execute(
+                                            files=file_target,
+                                            sandbox=self._sandbox,
+                                             **(test.parameters or {})
+                                             )
+                                            )
         return TestResultNode(
             test_node = test,
             score = test_result.score,
