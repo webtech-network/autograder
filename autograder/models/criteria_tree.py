@@ -9,7 +9,6 @@ from typing import List, Optional, Any
 from dataclasses import dataclass, field
 
 from autograder.models.abstract.test_function import TestFunction
-from autograder.models.dataclass.submission import SubmissionFile
 from autograder.utils.printers.criteria_tree import CriteriaTreePrinter
 
 
