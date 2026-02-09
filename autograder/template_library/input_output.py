@@ -1,8 +1,10 @@
+import logging
+
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
-from autograder.utils.executors.sandbox_executor import SandboxExecutor
+from sandbox_manager.sandbox_container import SandboxContainer
 
 
 # ===============================================================
@@ -34,62 +36,33 @@ class ExpectOutputTest(TestFunction):
             ParamDescription("expected_output", "A única string que o programa deve imprimir na saída padrão.", "string")
         ]
 
-    def __init__(self, executor: SandboxExecutor):
-        self.executor = executor
-
-    def execute(self, inputs: list, expected_output: str) -> TestResult:
+    def execute(self, files, sandbox: SandboxContainer, inputs: list = None, expected_output: str = "", **kwargs) -> TestResult:
         """
         Constructs and runs the command using file redirection for robust input handling,
         then validates the output.
         """
-        start_command = self.executor.config.get("start_command")
-        if not start_command:
-            raise ValueError("A 'start_command' must be defined in setup.json for this template.")
-
-        # Create a single string with all inputs separated by newlines.
-        input_string = "\n".join(map(str, inputs))
-        temp_input_filename = "input.tmp"
+        # TODO: Implement more robust input handling and I/O validation
 
         try:
-            # Step 1: Write the input string to a temporary file using a "here document".
-            # This is the most reliable way to handle multi-line input in a shell,
-            # as it avoids complex quoting issues. Using a quoted delimiter 'EOT'
-            # prevents the shell from trying to interpret the content.
-            write_command = f"""
-cat <<'EOT' > {temp_input_filename}
-{input_string}
-EOT
-"""
-            self.executor.run_command(write_command)
-
-            # Step 2: Execute the student's program, redirecting the temp file to its stdin.
-            full_command = f"{start_command} < {temp_input_filename}"
-            exit_code, stdout, stderr = self.executor.run_command(full_command)
-
-            if exit_code != 0:
-                return TestResult(
-                    test_name=self.name,
-                    score=0,
-                    report=f"The program exited with an error. Stderr: {stderr}"
-                )
-
-            actual_output = stdout.strip()
-            if actual_output == expected_output.strip():
-                score = 100
-                report = "Success! The program produced the correct output for the given inputs."
+            if len(inputs) == 1:
+                output = sandbox.run_command(inputs[0])
             else:
-                score = 0
-                report = f"Output did not match. Expected: '{expected_output.strip()}', but the program returned: '{actual_output}'"
+                output = sandbox.run_stream_command(inputs) #TODO: Implement run_stream_command in sandbox manager to handle streaming input
+
+            score = 1.0 if output.strip() == expected_output.strip() else 0.0
+            report = f"Expected output: '{expected_output.strip()}'\nActual output: '{output.strip()}'\n"
 
             return TestResult(
                 test_name=self.name,
                 score=score,
                 report=report
             )
-
-        finally:
-            # Step 3: Always clean up the temporary file.
-            self.executor.run_command(f"rm {temp_input_filename}")
+        except Exception as e:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=f"Error executing command: {str(e)}"
+            )
 
 
 # ===============================================================
@@ -102,6 +75,13 @@ class InputOutputTemplate(Template):
     to securely run student programs and validate their console output.
     """
 
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+        self.tests = {
+            "expect_output": ExpectOutputTest(),
+        }
+
     @property
     def template_name(self):
         return "Input/Output"
@@ -113,41 +93,6 @@ class InputOutputTemplate(Template):
     @property
     def requires_pre_executed_tree(self) -> bool:
         return True
-
-    @property
-    def requires_execution_helper(self) -> bool:
-        return True
-
-    @property
-    def execution_helper(self):
-        return self.executor
-
-    def __init__(self, clean=False):
-
-        if not clean:
-            # Prepare the environment by running setup commands
-            self.executor = SandboxExecutor.start()
-            self._setup_environment()
-        else:
-            self.executor = None
-        self.tests = {
-            "expect_output": ExpectOutputTest(self.executor),
-        }
-
-    def _setup_environment(self):
-        """Runs any initial setup commands, like compilation or dependency installation."""
-        print("--- Setting up Input/Output environment ---")
-        install_command = self.executor.config.get("commands", {}).get("install_dependencies")
-        if install_command:
-            exit_code, _, stderr = self.executor.run_command(install_command)
-            if exit_code != 0:
-                raise RuntimeError(f"Failed to run setup command '{install_command}': {stderr}")
-        print("--- Environment setup complete ---")
-
-    def stop(self):
-        """Stops the sandbox executor."""
-        if self.executor:
-            self.executor.stop()
 
     def get_test(self, name: str) -> TestFunction:
         test_function = self.tests.get(name)
