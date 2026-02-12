@@ -132,6 +132,8 @@ class CheckInternalLinks(TestFunction):
             report=report,
             parameters={"required_count": required_count}
         )
+
+
 class HasTag(TestFunction):
     @property
     def name(self): return "has_tag"
@@ -157,6 +159,7 @@ class HasTag(TestFunction):
             parameters={"tag": tag, "required_count": required_count}
         )
 
+
 class HasForbiddenTag(TestFunction):
     @property
     def name(self): return "has_forbidden_tag"
@@ -175,6 +178,7 @@ class HasForbiddenTag(TestFunction):
         score = 0 if found else 100
         report = f"A tag `<{tag}>` foi encontrada e é proibida." if found else f"A tag `<{tag}>` não foi encontrada, ótimo!"
         return TestResult(test_name=self.name, score=score, report=report, parameters={"tag": tag})
+
 
 class HasAttribute(TestFunction):
     @property
@@ -200,6 +204,7 @@ class HasAttribute(TestFunction):
             report=report,
             parameters={"attribute": attribute, "required_count": required_count}
         )
+
 
 class CheckNoUnclosedTags(TestFunction):
     @property
@@ -248,6 +253,7 @@ class CheckNoUnclosedTags(TestFunction):
         )
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckNoInlineStyles(TestFunction):
     @property
     def name(self): return "check_no_inline_styles"
@@ -263,6 +269,7 @@ class CheckNoInlineStyles(TestFunction):
         score = 0 if found_count > 0 else 100
         report = f"Foi encontrado {found_count} inline styles (`style='...'`). Mova todas as regras de estilo para seu arquivo `.css`." if found_count > 0 else "Excelente! Nenhum estilo inline foi encontrado."
         return TestResult(test_name=self.name, score=score, report=report)
+
 
 class UsesSemanticTags(TestFunction):
     @property
@@ -281,6 +288,7 @@ class UsesSemanticTags(TestFunction):
         report = "Utilizou tags semânticas." if found else "Não usou nenhuma tag do tipo (`<article>`, `<section>`, `<nav>`) na estrutura do HTML."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckCssLinked(TestFunction):
     @property
     def name(self): return "check_css_linked"
@@ -297,6 +305,7 @@ class CheckCssLinked(TestFunction):
         score = 100 if found else 0
         report = "Arquivo CSS está corretamente linkado com o HTML." if found else "Não foi encontrada a tag `<link rel='stylesheet'>` no seu HTML."
         return TestResult(test_name=self.name, score=score, report=report)
+
 
 class CssUsesProperty(TestFunction):
     @property
@@ -317,6 +326,7 @@ class CssUsesProperty(TestFunction):
         score = 100 if found else 0
         report = f"A propriedade `{prop}: {value};` foi encontrada." if found else f"A propriedade CSS `{prop}: {value};` não foi encontrada."
         return TestResult(test_name=self.name, score=score, report=report, parameters={"prop": prop, "value": value})
+
 
 class CountOverUsage(TestFunction):
     @property
@@ -342,6 +352,7 @@ class CountOverUsage(TestFunction):
             parameters={"text": text, "max_allowed": max_allowed}
         )
 
+
 class JsUsesFeature(TestFunction):
     @property
     def name(self): return "js_uses_feature"
@@ -360,6 +371,7 @@ class JsUsesFeature(TestFunction):
         report = f"A funcionalidade `{feature}` foi implementada." if found else f"A funcionalidade JavaScript `{feature}` não foi encontrada no seu código."
         return TestResult(test_name=self.name, score=score, report=report, parameters={"feature": feature})
 
+
 class UsesForbiddenMethod(TestFunction):
     @property
     def name(self): return "uses_forbidden_method"
@@ -377,6 +389,7 @@ class UsesForbiddenMethod(TestFunction):
         score = 0 if found else 100
         report = f"Penalidade: Método proibido `{method}()` detectado." if found else f"Ótimo! O método proibido `{method}()` não foi usado."
         return TestResult(test_name=self.name, score=score, report=report, parameters={"method": method})
+
 
 class CountGlobalVars(TestFunction):
     @property
@@ -400,6 +413,7 @@ class CountGlobalVars(TestFunction):
             report=report,
             parameters={"max_allowed": max_allowed}
         )
+
 
 class CheckHeadingsSequential(TestFunction):
     @property
@@ -436,6 +450,7 @@ class CheckHeadingsSequential(TestFunction):
         )
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckAllImagesHaveAlt(TestFunction):
     @property
     def name(self): return "check_all_images_have_alt"
@@ -456,6 +471,7 @@ class CheckAllImagesHaveAlt(TestFunction):
         report = f"{with_alt} de {len(images)} imagens tem o atributo `alt` preenchido."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckHtmlDirectChildren(TestFunction):
     @property
     def name(self): return "check_html_direct_children"
@@ -475,6 +491,7 @@ class CheckHtmlDirectChildren(TestFunction):
         is_valid = all(name in ['head', 'body'] for name in children_names) and 'head' in children_names and 'body' in children_names
         report = "Estrutura da tag <html> está correta." if is_valid else "A tag <html> deve conter apenas as tags <head> e <body> como filhos diretos."
         return TestResult(test_name=self.name, score=100 if is_valid else 0, report=report)
+
 
 class CheckTagNotInside(TestFunction):
     @property
@@ -500,6 +517,7 @@ class CheckTagNotInside(TestFunction):
             report=report,
             parameters={"child_tag": child_tag, "parent_tag": parent_tag}
         )
+
 
 class CheckInternalLinksToArticle(TestFunction):
     @property
@@ -539,6 +557,7 @@ class CheckInternalLinksToArticle(TestFunction):
             parameters={"required_count": required_count}
         )
 
+
 class HasStyle(TestFunction):
     @property
     def name(self): return "has_style"
@@ -562,6 +581,7 @@ class HasStyle(TestFunction):
             report=report,
             parameters={"style": style, "required_count": count}
         )
+
 
 class CheckHeadDetails(TestFunction):
     @property
@@ -590,6 +610,7 @@ class CheckHeadDetails(TestFunction):
             parameters={"detail_tag": detail_tag}
         )
 
+
 class CheckAttributeAndValue(TestFunction):
     @property
     def name(self): return "check_attribute_and_value"
@@ -616,6 +637,7 @@ class CheckAttributeAndValue(TestFunction):
             parameters={"tag": tag, "attribute": attribute, "value": value}
         )
 
+
 class CheckDirExists(TestFunction):
     @property
     def name(self): return "check_dir_exists"
@@ -634,6 +656,7 @@ class CheckDirExists(TestFunction):
         score = 100 if exists else 0
         report = f"O diretório '{dir_path}' existe." if exists else f"O diretório '{dir_path}' não existe."
         return TestResult(test_name=self.name, score=score, report=report, parameters={"dir_path": dir_path})
+
 
 class CheckProjectStructure(TestFunction):
     @property
@@ -659,9 +682,10 @@ class CheckProjectStructure(TestFunction):
             parameters={"expected_structure": expected_structure}
         )
 
+
 class CheckIdSelectorOverUsage(TestFunction):
     @property
-    def name(self): return "check_id_selector_over_usage"
+    def name(self): return "Check ID Selector Over Usage"
     @property
     def description(self): return "Conta seletores de ID válidos no CSS."
     @property
@@ -672,11 +696,35 @@ class CheckIdSelectorOverUsage(TestFunction):
             ParamDescription("max_allowed", "Número máximo de seletores de ID permitidos.", "integer")
         ]
     def execute(self, css_content: str, max_allowed: int) -> TestResult:
-        id_selector_pattern = re.compile(
-            r"(^|{|,)\s*#([A-Za-z_][A-Za-z0-9\-_]*)\b",
-            re.MULTILINE
+        token_pattern = re.compile(
+            r'(/\*.*?\*/)|'          # Comentários (Ignorar)
+            r'("[^"]*")|'            # String dupla (Ignorar)
+            r"('[^']*')|"            # String simple (Ignorar)
+            r'(@media\b)|'           # @media
+            r'(\{)|'                 # Abre chaves
+            r'(\})|'                 # Fecha chaves
+            r'(#[a-zA-Z_][\w-]*)',   # Possivel a ID
+            re.DOTALL | re.IGNORECASE
         )
-        selectors = id_selector_pattern.findall(css_content)
+        selectors = []
+        context_stack = [True] 
+        next_block_flag = False
+        for match in token_pattern.finditer(css_content):
+            comment, double_str, simple_str, media_key, open_brace, close_brace, found_id = match.groups()
+            if comment or double_str or simple_str:
+                continue 
+            if media_key:
+                next_block_flag = True
+            elif open_brace:
+                context_stack.append(True if next_block_flag else False)
+                next_block_flag = False
+            elif close_brace:
+                if len(context_stack) > 1:
+                    context_stack.pop()
+            elif found_id:
+                current_context_is_selector_area = context_stack[-1]
+                if current_context_is_selector_area:
+                    selectors.append(found_id)
         found_count = len(selectors)
         score = 100 if found_count <= max_allowed else 0
         report = f"{found_count} seletores de ID detectados (limite: {max_allowed})." if score == 0 else "Uso controlado de seletores de ID."
@@ -686,6 +734,9 @@ class CheckIdSelectorOverUsage(TestFunction):
             report=report,
             parameters={"max_allowed": max_allowed}
         )
+
+
+
 
 class UsesRelativeUnits(TestFunction):
     @property
@@ -703,6 +754,7 @@ class UsesRelativeUnits(TestFunction):
         report = "Estão sendo utilizadas medidas relativas no CSS." if found else "Não foram utilizadas medidas relativas como (em, rem, %, vh, vw) no seu CSS."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckMediaQueries(TestFunction):
     @property
     def name(self): return "check_media_queries"
@@ -719,6 +771,7 @@ class CheckMediaQueries(TestFunction):
         report = "Media queries estão sendo utilizadas no CSS." if found else "Não foi encontrado o uso de media queries no seu CSS."
         return TestResult(test_name=self.name, score=score, report=report)
 
+
 class CheckFlexboxUsage(TestFunction):
     @property
     def name(self): return "check_flexbox_usage"
@@ -734,6 +787,7 @@ class CheckFlexboxUsage(TestFunction):
         score = 100 if found else 0
         report = "Propriedades `flexbox` estão sendo utilizadas no CSS." if found else "Propriedades `flexbox` não foram encontradas no seu CSS."
         return TestResult(test_name=self.name, score=score, report=report)
+
 
 class CheckBootstrapUsage(TestFunction):
     @property
