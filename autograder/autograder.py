@@ -54,7 +54,7 @@ class AutograderPipeline:
                 print(f"Error executing step {step}: {str(e)}") # TODO: Replace with proper logging
                 break
 
-        pipeline_execution.finish_execution()
+        pipeline_execution.finish_execution() # Generates GradingResult object in pipeline execution
         return pipeline_execution
 
 
@@ -65,7 +65,9 @@ def build_pipeline(
                  feedback_config,
                  setup_config = None,
                  custom_template = None,
-                 feedback_mode = None) -> AutograderPipeline:
+                 feedback_mode = None,
+                 export_results = False
+                    ) -> AutograderPipeline:
     """
     Build the AutograderPipeline object based on configuration.
 
@@ -99,7 +101,8 @@ def build_pipeline(
         pipeline.add_step(StepName.FEEDBACK,FeedbackStep(reporter_service, feedback_config)) # Uses GradingResult to generate feedback and appends it to GradingResult
 
     # Export results
-    pipeline.add_step(StepName.EXPORTER,ExporterStep(UpstashDriver)) # Exports final results and feedback to external system
+    if export_results:
+        pipeline.add_step(StepName.EXPORTER,ExporterStep(UpstashDriver)) # Exports final results and feedback to external system
 
     return pipeline
 
