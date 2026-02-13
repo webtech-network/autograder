@@ -1,145 +1,332 @@
 """
-Models for the Result Tree - represents executed grading results.
-The result tree mirrors the criteria structure but contains actual execution results.
+Result Tree Models
+
+The Result Tree is the stateful representation of a grading session, produced by executing
+a Criteria Tree on a student submission.
+
+Structure Overview:
+- ResultTree: Root container holding the entire result hierarchy
+- CategoryResultNode: Top-level results (base, bonus, penalty)
+- SubjectResultNode: Mid-level topic/subject results
+- TestResultNode: Leaf-level individual test execution results
+
+Key Differences from Criteria Tree:
+- Criteria Tree is stateless (assignment definition)
+- Result Tree is stateful (execution results for a specific submission)
+- Result Tree contains actual scores, reports, and execution metadata
+- Result Tree mirrors Criteria Tree structure but with computed results
+
+Each node calculates its score based on its children's weighted scores.
+The final score flows up from test results through subjects and categories to the root.
 """
+
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
-from enum import Enum
 
-from autograder.models.abstract.test_function import TestFunction
 from autograder.models.criteria_tree import TestNode
 from autograder.models.dataclass.test_result import TestResult
 
 
-class NodeType(Enum):
-    """Types of nodes in the result tree."""
-    CATEGORY = "category"
-    SUBJECT = "subject"
-    TEST = "test"
-
-
 @dataclass
-class ResultNode:
+class TestResultNode:
     """
-    Base node for the result tree.
+    Leaf node containing the outcome of a single test execution.
 
-    Represents a grading category or subject with a calculated score
-    based on its children's scores and weights.
+    This represents the result of running a specific test function from the template
+    on the student's submission. Contains the score, report, and execution metadata.
+
+    Attributes:
+        name: Name of the test
+        test_node: Reference to the original TestNode from the criteria tree
+        score: Test score (0-100)
+        report: Human-readable feedback/report from the test execution
+        weight: Weight of this test in its parent subject
+        parameters: Parameters used for test execution
+        metadata: Additional execution metadata
     """
     name: str
-    node_type: NodeType
-    weight: float
-    score: float = 0.0
-    max_possible: float = 100.0
-    children: List['ResultNode'] = field(default_factory=list)
+    test_node: TestNode
+    score: float
+    report: str
+    weight: float = 100.0
+    parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def calculate_score(self) -> float:
-        """
-        Calculate this node's score based on children.
-        For leaf nodes (tests), score is already set.
-        For parent nodes, calculate weighted average of children.
-
-        Special case: ROOT node with BASE/BONUS/PENALTY uses additive scoring:
-        - Base score (0-100)
-        - Bonus adds points (bonus_score * bonus_weight / 100)
-        - Penalty subtracts points (penalty_score * penalty_weight / 100)
-        """
-        if self.node_type == NodeType.TEST:
-            # Leaf node - score already set from test execution
-            return self.score
-
-        if not self.children:
-            return 0.0
-
-        # Calculate children scores first
-        for child in self.children:
-            child.calculate_score()
-
-        # Check if this is a ROOT node with BASE/BONUS/PENALTY categories
-        child_names = {c.name.lower() for c in self.children}
-        is_root_with_categories = (
-            self.name.lower() == "root" and
-            "base" in child_names
-        )
-
-        if is_root_with_categories:
-            # Additive scoring for BASE/BONUS/PENALTY
-            base_score = 0.0
-            bonus_points = 0.0
-            penalty_points = 0.0
-
-            for child in self.children:
-                child_name = child.name.lower()
-                if child_name == "base":
-                    base_score = child.score
-                elif child_name == "bonus":
-                    # Bonus adds: (bonus_score / 100) * bonus_weight
-                    bonus_points = (child.score / 100.0) * child.weight
-                elif child_name == "penalty":
-                    # Penalty subtracts: (penalty_score / 100) * penalty_weight
-                    penalty_points = (child.score / 100.0) * child.weight
-
-            # Final score = base + bonus - penalty (capped at 0-100)
-            self.score = max(0.0, min(100.0, base_score + bonus_points - penalty_points))
-        else:
-            # Standard weighted average for other nodes
-            total_weight = sum(c.weight for c in self.children)
-            if total_weight == 0:
-                return 0.0
-
-            weighted_sum = sum(c.score * c.weight for c in self.children)
-            self.score = weighted_sum / total_weight
-
+        """Test nodes return their own score (leaf nodes)."""
         return self.score
 
     def to_dict(self) -> dict:
-        """Convert result node to dictionary representation."""
+        """Convert test result to dictionary representation."""
         return {
             "name": self.name,
-            "type": self.node_type.value,
-            "weight": self.weight,
+            "type": "test",
             "score": round(self.score, 2),
-            "max_possible": self.max_possible,
-            "children": [child.to_dict() for child in self.children],
+            "weight": self.weight,
+            "report": self.report,
+            "file_target": self.test_node.file_target,
+            "parameters": self.parameters,
             "metadata": self.metadata
         }
 
 
 @dataclass
-class SubjectResultNode(ResultNode):
-    """Represents a subject node in the result tree with its score calculated"""
-    subject_name: str
-@dataclass
-class TestResultNode(ResultNode):
-    """Stores the outcome of a single test execution from the test library."""
+class SubjectResultNode:
+    """
+    Branch node representing results for a subject/topic.
 
-    score: int
-    test_node: TestNode
-    report: str
-    parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
-    def get_result(self, *args, **kwargs) :
-        return [self]
+    Contains either nested subjects or test results, with a calculated score
+    based on the weighted average of its children.
+
+    Attributes:
+        name: Name of the subject
+        weight: Weight of this subject in its parent category/subject
+        score: Calculated weighted average score of children
+        subjects: Nested subject results (if any)
+        tests: Test results directly under this subject (if any)
+        metadata: Additional metadata
+    """
+    name: str
+    weight: float
+    score: float = 0.0
+    subjects: List['SubjectResultNode'] = field(default_factory=list)
+    tests: List[TestResultNode] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def calculate_score(self) -> float:
+        """
+        Calculate score as weighted average of children (subjects and tests).
+
+        Returns:
+            Calculated score (0-100)
+        """
+        # Calculate children scores first
+        for subject in self.subjects:
+            subject.calculate_score()
+        for test in self.tests:
+            test.calculate_score()
+
+        # Combine all children
+        all_children = list(self.subjects) + list(self.tests)
+
+        if not all_children:
+            return 0.0
+
+        # Calculate weighted average
+        total_weight = sum(child.weight for child in all_children)
+        if total_weight == 0:
+            return 0.0
+
+        weighted_sum = sum(child.score * child.weight for child in all_children)
+        self.score = weighted_sum / total_weight
+
+        return self.score
 
     def to_dict(self) -> dict:
+        """Convert subject result to dictionary representation."""
         return {
-            "test_name": self.test_name,
-            "score": self.score,
-            "file_target": self.test_node.file_target,
-            "subject_name": self.subject_name,
-            "report": self.report,
-            "parameters": self.parameters
+            "name": self.name,
+            "type": "subject",
+            "weight": self.weight,
+            "score": round(self.score, 2),
+            "subjects": [subject.to_dict() for subject in self.subjects],
+            "tests": [test.to_dict() for test in self.tests],
+            "metadata": self.metadata
         }
+
+    def get_all_test_results(self) -> List[TestResultNode]:
+        """Recursively collect all test results under this subject."""
+        results = list(self.tests)
+        for subject in self.subjects:
+            results.extend(subject.get_all_test_results())
+        return results
+
+
+@dataclass
+class CategoryResultNode:
+    """
+    Top-level category result node (base, bonus, or penalty).
+
+    Represents the aggregated results for a major grading category.
+    Can contain subjects (organized hierarchy) or tests (flat structure).
+
+    Attributes:
+        name: Name of the category (e.g., "base", "bonus", "penalty")
+        weight: Weight of this category (typically 100 for base, varies for bonus/penalty)
+        score: Calculated weighted average score of children
+        subjects: Subject results under this category (if any)
+        tests: Test results directly under this category (if any)
+        metadata: Additional metadata
+    """
+    name: str
+    weight: float
+    score: float = 0.0
+    subjects: List[SubjectResultNode] = field(default_factory=list)
+    tests: List[TestResultNode] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def calculate_score(self) -> float:
+        """
+        Calculate score as weighted average of children (subjects and tests).
+
+        Returns:
+            Calculated score (0-100)
+        """
+        # Calculate children scores first
+        for subject in self.subjects:
+            subject.calculate_score()
+        for test in self.tests:
+            test.calculate_score()
+
+        # Combine all children
+        all_children = list(self.subjects) + list(self.tests)
+
+        if not all_children:
+            return 0.0
+
+        # Calculate weighted average
+        total_weight = sum(child.weight for child in all_children)
+        if total_weight == 0:
+            return 0.0
+
+        weighted_sum = sum(child.score * child.weight for child in all_children)
+        self.score = weighted_sum / total_weight
+
+        return self.score
+
+    def to_dict(self) -> dict:
+        """Convert category result to dictionary representation."""
+        return {
+            "name": self.name,
+            "type": "category",
+            "weight": self.weight,
+            "score": round(self.score, 2),
+            "subjects": [subject.to_dict() for subject in self.subjects],
+            "tests": [test.to_dict() for test in self.tests],
+            "metadata": self.metadata
+        }
+
+    def get_all_test_results(self) -> List[TestResultNode]:
+        """Recursively collect all test results under this category."""
+        results = list(self.tests)
+        for subject in self.subjects:
+            results.extend(subject.get_all_test_results())
+        return results
+
+
+@dataclass
+class RootResultNode:
+    """
+    Root node of the result tree, containing category results.
+
+    Special scoring logic for BASE/BONUS/PENALTY categories:
+    - Base: Standard 0-100 score
+    - Bonus: Adds points (bonus_score * bonus_weight / 100)
+    - Penalty: Subtracts points (penalty_score * penalty_weight / 100)
+    - Final score = base + bonus - penalty (capped at 0-100)
+
+    Attributes:
+        name: Always "root"
+        score: Final calculated score
+        base: Base category result (required)
+        bonus: Bonus category result (optional)
+        penalty: Penalty category result (optional)
+        metadata: Additional metadata
+    """
+    name: str = "root"
+    score: float = 0.0
+    base: Optional[CategoryResultNode] = None
+    bonus: Optional[CategoryResultNode] = None
+    penalty: Optional[CategoryResultNode] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def calculate_score(self) -> float:
+        """
+        Calculate final score using additive BASE/BONUS/PENALTY logic.
+
+        Returns:
+            Final score (0-100)
+        """
+        # Calculate category scores first
+        base_score = 0.0
+        if self.base:
+            base_score = self.base.calculate_score()
+
+        bonus_points = 0.0
+        if self.bonus:
+            bonus_score = self.bonus.calculate_score()
+            # Bonus adds: (bonus_score / 100) * bonus_weight
+            bonus_points = (bonus_score / 100.0) * self.bonus.weight
+
+        penalty_points = 0.0
+        if self.penalty:
+            penalty_score = self.penalty.calculate_score()
+            # Penalty subtracts: (penalty_score / 100) * penalty_weight
+            penalty_points = (penalty_score / 100.0) * self.penalty.weight
+
+        # Final score = base + bonus - penalty (capped at 0-100)
+        self.score = max(0.0, min(100.0, base_score + bonus_points - penalty_points))
+
+        return self.score
+
+    def to_dict(self) -> dict:
+        """Convert root node to dictionary representation."""
+        result = {
+            "name": self.name,
+            "type": "root",
+            "score": round(self.score, 2),
+            "metadata": self.metadata
+        }
+
+        if self.base:
+            result["base"] = self.base.to_dict()
+        if self.bonus:
+            result["bonus"] = self.bonus.to_dict()
+        if self.penalty:
+            result["penalty"] = self.penalty.to_dict()
+
+        return result
+
+    def get_all_categories(self) -> List[CategoryResultNode]:
+        """Get all category nodes."""
+        categories = []
+        if self.base:
+            categories.append(self.base)
+        if self.bonus:
+            categories.append(self.bonus)
+        if self.penalty:
+            categories.append(self.penalty)
+        return categories
+
+    def get_all_test_results(self) -> List[TestResultNode]:
+        """Recursively collect all test results from all categories."""
+        results = []
+        for category in self.get_all_categories():
+            results.extend(category.get_all_test_results())
+        return results
+
 
 @dataclass
 class ResultTree:
     """
     Complete result tree for a grading session.
 
-    Contains the root node and provides methods for score calculation
-    and tree traversal.
+    This is the stateful product of executing a Criteria Tree on a student submission.
+    It mirrors the structure of the Criteria Tree but contains actual execution results,
+    scores, and feedback for each test.
+
+    The tree flows from:
+    Root -> Categories (base/bonus/penalty) -> Subjects -> Tests
+
+    Scores are calculated bottom-up: test scores aggregate into subject scores,
+    which aggregate into category scores, which produce the final root score.
+
+    Attributes:
+        root: Root node containing all category results
+        template_name: Name of the template used for grading (optional)
+        metadata: Additional grading session metadata
     """
-    root: ResultNode
+    root: RootResultNode
     template_name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -153,38 +340,32 @@ class ResultTree:
         return self.root.calculate_score()
 
     def get_all_test_results(self) -> List[TestResultNode]:
-        """Get all test result nodes from the tree."""
-        results = []
-        self._collect_tests(self.root, results)
-        return results
-
-    def _collect_tests(self, node: ResultNode, collector: List[TestResultNode]):
-        """Recursively collect all test nodes."""
-        if isinstance(node, TestResultNode):
-            collector.append(node)
-        else:
-            for child in node.children:
-                self._collect_tests(child, collector)
+        """Get all test result nodes from the entire tree."""
+        return self.root.get_all_test_results()
 
     def get_failed_tests(self) -> List[TestResultNode]:
-        """Get all failed test nodes."""
-        return [test for test in self.get_all_test_results() if not test.passed]
+        """Get all test nodes with score below 100."""
+        return [test for test in self.get_all_test_results() if test.score < 100]
 
     def get_passed_tests(self) -> List[TestResultNode]:
-        """Get all passed test nodes."""
-        return [test for test in self.get_all_test_results() if test.passed]
+        """Get all test nodes with score of 100."""
+        return [test for test in self.get_all_test_results() if test.score >= 100]
 
     def to_dict(self) -> dict:
         """Convert entire result tree to dictionary."""
+        all_tests = self.get_all_test_results()
+        passed_tests = self.get_passed_tests()
+        failed_tests = self.get_failed_tests()
+
         return {
             "template_name": self.template_name,
             "final_score": round(self.root.score, 2),
             "tree": self.root.to_dict(),
             "metadata": self.metadata,
             "summary": {
-                "total_tests": len(self.get_all_test_results()),
-                "passed_tests": len(self.get_passed_tests()),
-                "failed_tests": len(self.get_failed_tests())
+                "total_tests": len(all_tests),
+                "passed_tests": len(passed_tests),
+                "failed_tests": len(failed_tests)
             }
         }
 
@@ -193,7 +374,7 @@ class ResultTree:
         Print a visual representation of the result tree.
 
         Args:
-            show_details: If True, show test parameters and error messages
+            show_details: If True, show test parameters and reports
         """
         print("\n" + "=" * 70)
         print("🎯 RESULT TREE")
@@ -205,106 +386,111 @@ class ResultTree:
 
         print(f"🏆 Final Score: {self.root.score:.2f}/100")
 
-        summary = {
-            "total": len(self.get_all_test_results()),
-            "passed": len(self.get_passed_tests()),
-            "failed": len(self.get_failed_tests())
-        }
-        print(f"📊 Tests: {summary['total']} total | "
-              f"✅ {summary['passed']} passed | "
-              f"❌ {summary['failed']} failed")
+        all_tests = self.get_all_test_results()
+        passed = self.get_passed_tests()
+        failed = self.get_failed_tests()
+
+        print(f"📊 Tests: {len(all_tests)} total | "
+              f"✅ {len(passed)} passed | "
+              f"❌ {len(failed)} failed")
 
         print("\n" + "-" * 70)
 
         # Print tree structure
-        self._print_node(self.root, "", show_details)
+        self._print_root(self.root, show_details)
 
         print("=" * 70 + "\n")
 
-    def _print_node(self, node: ResultNode, prefix: str, show_details: bool):
-        """Recursively print a node and its children."""
-        if isinstance(node, TestResultNode):
-            self._print_test_node(node, prefix, show_details)
-        else:
-            self._print_parent_node(node, prefix, show_details)
+    def _print_root(self, root: RootResultNode, show_details: bool):
+        """Print the root node and its categories."""
+        for category in root.get_all_categories():
+            self._print_category(category, "", show_details)
 
-    def _print_parent_node(self, node: ResultNode, prefix: str, show_details: bool):
-        """Print a category or subject node."""
-        # Choose icon based on node type
-        if node.node_type == NodeType.CATEGORY:
-            icon = "📁"
-            name = node.name.upper()
-        else:  # SUBJECT
-            icon = "📘"
-            name = node.name
+    def _print_category(self, category: CategoryResultNode, prefix: str, show_details: bool):
+        """Print a category node."""
+        # Category icon and formatting
+        icon = "📁"
+        name = category.name.upper()
 
         # Color code score
-        score_str = f"{node.score:.1f}"
-        if node.score >= 80:
-            score_color = "🟢"
-        elif node.score >= 60:
-            score_color = "🟡"
-        else:
-            score_color = "🔴"
+        score_color = self._get_score_color(category.score)
 
         print(f"{prefix}{icon} {name} "
-              f"[weight: {node.weight:.0f}%] "
-              f"{score_color} {score_str}/100")
+              f"[weight: {category.weight:.0f}%] "
+              f"{score_color} {category.score:.1f}/100")
 
         # Print children
-        for child in node.children:
-            self._print_node(child, prefix + "    ", show_details)
+        new_prefix = prefix + "    "
+        for subject in category.subjects:
+            self._print_subject(subject, new_prefix, show_details)
+        for test in category.tests:
+            self._print_test(test, new_prefix, show_details)
 
-    def _print_test_node(self, node: TestResultNode, prefix: str, show_details: bool):
+    def _print_subject(self, subject: SubjectResultNode, prefix: str, show_details: bool):
+        """Print a subject node."""
+        icon = "📘"
+        score_color = self._get_score_color(subject.score)
+
+        print(f"{prefix}{icon} {subject.name} "
+              f"[weight: {subject.weight:.0f}%] "
+              f"{score_color} {subject.score:.1f}/100")
+
+        # Print children
+        new_prefix = prefix + "    "
+        for nested_subject in subject.subjects:
+            self._print_subject(nested_subject, new_prefix, show_details)
+        for test in subject.tests:
+            self._print_test(test, new_prefix, show_details)
+
+    def _print_test(self, test: TestResultNode, prefix: str, show_details: bool):
         """Print a test result node."""
         # Status icon
-        status = "✅" if node.passed else "❌"
+        status = "✅" if test.score >= 100 else "❌"
 
         # Score with color
-        if node.score >= 80:
-            score_color = "🟢"
-        elif node.score >= 60:
-            score_color = "🟡"
-        else:
-            score_color = "🔴"
+        score_color = self._get_score_color(test.score)
 
         # Basic test info
-        test_info = f"{prefix}🧪 {node.test_name} {status}"
+        test_info = f"{prefix}🧪 {test.name} {status}"
 
         # Add file target if present
-        if node.file_target:
-            test_info += f" [file: {node.file_target}]"
+        if test.test_node.file_target:
+            test_info += f" [file: {', '.join(test.test_node.file_target)}]"
 
         # Add score
-        test_info += f" {score_color} {node.score:.1f}/100"
+        test_info += f" {score_color} {test.score:.1f}/100"
 
         print(test_info)
 
         # Show details if requested
         if show_details:
             # Show parameters
-            if node.test_params:
-                params_str = ", ".join(str(p) for p in node.test_params)
-                print(f"{prefix}    ⚙️  params: ({params_str})")
+            if test.parameters:
+                params_str = ", ".join(f"{k}={v}" for k, v in test.parameters.items())
+                print(f"{prefix}    ⚙️  params: {params_str}")
 
-            # Show error message if failed
-            if node.error_message:
-                print(f"{prefix}    ⚠️  error: {node.error_message}")
-
-            # Show metadata report/message
-            if 'report' in node.metadata:
-                report = node.metadata['report']
+            # Show report
+            if test.report:
+                report = test.report
                 # Truncate long reports
                 if len(report) > 80:
                     report = report[:77] + "..."
                 print(f"{prefix}    💬 {report}")
+
+    def _get_score_color(self, score: float) -> str:
+        """Get color emoji for a score."""
+        if score >= 80:
+            return "🟢"
+        elif score >= 60:
+            return "🟡"
+        else:
+            return "🔴"
 
     def print_summary(self):
         """Print a compact summary of the results."""
         print("\n" + "=" * 70)
         print("📊 GRADING SUMMARY")
         print("=" * 70)
-
 
         print(f"\n🏆 Final Score: {self.root.score:.2f}/100")
 
@@ -313,13 +499,13 @@ class ResultTree:
         passed = self.get_passed_tests()
         failed = self.get_failed_tests()
 
-        print(f"\n📈 Test Results:")
-        print(f"   Total:  {len(all_tests)}")
-        print(f"   ✅ Passed: {len(passed)} ({len(passed)/len(all_tests)*100:.1f}%)")
-        print(f"   ❌ Failed: {len(failed)} ({len(failed)/len(all_tests)*100:.1f}%)")
-
-        # Score distribution
         if all_tests:
+            print(f"\n📈 Test Results:")
+            print(f"   Total:  {len(all_tests)}")
+            print(f"   ✅ Passed: {len(passed)} ({len(passed)/len(all_tests)*100:.1f}%)")
+            print(f"   ❌ Failed: {len(failed)} ({len(failed)/len(all_tests)*100:.1f}%)")
+
+            # Score distribution
             avg_score = sum(t.score for t in all_tests) / len(all_tests)
             print(f"\n📊 Average Test Score: {avg_score:.2f}")
 
@@ -327,10 +513,11 @@ class ResultTree:
         if failed:
             print(f"\n❌ Failed Tests:")
             for test in failed:
-                print(f"   • {test.test_name}: {test.score:.1f}/100")
-                if test.error_message:
-                    print(f"     Error: {test.error_message}")
+                print(f"   • {test.name}: {test.score:.1f}/100")
+                if test.report:
+                    # Truncate long reports
+                    report = test.report if len(test.report) <= 60 else test.report[:57] + "..."
+                    print(f"     {report}")
 
         print("=" * 70 + "\n")
-
 
