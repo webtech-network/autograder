@@ -1118,15 +1118,18 @@ class WebDevTemplate(Template):
     @property
     def template_description(self):
         return "Um template abrangente para trabalhos de desenvolvimento web, incluindo testes para HTML, CSS e JavaScript."
-    @property
-    def requires_execution_helper(self) -> bool:
-        return False
-    @property
-    def execution_helper(self):
-        return None
+
     @property
     def requires_pre_executed_tree(self) -> bool:
         return False
+
+    @property
+    def requires_sandbox(self) -> bool:
+        return False
+
+    @property
+    def execution_helper(self):
+        return None
 
     def __init__(self, clean=False):
         self.tests = {
@@ -1166,9 +1169,6 @@ class WebDevTemplate(Template):
             "js_uses_dom_manipulation": JsUsesDomManipulation(),
             "has_no_js_framework": HasNoJsFramework()
         }
-
-    def stop(self):
-        pass
 
     def get_test(self, name: str) -> TestFunction:
         """

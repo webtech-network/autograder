@@ -91,7 +91,7 @@ class InputOutputTemplate(Template):
         return "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."
 
     @property
-    def requires_pre_executed_tree(self) -> bool:
+    def requires_sandbox(self) -> bool:
         return True
 
     def get_test(self, name: str) -> TestFunction:
