@@ -1,10 +1,15 @@
 import logging
 
-from typing import Dict, Any, Optional, Sequence, List
+from typing import Dict, Optional, Sequence, List
 from autograder.models.criteria_tree import CriteriaTree, CategoryNode, SubjectNode, TestNode
 from autograder.models.dataclass.submission import SubmissionFile
-from autograder.models.result_tree import ResultTree, ResultNode, NodeType, TestResultNode
-from autograder.services.criteria_tree_service import CriteriaTreeService
+from autograder.models.result_tree import (
+    ResultTree,
+    RootResultNode,
+    CategoryResultNode,
+    SubjectResultNode,
+    TestResultNode
+)
 
 
 
@@ -27,18 +32,22 @@ class GraderService():
     ) -> ResultTree:
         self.__submission_files = submission_files
 
-        root = ResultNode(name="root", node_type=NodeType.CATEGORY, weight=100.0)
+        # Create root node with category results
+        root = RootResultNode(name="root")
 
+        # Process base category (required)
         base_result = self.process_category(criteria_tree.base)
-        root.children.append(base_result)
+        root.base = base_result
 
+        # Process bonus category (optional)
         if criteria_tree.bonus:
             bonus_result = self.process_category(criteria_tree.bonus)
-            root.children.append(bonus_result)
+            root.bonus = bonus_result
 
+        # Process penalty category (optional)
         if criteria_tree.penalty:
             penalty_result = self.process_category(criteria_tree.penalty)
-            root.children.append(penalty_result)
+            root.penalty = penalty_result
 
         result_tree = ResultTree(root)
 
@@ -53,7 +62,12 @@ class GraderService():
 
         return result_tree
 
-    def __balance_nodes(self, nodes: Sequence[ResultNode], factor: float) -> None:
+    def __balance_nodes(
+        self,
+        nodes: Sequence[CategoryResultNode | SubjectResultNode | TestResultNode],
+        factor: float
+    ) -> None:
+        """Balance the weights of sibling nodes to sum to 100, scaled by factor."""
         if len(nodes) == 0:
             return
 
@@ -68,14 +82,13 @@ class GraderService():
             for node in nodes:
                 node.weight *= scale_factor
 
-    def __process_holder(self, holder: CategoryNode | SubjectNode) -> ResultNode:
-        result = ResultNode(
-            name=holder.name,
-            node_type=NodeType.CATEGORY
-            if isinstance(holder, CategoryNode)
-            else NodeType.SUBJECT,
-            weight=holder.weight,
-        )
+    def __process_holder(
+        self,
+        holder: CategoryNode | SubjectNode
+    ) -> CategoryResultNode | SubjectResultNode:
+        """Process a category or subject node and create corresponding result node."""
+
+        # Determine subjects and tests weight factors
         if holder.subjects and holder.tests:
             if not holder.subjects_weight:
                 raise ValueError(f"missing 'subjects_weight' for {holder.name}")
@@ -85,36 +98,54 @@ class GraderService():
             subjects_factor = 1.0
             tests_factor = 1.0
 
+        # Process subjects
+        subject_results = []
         if holder.subjects:
             subject_results = [
                 self.process_subject(inner_subject) for inner_subject in holder.subjects
             ]
             self.__balance_nodes(subject_results, subjects_factor)
-            result.children.extend(subject_results)
 
+        # Process tests
+        test_results = []
         if holder.tests:
             test_results = [self.process_test(test) for test in holder.tests]
             self.__balance_nodes(test_results, tests_factor)
-            result.children.extend(test_results)
 
-        return result
+        # Create appropriate result node type
+        if isinstance(holder, CategoryNode):
+            return CategoryResultNode(
+                name=holder.name,
+                weight=holder.weight,
+                subjects=subject_results,
+                tests=test_results
+            )
+        else:  # SubjectNode
+            return SubjectResultNode(
+                name=holder.name,
+                weight=holder.weight,
+                subjects=subject_results,
+                tests=test_results
+            )
 
-    def process_subject(self, subject: SubjectNode) -> ResultNode:
+    def process_subject(self, subject: SubjectNode) -> SubjectResultNode:
+        """Process a subject node from criteria tree and create result node."""
         return self.__process_holder(subject)
 
     def process_test(self, test: TestNode) -> TestResultNode:
+        """Execute a test and create a test result node."""
         file_target = self.get_file_target(test)
-        test_result = (test.test_function.execute(
-                                            files=file_target,
-                                            sandbox=self._sandbox,
-                                             **(test.parameters or {})
-                                             )
-                                            )
+        test_result = test.test_function.execute(
+            files=file_target,
+            sandbox=self._sandbox,
+            **(test.parameters or {})
+        )
         return TestResultNode(
-            test_node = test,
-            score = test_result.score,
-            report = test_result.report,
-            parameters = test_result.parameters
+            name=test.name,
+            test_node=test,
+            score=test_result.score,
+            report=test_result.report,
+            parameters=test_result.parameters
         )
 
     def get_file_target(self,test_node: TestNode) -> Optional[List[SubmissionFile]] :
@@ -126,7 +157,8 @@ class GraderService():
                 target_files.append(self.__submission_files[file_name])
         return target_files
 
-    def process_category(self, category: CategoryNode) -> ResultNode:
+    def process_category(self, category: CategoryNode) -> CategoryResultNode:
+        """Process a category node from criteria tree and create result node."""
         return self.__process_holder(category)
 
     def __find_first_test(self, node: CategoryNode | SubjectNode) -> Optional[TestNode]:
