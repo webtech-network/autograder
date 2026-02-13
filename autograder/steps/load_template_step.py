@@ -16,7 +16,7 @@ class TemplateLoaderStep(Step):
         """
         self._template_name = template_name
         self._custom_template = custom_template
-        self._template_service = TemplateLibraryService()
+        self._template_service = TemplateLibraryService.get_instance()
 
     def execute(self, input: PipelineExecution) -> PipelineExecution:
         """
