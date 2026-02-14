@@ -18,6 +18,7 @@ from sandbox_manager.manager import initialize_sandbox_manager, get_sandbox_mana
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import Language
 
+from web.config.logging import setup_logging, get_logger
 from web.database import init_db, get_session
 from web.database.models.submission import SubmissionStatus
 from web.database.models.submission_result import PipelineStatus
@@ -35,6 +36,11 @@ from web.schemas import (
     SubmissionDetailResponse,
 )
 
+
+# Setup logging
+JSON_LOGS = os.getenv("JSON_LOGS", "false").lower() == "true"
+setup_logging(json_logs=JSON_LOGS)
+logger = get_logger(__name__)
 
 # Global state
 template_service: Optional[TemplateLibraryService] = None
@@ -56,14 +62,15 @@ async def lifespan(app: FastAPI):
     global template_service
     
     # Startup
-    print("🚀 Starting Autograder Web API...")
+    logger.info("Starting Autograder Web API...")
     
     # Initialize database
-    print("📊 Initializing database...")
+    logger.info("Initializing database...")
     await init_db()
+    logger.info("Database initialized successfully")
     
     # Initialize sandbox manager
-    print("🐳 Initializing sandbox manager...")
+    logger.info("Initializing sandbox manager...")
     pool_size = int(os.getenv("SANDBOX_POOL_SIZE", "2"))
     pool_configs = [
         SandboxPoolConfig(language=Language.PYTHON, pool_size=pool_size),
@@ -72,19 +79,21 @@ async def lifespan(app: FastAPI):
         SandboxPoolConfig(language=Language.CPP, pool_size=pool_size),
     ]
     initialize_sandbox_manager(pool_configs)
+    logger.info(f"Sandbox manager initialized with pool size {pool_size}")
     
     # Initialize template library
-    print("📚 Loading template library...")
+    logger.info("Loading template library...")
     template_service = TemplateLibraryService.get_instance()
+    logger.info("Template library loaded successfully")
     
-    print("✅ Autograder Web API ready!")
+    logger.info("Autograder Web API ready!")
     
     yield
     
     # Shutdown
-    print("👋 Shutting down Autograder Web API...")
+    logger.info("Shutting down Autograder Web API...")
     # Cleanup if needed
-    print("✅ Shutdown complete")
+    logger.info("Shutdown complete")
 
 
 # Create FastAPI app
@@ -356,6 +365,7 @@ async def grade_submission(
     
     This function runs the autograder pipeline on the submission and stores results.
     """
+    logger.info(f"Starting grading for submission {submission_id} (user: {username})")
     start_time = time.time()
     
     async with get_session() as session:
@@ -366,6 +376,7 @@ async def grade_submission(
             # Update status to processing
             await submission_repo.update_status(submission_id, SubmissionStatus.PROCESSING)
             await session.commit()
+            logger.info(f"Submission {submission_id} status updated to PROCESSING")
             
             # Build autograder pipeline
             pipeline = build_pipeline(
@@ -426,6 +437,11 @@ async def grade_submission(
                     status=SubmissionStatus.COMPLETED,
                     graded_at=datetime.utcnow()
                 )
+                
+                logger.info(
+                    f"Submission {submission_id} graded successfully. "
+                    f"Score: {final_score}, Time: {execution_time_ms}ms"
+                )
             else:
                 # Pipeline failed
                 error_msg = "Pipeline failed to produce results"
@@ -433,6 +449,8 @@ async def grade_submission(
                     last_step = pipeline_execution.get_previous_step()
                     if last_step and last_step.error:
                         error_msg = last_step.error
+                
+                logger.warning(f"Submission {submission_id} pipeline failed: {error_msg}")
                 
                 await result_repo.create(
                     submission_id=submission_id,
@@ -462,7 +480,10 @@ async def grade_submission(
             await submission_repo.update_status(submission_id, SubmissionStatus.FAILED)
             await session.commit()
             
-            print(f"Error grading submission {submission_id}: {str(e)}")
+            logger.error(
+                f"Error grading submission {submission_id}: {str(e)}",
+                exc_info=True
+            )
 
 
 def _node_to_dict(node) -> dict:
