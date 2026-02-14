@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class GradingConfigCreate(BaseModel):
@@ -24,6 +24,8 @@ class GradingConfigUpdate(BaseModel):
 
 class GradingConfigResponse(BaseModel):
     """Schema for grading configuration response."""
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     external_assignment_id: str
     template_name: str
@@ -33,7 +35,4 @@ class GradingConfigResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_active: bool
-
-    class Config:
-        from_attributes = True
 

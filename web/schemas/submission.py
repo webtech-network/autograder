@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, Optional, Any
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class SubmissionStatus(str, Enum):
@@ -27,6 +27,8 @@ class SubmissionCreate(BaseModel):
 
 class SubmissionResponse(BaseModel):
     """Schema for submission response."""
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     grading_config_id: int
     external_user_id: str
@@ -37,9 +39,6 @@ class SubmissionResponse(BaseModel):
     final_score: Optional[float] = None
     feedback: Optional[str] = None
     result_tree: Optional[Dict[str, Any]] = None
-
-    class Config:
-        from_attributes = True
 
 
 class SubmissionDetailResponse(SubmissionResponse):
