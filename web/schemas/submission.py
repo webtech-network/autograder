@@ -1,27 +1,48 @@
-from pydantic import BaseModel
-from typing import Dict, Optional, Any
+"""Submission schemas for API requests and responses."""
+
 from datetime import datetime
-from app.models.submission import SubmissionStatus
+from typing import Dict, Optional, Any
+from enum import Enum
+
+from pydantic import BaseModel, Field
+
+
+class SubmissionStatus(str, Enum):
+    """Status of a submission."""
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class SubmissionCreate(BaseModel):
-    assignment_id: int
-    user_id: str
-    username: str
-    # Map: "main.py" -> "print('hello')"
-    files: Dict[str, str]
+    """Schema for creating a new submission."""
+    external_assignment_id: str = Field(..., description="External assignment ID")
+    external_user_id: str = Field(..., description="External user ID")
+    username: str = Field(..., description="Username of the submitter")
+    files: Dict[str, str] = Field(..., description="Map of filename to file content")
+    language: Optional[str] = Field(None, description="Optional language override")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Optional submission metadata")
 
 
 class SubmissionResponse(BaseModel):
+    """Schema for submission response."""
     id: int
-    assignment_id: int
-    user_id: str
+    grading_config_id: int
+    external_user_id: str
+    username: str
     status: SubmissionStatus
+    submitted_at: datetime
+    graded_at: Optional[datetime] = None
     final_score: Optional[float] = None
-    created_at: datetime
-
-    # TODO: Evaluate if return result tree or not.
-    result_data: Optional[Dict[str, Any]] = None
+    feedback: Optional[str] = None
+    result_tree: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
+
+
+class SubmissionDetailResponse(SubmissionResponse):
+    """Detailed submission response including files."""
+    submission_files: Dict[str, str]
+    metadata: Optional[Dict[str, Any]] = None
