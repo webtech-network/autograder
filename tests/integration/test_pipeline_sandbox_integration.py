@@ -55,28 +55,29 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
         # Define assignment configuration
         grading_criteria = {
             "base": {
-                "name": "Basic Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Test Addition",
-                        "weight": 50,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["ADD", "5", "3"],
-                            "expected_output": "8",
-                            "program_command": "python3 calculator.py"
-                        }
-                    },
-                    {
-                        "name": "Test Multiplication",
-                        "weight": 50,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["MUL", "4", "7"],
-                            "expected_output": "28",
-                            "program_command": "python3 calculator.py"
-                        }
+                        "subject_name": "Basic Tests",
+                        "weight": 100,
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["ADD", "5", "3"]},
+                                    {"name": "expected_output", "value": "8"},
+                                    {"name": "program_command", "value": "python3 calculator.py"}
+                                ]
+                            },
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["MUL", "4", "7"]},
+                                    {"name": "expected_output", "value": "28"},
+                                    {"name": "program_command", "value": "python3 calculator.py"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -150,38 +151,37 @@ elif operation == 'DIV':
         """Test pipeline with incorrect submission (partial credit)."""
         grading_criteria = {
             "base": {
-                "name": "Basic Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Test Case 1",
-                        "weight": 33.33,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["echo", "Hello"],
-                            "expected_output": "Hello",
-                            "program_command": "python3 echo.py"
-                        }
-                    },
-                    {
-                        "name": "Test Case 2",
-                        "weight": 33.33,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["echo", "World"],
-                            "expected_output": "World",
-                            "program_command": "python3 echo.py"
-                        }
-                    },
-                    {
-                        "name": "Test Case 3",
-                        "weight": 33.34,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["echo", "Test"],
-                            "expected_output": "Test",
-                            "program_command": "python3 echo.py"
-                        }
+                        "subject_name": "Basic Tests",
+                        "weight": 100,
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["echo", "Hello"]},
+                                    {"name": "expected_output", "value": "Hello"},
+                                    {"name": "program_command", "value": "python3 echo.py"}
+                                ]
+                            },
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["echo", "World"]},
+                                    {"name": "expected_output", "value": "World"},
+                                    {"name": "program_command", "value": "python3 echo.py"}
+                                ]
+                            },
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["echo", "Test"]},
+                                    {"name": "expected_output", "value": "Test"},
+                                    {"name": "program_command", "value": "python3 echo.py"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -198,8 +198,9 @@ else:
 """
 
         submission = Submission(
+            username="student456",
+            user_id=456,
             assignment_id=2,
-            student_id="student456",
             submission_files={
                 "echo.py": SubmissionFile("echo.py", student_code)
             },
@@ -226,17 +227,20 @@ else:
         """Test that pipeline fails in pre-flight when required file is missing."""
         grading_criteria = {
             "base": {
-                "name": "Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Test",
+                        "subject_name": "Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["python3", "main.py"],
-                            "expected_output": "Hello"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["python3", "main.py"]},
+                                    {"name": "expected_output", "value": "Hello"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -247,8 +251,9 @@ else:
         }
 
         submission = Submission(
+            username="student789",
+            user_id=789,
             assignment_id=3,
-            student_id="student789",
             submission_files={
                 "main.py": SubmissionFile("main.py", "print('Hello')")
                 # Missing helper.py!
@@ -282,17 +287,20 @@ else:
         """Test that setup commands execute correctly in sandbox."""
         grading_criteria = {
             "base": {
-                "name": "Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Use Library",
+                        "subject_name": "Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["python3", "use_lib.py"],
-                            "expected_output": "Library works!"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["python3", "use_lib.py"]},
+                                    {"name": "expected_output", "value": "Library works!"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -311,8 +319,9 @@ print(lib_function())
 """
 
         submission = Submission(
+            username="student_setup",
+            user_id=1001,
             assignment_id=4,
-            student_id="student_setup",
             submission_files={
                 "use_lib.py": SubmissionFile("use_lib.py", student_code)
             },
@@ -338,17 +347,20 @@ print(lib_function())
         """Test multiple pipeline executions concurrently."""
         grading_criteria = {
             "base": {
-                "name": "Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Hello Test",
+                        "subject_name": "Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["python3", "hello.py"],
-                            "expected_output": "Hello!"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["python3", "hello.py"]},
+                                    {"name": "expected_output", "value": "Hello!"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -396,17 +408,20 @@ print(lib_function())
         """Test Java assignment with compilation step in pipeline."""
         grading_criteria = {
             "base": {
-                "name": "Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Hello Java",
+                        "subject_name": "Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["javac HelloWorld.java && java HelloWorld"],
-                            "expected_output": "Hello, Java!"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["javac HelloWorld.java && java HelloWorld"]},
+                                    {"name": "expected_output", "value": "Hello, Java!"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -421,8 +436,9 @@ public class HelloWorld {
 """
 
         submission = Submission(
+            username="java_student",
+            user_id=1002,
             assignment_id=6,
-            student_id="java_student",
             submission_files={
                 "HelloWorld.java": SubmissionFile("HelloWorld.java", java_code)
             },
@@ -462,25 +478,29 @@ public class HelloWorld {
         """Test multi-file Python project through pipeline."""
         grading_criteria = {
             "base": {
-                "name": "Module Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Main Program",
+                        "subject_name": "Module Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["python3", "main.py"],
-                            "expected_output": "Result: 42"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["python3", "main.py"]},
+                                    {"name": "expected_output", "value": "Result: 42"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
         }
 
         submission = Submission(
+            username="multifile_student",
+            user_id=1003,
             assignment_id=7,
-            student_id="multifile_student",
             submission_files={
                 "main.py": SubmissionFile("main.py", """
 from utils.calculator import calculate
@@ -519,17 +539,20 @@ def calculate(a, b):
         """Test that sandbox is properly cleaned up even when execution errors occur."""
         grading_criteria = {
             "base": {
-                "name": "Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Should Error",
+                        "subject_name": "Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["python3", "error.py"],
-                            "expected_output": "Success"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["python3", "error.py"]},
+                                    {"name": "expected_output", "value": "Success"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -541,8 +564,9 @@ raise Exception("Intentional error!")
 """
 
         submission = Submission(
+            username="error_student",
+            user_id=1004,
             assignment_id=8,
-            student_id="error_student",
             submission_files={
                 "error.py": SubmissionFile("error.py", error_code)
             },
@@ -584,17 +608,20 @@ raise Exception("Intentional error!")
 
         grading_criteria = {
             "base": {
-                "name": "Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Simple Test",
+                        "subject_name": "Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["python3", "-c", "print('OK')"],
-                            "expected_output": "OK"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["python3", "-c", "print('OK')"]},
+                                    {"name": "expected_output", "value": "OK"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -603,8 +630,9 @@ raise Exception("Intentional error!")
         # Run as many pipelines as we have sandboxes
         for i in range(min(available, 2)):  # Limit to 2 to avoid hanging
             submission = Submission(
+                username=f"stress_{i}",
+                user_id=2000 + i,
                 assignment_id=9,
-                student_id=f"stress_{i}",
                 submission_files={
                     "test.py": SubmissionFile("test.py", "print('OK')")
                 },
@@ -628,17 +656,20 @@ raise Exception("Intentional error!")
         """Test that sandboxes are isolated between different submissions."""
         grading_criteria = {
             "base": {
-                "name": "Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Check Isolation",
+                        "subject_name": "Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["python3", "check.py"],
-                            "expected_output": "Clean"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["python3", "check.py"]},
+                                    {"name": "expected_output", "value": "Clean"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
@@ -646,8 +677,9 @@ raise Exception("Intentional error!")
 
         # First submission creates a file
         submission1 = Submission(
+            username="isolation_1",
+            user_id=3001,
             assignment_id=10,
-            student_id="isolation_1",
             submission_files={
                 "check.py": SubmissionFile("check.py", """
 with open('secret.txt', 'w') as f:
@@ -663,17 +695,20 @@ print('Created')
             include_feedback=False,
             grading_criteria={
                 "base": {
-                    "name": "Tests",
                     "weight": 100,
-                    "tests": [
+                    "subjects": [
                         {
-                            "name": "Create File",
+                            "subject_name": "Tests",
                             "weight": 100,
-                            "test": "expect_output",
-                            "parameters": {
-                                "inputs": ["python3", "check.py"],
-                                "expected_output": "Created"
-                            }
+                            "tests": [
+                                {
+                                    "name": "expect_output",
+                                    "parameters": [
+                                        {"name": "inputs", "value": ["python3", "check.py"]},
+                                        {"name": "expected_output", "value": "Created"}
+                                    ]
+                                }
+                            ]
                         }
                     ]
                 }
@@ -689,8 +724,9 @@ print('Created')
 
         # Second submission checks if file exists (should not)
         submission2 = Submission(
+            username="isolation_2",
+            user_id=3002,
             assignment_id=10,
-            student_id="isolation_2",
             submission_files={
                 "check.py": SubmissionFile("check.py", """
 import os
@@ -735,25 +771,29 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
 
         grading_criteria = {
             "base": {
-                "name": "Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Test",
+                        "subject_name": "Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["python3", "-c", "print('OK')"],
-                            "expected_output": "OK"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["python3", "-c", "print('OK')"]},
+                                    {"name": "expected_output", "value": "OK"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
         }
 
         submission = Submission(
+            username="resource_test",
+            user_id=4001,
             assignment_id=11,
-            student_id="resource_test",
             submission_files={
                 "test.py": SubmissionFile("test.py", "print('OK')")
             },
@@ -792,17 +832,20 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
 
         grading_criteria = {
             "base": {
-                "name": "Tests",
                 "weight": 100,
-                "tests": [
+                "subjects": [
                     {
-                        "name": "Test",
+                        "subject_name": "Tests",
                         "weight": 100,
-                        "test": "expect_output",
-                        "parameters": {
-                            "inputs": ["python3", "-c", "print('Test')"],
-                            "expected_output": "Test"
-                        }
+                        "tests": [
+                            {
+                                "name": "expect_output",
+                                "parameters": [
+                                    {"name": "inputs", "value": ["python3", "-c", "print('Test')"]},
+                                    {"name": "expected_output", "value": "Test"}
+                                ]
+                            }
+                        ]
                     }
                 ]
             }
