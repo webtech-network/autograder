@@ -3,7 +3,6 @@ from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 from autograder.models.abstract.step import Step
 from autograder.services.grader_service import GraderService
-from autograder.steps.pre_flight_step import PreFlightStep
 
 
 class GradeStep(Step):
@@ -34,12 +33,16 @@ class GradeStep(Step):
         try:
             # If submission is sandboxed, feed grading template with container ref
             template = input.get_step_result(StepName.LOAD_TEMPLATE).data
-            sandbox = input.get_step_result(StepName.PRE_FLIGHT).data
+
+            # Check if PRE_FLIGHT step was executed (only if setup_config was provided)
+            sandbox = None
+            if input.has_step_result(StepName.PRE_FLIGHT):
+                sandbox = input.get_step_result(StepName.PRE_FLIGHT).data
 
             if sandbox:
                 self._grader_service.set_sandbox(sandbox)
 
-            if not sandbox and template.needs_sandbox:
+            if not sandbox and template.requires_sandbox:
                 raise Exception("Grading template requires a sandbox environment, but no sandbox was created")
 
 
