@@ -104,9 +104,12 @@ class SandboxContainer:
         start_time = time.time()
 
         try:
+            # Wrap command in shell to support shell features like pipes, redirection, etc.
+            shell_cmd = ["/bin/sh", "-c", command]
+
             # Execute command in container
             result = self.container_ref.exec_run(
-                cmd=command,
+                cmd=shell_cmd,
                 workdir=workdir,
                 user="sandbox",
                 demux=True,  # Separate stdout and stderr
