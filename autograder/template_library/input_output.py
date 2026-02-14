@@ -52,16 +52,18 @@ class ExpectOutputTest(TestFunction):
         # TODO: Implement more robust input handling and I/O validation
 
         try:
-            if len(inputs) == 1 and not program_command:
-                # Single input, just run as command
-                output = sandbox.run_command(inputs[0])
+            if not program_command:
+                # No program command specified - treat inputs as command to run
+                # Join inputs into a single command string
+                command = ' '.join(inputs) if isinstance(inputs, list) else inputs
+                output = sandbox.run_command(command)
                 actual_output = output.stdout
             else:
-                # Multiple inputs or needs a program, use batch command execution
+                # Program command specified - inputs are stdin for the program
                 output = sandbox.run_commands(inputs, program_command=program_command)
                 actual_output = output.stdout
 
-            score = 1.0 if actual_output.strip() == expected_output.strip() else 0.0
+            score = 100.0 if actual_output.strip() == expected_output.strip() else 0.0
             report = f"Expected output: '{expected_output.strip()}'\nActual output: '{actual_output.strip()}'\n"
 
             return TestResult(
