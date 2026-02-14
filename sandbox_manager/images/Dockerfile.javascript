@@ -15,5 +15,7 @@ RUN find / -perm /6000 -type f -exec chmod a-s {} \; || true
 WORKDIR /app
 RUN chown sandbox:sandbox /app
 
+VOLUME ["/app"]
+
 USER sandbox
 CMD ["node"]
