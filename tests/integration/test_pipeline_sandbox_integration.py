@@ -236,8 +236,9 @@ else:
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["python3", "main.py"]},
-                                    {"name": "expected_output", "value": "Hello"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "Hello"},
+                                    {"name": "program_command", "value": "python3 main.py"}
                                 ]
                             }
                         ]
@@ -296,8 +297,9 @@ else:
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["python3", "use_lib.py"]},
-                                    {"name": "expected_output", "value": "Library works!"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "Library works!"},
+                                    {"name": "program_command", "value": "python3 use_lib.py"}
                                 ]
                             }
                         ]
@@ -356,8 +358,9 @@ print(lib_function())
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["python3", "hello.py"]},
-                                    {"name": "expected_output", "value": "Hello!"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "Hello!"},
+                                    {"name": "program_command", "value": "python3 hello.py"}
                                 ]
                             }
                         ]
@@ -487,8 +490,9 @@ public class HelloWorld {
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["python3", "main.py"]},
-                                    {"name": "expected_output", "value": "Result: 42"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "Result: 42"},
+                                    {"name": "program_command", "value": "python3 main.py"}
                                 ]
                             }
                         ]
@@ -548,8 +552,9 @@ def calculate(a, b):
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["python3", "error.py"]},
-                                    {"name": "expected_output", "value": "Success"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "Success"},
+                                    {"name": "program_command", "value": "python3 error.py"}
                                 ]
                             }
                         ]
@@ -617,8 +622,9 @@ raise Exception("Intentional error!")
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["python3", "-c", "print('OK')"]},
-                                    {"name": "expected_output", "value": "OK"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "OK"},
+                                    {"name": "program_command", "value": "python3 test.py"}
                                 ]
                             }
                         ]
@@ -665,8 +671,9 @@ raise Exception("Intentional error!")
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["python3", "check.py"]},
-                                    {"name": "expected_output", "value": "Clean"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "Clean"},
+                                    {"name": "program_command", "value": "python3 check.py"}
                                 ]
                             }
                         ]
@@ -704,8 +711,9 @@ print('Created')
                                 {
                                     "name": "expect_output",
                                     "parameters": [
-                                        {"name": "inputs", "value": ["python3", "check.py"]},
-                                        {"name": "expected_output", "value": "Created"}
+                                        {"name": "inputs", "value": []},
+                                        {"name": "expected_output", "value": "Created"},
+                                        {"name": "program_command", "value": "python3 check.py"}
                                     ]
                                 }
                             ]
@@ -780,8 +788,9 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["python3", "-c", "print('OK')"]},
-                                    {"name": "expected_output", "value": "OK"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "OK"},
+                                    {"name": "program_command", "value": "python3 test.py"}
                                 ]
                             }
                         ]
@@ -841,8 +850,9 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["python3", "-c", "print('Test')"]},
-                                    {"name": "expected_output", "value": "Test"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "Test"},
+                                    {"name": "program_command", "value": "python3 test.py"}
                                 ]
                             }
                         ]
