@@ -64,16 +64,20 @@ class PreFlightService:
             self.logger.debug(f"Executing setup command: {command}")
             try:
                 response = sandbox.run_command(command)
+                self.logger.debug(f"Setup command exit code: {response.exit_code}")
+                self.logger.debug(f"Setup command stdout: {response.stdout}")
+                self.logger.debug(f"Setup command stderr: {response.stderr}")
+
                 if response.exit_code != 0: # TODO: Implement response object in sandbox manager
-                    error_msg = f"**Error:** Setup command failed: `'{command}'` with output`{response.output}`"
+                    error_msg = f"**Error:** Setup command failed: `'{command}'` with exit code {response.exit_code}, stdout: {response.stdout}, stderr: {response.stderr}"
                     self.logger.error(error_msg)
                     self.fatal_errors.append(PreflightError(
                         type=PreflightCheckType.SETUP_COMMAND,
                         message=error_msg,
-                        details={"command": command, "output": response.output}
+                        details={"command": command, "exit_code": response.exit_code, "stdout": response.stdout, "stderr": response.stderr}
                     ))
             except Exception as e:
-                error_msg = f"**Error:** Failed to execute setup commands: `'{command}'` with output `{str(e)}`"
+                error_msg = f"**Error:** Failed to execute setup commands: `'{command}'` with error `{str(e)}`"
                 self.logger.error(error_msg)
                 self.fatal_errors.append(PreflightError(
                     type=PreflightCheckType.SETUP_COMMANDS,
