@@ -11,6 +11,7 @@ from autograder.steps.grade_step import GradeStep
 from autograder.steps.load_template_step import TemplateLoaderStep
 from autograder.steps.pre_flight_step import PreFlightStep
 from autograder.steps.build_tree_step import BuildTreeStep
+from autograder.models.dataclass.submission import Submission
 
 
 class AutograderPipeline:
@@ -34,7 +35,7 @@ class AutograderPipeline:
     def add_step(self, step_name: StepName, step: Step) -> None:
         self._steps[step_name] = step
 
-    def run(self, submission: "Submission"):
+    def run(self, submission: Submission):
         """
         Run the autograder pipeline on a given submission.
         Args:
@@ -48,11 +49,14 @@ class AutograderPipeline:
         for step in self._steps:
             print("Executing step:", step)  # TODO: Replace with proper logging
 
-            if not pipeline_execution.get_previous_step.is_successful:
-                pipeline_execution.set_failure()
-                break
             try:
                 pipeline_execution = self._steps[step].execute(pipeline_execution)
+                # Check if the step that just executed failed
+                current_step_result = pipeline_execution.get_previous_step()
+                if current_step_result and not current_step_result.is_successful:
+                    pipeline_execution.set_failure()
+                    print(f"Step {step} failed: {current_step_result.error}")  # TODO: Replace with proper logging
+                    break
             except Exception as e:
                 pipeline_execution.status = PipelineStatus.INTERRUPTED
                 print(
@@ -60,8 +64,29 @@ class AutograderPipeline:
                 )  # TODO: Replace with proper logging
                 break
 
-        pipeline_execution.finish_execution()  # Generates GradingResult object in pipeline execution
+        pipeline_execution.finish_execution() # Generates GradingResult object in pipeline execution
+
+        # Cleanup: Release sandbox back to pool if it was created
+        self._cleanup_sandbox(pipeline_execution)
+
         return pipeline_execution
+
+    def _cleanup_sandbox(self, pipeline_execution: PipelineExecution) -> None:
+        """Release sandbox back to pool after pipeline execution."""
+        try:
+            if pipeline_execution.has_step_result(StepName.PRE_FLIGHT):
+                from sandbox_manager.manager import get_sandbox_manager
+
+                preflight_result = pipeline_execution.get_step_result(StepName.PRE_FLIGHT)
+                sandbox = preflight_result.data
+
+                if sandbox:  # Only if a sandbox was created
+                    manager = get_sandbox_manager()
+                    language = pipeline_execution.submission.language
+                    manager.release_sandbox(language, sandbox)
+        except Exception as e:
+            # Log error but don't fail the pipeline
+            print(f"Warning: Failed to cleanup sandbox: {str(e)}")
 
 
 def build_pipeline(
@@ -99,8 +124,8 @@ def build_pipeline(
         StepName.BUILD_TREE, BuildTreeStep(grading_criteria)
     )  # Uses template to match selected tests in criteria and builds tree
 
-    # Pre-flight checks (if configured)
-    if setup_config:
+    # Run pre-flight if setup_config is provided (even if empty), as the step will create sandbox if template requires it
+    if setup_config is not None:
         pipeline.add_step(StepName.PRE_FLIGHT, PreFlightStep(setup_config))
 
     pipeline.add_step(

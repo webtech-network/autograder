@@ -33,7 +33,7 @@ class SandboxManager:
         self.language_pools = language_pools
         for pool in self.language_pools.values():
             pool.replenish() # Initial creation of sandboxes in each pool
-        self.monitor_thread = threading.Thread(target=self.__pool_monitor)
+        self.monitor_thread = threading.Thread(target=self.__pool_monitor, daemon=True)
         self.monitor_thread.start()
 
     def get_sandbox(self, lang: Language) -> SandboxContainer:

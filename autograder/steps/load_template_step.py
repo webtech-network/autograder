@@ -1,4 +1,4 @@
-from autograder.models.dataclass.step_result import StepResult, StepName
+from autograder.models.dataclass.step_result import StepResult, StepName, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.template_library_service import TemplateLibraryService
 from autograder.models.abstract.step import Step
@@ -31,7 +31,7 @@ class TemplateLoaderStep(Step):
                 StepResult(
                     step=StepName.LOAD_TEMPLATE,
                     data=template,
-                    status=StepResult.Status.SUCCESS
+                    status=StepStatus.SUCCESS
                 )
             )
         except Exception as e:
@@ -39,7 +39,7 @@ class TemplateLoaderStep(Step):
                 StepResult(
                     step=StepName.LOAD_TEMPLATE,
                     data=None,
-                    status=StepResult.Status.FAIL,
+                    status=StepStatus.FAIL,
                     error=f"Failed to load template: {str(e)}"
                 )
             )

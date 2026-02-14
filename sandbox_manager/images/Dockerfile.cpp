@@ -16,7 +16,9 @@ RUN rm -f /usr/bin/wget /usr/bin/curl /usr/bin/nc
 WORKDIR /app
 RUN chown sandbox:sandbox /app
 
+VOLUME ["/app"]
+
 USER sandbox
 
 # Default command helps verify compiler version
-CMD ["/bin/sh"]
+CMD ["g++", "--version"]

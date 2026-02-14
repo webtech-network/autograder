@@ -36,7 +36,7 @@ fi
 args=(
     "python"
     "-m"
-    "connectors.adapters.github_action_adapter.github_entrypoint"
+    "github_action.main"
     "--github-token" "$GITHUB_TOKEN"
     "--template-preset" "$TEMPLATE_PRESET"
     "--student-name" "$GITHUB_ACTOR"
