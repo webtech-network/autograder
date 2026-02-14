@@ -58,7 +58,28 @@ class AutograderPipeline:
                 break
 
         pipeline_execution.finish_execution() # Generates GradingResult object in pipeline execution
+
+        # Cleanup: Release sandbox back to pool if it was created
+        self._cleanup_sandbox(pipeline_execution)
+
         return pipeline_execution
+
+    def _cleanup_sandbox(self, pipeline_execution: PipelineExecution) -> None:
+        """Release sandbox back to pool after pipeline execution."""
+        try:
+            if pipeline_execution.has_step_result(StepName.PRE_FLIGHT):
+                from sandbox_manager.manager import get_sandbox_manager
+
+                preflight_result = pipeline_execution.get_step_result(StepName.PRE_FLIGHT)
+                sandbox = preflight_result.data
+
+                if sandbox:  # Only if a sandbox was created
+                    manager = get_sandbox_manager()
+                    language = pipeline_execution.submission.language
+                    manager.release_sandbox(language, sandbox)
+        except Exception as e:
+            # Log error but don't fail the pipeline
+            print(f"Warning: Failed to cleanup sandbox: {str(e)}")
 
 
 def build_pipeline(
@@ -93,7 +114,8 @@ def build_pipeline(
     pipeline.add_step(StepName.BUILD_TREE,BuildTreeStep(grading_criteria)) # Uses template to match selected tests in criteria and builds tree
 
     # Pre-flight checks (if configured)
-    if setup_config and (setup_config.get('required_files') or setup_config.get('setup_commands')):
+    # Run pre-flight if setup_config is provided (even if empty), as the step will create sandbox if template requires it
+    if setup_config is not None:
         pipeline.add_step(StepName.PRE_FLIGHT,PreFlightStep(setup_config))
 
     pipeline.add_step(StepName.GRADE,GradeStep()) # Generates GradingResult with final score and result tree
