@@ -4,18 +4,25 @@ FROM python:3.10-slim
 # 2. Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# 3. Set the working directory
+# 3. Install system dependencies including Docker CLI
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    docker.io \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 4. Set the working directory
 WORKDIR /app
 
-# 4. Copy and install Python dependencies
+# 5. Copy and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Copy the rest of the  application code
+# 6. Copy the rest of the application code
 COPY . .
 
-# 6. Expose the port the API runs on
+# 7. Expose the port the API runs on
 EXPOSE 8000
 
-# 7. Define the command to run the API
-CMD ["uvicorn", "connectors.adapters.api.api_entrypoint:app", "--host", "0.0.0.0", "--port", "8001"]
+# 8. Define the command to run the API
+CMD ["uvicorn", "web.main:app", "--host", "0.0.0.0", "--port", "8000"]
