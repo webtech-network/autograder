@@ -47,7 +47,7 @@ class PreFlightStep(Step):
                         ))
 
         grading_template = input.get_step_result(StepName.LOAD_TEMPLATE).data
-        if grading_template.needs_sandbox:
+        if grading_template.requires_sandbox:
             sandbox = self._pre_flight_service.create_sandbox(input.submission) # Needs error handling?
 
         # Check setup commands only if file check passed
