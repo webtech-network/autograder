@@ -44,11 +44,14 @@ class AutograderPipeline:
         for step in self._steps:
             print("Executing step:", step) # TODO: Replace with proper logging
 
-            if not pipeline_execution.get_previous_step.is_successful:
-                pipeline_execution.set_failure()
-                break
             try:
                 pipeline_execution = self._steps[step].execute(pipeline_execution)
+                # Check if the step that just executed failed
+                current_step_result = pipeline_execution.get_previous_step()
+                if current_step_result and not current_step_result.is_successful:
+                    pipeline_execution.set_failure()
+                    print(f"Step {step} failed: {current_step_result.error}")  # TODO: Replace with proper logging
+                    break
             except Exception as e:
                 pipeline_execution.status = PipelineStatus.INTERRUPTED
                 print(f"Error executing step {step}: {str(e)}") # TODO: Replace with proper logging
@@ -90,7 +93,7 @@ def build_pipeline(
     pipeline.add_step(StepName.BUILD_TREE,BuildTreeStep(grading_criteria)) # Uses template to match selected tests in criteria and builds tree
 
     # Pre-flight checks (if configured)
-    if setup_config:
+    if setup_config and (setup_config.get('required_files') or setup_config.get('setup_commands')):
         pipeline.add_step(StepName.PRE_FLIGHT,PreFlightStep(setup_config))
 
     pipeline.add_step(StepName.GRADE,GradeStep()) # Generates GradingResult with final score and result tree
