@@ -45,4 +45,4 @@ class SubmissionResponse(BaseModel):
 class SubmissionDetailResponse(SubmissionResponse):
     """Detailed submission response including files."""
     submission_files: Dict[str, str]
-    metadata: Optional[Dict[str, Any]] = None
+    submission_metadata: Optional[Dict[str, Any]] = None

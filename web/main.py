@@ -267,7 +267,7 @@ async def create_submission(
         submission_files=submission.files,
         language=submission.language or grading_config.language,
         status=SubmissionStatus.PENDING,
-        metadata=submission.metadata,
+        submission_metadata=submission.metadata,
     )
     
     # Commit to save submission
@@ -311,7 +311,7 @@ async def get_submission(
         "submitted_at": submission.submitted_at,
         "graded_at": submission.graded_at,
         "submission_files": submission.submission_files,
-        "metadata": submission.metadata,
+        "submission_metadata": submission.submission_metadata,
         "final_score": None,
         "feedback": None,
         "result_tree": None,

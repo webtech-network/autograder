@@ -35,7 +35,7 @@ class Submission(Base):
     status: Mapped[SubmissionStatus] = mapped_column(SQLEnum(SubmissionStatus), default=SubmissionStatus.PENDING, nullable=False, index=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     graded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    submission_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     
     # Relationships
     grading_config: Mapped["GradingConfiguration"] = relationship("GradingConfiguration", back_populates="submissions")
