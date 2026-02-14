@@ -1,15 +1,13 @@
-"""
-Updated Criteria Tree models with embedded test functions.
+"""Updated Criteria Tree models with embedded test functions.
 
 These models represent the grading criteria structure with test functions
 embedded during tree building (no more lazy loading or pre-execution).
 """
 
-from typing import List, Optional, Any, Dict
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 
 from autograder.models.abstract.test_function import TestFunction
-from autograder.utils.printers.criteria_tree import CriteriaTreePrinter
 
 
 @dataclass
@@ -128,8 +126,3 @@ class CriteriaTree:
         if self.penalty:
             categories.append("penalty")
         return f"CriteriaTree(categories={categories})"
-
-    def print_tree(self):
-        """Prints a visual representation of the entire criteria tree."""
-        printer = CriteriaTreePrinter()
-        printer.print_tree(self)

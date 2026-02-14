@@ -1,19 +1,23 @@
 import logging
 
-from typing import Dict, Optional, Sequence, List
-from autograder.models.criteria_tree import CriteriaTree, CategoryNode, SubjectNode, TestNode
+from typing import Dict, Optional, Sequence, List, overload
+from autograder.models.criteria_tree import (
+    CriteriaTree,
+    CategoryNode,
+    SubjectNode,
+    TestNode,
+)
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.result_tree import (
     ResultTree,
     RootResultNode,
     CategoryResultNode,
     SubjectResultNode,
-    TestResultNode
+    TestResultNode,
 )
 
 
-
-class GraderService():
+class GraderService:
     def __init__(self):
         self.logger = logging.getLogger("GraderService")
         self.__submission_files = None
@@ -28,16 +32,15 @@ class GraderService():
     def grade_from_tree(
         self,
         criteria_tree: CriteriaTree,
-        submission_files: Dict[str,SubmissionFile],
+        submission_files: Dict[str, SubmissionFile],
     ) -> ResultTree:
         self.__submission_files = submission_files
 
         # Create root node with category results
-        root = RootResultNode(name="root")
 
         # Process base category (required)
         base_result = self.process_category(criteria_tree.base)
-        root.base = base_result
+        root = RootResultNode(name="root", base=base_result)
 
         # Process bonus category (optional)
         if criteria_tree.bonus:
@@ -65,7 +68,7 @@ class GraderService():
     def __balance_nodes(
         self,
         nodes: Sequence[CategoryResultNode | SubjectResultNode | TestResultNode],
-        factor: float
+        factor: float,
     ) -> None:
         """Balance the weights of sibling nodes to sum to 100, scaled by factor."""
         if len(nodes) == 0:
@@ -82,9 +85,14 @@ class GraderService():
             for node in nodes:
                 node.weight *= scale_factor
 
+    @overload
+    def __process_holder(self, holder: CategoryNode) -> CategoryResultNode: ...
+
+    @overload
+    def __process_holder(self, holder: SubjectNode) -> SubjectResultNode: ...
+
     def __process_holder(
-        self,
-        holder: CategoryNode | SubjectNode
+        self, holder: CategoryNode | SubjectNode
     ) -> CategoryResultNode | SubjectResultNode:
         """Process a category or subject node and create corresponding result node."""
 
@@ -117,15 +125,17 @@ class GraderService():
             return CategoryResultNode(
                 name=holder.name,
                 weight=holder.weight,
+                subjects_weight=holder.subjects_weight,
                 subjects=subject_results,
-                tests=test_results
+                tests=test_results,
             )
-        else:  # SubjectNode
+        else:
             return SubjectResultNode(
                 name=holder.name,
                 weight=holder.weight,
+                subjects_weight=holder.subjects_weight,
                 subjects=subject_results,
-                tests=test_results
+                tests=test_results,
             )
 
     def process_subject(self, subject: SubjectNode) -> SubjectResultNode:
@@ -136,25 +146,25 @@ class GraderService():
         """Execute a test and create a test result node."""
         file_target = self.get_file_target(test)
         test_result = test.test_function.execute(
-            files=file_target,
-            sandbox=self._sandbox,
-            **(test.parameters or {})
+            files=file_target, sandbox=self._sandbox, **(test.parameters or {})
         )
         return TestResultNode(
             name=test.name,
             test_node=test,
             score=test_result.score,
             report=test_result.report,
-            parameters=test_result.parameters
+            parameters=test_result.parameters,
         )
 
-    def get_file_target(self,test_node: TestNode) -> Optional[List[SubmissionFile]] :
-        if not test_node.file_target:
+    def get_file_target(self, test_node: TestNode) -> Optional[List[SubmissionFile]]:
+        if not test_node.file_target or not self.__submission_files:
             return None
+
         target_files = []
         for file_name in self.__submission_files:
             if file_name in test_node.file_target:
                 target_files.append(self.__submission_files[file_name])
+
         return target_files
 
     def process_category(self, category: CategoryNode) -> CategoryResultNode:
@@ -176,10 +186,3 @@ class GraderService():
                     return result
 
         return None
-
-
-
-
-
-
-

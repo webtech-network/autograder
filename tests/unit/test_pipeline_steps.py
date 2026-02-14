@@ -13,6 +13,7 @@ from typing import List
 
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.pipeline import AutograderPipeline
+from autograder.utils.printers.result_tree import ResultTreePrinter
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
@@ -224,8 +225,8 @@ def test_grade_from_tree():
 
     # Print result tree
     if grading_result.result_tree:
-        print("\nResult Tree:")
-        grading_result.result_tree.print_tree()
+        printer = ResultTreePrinter()
+        printer.print_tree(grading_result.result_tree)
 
     return grading_result
 
@@ -280,5 +281,5 @@ def test_build_tree_and_grade_pipeline():
 
     # Print result tree
     if grading_result.result_tree:
-        print("\nResult Tree:")
-        grading_result.result_tree.print_tree()
+        printer = ResultTreePrinter()
+        printer.print_tree(grading_result.result_tree)

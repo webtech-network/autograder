@@ -22,9 +22,9 @@ The final score flows up from test results through subjects and categories to th
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
+import copy
 
 from autograder.models.criteria_tree import TestNode
-from autograder.models.dataclass.test_result import TestResult
 
 
 @dataclass
@@ -44,6 +44,7 @@ class TestResultNode:
         parameters: Parameters used for test execution
         metadata: Additional execution metadata
     """
+
     name: str
     test_node: TestNode
     score: float
@@ -66,7 +67,7 @@ class TestResultNode:
             "report": self.report,
             "file_target": self.test_node.file_target,
             "parameters": self.parameters,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -86,10 +87,12 @@ class SubjectResultNode:
         tests: Test results directly under this subject (if any)
         metadata: Additional metadata
     """
+
     name: str
     weight: float
+    subjects_weight: Optional[float]
     score: float = 0.0
-    subjects: List['SubjectResultNode'] = field(default_factory=list)
+    subjects: List["SubjectResultNode"] = field(default_factory=list)
     tests: List[TestResultNode] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -131,7 +134,7 @@ class SubjectResultNode:
             "score": round(self.score, 2),
             "subjects": [subject.to_dict() for subject in self.subjects],
             "tests": [test.to_dict() for test in self.tests],
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
     def get_all_test_results(self) -> List[TestResultNode]:
@@ -158,8 +161,10 @@ class CategoryResultNode:
         tests: Test results directly under this category (if any)
         metadata: Additional metadata
     """
+
     name: str
     weight: float
+    subjects_weight: Optional[float] = None
     score: float = 0.0
     subjects: List[SubjectResultNode] = field(default_factory=list)
     tests: List[TestResultNode] = field(default_factory=list)
@@ -203,7 +208,7 @@ class CategoryResultNode:
             "score": round(self.score, 2),
             "subjects": [subject.to_dict() for subject in self.subjects],
             "tests": [test.to_dict() for test in self.tests],
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
     def get_all_test_results(self) -> List[TestResultNode]:
@@ -233,9 +238,10 @@ class RootResultNode:
         penalty: Penalty category result (optional)
         metadata: Additional metadata
     """
+
+    base: CategoryResultNode
     name: str = "root"
     score: float = 0.0
-    base: Optional[CategoryResultNode] = None
     bonus: Optional[CategoryResultNode] = None
     penalty: Optional[CategoryResultNode] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -275,13 +281,13 @@ class RootResultNode:
             "name": self.name,
             "type": "root",
             "score": round(self.score, 2),
-            "metadata": self.metadata
+            "metadata": self.metadata,
+            "base": self.base.to_dict(),
         }
 
-        if self.base:
-            result["base"] = self.base.to_dict()
         if self.bonus:
             result["bonus"] = self.bonus.to_dict()
+
         if self.penalty:
             result["penalty"] = self.penalty.to_dict()
 
@@ -326,6 +332,7 @@ class ResultTree:
         template_name: Name of the template used for grading (optional)
         metadata: Additional grading session metadata
     """
+
     root: RootResultNode
     template_name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -365,159 +372,6 @@ class ResultTree:
             "summary": {
                 "total_tests": len(all_tests),
                 "passed_tests": len(passed_tests),
-                "failed_tests": len(failed_tests)
-            }
+                "failed_tests": len(failed_tests),
+            },
         }
-
-    def print_tree(self, show_details: bool = True):
-        """
-        Print a visual representation of the result tree.
-
-        Args:
-            show_details: If True, show test parameters and reports
-        """
-        print("\n" + "=" * 70)
-        print("🎯 RESULT TREE")
-        print("=" * 70)
-
-        # Print header info
-        if self.template_name:
-            print(f"📋 Template: {self.template_name}")
-
-        print(f"🏆 Final Score: {self.root.score:.2f}/100")
-
-        all_tests = self.get_all_test_results()
-        passed = self.get_passed_tests()
-        failed = self.get_failed_tests()
-
-        print(f"📊 Tests: {len(all_tests)} total | "
-              f"✅ {len(passed)} passed | "
-              f"❌ {len(failed)} failed")
-
-        print("\n" + "-" * 70)
-
-        # Print tree structure
-        self._print_root(self.root, show_details)
-
-        print("=" * 70 + "\n")
-
-    def _print_root(self, root: RootResultNode, show_details: bool):
-        """Print the root node and its categories."""
-        for category in root.get_all_categories():
-            self._print_category(category, "", show_details)
-
-    def _print_category(self, category: CategoryResultNode, prefix: str, show_details: bool):
-        """Print a category node."""
-        # Category icon and formatting
-        icon = "📁"
-        name = category.name.upper()
-
-        # Color code score
-        score_color = self._get_score_color(category.score)
-
-        print(f"{prefix}{icon} {name} "
-              f"[weight: {category.weight:.0f}%] "
-              f"{score_color} {category.score:.1f}/100")
-
-        # Print children
-        new_prefix = prefix + "    "
-        for subject in category.subjects:
-            self._print_subject(subject, new_prefix, show_details)
-        for test in category.tests:
-            self._print_test(test, new_prefix, show_details)
-
-    def _print_subject(self, subject: SubjectResultNode, prefix: str, show_details: bool):
-        """Print a subject node."""
-        icon = "📘"
-        score_color = self._get_score_color(subject.score)
-
-        print(f"{prefix}{icon} {subject.name} "
-              f"[weight: {subject.weight:.0f}%] "
-              f"{score_color} {subject.score:.1f}/100")
-
-        # Print children
-        new_prefix = prefix + "    "
-        for nested_subject in subject.subjects:
-            self._print_subject(nested_subject, new_prefix, show_details)
-        for test in subject.tests:
-            self._print_test(test, new_prefix, show_details)
-
-    def _print_test(self, test: TestResultNode, prefix: str, show_details: bool):
-        """Print a test result node."""
-        # Status icon
-        status = "✅" if test.score >= 100 else "❌"
-
-        # Score with color
-        score_color = self._get_score_color(test.score)
-
-        # Basic test info
-        test_info = f"{prefix}🧪 {test.name} {status}"
-
-        # Add file target if present
-        if test.test_node.file_target:
-            test_info += f" [file: {', '.join(test.test_node.file_target)}]"
-
-        # Add score
-        test_info += f" {score_color} {test.score:.1f}/100"
-
-        print(test_info)
-
-        # Show details if requested
-        if show_details:
-            # Show parameters
-            if test.parameters:
-                params_str = ", ".join(f"{k}={v}" for k, v in test.parameters.items())
-                print(f"{prefix}    ⚙️  params: {params_str}")
-
-            # Show report
-            if test.report:
-                report = test.report
-                # Truncate long reports
-                if len(report) > 80:
-                    report = report[:77] + "..."
-                print(f"{prefix}    💬 {report}")
-
-    def _get_score_color(self, score: float) -> str:
-        """Get color emoji for a score."""
-        if score >= 80:
-            return "🟢"
-        elif score >= 60:
-            return "🟡"
-        else:
-            return "🔴"
-
-    def print_summary(self):
-        """Print a compact summary of the results."""
-        print("\n" + "=" * 70)
-        print("📊 GRADING SUMMARY")
-        print("=" * 70)
-
-        print(f"\n🏆 Final Score: {self.root.score:.2f}/100")
-
-        # Test statistics
-        all_tests = self.get_all_test_results()
-        passed = self.get_passed_tests()
-        failed = self.get_failed_tests()
-
-        if all_tests:
-            print(f"\n📈 Test Results:")
-            print(f"   Total:  {len(all_tests)}")
-            print(f"   ✅ Passed: {len(passed)} ({len(passed)/len(all_tests)*100:.1f}%)")
-            print(f"   ❌ Failed: {len(failed)} ({len(failed)/len(all_tests)*100:.1f}%)")
-
-            # Score distribution
-            avg_score = sum(t.score for t in all_tests) / len(all_tests)
-            print(f"\n📊 Average Test Score: {avg_score:.2f}")
-
-        # Show failed tests if any
-        if failed:
-            print(f"\n❌ Failed Tests:")
-            for test in failed:
-                print(f"   • {test.name}: {test.score:.1f}/100")
-                if test.report:
-                    # Truncate long reports
-                    report = test.report if len(test.report) <= 60 else test.report[:57] + "..."
-                    print(f"     {report}")
-
-        print("=" * 70 + "\n")
-
