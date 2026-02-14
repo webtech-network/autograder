@@ -703,7 +703,7 @@ class CheckIdSelectorOverUsage(TestFunction):
             r'(@media\b)|'           # @media
             r'(\{)|'                 # Abre chaves
             r'(\})|'                 # Fecha chaves
-            r'(#[a-zA-Z_][\w-]*)',   # Possivel a ID
+            r'(#[a-zA-Z_][\w-]*)',   # Possivel ID
             re.DOTALL | re.IGNORECASE
         )
         selectors = []
@@ -734,8 +734,6 @@ class CheckIdSelectorOverUsage(TestFunction):
             report=report,
             parameters={"max_allowed": max_allowed}
         )
-
-
 
 
 class UsesRelativeUnits(TestFunction):
@@ -1001,6 +999,117 @@ class HasNoJsFramework(TestFunction):
         return TestResult(test_name=self.name, score=score, report=report)
 
 
+class CountUnusedCssClasses(TestFunction):
+    @property
+    def name(self):
+        return "Count Unused Css Classes"
+    @property
+    def description(self):
+        return "Conta o número de classes CSS não utilizadas no código HTML e/ou CSS"
+    @property
+    def required_file(self):
+        return None
+    @property
+    def parameter_description(self):
+        return [
+            ParamDescription("submission_files", "O dicionário de arquivos enviados.", "dictionary"),
+            ParamDescription("html_file", "Nome do arquivo HTML a ser analisado (ex: 'index.html').", "string"),
+            ParamDescription("css_file", "Nome do arquivo CSS a ser analisado (ex: 'styles.css').", "string")
+        ]
+    def execute (self,submission_files, html_file: str, css_file: str) -> TestResult:
+        html_content = submission_files.get(html_file, "")
+        css_content = submission_files.get(css_file, "")
+        if not html_content and not css_content:
+            return TestResult(
+                self.name, 
+                0, 
+                "Nenhum arquivo HTML ou CSS fornecido.", 
+                {
+                    "html_file": html_file, 
+                    "css_file": css_file, 
+                    "html_found": False, 
+                    "css_found": False,
+                    "unused_count": 0,
+                    "category": "none"
+                }
+            )
+        css_classes = set()
+        if css_content:
+            token_pattern = re.compile(
+                r'(/\*.*?\*/)|'           # comentário (ignorar)
+                r'(".*?")|'               # string dupla (ignorar)
+                r"('.*?')|"               # string simples (ignorar)
+                r'(\{)|'                  # abre chave
+                r'(\})|'                  # fecha chave
+                r'(\.[a-zA-Z_-][\w-]*)',  # classe CSS
+                re.DOTALL
+            )
+            depth = 0
+            for m in token_pattern.finditer(css_content):
+                comment, double_str, simple_str, open_brace, close_brace, class_token = m.groups()
+                if comment or double_str or simple_str:
+                    continue
+                if open_brace:
+                    depth += 1
+                    continue
+                if close_brace:
+                    depth = max(0, depth - 1)
+                    continue
+                if class_token and depth == 0:
+                    css_classes.add(class_token[1:])
+        used_classes = set()
+        if html_content:
+            soup = BeautifulSoup(html_content, "html.parser")
+            for el in soup.find_all(class_=True):
+                for cls in el.get("class", []):
+                    used_classes.add(cls)
+        html_found = bool(html_content)
+        css_found = bool(css_content)
+        
+        if html_found and css_found:
+            unused_classes = sorted(css_classes - used_classes)
+            category = "css_only_unused"
+
+        elif css_found and not html_found:
+            unused_classes = sorted(css_classes)
+            category = "css_only_unused"
+        
+        elif html_found and not css_found:
+            unused_classes = sorted(used_classes - css_classes)
+            category = "html_classes_without_css"
+        else:
+            unused_classes = []
+            category = "none"
+        unused_count = len(unused_classes)
+        score = 100 if unused_count == 0 else 0
+        if category == "html_classes_without_css":
+            report = (
+                "Nenhuma classe no HTML sem definição em CSS."
+                if unused_count == 0
+                else f"{unused_count} classes encontradas no HTML sem definição em CSS: {unused_classes}"
+            )
+        else:
+            report = (
+                "Nenhuma classe CSS não utilizada encontrada."
+                if unused_count == 0
+                else f"{unused_count} classes CSS não utilizadas: {unused_classes}"
+            )
+        return TestResult(
+            test_name=self.name,
+            score=score,
+            report=report,
+            parameters={
+                "html_file": html_file,
+                "css_file": css_file,
+                "html_found": html_found,
+                "css_found": css_found,
+                "unused_count": unused_count,
+                "unused_classes_sample": unused_classes[:20],
+                "category": category
+            }
+        )
+
+
 # ===============================================================
 # endregion
 # ===============================================================
@@ -1062,7 +1171,8 @@ class WebDevTemplate(Template):
             "js_uses_query_string_parsing": JsUsesQueryStringParsing(),
             "js_has_json_array_with_id": JsHasJsonArrayWithId(),
             "js_uses_dom_manipulation": JsUsesDomManipulation(),
-            "has_no_js_framework": HasNoJsFramework()
+            "has_no_js_framework": HasNoJsFramework(),
+            "Count Unused Css Classes": CountUnusedCssClasses()
         }
 
     def stop(self):
