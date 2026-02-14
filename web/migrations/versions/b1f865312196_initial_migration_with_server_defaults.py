@@ -1,8 +1,8 @@
-"""Initial migration
+"""Initial migration with server defaults
 
-Revision ID: 7d6030b9442a
+Revision ID: b1f865312196
 Revises: 
-Create Date: 2026-02-14 14:36:19.208638
+Create Date: 2026-02-14 14:43:35.900840
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '7d6030b9442a'
+revision: str = 'b1f865312196'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -28,8 +28,8 @@ def upgrade() -> None:
     sa.Column('criteria_config', sa.JSON(), nullable=False),
     sa.Column('language', sa.String(length=50), nullable=False),
     sa.Column('version', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
@@ -42,7 +42,7 @@ def upgrade() -> None:
     sa.Column('submission_files', sa.JSON(), nullable=False),
     sa.Column('language', sa.String(length=50), nullable=True),
     sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', name='submissionstatus'), nullable=False),
-    sa.Column('submitted_at', sa.DateTime(), nullable=False),
+    sa.Column('submitted_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('graded_at', sa.DateTime(), nullable=True),
     sa.Column('submission_metadata', sa.JSON(), nullable=True),
     sa.ForeignKeyConstraint(['grading_config_id'], ['grading_configurations.id'], ),
@@ -62,7 +62,7 @@ def upgrade() -> None:
     sa.Column('pipeline_status', sa.Enum('SUCCESS', 'FAILED', 'INTERRUPTED', name='pipelinestatus'), nullable=False),
     sa.Column('error_message', sa.Text(), nullable=True),
     sa.Column('failed_at_step', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.ForeignKeyConstraint(['submission_id'], ['submissions.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

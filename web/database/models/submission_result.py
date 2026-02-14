@@ -1,11 +1,12 @@
 """SubmissionResult database model."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
 from sqlalchemy import Integer, Float, Text, DateTime, JSON, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
 from web.database.base import Base
 
@@ -34,7 +35,7 @@ class SubmissionResult(Base):
     pipeline_status: Mapped[PipelineStatus] = mapped_column(SQLEnum(PipelineStatus), nullable=False)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     failed_at_step: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     
     # Relationships
     submission: Mapped["Submission"] = relationship("Submission", back_populates="result")

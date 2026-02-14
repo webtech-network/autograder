@@ -60,7 +60,7 @@ class BaseRepository(Generic[ModelType]):
         """Delete entity by ID."""
         instance = await self.get_by_id(id)
         if instance:
-            await self.session.delete(instance)
+            self.session.delete(instance)
             await self.session.flush()
             return True
         return False

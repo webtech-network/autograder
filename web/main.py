@@ -4,7 +4,7 @@ import asyncio
 import os
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
@@ -118,7 +118,7 @@ async def health_check():
     """Health check endpoint for monitoring."""
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": "1.0.0"
     }
 
@@ -135,7 +135,7 @@ async def readiness_check():
         status_code=status_code,
         content={
             "ready": ready,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
     )
 
@@ -435,7 +435,7 @@ async def grade_submission(
                 await submission_repo.update(
                     submission_id,
                     status=SubmissionStatus.COMPLETED,
-                    graded_at=datetime.utcnow()
+                    graded_at=datetime.now(timezone.utc)
                 )
                 
                 logger.info(

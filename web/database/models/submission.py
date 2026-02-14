@@ -1,11 +1,12 @@
 """Submission database model."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
 from sqlalchemy import Integer, String, DateTime, JSON, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
 from web.database.base import Base
 
@@ -33,7 +34,7 @@ class Submission(Base):
     submission_files: Mapped[dict] = mapped_column(JSON, nullable=False)
     language: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     status: Mapped[SubmissionStatus] = mapped_column(SQLEnum(SubmissionStatus), default=SubmissionStatus.PENDING, nullable=False, index=True)
-    submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False, index=True)
     graded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     submission_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     
