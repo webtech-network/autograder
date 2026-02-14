@@ -9,6 +9,7 @@ from autograder.steps.grade_step import GradeStep
 from autograder.steps.load_template_step import TemplateLoaderStep
 from autograder.steps.pre_flight_step import PreFlightStep
 from autograder.steps.build_tree_step import BuildTreeStep
+from autograder.models.dataclass.submission import Submission
 
 class AutograderPipeline:
     """
@@ -30,7 +31,7 @@ class AutograderPipeline:
     def add_step(self, step_name: StepName, step: Step) -> None:
         self._steps[step_name] = step
 
-    def run(self, submission:'Submission'):
+    def run(self, submission:Submission):
         """
         Run the autograder pipeline on a given submission.
         Args:

@@ -25,7 +25,7 @@ RUN echo "INSIDE DOCKERFILE THIS IS GRADING_PRESET ${GRADING_PRESET}"
 COPY . .
 
 # 8. Copy the entrypoint and make it executable
-COPY entrypoint.sh /entrypoint.sh
+COPY github_action/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # 9. Set the entrypoint for the container
