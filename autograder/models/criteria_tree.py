@@ -5,7 +5,7 @@ These models represent the grading criteria structure with test functions
 embedded during tree building (no more lazy loading or pre-execution).
 """
 
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from dataclasses import dataclass, field
 
 from autograder.models.abstract.test_function import TestFunction
@@ -26,14 +26,14 @@ class TestNode:
 
     name: str
     test_function: TestFunction
-    parameters: List[Any] = field(default_factory=list)
+    parameters: Dict[str, Any] = field(default_factory=dict)
     file_target: Optional[List[str]] = None
     weight: float = 100.0
 
     def __repr__(self):
         params_str = f", params={self.parameters}" if self.parameters else ""
         file_str = f", file={self.file_target}" if self.file_target else ""
-        return f"TestNode({self.test_name}{params_str}{file_str})"
+        return f"TestNode({self.name}{params_str}{file_str})"
 
 
 @dataclass
