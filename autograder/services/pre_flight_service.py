@@ -99,6 +99,24 @@ class PreFlightService:
             sandbox_manager = get_sandbox_manager()
             sandbox = sandbox_manager.get_sandbox(submission.language)
             self.logger.debug(f"Sandbox created for language {submission.language}")
+
+            # Prepare workdir by copying submission files to container
+            if submission.submission_files:
+                try:
+                    sandbox.prepare_workdir(submission.submission_files)
+                    self.logger.debug(f"Workdir prepared with {len(submission.submission_files)} files")
+                except Exception as e:
+                    error_msg = f"**Error:** Failed to prepare workdir in sandbox: `{str(e)}`"
+                    self.logger.error(error_msg)
+                    self.fatal_errors.append(PreflightError(
+                        type=PreflightCheckType.SANDBOX_CREATION,
+                        message=error_msg,
+                        details={"error": str(e)}
+                    ))
+                    # Release the sandbox back to pool since it's unusable
+                    sandbox_manager.release_sandbox(submission.language, sandbox)
+                    return None
+
             return sandbox
         except Exception as e:
             error_msg = f"**Error:** Failed to create sandbox for language `{submission.language}`: `{str(e)}`"
