@@ -55,7 +55,9 @@ class ExpectOutputTest(TestFunction):
             if not program_command:
                 # No program command specified - treat inputs as command to run
                 # Join inputs into a single command string
-                command = ' '.join(inputs) if isinstance(inputs, list) else inputs
+                if inputs is None:
+                    raise ValueError("inputs parameter is required")
+                command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
                 output = sandbox.run_command(command)
                 actual_output = output.stdout
             else:
@@ -65,6 +67,10 @@ class ExpectOutputTest(TestFunction):
 
             score = 100.0 if actual_output.strip() == expected_output.strip() else 0.0
             report = f"Expected output: '{expected_output.strip()}'\nActual output: '{actual_output.strip()}'\n"
+
+            # Include stderr if there was any error output
+            if output.stderr:
+                report += f"Error output (stderr): {output.stderr}\n"
 
             return TestResult(
                 test_name=self.name,
