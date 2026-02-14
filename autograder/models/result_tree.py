@@ -22,6 +22,7 @@ The final score flows up from test results through subjects and categories to th
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
+import copy
 
 from autograder.models.criteria_tree import TestNode
 
@@ -89,6 +90,7 @@ class SubjectResultNode:
 
     name: str
     weight: float
+    subjects_weight: Optional[float]
     score: float = 0.0
     subjects: List["SubjectResultNode"] = field(default_factory=list)
     tests: List[TestResultNode] = field(default_factory=list)
@@ -162,6 +164,7 @@ class CategoryResultNode:
 
     name: str
     weight: float
+    subjects_weight: Optional[float] = None
     score: float = 0.0
     subjects: List[SubjectResultNode] = field(default_factory=list)
     tests: List[TestResultNode] = field(default_factory=list)
@@ -236,9 +239,9 @@ class RootResultNode:
         metadata: Additional metadata
     """
 
+    base: CategoryResultNode
     name: str = "root"
     score: float = 0.0
-    base: Optional[CategoryResultNode] = None
     bonus: Optional[CategoryResultNode] = None
     penalty: Optional[CategoryResultNode] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -279,12 +282,12 @@ class RootResultNode:
             "type": "root",
             "score": round(self.score, 2),
             "metadata": self.metadata,
+            "base": self.base.to_dict(),
         }
 
-        if self.base:
-            result["base"] = self.base.to_dict()
         if self.bonus:
             result["bonus"] = self.bonus.to_dict()
+
         if self.penalty:
             result["penalty"] = self.penalty.to_dict()
 
