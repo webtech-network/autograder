@@ -2,18 +2,29 @@ import json
 import os
 
 from autograder.autograder import build_pipeline, AutograderPipeline
+from autograder.models.dataclass.submission import Submission
 from github import Github
 from github.GithubException import UnknownObjectException
-from autograder.models.dataclass.submission import Submission
 from github.Repository import Repository
 from github.WorkflowRun import WorkflowRun
 from github.CheckRun import CheckRun
 
 
 class GithubActionService:
-    """ """
+    """
+    Service class to integrate the autograder with GitHub Actions workflows.
+    Handles repository access, submission file collection, autograder pipeline execution,
+    result exporting, feedback committing, and notification to GitHub Classroom.
+    """
 
     def __init__(self, github_token, app_token):
+        """
+        Initialize the GithubActionService.
+
+        Args:
+            github_token (str): The GitHub token for user authentication.
+            app_token (str): The GitHub App token for repository access.
+        """
         super().__init__()
         self.github_token = github_token
         self.app_token = app_token
@@ -25,9 +36,14 @@ class GithubActionService:
         user_name: str,
     ):
         """
-        Docstring for run_autograder
+        Run the autograder pipeline for a given user submission.
 
-        :param self: Description
+        Args:
+            pipeline (AutograderPipeline): The autograder pipeline to execute.
+            user_name (str): The username of the submitter.
+
+        Returns:
+            The result of the pipeline execution.
         """
         try:
             submission = Submission(
@@ -43,15 +59,18 @@ class GithubActionService:
 
     def get_repository(self, app_token):
         """
-        Docstring for get_repository
+        Retrieve the GitHub repository object using the provided app token.
 
-        :param self: Description
-        :param app_token: Description
+        Args:
+            app_token (str): The GitHub App token.
+
+        Returns:
+            Repository: The GitHub repository object.
         """
         try:
             repo = os.getenv("GITHUB_REPOSITORY")
             if not repo:
-                raise Exception('Not find repo')
+                raise Exception("Not find repo")
 
             return Github(app_token).get_repo(repo)
         except:
@@ -63,9 +82,12 @@ class GithubActionService:
         self, final_score: float, include_feedback: bool, feedback: str | None
     ):
         """
-        Docstring for export_results
+        Export the grading results to GitHub, optionally committing feedback.
 
-        :param self: Description
+        Args:
+            final_score (float): The final score to report.
+            include_feedback (bool): Whether to include feedback in the report.
+            feedback (str | None): The feedback content to commit, if any.
         """
         if include_feedback and feedback is not None:
             self.commit_feedback(feedback)
@@ -73,9 +95,10 @@ class GithubActionService:
 
     def notify_classroom(self, final_score: float):
         """
-        Docstring for notify_classroom
+        Notify GitHub Classroom of the final score by updating the check run.
 
-        :param self: Description
+        Args:
+            final_score (float): The final score to report (0-100).
         """
         if final_score < 0 or final_score > 100:
             raise Exception("Invalid final score. It should be between 0 and 100.")
@@ -120,6 +143,16 @@ class GithubActionService:
     def __find_check_suite(
         self, repo: Repository, workflow_run: WorkflowRun
     ) -> CheckRun:
+        """
+        Find the check run named 'grading' in the check suite for the workflow run.
+
+        Args:
+            repo (Repository): The GitHub repository object.
+            workflow_run (WorkflowRun): The workflow run object.
+
+        Returns:
+            CheckRun: The check run object for grading.
+        """
         check_suite_url = workflow_run.check_suite_url
         check_suite_id = int(check_suite_url.split("/")[-1])
 
@@ -134,9 +167,10 @@ class GithubActionService:
 
     def commit_feedback(self, feedback: str):
         """
-        Docstring for commit_feedback
+        Commit the feedback as a file (relatorio.md) to the repository.
 
-        :param self: Description
+        Args:
+            feedback (str): The feedback content to commit.
         """
         file_path = "relatorio.md"
 
@@ -160,9 +194,10 @@ class GithubActionService:
 
     def __get_submission_files(self):
         """
-        Docstring for get_submission_files
+        Collect all files from the submission directory, skipping .git and .github.
 
-        :param self: Description
+        Returns:
+            dict: A dictionary mapping relative file paths to their contents.
         """
         base_path = os.getenv("GITHUB_WORKSPACE", ".")
         submission_path = os.path.join(base_path, "submission")
@@ -196,7 +231,17 @@ class GithubActionService:
         self, template_preset, include_feedback: bool, feedback_mode
     ):
         """
+        Build the autograder pipeline using configuration files from the submission.
+
         Looks inside $GITHUB_WORKSPACE/submission/.github/autograder for the criteria.json, feedback.json and setup.json files.
+
+        Args:
+            template_preset (str): The template preset name.
+            include_feedback (bool): Whether to include feedback in the pipeline.
+            feedback_mode: The feedback mode to use.
+
+        Returns:
+            AutograderPipeline: The constructed autograder pipeline.
         """
         base_path = os.getenv("GITHUB_WORKSPACE", ".")
         submission_path = os.path.join(base_path, "submission")
@@ -212,6 +257,18 @@ class GithubActionService:
         )
 
     def __read_path(self, configuration_path: str, file_name: str):
+        """
+        Read and parse a JSON configuration file from the given path.
+
+        Args:
+            configuration_path (str): The directory containing the configuration file.
+            file_name (str): The name of the configuration file.
+
+        Returns:
+            dict: The parsed JSON content.
+        Raises:
+            FileNotFoundError: If the file does not exist.
+        """
         path = os.path.join(configuration_path, file_name)
 
         if not os.path.exists(path):
@@ -230,12 +287,15 @@ class GithubActionService:
         app_token,
     ):
         """
-        Docstring for create
+        Factory method to create and initialize a GithubActionService instance.
 
-        :param cls: Description
-        :param test_framework: Description
-        :param github_author: Description
-        :param app_token: Description
+        Args:
+            test_framework: The test framework or GitHub token.
+            github_author: The GitHub author or app token.
+            app_token: The GitHub App token for repository access.
+
+        Returns:
+            GithubActionService: The initialized service instance.
         """
         response = cls(test_framework, github_author)
         response.get_repository(app_token)
