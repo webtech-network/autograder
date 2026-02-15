@@ -1,15 +1,17 @@
 #!/bin/bash
-# Autograder API Test Examples using cURL
-# ========================================
-# This script contains cURL commands to test the Autograder API
+# Autograder Web API Test Examples using cURL
+# ============================================
+# This script contains cURL commands to test the Autograder Web API (RESTful)
+# Note: The old multipart/form-data endpoint has been replaced with JSON API
 
 # Set the base URL (change this to your API endpoint)
-BASE_URL="http://localhost:8000"
+BASE_URL="http://localhost:8000/api/v1"
 
 # Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 RED='\033[0;31m'
+YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Function to print headers
@@ -19,216 +21,292 @@ print_header() {
     echo -e "${BLUE}========================================${NC}\n"
 }
 
-# Change to the tests/data directory
+# Function to print warnings
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# Change to the tests/assets directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
 # ========================================
-# Test 1: Web Development Template
+# Test 0: Health Check
 # ========================================
-test_web_dev() {
-    print_header "TEST 1: Web Development Template"
+test_health() {
+    print_header "TEST 0: Health Check"
     
-    curl -X POST "$BASE_URL/grade_submission/" \
-      -F "submission_files=@web_dev/index.html" \
-      -F "submission_files=@web_dev/style.css" \
-      -F "submission_files=@web_dev/script.js" \
-      -F "criteria_json=@web_dev/criteria.json" \
-      -F "feedback_json=@web_dev/feedback.json" \
-      -F "template_preset=web dev" \
-      -F "student_name=John Doe" \
-      -F "student_credentials=test-token-123" \
-      -F "include_feedback=true" \
-      -F "feedback_type=default" \
-      | jq '.'
+    curl -X GET "$BASE_URL/health" | jq '.'
 }
 
 # ========================================
-# Test 2: API Testing Template
+# Test 1: Create Web Development Config
 # ========================================
-test_api() {
-    print_header "TEST 2: API Testing Template"
+create_webdev_config() {
+    print_header "TEST 1: Create Web Development Config"
     
-    curl -X POST "$BASE_URL/grade_submission/" \
-      -F "submission_files=@api_testing/server.js" \
-      -F "submission_files=@api_testing/package.json" \
-      -F "criteria_json=@api_testing/criteria.json" \
-      -F "feedback_json=@api_testing/feedback.json" \
-      -F "setup_json=@api_testing/setup.json" \
-      -F "template_preset=api" \
-      -F "student_name=Jane Smith" \
-      -F "student_credentials=test-token-456" \
-      -F "include_feedback=true" \
-      -F "feedback_type=default" \
-      | jq '.'
+    curl -X POST "$BASE_URL/configs" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "external_assignment_id": "webdev_hw1",
+        "template_name": "webdev",
+        "language": null,
+        "criteria_config": {
+          "base": {
+            "weight": 100,
+            "subjects": {
+              "HTML Structure": {
+                "weight": 100,
+                "tests": [
+                  {
+                    "file": "index.html",
+                    "name": "Check Bootstrap Linked"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "feedback_config": {
+          "general": {
+            "report_title": "Web Development Grading Report",
+            "show_score": true
+          }
+        }
+      }' | jq '.'
 }
 
 # ========================================
-# Test 3: Input/Output Template
+# Test 2: Submit Web Development Code
 # ========================================
-test_io() {
-    print_header "TEST 3: Input/Output Template"
+submit_webdev() {
+    print_header "TEST 2: Submit Web Development Code"
     
-    curl -X POST "$BASE_URL/grade_submission/" \
-      -F "submission_files=@input_output/calculator.py" \
-      -F "submission_files=@input_output/requirements.txt" \
-      -F "criteria_json=@input_output/criteria.json" \
-      -F "feedback_json=@input_output/feedback.json" \
-      -F "setup_json=@input_output/setup.json" \
-      -F "template_preset=io" \
-      -F "student_name=Bob Johnson" \
-      -F "student_credentials=test-token-789" \
-      -F "include_feedback=true" \
-      -F "feedback_type=default" \
-      | jq '.'
+    curl -X POST "$BASE_URL/submissions" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "external_assignment_id": "webdev_hw1",
+        "external_user_id": "student123",
+        "username": "john.doe",
+        "files": {
+          "index.html": "<!DOCTYPE html><html><head><title>Test</title><link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css\" rel=\"stylesheet\"></head><body><h1 class=\"display-4\">Hello World</h1></body></html>"
+        }
+      }' | jq '.'
 }
 
 # ========================================
-# Test 4: Essay Template
+# Test 3: Create I/O Config
 # ========================================
-test_essay() {
-    print_header "TEST 4: Essay Template"
+create_io_config() {
+    print_header "TEST 3: Create I/O Config"
     
-    curl -X POST "$BASE_URL/grade_submission/" \
-      -F "submission_files=@essay/essay.txt" \
-      -F "criteria_json=@essay/criteria.json" \
-      -F "feedback_json=@essay/feedback.json" \
-      -F "template_preset=essay" \
-      -F "student_name=Eve Adams" \
-      -F "student_credentials=test-token-202" \
-      -F "include_feedback=true" \
-      -F "feedback_type=default" \
-      | jq '.'
+    print_warning "This creates a configuration for a Python I/O assignment"
+    
+    curl -X POST "$BASE_URL/configs" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "external_assignment_id": "python_calc",
+        "template_name": "IO",
+        "language": "python",
+        "criteria_config": {
+          "base": {
+            "weight": 100,
+            "subjects": [
+              {
+                "subject_name": "Basic Tests",
+                "weight": 100,
+                "tests": [
+                  {
+                    "name": "expect_output",
+                    "parameters": [
+                      {"name": "inputs", "value": ["5", "3"]},
+                      {"name": "expected_output", "value": "8"},
+                      {"name": "program_command", "value": "python3 calc.py"}
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "setup_config": {
+          "required_files": ["calc.py"]
+        }
+      }' | jq '.'
 }
 
 # ========================================
-# Test 5: Custom Template
+# Test 4: Submit I/O Code
 # ========================================
-test_custom() {
-    print_header "TEST 5: Custom Template"
+submit_io() {
+    print_header "TEST 4: Submit I/O Code"
     
-    curl -X POST "$BASE_URL/grade_submission/" \
-      -F "submission_files=@custom_template/main.py" \
-      -F "criteria_json=@custom_template/criteria.json" \
-      -F "feedback_json=@custom_template/feedback.json" \
-      -F "custom_template=@custom_template/custom_template.py" \
-      -F "template_preset=custom" \
-      -F "student_name=Alice Williams" \
-      -F "student_credentials=test-token-101" \
-      -F "include_feedback=true" \
-      -F "feedback_type=default" \
-      | jq '.'
+    print_warning "Requires Docker and sandbox manager to be running"
+    
+    curl -X POST "$BASE_URL/submissions" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "external_assignment_id": "python_calc",
+        "external_user_id": "student456",
+        "username": "jane.smith",
+        "files": {
+          "calc.py": "a = int(input())\nb = int(input())\nprint(a + b)"
+        }
+      }' | jq '.'
 }
 
 # ========================================
-# Template Info - Web Dev
+# Test 5: List All Configs
 # ========================================
-test_template_info_web() {
-    print_header "TEMPLATE INFO: Web Dev"
+list_configs() {
+    print_header "TEST 5: List All Configs"
     
-    curl -X GET "$BASE_URL/templates/webdev" | jq '.'
+    curl -X GET "$BASE_URL/configs" | jq '.'
 }
 
 # ========================================
-# Template Info - API
+# Test 6: Get Specific Config
 # ========================================
-test_template_info_api() {
-    print_header "TEMPLATE INFO: API"
+get_config() {
+    print_header "TEST 6: Get Specific Config"
     
-    curl -X GET "$BASE_URL/templates/api" | jq '.'
+    if [ -z "$1" ]; then
+        echo "Usage: get_config <config_id>"
+        echo "Example: get_config 1"
+        return
+    fi
+    
+    curl -X GET "$BASE_URL/configs/$1" | jq '.'
 }
 
 # ========================================
-# Template Info - I/O
+# Test 7: Get Submission Results
 # ========================================
-test_template_info_io() {
-    print_header "TEMPLATE INFO: I/O"
+get_submission() {
+    print_header "TEST 7: Get Submission Results"
     
-    curl -X GET "$BASE_URL/templates/io" | jq '.'
+    if [ -z "$1" ]; then
+        echo "Usage: get_submission <submission_id>"
+        echo "Example: get_submission 1"
+        return
+    fi
+    
+    curl -X GET "$BASE_URL/submissions/$1" | jq '.'
 }
 
 # ========================================
-# Template Info - Essay
+# Test 8: List Recent Submissions
 # ========================================
-test_template_info_essay() {
-    print_header "TEMPLATE INFO: Essay"
+list_submissions() {
+    print_header "TEST 8: List Recent Submissions"
     
-    curl -X GET "$BASE_URL/templates/essay" | jq '.'
+    curl -X GET "$BASE_URL/submissions" | jq '.'
 }
 
 # ========================================
 # Main Menu
 # ========================================
 show_menu() {
-    echo -e "\n${GREEN}Autograder API Test Suite - cURL Edition${NC}"
+    echo -e "\n${GREEN}Autograder Web API Test Suite - cURL Edition${NC}"
     echo "========================================"
     echo "Base URL: $BASE_URL"
     echo ""
-    echo "1. Test Web Development Template"
-    echo "2. Test API Testing Template"
-    echo "3. Test Input/Output Template"
-    echo "4. Test Essay Template"
-    echo "5. Test Custom Template"
-    echo "6. Get Template Info - Web Dev"
-    echo "7. Get Template Info - API"
-    echo "8. Get Template Info - I/O"
-    echo "9. Get Template Info - Essay"
-    echo "10. Run All Tests"
-    echo "11. Change Base URL"
-    echo "0. Exit"
+    echo "Basic Tests:"
+    echo "  1. Health Check"
+    echo ""
+    echo "Configuration Management:"
+    echo "  2. Create Web Development Config"
+    echo "  3. Create I/O Config"
+    echo "  4. List All Configs"
+    echo "  5. Get Specific Config (requires ID)"
+    echo ""
+    echo "Submission Management:"
+    echo "  6. Submit Web Development Code"
+    echo "  7. Submit I/O Code"
+    echo "  8. Get Submission Results (requires ID)"
+    echo "  9. List Recent Submissions"
+    echo ""
+    echo "Workflow Tests:"
+    echo "  10. Complete Web Dev Workflow"
+    echo "  11. Complete I/O Workflow"
+    echo ""
+    echo "Utilities:"
+    echo "  12. Change Base URL"
+    echo "  0. Exit"
     echo ""
 }
 
-# Run all tests
-run_all() {
-    test_web_dev
-    test_api
-    test_io
-    test_essay
-    test_custom
-    test_template_info_web
-    test_template_info_api
-    test_template_info_io
-    test_template_info_essay
+# Complete workflow for Web Dev
+complete_webdev_workflow() {
+    print_header "Complete Web Development Workflow"
+    
+    echo "Step 1: Creating configuration..."
+    create_webdev_config
+    sleep 1
+    
+    echo -e "\nStep 2: Submitting code..."
+    submit_webdev()
+    sleep 1
+    
+    echo -e "\nStep 3: Getting results..."
+    print_warning "Use 'Get Submission Results' with the submission ID from above"
+}
+
+# Complete workflow for I/O
+complete_io_workflow() {
+    print_header "Complete I/O Workflow"
+    
+    print_warning "This workflow requires Docker and sandbox manager"
+    
+    echo "Step 1: Creating configuration..."
+    create_io_config
+    sleep 1
+    
+    echo -e "\nStep 2: Submitting code..."
+    submit_io
+    sleep 1
+    
+    echo -e "\nStep 3: Getting results..."
+    print_warning "Use 'Get Submission Results' with the submission ID from above"
 }
 
 # Main loop
-if [ "$1" = "--all" ]; then
-    run_all
-elif [ "$1" = "--web" ]; then
-    test_web_dev
-elif [ "$1" = "--api" ]; then
-    test_api
+if [ "$1" = "--health" ]; then
+    test_health
+elif [ "$1" = "--webdev" ]; then
+    complete_webdev_workflow
 elif [ "$1" = "--io" ]; then
-    test_io
-elif [ "$1" = "--essay" ]; then
-    test_essay
-elif [ "$1" = "--custom" ]; then
-    test_custom
+    complete_io_workflow
 elif [ "$1" = "--url" ] && [ -n "$2" ]; then
     BASE_URL="$2"
     echo "Base URL set to: $BASE_URL"
-    run_all
 else
     # Interactive mode
     while true; do
         show_menu
-        read -p "Select an option (0-11): " choice
+        read -p "Select an option (0-12): " choice
         
         case $choice in
-            1) test_web_dev ;;
-            2) test_api ;;
-            3) test_io ;;
-            4) test_essay ;;
-            5) test_custom ;;
-            6) test_template_info_web ;;
-            7) test_template_info_api ;;
-            8) test_template_info_io ;;
-            9) test_template_info_essay ;;
-            10) run_all ;;
-            11) 
-                read -p "Enter new base URL: " new_url
-                BASE_URL="$new_url"
+            1) test_health ;;
+            2) create_webdev_config ;;
+            3) create_io_config ;;
+            4) list_configs ;;
+            5) 
+                read -p "Enter config ID: " config_id
+                get_config "$config_id"
+                ;;
+            6) submit_webdev ;;
+            7) submit_io ;;
+            8) 
+                read -p "Enter submission ID: " sub_id
+                get_submission "$sub_id"
+                ;;
+            9) list_submissions ;;
+            10) complete_webdev_workflow ;;
+            11) complete_io_workflow ;;
+            12) 
+                read -p "Enter new base URL (current: $BASE_URL): " new_url
+                BASE_URL="${new_url:-$BASE_URL}"
                 echo -e "${GREEN}Base URL updated to: $BASE_URL${NC}"
                 ;;
             0) 
@@ -236,7 +314,7 @@ else
                 exit 0
                 ;;
             *)
-                echo -e "${RED}Invalid option. Please select 0-11.${NC}"
+                echo -e "${RED}Invalid option. Please select 0-12.${NC}"
                 ;;
         esac
         
@@ -244,3 +322,4 @@ else
         read -p "Press Enter to continue..."
     done
 fi
+
