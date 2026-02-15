@@ -83,23 +83,48 @@ Once the API is running, visit:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `sqlite+aiosqlite:///./autograder.db` |
+| `DATABASE_URL` | Database connection string | `postgresql+asyncpg://autograder:autograder_password@localhost:5432/autograder` |
 | `DATABASE_ECHO` | Log SQL queries | `False` |
+| `DATABASE_POOL_SIZE` | PostgreSQL connection pool size | `10` |
+| `DATABASE_MAX_OVERFLOW` | PostgreSQL max overflow connections | `20` |
+| `DATABASE_POOL_TIMEOUT` | Connection timeout in seconds | `30` |
+| `DATABASE_POOL_RECYCLE` | Connection recycle time in seconds | `3600` |
 | `SANDBOX_POOL_SIZE` | Sandbox containers per language | `2` |
 | `JSON_LOGS` | Use JSON logging format | `false` |
 | `OPENAI_API_KEY` | OpenAI API key for AI feedback | - |
 
 ### Database Configuration
 
-#### SQLite (Development)
+#### PostgreSQL (Recommended)
 ```bash
-DATABASE_URL=sqlite+aiosqlite:///./autograder.db
+# Production
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/autograder
+DATABASE_POOL_SIZE=20
+DATABASE_MAX_OVERFLOW=40
+
+# Development
+DATABASE_URL=postgresql+asyncpg://autograder:autograder_password@localhost:5432/autograder
+DATABASE_POOL_SIZE=5
+DATABASE_MAX_OVERFLOW=10
 ```
 
-#### PostgreSQL (Production)
+**Connection Pool Best Practices:**
+- Development: `POOL_SIZE=5`, `MAX_OVERFLOW=10`
+- Production (low traffic): `POOL_SIZE=10`, `MAX_OVERFLOW=20`
+- Production (high traffic): `POOL_SIZE=20`, `MAX_OVERFLOW=40`
+- Enable `pool_pre_ping=True` for connection health checks (enabled by default)
+
+#### SQLite (Development Only)
 ```bash
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/autograder
+DATABASE_URL=sqlite+aiosqlite:///./autograder.db
+# Note: Pool settings are ignored for SQLite
 ```
+
+**Important:** SQLite is not recommended for production use due to:
+- No concurrent write support
+- Limited performance under load
+- No connection pooling
+- Missing PostgreSQL-specific optimizations
 
 ## Docker Deployment
 
@@ -239,9 +264,25 @@ JSON_LOGS=true uvicorn web.main:app
 ## Troubleshooting
 
 ### Database Connection Issues
-- Verify `DATABASE_URL` is correct
-- Ensure PostgreSQL is running (if using PostgreSQL)
+
+#### PostgreSQL
+- Verify `DATABASE_URL` is correct and includes `postgresql+asyncpg://` prefix
+- Ensure PostgreSQL is running: `docker ps` or `pg_isready`
+- Check PostgreSQL logs: `docker logs autograder-postgres`
+- Test connection: `psql -U autograder -d autograder -h localhost`
+- Verify user permissions: ensure the database user has CREATE, INSERT, UPDATE, DELETE privileges
 - Check migrations are up to date: `alembic current`
+
+#### SQLite
+- Verify file path in `DATABASE_URL`
+- Check file permissions for the database file
+- Ensure directory exists for the .db file
+
+### Connection Pool Issues
+- **Too many connections**: Reduce `DATABASE_POOL_SIZE` and `DATABASE_MAX_OVERFLOW`
+- **Connection timeouts**: Increase `DATABASE_POOL_TIMEOUT`
+- **Stale connections**: Ensure `pool_pre_ping=True` and `pool_recycle=3600` are set
+- Monitor pool usage: Enable `DATABASE_ECHO=True` temporarily to see connection activity
 
 ### Sandbox Issues
 - Verify Docker is running: `docker ps`

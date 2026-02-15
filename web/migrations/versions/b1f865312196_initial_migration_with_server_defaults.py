@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import func
 
 
 # revision identifiers, used by Alembic.
@@ -28,8 +29,8 @@ def upgrade() -> None:
     sa.Column('criteria_config', sa.JSON(), nullable=False),
     sa.Column('language', sa.String(length=50), nullable=False),
     sa.Column('version', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=func.now(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), server_default=func.now(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
@@ -42,7 +43,7 @@ def upgrade() -> None:
     sa.Column('submission_files', sa.JSON(), nullable=False),
     sa.Column('language', sa.String(length=50), nullable=True),
     sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', name='submissionstatus'), nullable=False),
-    sa.Column('submitted_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('submitted_at', sa.DateTime(), server_default=func.now(), nullable=False),
     sa.Column('graded_at', sa.DateTime(), nullable=True),
     sa.Column('submission_metadata', sa.JSON(), nullable=True),
     sa.ForeignKeyConstraint(['grading_config_id'], ['grading_configurations.id'], ),
@@ -62,7 +63,7 @@ def upgrade() -> None:
     sa.Column('pipeline_status', sa.Enum('SUCCESS', 'FAILED', 'INTERRUPTED', name='pipelinestatus'), nullable=False),
     sa.Column('error_message', sa.Text(), nullable=True),
     sa.Column('failed_at_step', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_at', sa.DateTime(), server_default=func.now(), nullable=False),
     sa.ForeignKeyConstraint(['submission_id'], ['submissions.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
