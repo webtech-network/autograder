@@ -94,7 +94,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "index.html",
-                                    "name": "check_bootstrap_linked"
+                                    "name": "Check Bootstrap Linked"
                                 }
                             ]
                         },
@@ -103,7 +103,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "index.html",
-                                    "name": "has_class",
+                                    "name": "Has Class",
                                     "calls": [
                                         [["col-*"], 3]
                                     ]
@@ -120,7 +120,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "index.html",
-                                    "name": "has_class",
+                                    "name": "Has Class",
                                     "calls": [
                                         [["card", "card-body"], 6]
                                     ]
@@ -132,7 +132,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "index.html",
-                                    "name": "has_class",
+                                    "name": "Has Class",
                                     "calls": [
                                         [["custom-*"], 2]
                                     ]
@@ -151,7 +151,7 @@ def create_criteria_config():
                     "tests": [
                         {
                             "file": "index.html",
-                            "name": "check_no_inline_styles"
+                            "name": "Check no Inline Styles"
                         }
                     ]
                 }
@@ -186,6 +186,37 @@ def create_feedback_config():
             }
         }
     }
+
+def print_result_tree(node, indent=0):
+    """
+    Recursively prints the result tree in a hierarchical format.
+  
+    """
+    prefix = "  " * indent
+    score_str = f"{node.weighted_score:.2f}" if node.weighted_score is not None else "N/A"
+    
+    # Based on the level, choose an icon
+    if indent == 0:
+        icon = "🌳"
+    elif indent == 1:
+        icon = "📁"
+    else:
+        icon = "📘"
+    
+    
+    weight_str = f" (w={node.weight:.1f})" if node.weight > 0 else ""
+    test_str = f" [{node.total_test} tests]" if hasattr(node, 'total_test') and node.total_test > 0 else ""
+    
+      # Show unwweughted score if different than weighted score
+    if node.unweighted_score and node.weighted_score != node.unweighted_score:
+        score_str += f" (raw: {node.unweighted_score:.2f})"
+    
+    print(f"{prefix}{icon} {node.name}{weight_str}: {score_str}{test_str}")
+    
+    # Children recursion
+    for child in node.children:
+        print_result_tree(child, indent + 1)
+
 
 
 def run_webdev_playroom():
@@ -224,6 +255,16 @@ def run_webdev_playroom():
     print("-"*70)
     result = Autograder.grade(request)
     print("-"*70)
+
+    print("\n" + "=" * 70)
+    print("          HIERARCHICAL RESULT TREE")
+    print("=" * 70 + "\n")
+
+    if(hasattr(result, 'result_tree') and result.result_tree):
+        # Prints the result tree
+        print_result_tree(result.result_tree)
+
+
 
     # Display results
     print("\n" + "="*70)
