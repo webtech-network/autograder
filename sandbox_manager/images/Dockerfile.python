@@ -1,0 +1,28 @@
+FROM python:3.11-alpine
+
+# 1. Create a non-root user
+RUN addgroup -S sandbox && adduser -S sandbox -G sandbox
+
+# 2. Install minimal runtime dependencies (if any)
+# For scientific libs (numpy), you might need standard python-slim instead of alpine
+# RUN pip install numpy pandas --no-cache-dir
+
+# 3. Security Hardening: Remove network tools and dangerous binaries
+# Alpine doesn't have curl/wget by default usually, but we ensure 'wget' is gone if present
+RUN rm -f /usr/bin/wget /usr/bin/curl /usr/bin/nc
+
+# 4. Remove SUID bits (prevents some priv-esc attacks)
+RUN find / -perm /6000 -type f -exec chmod a-s {} \; || true
+
+# 5. Setup Workspace
+WORKDIR /app
+RUN chown sandbox:sandbox /app
+
+# 6. Make /app a volume so it's writable even when container is read-only
+VOLUME ["/app"]
+
+# 7. Switch to user
+USER sandbox
+
+# 8. Safety Limit: Default entrypoint prevents keeping container alive without a command
+CMD ["python3"]

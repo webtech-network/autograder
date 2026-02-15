@@ -1,4 +1,6 @@
 pytest~=8.4.1
+pytest-asyncio~=0.25.0
+httpx~=0.28.0
 argparse~=1.4.0
 boto3
 bs4~=0.0.2
@@ -8,11 +10,15 @@ openai==1.93.0
 requests~=2.32.4
 beautifulsoup4~=4.13.4
 dotenv~=0.9.9
-pydantic
+pydantic~=2.12.5
 python-dotenv~=1.1.1
 upstash-redis==1.4.0
 fastapi~=0.115.0
 uvicorn[standard]~=0.32.0
 python-multipart
 docker~=7.1.0
-pylint~=4.0.4 
+sqlalchemy[asyncio]~=2.0.0
+alembic~=1.13.0
+asyncpg~=0.29.0
+aiosqlite~=0.20.0
+pyyaml~=6.0.2

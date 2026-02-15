@@ -1,0 +1,21 @@
+general:
+
+    # The amount of sandboxes to create for each language when the system starts up.
+    # Development: 2, Production: 3-5 depending on expected load
+    pool_size: 3
+
+    # The maximum amount of sandbox to create for each language. It won't create more than this amount of sandboxes, even if the load is high.
+    # Production should have higher limits to handle traffic spikes
+    scale_limit: 10
+
+    # The amount of seconds to wait before killing a sandbox that is idle. A sandbox is idle if it has no running processes and no files have been created or modified in the last X seconds.
+    # Production: longer timeout to reduce churn
+    idle_timeout: 600
+
+    # The amount of seconds to wait before killing a sandbox that is running a process. A sandbox is running if it has at least one process that is still running after the timeout.
+    # Production: reasonable timeout to prevent hanging processes
+    running_timeout: 120
+
+# TODO: Create language specific configurations.
+
+
