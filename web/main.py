@@ -71,16 +71,22 @@ async def lifespan(app: FastAPI):
     
     # Initialize sandbox manager
     logger.info("Initializing sandbox manager...")
-    pool_size = int(os.getenv("SANDBOX_POOL_SIZE", "2"))
-    pool_configs = [
-        SandboxPoolConfig(language=Language.PYTHON, pool_size=pool_size),
-        SandboxPoolConfig(language=Language.JAVA, pool_size=pool_size),
-        SandboxPoolConfig(language=Language.NODE, pool_size=pool_size),
-        SandboxPoolConfig(language=Language.CPP, pool_size=pool_size),
-    ]
+
+    # Load pool configurations from YAML file
+    config_file = os.getenv("SANDBOX_CONFIG_FILE", "sandbox_config.yml")
+    try:
+        pool_configs = SandboxPoolConfig.load_from_yaml(config_file)
+        logger.info(f"Loaded sandbox configurations from {config_file}")
+    except FileNotFoundError as e:
+        logger.error(f"Sandbox configuration file not found: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error loading sandbox configuration: {e}")
+        raise
+
     initialize_sandbox_manager(pool_configs)
-    logger.info(f"Sandbox manager initialized with pool size {pool_size}")
-    
+    logger.info(f"Sandbox manager initialized with {len(pool_configs)} language pools")
+
     # Initialize template library
     logger.info("Loading template library...")
     template_service = TemplateLibraryService.get_instance()
