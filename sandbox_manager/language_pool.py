@@ -84,11 +84,11 @@ class LanguagePool:
 
     def replenish(self):
         """
-        Responsible for creating new sandboxes if the number of idle sandboxes is below the start_amount.
+        Responsible for creating new sandboxes if the number of idle sandboxes is below the pool_size.
         """
         with self.lock:
             current_total_sandboxes = len(self.active_sandboxes) + len(self.idle_sandboxes)
-            while len(self.idle_sandboxes) < self.config.start_amount and current_total_sandboxes < self.config.scale_limit:
+            while len(self.idle_sandboxes) < self.config.pool_size and current_total_sandboxes < self.config.scale_limit:
                 try:
                     new_sandbox = self._create_sandbox()
                     self.idle_sandboxes.append(new_sandbox)
@@ -113,15 +113,15 @@ class LanguagePool:
                 self.release(sandbox)
 
         # 2. Idle TTL (Scale down)
-        # Only scale down if we are above the Minimum Start Amount
-        if len(idle_snapshot) > self.config.start_amount:
+        # Only scale down if we are above the Minimum Pool Size
+        if len(idle_snapshot) > self.config.pool_size:
 
             for sandbox in idle_snapshot:
                 if (now - sandbox.created_at).total_seconds() > self.config.idle_timeout:
 
                     with self.lock:
                         # Double check inside lock before removing
-                        if sandbox in self.idle_sandboxes and len(self.idle_sandboxes) > self.config.start_amount:
+                        if sandbox in self.idle_sandboxes and len(self.idle_sandboxes) > self.config.pool_size:
                             self.idle_sandboxes.remove(sandbox)
                             self._destroy_sandbox(sandbox)
 

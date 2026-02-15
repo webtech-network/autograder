@@ -48,7 +48,7 @@ class SandboxPoolConfig:
         general = config_data['general']
 
         # Extract configuration values
-        pool_size = general.get('start_amount', 2)
+        pool_size = general.get('pool_size', 2)
         scale_limit = general.get('scale_limit', 5)
         idle_timeout = general.get('idle_timeout', 300)
         running_timeout = general.get('running_timeout', 60)

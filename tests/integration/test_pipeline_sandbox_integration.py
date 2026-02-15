@@ -34,14 +34,14 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
         pool_configs = [
             SandboxPoolConfig(
                 language=Language.PYTHON,
-                start_amount=3,  # More sandboxes for concurrent tests
+                pool_size=3,  # More sandboxes for concurrent tests
                 scale_limit=6,
                 idle_timeout=300,
                 running_timeout=60
             ),
             SandboxPoolConfig(
                 language=Language.JAVA,
-                start_amount=2,
+                pool_size=2,
                 scale_limit=4,
                 idle_timeout=300,
                 running_timeout=60

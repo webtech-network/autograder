@@ -39,7 +39,7 @@ def example_1_simple_command_execution():
     pool_configs = [
         SandboxPoolConfig(
             language=Language.PYTHON,
-            start_amount=2,
+            pool_size=2,
             scale_limit=5,
             idle_timeout=300,
             running_timeout=60

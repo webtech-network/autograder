@@ -24,28 +24,28 @@ class TestSandboxManagerIntegration(unittest.TestCase):
         pool_configs = [
             SandboxPoolConfig(
                 language=Language.PYTHON,
-                start_amount=2,
+                pool_size=2,
                 scale_limit=5,
                 idle_timeout=300,
                 running_timeout=60
             ),
             SandboxPoolConfig(
                 language=Language.JAVA,
-                start_amount=1,
+                pool_size=1,
                 scale_limit=3,
                 idle_timeout=300,
                 running_timeout=60
             ),
             SandboxPoolConfig(
                 language=Language.NODE,
-                start_amount=1,
+                pool_size=1,
                 scale_limit=3,
                 idle_timeout=300,
                 running_timeout=60
             ),
             SandboxPoolConfig(
                 language=Language.CPP,
-                start_amount=1,
+                pool_size=1,
                 scale_limit=3,
                 idle_timeout=300,
                 running_timeout=60
