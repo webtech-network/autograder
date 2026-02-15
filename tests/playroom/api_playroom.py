@@ -18,9 +18,12 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from connectors.models.autograder_request import AutograderRequest
-from connectors.models.assignment_config import AssignmentConfig
-from autograder.autograder_facade import Autograder
+from autograder.autograder import build_pipeline
+from autograder.models.dataclass.submission import Submission, SubmissionFile
+from autograder.models.pipeline_execution import PipelineStatus
+from sandbox_manager.models.sandbox_models import Language
+from sandbox_manager.manager import initialize_sandbox_manager
+from sandbox_manager.models.pool_config import SandboxPoolConfig
 
 
 def create_api_submission():
@@ -233,56 +236,82 @@ def run_api_playroom():
     print("API TESTING TEMPLATE PLAYROOM")
     print("="*70 + "\n")
 
-    # Create submission files
-    print("📄 Creating API submission files...")
-    submission_files = {
-        "app.py": create_api_submission()
-    }
+    # Initialize sandbox manager
+    print("🔧 Initializing sandbox manager...")
+    pool_configs = SandboxPoolConfig.load_from_yaml("sandbox_config.yml")
+    manager = initialize_sandbox_manager(pool_configs)
+    print("✅ Sandbox manager ready\n")
 
-    # Create assignment configuration
-    print("⚙️  Setting up assignment configuration...")
-    assignment_config = AssignmentConfig(
-        template="api",
-        criteria=create_criteria_config(),
-        feedback=create_feedback_config(),
-        setup=create_setup_config()
-    )
+    try:
+        # Create submission files
+        print("📄 Creating API submission files...")
+        submission_files = {
+            "app.py": SubmissionFile(
+                filename="app.py",
+                content=create_api_submission()
+            )
+        }
 
-    # Create autograder request
-    print("📋 Building autograder request...")
-    request = AutograderRequest(
-        submission_files=submission_files,
-        assignment_config=assignment_config,
-        student_name="Jane Smith",
-        include_feedback=True,
-        feedback_mode="default"
-    )
+        # Build pipeline
+        print("⚙️  Building grading pipeline...")
+        pipeline = build_pipeline(
+            template_name="api",
+            include_feedback=True,
+            grading_criteria=create_criteria_config(),
+            feedback_config=create_feedback_config(),
+            setup_config=create_setup_config(),
+            custom_template=None,
+            feedback_mode="default",
+            export_results=False
+        )
 
-    # Execute grading
-    print("🚀 Starting grading process...")
-    print("⚠️  Note: This requires Docker to be running and may take a few minutes")
-    print("-"*70)
-    result = Autograder.grade(request)
-    print("-"*70)
+        # Create submission
+        print("📋 Creating submission...")
+        submission = Submission(
+            username="Jane Smith",
+            user_id="student456",
+            assignment_id=2,
+            submission_files=submission_files,
+            language=Language.NODE  # Required for API template
+        )
 
-    print("\n" + "=" * 70)
-    print("          HIERARCHICAL RESULT TREE")
-    print("=" * 70 + "\n")
+        # Execute grading
+        print("🚀 Starting grading process...")
+        print("⚠️  Note: This requires Docker to be running and may take a few minutes")
+        print("-"*70)
+        pipeline_execution = pipeline.run(submission)
+        print("-"*70)
 
-    if(hasattr(result, 'result_tree') and result.result_tree):
-        # Prints the result tree
-        print_result_tree(result.result_tree)
+        print("\n" + "=" * 70)
+        print("          HIERARCHICAL RESULT TREE")
+        print("=" * 70 + "\n")
 
+        if pipeline_execution.result and hasattr(pipeline_execution.result, 'result_tree') and pipeline_execution.result.result_tree:
+            # Prints the result tree
+            print_result_tree(pipeline_execution.result.result_tree)
 
-    # Display results
-    print("\n" + "="*70)
-    print("GRADING RESULTS")
-    print("="*70)
-    print(f"\n✅ Status: {result.status}")
-    print(f"📊 Final Score: {result.final_score}/100")
-    print(f"\n📝 Feedback:\n{result.feedback}")
-    print(f"\n📈 Test Report:\n{result.test_report}")
-    print("\n" + "="*70 + "\n")
+        # Display results
+        print("\n" + "="*70)
+        print("GRADING RESULTS")
+        print("="*70)
+        print(f"\n✅ Status: {pipeline_execution.status.value}")
+        
+        if pipeline_execution.result:
+            print(f"📊 Final Score: {pipeline_execution.result.final_score}/100")
+            if hasattr(pipeline_execution.result, 'feedback') and pipeline_execution.result.feedback:
+                print(f"\n📝 Feedback:\n{pipeline_execution.result.feedback}")
+            if hasattr(pipeline_execution.result, 'test_report') and pipeline_execution.result.test_report:
+                print(f"\n📈 Test Report:\n{pipeline_execution.result.test_report}")
+        else:
+            print("❌ No grading result available")
+        
+        print("\n" + "="*70 + "\n")
+
+    finally:
+        # Cleanup
+        print("\n🧹 Cleaning up sandbox manager...")
+        manager.shutdown()
+        print("✅ Cleanup complete\n")
 
 
 if __name__ == "__main__":
