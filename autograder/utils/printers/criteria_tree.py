@@ -1,45 +1,38 @@
-from typing import TYPE_CHECKING
 from autograder.utils.formatters.criteria_tree import CriteriaTreeFormatter
-
-if TYPE_CHECKING:
-    from autograder.models.criteria_tree import CriteriaTree, CategoryNode, SubjectNode
+from autograder.utils.printers.printer import Printer
+from autograder.models.criteria_tree import CriteriaTree, CategoryNode, SubjectNode
 
 
 class CriteriaTreePrinter:
-    def __init__(self, formatter: CriteriaTreeFormatter | None = None) -> None:
-        self.__depth = 0
+    def __init__(
+        self,
+        formatter: CriteriaTreeFormatter | None = None,
+        printer: Printer | None = None,
+    ) -> None:
         self.__formatter = CriteriaTreeFormatter() if formatter is None else formatter
+        self.__printer = Printer() if printer is None else printer
 
-    def __increase_depth(self) -> None:
-        self.__depth += 1
-
-    def __decrease_depth(self) -> None:
-        self.__depth -= 1
-
-    def __print_with_depth(self, formatted: str) -> None:
-        print(f"{'    ' * self.__depth}{formatted}")
-
-    def __print_children(self, parent: "CategoryNode | SubjectNode") -> None:
+    def __print_children(self, parent: CategoryNode | SubjectNode) -> None:
         for subject in parent.subjects:
             self.print_subject(subject)
 
         for test in parent.tests:
             lines = self.__formatter.process_test(test)
             for line in lines:
-                self.__print_with_depth(line)
+                self.__printer.print(line)
 
-    def print_subject(self, subject: "SubjectNode") -> None:
-        self.__increase_depth()
-        self.__print_with_depth(self.__formatter.process_subject(subject))
+    def print_subject(self, subject: SubjectNode) -> None:
+        self.__printer.increase_depth()
+        self.__printer.print(self.__formatter.process_subject(subject))
         self.__print_children(subject)
-        self.__decrease_depth()
+        self.__printer.decrease_depth()
 
-    def print_category(self, category: "CategoryNode") -> None:
-        self.__print_with_depth(self.__formatter.process_category(category))
+    def print_category(self, category: CategoryNode) -> None:
+        self.__printer.print(self.__formatter.process_category(category))
         self.__print_children(category)
 
-    def print_tree(self, tree: "CriteriaTree") -> None:
-        self.__print_with_depth(self.__formatter.header())
+    def print_tree(self, tree: CriteriaTree) -> None:
+        self.__printer.print(self.__formatter.header())
         self.print_category(tree.base)
         if tree.bonus:
             self.print_category(tree.bonus)
