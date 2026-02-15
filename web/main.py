@@ -98,7 +98,16 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down Autograder Web API...")
-    # Cleanup if needed
+
+    # Explicitly shutdown sandbox manager to clean up all containers
+    try:
+        manager = get_sandbox_manager()
+        logger.info("Shutting down sandbox manager...")
+        manager.shutdown()
+        logger.info("Sandbox manager shutdown complete")
+    except Exception as e:
+        logger.error(f"Error during sandbox manager shutdown: {e}")
+
     logger.info("Shutdown complete")
 
 
