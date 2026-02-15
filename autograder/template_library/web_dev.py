@@ -9,7 +9,6 @@ from autograder.models.dataclass.param_description import ParamDescription
 
 from autograder.models.dataclass.test_result import TestResult
 
-
 # ===============================================================
 # region: Concrete TestFunction Implementations
 # ===============================================================
@@ -52,7 +51,6 @@ class HasClass(TestFunction):
             report=report,
             parameters={"class_names": class_names, "required_count": required_count})
 
-
 class CheckBootstrapLinked(TestFunction):
     @property
     def name(self):
@@ -77,7 +75,6 @@ class CheckBootstrapLinked(TestFunction):
             score=score,
             report=report
         )
-
 
 class CheckInternalLinks(TestFunction):
     @property
@@ -120,7 +117,6 @@ class CheckInternalLinks(TestFunction):
             parameters={"required_count": required_count}
         )
 
-
 class HasTag(TestFunction):
     @property
     def name(self):
@@ -149,7 +145,6 @@ class HasTag(TestFunction):
             parameters={"tag": tag, "required_count": required_count}
         )
 
-
 class HasForbiddenTag(TestFunction):
     @property
     def name(self):
@@ -176,7 +171,6 @@ class HasForbiddenTag(TestFunction):
             report=report,
             parameters={"tag": tag}
         )
-
 
 class HasAttribute(TestFunction):
     @property
@@ -206,7 +200,6 @@ class HasAttribute(TestFunction):
             parameters={"attribute": attribute, "required_count": required_count}
         )
 
-# need refactoring: we can't change the files, but we can ignore some parts
 class CheckNoUnclosedTags(TestFunction):
     @property
     def name(self):
@@ -258,7 +251,6 @@ class CheckNoUnclosedTags(TestFunction):
             report=report
         )
 
-
 class CheckNoInlineStyles(TestFunction):
     @property
     def name(self):
@@ -281,7 +273,6 @@ class CheckNoInlineStyles(TestFunction):
             score=score,
             report=report
         )
-
 
 class UsesSemanticTags(TestFunction):
     @property
@@ -307,7 +298,6 @@ class UsesSemanticTags(TestFunction):
             report=report
         )
 
-
 class CheckCssLinked(TestFunction):
     @property
     def name(self):
@@ -331,7 +321,6 @@ class CheckCssLinked(TestFunction):
             score=score,
             report=report
         )
-
 
 class CssUsesProperty(TestFunction):
     @property
@@ -361,7 +350,6 @@ class CssUsesProperty(TestFunction):
             parameters={"prop": prop, "value": value}
         )
 
-
 class CountOverUsage(TestFunction):
     @property
     def name(self):
@@ -389,7 +377,6 @@ class CountOverUsage(TestFunction):
             parameters={"text": text, "max_allowed": max_allowed}
         )
 
-
 class JsUsesFeature(TestFunction):
     @property
     def name(self): return "js_uses_feature"
@@ -411,7 +398,6 @@ class JsUsesFeature(TestFunction):
             score=score, report=report,
             parameters={"feature": feature}
         )
-
 
 class UsesForbiddenMethod(TestFunction):
     @property
@@ -439,7 +425,6 @@ class UsesForbiddenMethod(TestFunction):
             parameters={"method": method}
         )
 
-
 class CountGlobalVars(TestFunction):
     @property
     def name(self):
@@ -465,7 +450,6 @@ class CountGlobalVars(TestFunction):
             report=report,
             parameters={"max_allowed": max_allowed}
         )
-
 
 class CheckHeadingsSequential(TestFunction):
     @property
@@ -508,7 +492,6 @@ class CheckHeadingsSequential(TestFunction):
             report=report
         )
 
-
 class CheckAllImagesHaveAlt(TestFunction):
     @property
     def name(self):
@@ -535,7 +518,6 @@ class CheckAllImagesHaveAlt(TestFunction):
             score=score,
             report=report
         )
-
 
 class CheckHtmlDirectChildren(TestFunction):
     @property
@@ -564,7 +546,6 @@ class CheckHtmlDirectChildren(TestFunction):
             report=report
         )
 
-
 class CheckTagNotInside(TestFunction):
     @property
     def name(self):
@@ -592,7 +573,6 @@ class CheckTagNotInside(TestFunction):
             report=report,
             parameters={"child_tag": child_tag, "parent_tag": parent_tag}
         )
-
 
 class CheckInternalLinksToArticle(TestFunction):
     @property
@@ -635,7 +615,6 @@ class CheckInternalLinksToArticle(TestFunction):
             parameters={"required_count": required_count}
         )
 
-
 class HasStyle(TestFunction):
     @property
     def name(self):
@@ -662,7 +641,6 @@ class HasStyle(TestFunction):
             report=report,
             parameters={"style": style, "required_count": count}
         )
-
 
 class CheckHeadDetails(TestFunction):
     @property
@@ -694,7 +672,6 @@ class CheckHeadDetails(TestFunction):
             parameters={"detail_tag": detail_tag}
         )
 
-
 class CheckAttributeAndValue(TestFunction):
     @property
     def name(self):
@@ -724,7 +701,6 @@ class CheckAttributeAndValue(TestFunction):
             parameters={"tag": tag, "attribute": attribute, "value": value}
         )
 
-
 class CheckDirExists(TestFunction):
     @property
     def name(self):
@@ -752,7 +728,6 @@ class CheckDirExists(TestFunction):
             parameters={"dir_path": dir_path}
         )
 
-
 class CheckProjectStructure(TestFunction):
     @property
     def name(self):
@@ -779,7 +754,6 @@ class CheckProjectStructure(TestFunction):
             report=report,
             parameters={"expected_structure": expected_structure}
         )
-
 
 class CheckIdSelectorOverUsage(TestFunction):
     @property
@@ -836,7 +810,6 @@ class CheckIdSelectorOverUsage(TestFunction):
             parameters={"max_allowed": max_allowed}
         )
 
-
 class UsesRelativeUnits(TestFunction):
     @property
     def name(self):
@@ -859,7 +832,6 @@ class UsesRelativeUnits(TestFunction):
             score=score,
             report=report
         )
-
 
 class CheckMediaQueries(TestFunction):
     @property
@@ -884,7 +856,6 @@ class CheckMediaQueries(TestFunction):
             report=report
         )
 
-
 class CheckFlexboxUsage(TestFunction):
     @property
     def name(self):
@@ -907,7 +878,6 @@ class CheckFlexboxUsage(TestFunction):
             score=score,
             report=report
         )
-
 
 class CheckBootstrapUsage(TestFunction):
     @property
@@ -933,7 +903,6 @@ class CheckBootstrapUsage(TestFunction):
             score=score,
             report=report
         )
-
 
 class LinkPointsToPageWithQueryParam(TestFunction):
     @property
@@ -974,7 +943,6 @@ class LinkPointsToPageWithQueryParam(TestFunction):
             parameters={"target_page": target_page, "query_param": query_param, "required_count": required_count}
         )
 
-
 class JsUsesQueryStringParsing(TestFunction):
     @property
     def name(self):
@@ -999,7 +967,6 @@ class JsUsesQueryStringParsing(TestFunction):
             score=score,
             report=report
         )
-
 
 class JsHasJsonArrayWithId(TestFunction):
     @property
@@ -1041,7 +1008,6 @@ class JsHasJsonArrayWithId(TestFunction):
             parameters={"required_key": required_key, "min_items": min_items}
         )
 
-
 class JsUsesDomManipulation(TestFunction):
     @property
     def name(self):
@@ -1070,7 +1036,6 @@ class JsUsesDomManipulation(TestFunction):
             report=report,
             parameters={"methods": methods, "required_count": required_count}
         )
-
 
 class HasNoJsFramework(TestFunction):
     @property
@@ -1107,7 +1072,6 @@ class HasNoJsFramework(TestFunction):
             score=score,
             report=report
         )
-
 
 class CountUnusedCssClasses(TestFunction):
     @property
@@ -1215,7 +1179,6 @@ class CountUnusedCssClasses(TestFunction):
                 "category": category
             }
         )
-
 
 # ===============================================================
 # endregion
