@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (optional, can use SQLite for development)
+  postgres:
+    image: postgres:15-alpine
+    container_name: autograder-db
+    environment:
+      POSTGRES_USER: autograder
+      POSTGRES_PASSWORD: autograder_password
+      POSTGRES_DB: autograder
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autograder"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Autograder Web API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: autograder-api
+    environment:
+      # Database URL - use PostgreSQL
+      DATABASE_URL: postgresql+asyncpg://autograder:autograder_password@postgres:5432/autograder
+      DATABASE_ECHO: "False"
+      DATABASE_POOL_SIZE: 10
+      DATABASE_MAX_OVERFLOW: 20
+      
+      # Sandbox Configuration
+      SANDBOX_POOL_SIZE: 2
+      
+      # API Configuration
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      
+      # Optional: Add your API keys here
+      # OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # UPSTASH_REDIS_URL: ${UPSTASH_REDIS_URL}
+      # UPSTASH_REDIS_TOKEN: ${UPSTASH_REDIS_TOKEN}
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount Docker socket for sandbox management
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount code for development (optional, remove for production)
+      # - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
