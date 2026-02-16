@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from autograder.autograder import build_pipeline
-from autograder.models.dataclass.submission import Submission as AutograderSubmission
+from autograder.models.dataclass.submission import Submission as AutograderSubmission, SubmissionFile
 from autograder.services.template_library_service import TemplateLibraryService
 from sandbox_manager.manager import initialize_sandbox_manager, get_sandbox_manager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
@@ -281,7 +281,8 @@ async def create_submission(
             status_code=404,
             detail=f"Grading configuration for assignment {submission.external_assignment_id} not found"
         )
-    
+
+
     # Create submission record
     submission_repo = SubmissionRepository(session)
     db_submission = await submission_repo.create(
@@ -324,7 +325,16 @@ async def get_submission(
     
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
-    
+
+    formatted_files = {}
+    if submission.submission_files:
+        for name, data in submission.submission_files.items():
+            # Check if data is our new structure (dict) or old structure (str)
+            if isinstance(data, dict) and "content" in data:
+                formatted_files[name] = data["content"]
+            else:
+                formatted_files[name] = str(data)
+
     # Build response
     response_data = {
         "id": submission.id,
@@ -334,7 +344,7 @@ async def get_submission(
         "status": submission.status,
         "submitted_at": submission.submitted_at,
         "graded_at": submission.graded_at,
-        "submission_files": submission.submission_files,
+        "submission_files": formatted_files,
         "submission_metadata": submission.submission_metadata,
         "final_score": None,
         "feedback": None,
@@ -396,21 +406,24 @@ async def grade_submission(
             # Build autograder pipeline
             pipeline = build_pipeline(
                 template_name=template_name,
-                include_feedback=True,
+                include_feedback=False, # Keep False for now
                 grading_criteria=criteria_config,
                 feedback_config=None,
                 setup_config={},  # Empty dict triggers sandbox creation if needed
-                custom_template=None,
-                feedback_mode="default",
-                export_results=False
+                custom_template=None, # Keep None to use default template behavior
             )
+
+            files_to_grade = {
+                name: SubmissionFile(filename=f["filename"], content=f["content"])
+                for name, f in submission_files.items()
+            }
             
             # Convert to Autograder Submission object
             autograder_submission = AutograderSubmission(
                 username=username,
                 user_id=external_user_id,
                 assignment_id=grading_config_id,
-                submission_files=submission_files,
+                submission_files=files_to_grade,
                 language=Language[language.upper()] if language else None
             )
             
@@ -430,10 +443,8 @@ async def grade_submission(
                 result_tree_dict = None
                 if result_tree:
                     result_tree_dict = {
-                        "name": result_tree.name,
-                        "score": result_tree.score,
-                        "max_score": result_tree.max_score,
-                        "children": [_node_to_dict(child) for child in result_tree.children] if result_tree.children else []
+                        "final_score": pipeline_execution.result.final_score,
+                        "children": _node_to_dict(result_tree.root)
                     }
                 
                 # Store result
@@ -450,7 +461,7 @@ async def grade_submission(
                 await submission_repo.update(
                     submission_id,
                     status=SubmissionStatus.COMPLETED,
-                    graded_at=datetime.now(timezone.utc)
+                    graded_at=datetime.now(timezone.utc).replace(tzinfo=None)
                 )
                 
                 logger.info(
@@ -502,13 +513,20 @@ async def grade_submission(
 
 
 def _node_to_dict(node) -> dict:
-    """Convert a ResultTree node to dictionary."""
-    return {
-        "name": node.name,
-        "score": node.score,
-        "max_score": node.max_score,
-        "children": [_node_to_dict(child) for child in node.children] if node.children else []
-    }
+    """
+    Recursively convert ResultTree nodes to a serializable dictionary.
+    Leverages the native to_dict() methods in the ResultTree models.
+    """
+    if node is None:
+        return {}
+
+    # If the node has its own to_dict method (like ResultTree, RootResultNode, etc.)
+    if hasattr(node, 'to_dict') and callable(getattr(node, 'to_dict')):
+        return node.to_dict()
+
+    # Fallback for unexpected types or raw lists of children
+    if isinstance(node, list):
+        return [_node_to_dict(child) for child in node]
 
 
 if __name__ == "__main__":
