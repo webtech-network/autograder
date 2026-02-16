@@ -1,35 +1,24 @@
-name: Deploy to VPS
+name: Build and Deploy Autograder API
 
 on:
   push:
-    branches:
-      - main  # Triggers on push to main branch
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            # 1. Navigate to project folder
-            cd ~/autograder
-
-            # 2. Pull latest changes
-            git fetch --all
-            git reset --hard origin/main
-
-            # 3. Update Python dependencies
-            source venv/bin/activate
-            pip install -r requirements.txt
-
-            # 4. Restart the specific PM2 process
-            pm2 restart autograder-api
-            
-            # Optional: Save just in case
-            pm2 save
+    name: Deploy Autograder API
+    uses: webtech-network/prisma-infrastructure/.github/workflows/backend-python.yml@main
+    with:
+      service-name: 'autograder-api'
+      service-port: '8001'
+      docker-context: '.'
+      dockerfile-path: './Dockerfile.api'
+      python-version: '3.11'
+      codecov-upload: true
+    secrets:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
