@@ -16,6 +16,38 @@ class SubmissionRepository(BaseRepository[Submission]):
     def __init__(self, session: AsyncSession):
         super().__init__(Submission, session)
 
+    async def create(
+            self,
+            grading_config_id: int,
+            external_user_id: str,
+            username: str,
+            submission_files: dict,  # Receives Dict[str, str] from API
+            language: Optional[str] = None,
+            status: SubmissionStatus = SubmissionStatus.PENDING,
+            submission_metadata: Optional[dict] = None,
+    ) -> Submission:
+        """Create a new submission with structured file data."""
+
+        # Transform Dict[str, str] -> Dict[str, Dict[str, str]]
+        # This stores {"filename": "calc.py", "content": "..."} in the DB
+        formatted_files = {
+            name: {"filename": name, "content": content}
+            for name, content in submission_files.items()
+        }
+
+        db_submission = Submission(
+            grading_config_id=grading_config_id,
+            external_user_id=external_user_id,
+            username=username,
+            submission_files=formatted_files,  # Use the structured dict
+            language=language,
+            status=status,
+            submission_metadata=submission_metadata,
+        )
+
+        self.session.add(db_submission)
+        return db_submission
+
     async def get_by_id_with_result(self, id: int) -> Optional[Submission]:
         """Get submission by ID with result loaded."""
         result = await self.session.execute(
