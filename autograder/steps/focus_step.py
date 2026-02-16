@@ -23,7 +23,7 @@ class FocusStep(Step):
         """
 
         try:
-            result_tree = input.get_step_result(StepName.GRADE).data
+            result_tree = input.get_step_result(StepName.GRADE).data.result_tree
             main_subjects = self.__focus_service.find(result_tree)
 
             return input.add_step_result(

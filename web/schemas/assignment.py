@@ -12,7 +12,7 @@ class GradingConfigCreate(BaseModel):
     template_name: str = Field(..., description="Template to use (e.g., 'webdev', 'api', 'IO')")
     criteria_config: Dict[str, Any] = Field(..., description="Grading criteria tree configuration")
     language: str = Field(..., description="Programming language (python, java, node, cpp)")
-
+    # TODO: Include feedback options
 
 class GradingConfigUpdate(BaseModel):
     """Schema for updating a grading configuration."""
