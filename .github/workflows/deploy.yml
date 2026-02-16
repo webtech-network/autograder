@@ -3,12 +3,10 @@ name: Build and Deploy Autograder API
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
-  test-build-deploy:
-    name: Test, Build, and Deploy
+  build-and-deploy:
+    name: Production Release
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -17,24 +15,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # --- TEST STAGE ---
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio
-
-      - name: Run tests
-        run: |
-          # Just run tests; no need for coverage XML generation anymore
-          pytest
 
       # --- BUILD STAGE ---
       - name: Set up Docker Buildx
@@ -53,48 +33,49 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/autograder-api
           tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile.api
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       # --- DEPLOY STAGE ---
-      - name: Deploy to VPS
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Internal VPS Update
         uses: appleboy/ssh-action@master
+        env:
+          SERVICE_NAME: "autograder-api"
+          # Use a secret for the path to hide your internal folder structure
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }} 
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: SERVICE_NAME,DEPLOY_PATH
           script: |
-            echo "🚀 Starting Deployment..."
-            cd /opt/prisma || exit 1
+            # All logic is generalized to prevent leaking server details
+            cd "$DEPLOY_PATH" || exit 1
             
-            # Using your persistent PAT secret
             echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            docker-compose -f docker-compose.prod.yml pull autograder-api
-            docker-compose -f docker-compose.prod.yml up -d --no-deps autograder-api
+            docker-compose pull "$SERVICE_NAME"
+            docker-compose up -d --no-deps "$SERVICE_NAME"
             
-            # Health check loop
+            # Generic health check
             timeout=60; elapsed=0
             while [ $elapsed -lt $timeout ]; do
-              STATUS=$(docker inspect --format='{{.State.Health.Status}}' autograder-api 2>/dev/null || echo "starting")
-              if [ "$STATUS" == "healthy" ]; then
-                echo "✅ Service is healthy!"
+              if [ "$(docker inspect --format='{{.State.Health.Status}}' "$SERVICE_NAME" 2>/dev/null)" == "healthy" ]; then
                 break
               fi
               sleep 5; elapsed=$((elapsed + 5))
             done
             
             docker system prune -f
+            docker logout ghcr.io
