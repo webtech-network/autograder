@@ -47,35 +47,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # --- DEPLOY STAGE ---
       - name: Internal VPS Update
         uses: appleboy/ssh-action@master
         env:
           SERVICE_NAME: "autograder-api"
-          # Use a secret for the path to hide your internal folder structure
+          # This secret should be the path where the repo is cloned 
+          # e.g., /home/admin/prisma-infrastructure
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }} 
+          PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }} 
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: SERVICE_NAME,DEPLOY_PATH
+          envs: SERVICE_NAME,DEPLOY_PATH,PULL_TOKEN
           script: |
-            # All logic is generalized to prevent leaking server details
+      
             cd "$DEPLOY_PATH" || exit 1
             
-            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+           
+            git pull origin main 
             
-            docker-compose pull "$SERVICE_NAME"
-            docker-compose up -d --no-deps "$SERVICE_NAME"
+            echo "$PULL_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Generic health check
-            timeout=60; elapsed=0
-            while [ $elapsed -lt $timeout ]; do
-              if [ "$(docker inspect --format='{{.State.Health.Status}}' "$SERVICE_NAME" 2>/dev/null)" == "healthy" ]; then
-                break
-              fi
-              sleep 5; elapsed=$((elapsed + 5))
-            done
+            docker-compose -f docker-compose.yml pull "$SERVICE_NAME"
+            docker-compose -f docker-compose.yml up -d --no-deps "$SERVICE_NAME"
             
-            docker system prune -f
             docker logout ghcr.io
