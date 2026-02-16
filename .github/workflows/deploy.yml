@@ -6,7 +6,6 @@ on:
 
 jobs:
   build-and-deploy:
-    name: Production Release
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,12 +46,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # --- DEPLOY STAGE ---
       - name: Internal VPS Update
         uses: appleboy/ssh-action@master
         env:
           SERVICE_NAME: "autograder-api"
-          # This secret should be the path where the repo is cloned 
-          # e.g., /home/admin/prisma-infrastructure
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }} 
           PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }} 
         with:
@@ -61,15 +59,27 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: SERVICE_NAME,DEPLOY_PATH,PULL_TOKEN
           script: |
-      
-            cd "$DEPLOY_PATH" || exit 1
+            # 1. Validation Check
+            if [ -z "$PULL_TOKEN" ]; then
+              echo "❌ ERROR: GHCR_PULL_TOKEN is empty. Check your GitHub Secrets!"
+              exit 1
+            fi
+
+            # 2. Navigate and Update Config
+            cd "$DEPLOY_PATH" || { echo "❌ ERROR: Could not find directory $DEPLOY_PATH"; exit 1; }
             
-           
-            git pull origin main 
-            
+            echo "📥 Updating infrastructure repository..."
+            git pull origin main || echo "⚠️ Warning: git pull failed, using existing local config."
+
+            # 3. Docker Authentication
+            echo "🔑 Logging into GHCR..."
             echo "$PULL_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
+
+            # 4. Pull and Restart
+            echo "🚀 Deploying $SERVICE_NAME..."
             docker-compose -f docker-compose.yml pull "$SERVICE_NAME"
             docker-compose -f docker-compose.yml up -d --no-deps "$SERVICE_NAME"
             
+            # 5. Cleanup
             docker logout ghcr.io
+            echo "✅ Deployment finished successfully!"
