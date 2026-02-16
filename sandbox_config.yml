@@ -16,6 +16,6 @@ general:
     # Production: reasonable timeout to prevent hanging processes
     running_timeout: 120
 
-# TODO: Create language specific configurations.
+# TODO: Create language specific configurations. 
 
 
