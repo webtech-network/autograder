@@ -245,7 +245,7 @@ complete_webdev_workflow() {
     sleep 1
     
     echo -e "\nStep 2: Submitting code..."
-    submit_webdev()
+    submit_webdev
     sleep 1
     
     echo -e "\nStep 3: Getting results..."
