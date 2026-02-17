@@ -162,109 +162,33 @@ Each step receives a `PipelineExecution` object, performs its operation, and pas
 #### 1. Input/Output Template
 Tests command-line programs by providing inputs and validating outputs.
 
-```python
-{
-    "test_library": "input_output",
-    "base": {
-        "tests": [
-            {
-                "name": "expect_output",
-                "parameters": {
-                    "inputs": ["5", "3"],
-                    "expected_output": "8",
-                    "program_command": "python3 calculator.py"
-                },
-                "weight": 100
-            }
-        ]
-    }
-}
-```
-
-**Available Tests:**
-- `expect_output`: Test program output with given inputs
-- `check_exit_code`: Validate program exit codes
-- `timeout_test`: Ensure programs complete within time limits
+| Test Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `expect_output` | Execute program with inputs and verify output | `inputs`, `expected_output`, `program_command` |
+| `check_exit_code` | Validate program exit codes | `command`, `expected_exit_code` |
+| `timeout_test` | Ensure programs complete within time limits | `command`, `timeout_seconds` |
 
 #### 2. API Testing Template
 Makes HTTP requests to student APIs and validates responses.
 
-```python
-{
-    "test_library": "api_testing",
-    "base": {
-        "tests": [
-            {
-                "name": "health_check",
-                "parameters": {
-                    "endpoint": "/api/health"
-                }
-            },
-            {
-                "name": "check_response_json",
-                "parameters": {
-                    "endpoint": "/api/users",
-                    "expected_key": "users",
-                    "expected_value": []
-                }
-            }
-        ]
-    }
-}
-```
-
-**Available Tests:**
-- `health_check`: Verify endpoint returns 200 OK
-- `check_response_json`: Validate JSON response structure
-- `check_status_code`: Test specific HTTP status codes
-- `validate_headers`: Check response headers
+| Test Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `health_check` | Verify endpoint returns 200 OK | `endpoint` |
+| `check_response_json` | Validate JSON response structure | `endpoint`, `expected_key`, `expected_value` |
+| `check_status_code` | Test specific HTTP status codes | `endpoint`, `method`, `expected_status` |
+| `validate_headers` | Check response headers | `endpoint`, `expected_headers` |
 
 #### 3. Web Development Template
 Validates HTML, CSS, and JavaScript files.
 
-```python
-{
-    "test_library": "web_dev",
-    "base": {
-        "subjects": [
-            {
-                "subject_name": "HTML Structure",
-                "weight": 50,
-                "tests": [
-                    {
-                        "name": "has_tag",
-                        "parameters": {
-                            "tag": "header",
-                            "required_count": 1
-                        }
-                    }
-                ]
-            },
-            {
-                "subject_name": "CSS Styling",
-                "weight": 50,
-                "tests": [
-                    {
-                        "name": "has_class",
-                        "parameters": {
-                            "class_names": ["col-*", "container"],
-                            "required_count": 5
-                        }
-                    }
-                ]
-            }
-        ]
-    }
-}
-```
-
-**Available Tests:**
-- `has_tag`: Check for HTML tags
-- `has_class`: Validate CSS classes (with wildcard support)
-- `check_bootstrap_linked`: Verify framework inclusion
-- `has_attribute`: Check element attributes
-- `check_css_property`: Validate CSS rules
-
+| Test Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `has_tag` | Check for HTML tags | `tag`, `required_count` |
+| `has_class` | Validate CSS classes (supports wildcards like `col-*`) | `class_names`, `required_count` |
+| `check_bootstrap_linked` | Verify framework inclusion | `framework` |
+| `has_attribute` | Check element attributes | `tag`, `attribute`, `required_count` |
+| `check_css_property` | Validate CSS rules | `selector`, `property`, `expected_value` |
+And much more! Check the [WebDev Template Documentation](docs/templates/webdev.md) for the full list of tests.
 #### 4. Custom Templates
 Upload your own test functions for specialized grading contexts:
 
@@ -295,7 +219,6 @@ class MyCustomTest(TestFunction):
 
 - Python 3.9+
 - Docker and Docker Compose
-- PostgreSQL (for web API mode)
 
 ### Installation
 
@@ -341,79 +264,19 @@ docker-compose up
 **As a GitHub Action:**
 See [GitHub Action](#-github-action) section.
 
-**Standalone (Python script):**
-```bash
-python -m autograder.autograder
-```
-
 ---
 
 ## REST API
 
 The Autograder provides a FastAPI-based REST API for integration with learning management systems.
 
-### Starting the API
 
-```bash
-# Development
-uvicorn web.main:app --reload
+**📚 [Complete API Documentation →](docs/API.md)**
 
-# Production
-docker-compose up
-```
-
-API documentation available at: `http://localhost:8000/docs`
-
-### Core Endpoints
-
-#### Create Grading Configuration
-```http
-POST /api/v1/grading-configs
-Content-Type: application/json
-
-{
-  "assignment_id": 42,
-  "template_name": "input_output",
-  "criteria": {
-    "base": { ... }
-  },
-  "feedback_config": { ... },
-  "setup_config": { ... }
-}
-```
-
-#### Submit for Grading
-```http
-POST /api/v1/submissions
-Content-Type: application/json
-
-{
-  "assignment_id": 42,
-  "username": "student123",
-  "user_id": 1,
-  "files": [
-    {
-      "filename": "main.py",
-      "content": "print('Hello World')"
-    }
-  ],
-  "language": "python"
-}
-```
-
-#### Get Results
-```http
-GET /api/v1/submissions/{submission_id}
-
-Response:
-{
-  "submission_id": 1,
-  "final_score": 85.5,
-  "status": "completed",
-  "feedback": "...",
-  "result_tree": { ... }
-}
-```
+Includes endpoints for:
+- Creating grading configurations
+- Submitting assignments for grading
+- Retrieving results
 
 ---
 
@@ -458,155 +321,39 @@ jobs:
 - `openai_key`: Required for AI feedback mode
 
 **Outputs:**
-- `result`: Base64-encoded JSON with grading results
+- `result`: Final Score is Sent to Github Classroom!
 
 ---
 
-## Grading Result Structure
+## Data Structures
 
-After grading, you receive a comprehensive `GradingResult` with:
+**📚 [Complete Data Structures Documentation →](docs/core_structures.md)**
 
-- **Final Score**: Overall grade (0-100)
-- **Feedback**: Generated student-facing feedback (if enabled)
-- **Result Tree**: Detailed breakdown of all test results
-
-### Result Tree Example
-
-```json
-{
-  "final_score": 85.5,
-  "root": {
-    "base": {
-      "name": "base",
-      "score": 85.5,
-      "weight": 100,
-      "subjects": [
-        {
-          "name": "Functionality",
-          "score": 90,
-          "weight": 60,
-          "tests": [
-            {
-              "name": "expect_output",
-              "score": 100,
-              "weight": 100,
-              "report": "Test passed successfully!"
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
-```
-
-The result tree mirrors your grading criteria structure, making it easy to understand score breakdowns at every level.
+Includes detailed examples of:
+- Criteria tree structure and scoring
+- Result tree format
+- Pipeline execution models
+- Test results and submissions
 
 ---
 
 ## Configuration Examples
 
-### Simple Assignment
+**📚 [Complete Configuration Examples →](docs/configuration_examples.md)**
 
-```json
-{
-  "test_library": "input_output",
-  "base": {
-    "tests": [
-      {
-        "name": "expect_output",
-        "parameters": {
-          "inputs": ["Alice"],
-          "expected_output": "Hello, Alice!",
-          "program_command": "python3 greeting.py"
-        },
-        "weight": 100
-      }
-    ]
-  }
-}
-```
-
-### Complex Hierarchical Rubric
-
-```json
-{
-  "test_library": "web_dev",
-  "base": {
-    "weight": 100,
-    "subjects_weight": 100,
-    "subjects": [
-      {
-        "subject_name": "HTML Structure",
-        "weight": 40,
-        "tests": [
-          {
-            "name": "has_tag",
-            "parameters": {"tag": "header", "required_count": 1},
-            "weight": 50
-          },
-          {
-            "name": "has_tag",
-            "parameters": {"tag": "footer", "required_count": 1},
-            "weight": 50
-          }
-        ]
-      },
-      {
-        "subject_name": "CSS Styling",
-        "weight": 30,
-        "tests": [
-          {
-            "name": "has_class",
-            "parameters": {"class_names": ["container"], "required_count": 1}
-          }
-        ]
-      },
-      {
-        "subject_name": "Accessibility",
-        "weight": 30,
-        "subjects": [
-          {
-            "subject_name": "ARIA Labels",
-            "weight": 50,
-            "tests": [
-              {
-                "name": "has_attribute",
-                "parameters": {"tag": "button", "attribute": "aria-label"}
-              }
-            ]
-          },
-          {
-            "subject_name": "Alt Text",
-            "weight": 50,
-            "tests": [
-              {
-                "name": "has_attribute",
-                "parameters": {"tag": "img", "attribute": "alt"}
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  "bonus": {
-    "weight": 10,
-    "tests": [
-      {
-        "name": "check_bootstrap_linked",
-        "parameters": {"framework": "bootstrap"}
-      }
-    ]
-  }
-}
-```
+Includes examples for:
+- Simple and hierarchical rubrics
+- Input/Output assignments
+- Web development projects
+- API testing
+- Full-stack applications
+- Bonus and penalty configurations
 
 ---
 
 ## Use Cases
 
-### Educational Institutions
+### Educational Institutions 
 - **Automated Homework Grading**: Grade hundreds of submissions consistently
 - **Immediate Feedback**: Students get instant results to iterate and improve
 - **Scalable Assessment**: Handle courses with large enrollment
@@ -624,7 +371,6 @@ The result tree mirrors your grading criteria structure, making it easy to under
 
 ### Research
 - **Educational Research**: Study the impact of feedback on learning
-- **Algorithm Analysis**: Evaluate different grading methodologies
 - **Learning Analytics**: Gather data on common student mistakes
 
 ---
@@ -671,94 +417,7 @@ The Autograder is designed for high performance:
 
 ## Development
 
-### Project Structure
-
-```
-autograder/
-├── autograder/              # Core grading logic
-│   ├── models/             # Data models (criteria tree, result tree)
-│   ├── services/           # Business logic (grader, focus, reporter)
-│   ├── steps/              # Pipeline steps
-│   ├── template_library/   # Built-in grading templates
-│   └── utils/              # Helper utilities
-├── sandbox_manager/         # Sandbox container management
-│   ├── images/             # Dockerfile for each language
-│   ├── models/             # Sandbox models
-│   ├── language_pool.py    # Pool management
-│   ├── manager.py          # Global sandbox manager
-│   └── sandbox_container.py # Container wrapper
-├── web/                     # FastAPI web application
-│   ├── database/           # Database models and connection
-│   ├── repositories/       # Data access layer
-│   ├── schemas/            # API request/response schemas
-│   └── services/           # Web-specific services
-├── github_action/           # GitHub Action adapter
-├── tests/                   # Test suite
-└── docker-compose.yml       # Docker orchestration
-```
-
-### Running Tests
-
-```bash
-# All tests
-pytest
-
-# Specific test file
-pytest tests/unit/test_grader_service.py
-
-# With coverage
-pytest --cov=autograder tests/
-```
-
-### Adding a New Template
-
-1. Create a new template file in `autograder/template_library/`
-2. Implement `TestFunction` subclasses
-3. Create a `Template` class
-4. Register in `TemplateLibraryService`
-
-Example:
-```python
-# autograder/template_library/my_template.py
-from autograder.models.abstract.template import Template
-from autograder.models.abstract.test_function import TestFunction
-
-class MyTestFunction(TestFunction):
-    # Implement required methods
-    pass
-
-class MyTemplate(Template):
-    def __init__(self):
-        self.tests = [MyTestFunction()]
-    
-    # Implement required properties
-    pass
-```
-
----
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-- Write tests for new features
-- Follow PEP 8 style guide
-- Update documentation
-- Add type hints
-- Use meaningful commit messages
-
----
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+**📚 [Complete Development Guide →](docs/development.md)**
 
 ---
 
@@ -766,9 +425,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For questions, suggestions, or support:
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/autograder/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/autograder/discussions)
-- **Email**: autograder@example.com
+- **Issues**: [GitHub Issues](https://github.com/webtech-network/autograder/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/webtech-network/autograder/discussions)
+- **Email**: arthurcarvalhorodrigues2409@gmail.com
 
 ---
 
