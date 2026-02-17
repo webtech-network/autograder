@@ -49,7 +49,6 @@ class ExpectOutputTest(TestFunction):
             expected_output: The expected output from the program
             program_command: Command to run the program (e.g., "python3 calculator.py")
         """
-        # TODO: Implement more robust input handling and I/O validation
 
         try:
             if not program_command:

@@ -10,6 +10,7 @@ from web.schemas.submission import (
     SubmissionResponse,
     SubmissionDetailResponse,
     SubmissionStatus,
+    SubmissionFileData,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "SubmissionResponse",
     "SubmissionDetailResponse",
     "SubmissionStatus",
+    "SubmissionFileData",
 ]

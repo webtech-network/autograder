@@ -12,6 +12,10 @@ class GradingConfigCreate(BaseModel):
     template_name: str = Field(..., description="Template to use (e.g., 'webdev', 'api', 'IO')")
     criteria_config: Dict[str, Any] = Field(..., description="Grading criteria tree configuration")
     language: str = Field(..., description="Programming language (python, java, node, cpp)")
+    setup_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Setup configuration including required_files and setup_commands for preflight checks"
+    )
     # TODO: Include feedback options
 
 class GradingConfigUpdate(BaseModel):
@@ -19,6 +23,7 @@ class GradingConfigUpdate(BaseModel):
     template_name: Optional[str] = None
     criteria_config: Optional[Dict[str, Any]] = None
     language: Optional[str] = None
+    setup_config: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
 
 
@@ -31,6 +36,7 @@ class GradingConfigResponse(BaseModel):
     template_name: str
     criteria_config: Dict[str, Any]
     language: str
+    setup_config: Optional[Dict[str, Any]]
     version: int
     created_at: datetime
     updated_at: datetime

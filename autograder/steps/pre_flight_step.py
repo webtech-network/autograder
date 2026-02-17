@@ -40,7 +40,7 @@ class PreFlightStep(Step):
                 # File check failed, don't continue to setup commands
                 return input.add_step_result(StepResult(
                         step=StepName.PRE_FLIGHT,
-                        data=input,
+                        data=sandbox,  # sandbox is None here, which is correct
                         status=StepStatus.FAIL,
                         error=self._format_errors(),
                         original_input=input

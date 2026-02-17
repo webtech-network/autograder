@@ -13,7 +13,7 @@ from autograder.template_library.input_output import InputOutputTemplate
 TEMPLATE_REGISTRY = {
     "webdev": WebDevTemplate,
     "api": ApiTestingTemplate,
-    "IO": InputOutputTemplate,
+    "input_output": InputOutputTemplate,
 }
 
 

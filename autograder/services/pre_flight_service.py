@@ -43,6 +43,10 @@ class PreFlightService:
         Executes setup commands in a sandbox environment.
         Returns True if all commands succeed, False otherwise.
 
+        Setup commands can be either:
+        - String: "javac Calculator.java"
+        - Object: {"name": "Compile Calculator", "command": "javac Calculator.java"}
+
         args:
             - sandbox: The sandbox container where setup commands should be executed. Should not be None if setup_commands are defined.
         """
@@ -60,32 +64,84 @@ class PreFlightService:
             self.logger.debug("No setup commands to execute")
             return True
 
-        for command in self.setup_commands:
-            self.logger.debug(f"Executing setup command: {command}")
-            try:
-                response = sandbox.run_command(command)
-                self.logger.debug(f"Setup command exit code: {response.exit_code}")
-                self.logger.debug(f"Setup command stdout: {response.stdout}")
-                self.logger.debug(f"Setup command stderr: {response.stderr}")
-
-                if response.exit_code != 0: # TODO: Implement response object in sandbox manager
-                    error_msg = f"**Error:** Setup command failed: `'{command}'` with exit code {response.exit_code}, stdout: {response.stdout}, stderr: {response.stderr}"
+        for idx, command_spec in enumerate(self.setup_commands):
+            # Parse command specification (supports both string and object format)
+            if isinstance(command_spec, dict):
+                command_name = command_spec.get('name', f'Setup Command {idx + 1}')
+                command = command_spec.get('command')
+                if not command:
+                    error_msg = f"**Error:** Setup command '{command_name}' is missing the 'command' field"
                     self.logger.error(error_msg)
                     self.fatal_errors.append(PreflightError(
                         type=PreflightCheckType.SETUP_COMMAND,
                         message=error_msg,
-                        details={"command": command, "exit_code": response.exit_code, "stdout": response.stdout, "stderr": response.stderr}
+                        details={"command_name": command_name, "index": idx}
                     ))
-            except Exception as e:
-                error_msg = f"**Error:** Failed to execute setup commands: `'{command}'` with error `{str(e)}`"
+                    continue
+            elif isinstance(command_spec, str):
+                command_name = f'Setup Command {idx + 1}'
+                command = command_spec
+            else:
+                error_msg = f"**Error:** Invalid setup command format at index {idx}: expected string or object"
                 self.logger.error(error_msg)
                 self.fatal_errors.append(PreflightError(
-                    type=PreflightCheckType.SETUP_COMMANDS,
+                    type=PreflightCheckType.SETUP_COMMAND,
                     message=error_msg,
-                    details={"command": command, "error": str(e)}
+                    details={"index": idx, "type": str(type(command_spec))}
+                ))
+                continue
+
+            self.logger.debug(f"Executing setup command '{command_name}': {command}")
+            try:
+                response = sandbox.run_command(command)
+                self.logger.debug(f"Setup command '{command_name}' exit code: {response.exit_code}")
+                self.logger.debug(f"Setup command '{command_name}' stdout: {response.stdout}")
+                self.logger.debug(f"Setup command '{command_name}' stderr: {response.stderr}")
+
+                if response.exit_code != 0:
+                    error_msg = self._format_setup_command_error(command_name, command, response)
+                    self.logger.error(error_msg)
+                    self.fatal_errors.append(PreflightError(
+                        type=PreflightCheckType.SETUP_COMMAND,
+                        message=error_msg,
+                        details={
+                            "command_name": command_name,
+                            "command": command,
+                            "exit_code": response.exit_code,
+                            "stdout": response.stdout,
+                            "stderr": response.stderr
+                        }
+                    ))
+            except Exception as e:
+                error_msg = f"**Error:** Setup command '{command_name}' failed to execute: `{str(e)}`\n\nCommand: `{command}`"
+                self.logger.error(error_msg)
+                self.fatal_errors.append(PreflightError(
+                    type=PreflightCheckType.SETUP_COMMAND,
+                    message=error_msg,
+                    details={"command_name": command_name, "command": command, "error": str(e)}
                 ))
 
-        return True
+        return len([e for e in self.fatal_errors if e.type == PreflightCheckType.SETUP_COMMAND]) == 0
+
+    def _format_setup_command_error(self, command_name: str, command: str, response) -> str:
+        """
+        Format a detailed error message for failed setup commands.
+
+        Args:
+            command_name: Human-readable name of the command
+            command: The actual command that was executed
+            response: CommandResponse object with execution details
+        """
+        error_msg = f"**Error:** Setup command '{command_name}' failed with exit code {response.exit_code}\n\n"
+        error_msg += f"**Command:** `{command}`\n\n"
+
+        if response.stdout and response.stdout.strip():
+            error_msg += f"**Output (stdout):**\n```\n{response.stdout.strip()}\n```\n\n"
+
+        if response.stderr and response.stderr.strip():
+            error_msg += f"**Error Output (stderr):**\n```\n{response.stderr.strip()}\n```"
+
+        return error_msg.strip()
 
     def create_sandbox(self, submission: Submission) -> Optional[SandboxContainer]:
         """
