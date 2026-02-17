@@ -21,6 +21,10 @@ tests/assets/
 │   └── setup.json        # Container setup (runtime, commands)
 │
 ├── input_output/         # Input/Output template test data
+│   ├── testing_dashboard.html  # Interactive testing web UI
+│   ├── serve_dashboard.py      # Dashboard server script
+│   ├── criteria_examples/      # 5 criteria tree variations
+│   ├── code_examples/          # Sample code (Python, Java, JS, C++)
 │   ├── calculator.py     # Sample Python program
 │   ├── requirements.txt  # Python dependencies
 │   ├── criteria.json     # I/O testing criteria

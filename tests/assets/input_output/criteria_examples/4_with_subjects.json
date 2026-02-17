@@ -1,0 +1,133 @@
+{
+  "test_library": "input_output",
+  "base": {
+    "weight": 100,
+    "subjects": [
+      {
+        "subject_name": "Addition",
+        "weight": 50,
+        "tests": [
+          {
+            "name": "expect_output",
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": ["add", "5", "3"]
+              },
+              {
+                "name": "expected_output",
+                "value": "8"
+              },
+              {
+                "name": "program_command",
+                "value": "python3 calculator.py"
+              }
+            ]
+          },
+          {
+            "name": "expect_output",
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": ["add", "0", "0"]
+              },
+              {
+                "name": "expected_output",
+                "value": "0"
+              },
+              {
+                "name": "program_command",
+                "value": "python3 calculator.py"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "subject_name": "Subtraction",
+        "weight": 50,
+        "tests": [
+          {
+            "name": "expect_output",
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": ["subtract", "10", "4"]
+              },
+              {
+                "name": "expected_output",
+                "value": "6"
+              },
+              {
+                "name": "program_command",
+                "value": "python3 calculator.py"
+              }
+            ]
+          },
+          {
+            "name": "expect_output",
+            "parameters": [
+              {
+                "name": "inputs",
+                "value": ["subtract", "5", "10"]
+              },
+              {
+                "name": "expected_output",
+                "value": "-5"
+              },
+              {
+                "name": "program_command",
+                "value": "python3 calculator.py"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bonus": {
+    "weight": 15,
+    "tests": [
+      {
+        "name": "expect_output",
+        "parameters": [
+          {
+            "name": "inputs",
+            "value": ["multiply", "6", "7"]
+          },
+          {
+            "name": "expected_output",
+            "value": "42"
+          },
+          {
+            "name": "program_command",
+            "value": "python3 calculator.py"
+          }
+        ]
+      }
+    ]
+  },
+  "penalty": {
+    "weight": 10,
+    "tests": [
+      {
+        "name": "expect_output",
+        "parameters": [
+          {
+            "name": "inputs",
+            "value": ["invalid_op", "5", "3"]
+          },
+          {
+            "name": "expected_output",
+            "value": "Error: Unknown operation"
+          },
+          {
+            "name": "program_command",
+            "value": "python3 calculator.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+

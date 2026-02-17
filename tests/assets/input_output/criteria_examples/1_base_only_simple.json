@@ -1,0 +1,43 @@
+{
+  "test_library": "input_output",
+  "base": {
+    "weight": 100,
+    "tests": [
+      {
+        "name": "expect_output",
+        "parameters": [
+          {
+            "name": "inputs",
+            "value": ["5", "3"]
+          },
+          {
+            "name": "expected_output",
+            "value": "8"
+          },
+          {
+            "name": "program_command",
+            "value": "python3 calculator.py"
+          }
+        ]
+      },
+      {
+        "name": "expect_output",
+        "parameters": [
+          {
+            "name": "inputs",
+            "value": ["10", "4"]
+          },
+          {
+            "name": "expected_output",
+            "value": "14"
+          },
+          {
+            "name": "program_command",
+            "value": "python3 calculator.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+

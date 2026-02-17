@@ -9,7 +9,7 @@ class CriteriaConfig(BaseModel):
 
     test_library: Optional[str] = Field(
         None, description="Name of the test library/template to use"
-    )
+    ) # TODO -> Remove this attribute (it already sits in grading config)
     base: CategoryConfig = Field(..., description="Base grading criteria (required)")
     bonus: Optional[CategoryConfig] = Field(None, description="Bonus points criteria")
     penalty: Optional[CategoryConfig] = Field(None, description="Penalty criteria")

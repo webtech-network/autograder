@@ -1,0 +1,99 @@
+{
+  "test_library": "input_output",
+  "base": {
+    "weight": 100,
+    "tests": [
+      {
+        "name": "expect_output",
+        "parameters": [
+          {
+            "name": "inputs",
+            "value": ["5", "3"]
+          },
+          {
+            "name": "expected_output",
+            "value": "8"
+          },
+          {
+            "name": "program_command",
+            "value": "python3 calculator.py"
+          }
+        ]
+      },
+      {
+        "name": "expect_output",
+        "parameters": [
+          {
+            "name": "inputs",
+            "value": ["10", "4"]
+          },
+          {
+            "name": "expected_output",
+            "value": "14"
+          },
+          {
+            "name": "program_command",
+            "value": "python3 calculator.py"
+          }
+        ]
+      },
+      {
+        "name": "expect_output",
+        "parameters": [
+          {
+            "name": "inputs",
+            "value": ["0", "0"]
+          },
+          {
+            "name": "expected_output",
+            "value": "0"
+          },
+          {
+            "name": "program_command",
+            "value": "python3 calculator.py"
+          }
+        ]
+      }
+    ]
+  },
+  "bonus": {
+    "weight": 15,
+    "tests": [
+      {
+        "name": "expect_output",
+        "parameters": [
+          {
+            "name": "inputs",
+            "value": ["-5", "10"]
+          },
+          {
+            "name": "expected_output",
+            "value": "5"
+          },
+          {
+            "name": "program_command",
+            "value": "python3 calculator.py"
+          }
+        ]
+      },
+      {
+        "name": "expect_output",
+        "parameters": [
+          {
+            "name": "inputs",
+            "value": ["100", "200"]
+          },
+          {
+            "name": "expected_output",
+            "value": "300"
+          },
+          {
+            "name": "program_command",
+            "value": "python3 calculator.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+
