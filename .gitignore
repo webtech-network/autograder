@@ -92,6 +92,7 @@ Thumbs.db
 *.bak
 tmp/
 temp/
+test.py
 
 # Database
 *.db
