@@ -1,35 +1,85 @@
-name: Deploy to VPS
+name: Build and Deploy Autograder API
 
 on:
   push:
-    branches:
-      - main  # Triggers on push to main branch
+    branches: [main]
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # --- BUILD STAGE ---
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/autograder-api
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.api
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # --- DEPLOY STAGE ---
+      - name: Internal VPS Update
+        uses: appleboy/ssh-action@master
+        env:
+          SERVICE_NAME: "autograder-api"
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }} 
+          PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }} 
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
+          envs: SERVICE_NAME,DEPLOY_PATH,PULL_TOKEN
           script: |
-            # 1. Navigate to project folder
-            cd ~/autograder
+            # 1. Validation Check
+            if [ -z "$PULL_TOKEN" ]; then
+              echo "❌ ERROR: GHCR_PULL_TOKEN is empty. Check your GitHub Secrets!"
+              exit 1
+            fi
 
-            # 2. Pull latest changes
-            git fetch --all
-            git reset --hard origin/main
-
-            # 3. Update Python dependencies
-            source venv/bin/activate
-            pip install -r requirements.txt
-
-            # 4. Restart the specific PM2 process
-            pm2 restart autograder-api
+            # 2. Navigate and Update Config
+            cd "$DEPLOY_PATH" || { echo "❌ ERROR: Could not find directory $DEPLOY_PATH"; exit 1; }
             
-            # Optional: Save just in case
-            pm2 save
+            echo "📥 Updating infrastructure repository..."
+            git pull origin main || echo "⚠️ Warning: git pull failed, using existing local config."
+
+            # 3. Docker Authentication
+            echo "🔑 Logging into GHCR..."
+            echo "$PULL_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # 4. Pull and Restart
+            echo "🚀 Deploying $SERVICE_NAME..."
+            docker-compose -f docker-compose.yml pull "$SERVICE_NAME"
+            docker-compose -f docker-compose.yml up -d --no-deps "$SERVICE_NAME"
+            
+            # 5. Cleanup
+            docker logout ghcr.io
+            echo "✅ Deployment finished successfully!"

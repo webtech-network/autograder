@@ -3,10 +3,13 @@ import os
 from dotenv import load_dotenv
 from upstash_redis import Redis
 
-load_dotenv()
+load_dotenv() #TODO: place this in application startup
 class UpstashDriver:
-    def __init__(self,redis):
-        self.redis = redis
+    def __init__(self):
+        self.redis = Redis(
+            os.getenv("UPSTASH_REDIS_URL"),
+            os.getenv("UPSTASH_REDIS_TOKEN") # should it do it? should it remain expecting the Redis python object?
+        )
 
     def get_user_quota(self,user_credentials: str) -> int:
         """Function to get the quota of a user based on his username"""
@@ -54,10 +57,3 @@ class UpstashDriver:
         self.redis.hset(key, "score", score)
         print(f"Score '{score}' set for user '{username}'.")
 
-    @classmethod
-    def create(cls,redis_token,redis_url):
-        redis = Redis(
-            url = redis_url,
-            token = redis_token
-        )
-        return cls(redis)

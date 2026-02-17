@@ -18,8 +18,11 @@ RUN find / -perm /6000 -type f -exec chmod a-s {} \; || true
 WORKDIR /app
 RUN chown sandbox:sandbox /app
 
-# 6. Switch to user
+# 6. Make /app a volume so it's writable even when container is read-only
+VOLUME ["/app"]
+
+# 7. Switch to user
 USER sandbox
 
-# 7. Safety Limit: Default entrypoint prevents keeping container alive without a command
+# 8. Safety Limit: Default entrypoint prevents keeping container alive without a command
 CMD ["python3"]

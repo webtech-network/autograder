@@ -18,9 +18,12 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from connectors.models.autograder_request import AutograderRequest
-from connectors.models.assignment_config import AssignmentConfig
-from autograder.autograder_facade import Autograder
+from autograder.autograder import build_pipeline
+from autograder.models.dataclass.submission import Submission, SubmissionFile
+from autograder.models.pipeline_execution import PipelineStatus
+from sandbox_manager.models.sandbox_models import Language
+from sandbox_manager.manager import initialize_sandbox_manager
+from sandbox_manager.models.pool_config import SandboxPoolConfig
 
 
 def create_calculator_submission():
@@ -85,7 +88,7 @@ def create_criteria_config():
                             "weight": 25,
                             "tests": [
                                 {
-                                    "name": "expect_output",
+                                    "name": "Expect Output",
                                     "calls": [
                                         [["10", "+", "5"], "Result: 15.0"]
                                     ]
@@ -96,7 +99,7 @@ def create_criteria_config():
                             "weight": 25,
                             "tests": [
                                 {
-                                    "name": "expect_output",
+                                    "name": "Expect Output",
                                     "calls": [
                                         [["20", "-", "8"], "Result: 12.0"]
                                     ]
@@ -107,7 +110,7 @@ def create_criteria_config():
                             "weight": 25,
                             "tests": [
                                 {
-                                    "name": "expect_output",
+                                    "name": "Expect Output",
                                     "calls": [
                                         [["6", "*", "7"], "Result: 42.0"]
                                     ]
@@ -118,7 +121,7 @@ def create_criteria_config():
                             "weight": 25,
                             "tests": [
                                 {
-                                    "name": "expect_output",
+                                    "name": "Expect Output",
                                     "calls": [
                                         [["100", "/", "4"], "Result: 25.0"]
                                     ]
@@ -136,7 +139,7 @@ def create_criteria_config():
                     "weight": 100,
                     "tests": [
                         {
-                            "name": "expect_output",
+                            "name": "Expect Output",
                             "calls": [
                                 [["10", "/", "0"], "Error: Division by zero"]
                             ]
@@ -178,47 +181,74 @@ def run_io_playroom():
     print("INPUT/OUTPUT TEMPLATE PLAYROOM")
     print("="*70 + "\n")
 
-    # Create submission files
-    print("📄 Creating Python calculator submission...")
-    submission_files = {
-        "calculator.py": create_calculator_submission()
-    }
+    # Initialize sandbox manager
+    print("🔧 Initializing sandbox manager...")
+    pool_configs = SandboxPoolConfig.load_from_yaml("sandbox_config.yml")
+    manager = initialize_sandbox_manager(pool_configs)
+    print("✅ Sandbox manager ready\n")
 
-    # Create assignment configuration
-    print("⚙️  Setting up assignment configuration...")
-    assignment_config = AssignmentConfig(
-        template="io",
-        criteria=create_criteria_config(),
-        feedback=create_feedback_config(),
-        setup=create_setup_config()
-    )
+    try:
+        # Create submission files
+        print("📄 Creating Python calculator submission...")
+        submission_files = {
+            "calculator.py": SubmissionFile(
+                filename="calculator.py",
+                content=create_calculator_submission()
+            )
+        }
 
-    # Create autograder request
-    print("📋 Building autograder request...")
-    request = AutograderRequest(
-        submission_files=submission_files,
-        assignment_config=assignment_config,
-        student_name="Sam Wilson",
-        include_feedback=True,
-        feedback_mode="default"
-    )
+        # Build pipeline
+        print("⚙️  Building grading pipeline...")
+        pipeline = build_pipeline(
+            template_name="IO",
+            include_feedback=True,
+            grading_criteria=create_criteria_config(),
+            feedback_config=create_feedback_config(),
+            setup_config=create_setup_config(),
+            custom_template=None,
+            feedback_mode="default",
+            export_results=False
+        )
 
-    # Execute grading
-    print("🚀 Starting grading process...")
-    print("⚠️  Note: This requires Docker to be running")
-    print("-"*70)
-    result = Autograder.grade(request)
-    print("-"*70)
+        # Create submission
+        print("📋 Creating submission...")
+        submission = Submission(
+            username="Sam Wilson",
+            user_id="student789",
+            assignment_id=3,
+            submission_files=submission_files,
+            language=Language.PYTHON  # Required for I/O template
+        )
 
-    # Display results
-    print("\n" + "="*70)
-    print("GRADING RESULTS")
-    print("="*70)
-    print(f"\n✅ Status: {result.status}")
-    print(f"📊 Final Score: {result.final_score}/100")
-    print(f"\n📝 Feedback:\n{result.feedback}")
-    print(f"\n📈 Test Report:\n{result.test_report}")
-    print("\n" + "="*70 + "\n")
+        # Execute grading
+        print("🚀 Starting grading process...")
+        print("⚠️  Note: This requires Docker to be running")
+        print("-"*70)
+        pipeline_execution = pipeline.run(submission)
+        print("-"*70)
+
+        # Display results
+        print("\n" + "="*70)
+        print("GRADING RESULTS")
+        print("="*70)
+        print(f"\n✅ Status: {pipeline_execution.status.value}")
+        
+        if pipeline_execution.result:
+            print(f"📊 Final Score: {pipeline_execution.result.final_score}/100")
+            if hasattr(pipeline_execution.result, 'feedback') and pipeline_execution.result.feedback:
+                print(f"\n📝 Feedback:\n{pipeline_execution.result.feedback}")
+            if hasattr(pipeline_execution.result, 'test_report') and pipeline_execution.result.test_report:
+                print(f"\n📈 Test Report:\n{pipeline_execution.result.test_report}")
+        else:
+            print("❌ No grading result available")
+        
+        print("\n" + "="*70 + "\n")
+
+    finally:
+        # Cleanup
+        print("\n🧹 Cleaning up sandbox manager...")
+        manager.shutdown()
+        print("✅ Cleanup complete\n")
 
 
 if __name__ == "__main__":

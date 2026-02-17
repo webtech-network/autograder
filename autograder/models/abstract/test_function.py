@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from autograder.models.dataclass.submission import SubmissionFile
-from autograder.models.result_tree import TestResultNode
+from autograder.models.dataclass.test_result import TestResult
 from autograder.models.dataclass.param_description import ParamDescription
+from sandbox_manager.sandbox_container import SandboxContainer
 
 
 class TestFunction(ABC):
@@ -38,6 +39,7 @@ class TestFunction(ABC):
         return None
 
     @abstractmethod
-    def execute(self, files: Optional[List[SubmissionFile]] , *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
         """The concrete implementation of the test logic."""
         pass
+

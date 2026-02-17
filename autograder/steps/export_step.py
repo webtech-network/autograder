@@ -2,14 +2,14 @@ from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 
-
 class ExporterStep(Step):
     """
     Step that exports the final grading result to an external system (e.g., Upstash).
     """
 
-    def __init__(self, remote_driver):
-        self._remote_driver = remote_driver # UpstashDriver
+    def __init__(self, exporter_service):
+        self._exporter_service = exporter_service
+
     def execute(self, input: PipelineExecution) -> PipelineExecution:
         """
         Export the final grading result to an external system.
@@ -23,13 +23,12 @@ class ExporterStep(Step):
             username = input.submission.username
             score = input.get_step_result(StepName.GRADE).data.final_score
 
-            # Set the score using UpstashDriver
-            self._remote_driver.set_score(username, score)
+            self._exporter_service.set_score(username, score)
 
             # Return success result
             return input.add_step_result(StepResult(
                 step=StepName.EXPORTER,
-                data={"username": username, "score": score},
+                data=None,
                 status=StepStatus.SUCCESS
             ))
         except Exception as e:

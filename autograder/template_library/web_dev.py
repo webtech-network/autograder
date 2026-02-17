@@ -1,4 +1,5 @@
 import re
+from typing import Optional, List
 from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup
@@ -6,8 +7,9 @@ from bs4 import BeautifulSoup
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
-
+from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from sandbox_manager.sandbox_container import SandboxContainer
 
 # ===============================================================
 # region: Concrete TestFunction Implementations
@@ -28,11 +30,17 @@ class HasClass(TestFunction):
             ParamDescription("class_names", "Uma lista de nomes de classes a serem pesquisadas. Curingas (*) são suportados (por exemplo, 'col-*').", "list of strings"),
             ParamDescription("required_count", "O número mínimo de vezes que as classes devem aparecer no total.", "integer")
         ]
-    def execute(self, html_content: str, class_names: list[str], required_count: int) -> TestResult:
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], class_names: list[str] = None, required_count: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = 0
         # Compile regex patterns from class names with wildcards
-        patterns = [re.compile(name.replace('*', r'\S*')) for name in class_names]
+        patterns = [re.compile(name.replace('*', r'\S*')) for name in (class_names or [])]
+
         # Find all tags that have a 'class' attribute
         all_elements_with_class = soup.find_all(class_=True)
         found_classes = []
@@ -64,7 +72,12 @@ class CheckBootstrapLinked(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, html_content: str) -> TestResult:
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
@@ -91,7 +104,17 @@ class CheckInternalLinks(TestFunction):
         return [
             ParamDescription("required_count", "O número mínimo de links válidos.", "integer")
         ]
-    def execute(self, html_content: str, required_count: int) -> TestResult:
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], required_count: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(
+                test_name=self.name,
+                score=0,
+                report="Conteúdo HTML não encontrado.",
+                parameters={"required_count": required_count}
+            )
+
+        html_content = files[0].content
         if not html_content:
             return TestResult(
                 test_name=self.name,
@@ -133,7 +156,11 @@ class HasTag(TestFunction):
             ParamDescription("tag", "A tag HTML a ser pesquisada (por exemplo, 'div').", "string"),
             ParamDescription("required_count", "O número mínimo de vezes que a tag deve aparecer.", "integer")
         ]
-    def execute(self, html_content: str, tag: str, required_count: int) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], tag: str = "", required_count: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(tag))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
@@ -160,7 +187,11 @@ class HasForbiddenTag(TestFunction):
         return [
             ParamDescription("tag", "A tag HTML proibida a ser pesquisada.", "string")
         ]
-    def execute(self, html_content: str, tag: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], tag: str = "", **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(tag) is not None
         score = 0 if found else 100
@@ -188,7 +219,11 @@ class HasAttribute(TestFunction):
             ParamDescription("attribute", "O atributo a ser pesquisado (por exemplo, 'alt').", "string"),
             ParamDescription("required_count", "O número mínimo de vezes que o atributo deve aparecer.", "integer")
         ]
-    def execute(self, html_content: str, attribute: str, required_count: int) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], attribute: str = "", required_count: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(attrs={attribute: True}))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
@@ -213,8 +248,12 @@ class CheckNoUnclosedTags(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, html_content: str) -> TestResult:
-        VOID = { 
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
+        VOID = {
             "area","base","br","col","embed","hr","img","input","link",
             "meta","param","source","track","wbr"
         }
@@ -264,7 +303,11 @@ class CheckNoInlineStyles(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, html_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         found_count = len(BeautifulSoup(html_content, 'html.parser').find_all(style=True))
         score = 0 if found_count > 0 else 100
         report = f"Foi encontrado {found_count} inline styles (`style='...'`). Mova todas as regras de estilo para seu arquivo `.css`." if found_count > 0 else "Excelente! Nenhum estilo inline foi encontrado."
@@ -287,7 +330,11 @@ class UsesSemanticTags(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, html_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(("article", "section", "nav", "aside", "figure")) is not None
         score = 100 if found else 40
@@ -311,7 +358,11 @@ class CheckCssLinked(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, html_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", rel="stylesheet") is not None
         score = 100 if found else 0
@@ -338,7 +389,11 @@ class CssUsesProperty(TestFunction):
             ParamDescription("prop", "A propriedade CSS.", "string"),
             ParamDescription("value", "O valor esperado.", "string")
         ]
-    def execute(self, css_content: str, prop: str, value: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], prop: str = "", value: str = "", **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No CSS file provided.")
+
+        css_content = files[0].content
         pattern = re.compile(rf"{re.escape(prop)}\s*:\s*.*{re.escape(value)}", re.IGNORECASE)
         found = pattern.search(css_content) is not None
         score = 100 if found else 0
@@ -366,7 +421,11 @@ class CountOverUsage(TestFunction):
             ParamDescription("text", "O texto a ser contado.", "string"),
             ParamDescription("max_allowed", "O número máximo de ocorrências permitidas.", "integer")
         ]
-    def execute(self, css_content: str, text: str, max_allowed: int) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], text: str = "", max_allowed: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No CSS file provided.")
+
+        css_content = files[0].content
         found_count = css_content.count(text)
         score = 100 if found_count <= max_allowed else 0
         report = f"Uso exagerado de `{text}` detectado {found_count} vezes (máximo permitido: {max_allowed})." if score == 0 else f"Uso exagerado de `{text}` não detectado."
@@ -389,7 +448,11 @@ class JsUsesFeature(TestFunction):
         return [
             ParamDescription("feature", "A funcionalidade a ser pesquisada.", "string")
         ]
-    def execute(self, js_content: str, feature: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], feature: str = "", **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No JavaScript file provided.")
+
+        js_content = files[0].content
         found = feature in js_content
         score = 100 if found else 0
         report = f"A funcionalidade `{feature}` foi implementada." if found else f"A funcionalidade JavaScript `{feature}` não foi encontrada no seu código."
@@ -414,7 +477,11 @@ class UsesForbiddenMethod(TestFunction):
         return [
             ParamDescription("method", "O nome do método proibido.", "string")
         ]
-    def execute(self, js_content: str, method: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], method: str = "", **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No JavaScript file provided.")
+
+        js_content = files[0].content
         found = method in js_content
         score = 0 if found else 100
         report = f"Penalidade: Método proibido `{method}()` detectado." if found else f"Ótimo! O método proibido `{method}()` não foi usado."
@@ -440,7 +507,11 @@ class CountGlobalVars(TestFunction):
         return [
             ParamDescription("max_allowed", "O número máximo de variáveis globais permitidas.", "integer")
         ]
-    def execute(self, js_content: str, max_allowed: int) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], max_allowed: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No JavaScript file provided.")
+
+        js_content = files[0].content
         found_count = len(re.findall(r"^\s*(var|let|const)\s+", js_content, re.MULTILINE))
         score = 100 if found_count <= max_allowed else 0
         report = f"Atenção: {found_count} variáveis globais detectadas (máximo permitido: {max_allowed})." if score == 0 else "Bom trabalho mantendo o escopo global limpo."
@@ -464,7 +535,11 @@ class CheckHeadingsSequential(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, html_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         headings = [int(h.name[1]) for h in soup.find_all(re.compile(r"^h[1-6]$"))]
         if len(headings) < 2:
@@ -505,7 +580,11 @@ class CheckAllImagesHaveAlt(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, html_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         images = soup.find_all("img")
         if not images:
@@ -532,7 +611,11 @@ class CheckHtmlDirectChildren(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, html_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         html_tag = soup.find('html')
         if not html_tag:
@@ -562,7 +645,11 @@ class CheckTagNotInside(TestFunction):
             ParamDescription("child_tag", "A tag filha.", "string"),
             ParamDescription("parent_tag", "A tag pai.", "string")
         ]
-    def execute(self, html_content: str, child_tag: str, parent_tag: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], child_tag: str = "", parent_tag: str = "", **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         parent = soup.find(parent_tag)
         found = parent and parent.find(child_tag)
@@ -589,7 +676,16 @@ class CheckInternalLinksToArticle(TestFunction):
         return [
             ParamDescription("required_count", "O número mínimo de links válidos.", "integer")
         ]
-    def execute(self, html_content: str, required_count: int) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], required_count: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(
+                test_name=self.name,
+                score=0,
+                report="Arquivo home.html não encontrado.",
+                parameters={"required_count": required_count}
+            )
+
+        html_content = files[0].content
         if not html_content:
             return TestResult(
                 test_name=self.name,
@@ -631,7 +727,11 @@ class HasStyle(TestFunction):
             ParamDescription("style", "A regra de estilo.", "string"),
             ParamDescription("count", "O número mínimo de ocorrências.", "integer")
         ]
-    def execute(self, css_content: str, style: str, count: int) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], style: str = "", count: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No CSS file provided.")
+
+        css_content = files[0].content
         found_count = len(re.findall(rf"{re.escape(style)}\s*:\s*[^;]+;", css_content, re.IGNORECASE))
         score = min(100, int((found_count / count) * 100)) if count > 0 else 100
         report = f"Encontrados {found_count} de {count} `{style}` regras de estilização."
@@ -657,7 +757,11 @@ class CheckHeadDetails(TestFunction):
         return [
             ParamDescription("detail_tag", "A tag a ser verificada.", "string")
         ]
-    def execute(self, html_content: str, detail_tag: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], detail_tag: str = "", **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         head = soup.find('head')
         if not head:
@@ -689,7 +793,11 @@ class CheckAttributeAndValue(TestFunction):
             ParamDescription("attribute", "O atributo.", "string"),
             ParamDescription("value", "O valor esperado.", "string")
         ]
-    def execute(self, html_content: str, tag: str, attribute: str, value: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], tag: str = "", attribute: str = "", value: str = "", **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         elements = soup.find_all(tag, attrs={attribute: value})
         score = 100 if elements else 0
@@ -717,7 +825,11 @@ class CheckDirExists(TestFunction):
             ParamDescription("submission_files", "O dicionário de arquivos enviados.", "dictionary"),
             ParamDescription("dir_path", "O caminho do diretório.", "string")
         ]
-    def execute(self, submission_files: dict, dir_path: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], dir_path: str = "", **kwargs) -> TestResult:
+        if not files:
+            return TestResult(self.name, 0, "No files provided.")
+
+        submission_files = {f.filename: f for f in files}
         exists = any(f.startswith(dir_path.rstrip('/') + '/') for f in submission_files.keys())
         score = 100 if exists else 0
         report = f"O diretório '{dir_path}' existe." if exists else f"O diretório '{dir_path}' não existe."
@@ -744,7 +856,11 @@ class CheckProjectStructure(TestFunction):
             ParamDescription("submission_files", "O dicionário de arquivos enviados.", "dictionary"),
             ParamDescription("expected_structure", "O caminho do arquivo esperado.", "string")
         ]
-    def execute(self, submission_files: dict, expected_structure: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], expected_structure: str = "", **kwargs) -> TestResult:
+        if not files:
+            return TestResult(self.name, 0, "No files provided.")
+
+        submission_files = {f.filename: f for f in files}
         exists = expected_structure in submission_files
         score = 100 if exists else 0
         report = f"O arquivo '{expected_structure}' existe." if exists else f"O arquivo '{expected_structure}' não existe."
@@ -770,7 +886,10 @@ class CheckIdSelectorOverUsage(TestFunction):
         return [
             ParamDescription("max_allowed", "Número máximo de seletores de ID permitidos.", "integer")
         ]
-    def execute(self, css_content: str, max_allowed: int) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], max_allowed: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No CSS file provided.")
+        css_content = files[0].content
         token_pattern = re.compile(
             r'(/\*.*?\*/)|'          # Comentaries (ignoring)
             r'("[^"]*")|'            # Double String (ignoring)
@@ -787,7 +906,7 @@ class CheckIdSelectorOverUsage(TestFunction):
         for match in token_pattern.finditer(css_content):
             comment, double_str, simple_str, media_key, open_brace, close_brace, found_id = match.groups()
             if comment or double_str or simple_str:
-                continue 
+                continue
             if media_key:
                 next_block_flag = True
             elif open_brace:
@@ -823,7 +942,11 @@ class UsesRelativeUnits(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, css_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No CSS file provided.")
+
+        css_content = files[0].content
         found = re.search(r"\b(em|rem|%|vh|vw)\b", css_content) is not None
         score = 100 if found else 0
         report = "Estão sendo utilizadas medidas relativas no CSS." if found else "Não foram utilizadas medidas relativas como (em, rem, %, vh, vw) no seu CSS."
@@ -846,7 +969,11 @@ class CheckMediaQueries(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, css_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No CSS file provided.")
+
+        css_content = files[0].content
         found = re.search(r"@media\s+[^{]+\{", css_content) is not None
         score = 100 if found else 0
         report = "Media queries estão sendo utilizadas no CSS." if found else "Não foi encontrado o uso de media queries no seu CSS."
@@ -869,7 +996,11 @@ class CheckFlexboxUsage(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, css_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No CSS file provided.")
+
+        css_content = files[0].content
         found = re.search(r"\b(display\s*:\s*flex|flex-)", css_content) is not None
         score = 100 if found else 0
         report = "Propriedades `flexbox` estão sendo utilizadas no CSS." if found else "Propriedades `flexbox` não foram encontradas no seu CSS."
@@ -892,7 +1023,11 @@ class CheckBootstrapUsage(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, html_content: str) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
@@ -921,7 +1056,12 @@ class LinkPointsToPageWithQueryParam(TestFunction):
             ParamDescription("query_param", "O nome do parâmetro de query string a ser verificado (ex: 'id').", "string"),
             ParamDescription("required_count", "O número mínimo de links válidos que devem estar presentes.", "integer")
         ]
-    def execute(self, html_content: str, target_page: str, query_param: str, required_count: int) -> TestResult:
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], target_page: str = "", query_param: str = "", required_count: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No HTML file provided.")
+
+        html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         links = soup.find_all("a", href=True)
         valid_link_count = 0
@@ -956,7 +1096,12 @@ class JsUsesQueryStringParsing(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, js_content: str) -> TestResult:
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No JavaScript file provided.")
+
+        js_content = files[0].content
         # Regex to find 'URLSearchParams' or 'window.location.search'
         pattern = re.compile(r"URLSearchParams|window\.location\.search")
         found = pattern.search(js_content) is not None
@@ -984,7 +1129,12 @@ class JsHasJsonArrayWithId(TestFunction):
             ParamDescription("required_key", "A chave que deve existir em cada objeto (ex: 'id').", "string"),
             ParamDescription("min_items", "O número mínimo de itens esperados no array.", "integer")
         ]
-    def execute(self, js_content: str, required_key: str, min_items: int) -> TestResult:
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], required_key: str = "", min_items: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No JavaScript file provided.")
+
+        js_content = files[0].content
         # Regex to find an array assignment: var/let/const variable = [...]
         # It captures the content of the array
         match = re.search(r"(?:var|let|const)\s+\w+\s*=\s*(\[.*?\]);?", js_content, re.DOTALL)
@@ -997,7 +1147,7 @@ class JsHasJsonArrayWithId(TestFunction):
             )
         array_content = match.group(1)
         # A simple heuristic: count how many times the required key appears as a key
-        key_pattern = f'"{required_key}"\s*:'
+        key_pattern = rf'"{required_key}"\s*:'
         found_items = len(re.findall(key_pattern, array_content))
         score = min(100, int((found_items / min_items) * 100)) if min_items > 0 else 100
         report = f"Encontrada estrutura de dados com {found_items} de {min_items} itens necessários, todos com a chave '{required_key}'."
@@ -1024,7 +1174,14 @@ class JsUsesDomManipulation(TestFunction):
             ParamDescription("methods", "Uma lista de métodos a serem pesquisados (ex: ['createElement', 'appendChild']).", "list of strings"),
             ParamDescription("required_count", "Número mínimo total de vezes que esses métodos devem aparecer.", "integer")
         ]
-    def execute(self, js_content: str, methods: list, required_count: int) -> TestResult:
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], methods: list = None, required_count: int = 0, **kwargs) -> TestResult:
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No JavaScript file provided.")
+
+        js_content = files[0].content
+        if methods is None:
+            methods = []
         found_count = 0
         for method in methods:
             found_count += len(re.findall(r"\." + re.escape(method), js_content))
@@ -1054,7 +1211,14 @@ class HasNoJsFramework(TestFunction):
             ParamDescription("html_file", "O nome do arquivo HTML a ser analisado.", "string"),
             ParamDescription("js_file", "O nome do arquivo JavaScript a ser analisado.", "string")
         ]
-    def execute(self,submission_files, html_file: str, js_file: str) -> TestResult:
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], html_file: str = "", js_file: str = "", **kwargs) -> TestResult:
+        if not files:
+            return TestResult(self.name, 0, "No files provided.")
+
+        # Build a dictionary of files
+        submission_files = {f.filename: f.content for f in files}
+
         # Combine content for a single search
         html_content = submission_files.get(html_file, "")
         js_content = submission_files.get(js_file, "")
@@ -1195,15 +1359,18 @@ class WebDevTemplate(Template):
     @property
     def template_description(self):
         return "Um template abrangente para trabalhos de desenvolvimento web, incluindo testes para HTML, CSS e JavaScript."
-    @property
-    def requires_execution_helper(self) -> bool:
-        return False
-    @property
-    def execution_helper(self):
-        return None
+
     @property
     def requires_pre_executed_tree(self) -> bool:
         return False
+
+    @property
+    def requires_sandbox(self) -> bool:
+        return False
+
+    @property
+    def execution_helper(self):
+        return None
 
     def __init__(self, clean=False):
         self.tests = {
@@ -1244,9 +1411,6 @@ class WebDevTemplate(Template):
             "has_no_js_framework": HasNoJsFramework(),
             "Count Unused Css Classes": CountUnusedCssClasses()
         }
-
-    def stop(self):
-        pass
 
     def get_test(self, name: str) -> TestFunction:
         """

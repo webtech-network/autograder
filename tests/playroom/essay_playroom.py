@@ -17,9 +17,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from connectors.models.autograder_request import AutograderRequest
-from connectors.models.assignment_config import AssignmentConfig
-from autograder.autograder_facade import Autograder
+from autograder.autograder import build_pipeline
+from autograder.models.dataclass.submission import Submission, SubmissionFile
+from autograder.models.pipeline_execution import PipelineStatus
 
 
 def create_essay_submission():
@@ -100,7 +100,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "clarity_and_cohesion"
+                                    "name": "Clarity and Cohesion"
                                 }
                             ]
                         },
@@ -109,7 +109,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "grammar_and_spelling"
+                                    "name": "Grammar and Spelling"
                                 }
                             ]
                         }
@@ -123,7 +123,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "thesis_statement"
+                                    "name": "Thesis Statement"
                                 }
                             ]
                         },
@@ -132,7 +132,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "argument_strength"
+                                    "name": "Argument Strength"
                                 }
                             ]
                         },
@@ -141,7 +141,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "adherence_to_prompt",
+                                    "name": "Adherence to Prompt",
                                     "calls": [
                                         ["Discuss the impact of artificial intelligence on modern education, including both benefits and challenges"]
                                     ]
@@ -163,7 +163,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "counterargument_handling"
+                                    "name": "Counterargument Handling"
                                 }
                             ]
                         },
@@ -172,7 +172,7 @@ def create_criteria_config():
                             "tests": [
                                 {
                                     "file": "essay.txt",
-                                    "name": "evidence_quality"
+                                    "name": "Evidence Quality"
                                 }
                             ]
                         }
@@ -188,7 +188,7 @@ def create_criteria_config():
                     "tests": [
                         {
                             "file": "essay.txt",
-                            "name": "logical_fallacy_check"
+                            "name": "Logical Fallacy Check"
                         }
                     ]
                 }
@@ -241,44 +241,57 @@ def run_essay_playroom():
     # Create submission files
     print("📄 Creating essay submission...")
     submission_files = {
-        "essay.txt": create_essay_submission()
+        "essay.txt": SubmissionFile(
+            filename="essay.txt",
+            content=create_essay_submission()
+        )
     }
 
-    # Create assignment configuration
-    print("⚙️  Setting up assignment configuration...")
-    assignment_config = AssignmentConfig(
-        template="essay",
-        criteria=create_criteria_config(),
-        feedback=create_feedback_config(),
-        setup={}
+    # Build pipeline
+    print("⚙️  Building grading pipeline...")
+    pipeline = build_pipeline(
+        template_name="essay",
+        include_feedback=True,
+        grading_criteria=create_criteria_config(),
+        feedback_config=create_feedback_config(),
+        setup_config={},
+        custom_template=None,
+        feedback_mode="ai",
+        export_results=False
     )
 
-    # Create autograder request
-    print("📋 Building autograder request...")
-    request = AutograderRequest(
+    # Create submission
+    print("📋 Creating submission...")
+    submission = Submission(
+        username="Alex Johnson",
+        user_id="student999",
+        assignment_id=4,
         submission_files=submission_files,
-        assignment_config=assignment_config,
-        student_name="Alex Johnson",
-        include_feedback=True,
-        feedback_mode="ai",
-        openai_key=openai_key
+        language=None  # Not needed for essay template
     )
 
     # Execute grading
     print("🚀 Starting grading process...")
     print("⚠️  Note: This will make API calls to OpenAI and may take a minute")
     print("-"*70)
-    result = Autograder.grade(request)
+    pipeline_execution = pipeline.run(submission)
     print("-"*70)
 
     # Display results
     print("\n" + "="*70)
     print("GRADING RESULTS")
     print("="*70)
-    print(f"\n✅ Status: {result.status}")
-    print(f"📊 Final Score: {result.final_score}/100")
-    print(f"\n📝 Feedback:\n{result.feedback}")
-    print(f"\n📈 Test Report:\n{result.test_report}")
+    print(f"\n✅ Status: {pipeline_execution.status.value}")
+    
+    if pipeline_execution.result:
+        print(f"📊 Final Score: {pipeline_execution.result.final_score}/100")
+        if hasattr(pipeline_execution.result, 'feedback') and pipeline_execution.result.feedback:
+            print(f"\n📝 Feedback:\n{pipeline_execution.result.feedback}")
+        if hasattr(pipeline_execution.result, 'test_report') and pipeline_execution.result.test_report:
+            print(f"\n📈 Test Report:\n{pipeline_execution.result.test_report}")
+    else:
+        print("❌ No grading result available")
+    
     print("\n" + "="*70 + "\n")
 
 

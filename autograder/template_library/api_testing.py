@@ -1,4 +1,5 @@
-import time
+from typing import Any
+
 import requests
 import json
 import logging
@@ -6,7 +7,7 @@ from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
-from autograder.utils.executors.sandbox_executor import SandboxExecutor
+from sandbox_manager.sandbox_container import SandboxContainer
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -36,41 +37,24 @@ class HealthCheckTest(TestFunction):
             ParamDescription("endpoint", "O endpoint a ser testado (ex: '/health').", "string")
         ]
 
-    def __init__(self, executor: SandboxExecutor):
-        self.executor = executor
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def execute(self, endpoint: str) -> TestResult:
+    def execute(self, files , sandbox: SandboxContainer, endpoint: str = "", **kwargs) -> TestResult:
         """Executes the health check test."""
 
         report = ""
         score = 0
 
         try:
-            # Get the internal port from the config to know which mapping to look up
-            container_port = self.executor.config.get("container_port")
-            if not container_port:
-                raise ValueError("Container port not specified in setup.json")
-
-            # Ask the executor for the dynamically mapped host port
-            host_port = self.executor.get_mapped_port(container_port)
-
-            url = f"http://localhost:{host_port}{endpoint}"
-
-            self.logger.info(f"Making request to sandboxed API at: {url}")
-            response = requests.get(url, timeout=10)
-
+            response = sandbox.make_request("GET", endpoint)
             if response.status_code == 200:
                 score = 100
-                report = f"Success! The endpoint '{endpoint}' is running and returned a 200 OK status."
+                report = f"Success! Endpoint '{endpoint}' is alive and returned status code 200."
             else:
-                score = 0
-                report = f"The endpoint '{endpoint}' is running but returned a status code of {response.status_code}. Expected 200."
-
-        except requests.ConnectionError:
-            report = f"Connection failed. Could not connect to the API. Is the server running and bound to '0.0.0.0'?"
-        except requests.Timeout:
-            report = f"The request timed out. The API did not respond in time."
+                report = f"Endpoint '{endpoint}' returned status code {response.status_code} instead of 200."
+        except requests.RequestException as e:
+            report = f"API request to the container failed: {e}"
         except Exception as e:
             report = f"An unexpected error occurred: {e}"
 
@@ -104,27 +88,17 @@ class CheckResponseJsonTest(TestFunction):
             ParamDescription("expected_value", "O valor esperado para a chave especificada.", "any")
         ]
 
-    def __init__(self, executor: SandboxExecutor):
-        self.executor = executor
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
 
-    def execute(self, endpoint: str, expected_key: str, expected_value: any) -> TestResult:
+    def execute(self, files, sandbox: SandboxContainer, endpoint: str = "", expected_key: str = "", expected_value: Any = None, **kwargs) -> TestResult:
         """Executes the JSON validation test."""
 
         report = ""
         score = 0
 
         try:
-            # Get the internal port from the config to know which mapping to look up
-            container_port = self.executor.config.get("container_port")
-            if not container_port:
-                raise ValueError("Container port not specified in setup.json")
-
-            # Ask the executor for the dynamically mapped host port
-            host_port = self.executor.get_mapped_port(container_port)
-
-            url = f"http://localhost:{host_port}{endpoint}"
-            logging.info(f"Making request to sandboxed API at: {url}")
-            response = requests.get(url, timeout=10)
+            response = sandbox.make_request("GET", endpoint)
             if response.status_code != 200:
                 return TestResult(self.name, 0, f"Request failed with status code {response.status_code}.")
 
@@ -156,7 +130,7 @@ class CheckResponseJsonTest(TestFunction):
 
 class ApiTestingTemplate(Template):
     """
-    A template for API testing assignments. It uses the SandboxExecutor to securely
+    A template for API testing assignments. It uses the SandboxContainer to securely
     run and test student-submitted web servers.
     """
 
@@ -170,59 +144,20 @@ class ApiTestingTemplate(Template):
 
     @property
     def requires_pre_executed_tree(self) -> bool:
-        return True
+        return False
 
     @property
-    def requires_execution_helper(self) -> bool:
+    def requires_sandbox(self) -> bool:
         return True
 
-    @property
-    def execution_helper(self):
-        return self.executor
-
-    def __init__(self, clean=False):
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-        if not clean:
-            # Prepare the environment by running setup commands
-            self.executor = SandboxExecutor.start()
-            self._setup_environment()
-        else:
-            self.executor = None
-
-
         self.tests = {
-            "health_check": HealthCheckTest(self.executor),
-            "check_response_json": CheckResponseJsonTest(self.executor),
+            "health_check": HealthCheckTest,
+            "check_response_json": CheckResponseJsonTest,
         }
 
-
-
-    def _setup_environment(self):
-        """Runs initial setup commands like installing dependencies and starting the server."""
-        self.logger.info("--- Setting up API environment ---")
-
-        # Install dependencies (e.g., npm install)
-        install_command = self.executor.config.get("commands", {}).get("install_dependencies")
-        if install_command:
-            exit_code, _, stderr = self.executor.run_command(install_command)
-            if exit_code != 0:
-                raise RuntimeError(f"Failed to install dependencies: {stderr}")
-
-        # Start the student's API server in the background
-        start_command = self.executor.config.get("start_command")
-        if not start_command:
-            raise ValueError("A 'start_command' must be defined in setup.json for the API template.")
-
-        self.executor.run_command(start_command, in_background=True)
-        self.logger.info("API server start command issued. Waiting for it to initialize...")
-        time.sleep(5)  # Give the server a few seconds to start up
-        self.logger.info("--- Environment setup complete ---")
-
-    def stop(self):
-        """Stops the sandbox executor, which cleans up the container."""
-        if self.executor:
-            self.executor.stop()
 
     def get_test(self, name: str) -> TestFunction:
         test_function = self.tests.get(name)

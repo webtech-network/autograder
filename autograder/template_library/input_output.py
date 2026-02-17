@@ -1,8 +1,10 @@
+import logging
+
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
-from autograder.utils.executors.sandbox_executor import SandboxExecutor
+from sandbox_manager.sandbox_container import SandboxContainer
 
 
 # ===============================================================
@@ -31,65 +33,56 @@ class ExpectOutputTest(TestFunction):
     def parameter_description(self):
         return [
             ParamDescription("inputs", "Lista de strings a serem enviadas para o programa, cada uma em uma nova linha.", "list of strings"),
-            ParamDescription("expected_output", "A única string que o programa deve imprimir na saída padrão.", "string")
+            ParamDescription("expected_output", "A única string que o programa deve imprimir na saída padrão.", "string"),
+            ParamDescription("program_command", "(Opcional) Comando para executar o programa (ex: 'python3 calc.py').", "string")
         ]
 
-    def __init__(self, executor: SandboxExecutor):
-        self.executor = executor
-
-    def execute(self, inputs: list, expected_output: str) -> TestResult:
+    def execute(self, files, sandbox: SandboxContainer, inputs: list = None, expected_output: str = "", program_command: str = None, **kwargs) -> TestResult:
         """
-        Constructs and runs the command using file redirection for robust input handling,
+        Constructs and runs the command using stdin input for robust input handling,
         then validates the output.
-        """
-        start_command = self.executor.config.get("start_command")
-        if not start_command:
-            raise ValueError("A 'start_command' must be defined in setup.json for this template.")
 
-        # Create a single string with all inputs separated by newlines.
-        input_string = "\n".join(map(str, inputs))
-        temp_input_filename = "input.tmp"
+        Args:
+            files: Submission files (not used in this test)
+            sandbox: The sandbox container to execute in
+            inputs: List of input strings to send to the program
+            expected_output: The expected output from the program
+            program_command: Command to run the program (e.g., "python3 calculator.py")
+        """
+        # TODO: Implement more robust input handling and I/O validation
 
         try:
-            # Step 1: Write the input string to a temporary file using a "here document".
-            # This is the most reliable way to handle multi-line input in a shell,
-            # as it avoids complex quoting issues. Using a quoted delimiter 'EOT'
-            # prevents the shell from trying to interpret the content.
-            write_command = f"""
-cat <<'EOT' > {temp_input_filename}
-{input_string}
-EOT
-"""
-            self.executor.run_command(write_command)
-
-            # Step 2: Execute the student's program, redirecting the temp file to its stdin.
-            full_command = f"{start_command} < {temp_input_filename}"
-            exit_code, stdout, stderr = self.executor.run_command(full_command)
-
-            if exit_code != 0:
-                return TestResult(
-                    test_name=self.name,
-                    score=0,
-                    report=f"The program exited with an error. Stderr: {stderr}"
-                )
-
-            actual_output = stdout.strip()
-            if actual_output == expected_output.strip():
-                score = 100
-                report = "Success! The program produced the correct output for the given inputs."
+            if not program_command:
+                # No program command specified - treat inputs as command to run
+                # Join inputs into a single command string
+                if inputs is None:
+                    raise ValueError("inputs parameter is required")
+                command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
+                output = sandbox.run_command(command)
+                actual_output = output.stdout
             else:
-                score = 0
-                report = f"Output did not match. Expected: '{expected_output.strip()}', but the program returned: '{actual_output}'"
+                # Program command specified - inputs are stdin for the program
+                output = sandbox.run_commands(inputs, program_command=program_command)
+                actual_output = output.stdout
+
+            score = 100.0 if actual_output.strip() == expected_output.strip() else 0.0
+            report = f"Expected output: '{expected_output.strip()}'\nActual output: '{actual_output.strip()}'\n"
+
+            # Include stderr if there was any error output
+            if output.stderr:
+                report += f"Error output (stderr): {output.stderr}\n"
 
             return TestResult(
                 test_name=self.name,
                 score=score,
                 report=report
             )
-
-        finally:
-            # Step 3: Always clean up the temporary file.
-            self.executor.run_command(f"rm {temp_input_filename}")
+        except Exception as e:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=f"Error executing command: {str(e)}"
+            )
 
 
 # ===============================================================
@@ -102,6 +95,13 @@ class InputOutputTemplate(Template):
     to securely run student programs and validate their console output.
     """
 
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+        self.tests = {
+            "expect_output": ExpectOutputTest(),
+        }
+
     @property
     def template_name(self):
         return "Input/Output"
@@ -111,43 +111,8 @@ class InputOutputTemplate(Template):
         return "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."
 
     @property
-    def requires_pre_executed_tree(self) -> bool:
+    def requires_sandbox(self) -> bool:
         return True
-
-    @property
-    def requires_execution_helper(self) -> bool:
-        return True
-
-    @property
-    def execution_helper(self):
-        return self.executor
-
-    def __init__(self, clean=False):
-
-        if not clean:
-            # Prepare the environment by running setup commands
-            self.executor = SandboxExecutor.start()
-            self._setup_environment()
-        else:
-            self.executor = None
-        self.tests = {
-            "expect_output": ExpectOutputTest(self.executor),
-        }
-
-    def _setup_environment(self):
-        """Runs any initial setup commands, like compilation or dependency installation."""
-        print("--- Setting up Input/Output environment ---")
-        install_command = self.executor.config.get("commands", {}).get("install_dependencies")
-        if install_command:
-            exit_code, _, stderr = self.executor.run_command(install_command)
-            if exit_code != 0:
-                raise RuntimeError(f"Failed to run setup command '{install_command}': {stderr}")
-        print("--- Environment setup complete ---")
-
-    def stop(self):
-        """Stops the sandbox executor."""
-        if self.executor:
-            self.executor.stop()
 
     def get_test(self, name: str) -> TestFunction:
         test_function = self.tests.get(name)

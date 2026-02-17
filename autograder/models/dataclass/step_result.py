@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Optional, TypeVar, Generic
 from enum import Enum
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class StepStatus(Enum):
@@ -16,6 +16,7 @@ class StepName(Enum):
     BUILD_TREE = "BuildTreeStep"
     PRE_FLIGHT = "PreFlightStep"
     GRADE = "GradeStep"
+    FOCUS = "FocusStep"
     FEEDBACK = "FeedbackStep"
     EXPORTER = "ExporterStep"
 

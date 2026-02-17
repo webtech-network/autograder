@@ -7,7 +7,7 @@ class TestResult:
     """Stores the outcome of a single test execution from the test library."""
 
     test_name: str
-    score: int
+    score: float
     report: str
     parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
 

@@ -31,6 +31,21 @@ class GradeStep(Step):
             StepResult containing GradingResult with scores and result tree
         """
         try:
+            # If submission is sandboxed, feed grading template with container ref
+            template = input.get_step_result(StepName.LOAD_TEMPLATE).data
+
+            # Check if PRE_FLIGHT step was executed (only if setup_config was provided)
+            sandbox = None
+            if input.has_step_result(StepName.PRE_FLIGHT):
+                sandbox = input.get_step_result(StepName.PRE_FLIGHT).data
+
+            if sandbox:
+                self._grader_service.set_sandbox(sandbox)
+
+            if not sandbox and template.requires_sandbox:
+                raise Exception("Grading template requires a sandbox environment, but no sandbox was created")
+
+
             criteria_tree = input.get_step_result(StepName.BUILD_TREE).data
             result_tree = self._grader_service.grade_from_tree(
                 criteria_tree=criteria_tree,

@@ -36,7 +36,7 @@ fi
 args=(
     "python"
     "-m"
-    "connectors.adapters.github_action_adapter.github_entrypoint"
+    "github_action.main"
     "--github-token" "$GITHUB_TOKEN"
     "--template-preset" "$TEMPLATE_PRESET"
     "--student-name" "$GITHUB_ACTOR"
@@ -56,16 +56,6 @@ fi
 if [[ -n "$OPENAI_KEY" ]]; then
     echo "Adding OpenAI key to arguments."
     args+=("--openai-key" "$OPENAI_KEY")
-fi
-
-if [[ -n "$REDIS_URL" ]]; then
-    echo "Adding Redis URL to arguments."
-    args+=("--redis-url" "$REDIS_URL")
-fi
-
-if [[ -n "$REDIS_TOKEN" ]]; then
-    echo "Adding Redis token to arguments."
-    args+=("--redis-token" "$REDIS_TOKEN")
 fi
 
 if [[ -n "$INCLUDE_FEEDBACK" ]]; then
