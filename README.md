@@ -236,17 +236,21 @@ pip install -r requirements.txt
 
 3. **Configure sandbox pools** (edit `sandbox_config.yml`)
 ```yaml
-pools:
-  - language: python
+general:
+    # Number of sandboxes to create for each language at startup
+    # Development: 2-3, Production: 3-5 depending on expected load
     pool_size: 3
+
+    # Maximum sandboxes per language (prevents resource exhaustion)
+    # Production should have higher limits to handle traffic spikes
     scale_limit: 10
-    idle_timeout: 300
-    running_timeout: 120
-  
-  - language: java
-    pool_size: 2
-    scale_limit: 5
-    idle_timeout: 300
+
+    # Seconds before killing idle sandboxes (no running processes)
+    # Production: longer timeout to reduce container churn
+    idle_timeout: 600
+
+    # Seconds before killing sandboxes with running processes
+    # Prevents hanging processes from consuming resources
     running_timeout: 120
 ```
 
@@ -326,29 +330,13 @@ jobs:
 
 ---
 
-## Data Structures
+## Useful Contents
 
 **📚 [Complete Data Structures Documentation →](docs/core_structures.md)**
 
-Includes detailed examples of:
-- Criteria tree structure and scoring
-- Result tree format
-- Pipeline execution models
-- Test results and submissions
-
----
-
-## Configuration Examples
-
 **📚 [Complete Configuration Examples →](docs/configuration_examples.md)**
 
-Includes examples for:
-- Simple and hierarchical rubrics
-- Input/Output assignments
-- Web development projects
-- API testing
-- Full-stack applications
-- Bonus and penalty configurations
+**📚 [Complete Development Guide →](docs/development.md)**
 
 ---
 
@@ -390,35 +378,6 @@ The Autograder is designed for high performance:
 - Grade submission: 1-3 seconds (with warm sandbox)
 - Cold start: 5-8 seconds (first request per language)
 - Concurrent submissions: 100+ with proper pool sizing
-
----
-
-## Security
-
-### Sandbox Isolation
-- Docker container isolation for all code execution
-- Non-root user execution (sandbox user)
-- Resource limits (CPU, memory, ulimits)
-- Timeout protection
-- Network isolation options
-
-### Input Validation
-- Pydantic models for all configuration
-- File size limits
-- Content sanitization
-- SQL injection protection (ORM-based)
-
-### Best Practices
-- Never expose sandbox ports externally
-- Use environment variables for secrets
-- Implement rate limiting on API endpoints
-- Regular security updates for base images
-
----
-
-## Development
-
-**📚 [Complete Development Guide →](docs/development.md)**
 
 ---
 
