@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -119,6 +120,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add CORS middleware to allow frontend connections
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Dependency to get database session
 async def get_db_session() -> AsyncSession:
@@ -206,8 +216,9 @@ async def create_grading_config(
         template_name=config.template_name,
         criteria_config=config.criteria_config,
         language=config.language,
+        setup_config=config.setup_config,
     )
-    
+
     return db_config
 
 
@@ -282,6 +293,12 @@ async def create_submission(
             detail=f"Grading configuration for assignment {submission.external_assignment_id} not found"
         )
 
+    # Convert list of SubmissionFileData to dict format for storage and quick access
+    # This indexing by filename allows O(1) file lookups during grading
+    submission_files_dict = {
+        file_data.filename: {"filename": file_data.filename, "content": file_data.content}
+        for file_data in submission.files
+    }
 
     # Create submission record
     submission_repo = SubmissionRepository(session)
@@ -289,7 +306,7 @@ async def create_submission(
         grading_config_id=grading_config.id,
         external_user_id=submission.external_user_id,
         username=submission.username,
-        submission_files=submission.files,
+        submission_files=submission_files_dict,
         language=submission.language or grading_config.language,
         status=SubmissionStatus.PENDING,
         submission_metadata=submission.metadata,
@@ -305,6 +322,7 @@ async def create_submission(
         grading_config_id=grading_config.id,
         template_name=grading_config.template_name,
         criteria_config=grading_config.criteria_config,
+        setup_config=grading_config.setup_config,
         language=db_submission.language,
         username=db_submission.username,
         external_user_id=db_submission.external_user_id,
@@ -326,13 +344,17 @@ async def get_submission(
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
 
+    # Convert submission_files from storage format to API response format
+    # Storage: Dict[str, Dict] -> Response: Dict[str, str]
     formatted_files = {}
     if submission.submission_files:
         for name, data in submission.submission_files.items():
-            # Check if data is our new structure (dict) or old structure (str)
-            if isinstance(data, dict) and "content" in data:
-                formatted_files[name] = data["content"]
+            # Extract content from the stored dict structure
+            if isinstance(data, dict):
+                # New format: {"filename": "...", "content": "..."}
+                formatted_files[name] = data.get("content", "")
             else:
+                # Legacy format or unexpected type: convert to string
                 formatted_files[name] = str(data)
 
     # Build response
@@ -349,16 +371,18 @@ async def get_submission(
         "final_score": None,
         "feedback": None,
         "result_tree": None,
+        "pipeline_execution": None,  # NEW: Add pipeline execution
     }
-    
+
     # Add result data if available
     if submission.result:
         response_data.update({
             "final_score": submission.result.final_score,
             "feedback": submission.result.feedback,
             "result_tree": submission.result.result_tree,
+            "pipeline_execution": submission.result.pipeline_execution,  # NEW
         })
-    
+
     return response_data
 
 
@@ -380,6 +404,7 @@ async def grade_submission(
     grading_config_id: int,
     template_name: str,
     criteria_config: dict,
+    setup_config: dict,
     language: str,
     username: str,
     external_user_id: str,
@@ -409,7 +434,7 @@ async def grade_submission(
                 include_feedback=False, # Keep False for now
                 grading_criteria=criteria_config,
                 feedback_config=None,
-                setup_config={},  # Empty dict triggers sandbox creation if needed
+                setup_config=setup_config if setup_config else {},  # Use setup_config from database or empty dict
                 custom_template=None, # Keep None to use default template behavior
             )
 
@@ -417,7 +442,7 @@ async def grade_submission(
                 name: SubmissionFile(filename=f["filename"], content=f["content"])
                 for name, f in submission_files.items()
             }
-            
+
             # Convert to Autograder Submission object
             autograder_submission = AutograderSubmission(
                 username=username,
@@ -478,13 +503,25 @@ async def grade_submission(
                 
                 logger.warning(f"Submission {submission_id} pipeline failed: {error_msg}")
                 
+                # Generate pipeline execution summary
+                pipeline_summary = pipeline_execution.get_pipeline_execution_summary()
+
+                # Generate enhanced feedback for preflight failures
+                from autograder.utils.feedback_generator import generate_preflight_feedback
+                feedback = None
+                failed_step_name = pipeline_summary.get("failed_at_step")
+                if failed_step_name == "PRE_FLIGHT":
+                    feedback = generate_preflight_feedback(pipeline_summary)
+
                 await result_repo.create(
                     submission_id=submission_id,
                     final_score=0.0,
+                    feedback=feedback,  # NEW: Add generated feedback
+                    pipeline_execution=pipeline_summary,  # NEW: Add pipeline execution details
                     execution_time_ms=execution_time_ms,
                     pipeline_status=PipelineStatus.FAILED,
                     error_message=error_msg,
-                    failed_at_step=str(last_step.step) if pipeline_execution.step_results else None
+                    failed_at_step=failed_step_name
                 )
                 
                 await submission_repo.update_status(submission_id, SubmissionStatus.FAILED)
