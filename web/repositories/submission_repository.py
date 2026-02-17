@@ -26,20 +26,14 @@ class SubmissionRepository(BaseRepository[Submission]):
             status: SubmissionStatus = SubmissionStatus.PENDING,
             submission_metadata: Optional[dict] = None,
     ) -> Submission:
-        """Create a new submission with structured file data."""
+        """Create a new submission."""
 
-        # Transform Dict[str, str] -> Dict[str, Dict[str, str]]
-        # This stores {"filename": "calc.py", "content": "..."} in the DB
-        formatted_files = {
-            name: {"filename": name, "content": content}
-            for name, content in submission_files.items()
-        }
-
+        # submission_files is already Dict[str, str] - store as-is
         db_submission = Submission(
             grading_config_id=grading_config_id,
             external_user_id=external_user_id,
             username=username,
-            submission_files=formatted_files,  # Use the structured dict
+            submission_files=submission_files,  # Store directly
             language=language,
             status=status,
             submission_metadata=submission_metadata,
