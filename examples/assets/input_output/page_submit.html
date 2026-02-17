@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit & Grade - Autograder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-container">
+        <header class="page-header">
+            <h1>📤 Submit Code & View Results</h1>
+            <a href="index.html" class="back-link">← Back to Dashboard</a>
+        </header>
+
+        <div class="page-content">
+            <div class="grid-2">
+                <!-- Left: Submission Form -->
+                <div class="panel">
+                    <div class="panel-header">Submit Code</div>
+                    <div class="panel-content">
+                        <!-- Compact grid for form fields -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                            <div>
+                                <label>Assignment ID</label>
+                                <input type="text" id="assignmentId" value="io-calc-001" style="margin-bottom: 0;">
+                            </div>
+                            <div>
+                                <label>Username</label>
+                                <input type="text" id="username" value="student_01" style="margin-bottom: 0;">
+                            </div>
+                            <div>
+                                <label>User ID</label>
+                                <input type="text" id="userId" value="user_001" style="margin-bottom: 0;">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                            <div>
+                                <label>Language</label>
+                                <select id="language" onchange="updateCode(); updateRequestPreview();" style="margin-bottom: 0;">
+                                    <option value="python" selected>Python</option>
+                                    <option value="java">Java</option>
+                                    <option value="javascript">JavaScript</option>
+                                    <option value="cpp">C++</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Code Example</label>
+                                <select id="codeExample" onchange="updateCode(); updateRequestPreview();" style="margin-bottom: 0;">
+                                    <option value="simple">Simple ✓</option>
+                                    <option value="advanced" selected>Advanced ✓</option>
+                                    <option value="broken">Broken ✗</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Filename</label>
+                                <input type="text" id="filename" value="calculator.py" style="margin-bottom: 0;" onchange="updateRequestPreview();">
+                            </div>
+                        </div>
+
+                        <label>Source Code</label>
+                        <textarea id="sourceCode" rows="8" onchange="updateRequestPreview();"></textarea>
+
+                        <button class="success" onclick="submitCode()">Submit for Grading</button>
+                        <div id="submitResult" class="mt-2"></div>
+
+                        <hr>
+
+                        <label>API Request Preview (POST /api/v1/submissions)</label>
+                        <div class="json-box" id="requestPreview" style="max-height: 200px; font-size: 0.7rem;">
+                            Loading...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Results -->
+                <div>
+                    <!-- Score & Status -->
+                    <div class="panel mb-3">
+                        <div class="panel-header">Grading Result</div>
+                        <div class="panel-content">
+                            <label>Submission ID</label>
+                            <div class="button-group mb-2">
+                                <input type="number" id="submissionId" value="1" style="margin-bottom: 0;">
+                                <button class="warning" style="width: auto;" onclick="getResult()">Get</button>
+                                <button class="secondary" style="width: auto;" onclick="togglePolling()">
+                                    <span id="pollBtnText">Poll</span>
+                                </button>
+                            </div>
+
+                            <div id="pollingIndicator" class="polling-indicator mb-2" style="display: none;">
+                                <div class="spinner"></div>
+                                <span>Polling every 2 seconds...</span>
+                                <button class="btn-small" style="margin-left: auto;" onclick="stopPolling()">Stop</button>
+                            </div>
+
+                            <div class="result-score">
+                                <div class="score-value" id="scoreValue">--</div>
+                                <div class="score-label">Final Score</div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; text-align: center;">
+                                <div>
+                                    <label>Status</label>
+                                    <span class="badge" id="statusBadge">--</span>
+                                </div>
+                                <div>
+                                    <label>Submitted</label>
+                                    <div class="text-muted text-small" id="submittedAt">--</div>
+                                </div>
+                                <div>
+                                    <label>Graded</label>
+                                    <div class="text-muted text-small" id="gradedAt">--</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Response -->
+                    <div class="panel">
+                        <div class="panel-header">API Response (Raw JSON)</div>
+                        <div class="panel-content">
+                            <div id="apiResponseInfo" class="response-info mb-2">
+                                <span class="status-code">---</span>
+                                <span class="response-time">---</span>
+                            </div>
+                            <div class="json-box" id="apiResponse" style="min-height: 300px;">
+                                API responses will appear here...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="shared.js?v=2"></script>
+    <script>
+        let pollingInterval = null;
+
+        function updateCode() {
+            const lang = document.getElementById('language').value;
+            const example = document.getElementById('codeExample').value;
+            document.getElementById('sourceCode').value = codeExamples[lang][example];
+            document.getElementById('filename').value = 'calculator' + fileExtensions[lang];
+            updateRequestPreview();
+        }
+
+        async function submitCode() {
+            const filename = document.getElementById('filename').value;
+            const result = await apiCall('/api/v1/submissions', 'POST', {
+                external_assignment_id: document.getElementById('assignmentId').value,
+                external_user_id: document.getElementById('userId').value,
+                username: document.getElementById('username').value,
+                files: [
+                    {
+                        filename: filename,
+                        content: document.getElementById('sourceCode').value
+                    }
+                ],
+                language: document.getElementById('language').value
+            });
+
+            // Show API response
+            displayApiResponse(result);
+
+            const resultDiv = document.getElementById('submitResult');
+            if (result.ok) {
+                resultDiv.innerHTML = `<div class="badge completed">✓ Submitted! ID: ${result.data.id}</div>`;
+                document.getElementById('submissionId').value = result.data.id;
+                // Start polling automatically
+                startPolling();
+            } else {
+                resultDiv.innerHTML = `<div class="badge failed">✗ ${result.data.detail || 'Error'}</div>`;
+            }
+        }
+
+        function displayApiResponse(result) {
+            document.getElementById('apiResponseInfo').innerHTML = `
+                <span class="status-code ${result.ok ? 'success' : 'error'}">${result.status || 'ERR'}</span>
+                <span class="response-time">${result.duration}ms</span>
+            `;
+            document.getElementById('apiResponse').textContent = JSON.stringify(result.data, null, 2);
+        }
+
+        async function getResult() {
+            const id = document.getElementById('submissionId').value;
+            const result = await apiCall(`/api/v1/submissions/${id}`);
+
+            // Show API response
+            displayApiResponse(result);
+
+            if (result.ok) {
+                const data = result.data;
+
+                // Update score
+                document.getElementById('scoreValue').textContent =
+                    data.final_score !== null ? data.final_score.toFixed(1) : '--';
+
+                // Update status badge
+                const badge = document.getElementById('statusBadge');
+                badge.textContent = data.status;
+                badge.className = 'badge ' + data.status;
+
+                // Update timestamps
+                document.getElementById('submittedAt').textContent =
+                    data.submitted_at ? new Date(data.submitted_at).toLocaleString() : '--';
+                document.getElementById('gradedAt').textContent =
+                    data.graded_at ? new Date(data.graded_at).toLocaleString() : '--';
+
+                // Stop polling if completed or failed
+                if (data.status === 'completed' || data.status === 'failed') {
+                    stopPolling();
+                }
+
+                return data.status;
+            }
+            return null;
+        }
+
+        function togglePolling() {
+            if (pollingInterval) {
+                stopPolling();
+            } else {
+                startPolling();
+            }
+        }
+
+        function startPolling() {
+            if (pollingInterval) return;
+
+            document.getElementById('pollingIndicator').style.display = 'flex';
+            document.getElementById('pollBtnText').textContent = 'Stop';
+
+            getResult(); // Get immediately
+            pollingInterval = setInterval(async () => {
+                const status = await getResult();
+                if (status === 'completed' || status === 'failed') {
+                    stopPolling();
+                }
+            }, 2000);
+        }
+
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+            document.getElementById('pollingIndicator').style.display = 'none';
+            document.getElementById('pollBtnText').textContent = 'Poll';
+        }
+
+        function updateRequestPreview() {
+            const filename = document.getElementById('filename').value;
+            const requestBody = {
+                external_assignment_id: document.getElementById('assignmentId').value,
+                external_user_id: document.getElementById('userId').value,
+                username: document.getElementById('username').value,
+                files: [
+                    {
+                        filename: filename,
+                        content: document.getElementById('sourceCode').value
+                    }
+                ],
+                language: document.getElementById('language').value
+            };
+            document.getElementById('requestPreview').textContent = JSON.stringify(requestBody, null, 2);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadApiUrl();
+            updateCode();
+            updateRequestPreview();
+
+            // Update preview when inputs change
+            ['assignmentId', 'username', 'userId', 'sourceCode'].forEach(id => {
+                document.getElementById(id).addEventListener('input', updateRequestPreview);
+            });
+        });
+    </script>
+</body>
+</html>

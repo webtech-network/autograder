@@ -88,9 +88,12 @@ submit_webdev() {
         "external_assignment_id": "webdev_hw1",
         "external_user_id": "student123",
         "username": "john.doe",
-        "files": {
-          "index.html": "<!DOCTYPE html><html><head><title>Test</title><link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css\" rel=\"stylesheet\"></head><body><h1 class=\"display-4\">Hello World</h1></body></html>"
-        }
+        "files": [
+          {
+            "filename": "index.html",
+            "content": "<!DOCTYPE html><html><head><title>Test</title><link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css\" rel=\"stylesheet\"></head><body><h1 class=\"display-4\">Hello World</h1></body></html>"
+          }
+        ]
       }' | jq '.'
 }
 
@@ -149,9 +152,12 @@ submit_io() {
         "external_assignment_id": "python_calc",
         "external_user_id": "student456",
         "username": "jane.smith",
-        "files": {
-          "calc.py": "a = int(input())\nb = int(input())\nprint(a + b)"
-        }
+        "files": [
+          {
+            "filename": "calc.py",
+            "content": "a = int(input())\nb = int(input())\nprint(a + b)"
+          }
+        ]
       }' | jq '.'
 }
 

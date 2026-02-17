@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autograder Testing Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="landing-container">
+        <header class="landing-header">
+            <h1>🎓 Autograder Testing Dashboard</h1>
+            <p class="subtitle">Interactive testing suite for the I/O Template</p>
+
+            <div class="api-status">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Checking API...</span>
+                <input type="text" id="apiUrl" value="http://localhost:8000" class="api-input">
+                <button onclick="checkApi()" class="btn-small">Connect</button>
+            </div>
+        </header>
+
+        <main class="cards-grid">
+            <!-- Create Configuration Card -->
+            <a href="page_config.html" class="card">
+                <div class="card-icon">⚙️</div>
+                <h2>Create Configuration</h2>
+                <p>Design grading criteria with the visual tree builder. Choose from 5 pre-built templates or customize your own.</p>
+                <ul class="card-features">
+                    <li>5 criteria tree templates</li>
+                    <li>Visual tree preview</li>
+                    <li>Multi-language support</li>
+                    <li>JSON editor</li>
+                </ul>
+                <span class="card-action">Create Config →</span>
+            </a>
+
+            <!-- Submit & Results Card -->
+            <a href="page_submit.html" class="card">
+                <div class="card-icon">📤</div>
+                <h2>Submit & Grade</h2>
+                <p>Submit code for grading and poll for results. Includes pre-built code examples for testing.</p>
+                <ul class="card-features">
+                    <li>Code examples (Python, Java, JS, C++)</li>
+                    <li>Real-time result polling</li>
+                    <li>Score visualization</li>
+                    <li>Result tree display</li>
+                </ul>
+                <span class="card-action">Submit Code →</span>
+            </a>
+
+            <!-- API Operations Card -->
+            <a href="page_api.html" class="card">
+                <div class="card-icon">🔧</div>
+                <h2>API Operations</h2>
+                <p>Direct access to all API endpoints. Health checks, template info, and configuration management.</p>
+                <ul class="card-features">
+                    <li>Health & readiness checks</li>
+                    <li>List/Get configurations</li>
+                    <li>Template information</li>
+                    <li>Raw API responses</li>
+                </ul>
+                <span class="card-action">Explore API →</span>
+            </a>
+        </main>
+
+        <footer class="landing-footer">
+            <div class="quick-info">
+                <div class="info-item">
+                    <strong>API Endpoint</strong>
+                    <code id="displayUrl">http://localhost:8000</code>
+                </div>
+                <div class="info-item">
+                    <strong>Template</strong>
+                    <code>input_output</code>
+                </div>
+                <div class="info-item">
+                    <strong>Test Function</strong>
+                    <code>expect_output</code>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="shared.js?v=2"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadApiUrl();
+            checkApi();
+
+            document.getElementById('apiUrl').addEventListener('change', (e) => {
+                saveApiUrl(e.target.value);
+                document.getElementById('displayUrl').textContent = e.target.value;
+                checkApi();
+            });
+        });
+
+        async function checkApi() {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+
+            try {
+                const res = await fetch(getApiUrl() + '/api/v1/health');
+                if (res.ok) {
+                    dot.className = 'status-dot connected';
+                    text.textContent = 'API Connected';
+                } else {
+                    dot.className = 'status-dot';
+                    text.textContent = 'API Error';
+                }
+            } catch {
+                dot.className = 'status-dot';
+                text.textContent = 'API Offline';
+            }
+        }
+    </script>
+</body>
+</html>
+

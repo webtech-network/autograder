@@ -14,10 +14,10 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Import playroom runners
-from tests.playroom.webdev_playroom import run_webdev_playroom
-from tests.playroom.api_playroom import run_api_playroom
-from tests.playroom.io_playroom import run_io_playroom
-from tests.playroom.essay_playroom import run_essay_playroom
+from examples.playroom.webdev_playroom import run_webdev_playroom
+from examples.playroom.api_playroom import run_api_playroom
+from examples.playroom.io_playroom import run_io_playroom
+from examples.playroom.essay_playroom import run_essay_playroom
 
 
 def main():

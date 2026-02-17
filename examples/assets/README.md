@@ -490,8 +490,8 @@ sudo systemctl start docker
 
 ## 📚 Additional Resources
 
-- [Pipeline Integration Tests](../integration/test_pipeline_sandbox_integration.py) - Complete examples
-- [Web API Tests](../web/test_api_endpoints.py) - API usage examples
+- [Pipeline Integration Tests](../../tests/integration/test_pipeline_sandbox_integration.py) - Complete examples
+- [Web API Tests](../../tests/web/test_api_endpoints.py) - API usage examples
 - [Sandbox Manager](../../sandbox_manager/manager.py) - Sandbox management
 - [Pipeline Builder](../../autograder/autograder.py) - Pipeline creation
 
@@ -515,5 +515,5 @@ All playroom scripts have been migrated to the new architecture:
 - ✅ `run_all_playrooms.py` - Implemented
 - ✅ `validate_assets.py` - Created
 
-For detailed migration information, see [ASSET_MIGRATION_SUMMARY.md](../ASSET_MIGRATION_SUMMARY.md).
+For detailed migration information, see [ASSET_MIGRATION_SUMMARY.md](../../tests/ASSET_MIGRATION_SUMMARY.md).
 
