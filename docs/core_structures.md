@@ -230,20 +230,91 @@ class GradingResult:
 
 ## Pipeline Execution
 
-Internal state object passed between pipeline steps.
+Internal state object passed between pipeline steps and used to generate API responses.
 
 ### Properties
 
 ```python
 class PipelineExecution:
     submission: Submission           # Student files and metadata
-    template: Template              # Loaded test functions
-    criteria_tree: CriteriaTree     # Grading rubric
-    result_tree: ResultTree         # Test results (populated during grading)
-    sandbox: SandboxContainer       # Execution environment (if needed)
-    focus_tests: list[str]          # High-impact failed tests
-    feedback: str                   # Generated feedback
-    config: PipelineConfig          # Pipeline settings
+    step_results: list[StepResult]  # Results from each pipeline step
+    assignment_id: int              # Assignment identifier
+    status: PipelineStatus          # Overall execution status (SUCCESS, FAILED, RUNNING)
+    result: GradingResult | None    # Final grading result (if grading completed)
+    start_time: float               # Execution start timestamp
+```
+
+### Methods
+
+```python
+def get_pipeline_execution_summary() -> dict:
+    """
+    Generate detailed summary for API responses.
+    
+    Returns:
+        {
+            "status": "success" | "failed",
+            "failed_at_step": str | None,
+            "total_steps_planned": int,
+            "steps_completed": int,
+            "execution_time_ms": int,
+            "steps": [
+                {
+                    "name": "PRE_FLIGHT",
+                    "status": "success" | "fail",
+                    "message": str,
+                    "error_details": dict | None  # Present if step failed
+                }
+            ]
+        }
+    """
+```
+
+### Example Summary (Success)
+
+```json
+{
+  "status": "success",
+  "failed_at_step": null,
+  "total_steps_planned": 7,
+  "steps_completed": 7,
+  "execution_time_ms": 4521,
+  "steps": [
+    {"name": "LOAD_TEMPLATE", "status": "success"},
+    {"name": "PRE_FLIGHT", "status": "success", "message": "All preflight checks passed"},
+    {"name": "GRADE", "status": "success", "message": "Grading completed: 85.5/100"}
+  ]
+}
+```
+
+### Example Summary (Preflight Failure)
+
+```json
+{
+  "status": "failed",
+  "failed_at_step": "PRE_FLIGHT",
+  "total_steps_planned": 7,
+  "steps_completed": 3,
+  "execution_time_ms": 1523,
+  "steps": [
+    {"name": "LOAD_TEMPLATE", "status": "success"},
+    {
+      "name": "PRE_FLIGHT",
+      "status": "fail",
+      "message": "Setup command 'Compile Calculator.java' failed",
+      "error_details": {
+        "error_type": "setup_command_failed",
+        "phase": "setup_commands",
+        "command_name": "Compile Calculator.java",
+        "failed_command": {
+          "command": "javac Calculator.java",
+          "exit_code": 1,
+          "stderr": "Calculator.java:4: error: ';' expected..."
+        }
+      }
+    }
+  ]
+}
 ```
 
 ## Test Result

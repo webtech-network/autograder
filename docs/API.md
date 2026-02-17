@@ -78,17 +78,92 @@ Content-Type: application/json
 GET /api/v1/submissions/{submission_id}
 ```
 
-**Response:**
+**Response (Success):**
 ```json
 {
-  "submission_id": 1,
-  "final_score": 85.5,
+  "id": 1,
+  "grading_config_id": 7,
+  "external_user_id": "user_001",
+  "username": "student123",
   "status": "completed",
-  "feedback": "...",
-  "result_tree": { ... },
-  "completed_at": "2026-02-16T10:05:03Z"
+  "submitted_at": "2026-02-16T10:05:00Z",
+  "graded_at": "2026-02-16T10:05:03Z",
+  "final_score": 85.5,
+  "feedback": "## Grade: 85.5/100\n\n### ✅ Base Tests...",
+  "result_tree": {
+    "final_score": 85.5,
+    "children": {
+      "base": { ... }
+    }
+  },
+  "pipeline_execution": {
+    "status": "success",
+    "failed_at_step": null,
+    "total_steps_planned": 7,
+    "steps_completed": 7,
+    "execution_time_ms": 4521,
+    "steps": [
+      {
+        "name": "LOAD_TEMPLATE",
+        "status": "success",
+        "message": "Template loaded successfully"
+      },
+      {
+        "name": "PRE_FLIGHT",
+        "status": "success",
+        "message": "All preflight checks passed"
+      },
+      {
+        "name": "GRADE",
+        "status": "success",
+        "message": "Grading completed: 85.5/100"
+      }
+    ]
+  },
+  "submission_files": { ... },
+  "submission_metadata": null
 }
 ```
+
+**Response (Preflight Failure):**
+```json
+{
+  "id": 2,
+  "status": "failed",
+  "final_score": 0,
+  "feedback": "## Preflight Check Failed\n\n### Setup Command Failed: Compile Calculator.java\n\n**Command executed:**\n```bash\njavac Calculator.java\n```\n\n**Exit code:** 1\n\n**Error output:**\n```\nCalculator.java:4: error: ';' expected\n```\n\n**What to do:**\n- Fix the compilation errors shown above...",
+  "result_tree": null,
+  "pipeline_execution": {
+    "status": "failed",
+    "failed_at_step": "PRE_FLIGHT",
+    "total_steps_planned": 7,
+    "steps_completed": 3,
+    "execution_time_ms": 1523,
+    "steps": [
+      {
+        "name": "PRE_FLIGHT",
+        "status": "fail",
+        "message": "Setup command 'Compile Calculator.java' failed with exit code 1",
+        "error_details": {
+          "error_type": "setup_command_failed",
+          "phase": "setup_commands",
+          "command_name": "Compile Calculator.java",
+          "failed_command": {
+            "command": "javac Calculator.java",
+            "exit_code": 1,
+            "stderr": "Calculator.java:4: error: ';' expected..."
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+**Response Fields:**
+- `result_tree`: Detailed grading results from GRADE step (null if grading didn't occur)
+- `pipeline_execution`: Complete pipeline execution details including all steps
+- `feedback`: Human-readable feedback (automatically generated for preflight failures)
 
 ### List Submissions
 

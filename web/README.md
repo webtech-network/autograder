@@ -202,7 +202,49 @@ result = response.json()
 
 print(f"Score: {result['final_score']}")
 print(f"Feedback: {result['feedback']}")
+print(f"Status: {result['status']}")
+
+# New: Pipeline execution details
+if result.get('pipeline_execution'):
+    exec_info = result['pipeline_execution']
+    print(f"\nPipeline Status: {exec_info['status']}")
+    print(f"Execution Time: {exec_info['execution_time_ms']}ms")
+    
+    # Check if preflight failed
+    if exec_info.get('failed_at_step') == 'PRE_FLIGHT':
+        print("Preflight check failed - see feedback for details")
+    
+    # Show all executed steps
+    for step in exec_info['steps']:
+        print(f"  {step['name']}: {step['status']}")
+        if step.get('error_details'):
+            print(f"    Error: {step.get('message')}")
 ```
+
+**Response Structure:**
+
+```json
+{
+  "id": 1,
+  "status": "completed",
+  "final_score": 85.5,
+  "feedback": "Grade: 85.5/100...",
+  "result_tree": { /* Grading results */ },
+  "pipeline_execution": {
+    "status": "success",
+    "failed_at_step": null,
+    "total_steps_planned": 7,
+    "steps_completed": 7,
+    "execution_time_ms": 4521,
+    "steps": [
+      {"name": "PRE_FLIGHT", "status": "success"},
+      {"name": "GRADE", "status": "success"}
+    ]
+  }
+}
+```
+
+**Note:** The `pipeline_execution` field provides complete transparency into the grading process, including detailed error information if any step fails.
 
 ## Testing
 

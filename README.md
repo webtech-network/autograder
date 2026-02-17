@@ -338,6 +338,12 @@ jobs:
 
 **📚 [Complete Development Guide →](docs/development.md)**
 
+**📚 [Pipeline Execution Tracking →](docs/pipeline_execution_tracking.md)** ⭐ NEW
+
+**📚 [Setup Config Feature →](docs/setup_config_feature.md)**
+
+**📚 [Named Setup Commands →](docs/NAMED_SETUP_COMMANDS.md)**
+
 ---
 
 ## Use Cases

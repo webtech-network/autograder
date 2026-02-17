@@ -101,4 +101,6 @@ temp/
 dump.rdb
 
 # Coverage reports
-.coverage.*
+.coverage.**.db
+*.sqlite
+*.sqlite3
