@@ -149,7 +149,7 @@ async def test_create_submission_without_config(client):
         "external_assignment_id": "nonexistent-assignment",
         "external_user_id": "user-123",
         "username": "testuser",
-        "files": {"main.py": "print('hello')"}
+        "files": [{"filename": "main.py", "content": "print('hello')"}]
     }
     
     response = await client.post("/api/v1/submissions", json=submission_data)
@@ -173,7 +173,7 @@ async def test_create_and_get_submission(client):
         "external_assignment_id": "test-assignment-submit",
         "external_user_id": "user-456",
         "username": "johndoe",
-        "files": {"main.py": "print('hello world')"},
+        "files": [{"filename": "main.py", "content": "print('hello world')"}],
         "metadata": {"ip": "127.0.0.1"}
     }
     
@@ -213,7 +213,7 @@ async def test_get_user_submissions(client):
             "external_assignment_id": "test-assignment-user",
             "external_user_id": user_id,
             "username": "janedoe",
-            "files": {"main.py": f"print('submission {i}')"}
+            "files": [{"filename": "main.py", "content": f"print('submission {i}')"}]
         }
         await client.post("/api/v1/submissions", json=submission_data)
     
