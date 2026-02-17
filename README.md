@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**A robust, educational-standards-driven autograding platform that transforms assignment grading into an engaging learning experience.**
+**A educational-standards-driven autograding tool that transforms assignment grading into an engaging learning experience.**
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-009688.svg)](https://fastapi.tiangolo.com/)
