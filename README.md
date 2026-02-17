@@ -188,6 +188,7 @@ Validates HTML, CSS, and JavaScript files.
 | `check_bootstrap_linked` | Verify framework inclusion | `framework` |
 | `has_attribute` | Check element attributes | `tag`, `attribute`, `required_count` |
 | `check_css_property` | Validate CSS rules | `selector`, `property`, `expected_value` |
+
 And much more! Check the [WebDev Template Documentation](docs/templates/webdev.md) for the full list of tests.
 #### 4. Custom Templates
 Upload your own test functions for specialized grading contexts:
