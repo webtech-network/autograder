@@ -19,8 +19,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN echo "INSIDE DOCKERFILE THIS IS GRADING_PRESET ${GRADING_PRESET}"
-
 # 6. Copy the rest of your application code
 COPY . .
 
@@ -30,3 +28,4 @@ RUN chmod +x /entrypoint.sh
 
 # 9. Set the entrypoint for the container
 ENTRYPOINT ["/entrypoint.sh"]
+

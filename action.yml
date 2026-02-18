@@ -1,4 +1,4 @@
-name: "Global Autograder"
+name: "Prisma Autograder"
 author: "Arthur Carvalho"
 icon: box
 description: "An autograding tool for GitHub Classroom. flexible,extensive,consistent and generates feedback."
@@ -39,7 +39,7 @@ outputs:
 # Configures how the action is executed.
 runs:
   using: docker
-  image: "Dockerfile"
+  image: "github_action/Dockerfile.actions"
   # Use 'env' to pass named variables to the container
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}

@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database (optional, can use SQLite for development)
+  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: autograder-db
