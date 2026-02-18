@@ -1,6 +1,8 @@
 # Autograder
 
 <div align="center">
+<img width="397" height="300" alt="image" src="https://github.com/user-attachments/assets/1e07d48e-08ac-4491-be92-569a9610e44d" />
+
 
 **A educational-standards-driven autograding tool that transforms assignment grading into an engaging learning experience.**
 
