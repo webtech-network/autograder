@@ -1,7 +1,7 @@
 # Makefile for Autograder Development
 # Simplifies common development tasks
 
-.PHONY: help install install-dev test test-cov lint format type-check security clean build docs run-api run-api-tests docker-build sandbox-build sandbox-build-all sandbox-clean
+.PHONY: help install install-dev test test-cov lint format type-check security clean build docs run-api run-api-tests docker-build sandbox-build sandbox-build-all sandbox-clean db-migrate db-upgrade db-downgrade db-current db-history db-init db-reset
 
 # Default target
 help:
@@ -10,6 +10,15 @@ help:
 	@echo "  make run-api             - Run API server locally"
 	@echo "  make run-api-tests       - Run API integration tests"
 	@echo "  make docker-build        - Build Docker image"
+	@echo ""
+	@echo "Database Migrations:"
+	@echo "  make db-upgrade          - Apply all pending migrations"
+	@echo "  make db-downgrade        - Rollback last migration"
+	@echo "  make db-current          - Show current migration version"
+	@echo "  make db-history          - Show migration history"
+	@echo "  make db-migrate MSG=desc - Create new migration with description"
+	@echo "  make db-init             - Initialize database (upgrade to head)"
+	@echo "  make db-reset            - Reset database (downgrade to base, then upgrade)"
 	@echo ""
 	@echo "Sandbox Management:"
 	@echo "  make sandbox-build-all   - Build all sandbox images"
@@ -23,6 +32,52 @@ help:
 # Installation
 install:
 	pip install -r requirements.txt
+
+# Database Migrations
+db-upgrade:
+	@echo "📦 Applying database migrations..."
+	alembic upgrade head
+	@echo "✅ Database migrations applied successfully!"
+
+db-downgrade:
+	@echo "⏪ Rolling back last migration..."
+	alembic downgrade -1
+	@echo "✅ Migration rolled back successfully!"
+
+db-current:
+	@echo "📍 Current migration version:"
+	alembic current
+
+db-history:
+	@echo "📜 Migration history:"
+	alembic history --verbose
+
+db-migrate:
+	@if [ -z "$(MSG)" ]; then \
+		echo "❌ Error: Please provide a message with MSG=your_description"; \
+		echo "Example: make db-migrate MSG='add user table'"; \
+		exit 1; \
+	fi
+	@echo "📝 Creating new migration: $(MSG)"
+	alembic revision --autogenerate -m "$(MSG)"
+	@echo "✅ Migration file created! Review it before applying."
+
+db-init:
+	@echo "🚀 Initializing database..."
+	alembic upgrade head
+	@echo "✅ Database initialized successfully!"
+
+db-reset:
+	@echo "⚠️  WARNING: This will reset the entire database!"
+	@read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		alembic downgrade base; \
+		alembic upgrade head; \
+		echo "✅ Database reset complete!"; \
+	else \
+		echo "❌ Reset cancelled"; \
+	fi
 
 # Running
 run-api:

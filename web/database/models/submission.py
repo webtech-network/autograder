@@ -33,7 +33,12 @@ class Submission(Base):
     username: Mapped[str] = mapped_column(String(255), nullable=False)
     submission_files: Mapped[dict] = mapped_column(JSON, nullable=False)
     language: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    status: Mapped[SubmissionStatus] = mapped_column(SQLEnum(SubmissionStatus), default=SubmissionStatus.PENDING, nullable=False, index=True)
+    status: Mapped[SubmissionStatus] = mapped_column(
+        SQLEnum(SubmissionStatus, values_callable=lambda x: [e.value for e in x]),
+        default=SubmissionStatus.PENDING,
+        nullable=False,
+        index=True
+    )
     submitted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False, index=True)
     graded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     submission_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)

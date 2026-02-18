@@ -23,7 +23,7 @@ class GradingConfiguration(Base):
     external_assignment_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     template_name: Mapped[str] = mapped_column(String(100), nullable=False)
     criteria_config: Mapped[dict] = mapped_column(JSON, nullable=False)
-    language: Mapped[str] = mapped_column(String(50), nullable=False)
+    languages: Mapped[list] = mapped_column(JSON, nullable=False)  # List of supported languages
     setup_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)

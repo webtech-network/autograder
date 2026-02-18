@@ -33,7 +33,10 @@ class SubmissionResult(Base):
     feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     pipeline_execution: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # NEW: Pipeline step details
     execution_time_ms: Mapped[int] = mapped_column(Integer, nullable=False)
-    pipeline_status: Mapped[PipelineStatus] = mapped_column(SQLEnum(PipelineStatus), nullable=False)
+    pipeline_status: Mapped[PipelineStatus] = mapped_column(
+        SQLEnum(PipelineStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False
+    )
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     failed_at_step: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
