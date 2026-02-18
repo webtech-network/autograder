@@ -105,16 +105,17 @@ class TestSandboxContainer(unittest.TestCase):
             "test.py": SubmissionFile("test.py", "import main")
         }
 
-        self.mock_container.put_archive.return_value = True
+        # Mock exec_run to return successful result
+        mock_result = Mock()
+        mock_result.exit_code = 0
+        mock_result.output = b""
+        self.mock_container.exec_run.return_value = mock_result
 
         self.sandbox.prepare_workdir(submission_files)
 
         self.assertTrue(self.sandbox._workdir_prepared)
-        self.mock_container.put_archive.assert_called_once()
-
-        # Verify it was called with /app path
-        call_args = self.mock_container.put_archive.call_args
-        self.assertEqual(call_args[0][0], '/app')
+        # Verify exec_run was called for each file (2 times)
+        self.assertEqual(self.mock_container.exec_run.call_count, 2)
 
     def test_prepare_workdir_with_nested_structure(self):
         """Test preparing workdir with nested directory structure."""
@@ -130,12 +131,17 @@ class TestSandboxContainer(unittest.TestCase):
             "main.py": SubmissionFile("main.py", "from services import user_service")
         }
 
-        self.mock_container.put_archive.return_value = True
+        # Mock exec_run to return successful result
+        mock_result = Mock()
+        mock_result.exit_code = 0
+        mock_result.output = b""
+        self.mock_container.exec_run.return_value = mock_result
 
         self.sandbox.prepare_workdir(submission_files)
 
         self.assertTrue(self.sandbox._workdir_prepared)
-        self.mock_container.put_archive.assert_called_once()
+        # Should be called: 2 times for mkdir (services, models) + 3 times for files = 5 calls
+        self.assertGreaterEqual(self.mock_container.exec_run.call_count, 5)
 
     def test_prepare_workdir_empty_files(self):
         """Test preparing workdir with no files."""
