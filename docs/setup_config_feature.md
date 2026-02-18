@@ -224,7 +224,7 @@ Benefits:
 
 ## Web UI Updates
 
-The test dashboard (`tests/assets/input_output/`) has been updated to automatically include setup_config:
+The test dashboard (`examples/assets/input_output/dashboard/`) has been updated to automatically include setup_config:
 
 - Java: Adds `javac Calculator.java` to setup_commands
 - C++: Adds `g++ calculator.cpp -o calculator` to setup_commands
@@ -260,7 +260,7 @@ However, since the API is not yet in production use:
 4. **Migration**:
    - Created `c7d8e9f0g1h2_add_setup_config_to_grading_configurations.py`
 
-5. **Web UI** (`tests/assets/input_output/shared.js`):
+5. **Web UI** (`examples/assets/input_output/dashboard/shared.js`):
    - Separated compilation from runtime commands
    - Added `setupConfigs` object with language-specific setup
 
@@ -281,8 +281,10 @@ To test the new feature:
    ```
 
 3. Open the test dashboard:
-   ```
-   tests/assets/input_output/index.html
+   ```bash
+   cd examples/assets/input_output/scripts
+   python serve_dashboard.py
+   # Then open http://localhost:8080/index.html
    ```
 
 4. Create a configuration with Java language

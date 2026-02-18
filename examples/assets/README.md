@@ -21,15 +21,22 @@ tests/assets/
 │   └── setup.json        # Container setup (runtime, commands)
 │
 ├── input_output/         # Input/Output template test data
-│   ├── testing_dashboard.html  # Interactive testing web UI
-│   ├── serve_dashboard.py      # Dashboard server script
+│   ├── dashboard/        # Interactive testing web UI
+│   │   ├── index.html
+│   │   ├── page_*.html
+│   │   ├── styles.css
+│   │   └── shared.js
+│   ├── scripts/          # Utility scripts
+│   │   ├── serve_dashboard.py      # Dashboard server script
+│   │   ├── validate_criteria.py
+│   │   └── calculator.py
+│   ├── sample_files/     # Sample configuration files
+│   │   ├── criteria.json
+│   │   ├── feedback.json
+│   │   ├── setup.json
+│   │   └── requirements.txt
 │   ├── criteria_examples/      # 5 criteria tree variations
-│   ├── code_examples/          # Sample code (Python, Java, JS, C++)
-│   ├── calculator.py     # Sample Python program
-│   ├── requirements.txt  # Python dependencies
-│   ├── criteria.json     # I/O testing criteria
-│   ├── feedback.json     # Feedback configuration
-│   └── setup.json        # Container setup
+│   └── code_examples/          # Sample code (Python, Java, JS, C++)
 │
 ├── essay/                # Essay template test data
 │   ├── essay.txt         # Sample essay text

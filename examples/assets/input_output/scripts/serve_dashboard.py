@@ -18,8 +18,10 @@ import socket
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 
-# Change to the directory containing this script
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+# Change to the dashboard directory (parent of scripts)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+dashboard_dir = os.path.join(os.path.dirname(script_dir), 'dashboard')
+os.chdir(dashboard_dir)
 
 # Enable CORS for local development
 class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):

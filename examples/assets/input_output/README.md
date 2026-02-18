@@ -13,7 +13,7 @@ Interactive testing suite for the Autograder Input/Output template.
 
 2. **Launch the Testing Dashboard**:
    ```bash
-   cd tests/assets/input_output
+   cd examples/assets/input_output/scripts
    python serve_dashboard.py
    ```
 
@@ -32,21 +32,30 @@ Interactive testing suite for the Autograder Input/Output template.
 
 ```
 input_output/
-├── index.html              # Main navigation page
-├── page_config.html        # Configuration creator
-├── page_submit.html        # Code submission & results
-├── page_api.html           # API operations
-├── styles.css              # Shared styles
-├── shared.js               # Shared JavaScript (templates, code examples)
-├── serve_dashboard.py      # HTTP server script
-├── validate_criteria.py    # Criteria validation script
-├── criteria_examples/      # JSON criteria examples
+├── README.md                   # This file
+├── dashboard/                  # Web-based testing dashboard
+│   ├── index.html              # Main navigation page
+│   ├── page_config.html        # Configuration creator
+│   ├── page_submit.html        # Code submission & results
+│   ├── page_api.html           # API operations
+│   ├── styles.css              # Shared styles
+│   └── shared.js               # Shared JavaScript (templates, code examples)
+├── scripts/                    # Python utility scripts
+│   ├── serve_dashboard.py      # HTTP server for dashboard
+│   ├── validate_criteria.py    # Criteria validation script
+│   └── calculator.py           # Example calculator implementation
+├── sample_files/               # Sample configuration and data files
+│   ├── criteria.json           # Sample criteria file
+│   ├── feedback.json           # Sample feedback file
+│   ├── setup.json              # Sample setup configuration
+│   └── requirements.txt        # Sample requirements file
+├── criteria_examples/          # JSON criteria examples
 │   ├── 1_base_only_simple.json
 │   ├── 2_base_and_bonus.json
 │   ├── 3_base_bonus_penalty.json
 │   ├── 4_with_subjects.json
 │   └── 5_nested_subjects.json
-└── code_examples/          # Sample code
+└── code_examples/              # Sample code in various languages
     ├── python/
     ├── java/
     ├── javascript/
