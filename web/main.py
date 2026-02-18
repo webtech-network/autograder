@@ -507,12 +507,15 @@ async def grade_submission(
                         "children": _node_to_dict(result_tree.root)
                     }
                 
+                pipeline_summary = pipeline_execution.get_pipeline_execution_summary()
+
                 # Store result
                 await result_repo.create(
                     submission_id=submission_id,
                     final_score=final_score,
                     result_tree=result_tree_dict,
                     feedback=feedback,
+                    pipeline_execution=pipeline_summary,
                     execution_time_ms=execution_time_ms,
                     pipeline_status=PipelineStatus.SUCCESS,
                 )
@@ -545,7 +548,7 @@ async def grade_submission(
                 from autograder.utils.feedback_generator import generate_preflight_feedback
                 feedback = None
                 failed_step_name = pipeline_summary.get("failed_at_step")
-                if failed_step_name == "PRE_FLIGHT":
+                if failed_step_name == "PreFlightStep":
                     feedback = generate_preflight_feedback(pipeline_summary)
 
                 await result_repo.create(

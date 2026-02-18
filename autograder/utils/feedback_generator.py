@@ -16,7 +16,7 @@ def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any]) -> s
     # Find the failed preflight step
     preflight_step = None
     for step in pipeline_execution_summary.get("steps", []):
-        if step["name"] == "PRE_FLIGHT" and step["status"] == "fail":
+        if step["name"] == "PreFlightStep" and step["status"] == "fail":
             preflight_step = step
             break
 
