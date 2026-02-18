@@ -1,15 +1,14 @@
 # Makefile for Autograder Development
 # Simplifies common development tasks
 
-.PHONY: help install install-dev test test-cov lint format type-check security clean build docs run-api run-api-tests docker-build sandbox-build sandbox-build-all sandbox-clean db-migrate db-upgrade db-downgrade db-current db-history db-init db-reset
+.PHONY: help install install-dev test test-cov lint format type-check security clean build docs run-api run-api-tests examples-demo start-autograder docker-build sandbox-build sandbox-build-all sandbox-clean db-migrate db-upgrade db-downgrade db-current db-history db-init db-reset
 
 # Default target
 help:
 	@echo "Available commands:"
 	@echo "  make install             - Install production dependencies"
-	@echo "  make run-api             - Run API server locally"
-	@echo "  make run-api-tests       - Run API integration tests"
-	@echo "  make docker-build        - Build Docker image"
+	@echo "  make examples-demo       - Run interactive demo webpage"
+	@echo "  make start-autograder    - Start the Autograder API server"
 	@echo ""
 	@echo "Database Migrations:"
 	@echo "  make db-upgrade          - Apply all pending migrations"
@@ -79,19 +78,18 @@ db-reset:
 		echo "❌ Reset cancelled"; \
 	fi
 
-# Running
-run-api:
-	uvicorn connectors.adapters.api.api_entrypoint:app --reload --host 0.0.0.0 --port 8000
+examples-demo:
+	@echo "🚀 Starting Autograder Interactive Demo..."
+	@echo "   Server: http://localhost:8080"
+	@echo "   Press Ctrl+C to stop"
+	@echo ""
+	cd examples/demo && python serve_demo.py
 
-# Docker
-docker-build:
-	docker build -t autograder:latest -f Dockerfile .
+start-autograder:
+	@echo "🚀 Starting Autograder API server..."
+	make sandbox-build-all && docker compose up -d --build
+	@echo "✅ Autograder API server is running at http://localhost:8080"
 
-docker-build-api:
-	docker build -t autograder-api:latest -f Dockerfile.api .
-
-docker-run-api:
-	docker run -p 8000:8000 autograder-api:latest
 
 # Sandbox Management
 sandbox-build-all: sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp
