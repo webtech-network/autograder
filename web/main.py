@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,6 +45,7 @@ logger = get_logger(__name__)
 
 # Global state
 template_service: Optional[TemplateLibraryService] = None
+grading_tasks: set = set()  # Track active grading tasks to prevent garbage collection
 
 
 @asynccontextmanager
@@ -99,6 +100,18 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down Autograder Web API...")
+
+    # Cancel pending grading tasks
+    global grading_tasks
+    if grading_tasks:
+        logger.info(f"Cancelling {len(grading_tasks)} pending grading tasks...")
+        for task in grading_tasks:
+            if not task.done():
+                task.cancel()
+        # Wait for tasks to complete cancellation
+        if grading_tasks:
+            await asyncio.gather(*grading_tasks, return_exceptions=True)
+        logger.info("All pending grading tasks cancelled")
 
     # Explicitly shutdown sandbox manager to clean up all containers
     try:
@@ -215,7 +228,7 @@ async def create_grading_config(
         external_assignment_id=config.external_assignment_id,
         template_name=config.template_name,
         criteria_config=config.criteria_config,
-        language=config.language,
+        languages=config.languages,
         setup_config=config.setup_config,
     )
 
@@ -279,7 +292,6 @@ async def update_grading_config(
 @app.post("/api/v1/submissions", response_model=SubmissionResponse)
 async def create_submission(
     submission: SubmissionCreate,
-    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_db_session)
 ):
     """Submit code for grading."""
@@ -292,6 +304,20 @@ async def create_submission(
             status_code=404,
             detail=f"Grading configuration for assignment {submission.external_assignment_id} not found"
         )
+
+    # Determine submission language (override or first supported language)
+    submission_language = submission.language
+    if submission_language:
+        # Validate that the submission language is supported by this assignment
+        if submission_language not in grading_config.languages:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Language '{submission_language}' is not supported for this assignment. "
+                       f"Supported languages: {', '.join(grading_config.languages)}"
+            )
+    else:
+        # No language specified, use the first supported language as default
+        submission_language = grading_config.languages[0]
 
     # Convert list of SubmissionFileData to dict format for storage and quick access
     # This indexing by filename allows O(1) file lookups during grading
@@ -307,7 +333,7 @@ async def create_submission(
         external_user_id=submission.external_user_id,
         username=submission.username,
         submission_files=submission_files_dict,
-        language=submission.language or grading_config.language,
+        language=submission_language,
         status=SubmissionStatus.PENDING,
         submission_metadata=submission.metadata,
     )
@@ -315,20 +341,27 @@ async def create_submission(
     # Commit to save submission
     await session.commit()
     
-    # Schedule background grading task
-    background_tasks.add_task(
-        grade_submission,
-        submission_id=db_submission.id,
-        grading_config_id=grading_config.id,
-        template_name=grading_config.template_name,
-        criteria_config=grading_config.criteria_config,
-        setup_config=grading_config.setup_config,
-        language=db_submission.language,
-        username=db_submission.username,
-        external_user_id=db_submission.external_user_id,
-        submission_files=db_submission.submission_files,
+    # Schedule concurrent grading task using asyncio
+    # This allows multiple submissions to be graded simultaneously,
+    # fully utilizing the sandbox pool's capacity
+    task = asyncio.create_task(
+        grade_submission(
+            submission_id=db_submission.id,
+            grading_config_id=grading_config.id,
+            template_name=grading_config.template_name,
+            criteria_config=grading_config.criteria_config,
+            setup_config=grading_config.setup_config,
+            language=db_submission.language,
+            username=db_submission.username,
+            external_user_id=db_submission.external_user_id,
+            submission_files=db_submission.submission_files,
+        )
     )
-    
+
+    # Track task to prevent garbage collection
+    grading_tasks.add(task)
+    task.add_done_callback(grading_tasks.discard)
+
     return db_submission
 
 
@@ -452,9 +485,11 @@ async def grade_submission(
                 language=Language[language.upper()] if language else None
             )
             
-            # Run pipeline (sandbox management is handled internally by pipeline)
-            pipeline_execution = pipeline.run(autograder_submission)
-            
+            # Run pipeline in a thread to avoid blocking the event loop
+            # This allows multiple submissions to be graded concurrently,
+            # each acquiring their own sandbox container from the pool
+            pipeline_execution = await asyncio.to_thread(pipeline.run, autograder_submission)
+
             # Calculate execution time
             execution_time_ms = int((time.time() - start_time) * 1000)
             
