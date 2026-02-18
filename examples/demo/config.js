@@ -33,8 +33,46 @@ function buildMultiLanguageCriteria(baseCriteria, languages) {
         languages = ['python']; // Default
     }
 
-    // For preview, show the first language's command structure
-    return replaceCmdPlaceholder(baseCriteria, languages[0]);
+    // Deep clone the criteria to avoid modifying the original
+    const criteria = JSON.parse(JSON.stringify(baseCriteria));
+
+    // Build command map for all selected languages
+    const commandMap = buildLanguageCommandMap(languages);
+
+    // Replace all program_command parameters with multi-language format
+    replaceCommandsWithMultiLanguage(criteria, commandMap);
+
+    return criteria;
+}
+
+function buildLanguageCommandMap(languages) {
+    const commandMap = {};
+    languages.forEach(lang => {
+        commandMap[lang] = languageCommands[lang];
+    });
+    return commandMap;
+}
+
+function replaceCommandsWithMultiLanguage(obj, commandMap) {
+    if (typeof obj !== 'object' || obj === null) {
+        return;
+    }
+
+    if (Array.isArray(obj)) {
+        obj.forEach(item => replaceCommandsWithMultiLanguage(item, commandMap));
+        return;
+    }
+
+    // Check if this is a parameters array with program_command
+    if (obj.name === 'program_command' && obj.value === 'CMD') {
+        obj.value = commandMap;
+        return;
+    }
+
+    // Recursively process all properties
+    Object.keys(obj).forEach(key => {
+        replaceCommandsWithMultiLanguage(obj[key], commandMap);
+    });
 }
 
 function buildCriteriaTree(criteria) {
@@ -129,8 +167,8 @@ async function createConfig() {
 
     const template = criteriaTemplates[templateId];
 
-    // Use first language for command structure (or create multi-language criteria)
-    const criteria = replaceCmdPlaceholder(template.criteria, selectedLanguages[0]);
+    // Build proper multi-language criteria with commands for ALL selected languages
+    const criteria = buildMultiLanguageCriteria(template.criteria, selectedLanguages);
 
     // Build setup_config for all selected languages
     const setupConfig = buildMultiLanguageSetupConfig(selectedLanguages);
