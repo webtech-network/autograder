@@ -1,21 +1,44 @@
 general:
 
-    # The amount of sandboxes to create for each language when the system starts up.
-    # Development: 2, Production: 3-5 depending on expected load
+    # POOL SIZE: Minimum number of idle sandboxes to maintain for each language
+    # - This is the baseline number always kept ready
+    # - System will automatically create more on-demand up to scale_limit
+    # Development: 2-3, Production: 3-5 depending on expected baseline load
     pool_size: 3
 
-    # The maximum amount of sandbox to create for each language. It won't create more than this amount of sandboxes, even if the load is high.
-    # Production should have higher limits to handle traffic spikes
+    # SCALE LIMIT: Maximum total sandboxes (active + idle) per language
+    # - System scales UP automatically when all sandboxes are busy
+    # - System scales DOWN automatically when demand decreases
+    # - This is your safety limit to prevent resource exhaustion
+    # Production recommendations:
+    #   - Light load (< 10 concurrent users): 10
+    #   - Medium load (10-50 concurrent users): 20-30
+    #   - Heavy load (50+ concurrent users): 50+
+    # Note: Each sandbox uses ~128MB RAM + 0.5 CPU
     scale_limit: 10
 
-    # The amount of seconds to wait before killing a sandbox that is idle. A sandbox is idle if it has no running processes and no files have been created or modified in the last X seconds.
-    # Production: longer timeout to reduce churn
+    # IDLE TIMEOUT: Seconds before destroying idle sandboxes above pool_size
+    # - Sandboxes are destroyed only if: total > pool_size AND idle > idle_timeout
+    # - This prevents keeping too many idle resources during low traffic
+    # Development: 300 (5 min), Production: 600 (10 min) to reduce churn
     idle_timeout: 600
 
-    # The amount of seconds to wait before killing a sandbox that is running a process. A sandbox is running if it has at least one process that is still running after the timeout.
-    # Production: reasonable timeout to prevent hanging processes
+    # RUNNING TIMEOUT: Maximum seconds a sandbox can be actively processing
+    # - Prevents hanging/stuck processes from blocking resources
+    # - Active sandboxes exceeding this are forcefully destroyed
+    # - Should be generous enough for complex submissions
+    # Development: 60, Production: 120 (2 min) for safety
     running_timeout: 120
 
-# TODO: Create language specific configurations. 
+# SCALING BEHAVIOR (After Fix):
+# 1. ON HIGH DEMAND: When all idle sandboxes are busy, system automatically
+#    creates new sandboxes up to scale_limit
+# 2. ON LOW DEMAND: When sandboxes become idle and exceed pool_size + idle_timeout,
+#    they are destroyed to free resources
+# 3. MINIMUM MAINTAINED: Always maintains pool_size idle sandboxes ready
+# 4. MAXIMUM ENFORCED: Never exceeds scale_limit total sandboxes
+
+# TODO: Create language-specific configurations for different scaling needs
+
 
 
