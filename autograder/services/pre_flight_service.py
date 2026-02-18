@@ -4,14 +4,63 @@ from autograder.models.dataclass.preflight_error import PreflightError, Prefligh
 from autograder.models.dataclass.submission import Submission
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.manager import get_sandbox_manager
+from sandbox_manager.models.sandbox_models import Language
 
 
 class PreFlightService:
-    def __init__(self, setup_config):
-        self.required_files = setup_config.get('required_files', [])
-        self.setup_commands = setup_config.get('setup_commands', []) # TODO: Implement proper setup config object
-        self.fatal_errors: List[PreflightError] = []
+    def __init__(self, setup_config, submission_language: Language):
+        """
+        Initialize PreFlightService with language-specific setup configuration.
+
+        Args:
+            setup_config: Language-specific configs: {'python': {...}, 'java': {...}, 'node': {...}, 'cpp': {...}}
+            submission_language: Language of the submission (required)
+        """
+        self.submission_language = submission_language
+        self.raw_setup_config = setup_config or {}
         self.logger = logging.getLogger("PreFlight")
+        self.fatal_errors: List[PreflightError] = []
+
+        # Resolve language-specific config
+        resolved_config = self._resolve_setup_config(setup_config, submission_language)
+
+        self.required_files = resolved_config.get('required_files', [])
+        self.setup_commands = resolved_config.get('setup_commands', [])
+
+    def _resolve_setup_config(self, setup_config, submission_language: Language) -> dict:
+        """
+        Resolve setup config for the submission language.
+
+        Format (required):
+        {
+            "python": {
+                "required_files": ["file.py"],
+                "setup_commands": []
+            },
+            "java": {
+                "required_files": ["File.java"],
+                "setup_commands": ["javac File.java"]
+            },
+            "node": {
+                "required_files": ["file.js"],
+                "setup_commands": ["npm install"]
+            },
+            "cpp": {
+                "required_files": ["file.cpp"],
+                "setup_commands": ["g++ file.cpp -o file"]
+            }
+        }
+        """
+        if not setup_config:
+            return {}
+
+        lang_key = submission_language.value
+        if lang_key in setup_config:
+            self.logger.info(f"Using setup config for {lang_key}")
+            return setup_config[lang_key]
+        else:
+            self.logger.warning(f"No setup config found for language {lang_key}, using empty config")
+            return {}
 
     def check_required_files(self, submission_files) -> bool:
         """

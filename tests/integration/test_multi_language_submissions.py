@@ -22,7 +22,7 @@ class TestMultiLanguageSubmissions:
         All submissions should be accepted and processed correctly.
         """
         async with AsyncClient(app=app, base_url="http://test") as client:
-            # Step 1: Create grading configuration with Python as default
+            # Step 1: Create grading configuration supporting all languages
             config_response = await client.post(
                 "/api/v1/configs",
                 json={
@@ -44,19 +44,19 @@ class TestMultiLanguageSubmissions:
                             ]
                         }
                     },
-                    "language": "python",
+                    "languages": ["python", "java", "node", "cpp"],
                     "setup_config": {
-                        "required_files": ["calculator.py"]
+                        "required_files": []
                     }
                 }
             )
 
             assert config_response.status_code == 200
             config_data = config_response.json()
-            assert config_data["language"] == "python"
+            assert set(config_data["languages"]) == {"python", "java", "node", "cpp"}
             assert config_data["external_assignment_id"] == "multi-lang-calc-001"
 
-            # Step 2: Submit Python code (uses default language)
+            # Step 2: Submit Python code
             python_submission = await client.post(
                 "/api/v1/submissions",
                 json={
@@ -68,7 +68,8 @@ class TestMultiLanguageSubmissions:
                             "filename": "calculator.py",
                             "content": "a = int(input())\nb = int(input())\nprint(a + b)"
                         }
-                    ]
+                    ],
+                    "language": "python"
                     # No language override - uses config's default (python)
                 }
             )

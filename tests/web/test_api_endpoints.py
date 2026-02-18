@@ -87,7 +87,7 @@ async def test_create_grading_config(client):
     config_data = {
         "external_assignment_id": "test-assignment-1",
         "template_name": "webdev",
-        "language": "python",
+        "languages": ["python", "java"],
         "criteria_config": {
             "tests": ["test_homepage", "test_navigation"]
         }
@@ -98,7 +98,7 @@ async def test_create_grading_config(client):
     data = response.json()
     assert data["external_assignment_id"] == "test-assignment-1"
     assert data["template_name"] == "webdev"
-    assert data["language"] == "python"
+    assert data["languages"] == ["python", "java"]
     assert data["is_active"] is True
 
 
@@ -109,7 +109,7 @@ async def test_get_grading_config(client):
     config_data = {
         "external_assignment_id": "test-assignment-2",
         "template_name": "api",
-        "language": "javascript",
+        "languages": ["node"],
         "criteria_config": {"tests": ["test_api"]}
     }
     await client.post("/api/v1/configs", json=config_data)
@@ -130,7 +130,7 @@ async def test_list_grading_configs(client):
         config_data = {
             "external_assignment_id": f"test-assignment-list-{i}",
             "template_name": "webdev",
-            "language": "python",
+            "languages": ["python"],
             "criteria_config": {"tests": [f"test{i}"]}
         }
         await client.post("/api/v1/configs", json=config_data)
@@ -163,7 +163,7 @@ async def test_create_and_get_submission(client):
     config_data = {
         "external_assignment_id": "test-assignment-submit",
         "template_name": "webdev",
-        "language": "python",
+        "languages": ["python"],
         "criteria_config": {"tests": ["test1"]}
     }
     await client.post("/api/v1/configs", json=config_data)
@@ -201,7 +201,7 @@ async def test_get_user_submissions(client):
     config_data = {
         "external_assignment_id": "test-assignment-user",
         "template_name": "webdev",
-        "language": "python",
+        "languages": ["python"],
         "criteria_config": {"tests": ["test1"]}
     }
     await client.post("/api/v1/configs", json=config_data)
@@ -230,7 +230,7 @@ async def test_duplicate_config_fails(client):
     config_data = {
         "external_assignment_id": "test-duplicate",
         "template_name": "webdev",
-        "language": "python",
+        "languages": ["python"],
         "criteria_config": {"tests": ["test1"]}
     }
     

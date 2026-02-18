@@ -10,8 +10,8 @@ from web.main import app
 class TestLanguageValidationAPI:
     """Test language validation through API endpoints."""
 
-    async def test_create_config_with_valid_language(self):
-        """Test creating a configuration with a valid language."""
+    async def test_create_config_with_valid_languages(self):
+        """Test creating a configuration with valid languages."""
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/configs",
@@ -22,13 +22,13 @@ class TestLanguageValidationAPI:
                         "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
-                    "language": "python"
+                    "languages": ["python", "java"]
                 }
             )
 
             assert response.status_code == 200
             data = response.json()
-            assert data["language"] == "python"
+            assert data["languages"] == ["python", "java"]
             assert data["external_assignment_id"] == "test-valid-lang-001"
 
     async def test_create_config_with_invalid_language(self):
@@ -43,7 +43,7 @@ class TestLanguageValidationAPI:
                         "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
-                    "language": "javascript"  # Should be "node"
+                    "languages": ["javascript"]  # Should be "node"
                 }
             )
 
@@ -66,14 +66,14 @@ class TestLanguageValidationAPI:
                         "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
-                    "language": "PYTHON"  # Uppercase
+                    "languages": ["PYTHON", "Java"]  # Mixed case
                 }
             )
 
             assert response.status_code == 200
             data = response.json()
             # Should be normalized to lowercase
-            assert data["language"] == "python"
+            assert data["languages"] == ["python", "java"]
 
     async def test_create_config_with_node_instead_of_javascript(self):
         """Test that 'node' is accepted as valid language."""
@@ -87,16 +87,17 @@ class TestLanguageValidationAPI:
                         "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
-                    "language": "node"
+                    "languages": ["node", "cpp"]
                 }
             )
 
             assert response.status_code == 200
             data = response.json()
-            assert data["language"] == "node"
+            assert "node" in data["languages"]
+            assert "cpp" in data["languages"]
 
-    async def test_create_config_with_empty_language(self):
-        """Test that empty language is rejected."""
+    async def test_create_config_with_empty_languages(self):
+        """Test that empty languages list is rejected."""
         async with AsyncClient(app=app, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/configs",
@@ -107,7 +108,7 @@ class TestLanguageValidationAPI:
                         "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
-                    "language": ""
+                    "languages": []
                 }
             )
 
@@ -126,7 +127,7 @@ class TestLanguageValidationAPI:
                         "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
-                    "language": "python"
+                    "languages": ["python"]
                 }
             )
             assert create_response.status_code == 200
@@ -136,7 +137,7 @@ class TestLanguageValidationAPI:
             update_response = await client.put(
                 f"/api/v1/configs/{config_id}",
                 json={
-                    "language": "ruby"  # Invalid
+                    "languages": ["ruby"]  # Invalid
                 }
             )
 
@@ -155,7 +156,7 @@ class TestLanguageValidationAPI:
                         "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
-                    "language": "python"
+                    "languages": ["python", "java"]
                 }
             )
             assert config_response.status_code == 200
@@ -173,9 +174,10 @@ class TestLanguageValidationAPI:
                             "content": "console.log('hello')"
                         }
                     ],
-                    "language": "javascript"  # Should be "node"
+                    "language": "node"  # Not in supported languages list
                 }
             )
 
-            assert submit_response.status_code == 422  # Validation error
+            # Should fail because node is not in the supported languages for this assignment
+            assert submit_response.status_code == 400  # Bad request (not in supported languages)
 

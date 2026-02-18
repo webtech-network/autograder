@@ -19,7 +19,7 @@ class PreFlightStep(Step):
 
     def __init__(self, setup_config):
         self._setup_config = setup_config
-        self._pre_flight_service = PreFlightService(setup_config)
+        # Don't create service here, create it per-execution with language
 
     def execute(self, input: PipelineExecution) -> PipelineExecution:
         """
@@ -31,10 +31,15 @@ class PreFlightStep(Step):
         Returns:
             StepResult with status SUCCESS if all checks pass, FAIL otherwise
         """
+        # Create PreFlightService with submission language for language-specific config resolution
+        submission_language = input.submission.language
+        self._pre_flight_service = PreFlightService(self._setup_config, submission_language)
+
         sandbox = None
         # Check required files first
         submission_files = input.submission.submission_files
-        if self._setup_config.get('required_files'):
+        # Use the resolved required_files from the service (language-specific)
+        if self._pre_flight_service.required_files:
             files_ok = self._pre_flight_service.check_required_files(submission_files)
             if not files_ok:
                 # File check failed, don't continue to setup commands
@@ -51,7 +56,8 @@ class PreFlightStep(Step):
             sandbox = self._pre_flight_service.create_sandbox(input.submission) # Needs error handling?
 
         # Check setup commands only if file check passed
-        if self._setup_config.get('setup_commands'):
+        # Use the resolved setup_commands from the service (language-specific)
+        if self._pre_flight_service.setup_commands:
             setup_ok = self._pre_flight_service.check_setup_commands(sandbox)
             if not setup_ok:
                 # self._pre_flight_service.destroy_sandbox(sandbox) #TODO: Decide when to destroy sandbox (Maybe after grading process finishes?
