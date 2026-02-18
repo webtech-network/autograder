@@ -35,6 +35,10 @@ cp .env.example .env
 
 3. Run database migrations:
 ```bash
+# Using make command (recommended)
+make db-upgrade
+
+# Or using alembic directly
 alembic upgrade head
 ```
 
@@ -146,19 +150,56 @@ docker build -t autograder-api:latest -f Dockerfile.api .
 
 ## Database Migrations
 
-### Create a new migration
+### Using Make Commands (Recommended)
+
+```bash
+# Initialize/upgrade database to latest version
+make db-init
+
+# Apply all pending migrations
+make db-upgrade
+
+# Create a new migration
+make db-migrate MSG="add user profile table"
+
+# Show current migration version
+make db-current
+
+# Show migration history
+make db-history
+
+# Rollback last migration
+make db-downgrade
+
+# Reset database (WARNING: destructive)
+make db-reset
+```
+
+### Using Alembic Directly
+
+#### Create a new migration
 ```bash
 alembic revision --autogenerate -m "Description"
 ```
 
-### Apply migrations
+#### Apply migrations
 ```bash
 alembic upgrade head
 ```
 
-### Rollback migration
+#### Rollback migration
 ```bash
 alembic downgrade -1
+```
+
+#### Check current version
+```bash
+alembic current
+```
+
+#### View migration history
+```bash
+alembic history --verbose
 ```
 
 ## Usage Example

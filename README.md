@@ -19,7 +19,7 @@
 
 ## Overview
 
-The **Autograder** is an advanced educational platform designed to efficiently and accurately grade student submissions using actual pedagogical standards. What makes it stand out is its highly elaborated grading methodology that follows teacher-configured rubrics and generates comprehensive, student-friendly feedback reports.
+The **Autograder** is an advanced educational tool designed to efficiently and accurately grade student submissions using actual pedagogical standards. What makes it stand out is its highly elaborated grading methodology that follows teacher-configured rubrics and generates comprehensive, student-friendly feedback reports.
 
 ### Why Autograder?
 
