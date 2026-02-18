@@ -4,6 +4,7 @@ from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
+from autograder.services.command_resolver import CommandResolver
 from sandbox_manager.sandbox_container import SandboxContainer
 
 
@@ -15,7 +16,12 @@ class ExpectOutputTest(TestFunction):
     """
     Tests a command-line program by providing a series of inputs via stdin
     and comparing the program's stdout with an expected output.
+
+    Supports multi-language submissions through dynamic command resolution.
     """
+
+    def __init__(self):
+        self.command_resolver = CommandResolver()
 
     @property
     def name(self):
@@ -34,10 +40,10 @@ class ExpectOutputTest(TestFunction):
         return [
             ParamDescription("inputs", "Lista de strings a serem enviadas para o programa, cada uma em uma nova linha.", "list of strings"),
             ParamDescription("expected_output", "A única string que o programa deve imprimir na saída padrão.", "string"),
-            ParamDescription("program_command", "(Opcional) Comando para executar o programa (ex: 'python3 calc.py').", "string")
+            ParamDescription("program_command", "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).", "string or dict")
         ]
 
-    def execute(self, files, sandbox: SandboxContainer, inputs: list = None, expected_output: str = "", program_command: str = None, **kwargs) -> TestResult:
+    def execute(self, files, sandbox: SandboxContainer, inputs: list = None, expected_output: str = "", program_command=None, __submission_language__=None, **kwargs) -> TestResult:
         """
         Constructs and runs the command using stdin input for robust input handling,
         then validates the output.
@@ -47,11 +53,26 @@ class ExpectOutputTest(TestFunction):
             sandbox: The sandbox container to execute in
             inputs: List of input strings to send to the program
             expected_output: The expected output from the program
-            program_command: Command to run the program (e.g., "python3 calculator.py")
+            program_command: Command config - can be:
+                - string: Single command (legacy) or "CMD" (auto-resolve)
+                - dict: Multi-language commands {"python": "...", "java": "...", ...}
+            __submission_language__: Internal parameter for submission language
         """
 
         try:
-            if not program_command:
+            # Resolve the actual command based on submission language
+            resolved_command = None
+            if program_command and __submission_language__:
+                resolved_command = self.command_resolver.resolve_command(
+                    program_command,
+                    __submission_language__
+                )
+            elif program_command and not __submission_language__:
+                # No language info but command provided - use as-is if string
+                if isinstance(program_command, str) and program_command != "CMD":
+                    resolved_command = program_command
+
+            if not resolved_command:
                 # No program command specified - treat inputs as command to run
                 # Join inputs into a single command string
                 if inputs is None:
@@ -61,7 +82,7 @@ class ExpectOutputTest(TestFunction):
                 actual_output = output.stdout
             else:
                 # Program command specified - inputs are stdin for the program
-                output = sandbox.run_commands(inputs, program_command=program_command)
+                output = sandbox.run_commands(inputs, program_command=resolved_command)
                 actual_output = output.stdout
 
             score = 100.0 if actual_output.strip() == expected_output.strip() else 0.0

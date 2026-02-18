@@ -22,12 +22,21 @@ class GraderService:
         self.logger = logging.getLogger("GraderService")
         self.__submission_files = None
         self._sandbox = None
+        self._submission_language = None  # Track submission language
 
     def set_sandbox(self, sandbox):
         self._sandbox = sandbox
 
     def has_sandbox(self) -> bool:
         return self._sandbox is not None
+
+    def set_submission_language(self, language):
+        """Set the submission's language for command resolution."""
+        self._submission_language = language
+
+    def get_submission_language(self):
+        """Get the submission's language."""
+        return self._submission_language
 
     def grade_from_tree(
         self,
@@ -145,8 +154,14 @@ class GraderService:
     def process_test(self, test: TestNode) -> TestResultNode:
         """Execute a test and create a test result node."""
         file_target = self.get_file_target(test)
+
+        # Pass submission language to test for command resolution
+        test_params = test.parameters or {}
+        if self._submission_language:
+            test_params['__submission_language__'] = self._submission_language
+
         test_result = test.test_function.execute(
-            files=file_target, sandbox=self._sandbox, **(test.parameters or {})
+            files=file_target, sandbox=self._sandbox, **test_params
         )
         return TestResultNode(
             name=test.name,

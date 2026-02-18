@@ -8,7 +8,10 @@
         "parameters": [
           {
             "name": "inputs",
-            "value": ["5", "3"]
+            "value": [
+              "5",
+              "3"
+            ]
           },
           {
             "name": "expected_output",
@@ -16,7 +19,12 @@
           },
           {
             "name": "program_command",
-            "value": "python3 calculator.py"
+            "value": {
+              "python": "python3 calculator.py",
+              "java": "java Calculator",
+              "node": "node calculator.js",
+              "cpp": "./calculator"
+            }
           }
         ]
       },
@@ -25,7 +33,10 @@
         "parameters": [
           {
             "name": "inputs",
-            "value": ["10", "4"]
+            "value": [
+              "10",
+              "4"
+            ]
           },
           {
             "name": "expected_output",
@@ -33,11 +44,15 @@
           },
           {
             "name": "program_command",
-            "value": "python3 calculator.py"
+            "value": {
+              "python": "python3 calculator.py",
+              "java": "java Calculator",
+              "node": "node calculator.js",
+              "cpp": "./calculator"
+            }
           }
         ]
       }
     ]
   }
 }
-

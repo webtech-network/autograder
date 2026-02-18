@@ -45,6 +45,9 @@ class GradeStep(Step):
             if not sandbox and template.requires_sandbox:
                 raise Exception("Grading template requires a sandbox environment, but no sandbox was created")
 
+            # Set submission language for command resolution
+            if input.submission.language:
+                self._grader_service.set_submission_language(input.submission.language)
 
             criteria_tree = input.get_step_result(StepName.BUILD_TREE).data
             result_tree = self._grader_service.grade_from_tree(

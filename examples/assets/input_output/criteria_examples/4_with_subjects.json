@@ -12,7 +12,11 @@
             "parameters": [
               {
                 "name": "inputs",
-                "value": ["add", "5", "3"]
+                "value": [
+                  "add",
+                  "5",
+                  "3"
+                ]
               },
               {
                 "name": "expected_output",
@@ -20,7 +24,12 @@
               },
               {
                 "name": "program_command",
-                "value": "python3 calculator.py"
+                "value": {
+                  "python": "python3 calculator.py",
+                  "java": "java Calculator",
+                  "node": "node calculator.js",
+                  "cpp": "./calculator"
+                }
               }
             ]
           },
@@ -29,7 +38,11 @@
             "parameters": [
               {
                 "name": "inputs",
-                "value": ["add", "0", "0"]
+                "value": [
+                  "add",
+                  "0",
+                  "0"
+                ]
               },
               {
                 "name": "expected_output",
@@ -37,7 +50,12 @@
               },
               {
                 "name": "program_command",
-                "value": "python3 calculator.py"
+                "value": {
+                  "python": "python3 calculator.py",
+                  "java": "java Calculator",
+                  "node": "node calculator.js",
+                  "cpp": "./calculator"
+                }
               }
             ]
           }
@@ -52,7 +70,11 @@
             "parameters": [
               {
                 "name": "inputs",
-                "value": ["subtract", "10", "4"]
+                "value": [
+                  "subtract",
+                  "10",
+                  "4"
+                ]
               },
               {
                 "name": "expected_output",
@@ -60,7 +82,12 @@
               },
               {
                 "name": "program_command",
-                "value": "python3 calculator.py"
+                "value": {
+                  "python": "python3 calculator.py",
+                  "java": "java Calculator",
+                  "node": "node calculator.js",
+                  "cpp": "./calculator"
+                }
               }
             ]
           },
@@ -69,7 +96,11 @@
             "parameters": [
               {
                 "name": "inputs",
-                "value": ["subtract", "5", "10"]
+                "value": [
+                  "subtract",
+                  "5",
+                  "10"
+                ]
               },
               {
                 "name": "expected_output",
@@ -77,7 +108,12 @@
               },
               {
                 "name": "program_command",
-                "value": "python3 calculator.py"
+                "value": {
+                  "python": "python3 calculator.py",
+                  "java": "java Calculator",
+                  "node": "node calculator.js",
+                  "cpp": "./calculator"
+                }
               }
             ]
           }
@@ -93,7 +129,11 @@
         "parameters": [
           {
             "name": "inputs",
-            "value": ["multiply", "6", "7"]
+            "value": [
+              "multiply",
+              "6",
+              "7"
+            ]
           },
           {
             "name": "expected_output",
@@ -101,7 +141,12 @@
           },
           {
             "name": "program_command",
-            "value": "python3 calculator.py"
+            "value": {
+              "python": "python3 calculator.py",
+              "java": "java Calculator",
+              "node": "node calculator.js",
+              "cpp": "./calculator"
+            }
           }
         ]
       }
@@ -115,7 +160,11 @@
         "parameters": [
           {
             "name": "inputs",
-            "value": ["invalid_op", "5", "3"]
+            "value": [
+              "invalid_op",
+              "5",
+              "3"
+            ]
           },
           {
             "name": "expected_output",
@@ -123,11 +172,15 @@
           },
           {
             "name": "program_command",
-            "value": "python3 calculator.py"
+            "value": {
+              "python": "python3 calculator.py",
+              "java": "java Calculator",
+              "node": "node calculator.js",
+              "cpp": "./calculator"
+            }
           }
         ]
       }
     ]
   }
 }
-
