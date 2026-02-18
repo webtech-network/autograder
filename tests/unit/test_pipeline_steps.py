@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import List
 
 from autograder.models.dataclass.param_description import ParamDescription
-from autograder.pipeline import AutograderPipeline
+from autograder.autograder import AutograderPipeline
 from autograder.utils.printers.result_tree import ResultTreePrinter
 
 # Add project root to path
@@ -76,6 +76,11 @@ class MockTemplate(Template):
     def template_description(self):
         """Get template description."""
         return "Mock template for testing purposes"
+
+    @property
+    def requires_sandbox(self) -> bool:
+        """Mock templates don't require sandboxes."""
+        return False
 
     @property
     def requires_pre_executed_tree(self) -> bool:
@@ -167,9 +172,35 @@ def test_build_tree_step():
     criteria = create_simple_criteria()
     template = MockTemplate()
 
+    # Create a mock submission
+    from autograder.models.dataclass.submission import Submission, SubmissionFile
+    submission = Submission(
+        username="test_user",
+        user_id=1,
+        assignment_id=1,
+        submission_files={"main.py": SubmissionFile(filename="main.py", content="print(input())")}
+    )
+
+    # Start pipeline execution
+    from autograder.models.pipeline_execution import PipelineExecution
+    from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
+
+    pipeline_execution = PipelineExecution.start_execution(submission)
+
+    # Add template to pipeline execution (simulating LoadTemplateStep)
+    template_result = StepResult(
+        step=StepName.LOAD_TEMPLATE,
+        data=template,
+        status=StepStatus.SUCCESS
+    )
+    pipeline_execution.add_step_result(template_result)
+
     # Create and execute step
     build_step = BuildTreeStep(criteria)
-    result = build_step.execute(template)
+    pipeline_execution = build_step.execute(pipeline_execution)
+
+    # Get the build step result
+    result = pipeline_execution.get_step_result(StepName.BUILD_TREE)
 
     # Verify result
     assert result.status == StepStatus.SUCCESS, f"Build step failed: {result.error}"
@@ -185,12 +216,6 @@ def test_build_tree_step():
     print(f"  - Base category: {criteria_tree.base.name}")
     print(f"  - Bonus category: {criteria_tree.bonus.name}")
 
-    # Print tree structure
-    print("\nCriteria Tree Structure:")
-    criteria_tree.print_tree()
-
-    return criteria_tree
-
 
 def test_grade_from_tree():
     """Test that GradeStep can grade from a CriteriaTree."""
@@ -201,17 +226,40 @@ def test_grade_from_tree():
     # Build criteria tree first
     criteria = create_simple_criteria()
     template = MockTemplate()
-    build_step = BuildTreeStep(criteria)
-    build_result = build_step.execute(template)
 
-    criteria_tree = build_result.data
-    submission_files = create_mock_submission()
+    # Create a mock submission
+    from autograder.models.dataclass.submission import Submission, SubmissionFile
+    submission = Submission(
+        username="test_user",
+        user_id=1,
+        assignment_id=1,
+        submission_files={"main.py": SubmissionFile(filename="main.py", content="print(input())")}
+    )
+
+    # Start pipeline execution
+    from autograder.models.pipeline_execution import PipelineExecution
+    from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
+
+    pipeline_execution = PipelineExecution.start_execution(submission)
+
+    # Add template to pipeline execution (simulating LoadTemplateStep)
+    template_result = StepResult(
+        step=StepName.LOAD_TEMPLATE,
+        data=template,
+        status=StepStatus.SUCCESS
+    )
+    pipeline_execution.add_step_result(template_result)
+
+    # Build tree
+    build_step = BuildTreeStep(criteria)
+    pipeline_execution = build_step.execute(pipeline_execution)
 
     # Create and execute grade step
-    grade_step = GradeStep(
-        submission_files=submission_files)
+    grade_step = GradeStep()
+    pipeline_execution = grade_step.execute(pipeline_execution)
 
-    result = grade_step.execute(criteria_tree)
+    # Get the grade step result
+    result = pipeline_execution.get_step_result(StepName.GRADE)
 
     # Verify result
     assert result.status == StepStatus.SUCCESS, f"Grade step failed: {result.error}"
@@ -221,34 +269,45 @@ def test_grade_from_tree():
 
     print("✓ GradeStep successfully graded from CriteriaTree")
     print(f"  - Final Score: {grading_result.final_score}")
-    print(f"  - Status: {grading_result.status}")
 
     # Print result tree
     if grading_result.result_tree:
         printer = ResultTreePrinter()
         printer.print_tree(grading_result.result_tree)
 
-    return grading_result
-
 def test_invalid_input_type():
-    """Test that GradeStep rejects invalid input types."""
+    """Test that GradeStep handles missing steps gracefully."""
     print("\n" + "=" * 80)
-    print("TEST: GradeStep with Invalid Input Type")
+    print("TEST: GradeStep with Missing Prerequisites")
     print("=" * 80)
 
-    submission_files = create_mock_submission()
+    # Create a mock submission
+    from autograder.models.dataclass.submission import Submission, SubmissionFile
+    submission = Submission(
+        username="test_user",
+        user_id=1,
+        assignment_id=1,
+        submission_files={"main.py": SubmissionFile(filename="main.py", content="print(input())")}
+    )
 
-    grade_step = GradeStep(
-        submission_files=submission_files)
+    # Start pipeline execution without adding required steps
+    from autograder.models.pipeline_execution import PipelineExecution
+    from autograder.models.dataclass.step_result import StepName
 
-    # Try to execute with invalid input (string)
-    result = grade_step.execute("invalid input")
+    pipeline_execution = PipelineExecution.start_execution(submission)
+
+    # Try to execute grade step without template or criteria tree
+    grade_step = GradeStep()
+    pipeline_execution = grade_step.execute(pipeline_execution)
+
+    # Get the grade step result
+    result = pipeline_execution.get_step_result(StepName.GRADE)
 
     # Verify it fails gracefully
-    assert result.status == StepStatus.FAIL, "Should fail with invalid input"
+    assert result.status == StepStatus.FAIL, "Should fail with missing prerequisites"
     assert result.error is not None, "Should have error message"
 
-    print("✓ GradeStep correctly rejected invalid input")
+    print("✓ GradeStep correctly handled missing prerequisites")
     print(f"  - Error: {result.error}")
 
 
@@ -261,25 +320,50 @@ def test_build_tree_and_grade_pipeline():
     # Create criteria and template
     criteria = create_simple_criteria()
     template = MockTemplate()
-    submission_files = create_mock_submission()
 
-    # Build tree
-    build_step = BuildTreeStep(criteria)
-    # Grade submission
-    grade_step = GradeStep(
-        submission_files=submission_files)
+    # Create a mock submission
+    from autograder.models.dataclass.submission import Submission, SubmissionFile
+    submission = Submission(
+        username="test_user",
+        user_id=1,
+        assignment_id=1,
+        submission_files={"main.py": SubmissionFile(filename="main.py", content="print(input())")}
+    )
 
+    # Build pipeline
+    from autograder.models.dataclass.step_result import StepName
     pipeline = AutograderPipeline()
-    pipeline.add_step(build_step)
-    pipeline.add_step(grade_step)
-    grading_result = pipeline.run(input_data=template)
+
+    # Add load template step manually (simulating TemplateLoaderStep)
+    from autograder.models.dataclass.step_result import StepResult, StepStatus
+    from autograder.models.abstract.step import Step
+
+    class MockTemplateLoaderStep(Step):
+        def __init__(self, template):
+            self.template = template
+
+        def execute(self, input):
+            return input.add_step_result(StepResult(
+                step=StepName.LOAD_TEMPLATE,
+                data=self.template,
+                status=StepStatus.SUCCESS
+            ))
+
+    pipeline.add_step(StepName.LOAD_TEMPLATE, MockTemplateLoaderStep(template))
+    pipeline.add_step(StepName.BUILD_TREE, BuildTreeStep(criteria))
+    pipeline.add_step(StepName.GRADE, GradeStep())
+
+    # Run pipeline
+    pipeline_execution = pipeline.run(submission)
 
     # Verify result
-    assert grading_result.status == "success", f"Pipeline failed: {grading_result.error}"
+    assert pipeline_execution.status.value == "success", f"Pipeline failed: {pipeline_execution.result}"
+    assert pipeline_execution.result is not None, "Pipeline result is None"
+
     print("✓ Full pipeline successfully built tree and graded submission")
-    print(f"  - Final Score: {grading_result.final_score}")
+    print(f"  - Final Score: {pipeline_execution.result.final_score}")
 
     # Print result tree
-    if grading_result.result_tree:
+    if pipeline_execution.result.result_tree:
         printer = ResultTreePrinter()
-        printer.print_tree(grading_result.result_tree)
+        printer.print_tree(pipeline_execution.result.result_tree)

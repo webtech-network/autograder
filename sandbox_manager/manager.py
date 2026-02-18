@@ -145,6 +145,16 @@ class SandboxManager:
 
         print("[SandboxManager] Shutdown complete")
 
+    def get_pool_stats(self) -> dict:
+        """
+        Get statistics for all language pools.
+        Useful for monitoring and debugging scaling behavior.
+        """
+        stats = {}
+        for language, pool in self.language_pools.items():
+            stats[language.value] = pool.get_stats()
+        return stats
+
     def __enter__(self):
         """Context manager entry"""
         return self
