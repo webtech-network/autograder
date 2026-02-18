@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Configuration - Autograder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container wide">
+        <header>
+            <h1>Create Configuration</h1>
+            <a href="template.html?template=input_output" class="back-link">Back</a>
+        </header>
+
+        <div class="split-layout">
+            <aside class="sidebar">
+                <section class="panel">
+                    <h3>Configuration Settings</h3>
+
+                    <label for="assignmentId">Assignment ID</label>
+                    <input type="text" id="assignmentId" value="io-calc-001" placeholder="e.g., io-calc-001">
+
+                    <label for="criteriaTemplate">Criteria Template</label>
+                    <select id="criteriaTemplate" onchange="updatePreview()">
+                        <option value="1">1 - Base Only (Simple)</option>
+                        <option value="2">2 - Base + Bonus</option>
+                        <option value="3">3 - Base + Bonus + Penalty</option>
+                        <option value="4">4 - With Subjects</option>
+                        <option value="5" selected>5 - Nested Subjects</option>
+                    </select>
+                    <small id="templateDescription" class="help-text"></small>
+
+                    <label for="language">Programming Language</label>
+                    <select id="language" onchange="updatePreview()">
+                        <option value="python" selected>Python</option>
+                        <option value="java">Java</option>
+                        <option value="node">JavaScript (Node.js)</option>
+                        <option value="cpp">C++</option>
+                    </select>
+
+                    <button class="btn-primary" onclick="createConfig()">Create Configuration</button>
+
+                    <div id="createResult" class="result-message"></div>
+                </section>
+            </aside>
+
+            <main class="main-content">
+                <section class="panel">
+                    <h3>Criteria Tree Preview</h3>
+                    <div id="treePreview" class="tree-container"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h3>JSON Configuration</h3>
+                        <button class="btn-secondary small" onclick="copyJson()">Copy</button>
+                    </div>
+                    <textarea id="jsonPreview" rows="12" readonly></textarea>
+                </section>
+
+                <section class="panel">
+                    <h3>API Response</h3>
+                    <div class="response-info">
+                        <span class="status-code" id="statusCode">---</span>
+                        <span class="response-time" id="responseTime">---</span>
+                    </div>
+                    <pre id="apiResponse" class="response-box">Create a configuration to see the API response...</pre>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="shared.js"></script>
+    <script src="config.js"></script>
+</body>
+</html>
+

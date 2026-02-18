@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Options - Autograder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 id="templateTitle">Input/Output Template</h1>
+            <a href="index.html" class="back-link">Back to Templates</a>
+        </header>
+
+        <main>
+            <h2>What would you like to do?</h2>
+            <div class="action-grid">
+                <div class="action-card" onclick="goToPage('config')">
+                    <h3>Create Configuration</h3>
+                    <p>Design and create grading criteria for assignments</p>
+                    <ul>
+                        <li>Choose from preset templates</li>
+                        <li>Preview criteria tree structure</li>
+                        <li>Support for multiple languages</li>
+                        <li>View and edit JSON configuration</li>
+                    </ul>
+                </div>
+
+                <div class="action-card" onclick="goToPage('submit')">
+                    <h3>Submit and Grade</h3>
+                    <p>Submit code for grading and view results</p>
+                    <ul>
+                        <li>Load example code snippets</li>
+                        <li>Submit for grading</li>
+                        <li>View grading results and scores</li>
+                        <li>Inspect detailed result tree</li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="shared.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const template = urlParams.get('template') || 'input_output';
+
+        function goToPage(page) {
+            window.location.href = `${page}.html?template=${template}`;
+        }
+    </script>
+</body>
+</html>
+

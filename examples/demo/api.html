@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Operations - Autograder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container wide">
+        <header>
+            <h1>API Operations</h1>
+            <a href="index.html" class="back-link">Back to Home</a>
+        </header>
+
+        <div class="split-layout">
+            <aside class="sidebar">
+                <section class="panel">
+                    <h3>System Health</h3>
+                    <button onclick="healthCheck()">
+                        <span class="method-badge get">GET</span> /api/v1/health
+                    </button>
+                    <button onclick="readyCheck()">
+                        <span class="method-badge get">GET</span> /api/v1/ready
+                    </button>
+                </section>
+
+                <section class="panel">
+                    <h3>Templates</h3>
+                    <button onclick="listTemplates()">
+                        <span class="method-badge get">GET</span> /api/v1/templates
+                    </button>
+
+                    <label for="templateName">Template Name</label>
+                    <div class="input-group">
+                        <input type="text" id="templateName" value="input_output">
+                        <button onclick="getTemplate()">
+                            <span class="method-badge get">GET</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h3>Configurations</h3>
+                    <button onclick="listConfigs()">
+                        <span class="method-badge get">GET</span> /api/v1/configs
+                    </button>
+
+                    <label for="configAssignmentId">Assignment ID</label>
+                    <div class="input-group">
+                        <input type="text" id="configAssignmentId" value="io-calc-001">
+                        <button onclick="getConfig()">
+                            <span class="method-badge get">GET</span>
+                        </button>
+                    </div>
+
+                    <label for="configId">Config ID</label>
+                    <div class="input-group">
+                        <input type="number" id="configId" value="1">
+                        <button onclick="updateConfig()">
+                            <span class="method-badge put">PUT</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h3>Submissions</h3>
+
+                    <label for="submissionId">Submission ID</label>
+                    <div class="input-group">
+                        <input type="number" id="submissionId" value="1">
+                        <button onclick="getSubmission()">
+                            <span class="method-badge get">GET</span>
+                        </button>
+                    </div>
+
+                    <label for="apiUserId">User ID</label>
+                    <div class="input-group">
+                        <input type="text" id="apiUserId" value="user_001">
+                        <button onclick="getUserSubmissions()">
+                            <span class="method-badge get">GET</span>
+                        </button>
+                    </div>
+                </section>
+            </aside>
+
+            <main class="main-content">
+                <section class="panel">
+                    <h3>API Response</h3>
+                    <div class="response-info">
+                        <span class="status-code" id="statusCode">---</span>
+                        <span class="response-time" id="responseTime">---</span>
+                    </div>
+                    <pre id="apiResponse" class="response-box">Select an API operation to see the response...</pre>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="shared.js"></script>
+    <script src="api.js"></script>
+</body>
+</html>
+

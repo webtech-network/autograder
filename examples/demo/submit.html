@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit and Grade - Autograder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container wide">
+        <header>
+            <h1>Submit and Grade</h1>
+            <a href="template.html?template=input_output" class="back-link">Back</a>
+        </header>
+
+        <div class="split-layout">
+            <aside class="sidebar">
+                <section class="panel">
+                    <h3>Submission Details</h3>
+
+                    <label for="assignmentId">Assignment ID</label>
+                    <input type="text" id="assignmentId" value="io-calc-001">
+
+                    <label for="username">Username</label>
+                    <input type="text" id="username" value="student_01">
+
+                    <label for="userId">User ID</label>
+                    <input type="text" id="userId" value="user_001">
+
+                    <label for="language">Language</label>
+                    <select id="language" onchange="updateCode()">
+                        <option value="python" selected>Python</option>
+                        <option value="java">Java</option>
+                        <option value="node">JavaScript</option>
+                        <option value="cpp">C++</option>
+                    </select>
+
+                    <label for="codeExample">Code Example</label>
+                    <select id="codeExample" onchange="updateCode()">
+                        <option value="simple">Simple (Pass)</option>
+                        <option value="advanced" selected>Advanced (Pass)</option>
+                        <option value="broken">Broken (Fail)</option>
+                    </select>
+
+                    <label for="filename">Filename</label>
+                    <input type="text" id="filename" value="calculator.py">
+
+                    <label for="sourceCode">Source Code</label>
+                    <textarea id="sourceCode" rows="10"></textarea>
+
+                    <button class="btn-primary" onclick="submitCode()">Submit for Grading</button>
+
+                    <div id="submitResult" class="result-message"></div>
+                </section>
+
+                <section class="panel">
+                    <h3>API Request Preview</h3>
+                    <pre id="requestPreview" class="response-box small">...</pre>
+                </section>
+            </aside>
+
+            <main class="main-content">
+                <section class="panel">
+                    <h3>Grading Results</h3>
+
+                    <div class="input-group">
+                        <input type="number" id="submissionId" value="1" placeholder="Submission ID">
+                        <button onclick="getResult()">Get Result</button>
+                        <button onclick="togglePolling()" id="pollBtn">Start Polling</button>
+                    </div>
+
+                    <div id="pollingStatus" class="polling-status" style="display: none;">
+                        <span class="spinner"></span>
+                        <span>Polling every 2 seconds...</span>
+                    </div>
+
+                    <div class="score-display">
+                        <div class="score-value" id="scoreValue">--</div>
+                        <div class="score-label">Final Score</div>
+                    </div>
+
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-value" id="statusValue">--</div>
+                            <div class="status-label">Status</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-value" id="baseValue">--</div>
+                            <div class="status-label">Base</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-value" id="bonusValue">--</div>
+                            <div class="status-label">Bonus</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-value" id="penaltyValue">--</div>
+                            <div class="status-label">Penalty</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h3>Result Tree</h3>
+                    <div id="resultTree" class="tree-container">Submit code to view results...</div>
+                </section>
+
+                <section class="panel">
+                    <h3>API Response</h3>
+                    <div class="response-info">
+                        <span class="status-code" id="statusCode">---</span>
+                        <span class="response-time" id="responseTime">---</span>
+                    </div>
+                    <pre id="apiResponse" class="response-box">Submit code to see the API response...</pre>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="shared.js"></script>
+    <script src="submit.js"></script>
+</body>
+</html>
+

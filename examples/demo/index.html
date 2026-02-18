@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autograder Interactive Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Autograder Interactive Demo</h1>
+            <p class="subtitle">Test and explore autograder templates</p>
+        </header>
+
+        <section class="api-config">
+            <label for="apiUrl">API Endpoint</label>
+            <div class="input-group">
+                <input type="text" id="apiUrl" value="http://localhost:8000">
+                <button onclick="checkConnection()">Check Connection</button>
+            </div>
+            <div class="status" id="connectionStatus">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span id="statusText">Not connected</span>
+            </div>
+        </section>
+
+        <main>
+            <h2>Select a Template</h2>
+            <div class="template-grid">
+                <div class="template-card active" onclick="selectTemplate('input_output')">
+                    <h3>Input/Output</h3>
+                    <p>Test programs with input/output validation</p>
+                    <span class="badge">Available</span>
+                </div>
+
+                <div class="template-card disabled">
+                    <h3>Web Development</h3>
+                    <p>Grade HTML, CSS, and JavaScript projects</p>
+                    <span class="badge">Under Development</span>
+                </div>
+
+                <div class="template-card disabled">
+                    <h3>API Testing</h3>
+                    <p>Test REST API endpoints and responses</p>
+                    <span class="badge">Under Development</span>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <a href="api.html" class="link-button">View API Operations</a>
+        </footer>
+    </div>
+
+    <script src="shared.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadApiUrl();
+            checkConnection();
+        });
+
+        function selectTemplate(template) {
+            if (template === 'input_output') {
+                window.location.href = 'template.html?template=' + template;
+            }
+        }
+
+        async function checkConnection() {
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
+
+            indicator.className = 'status-indicator checking';
+            text.textContent = 'Checking...';
+
+            const result = await apiCall('/api/v1/health');
+
+            if (result.ok) {
+                indicator.className = 'status-indicator connected';
+                text.textContent = 'Connected';
+            } else {
+                indicator.className = 'status-indicator disconnected';
+                text.textContent = 'Disconnected';
+            }
+        }
+    </script>
+</body>
+</html>
+

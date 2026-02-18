@@ -42,10 +42,10 @@ make examples-demo
 ```
 
 Then open **http://localhost:8080** in your browser to:
-- 🎯 Create grading configurations with visual tree builders
-- 📤 Submit code examples in Python, Java, JavaScript, or C++
-- 📊 View real-time grading results and score breakdowns
-- 🔍 Explore all API endpoints interactively
+-  Create grading configurations with visual tree builders
+-  Submit code examples in Python, Java, JavaScript, or C++
+-  View real-time grading results and score breakdowns
+-  Explore all API endpoints interactively
 
 > **Note:** Requires the API server running. Start it with: `make start-autograder `
 
