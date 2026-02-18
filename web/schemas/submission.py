@@ -4,7 +4,9 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any
 from enum import Enum
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+from sandbox_manager.models.sandbox_models import Language
 
 
 class SubmissionStatus(str, Enum):
@@ -29,6 +31,28 @@ class SubmissionCreate(BaseModel):
     files: List[SubmissionFileData] = Field(..., description="List of files to submit")
     language: Optional[str] = Field(None, description="Optional language override")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Optional submission metadata")
+
+    @field_validator('language')
+    @classmethod
+    def validate_language(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that the language is supported."""
+        if v is None:
+            return v
+
+        # Normalize to uppercase for comparison
+        language_upper = v.upper()
+
+        # Check if language exists in Language enum
+        valid_languages = [lang.name for lang in Language]
+        if language_upper not in valid_languages:
+            valid_languages_lower = [lang.value for lang in Language]
+            raise ValueError(
+                f"Unsupported language '{v}'. "
+                f"Supported languages are: {', '.join(valid_languages_lower)}"
+            )
+
+        # Return the lowercase value (as stored in the enum)
+        return Language[language_upper].value
 
 
 class SubmissionResponse(BaseModel):

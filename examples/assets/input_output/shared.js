@@ -524,7 +524,7 @@ const setupConfigs = {
             }
         ]
     },
-    javascript: {
+    node: {
         required_files: ['calculator.js'],
         setup_commands: []
     },
@@ -542,7 +542,7 @@ const setupConfigs = {
 const fileExtensions = {
     python: '.py',
     java: '.java',
-    javascript: '.js',
+    node: '.js',
     cpp: '.cpp'
 };
 
