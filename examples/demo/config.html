@@ -31,13 +31,26 @@
                     </select>
                     <small id="templateDescription" class="help-text"></small>
 
-                    <label for="language">Programming Language</label>
-                    <select id="language" onchange="updatePreview()">
-                        <option value="python" selected>Python</option>
-                        <option value="java">Java</option>
-                        <option value="node">JavaScript (Node.js)</option>
-                        <option value="cpp">C++</option>
-                    </select>
+                    <label>Programming Languages (Select all that apply)</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="language" value="python" checked onchange="updatePreview()">
+                            Python
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="language" value="java" onchange="updatePreview()">
+                            Java
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="language" value="node" onchange="updatePreview()">
+                            JavaScript (Node.js)
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="language" value="cpp" onchange="updatePreview()">
+                            C++
+                        </label>
+                    </div>
+                    <small class="help-text">Multi-language assignments supported</small>
 
                     <button class="btn-primary" onclick="createConfig()">Create Configuration</button>
 

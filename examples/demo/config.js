@@ -6,17 +6,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function updatePreview() {
     const templateId = document.getElementById('criteriaTemplate').value;
-    const language = document.getElementById('language').value;
+    const selectedLanguages = getSelectedLanguages();
 
     const template = criteriaTemplates[templateId];
     document.getElementById('templateDescription').textContent = template.description;
 
+    // Use first selected language for preview, or default to python
+    const previewLanguage = selectedLanguages.length > 0 ? selectedLanguages[0] : 'python';
+
     // Update tree preview
-    const criteria = replaceCmdPlaceholder(template.criteria, language);
+    const criteria = replaceCmdPlaceholder(template.criteria, previewLanguage);
     document.getElementById('treePreview').textContent = buildCriteriaTree(criteria);
 
-    // Update JSON preview
-    document.getElementById('jsonPreview').value = JSON.stringify(criteria, null, 2);
+    // Update JSON preview with all languages
+    const fullCriteria = buildMultiLanguageCriteria(template.criteria, selectedLanguages);
+    document.getElementById('jsonPreview').value = JSON.stringify(fullCriteria, null, 2);
+}
+
+function getSelectedLanguages() {
+    const checkboxes = document.querySelectorAll('input[name="language"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function buildMultiLanguageCriteria(baseCriteria, languages) {
+    if (languages.length === 0) {
+        languages = ['python']; // Default
+    }
+
+    // For preview, show the first language's command structure
+    return replaceCmdPlaceholder(baseCriteria, languages[0]);
 }
 
 function buildCriteriaTree(criteria) {
@@ -97,35 +115,32 @@ function buildTests(tests, prefix) {
 async function createConfig() {
     const assignmentId = document.getElementById('assignmentId').value;
     const templateId = document.getElementById('criteriaTemplate').value;
-    const language = document.getElementById('language').value;
+    const selectedLanguages = getSelectedLanguages();
 
     if (!assignmentId) {
         showMessage('createResult', 'Please enter an assignment ID', 'error');
         return;
     }
 
+    if (selectedLanguages.length === 0) {
+        showMessage('createResult', 'Please select at least one language', 'error');
+        return;
+    }
+
     const template = criteriaTemplates[templateId];
-    const criteria = replaceCmdPlaceholder(template.criteria, language);
+
+    // Use first language for command structure (or create multi-language criteria)
+    const criteria = replaceCmdPlaceholder(template.criteria, selectedLanguages[0]);
+
+    // Build setup_config for all selected languages
+    const setupConfig = buildMultiLanguageSetupConfig(selectedLanguages);
 
     const payload = {
-        assignment_id: assignmentId,
-        criteria: criteria,
-        feedback: {
-            positive_feedback: [
-                "Great job!",
-                "Excellent work!",
-                "Well done!"
-            ],
-            negative_feedback: [
-                "Please review the requirements.",
-                "Try again.",
-                "Check your implementation."
-            ],
-            hints: {
-                "Addition": "Make sure you're adding the two numbers correctly.",
-                "Subtraction": "Double-check your subtraction logic."
-            }
-        }
+        external_assignment_id: assignmentId,
+        template_name: "input_output",
+        languages: selectedLanguages,
+        criteria_config: criteria,
+        setup_config: setupConfig
     };
 
     showMessage('createResult', 'Creating configuration...', 'success');
@@ -139,6 +154,36 @@ async function createConfig() {
     } else {
         showMessage('createResult', `Error: ${result.data.error || 'Failed to create configuration'}`, 'error');
     }
+}
+
+function buildMultiLanguageSetupConfig(languages) {
+    const setupConfigs = {
+        python: {
+            required_files: ["calculator.py"],
+            setup_commands: []
+        },
+        java: {
+            required_files: ["Calculator.java"],
+            setup_commands: ["javac Calculator.java"]
+        },
+        node: {
+            required_files: ["calculator.js"],
+            setup_commands: []
+        },
+        cpp: {
+            required_files: ["calculator.cpp"],
+            setup_commands: ["g++ calculator.cpp -o calculator"]
+        }
+    };
+
+    const result = {};
+    languages.forEach(lang => {
+        if (setupConfigs[lang]) {
+            result[lang] = setupConfigs[lang];
+        }
+    });
+
+    return result;
 }
 
 function copyJson() {

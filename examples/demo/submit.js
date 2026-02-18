@@ -215,8 +215,8 @@ function updateRequestPreview() {
 
 async function submitCode() {
     const payload = {
-        assignment_id: document.getElementById('assignmentId').value,
-        user_id: document.getElementById('userId').value,
+        external_assignment_id: document.getElementById('assignmentId').value,
+        external_user_id: document.getElementById('userId').value,
         username: document.getElementById('username').value,
         language: document.getElementById('language').value,
         files: [
@@ -227,7 +227,7 @@ async function submitCode() {
         ]
     };
 
-    if (!payload.assignment_id || !payload.user_id || !payload.username) {
+    if (!payload.external_assignment_id || !payload.external_user_id || !payload.username) {
         showMessage('submitResult', 'Please fill in all required fields', 'error');
         return;
     }
