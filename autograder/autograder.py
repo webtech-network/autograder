@@ -132,10 +132,11 @@ def build_pipeline(
         StepName.GRADE, GradeStep()
     )  # Generates GradingResult with final score and result tree
 
+    focus_service = FocusService()
+    pipeline.add_step(StepName.FOCUS, FocusStep(focus_service))
+
     # Feedback generation (if configured)
     if include_feedback:
-        focus_service = FocusService()
-        pipeline.add_step(StepName.FOCUS, FocusStep(focus_service))
 
         reporter_service = ReporterService(feedback_mode=feedback_mode)
         pipeline.add_step(

@@ -69,6 +69,7 @@ class SubmissionResponse(BaseModel):
     final_score: Optional[float] = None
     feedback: Optional[str] = None
     result_tree: Optional[Dict[str, Any]] = None
+    focus: Optional[Dict[str, Any]] = None
 
 
 class SubmissionDetailResponse(SubmissionResponse):

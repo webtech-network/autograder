@@ -31,6 +31,7 @@ class SubmissionResult(Base):
     final_score: Mapped[float] = mapped_column(Float, nullable=False)
     result_tree: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    focus: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Focus object with test impacts
     pipeline_execution: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # NEW: Pipeline step details
     execution_time_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     pipeline_status: Mapped[PipelineStatus] = mapped_column(

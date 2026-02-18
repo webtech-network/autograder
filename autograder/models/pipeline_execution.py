@@ -82,7 +82,7 @@ class PipelineExecution:
                         step_info["message"] = "Grading completed"
                 elif step.step == StepName.FEEDBACK:
                     step_info["message"] = "Feedback generated"
-                elif step.step == StepName.EXPORT:
+                elif step.step == StepName.EXPORTER:
                     step_info["message"] = "Results exported"
 
             # Add error details for failed steps
@@ -209,7 +209,8 @@ class PipelineExecution:
             grading_result = GradingResult(
                 final_score=self.get_step_result(StepName.GRADE).data.final_score,
                 feedback=self.get_step_result(StepName.FEEDBACK).data if self.has_step_result(StepName.FEEDBACK) else None,
-                result_tree=self.get_step_result(StepName.GRADE).data.result_tree
+                result_tree=self.get_step_result(StepName.GRADE).data.result_tree,
+                focus=self.get_step_result(StepName.FOCUS).data if self.has_step_result(StepName.FOCUS) else None
             )
         self.result = grading_result
 

@@ -404,6 +404,7 @@ async def get_submission(
         "final_score": None,
         "feedback": None,
         "result_tree": None,
+        "focus": None,
         "pipeline_execution": None,  # NEW: Add pipeline execution
     }
 
@@ -413,6 +414,7 @@ async def get_submission(
             "final_score": submission.result.final_score,
             "feedback": submission.result.feedback,
             "result_tree": submission.result.result_tree,
+            "focus": submission.result.focus,
             "pipeline_execution": submission.result.pipeline_execution,  # NEW
         })
 
@@ -498,7 +500,8 @@ async def grade_submission(
                 final_score = pipeline_execution.result.final_score
                 feedback = pipeline_execution.result.feedback
                 result_tree = pipeline_execution.result.result_tree
-                
+                focus = pipeline_execution.result.focus
+
                 # Convert result_tree to dict for JSON storage
                 result_tree_dict = None
                 if result_tree:
@@ -507,6 +510,11 @@ async def grade_submission(
                         "children": _node_to_dict(result_tree.root)
                     }
                 
+                # Convert focus to dict for JSON storage
+                focus_dict = None
+                if focus:
+                    focus_dict = focus.to_dict()
+
                 pipeline_summary = pipeline_execution.get_pipeline_execution_summary()
 
                 # Store result
@@ -515,6 +523,7 @@ async def grade_submission(
                     final_score=final_score,
                     result_tree=result_tree_dict,
                     feedback=feedback,
+                    focus=focus_dict,
                     pipeline_execution=pipeline_summary,
                     execution_time_ms=execution_time_ms,
                     pipeline_status=PipelineStatus.SUCCESS,
