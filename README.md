@@ -15,6 +15,10 @@
 
 </div>
 
+> [!IMPORTANT]
+>
+> The Autograder is in active development. New features are being added continuously, and we welcome contributions from the community. We would love to hear your suggestions or feature requests! Don't hesitate on opening an issue on GitHub.
+
 ---
 
 ## Overview
