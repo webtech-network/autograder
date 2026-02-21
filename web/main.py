@@ -36,6 +36,7 @@ from web.schemas import (
     SubmissionResponse,
     SubmissionDetailResponse,
 )
+from web.auth.dependencies import get_current_client_id
 
 
 # Setup logging
@@ -180,7 +181,7 @@ async def readiness_check():
 
 # Template endpoints
 @app.get("/api/v1/templates")
-async def list_templates():
+async def list_templates(client_id: str = Depends(get_current_client_id)):
     """List all available grading templates."""
     global template_service
     
@@ -192,7 +193,7 @@ async def list_templates():
 
 
 @app.get("/api/v1/templates/{template_name}")
-async def get_template_info(template_name: str):
+async def get_template_info(template_name: str, client_id: str = Depends(get_current_client_id)):
     """Get information about a specific template."""
     global template_service
     
@@ -210,7 +211,8 @@ async def get_template_info(template_name: str):
 @app.post("/api/v1/configs", response_model=GradingConfigResponse)
 async def create_grading_config(
     config: GradingConfigCreate,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    client_id: str = Depends(get_current_client_id)
 ):
     """Create a new grading configuration."""
     repo = GradingConfigRepository(session)
@@ -238,7 +240,8 @@ async def create_grading_config(
 @app.get("/api/v1/configs/{external_assignment_id}", response_model=GradingConfigResponse)
 async def get_grading_config(
     external_assignment_id: str,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    client_id: str = Depends(get_current_client_id)
 ):
     """Get grading configuration by external assignment ID."""
     repo = GradingConfigRepository(session)
@@ -257,7 +260,8 @@ async def get_grading_config(
 async def list_grading_configs(
     limit: int = 100,
     offset: int = 0,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    client_id: str = Depends(get_current_client_id)
 ):
     """List all grading configurations."""
     repo = GradingConfigRepository(session)
@@ -269,7 +273,8 @@ async def list_grading_configs(
 async def update_grading_config(
     config_id: int,
     update: GradingConfigUpdate,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    client_id: str = Depends(get_current_client_id)
 ):
     """Update a grading configuration."""
     repo = GradingConfigRepository(session)
@@ -292,9 +297,11 @@ async def update_grading_config(
 @app.post("/api/v1/submissions", response_model=SubmissionResponse)
 async def create_submission(
     submission: SubmissionCreate,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    client_id: str = Depends(get_current_client_id)
 ):
     """Submit code for grading."""
+    logger.info(f"Received submission request from client: {client_id}")
     # Get grading configuration
     config_repo = GradingConfigRepository(session)
     grading_config = await config_repo.get_by_external_id(submission.external_assignment_id)
@@ -334,6 +341,7 @@ async def create_submission(
         username=submission.username,
         submission_files=submission_files_dict,
         language=submission_language,
+        origin_client_id=client_id,
         status=SubmissionStatus.PENDING,
         submission_metadata=submission.metadata,
     )
@@ -368,7 +376,8 @@ async def create_submission(
 @app.get("/api/v1/submissions/{submission_id}", response_model=SubmissionDetailResponse)
 async def get_submission(
     submission_id: int,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    client_id: str = Depends(get_current_client_id)
 ):
     """Get submission by ID with results."""
     repo = SubmissionRepository(session)
@@ -426,7 +435,8 @@ async def get_user_submissions(
     external_user_id: str,
     limit: int = 100,
     offset: int = 0,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_db_session),
+    client_id: str = Depends(get_current_client_id)
 ):
     """Get all submissions by a user."""
     repo = SubmissionRepository(session)

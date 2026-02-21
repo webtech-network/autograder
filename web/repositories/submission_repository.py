@@ -23,6 +23,7 @@ class SubmissionRepository(BaseRepository[Submission]):
             username: str,
             submission_files: dict,  # Receives Dict[str, str] from API
             language: Optional[str] = None,
+            origin_client_id: Optional[str] = None,
             status: SubmissionStatus = SubmissionStatus.PENDING,
             submission_metadata: Optional[dict] = None,
     ) -> Submission:
@@ -35,6 +36,7 @@ class SubmissionRepository(BaseRepository[Submission]):
             username=username,
             submission_files=submission_files,  # Store directly
             language=language,
+            origin_client_id=origin_client_id,
             status=status,
             submission_metadata=submission_metadata,
         )

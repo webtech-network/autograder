@@ -42,6 +42,7 @@ class Submission(Base):
     submitted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False, index=True)
     graded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     submission_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    origin_client_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     
     # Relationships
     grading_config: Mapped["GradingConfiguration"] = relationship("GradingConfiguration", back_populates="submissions")

@@ -28,6 +28,7 @@ class SubmissionCreate(BaseModel):
     external_assignment_id: str = Field(..., description="External assignment ID")
     external_user_id: str = Field(..., description="External user ID")
     username: str = Field(..., description="Username of the submitter")
+    origin_client_id: Optional[str] = Field(None, description="Optional Client ID making the submission")
     files: List[SubmissionFileData] = Field(..., description="List of files to submit")
     language: Optional[str] = Field(None, description="Optional language override")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Optional submission metadata")
