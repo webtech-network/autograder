@@ -4,7 +4,7 @@ from autograder.models.dataclass.preflight_error import PreflightError, Prefligh
 from autograder.models.dataclass.submission import Submission
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.manager import get_sandbox_manager
-from sandbox_manager.models.sandbox_models import Language
+from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
 
 class PreFlightService:
@@ -144,10 +144,10 @@ class PreFlightService:
             try:
                 response = sandbox.run_command(command)
                 self.logger.debug(f"Setup command '{command_name}' exit code: {response.exit_code}")
-                self.logger.debug(f"Setup command '{command_name}' stdout: {response.stdout}")
-                self.logger.debug(f"Setup command '{command_name}' stderr: {response.stderr}")
+                self.logger.debug(f"Setup command '{command_name}' category: {response.category.value}")
 
-                if response.exit_code != 0:
+                # Use the new category classification
+                if response.category != ResponseCategory.SUCCESS:
                     error_msg = self._format_setup_command_error(command_name, command, response)
                     self.logger.error(error_msg)
                     self.fatal_errors.append(PreflightError(
@@ -157,6 +157,7 @@ class PreFlightService:
                             "command_name": command_name,
                             "command": command,
                             "exit_code": response.exit_code,
+                            "category": response.category.value,  # Track the category here
                             "stdout": response.stdout,
                             "stderr": response.stderr
                         }
