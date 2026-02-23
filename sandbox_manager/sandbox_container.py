@@ -4,7 +4,9 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from docker.models.containers import Container
 import requests
-from sandbox_manager.models.sandbox_models import Language, SandboxState, CommandResponse, HttpResponse
+from sandbox_manager.models.sandbox_models import Language, SandboxState, CommandResponse, HttpResponse, \
+    ResponseCategory
+from sandbox_manager.utils.classify_output import classify_output
 
 
 class SandboxContainer:
@@ -128,11 +130,14 @@ class SandboxContainer:
             stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
             stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
 
+            category = classify_output(stdout, stderr, result.exit_code, self.language)
+
             return CommandResponse(
                 stdout=stdout,
                 stderr=stderr,
                 exit_code=result.exit_code,
-                execution_time=execution_time
+                execution_time=execution_time,
+                category=category  # Pass the classification
             )
 
         except Exception as e:
@@ -141,7 +146,8 @@ class SandboxContainer:
                 stdout='',
                 stderr=f'Command execution failed: {str(e)}',
                 exit_code=-1,
-                execution_time=execution_time
+                execution_time=execution_time,
+                category=ResponseCategory.SYSTEM_ERROR  # System/Infrastructure failure
             )
 
     def run_commands(self, commands: List[str], program_command: str = None, timeout: int = 30, workdir: str = "/app") -> CommandResponse:

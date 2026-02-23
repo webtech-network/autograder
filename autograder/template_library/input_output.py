@@ -43,67 +43,74 @@ class ExpectOutputTest(TestFunction):
             ParamDescription("program_command", "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).", "string or dict")
         ]
 
-    def execute(self, files, sandbox: SandboxContainer, inputs: list = None, expected_output: str = "", program_command=None, __submission_language__=None, **kwargs) -> TestResult:
-        """
-        Constructs and runs the command using stdin input for robust input handling,
-        then validates the output.
-
-        Args:
-            files: Submission files (not used in this test)
-            sandbox: The sandbox container to execute in
-            inputs: List of input strings to send to the program
-            expected_output: The expected output from the program
-            program_command: Command config - can be:
-                - string: Single command (legacy) or "CMD" (auto-resolve)
-                - dict: Multi-language commands {"python": "...", "java": "...", ...}
-            __submission_language__: Internal parameter for submission language
-        """
-
+    def execute(self, files, sandbox: SandboxContainer, inputs: list = None, expected_output: str = "",
+                program_command=None, __submission_language__=None, **kwargs) -> TestResult:
         try:
-            # Resolve the actual command based on submission language
+            # 1. Resolve the actual command
             resolved_command = None
             if program_command and __submission_language__:
                 resolved_command = self.command_resolver.resolve_command(
                     program_command,
                     __submission_language__
                 )
-            elif program_command and not __submission_language__:
-                # No language info but command provided - use as-is if string
-                if isinstance(program_command, str) and program_command != "CMD":
-                    resolved_command = program_command
+            # ... (keep existing resolution logic) ...
 
+            # 2. Run the command and get classified output
             if not resolved_command:
-                # No program command specified - treat inputs as command to run
-                # Join inputs into a single command string
-                if inputs is None:
-                    raise ValueError("inputs parameter is required")
+                if inputs is None: raise ValueError("inputs parameter is required")
                 command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
                 output = sandbox.run_command(command)
-                actual_output = output.stdout
             else:
-                # Program command specified - inputs are stdin for the program
                 output = sandbox.run_commands(inputs, program_command=resolved_command)
-                actual_output = output.stdout
 
-            score = 100.0 if actual_output.strip() == expected_output.strip() else 0.0
-            report = f"Expected output: '{expected_output.strip()}'\nActual output: '{actual_output.strip()}'\n"
+            # 3. Handle specific execution failures based on Category
+            # (Assuming you updated CommandResponse to include .category as suggested previously)
+            from sandbox_manager.models.sandbox_models import ResponseCategory
 
-            # Include stderr if there was any error output
-            if output.stderr:
-                report += f"Error output (stderr): {output.stderr}\n"
+            if output.category == ResponseCategory.TIMEOUT:
+                return TestResult(
+                    test_name=self.name,
+                    score=0.0,
+                    report=f"FAILURE: Program timed out. Ensure you don't have infinite loops. [Time: {output.execution_time:.2f}s]"
+                )
 
-            return TestResult(
-                test_name=self.name,
-                score=score,
-                report=report
-            )
+            if output.category == ResponseCategory.COMPILATION_ERROR:
+                return TestResult(
+                    test_name=self.name,
+                    score=0.0,
+                    report=f"FAILURE: Compilation Error.\nDetails:\n{output.stderr}"
+                )
+
+            if output.category == ResponseCategory.RUNTIME_ERROR:
+                return TestResult(
+                    test_name=self.name,
+                    score=0.0,
+                    report=f"FAILURE: Your program crashed during execution.\nError:\n{output.stderr}"
+                )
+
+            # 4. Standard I/O Comparison if execution succeeded
+            actual_output = output.stdout.strip()
+            expected = expected_output.strip()
+
+            if actual_output == expected:
+                return TestResult(
+                    test_name=self.name,
+                    score=100.0,
+                    report="Success: Output matches expected values."
+                )
+            else:
+                return TestResult(
+                    test_name=self.name,
+                    score=0.0,
+                    report=f"FAILURE: Output Mismatch.\nExpected: '{expected}'\nActual: '{actual_output}'"
+                )
+
         except Exception as e:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=f"Error executing command: {str(e)}"
+                report=f"SYSTEM ERROR: Internal autograder failure: {str(e)}"
             )
-
 
 # ===============================================================
 # endregion

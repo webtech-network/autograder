@@ -21,18 +21,24 @@ class SandboxState(Enum):
     BUSY = "busy"
     STOPPED = "stopped"
 
+class ResponseCategory(Enum):
+    SUCCESS = "success"             # Program ran and exited with 0
+    RUNTIME_ERROR = "runtime_error" # Program crashed (e.g., Exception, Segmentation Fault)
+    TIMEOUT = "timeout"             # Program was killed because it took too long
+    SYSTEM_ERROR = "system_error"   # Infrastructure failure (e.g., Docker error)
+    COMPILATION_ERROR = "compilation_error" # Specific to compiled languages like C++/Java
 
 @dataclass
 class CommandResponse:
-    """Response from executing a command in a sandbox container."""
     stdout: str
     stderr: str
     exit_code: int
-    execution_time: float  # in seconds
+    execution_time: float
+    # New field to hold the classification
+    category: ResponseCategory = ResponseCategory.SUCCESS
 
     @property
     def output(self) -> str:
-        """Combined stdout for backward compatibility."""
         return self.stdout
 
     def __str__(self):
