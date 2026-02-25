@@ -90,10 +90,10 @@ class GithubActionService:
             feedback (str | None): The feedback content to commit, if any.
         """
         if include_feedback and feedback is not None:
-            self.commit_feedback(feedback)
-        self.notify_classroom(final_score)
+            self.__commit_feedback(feedback)
+        self.__notify_classroom(final_score)
 
-    def notify_classroom(self, final_score: float):
+    def __notify_classroom(self, final_score: float):
         """
         Notify GitHub Classroom of the final score by updating the check run.
 
@@ -165,7 +165,7 @@ class GithubActionService:
 
         return check_run
 
-    def commit_feedback(self, feedback: str):
+    def __commit_feedback(self, feedback: str):
         """
         Commit the feedback as a file (relatorio.md) to the repository.
 
@@ -203,24 +203,17 @@ class GithubActionService:
         submission_path = os.path.join(base_path, "submission")
         submission_files_dict = {}
 
-        # take all files in the submission directory and add them to the submission_files_dict
         for root, dirs, files in os.walk(submission_path):
-            # Skip .git directory
             if ".git" in dirs:
                 dirs.remove(".git")
             if ".github" in dirs:
                 dirs.remove(".github")
             for file in files:
-                # Full path to the file
                 file_path = os.path.join(root, file)
-
-                # Key: Path relative to the starting directory to ensure uniqueness
                 relative_path = os.path.relpath(file_path, submission_path)
 
                 try:
                     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                        print("Adding file to submission_files_dict: ", relative_path)
-                        # Use the unique relative_path as the key
                         submission_files_dict[relative_path] = f.read()
                 except Exception as e:
                     print(f"Could not read file {file_path}: {e}")

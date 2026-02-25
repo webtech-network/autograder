@@ -68,22 +68,29 @@ async def main():
         os.environ["OPENAI_API_KEY"] = args.openai_key
 
     service = GithubActionService(args.github_token, args.app_token)
+    pipeline = __build_pipeline(args, include_feedback, service)
+    grading_result = __retrieve_grading_score(args, service, pipeline)
 
+    service.export_results(
+        grading_result.final_score, include_feedback, grading_result.feedback
+    )
+
+def __retrieve_grading_score(args, service, pipeline):
+    grading_result = service.run_autograder(pipeline, args.student_name).result
+    if grading_result is None:
+        raise Exception("Fail to get grading result")
+    logger.info(
+        "Final Score for %s: %s", args.student_name, grading_result.final_score
+    )
+
+    return grading_result
+
+def __build_pipeline(args, include_feedback, service):
     pipeline = service.autograder_pipeline(
         args.template_preset, include_feedback, args.feedback_type
     )
     logger.info("Assignment config created: %s", pipeline)
-
-    grading_result = service.run_autograder(pipeline, args.student_name).result
-    if grading_result is None:
-        raise Exception("Fail to get grading result")
-
-    logger.info(
-        "Final Score for %s: %s", args.student_name, grading_result.final_score
-    )
-    service.export_results(
-        grading_result.final_score, include_feedback, grading_result.feedback
-    )
+    return pipeline
 
 
 def __parser_values():
