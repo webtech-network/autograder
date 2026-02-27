@@ -598,36 +598,3 @@ class TestAutograderPipeline:
         ), patch("builtins.open", mock_open(read_data="{}")):
             with pytest.raises(FileNotFoundError, match="setup.json"):
                 service.autograder_pipeline("python", False, "default")
-
-
-# ---------------------------------------------------------------------------
-# create (classmethod)
-# ---------------------------------------------------------------------------
-
-
-class TestCreate:
-    def test_create_calls_get_repository_with_app_token(self):
-        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "owner/repo"}), patch(
-            "github_action.github_action_service.Github"
-        ) as mock_github:
-            mock_repo = MagicMock()
-            mock_github.return_value.get_repo.return_value = mock_repo
-
-            service = GithubActionService.create(
-                "fw-token", "author-token", "app-token"
-            )
-
-        assert isinstance(service, GithubActionService)
-        # get_repository is called once in __init__ (with "author-token") and once in create (with "app-token")
-        assert mock_github.return_value.get_repo.call_count == 2
-
-    def test_create_sets_correct_tokens(self):
-        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "owner/repo"}), patch(
-            "github_action.github_action_service.Github"
-        ):
-            service = GithubActionService.create(
-                "fw-token", "author-token", "app-token"
-            )
-
-        assert service.github_token == "fw-token"
-        assert service.app_token == "author-token"

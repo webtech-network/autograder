@@ -9,6 +9,7 @@ import logging
 import os
 from argparse import ArgumentParser
 from .github_action_service import GithubActionService
+from autograder.autograder import AutograderPipeline
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ parser.add_argument(
     required=False,
     help="Test Files for the submission (in case of custom preset)",
 )
-parser.add_argument("--app_token", type=str, required=False, help="GitHub App Token")
+parser.add_argument("--app-token", type=str, required=False, help="GitHub App Token")
 parser.add_argument(
     "--openai-key",
     type=str,
@@ -57,35 +58,43 @@ async def main():
     This makes the Adapter accessible to the GitHub Action workflow,
     that runs by entrypoint.sh script with all arguments passed to it.
     """
-    args = __parser_values()
+    try:
+        args = __parser_values()
 
-    if args.template_preset == "custom":
-        return
+        if args.template_preset == "custom":
+            raise SystemExit("Currently, this system does not accept custom templates.")
 
-    include_feedback = __has_feedback(args.include_feedback)
+        include_feedback = __has_feedback(args.include_feedback)
 
-    if args.openai_key:
-        os.environ["OPENAI_API_KEY"] = args.openai_key
+        if args.openai_key:
+            os.environ["OPENAI_API_KEY"] = args.openai_key
 
-    service = GithubActionService(args.github_token, args.app_token)
-    pipeline = __build_pipeline(args, include_feedback, service)
-    grading_result = __retrieve_grading_score(args, service, pipeline)
+        service = GithubActionService(args.github_token, args.app_token)
+        pipeline = __build_pipeline(args, include_feedback, service)
+        grading_result = __retrieve_grading_score(args, service, pipeline)
 
-    service.export_results(
-        grading_result.final_score, include_feedback, grading_result.feedback
-    )
+        service.export_results(
+            grading_result.final_score, include_feedback, grading_result.feedback
+        )
+    except ValueError as e:
+        logger.error("You fill a wrong value: %s", e)
+    except SystemExit as e:
+        logger.critical(e)
+    except Exception as e:
+        logger.error(e, exc_info=True)
 
-def __retrieve_grading_score(args, service, pipeline):
+
+def __retrieve_grading_score(
+    args, service: GithubActionService, pipeline: AutograderPipeline
+):
     grading_result = service.run_autograder(pipeline, args.student_name).result
     if grading_result is None:
         raise Exception("Fail to get grading result")
-    logger.info(
-        "Final Score for %s: %s", args.student_name, grading_result.final_score
-    )
+    logger.info("Final Score for %s: %s", args.student_name, grading_result.final_score)
 
     return grading_result
 
-def __build_pipeline(args, include_feedback, service):
+def __build_pipeline(args, include_feedback: bool, service: GithubActionService):
     pipeline = service.autograder_pipeline(
         args.template_preset, include_feedback, args.feedback_type
     )

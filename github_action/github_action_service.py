@@ -70,7 +70,7 @@ class GithubActionService:
         try:
             repo = os.getenv("GITHUB_REPOSITORY")
             if not repo:
-                raise Exception("Not find repo")
+                raise Exception("Repository not find")
 
             return Github(app_token).get_repo(repo)
         except:
@@ -221,7 +221,7 @@ class GithubActionService:
         return submission_files_dict
 
     def autograder_pipeline(
-        self, template_preset, include_feedback: bool, feedback_mode
+        self, template_preset: str, include_feedback: bool, feedback_mode: str
     ):
         """
         Build the autograder pipeline using configuration files from the submission.
@@ -231,7 +231,7 @@ class GithubActionService:
         Args:
             template_preset (str): The template preset name.
             include_feedback (bool): Whether to include feedback in the pipeline.
-            feedback_mode: The feedback mode to use.
+            feedback_mode(str): The feedback mode to use.
 
         Returns:
             AutograderPipeline: The constructed autograder pipeline.
@@ -271,25 +271,3 @@ class GithubActionService:
 
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-
-    @classmethod
-    def create(
-        cls,
-        test_framework,
-        github_author,
-        app_token,
-    ):
-        """
-        Factory method to create and initialize a GithubActionService instance.
-
-        Args:
-            test_framework: The test framework or GitHub token.
-            github_author: The GitHub author or app token.
-            app_token: The GitHub App token for repository access.
-
-        Returns:
-            GithubActionService: The initialized service instance.
-        """
-        response = cls(test_framework, github_author)
-        response.get_repository(app_token)
-        return response
