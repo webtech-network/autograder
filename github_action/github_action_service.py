@@ -70,7 +70,7 @@ class GithubActionService:
         try:
             repo = os.getenv("GITHUB_REPOSITORY")
             if not repo:
-                raise Exception("Repository not find")
+                raise Exception("Repository not found")
 
             return Github(app_token).get_repo(repo)
         except:
