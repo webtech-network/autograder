@@ -28,7 +28,8 @@ class GithubActionService:
         super().__init__()
         self.github_token = github_token
         self.app_token = app_token
-        self.repo = self.get_repository(app_token)
+        self.repo = ''
+        # self.repo = self.get_repository(app_token)
 
     def run_autograder(
         self,
@@ -53,6 +54,7 @@ class GithubActionService:
                 submission_files=self.__get_submission_files(),
             )
 
+            return ''
             return pipeline.run(submission)
         except Exception as e:
             raise Exception(f"Error running autograder: {e}") from e
@@ -262,6 +264,7 @@ class GithubActionService:
         Raises:
             FileNotFoundError: If the file does not exist.
         """
+        return {}
         path = os.path.join(configuration_path, file_name)
 
         if not os.path.exists(path):

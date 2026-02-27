@@ -73,9 +73,9 @@ async def main():
         pipeline = __build_pipeline(args, include_feedback, service)
         grading_result = __retrieve_grading_score(args, service, pipeline)
 
-        service.export_results(
-            grading_result.final_score, include_feedback, grading_result.feedback
-        )
+        # service.export_results(
+        #     grading_result.final_score, include_feedback, grading_result.feedback
+        # )
     except ValueError as e:
         logger.error("You fill a wrong value: %s", e)
     except SystemExit as e:
@@ -87,10 +87,12 @@ async def main():
 def __retrieve_grading_score(
     args, service: GithubActionService, pipeline: AutograderPipeline
 ):
-    grading_result = service.run_autograder(pipeline, args.student_name).result
+    # grading_result = service.run_autograder(pipeline, args.student_name).result
+    grading_result = service.run_autograder(pipeline, args.student_name)
     if grading_result is None:
         raise Exception("Fail to get grading result")
-    logger.info("Final Score for %s: %s", args.student_name, grading_result.final_score)
+    logger.info("Final Score for %s", args.student_name)
+    # logger.info("Final Score for %s: %s", args.student_name, grading_result.final_score)
 
     return grading_result
 
