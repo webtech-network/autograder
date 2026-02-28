@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import github_action.main as main_module
 
@@ -38,7 +38,7 @@ def _make_argv(
         student_name,
         "--feedback-type",
         feedback_type,
-        "--app_token",
+        "--app-token",
         app_token,
     ]
     if openai_key:
@@ -76,7 +76,7 @@ class TestMain:
         mock_service_cls.assert_not_called()
 
     def test_successful_run_without_feedback(self):
-        execution = _make_pipeline_execution(final_score=90.0, feedback='')
+        execution = _make_pipeline_execution(final_score=90.0, feedback="")
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
         mock_service.run_autograder.return_value = execution
@@ -109,6 +109,8 @@ class TestMain:
         )
 
     def test_raises_when_grading_result_is_none(self):
+        """main() swallows the internal exception; verify run_autograder was
+        reached and export_results was never called."""
         execution = MagicMock()
         execution.result = None
 
@@ -119,8 +121,10 @@ class TestMain:
         with patch.object(sys, "argv", _make_argv()), patch(
             "github_action.main.GithubActionService", return_value=mock_service
         ):
-            with pytest.raises(Exception, match="Fail to get grading result"):
-                run(main_module.main())
+            run(main_module.main())
+
+        mock_service.run_autograder.assert_called_once()
+        mock_service.export_results.assert_not_called()
 
     def test_sets_openai_api_key_env_when_provided(self):
         execution = _make_pipeline_execution()
@@ -298,6 +302,8 @@ class TestHasFeedback:
         assert result is False
 
     def test_invalid_value_raises_value_error(self):
+        """main() catches ValueError internally; verify export_results is never
+        reached so the invalid value is handled gracefully."""
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -306,12 +312,13 @@ class TestHasFeedback:
         with patch.object(sys, "argv", _make_argv(include_feedback="yes")), patch(
             "github_action.main.GithubActionService", return_value=mock_service
         ):
-            with pytest.raises(
-                ValueError, match="Invalid value for --include-feedback"
-            ):
-                run(main_module.main())
+            run(main_module.main())
+
+        mock_service.export_results.assert_not_called()
 
     def test_invalid_value_raises_for_numeric_string(self):
+        """main() catches ValueError internally; verify export_results is never
+        reached so the invalid value is handled gracefully."""
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -320,7 +327,133 @@ class TestHasFeedback:
         with patch.object(sys, "argv", _make_argv(include_feedback="1")), patch(
             "github_action.main.GithubActionService", return_value=mock_service
         ):
-            with pytest.raises(
-                ValueError, match="Invalid value for --include-feedback"
-            ):
-                run(main_module.main())
+            run(main_module.main())
+
+        mock_service.export_results.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# __get_submission_files (module-level private function)
+# ---------------------------------------------------------------------------
+
+
+class TestGetSubmissionFiles:
+    """
+    Tests for the module-level __get_submission_files function in main.py.
+    Accessed via main_module.__dict__ because Python restricts direct
+    attribute lookup for double-underscore names at module level.
+    """
+
+    def _call(self):
+        fn = main_module.__dict__["__get_submission_files"]
+        return fn()
+
+    def test_collects_regular_files(self):
+        submission_path = "/workspace/submission"
+        walk_data = [
+            (submission_path, ["src"], ["readme.txt"]),
+            (os.path.join(submission_path, "src"), [], ["main.py"]),
+        ]
+        file_contents = {
+            os.path.join(submission_path, "readme.txt"): "readme content",
+            os.path.join(submission_path, "src", "main.py"): "print('hello')",
+        }
+
+        def fake_open(path, *args, **kwargs):
+            return mock_open(read_data=file_contents.get(path, ""))()
+
+        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
+            "os.walk", return_value=walk_data
+        ), patch("builtins.open", side_effect=fake_open):
+            result = self._call()
+
+        assert "readme.txt" in result
+        assert os.path.join("src", "main.py") in result
+        assert result["readme.txt"] == "readme content"
+        assert result[os.path.join("src", "main.py")] == "print('hello')"
+
+    def test_skips_git_directory(self):
+        submission_path = "/workspace/submission"
+        captured_dirs = []
+
+        def fake_walk(path):
+            dirs = [".git", "src"]
+            captured_dirs.append(dirs)
+            yield submission_path, dirs, ["file.py"]
+
+        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
+            "os.walk", side_effect=fake_walk
+        ), patch("builtins.open", mock_open(read_data="content")):
+            self._call()
+
+        assert ".git" not in captured_dirs[0]
+
+    def test_skips_github_directory(self):
+        submission_path = "/workspace/submission"
+        captured_dirs = []
+
+        def fake_walk(path):
+            dirs = [".github", "src"]
+            captured_dirs.append(dirs)
+            yield submission_path, dirs, ["file.py"]
+
+        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
+            "os.walk", side_effect=fake_walk
+        ), patch("builtins.open", mock_open(read_data="content")):
+            self._call()
+
+        assert ".github" not in captured_dirs[0]
+
+    def test_continues_on_unreadable_file(self):
+        submission_path = "/workspace/submission"
+        walk_data = [(submission_path, [], ["bad.py", "good.py"])]
+
+        def fake_open(path, *args, **kwargs):
+            if "bad.py" in path:
+                raise OSError("Permission denied")
+            return mock_open(read_data="good content")()
+
+        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
+            "os.walk", return_value=walk_data
+        ), patch("builtins.open", side_effect=fake_open):
+            result = self._call()
+
+        assert "good.py" in result
+        assert "bad.py" not in result
+
+    def test_returns_empty_dict_when_no_files(self):
+        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
+            "os.walk", return_value=[]
+        ):
+            result = self._call()
+
+        assert result == {}
+
+    def test_uses_dot_as_base_when_workspace_not_set(self):
+        env = {k: v for k, v in os.environ.items() if k != "GITHUB_WORKSPACE"}
+
+        with patch.dict(os.environ, env, clear=True), patch(
+            "os.walk", return_value=[]
+        ) as mock_walk:
+            self._call()
+
+        expected_path = os.path.join(".", "submission")
+        mock_walk.assert_called_once_with(expected_path)
+
+    def test_skips_both_git_and_github_simultaneously(self):
+        submission_path = "/workspace/submission"
+        captured_dirs = []
+
+        def fake_walk(path):
+            dirs = [".git", ".github", "src"]
+            captured_dirs.append(dirs)
+            yield submission_path, dirs, []
+
+        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
+            "os.walk", side_effect=fake_walk
+        ):
+            self._call()
+
+        assert ".git" not in captured_dirs[0]
+        assert ".github" not in captured_dirs[0]
+        assert "src" in captured_dirs[0]

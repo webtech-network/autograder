@@ -76,12 +76,9 @@ class TestRunAutograder:
         mock_result = MagicMock()
         mock_pipeline.run.return_value = mock_result
 
-        with patch.object(
-            service,
-            "_GithubActionService__get_submission_files",
-            return_value={"file.py": "content"},
-        ):
-            result = service.run_autograder(mock_pipeline, "student1")
+        result = service.run_autograder(
+            mock_pipeline, "student1", {"file.py": "content"}
+        )
 
         assert result is mock_result
         mock_pipeline.run.assert_called_once()
@@ -91,14 +88,10 @@ class TestRunAutograder:
         mock_pipeline = MagicMock()
         submission_files = {"main.py": "print('hi')"}
 
-        with patch.object(
-            service,
-            "_GithubActionService__get_submission_files",
-            return_value=submission_files,
-        ), patch(
+        with patch(
             "github_action.github_action_service.Submission"
         ) as mock_submission_cls:
-            service.run_autograder(mock_pipeline, "alice")
+            service.run_autograder(mock_pipeline, "alice", submission_files)
 
         mock_submission_cls.assert_called_once_with(
             username="alice",
@@ -112,13 +105,8 @@ class TestRunAutograder:
         mock_pipeline = MagicMock()
         mock_pipeline.run.side_effect = RuntimeError("pipeline boom")
 
-        with patch.object(
-            service,
-            "_GithubActionService__get_submission_files",
-            return_value={},
-        ):
-            with pytest.raises(Exception, match="Error running autograder"):
-                service.run_autograder(mock_pipeline, "student1")
+        with pytest.raises(Exception, match="Error running autograder"):
+            service.run_autograder(mock_pipeline, "student1", {})
 
 
 # ---------------------------------------------------------------------------
@@ -400,124 +388,6 @@ class TestCommitFeedback:
             content="feedback content",
             sha="sha-first",
         )
-
-
-# ---------------------------------------------------------------------------
-# __get_submission_files
-# ---------------------------------------------------------------------------
-
-
-class TestGetSubmissionFiles:
-    def _call_get_files(self, service):
-        return service._GithubActionService__get_submission_files()
-
-    def test_collects_regular_files(self):
-        service = _make_service()
-        submission_path = "/workspace/submission"
-
-        walk_data = [
-            (submission_path, ["src"], ["readme.txt"]),
-            (os.path.join(submission_path, "src"), [], ["main.py"]),
-        ]
-
-        file_contents = {
-            os.path.join(submission_path, "readme.txt"): "readme content",
-            os.path.join(submission_path, "src", "main.py"): "print('hello')",
-        }
-
-        def fake_open(path, *args, **kwargs):
-            content = file_contents.get(path, "")
-            return mock_open(read_data=content)()
-
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", return_value=walk_data
-        ), patch("builtins.open", side_effect=fake_open):
-            result = self._call_get_files(service)
-
-        assert "readme.txt" in result
-        assert os.path.join("src", "main.py") in result
-
-    def test_skips_git_directory(self):
-        service = _make_service()
-        submission_path = "/workspace/submission"
-
-        # os.walk modifies dirs in-place; simulate the walk without .git subtree
-        captured_dirs = []
-
-        def fake_walk(path):
-            dirs = [".git", "src"]
-            captured_dirs.append(dirs)
-            yield submission_path, dirs, ["file.py"]
-            # After yield, the service removes ".git" from dirs in-place
-            # so os.walk wouldn't recurse into it — we only yield one level
-
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", side_effect=fake_walk
-        ), patch("builtins.open", mock_open(read_data="content")):
-            self._call_get_files(service)
-
-        assert ".git" not in captured_dirs[0]
-
-    def test_skips_github_directory(self):
-        service = _make_service()
-        submission_path = "/workspace/submission"
-
-        captured_dirs = []
-
-        def fake_walk(path):
-            dirs = [".github", "src"]
-            captured_dirs.append(dirs)
-            yield submission_path, dirs, ["file.py"]
-
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", side_effect=fake_walk
-        ), patch("builtins.open", mock_open(read_data="content")):
-            self._call_get_files(service)
-
-        assert ".github" not in captured_dirs[0]
-
-    def test_continues_on_unreadable_file(self):
-        service = _make_service()
-        submission_path = "/workspace/submission"
-
-        walk_data = [(submission_path, [], ["bad.py", "good.py"])]
-
-        call_count = {"n": 0}
-
-        def fake_open(path, *args, **kwargs):
-            call_count["n"] += 1
-            if "bad.py" in path:
-                raise OSError("Permission denied")
-            return mock_open(read_data="good content")()
-
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", return_value=walk_data
-        ), patch("builtins.open", side_effect=fake_open):
-            result = self._call_get_files(service)
-
-        assert "good.py" in result
-        assert "bad.py" not in result
-
-    def test_returns_empty_dict_when_no_files(self):
-        service = _make_service()
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", return_value=[]
-        ):
-            result = self._call_get_files(service)
-
-        assert result == {}
-
-    def test_uses_dot_as_base_when_workspace_not_set(self):
-        service = _make_service()
-        env = {k: v for k, v in os.environ.items() if k != "GITHUB_WORKSPACE"}
-
-        with patch.dict(os.environ, env, clear=True), patch(
-            "os.walk", return_value=[]
-        ) as mock_walk:
-            self._call_get_files(service)
-
-        expected_path = os.path.join(".", "submission")
-        mock_walk.assert_called_once_with(expected_path)
 
 
 # ---------------------------------------------------------------------------

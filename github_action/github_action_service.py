@@ -232,7 +232,6 @@ class GithubActionService:
         Raises:
             FileNotFoundError: If the file does not exist.
         """
-        return {}
         path = os.path.join(configuration_path, file_name)
 
         if not os.path.exists(path):
