@@ -88,13 +88,47 @@ def __retrieve_grading_score(
     args, service: GithubActionService, pipeline: AutograderPipeline
 ):
     # grading_result = service.run_autograder(pipeline, args.student_name).result
-    grading_result = service.run_autograder(pipeline, args.student_name)
+    grading_result = service.run_autograder(
+        pipeline,
+        args.student_name,
+        __get_submission_files(),
+    )
     if grading_result is None:
         raise Exception("Fail to get grading result")
     logger.info("Final Score for %s", args.student_name)
     # logger.info("Final Score for %s: %s", args.student_name, grading_result.final_score)
 
     return grading_result
+
+
+def __get_submission_files():
+    """
+    Collect all files from the submission directory, skipping .git and .github.
+
+    Returns:
+        dict: A dictionary mapping relative file paths to their contents.
+    """
+    base_path = os.getenv("GITHUB_WORKSPACE", ".")
+    submission_path = os.path.join(base_path, "submission")
+    submission_files_dict = {}
+
+    for root, dirs, files in os.walk(submission_path):
+        if ".git" in dirs:
+            dirs.remove(".git")
+        if ".github" in dirs:
+            dirs.remove(".github")
+        for file in files:
+            file_path = os.path.join(root, file)
+            relative_path = os.path.relpath(file_path, submission_path)
+
+            try:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    submission_files_dict[relative_path] = f.read()
+            except Exception as e:
+                logger.warning(f"Could not read file {file_path}: {e}")
+
+    return submission_files_dict
+
 
 def __build_pipeline(args, include_feedback: bool, service: GithubActionService):
     pipeline = service.autograder_pipeline(

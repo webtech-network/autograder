@@ -28,13 +28,11 @@ class GithubActionService:
         super().__init__()
         self.github_token = github_token
         self.app_token = app_token
-        self.repo = ''
+        self.repo = ""
         # self.repo = self.get_repository(app_token)
 
     def run_autograder(
-        self,
-        pipeline: AutograderPipeline,
-        user_name: str,
+        self, pipeline: AutograderPipeline, user_name: str, submission_files: dict
     ):
         """
         Run the autograder pipeline for a given user submission.
@@ -51,10 +49,10 @@ class GithubActionService:
                 username=user_name,
                 user_id=self.github_token,
                 assignment_id=self.app_token,
-                submission_files=self.__get_submission_files(),
+                submission_files=submission_files,
             )
 
-            return ''
+            return ""
             return pipeline.run(submission)
         except Exception as e:
             raise Exception(f"Error running autograder: {e}") from e
@@ -193,34 +191,6 @@ class GithubActionService:
                 message=f"Criando relatório: {file_path}",
                 content=feedback,
             )
-
-    def __get_submission_files(self):
-        """
-        Collect all files from the submission directory, skipping .git and .github.
-
-        Returns:
-            dict: A dictionary mapping relative file paths to their contents.
-        """
-        base_path = os.getenv("GITHUB_WORKSPACE", ".")
-        submission_path = os.path.join(base_path, "submission")
-        submission_files_dict = {}
-
-        for root, dirs, files in os.walk(submission_path):
-            if ".git" in dirs:
-                dirs.remove(".git")
-            if ".github" in dirs:
-                dirs.remove(".github")
-            for file in files:
-                file_path = os.path.join(root, file)
-                relative_path = os.path.relpath(file_path, submission_path)
-
-                try:
-                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                        submission_files_dict[relative_path] = f.read()
-                except Exception as e:
-                    print(f"Could not read file {file_path}: {e}")
-
-        return submission_files_dict
 
     def autograder_pipeline(
         self, template_preset: str, include_feedback: bool, feedback_mode: str
