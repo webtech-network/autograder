@@ -93,7 +93,7 @@ def __retrieve_grading_score(
         __get_submission_files(),
     ).result
     if grading_result is None:
-        raise RuntimeError("Fail to get grading result")
+        raise RuntimeError("Failed to get grading result: autograder returned None")
     logger.info("Final Score for %s: %s", args.student_name, grading_result.final_score)
 
     return grading_result
