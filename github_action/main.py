@@ -77,7 +77,7 @@ async def main():
             grading_result.final_score, include_feedback, grading_result.feedback
         )
     except ValueError as e:
-        logger.error("You fill a wrong value: %s", e)
+        logger.error("Invalid value provided: %s", e)
     except SystemExit as e:
         logger.critical(e)
     except Exception as e:
