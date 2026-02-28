@@ -226,19 +226,19 @@ class TestParserValues:
 
 class TestHasFeedback:
     """
-    __has_feedback (module-level private function)
+    __has_feedback (module-level helper)
 
     Access the module-level __has_feedback function.
-    Python does NOT mangle module-level names (only class-level), so the
-    function lives in the module as a regular name. We invoke it via the
-    module's main() code path because the function has a leading-double-
-    underscore prefix that prevents direct attribute access from outside.
+    Module-level double-underscore names are not name-mangled, so the
+    function is exposed on the module as "__has_feedback". Historically, the
+    implementation also used a class-mangled name ("_GithubActionMain__has_feedback"),
+    so the tests are written to support both spellings when looking it up.
     """
 
     def _get_has_feedback(self):
-        """Retrieve the function from the module's global scope."""
-        # Module-level dunder functions are stored with their literal name
-        # but Python restricts attribute access via getattr — use __dict__.
+        """Retrieve the __has_feedback function from the module's global scope."""
+        # Look up both the legacy class-mangled name and the current
+        # module-level "__has_feedback" name in the module globals.
         return main_module.__dict__.get(
             "_GithubActionMain__has_feedback",
             main_module.__dict__.get(
