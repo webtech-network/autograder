@@ -46,7 +46,7 @@ class TestGetRepository:
         """Asserts an exception is raised when the GITHUB_REPOSITORY environment variable is not set."""
         env = {k: v for k, v in os.environ.items() if k != "GITHUB_REPOSITORY"}
         with patch.dict(os.environ, env, clear=True):
-            with pytest.raises(Exception, match="Failed to get repository"):
+            with pytest.raises(EnvironmentError, match="Repository not found"):
                 GithubActionService("token", "app-token")
 
     def test_raises_when_github_api_fails(self):
