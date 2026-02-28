@@ -61,13 +61,13 @@ def _make_pipeline_execution(final_score=85.0, feedback="Well done!"):
     return execution
 
 
-# ---------------------------------------------------------------------------
-# main() – async entry point
-# ---------------------------------------------------------------------------
-
-
 class TestMain:
+    """
+    main() – async entry point
+    """
+
     def test_returns_early_when_template_preset_is_custom(self):
+        """Asserts main() returns early without initialising GithubActionService when template_preset is 'custom'."""
         with patch.object(sys, "argv", _make_argv(template_preset="custom")), patch(
             "github_action.main.GithubActionService"
         ) as mock_service_cls:
@@ -76,6 +76,7 @@ class TestMain:
         mock_service_cls.assert_not_called()
 
     def test_successful_run_without_feedback(self):
+        """Asserts main() runs successfully and calls export_results with include_feedback=False when feedback is disabled."""
         execution = _make_pipeline_execution(final_score=90.0, feedback="")
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -93,6 +94,7 @@ class TestMain:
         )
 
     def test_successful_run_with_feedback(self):
+        """Asserts main() runs successfully and calls export_results with include_feedback=True when feedback is enabled."""
         execution = _make_pipeline_execution(final_score=75.0, feedback="Good work!")
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -127,6 +129,7 @@ class TestMain:
         mock_service.export_results.assert_not_called()
 
     def test_sets_openai_api_key_env_when_provided(self):
+        """Asserts OPENAI_API_KEY is set in the environment before autograder_pipeline is called when openai_key is provided."""
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -149,6 +152,7 @@ class TestMain:
         assert captured_env.get("OPENAI_API_KEY") == "sk-test-key"
 
     def test_autograder_pipeline_called_with_correct_args(self):
+        """Asserts autograder_pipeline is called with the correct template_preset, include_feedback, and feedback_type."""
         execution = _make_pipeline_execution()
         mock_pipeline = MagicMock()
         mock_service = MagicMock()
@@ -169,6 +173,7 @@ class TestMain:
         mock_service.autograder_pipeline.assert_called_once_with("api", True, "default")
 
     def test_service_initialized_with_correct_tokens(self):
+        """Asserts GithubActionService is instantiated with the correct github_token and app_token parsed from CLI arguments."""
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -184,13 +189,13 @@ class TestMain:
         mock_cls.assert_called_once_with("gh-tok", "app-tok")
 
 
-# ---------------------------------------------------------------------------
-# __parser_values (module-level private function)
-# ---------------------------------------------------------------------------
-
-
 class TestParserValues:
+    """
+    __parser_values (module-level private function)
+    """
+
     def test_app_token_defaults_to_github_token_when_absent(self):
+        """Asserts app_token defaults to the github_token value when --app-token is not provided on the CLI."""
         argv = [
             "entrypoint",
             "--github-token",
@@ -207,6 +212,7 @@ class TestParserValues:
         assert parsed.app_token == "my-token"
 
     def test_raises_value_error_for_ai_feedback_without_openai_key(self):
+        """Asserts a ValueError or SystemExit is raised when feedback_type='ai' is used without providing an openai_key."""
         argv = _make_argv(feedback_type="ai")  # no openai_key
         with patch.object(sys, "argv", argv):
             with pytest.raises((ValueError, SystemExit)):
@@ -216,13 +222,10 @@ class TestParserValues:
                     raise ValueError("OpenAI API key is required")
 
 
-# ---------------------------------------------------------------------------
-# __has_feedback (module-level private function)
-# ---------------------------------------------------------------------------
-
-
 class TestHasFeedback:
     """
+    __has_feedback (module-level private function)
+
     Access the module-level __has_feedback function.
     Python does NOT mangle module-level names (only class-level), so the
     function lives in the module as a regular name. We invoke it via the
@@ -266,6 +269,7 @@ class TestHasFeedback:
         return captured.get("include_feedback")
 
     def test_none_returns_false(self):
+        """Asserts include_feedback defaults to False when --include-feedback is not passed on the command line."""
         # No --include-feedback arg → defaults to False
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
@@ -286,18 +290,22 @@ class TestHasFeedback:
         assert captured["v"] is False
 
     def test_true_string_returns_true(self):
+        """Asserts the lowercase string 'true' is correctly converted to the boolean True."""
         result = self._invoke("true")
         assert result is True
 
     def test_false_string_returns_false(self):
+        """Asserts the lowercase string 'false' is correctly converted to the boolean False."""
         result = self._invoke("false")
         assert result is False
 
     def test_uppercase_true_returns_true(self):
+        """Asserts the capitalised string 'True' is correctly converted to the boolean True."""
         result = self._invoke("True")
         assert result is True
 
     def test_uppercase_false_returns_false(self):
+        """Asserts the capitalised string 'False' is correctly converted to the boolean False."""
         result = self._invoke("False")
         assert result is False
 
@@ -332,13 +340,10 @@ class TestHasFeedback:
         mock_service.export_results.assert_not_called()
 
 
-# ---------------------------------------------------------------------------
-# __get_submission_files (module-level private function)
-# ---------------------------------------------------------------------------
-
-
 class TestGetSubmissionFiles:
     """
+    __get_submission_files (module-level private function)
+
     Tests for the module-level __get_submission_files function in main.py.
     Accessed via main_module.__dict__ because Python restricts direct
     attribute lookup for double-underscore names at module level.
@@ -349,6 +354,7 @@ class TestGetSubmissionFiles:
         return fn()
 
     def test_collects_regular_files(self):
+        """Asserts regular files are collected recursively with their correct relative paths and contents."""
         submission_path = "/workspace/submission"
         walk_data = [
             (submission_path, ["src"], ["readme.txt"]),
@@ -373,6 +379,7 @@ class TestGetSubmissionFiles:
         assert result[os.path.join("src", "main.py")] == "print('hello')"
 
     def test_skips_git_directory(self):
+        """Asserts the .git directory is removed from the subdirectory list and is not traversed during the walk."""
         submission_path = "/workspace/submission"
         captured_dirs = []
 
@@ -389,6 +396,7 @@ class TestGetSubmissionFiles:
         assert ".git" not in captured_dirs[0]
 
     def test_skips_github_directory(self):
+        """Asserts the .github directory is removed from the subdirectory list and is not traversed during the walk."""
         submission_path = "/workspace/submission"
         captured_dirs = []
 
@@ -405,6 +413,7 @@ class TestGetSubmissionFiles:
         assert ".github" not in captured_dirs[0]
 
     def test_continues_on_unreadable_file(self):
+        """Asserts that unreadable files (OSError) are skipped and the remaining submission files are processed normally."""
         submission_path = "/workspace/submission"
         walk_data = [(submission_path, [], ["bad.py", "good.py"])]
 
@@ -422,14 +431,16 @@ class TestGetSubmissionFiles:
         assert "bad.py" not in result
 
     def test_returns_empty_dict_when_no_files(self):
+        """Asserts an empty dict is returned when os.walk finds no files in the submission directory."""
         with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
             "os.walk", return_value=[]
         ):
             result = self._call()
 
-        assert result == {}
+        assert not result
 
     def test_uses_dot_as_base_when_workspace_not_set(self):
+        """Asserts '.' is used as the base directory for the submission when GITHUB_WORKSPACE is not set in the environment."""
         env = {k: v for k, v in os.environ.items() if k != "GITHUB_WORKSPACE"}
 
         with patch.dict(os.environ, env, clear=True), patch(
@@ -441,6 +452,7 @@ class TestGetSubmissionFiles:
         mock_walk.assert_called_once_with(expected_path)
 
     def test_skips_both_git_and_github_simultaneously(self):
+        """Asserts .git and .github are both skipped simultaneously while src and other directories remain in the walk."""
         submission_path = "/workspace/submission"
         captured_dirs = []
 
