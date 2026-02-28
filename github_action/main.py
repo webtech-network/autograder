@@ -93,7 +93,7 @@ def __retrieve_grading_score(
         __get_submission_files(),
     ).result
     if grading_result is None:
-        raise Exception("Fail to get grading result")
+        raise RuntimeError("Fail to get grading result")
     logger.info("Final Score for %s: %s", args.student_name, grading_result.final_score)
 
     return grading_result
@@ -122,8 +122,8 @@ def __get_submission_files():
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     submission_files_dict[relative_path] = f.read()
-            except Exception as e:
-                logger.warning(f"Could not read file {file_path}: {e}")
+            except OSError as e:
+                logger.warning("Could not read file %s: %s", file_path, e)
 
     return submission_files_dict
 

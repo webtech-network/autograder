@@ -53,7 +53,7 @@ class GithubActionService:
 
             return pipeline.run(submission)
         except Exception as e:
-            raise Exception(f"Error running autograder: {e}") from e
+            raise RuntimeError(f"Error running autograder: {e}") from e
 
     def get_repository(self, app_token):
         """
@@ -68,13 +68,15 @@ class GithubActionService:
         try:
             repo = os.getenv("GITHUB_REPOSITORY")
             if not repo:
-                raise Exception("Repository not found")
+                raise EnvironmentError("Repository not found")
 
             return Github(app_token).get_repo(repo)
-        except:
-            raise Exception(
+        except EnvironmentError:
+            raise
+        except Exception as e:
+            raise ConnectionError(
                 "Failed to get repository. Please check your GitHub token and repository settings."
-            )
+            ) from e
 
     def export_results(
         self, final_score: float, include_feedback: bool, feedback: str | None
@@ -99,15 +101,15 @@ class GithubActionService:
             final_score (float): The final score to report (0-100).
         """
         if final_score < 0 or final_score > 100:
-            raise Exception("Invalid final score. It should be between 0 and 100.")
+            raise ValueError("Invalid final score. It should be between 0 and 100.")
 
         repo_name = os.getenv("GITHUB_REPOSITORY")
         if not repo_name:
-            raise Exception("Repository information is missing.")
+            raise EnvironmentError("Repository information is missing.")
 
         run_id = os.getenv("GITHUB_RUN_ID")
         if not run_id:
-            raise Exception("Run ID is missing.")
+            raise EnvironmentError("Run ID is missing.")
 
         g = Github(os.getenv("GITHUB_TOKEN"))
         repo = g.get_repo(repo_name)
@@ -159,7 +161,7 @@ class GithubActionService:
             (run for run in check_runs.get_check_runs() if run.name == "grading"), None
         )
         if not check_run:
-            raise Exception("Check run not found.")
+            raise LookupError("Check run not found.")
 
         return check_run
 

@@ -1,3 +1,5 @@
+# pylint: disable=protected-access
+
 import json
 import os
 import pytest
@@ -420,10 +422,10 @@ class TestAutograderPipeline:
         feedback = {"mode": "default"}
         setup = {"language": "python"}
 
-        def fake_exists(path):
+        def fake_exists(_path):
             return True
 
-        def fake_open_read(path, *args, **kwargs):
+        def fake_open_read(path, *args, **kwargs):  # pylint: disable=unused-argument
             mapping = {
                 "criteria.json": criteria,
                 "feedback.json": feedback,

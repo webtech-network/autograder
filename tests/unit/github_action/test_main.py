@@ -137,7 +137,9 @@ class TestMain:
 
         captured_env = {}
 
-        def capture_pipeline(template, include_feedback, feedback_mode):
+        def capture_pipeline(
+            template, include_feedback, feedback_mode
+        ):  # pylint: disable=unused-argument
             # At the point autograder_pipeline is called, the env var must already be set
             captured_env["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY")
             return MagicMock()
@@ -255,7 +257,9 @@ class TestHasFeedback:
         mock_service.run_autograder.return_value = execution
         captured = {}
 
-        def capture_export(score, include_feedback, feedback):
+        def capture_export(
+            score, include_feedback, feedback
+        ):  # pylint: disable=unused-argument
             captured["include_feedback"] = include_feedback
 
         mock_service.export_results.side_effect = capture_export
@@ -277,7 +281,9 @@ class TestHasFeedback:
         mock_service.run_autograder.return_value = execution
         captured = {}
 
-        def capture(score, include_feedback, feedback):
+        def capture(
+            score, include_feedback, feedback
+        ):  # pylint: disable=unused-argument
             captured["v"] = include_feedback
 
         mock_service.export_results.side_effect = capture
@@ -365,7 +371,7 @@ class TestGetSubmissionFiles:
             os.path.join(submission_path, "src", "main.py"): "print('hello')",
         }
 
-        def fake_open(path, *args, **kwargs):
+        def fake_open(path, *args, **kwargs):  # pylint: disable=unused-argument
             return mock_open(read_data=file_contents.get(path, ""))()
 
         with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
@@ -383,7 +389,7 @@ class TestGetSubmissionFiles:
         submission_path = "/workspace/submission"
         captured_dirs = []
 
-        def fake_walk(path):
+        def fake_walk(_path):
             dirs = [".git", "src"]
             captured_dirs.append(dirs)
             yield submission_path, dirs, ["file.py"]
@@ -400,7 +406,7 @@ class TestGetSubmissionFiles:
         submission_path = "/workspace/submission"
         captured_dirs = []
 
-        def fake_walk(path):
+        def fake_walk(_path):
             dirs = [".github", "src"]
             captured_dirs.append(dirs)
             yield submission_path, dirs, ["file.py"]
@@ -417,7 +423,7 @@ class TestGetSubmissionFiles:
         submission_path = "/workspace/submission"
         walk_data = [(submission_path, [], ["bad.py", "good.py"])]
 
-        def fake_open(path, *args, **kwargs):
+        def fake_open(path, *args, **kwargs):  # pylint: disable=unused-argument
             if "bad.py" in path:
                 raise OSError("Permission denied")
             return mock_open(read_data="good content")()
@@ -456,7 +462,7 @@ class TestGetSubmissionFiles:
         submission_path = "/workspace/submission"
         captured_dirs = []
 
-        def fake_walk(path):
+        def fake_walk(_path):
             dirs = [".git", ".github", "src"]
             captured_dirs.append(dirs)
             yield submission_path, dirs, []
