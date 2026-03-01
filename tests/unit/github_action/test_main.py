@@ -67,12 +67,14 @@ class TestMain:
     """
 
     def test_returns_early_when_template_preset_is_custom(self):
-        """Asserts main() returns early without initialising GithubActionService when template_preset is 'custom'."""
+        """Asserts main() exits with SystemExit(1) without initialising GithubActionService when template_preset is 'custom'."""
         with patch.object(sys, "argv", _make_argv(template_preset="custom")), patch(
             "github_action.main.GithubActionService"
         ) as mock_service_cls:
-            run(main_module.main())
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
 
+        assert exc_info.value.code == 1
         mock_service_cls.assert_not_called()
 
     def test_successful_run_without_feedback(self):
@@ -111,8 +113,8 @@ class TestMain:
         )
 
     def test_raises_when_grading_result_is_none(self):
-        """main() swallows the internal exception; verify run_autograder was
-        reached and export_results was never called."""
+        """main() raises SystemExit(1) when run_autograder returns None result;
+        verify run_autograder was reached and export_results was never called."""
         execution = MagicMock()
         execution.result = None
 
@@ -123,8 +125,10 @@ class TestMain:
         with patch.object(sys, "argv", _make_argv()), patch(
             "github_action.main.GithubActionService", return_value=mock_service
         ):
-            run(main_module.main())
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
 
+        assert exc_info.value.code == 1
         mock_service.run_autograder.assert_called_once()
         mock_service.export_results.assert_not_called()
 
@@ -316,8 +320,8 @@ class TestHasFeedback:
         assert result is False
 
     def test_invalid_value_raises_value_error(self):
-        """main() catches ValueError internally; verify export_results is never
-        reached so the invalid value is handled gracefully."""
+        """main() raises SystemExit(1) on invalid include_feedback value;
+        verify export_results is never reached."""
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -326,13 +330,15 @@ class TestHasFeedback:
         with patch.object(sys, "argv", _make_argv(include_feedback="yes")), patch(
             "github_action.main.GithubActionService", return_value=mock_service
         ):
-            run(main_module.main())
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
 
+        assert exc_info.value.code == 1
         mock_service.export_results.assert_not_called()
 
     def test_invalid_value_raises_for_numeric_string(self):
-        """main() catches ValueError internally; verify export_results is never
-        reached so the invalid value is handled gracefully."""
+        """main() raises SystemExit(1) on numeric include_feedback value;
+        verify export_results is never reached."""
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -341,8 +347,10 @@ class TestHasFeedback:
         with patch.object(sys, "argv", _make_argv(include_feedback="1")), patch(
             "github_action.main.GithubActionService", return_value=mock_service
         ):
-            run(main_module.main())
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
 
+        assert exc_info.value.code == 1
         mock_service.export_results.assert_not_called()
 
 
