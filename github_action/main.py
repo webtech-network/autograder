@@ -58,6 +58,7 @@ async def main():
     This makes the Adapter accessible to the GitHub Action workflow,
     that runs by entrypoint.sh script with all arguments passed to it.
     """
+    success_execution = False
     try:
         args = __parser_values()
 
@@ -76,12 +77,16 @@ async def main():
         service.export_results(
             grading_result.final_score, include_feedback, grading_result.feedback
         )
+        success_execution = True
     except ValueError as e:
         logger.error("Invalid value provided: %s", e)
     except SystemExit as e:
         logger.critical(e)
     except Exception as e:
         logger.error(e, exc_info=True)
+    finally:
+        if not success_execution:
+            raise SystemExit(1)
 
 
 def __retrieve_grading_score(
