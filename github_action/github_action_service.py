@@ -31,9 +31,7 @@ class GithubActionService:
         self.repo = self.get_repository(app_token)
 
     def run_autograder(
-        self,
-        pipeline: AutograderPipeline,
-        user_name: str,
+        self, pipeline: AutograderPipeline, user_name: str, submission_files: dict
     ):
         """
         Run the autograder pipeline for a given user submission.
@@ -50,12 +48,12 @@ class GithubActionService:
                 username=user_name,
                 user_id=self.github_token,
                 assignment_id=self.app_token,
-                submission_files=self.__get_submission_files(),
+                submission_files=submission_files,
             )
 
             return pipeline.run(submission)
         except Exception as e:
-            raise Exception(f"Error running autograder: {e}") from e
+            raise RuntimeError(f"Error running autograder: {e}") from e
 
     def get_repository(self, app_token):
         """
@@ -70,13 +68,15 @@ class GithubActionService:
         try:
             repo = os.getenv("GITHUB_REPOSITORY")
             if not repo:
-                raise Exception("Not find repo")
+                raise EnvironmentError("Repository not found")
 
             return Github(app_token).get_repo(repo)
-        except:
-            raise Exception(
+        except EnvironmentError:
+            raise
+        except Exception as e:
+            raise ConnectionError(
                 "Failed to get repository. Please check your GitHub token and repository settings."
-            )
+            ) from e
 
     def export_results(
         self, final_score: float, include_feedback: bool, feedback: str | None
@@ -90,10 +90,10 @@ class GithubActionService:
             feedback (str | None): The feedback content to commit, if any.
         """
         if include_feedback and feedback is not None:
-            self.commit_feedback(feedback)
-        self.notify_classroom(final_score)
+            self.__commit_feedback(feedback)
+        self.__notify_classroom(final_score)
 
-    def notify_classroom(self, final_score: float):
+    def __notify_classroom(self, final_score: float):
         """
         Notify GitHub Classroom of the final score by updating the check run.
 
@@ -101,15 +101,15 @@ class GithubActionService:
             final_score (float): The final score to report (0-100).
         """
         if final_score < 0 or final_score > 100:
-            raise Exception("Invalid final score. It should be between 0 and 100.")
+            raise ValueError("Invalid final score. It should be between 0 and 100.")
 
         repo_name = os.getenv("GITHUB_REPOSITORY")
         if not repo_name:
-            raise Exception("Repository information is missing.")
+            raise EnvironmentError("Repository information is missing.")
 
         run_id = os.getenv("GITHUB_RUN_ID")
         if not run_id:
-            raise Exception("Run ID is missing.")
+            raise EnvironmentError("Run ID is missing.")
 
         g = Github(os.getenv("GITHUB_TOKEN"))
         repo = g.get_repo(repo_name)
@@ -161,11 +161,11 @@ class GithubActionService:
             (run for run in check_runs.get_check_runs() if run.name == "grading"), None
         )
         if not check_run:
-            raise Exception("Check run not found.")
+            raise LookupError("Check run not found.")
 
         return check_run
 
-    def commit_feedback(self, feedback: str):
+    def __commit_feedback(self, feedback: str):
         """
         Commit the feedback as a file (relatorio.md) to the repository.
 
@@ -192,43 +192,8 @@ class GithubActionService:
                 content=feedback,
             )
 
-    def __get_submission_files(self):
-        """
-        Collect all files from the submission directory, skipping .git and .github.
-
-        Returns:
-            dict: A dictionary mapping relative file paths to their contents.
-        """
-        base_path = os.getenv("GITHUB_WORKSPACE", ".")
-        submission_path = os.path.join(base_path, "submission")
-        submission_files_dict = {}
-
-        # take all files in the submission directory and add them to the submission_files_dict
-        for root, dirs, files in os.walk(submission_path):
-            # Skip .git directory
-            if ".git" in dirs:
-                dirs.remove(".git")
-            if ".github" in dirs:
-                dirs.remove(".github")
-            for file in files:
-                # Full path to the file
-                file_path = os.path.join(root, file)
-
-                # Key: Path relative to the starting directory to ensure uniqueness
-                relative_path = os.path.relpath(file_path, submission_path)
-
-                try:
-                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                        print("Adding file to submission_files_dict: ", relative_path)
-                        # Use the unique relative_path as the key
-                        submission_files_dict[relative_path] = f.read()
-                except Exception as e:
-                    print(f"Could not read file {file_path}: {e}")
-
-        return submission_files_dict
-
     def autograder_pipeline(
-        self, template_preset, include_feedback: bool, feedback_mode
+        self, template_preset: str, include_feedback: bool, feedback_mode: str
     ):
         """
         Build the autograder pipeline using configuration files from the submission.
@@ -238,7 +203,7 @@ class GithubActionService:
         Args:
             template_preset (str): The template preset name.
             include_feedback (bool): Whether to include feedback in the pipeline.
-            feedback_mode: The feedback mode to use.
+            feedback_mode(str): The feedback mode to use.
 
         Returns:
             AutograderPipeline: The constructed autograder pipeline.
@@ -278,25 +243,3 @@ class GithubActionService:
 
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-
-    @classmethod
-    def create(
-        cls,
-        test_framework,
-        github_author,
-        app_token,
-    ):
-        """
-        Factory method to create and initialize a GithubActionService instance.
-
-        Args:
-            test_framework: The test framework or GitHub token.
-            github_author: The GitHub author or app token.
-            app_token: The GitHub App token for repository access.
-
-        Returns:
-            GithubActionService: The initialized service instance.
-        """
-        response = cls(test_framework, github_author)
-        response.get_repository(app_token)
-        return response
