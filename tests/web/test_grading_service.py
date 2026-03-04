@@ -2,9 +2,8 @@
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone
 
-from web.services.grading_service import grade_submission, _node_to_dict
+from web.service.grading_service import grade_submission, _node_to_dict
 from web.database.models.submission import SubmissionStatus
 from web.database.models.submission_result import PipelineStatus
 
