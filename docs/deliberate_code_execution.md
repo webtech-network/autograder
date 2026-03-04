@@ -250,7 +250,7 @@ Run the integration tests:
 
 ```bash
 # Start the API server first
-cd /home/raspiestchip/PycharmProjects/autograder
+cd /path/to/project-root
 python -m web.main
 
 # In another terminal, run tests
