@@ -12,7 +12,7 @@ from autograder.models.config.test import TestConfig, ParameterConfig
 @pytest.fixture
 def criteria_schema_path():
     """Path to the criteria_schema.json file"""
-    return Path(__file__).parent.parent / "docs/criteria_example.json"
+    return Path(__file__).parent.parent.parent / "docs/criteria_example.json"
 
 
 @pytest.fixture
