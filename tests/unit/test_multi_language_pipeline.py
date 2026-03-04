@@ -90,7 +90,7 @@ class TestSubmissionLanguageHandling:
 class TestPipelineLanguageHandling:
     """Test that the pipeline correctly uses the submission's language."""
 
-    @patch('autograder.services.pre_flight_service.get_sandbox_manager')
+    @patch('sandbox_manager.manager.get_sandbox_manager')
     def test_pipeline_uses_submission_language_for_sandbox(self, mock_get_manager):
         """Test that the pipeline creates sandbox using submission's language."""
         from autograder.autograder import build_pipeline
