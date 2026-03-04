@@ -17,7 +17,8 @@ class CommandResolver:
         Language.PYTHON: "python3 {filename}",
         Language.JAVA: "java {classname}",
         Language.NODE: "node {filename}",
-        Language.CPP: "./{executable}"
+        Language.CPP: "./{executable}",
+        Language.C: "./{executable}"
     }
 
     def __init__(self):
@@ -129,6 +130,13 @@ class CommandResolver:
             # C++ executables are typically compiled to a specific name
             if fallback_filename and fallback_filename.endswith('.cpp'):
                 executable = fallback_filename[:-4]  # Remove .cpp
+                return f"./{executable}"
+            return "./a.out"
+
+        elif language == Language.C:
+            # C executables follow the same pattern as C++
+            if fallback_filename and fallback_filename.endswith('.c'):
+                executable = fallback_filename[:-2]  # Remove .c
                 return f"./{executable}"
             return "./a.out"
 

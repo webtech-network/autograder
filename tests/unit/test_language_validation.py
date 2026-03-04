@@ -12,7 +12,7 @@ class TestLanguageValidation:
 
     def test_grading_config_create_valid_languages(self):
         """Test that valid languages are accepted in GradingConfigCreate."""
-        valid_languages = ["python", "java", "node", "cpp", "PYTHON", "Java", "NODE", "Cpp"]
+        valid_languages = ["python", "java", "node", "cpp", "c", "PYTHON", "Java", "NODE", "Cpp", "C"]
 
         for lang in valid_languages:
             config = GradingConfigCreate(
@@ -22,7 +22,7 @@ class TestLanguageValidation:
                 languages=[lang]
             )
             # Should normalize to lowercase
-            assert config.languages[0] in ["python", "java", "node", "cpp"]
+            assert config.languages[0] in ["python", "java", "node", "cpp", "c"]
 
     def test_grading_config_create_invalid_language(self):
         """Test that invalid languages are rejected in GradingConfigCreate."""
@@ -55,7 +55,7 @@ class TestLanguageValidation:
 
     def test_grading_config_create_unsupported_languages(self):
         """Test that various unsupported languages are rejected."""
-        unsupported = ["ruby", "go", "rust", "c", "csharp", "php", "perl"]
+        unsupported = ["ruby", "go", "rust", "csharp", "php", "perl"]
 
         for lang in unsupported:
             with pytest.raises(ValidationError) as exc_info:

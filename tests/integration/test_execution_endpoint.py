@@ -177,9 +177,41 @@ int main() {
     print("✓ Test passed!")
 
 
+def test_c_execution():
+    """Test C code execution."""
+    print("\n=== Test 7: C Execution ===")
+
+    request = {
+        "language": "c",
+        "submission_files": [
+            {
+                "filename": "main.c",
+                "content": """
+#include <stdio.h>
+
+int main() {
+    printf("Hello from C!\\n");
+    return 0;
+}
+"""
+            }
+        ],
+        "program_command": "gcc main.c -o main && ./main"
+    }
+
+    response = requests.post(f"{BASE_URL}/execute", json=request)
+    print(f"Status: {response.status_code}")
+    print(f"Response: {json.dumps(response.json(), indent=2)}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "Hello from C!" in data["output"]
+    print("✓ Test passed!")
+
+
 def test_multiple_files():
     """Test execution with multiple files."""
-    print("\n=== Test 7: Multiple Files ===")
+    print("\n=== Test 8: Multiple Files ===")
 
     request = {
         "language": "python",
@@ -208,7 +240,7 @@ def test_multiple_files():
 
 def test_invalid_language():
     """Test with invalid language."""
-    print("\n=== Test 8: Invalid Language ===")
+    print("\n=== Test 9: Invalid Language ===")
 
     request = {
         "language": "rust",  # Not supported
@@ -240,6 +272,7 @@ if __name__ == "__main__":
         test_java_execution()
         test_node_execution()
         test_cpp_execution()
+        test_c_execution()
         test_multiple_files()
         test_invalid_language()
 

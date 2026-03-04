@@ -9,6 +9,7 @@ class Language(Enum):
     JAVA = ("java", "sandbox-java:latest")
     NODE = ("node", "sandbox-node:latest")
     CPP = ("cpp", "sandbox-cpp:latest")
+    C = ("c", "sandbox-cpp:latest")
 
     def __new__(cls, value, image):
         obj = object.__new__(cls)
