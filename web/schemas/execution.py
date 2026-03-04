@@ -8,20 +8,11 @@ and returning the output. It does not grade nor generate scores, it is meant for
 As of a first version (2025-03-04), the DCE feature won't support any kind of persistence, it is a 100% stateless
 feature. It will not store anything for further queries.
 """
-from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
 from sandbox_manager.models.sandbox_models import ResponseCategory, Language
 from web.schemas.submission import SubmissionFileData
-
-
-class ExecutionStatus(str, Enum):
-    """Status of an execution."""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
 
 
 class DeliberateCodeExecutionRequest(BaseModel):

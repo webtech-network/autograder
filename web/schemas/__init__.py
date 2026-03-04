@@ -15,7 +15,6 @@ from web.schemas.submission import (
 from web.schemas.execution import (
     DeliberateCodeExecutionRequest,
     DeliberateCodeExecutionResponse,
-    ExecutionStatus,
 )
 
 __all__ = [
@@ -29,5 +28,4 @@ __all__ = [
     "SubmissionFileData",
     "DeliberateCodeExecutionRequest",
     "DeliberateCodeExecutionResponse",
-    "ExecutionStatus",
 ]
