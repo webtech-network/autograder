@@ -12,6 +12,10 @@ from web.schemas.submission import (
     SubmissionStatus,
     SubmissionFileData,
 )
+from web.schemas.execution import (
+    DeliberateCodeExecutionRequest,
+    DeliberateCodeExecutionResponse,
+)
 
 __all__ = [
     "GradingConfigCreate",
@@ -22,4 +26,6 @@ __all__ = [
     "SubmissionDetailResponse",
     "SubmissionStatus",
     "SubmissionFileData",
+    "DeliberateCodeExecutionRequest",
+    "DeliberateCodeExecutionResponse",
 ]
