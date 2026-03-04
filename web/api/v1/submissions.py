@@ -18,7 +18,7 @@ from web.schemas import (
     SubmissionResponse,
     SubmissionDetailResponse,
 )
-from web.services.grading_service import grade_submission
+from web.service.grading_service import grade_submission
 
 
 router = APIRouter(prefix="/submissions", tags=["Submissions"])
