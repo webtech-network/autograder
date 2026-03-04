@@ -3,7 +3,6 @@ from typing import List, Optional
 from autograder.models.dataclass.preflight_error import PreflightError, PreflightCheckType
 from autograder.models.dataclass.submission import Submission
 from sandbox_manager.sandbox_container import SandboxContainer
-from sandbox_manager.manager import get_sandbox_manager
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
 
@@ -206,6 +205,7 @@ class PreFlightService:
             self.logger.error("No language specified in submission for sandbox creation")
             raise ValueError("Submission language is required for sandbox creation")
         try:
+            from sandbox_manager.manager import get_sandbox_manager
             sandbox_manager = get_sandbox_manager()
             sandbox = sandbox_manager.get_sandbox(submission.language)
             self.logger.debug(f"Sandbox created for language {submission.language}")
