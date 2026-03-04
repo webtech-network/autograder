@@ -137,7 +137,9 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         )
 
         # Build response
-        output = result.stdout if result.stdout else result.stderr
+        # Combine stdout and stderr so callers see all output (e.g. output before a crash)
+        output_parts = [part for part in (result.stdout, result.stderr) if part]
+        output = "\n".join(output_parts)
         error_message = _get_error_message(result)
 
         return DeliberateCodeExecutionResponse(
