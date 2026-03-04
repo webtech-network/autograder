@@ -1,7 +1,6 @@
 """Application lifespan management."""
 
 import asyncio
-import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -11,6 +10,7 @@ from autograder.services.template_library_service import TemplateLibraryService
 from sandbox_manager.manager import initialize_sandbox_manager, get_sandbox_manager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from web.config.logging import get_logger
+from web.core.config import settings
 from web.database import init_db
 
 
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing sandbox manager...")
 
     # Load pool configurations from YAML file
-    config_file = os.getenv("SANDBOX_CONFIG_FILE", "sandbox_config.yml")
+    config_file = settings.SANDBOX_CONFIG_FILE
     try:
         pool_configs = SandboxPoolConfig.load_from_yaml(config_file)
         logger.info(f"Loaded sandbox configurations from {config_file}")
