@@ -55,14 +55,14 @@ async def execute_code_endpoint(request: DeliberateCodeExecutionRequest):
     ```
     """
     try:
-        logger.info(f"Code execution request received for language: {request.language}")
+        logger.info("Code execution request received for language: %s", request.language)
         result = await execute_code(request)
-        logger.info(f"Code execution completed with category: {result.category}")
+        logger.info("Code execution completed with category: %s", result.category)
         return result
     except ValueError as e:
-        logger.warning(f"Invalid request: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("Invalid request: %s", e)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Execution endpoint error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during code execution")
+        logger.error("Execution endpoint error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during code execution") from e
 

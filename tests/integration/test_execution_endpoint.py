@@ -249,6 +249,7 @@ if __name__ == "__main__":
         print(f"\n✗ Test failed: {e}")
     except requests.exceptions.ConnectionError:
         print("\n✗ Could not connect to server. Make sure the API is running on http://localhost:8000")
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"\n✗ Unexpected error: {e}")
+
 

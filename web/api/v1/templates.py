@@ -32,6 +32,6 @@ async def get_template_info(template_name: str):
         template_info = template_service.get_template_info(template_name)
         return template_info
     except KeyError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 

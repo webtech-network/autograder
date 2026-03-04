@@ -17,6 +17,39 @@ from web.schemas.execution import DeliberateCodeExecutionRequest, DeliberateCode
 logger = get_logger(__name__)
 
 
+def _get_error_message(result: CommandResponse) -> str:
+    """
+    Build error message based on response category.
+
+    Args:
+        result: CommandResponse from sandbox execution
+
+    Returns:
+        Error message string or None if successful
+    """
+    if result.category == ResponseCategory.SUCCESS:
+        return None
+
+    # Map category to error message
+    error_messages = {
+        ResponseCategory.COMPILATION_ERROR: "Compilation failed",
+        ResponseCategory.RUNTIME_ERROR: "Runtime error occurred",
+        ResponseCategory.TIMEOUT: "Execution timed out",
+        ResponseCategory.SYSTEM_ERROR: "System error occurred",
+    }
+
+    error_message = error_messages.get(result.category)
+
+    # Add stderr if available
+    if result.stderr:
+        if error_message:
+            error_message = f"{error_message}: {result.stderr}"
+        else:
+            error_message = result.stderr
+
+    return error_message
+
+
 async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCodeExecutionResponse:
     """
     Execute code in a sandbox without grading.
@@ -33,26 +66,27 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         ValueError: If language is not supported or sandbox manager is not initialized
         Exception: If execution fails
     """
-    logger.info(f"Deliberate execution request: language={request.language}, command={request.program_command}")
+    logger.info("Deliberate execution request: language=%s, command=%s",
+                request.language, request.program_command)
 
     # Convert language string to Language enum
     try:
         language = Language[request.language.upper()]
-    except KeyError:
-        raise ValueError(f"Unsupported language: {request.language}")
+    except KeyError as exc:
+        raise ValueError(f"Unsupported language: {request.language}") from exc
 
     # Get sandbox manager
     try:
         sandbox_manager = get_sandbox_manager()
     except ValueError as e:
-        logger.error(f"Sandbox manager not initialized: {e}")
-        raise ValueError("Sandbox manager not available. Please contact system administrator.")
+        logger.error("Sandbox manager not initialized: %s", e)
+        raise ValueError("Sandbox manager not available. Please contact system administrator.") from e
 
     # Acquire sandbox
     sandbox = None
     try:
         sandbox = sandbox_manager.get_sandbox(language)
-        logger.info(f"Acquired sandbox for {language.value}")
+        logger.info("Acquired sandbox for %s", language.value)
 
         # Convert submission files to the format expected by sandbox
         files_dict = {
@@ -65,7 +99,7 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
 
         # Prepare workdir with submission files
         sandbox.prepare_workdir(files_dict)
-        logger.info(f"Prepared workdir with {len(files_dict)} file(s)")
+        logger.info("Prepared workdir with %d file(s)", len(files_dict))
 
         # Execute code
         result: CommandResponse
@@ -78,7 +112,7 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
                 # Join arguments with spaces if multiple args per line
                 flattened_inputs.append(' '.join(input_args) if isinstance(input_args, list) else str(input_args))
 
-            logger.info(f"Executing with {len(flattened_inputs)} input(s)")
+            logger.info("Executing with %d input(s)", len(flattened_inputs))
             # Use run_commands for interactive input
             result = await asyncio.to_thread(
                 sandbox.run_commands,
@@ -98,31 +132,13 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
             )
 
         logger.info(
-            f"Execution completed: category={result.category.value}, "
-            f"exit_code={result.exit_code}, time={result.execution_time:.3f}s"
+            "Execution completed: category=%s, exit_code=%d, time=%.3fs",
+            result.category.value, result.exit_code, result.execution_time
         )
 
         # Build response
         output = result.stdout if result.stdout else result.stderr
-        error_message = None
-
-        # Set error message based on category
-        if result.category != ResponseCategory.SUCCESS:
-            if result.category == ResponseCategory.COMPILATION_ERROR:
-                error_message = "Compilation failed"
-            elif result.category == ResponseCategory.RUNTIME_ERROR:
-                error_message = "Runtime error occurred"
-            elif result.category == ResponseCategory.TIMEOUT:
-                error_message = "Execution timed out"
-            elif result.category == ResponseCategory.SYSTEM_ERROR:
-                error_message = "System error occurred"
-
-            # Add stderr if available
-            if result.stderr:
-                if error_message:
-                    error_message += f": {result.stderr}"
-                else:
-                    error_message = result.stderr
+        error_message = _get_error_message(result)
 
         return DeliberateCodeExecutionResponse(
             output=output,
@@ -131,8 +147,8 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
             execution_time=result.execution_time
         )
 
-    except Exception as e:
-        logger.error(f"Execution failed: {e}", exc_info=True)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("Execution failed: %s", e, exc_info=True)
         # Return error response instead of raising
         return DeliberateCodeExecutionResponse(
             output="",
@@ -145,7 +161,9 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         # Always release sandbox back to pool
         if sandbox:
             sandbox_manager.release_sandbox(language, sandbox)
-            logger.info(f"Released sandbox for {language.value}")
+            logger.info("Released sandbox for %s", language.value)
+
+
 
 
 
