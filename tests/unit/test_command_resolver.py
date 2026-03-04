@@ -68,6 +68,19 @@ class TestCommandResolver:
         result = self.resolver.resolve_command(commands, Language.CPP)
         assert result == "./calculator"
 
+    def test_resolve_multi_language_dict_c(self):
+        """Test resolving multi-language dict format for C."""
+        commands = {
+            "python": "python3 calculator.py",
+            "java": "java Calculator",
+            "node": "node calculator.js",
+            "cpp": "./calculator",
+            "c": "./calculator"
+        }
+
+        result = self.resolver.resolve_command(commands, Language.C)
+        assert result == "./calculator"
+
     def test_resolve_cmd_placeholder_python(self):
         """Test auto-resolution with CMD placeholder for Python."""
         result = self.resolver.resolve_command("CMD", Language.PYTHON)
@@ -86,6 +99,11 @@ class TestCommandResolver:
     def test_resolve_cmd_placeholder_cpp(self):
         """Test auto-resolution with CMD placeholder for C++."""
         result = self.resolver.resolve_command("CMD", Language.CPP)
+        assert result == "./a.out"
+
+    def test_resolve_cmd_placeholder_c(self):
+        """Test auto-resolution with CMD placeholder for C."""
+        result = self.resolver.resolve_command("CMD", Language.C)
         assert result == "./a.out"
 
     def test_resolve_none_command(self):
@@ -137,6 +155,15 @@ class TestCommandResolver:
             "CMD",
             Language.CPP,
             fallback_filename="calculator.cpp"
+        )
+        assert result == "./calculator"
+
+    def test_resolve_with_fallback_filename_c(self):
+        """Test auto-resolution with fallback filename for C."""
+        result = self.resolver.resolve_command(
+            "CMD",
+            Language.C,
+            fallback_filename="calculator.c"
         )
         assert result == "./calculator"
 
@@ -195,6 +222,7 @@ class TestCommandResolver:
         # Should return None for unspecified languages
         assert self.resolver.resolve_command(commands, Language.NODE) is None
         assert self.resolver.resolve_command(commands, Language.CPP) is None
+        assert self.resolver.resolve_command(commands, Language.C) is None
 
     def test_resolve_empty_dict(self):
         """Test that empty dict returns None."""
