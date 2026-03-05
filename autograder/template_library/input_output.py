@@ -98,11 +98,10 @@ class ExpectOutputTest(TestFunction):
                     score=100.0,
                     report="Success: Output matches expected values."
                 )
-            else:
-                return TestResult(
-                    test_name=self.name,
-                    score=0.0,
-                    report=f"FAILURE: Output Mismatch.\nExpected: '{expected}'\nActual: '{actual_output}'"
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=f"FAILURE: Output Mismatch.\nExpected: '{expected}'\nActual: '{actual_output}'"
                 )
 
         except Exception as e:

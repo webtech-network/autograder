@@ -253,11 +253,11 @@ class CheckNoUnclosedTags(TestFunction):
             return TestResult(self.name, 0, "No HTML file provided.")
 
         html_content = files[0].content
-        VOID = {
+        void_tags = {
             "area","base","br","col","embed","hr","img","input","link",
             "meta","param","source","track","wbr"
         }
-        IGNORE = {"html", "head", "body"}
+        ignore_tags = {"html", "head", "body"}
         # Remove comentarios para evitar falsos positivos
         html_no_comments = re.sub(r"<!--.*?-->", "", html_content, flags=re.DOTALL)
         tag_pattern = re.compile(r"</?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*?>")
@@ -265,7 +265,7 @@ class CheckNoUnclosedTags(TestFunction):
         for match in tag_pattern.finditer(html_no_comments):
             raw = match.group(0)
             tag = match.group(1).lower()
-            if tag in VOID or tag in IGNORE:
+            if tag in void_tags or tag in ignore_tags:
                 continue
             if raw.endswith("/>"):
                 continue
@@ -910,7 +910,7 @@ class CheckIdSelectorOverUsage(TestFunction):
             if media_key:
                 next_block_flag = True
             elif open_brace:
-                context_stack.append(True if next_block_flag else False)
+                context_stack.append(bool(next_block_flag))
                 next_block_flag = False
             elif close_brace:
                 if len(context_stack) > 1:

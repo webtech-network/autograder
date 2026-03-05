@@ -46,21 +46,21 @@ class AutograderPipeline:
         """
         pipeline_execution = PipelineExecution.start_execution(submission)
 
-        for step in self._steps:
-            print("Executing step:", step)  # TODO: Replace with proper logging
+        for step_name, step_instance in self._steps.items():
+            print("Executing step:", step_name)  # TODO: Replace with proper logging
 
             try:
-                pipeline_execution = self._steps[step].execute(pipeline_execution)
+                pipeline_execution = step_instance.execute(pipeline_execution)
                 # Check if the step that just executed failed
                 current_step_result = pipeline_execution.get_previous_step()
                 if current_step_result and not current_step_result.is_successful:
                     pipeline_execution.set_failure()
-                    print(f"Step {step} failed: {current_step_result.error}")  # TODO: Replace with proper logging
+                    print(f"Step {step_name} failed: {current_step_result.error}")  # TODO: Replace with proper logging
                     break
             except Exception as e:
                 pipeline_execution.status = PipelineStatus.INTERRUPTED
                 print(
-                    f"Error executing step {step}: {str(e)}"
+                    f"Error executing step {step_name}: {str(e)}"
                 )  # TODO: Replace with proper logging
                 break
 

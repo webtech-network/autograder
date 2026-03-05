@@ -5,6 +5,6 @@ from autograder.models.pipeline_execution import PipelineExecution
 
 class Step(ABC):
     @abstractmethod
-    def execute(self, input: PipelineExecution) -> PipelineExecution:
-        pass
+    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
+        """Execute the step on the pipeline execution context."""
 

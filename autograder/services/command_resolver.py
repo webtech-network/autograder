@@ -114,19 +114,19 @@ class CommandResolver:
                 return f"python3 {fallback_filename}"
             return "python3 main.py"
 
-        elif language == Language.JAVA:
+        if language == Language.JAVA:
             # Java requires class name without .java extension
             if fallback_filename and fallback_filename.endswith('.java'):
                 classname = fallback_filename[:-5]  # Remove .java
                 return f"java {classname}"
             return "java Main"
 
-        elif language == Language.NODE:
+        if language == Language.NODE:
             if fallback_filename:
                 return f"node {fallback_filename}"
             return "node index.js"
 
-        elif language == Language.CPP:
+        if language == Language.CPP:
             # C++ executables are typically compiled to a specific name
             if fallback_filename and fallback_filename.endswith('.cpp'):
                 executable = fallback_filename[:-4]  # Remove .cpp
@@ -140,7 +140,7 @@ class CommandResolver:
                 return f"./{executable}"
             return "./a.out"
 
-        self.logger.error(f"Cannot auto-resolve command for language: {language}")
+        self.logger.error("Cannot auto-resolve command for language: %s", language)
         return None
 
     def is_multi_language_format(self, program_command: Any) -> bool:

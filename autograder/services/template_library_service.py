@@ -45,7 +45,7 @@ class TemplateLibraryService:
 
     def _load_all_templates(self):
         """Load and cache all template instances at startup."""
-        for template_name in TEMPLATE_REGISTRY.keys():
+        for template_name in TEMPLATE_REGISTRY:
             try:
                 self._templates[template_name] = get_template_instance(template_name)
             except Exception as e:
@@ -71,7 +71,7 @@ class TemplateLibraryService:
         This will stop all templates and clear the singleton.
         """
         if cls._instance is not None:
-            for template in cls._instance._templates.values():
+            for template in cls._instance._templates.values():  # pylint: disable=protected-access
                 try:
                     template.stop()
                 except Exception:

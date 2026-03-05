@@ -12,7 +12,7 @@ class CriteriaTreeFormatter(CriteriaTreeProcesser):
 
     @override
     def process_test(self, test: "TestNode") -> List[str]:
-        result: List[str] = list()
+        result: List[str] = []
         result.append(f"  🧪 {test.name} (file: {test.file_target})")
         result.append(f"    - Parameters: {test.parameters}")
         return result

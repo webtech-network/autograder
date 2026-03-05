@@ -9,9 +9,11 @@ class TestResult:
     test_name: str
     score: float
     report: str
+    subject_name: str = ""
     parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
 
-    def get_result(self, *args, **kwargs) :
+    def get_result(self):
+        """Return test result as a list for compatibility with multi-result interfaces."""
         return [self]
 
     def to_dict(self) -> dict:

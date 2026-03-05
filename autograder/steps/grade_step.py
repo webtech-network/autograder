@@ -20,39 +20,39 @@ class GradeStep(Step):
         """
         self._grader_service = GraderService()
 
-    def execute(self, input: PipelineExecution) -> PipelineExecution:
+    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Grade a submission based on the criteria tree and template.
 
         Args:
-            input: PipelineExecution containing the built criteria tree and submission files generated from previous steps
+            pipeline_exec: PipelineExecution containing the built criteria tree and submission files generated from previous steps
 
         Returns:
             StepResult containing GradingResult with scores and result tree
         """
         try:
             # If submission is sandboxed, feed grading template with container ref
-            template = input.get_step_result(StepName.LOAD_TEMPLATE).data
+            template = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE).data
 
             # Check if PRE_FLIGHT step was executed (only if setup_config was provided)
             sandbox = None
-            if input.has_step_result(StepName.PRE_FLIGHT):
-                sandbox = input.get_step_result(StepName.PRE_FLIGHT).data
+            if pipeline_exec.has_step_result(StepName.PRE_FLIGHT):
+                sandbox = pipeline_exec.get_step_result(StepName.PRE_FLIGHT).data
 
             if sandbox:
                 self._grader_service.set_sandbox(sandbox)
 
             if not sandbox and template.requires_sandbox:
-                raise Exception("Grading template requires a sandbox environment, but no sandbox was created")
+                raise RuntimeError("Grading template requires a sandbox environment, but no sandbox was created")
 
             # Set submission language for command resolution
-            if input.submission.language:
-                self._grader_service.set_submission_language(input.submission.language)
+            if pipeline_exec.submission.language:
+                self._grader_service.set_submission_language(pipeline_exec.submission.language)
 
-            criteria_tree = input.get_step_result(StepName.BUILD_TREE).data
+            criteria_tree = pipeline_exec.get_step_result(StepName.BUILD_TREE).data
             result_tree = self._grader_service.grade_from_tree(
                 criteria_tree=criteria_tree,
-                submission_files=input.submission.submission_files
+                submission_files=pipeline_exec.submission.submission_files
             )
 
             # Create grading result
@@ -62,19 +62,19 @@ class GradeStep(Step):
                 final_score=final_score, result_tree=result_tree
             )
 
-            return input.add_step_result(StepResult(
+            return pipeline_exec.add_step_result(StepResult(
                 step=StepName.GRADE,
                 data=grading_result,
                 status=StepStatus.SUCCESS,
-                original_input=input
+                original_input=pipeline_exec
             ))
 
         except Exception as e:
             # Return error result
-            return input.add_step_result(StepResult(
+            return pipeline_exec.add_step_result(StepResult(
                 step=StepName.GRADE,
                 data=None,
                 status=StepStatus.FAIL,
                 error=str(e),
-                original_input=input,
+                original_input=pipeline_exec,
             ))

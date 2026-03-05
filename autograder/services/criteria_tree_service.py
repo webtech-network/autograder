@@ -99,7 +99,7 @@ class CriteriaTreeService:
         test = TestNode(
             config.name,
             test_function,
-            config.get_kwargs_dict() or dict(),
+            config.get_kwargs_dict() or {},
             config.file,
         )
 

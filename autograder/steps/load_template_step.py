@@ -18,7 +18,7 @@ class TemplateLoaderStep(Step):
         self._custom_template = custom_template
         self._template_service = TemplateLibraryService.get_instance()
 
-    def execute(self, input: PipelineExecution) -> PipelineExecution:
+    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Load the grading template, either built-in or custom, and return it as part of the step result.
         """
@@ -27,7 +27,7 @@ class TemplateLoaderStep(Step):
                 template = self._template_service.load_custom_template(self._custom_template) #TODO: Implement Custom Template Loading with Sandboxed Env
             else:
                 template = self._template_service.load_builtin_template(self._template_name) # Load built-in template similar to custom to avoid code duplication
-            return input.add_step_result(
+            return pipeline_exec.add_step_result(
                 StepResult(
                     step=StepName.LOAD_TEMPLATE,
                     data=template,
@@ -35,7 +35,7 @@ class TemplateLoaderStep(Step):
                 )
             )
         except Exception as e:
-            return input.add_step_result(
+            return pipeline_exec.add_step_result(
                 StepResult(
                     step=StepName.LOAD_TEMPLATE,
                     data=None,

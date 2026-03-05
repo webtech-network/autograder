@@ -22,12 +22,12 @@ class BuildTreeStep(Step):
         self._criteria_json = criteria_json
         self._criteria_tree_service = CriteriaTreeService()
 
-    def execute(self, input: PipelineExecution) -> PipelineExecution:
+    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Build a criteria tree from the configuration and template.
 
         Args:
-            input: Template containing test functions
+            pipeline_exec: Template containing test functions
 
         Returns:
             StepResult containing the built CriteriaTree
@@ -35,25 +35,25 @@ class BuildTreeStep(Step):
         try:
             # Validate criteria configuration
             criteria_config = CriteriaConfig.from_dict(self._criteria_json)
-            template = input.get_step_result(StepName.LOAD_TEMPLATE).data
+            template = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE).data
             # Build the criteria tree with embedded test functions
             criteria_tree = self._criteria_tree_service.build_tree(
                 criteria_config,
                 template
             )
 
-            return input.add_step_result(StepResult(
+            return pipeline_exec.add_step_result(StepResult(
                 step=StepName.BUILD_TREE,
                 data=criteria_tree,
                 status=StepStatus.SUCCESS,
-                original_input=input
+                original_input=pipeline_exec
             ))
 
         except Exception as e:
-            return input.add_step_result(StepResult(
+            return pipeline_exec.add_step_result(StepResult(
                 step=StepName.BUILD_TREE,
                 data=None,
                 status=StepStatus.FAIL,
                 error=f"Failed to build criteria tree: {str(e)}",
-                original_input=input
+                original_input=pipeline_exec
             ))

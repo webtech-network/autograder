@@ -36,7 +36,7 @@ class ResultTreeFormatter:
     def icon_score(self, score: float) -> str:
         if score >= 80:
             return "🟢"
-        elif score >= 60:
+        if score >= 60:
             return "🟡"
 
         return "🔴"
