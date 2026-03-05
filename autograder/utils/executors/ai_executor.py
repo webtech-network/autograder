@@ -1,15 +1,13 @@
 import json
-from typing import List
+from typing import List, Dict
 from openai import OpenAI
 from autograder.models.dataclass.test_result import TestResult
 from pydantic import BaseModel, Field
-from autograder.context import request_context
 import dotenv
 from autograder.utils.secrets_fetcher import get_secret
 
 dotenv.load_dotenv()  # Load environment variables from .env file
 
-request = request_context.get_request()
 class TestInput(BaseModel):
     """
     This class represents the input of a single test to be sent to the AI model, defined using Pydantic.
@@ -45,8 +43,7 @@ class AiExecutor:
     def __init__(self):
         self.tests = []  # List[TestInput]
         self.test_result_references = []  # List[TestResult]
-        # Fixed: Initialized submission_files as an empty dictionary
-        self.submission_files = request.submission_files # Dict[filename:str, content:str]
+        self.submission_files: Dict[str, str] = {}  # Dict[filename:str, content:str]
         self.test_results = None  # The raw json response from the AI model.
         self.client = OpenAI(api_key=get_secret("OPENAI_API_KEY", "AUTOGRADER_OPENAI_KEY", "us-east-1"))
 
@@ -172,6 +169,7 @@ class AiExecutor:
             for test_result in self.test_results:
                 print(f"""{test_result}\n""")
             self.mapback()
+            return self.test_result_references
 
         except Exception as e:
             print(f"An error occurred while running the AI tests: {e}")

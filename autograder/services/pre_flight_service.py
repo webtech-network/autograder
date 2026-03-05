@@ -55,11 +55,10 @@ class PreFlightService:
 
         lang_key = submission_language.value
         if lang_key in setup_config:
-            self.logger.info(f"Using setup config for {lang_key}")
+            self.logger.info("Using setup config for %s", lang_key)
             return setup_config[lang_key]
-        else:
-            self.logger.warning(f"No setup config found for language {lang_key}, using empty config")
-            return {}
+        self.logger.warning("No setup config found for language %s, using empty config", lang_key)
+        return {}
 
     def check_required_files(self, submission_files) -> bool:
         """
@@ -208,13 +207,13 @@ class PreFlightService:
             from sandbox_manager.manager import get_sandbox_manager
             sandbox_manager = get_sandbox_manager()
             sandbox = sandbox_manager.get_sandbox(submission.language)
-            self.logger.debug(f"Sandbox created for language {submission.language}")
+            self.logger.debug("Sandbox created for language %s", submission.language)
 
             # Prepare workdir by copying submission files to container
             if submission.submission_files:
                 try:
                     sandbox.prepare_workdir(submission.submission_files)
-                    self.logger.debug(f"Workdir prepared with {len(submission.submission_files)} files")
+                    self.logger.debug("Workdir prepared with %s files", len(submission.submission_files))
                 except Exception as e:
                     error_msg = f"**Error:** Failed to prepare workdir in sandbox: `{str(e)}`"
                     self.logger.error(error_msg)

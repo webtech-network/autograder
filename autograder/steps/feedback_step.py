@@ -17,17 +17,17 @@ class FeedbackStep(Step):
         self._reporter_service = reporter_service
         self._feedback_config = feedback_config
 
-    def execute(self, input: PipelineExecution) -> PipelineExecution:
+    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """Adds feedback to the grading result using the reporter service."""
         try:
-            focused_tests: Focus = input.get_step_result(StepName.FOCUS).data
+            focused_tests: Focus = pipeline_exec.get_step_result(StepName.FOCUS).data
             feedback = self._reporter_service.generate_feedback(
                 grading_result=focused_tests,
                 feedback_config=self._feedback_config
             ) #TODO: Implement generate_feedback method @joaovitoralvarenga
-            return input.add_step_result(feedback) #Assuming feedback is a StepResult
+            return pipeline_exec.add_step_result(feedback) #Assuming feedback is a StepResult
         except Exception as e:
-            return input.add_step_result(
+            return pipeline_exec.add_step_result(
                 StepResult(
                 step=StepName.FEEDBACK,
                 data=None,

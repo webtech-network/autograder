@@ -138,14 +138,13 @@ class GraderService:
                 subjects=subject_results,
                 tests=test_results,
             )
-        else:
-            return SubjectResultNode(
-                name=holder.name,
-                weight=holder.weight,
-                subjects_weight=holder.subjects_weight,
-                subjects=subject_results,
-                tests=test_results,
-            )
+        return SubjectResultNode(
+            name=holder.name,
+            weight=holder.weight,
+            subjects_weight=holder.subjects_weight,
+            subjects=subject_results,
+            tests=test_results,
+        )
 
     def process_subject(self, subject: SubjectNode) -> SubjectResultNode:
         """Process a subject node from criteria tree and create result node."""

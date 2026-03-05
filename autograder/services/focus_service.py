@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from autograder.models.dataclass.focus import Focus, FocusedTest
 from autograder.models.result_tree import (
     CategoryResultNode,
@@ -65,7 +65,7 @@ class FocusService:
         return focused_tests
 
     def __process_category(self, category: CategoryResultNode) -> List[FocusedTest]:
-        focused_tests: List[FocusedTest] = list()
+        focused_tests: List[FocusedTest] = []
 
         # Initial Multiplier for a Category Root is 1.0 (100%)
         # Logic follows the same split as Subject if subjects_weight exists

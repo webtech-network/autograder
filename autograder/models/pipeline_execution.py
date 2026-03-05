@@ -156,7 +156,7 @@ class PipelineExecution:
                             if "failed_command" not in error_details:
                                 error_details["failed_command"] = {}
                             error_details["failed_command"]["exit_code"] = int(error_text[start:end])
-                    except:
+                    except (ValueError, IndexError):
                         pass
 
                 # Extract stderr

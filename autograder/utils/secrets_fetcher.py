@@ -31,13 +31,12 @@ def get_secret(secret_key : str, secret_name : str = None, region : str = "us-ea
             raise ValueError("The 'secret_name' argument is required for the 'production' environment when fetching a secret")
         # In production, get the key from Secrets Manager
         return _get_secret_from_manager(secret_name, secret_key, region)
-    else:
-        # In development, get the key from a local environment variable
-        print("Fetching secret from local environment variable...")
-        api_key = os.environ.get(secret_key)
-        if not api_key:
-            raise ValueError("Environment variable not set for development.")
-        return api_key
+    # In development, get the key from a local environment variable
+    print("Fetching secret from local environment variable...")
+    api_key = os.environ.get(secret_key)
+    if not api_key:
+        raise ValueError("Environment variable not set for development.")
+    return api_key
 
 def _get_secret_from_manager(secret_name : str, secret_key : str, region : str):
     """

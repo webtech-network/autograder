@@ -10,30 +10,30 @@ class ExporterStep(Step):
     def __init__(self, exporter_service):
         self._exporter_service = exporter_service
 
-    def execute(self, input: PipelineExecution) -> PipelineExecution:
+    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Export the final grading result to an external system.
         Args:
-            input: PipelineExecution containing the grading result from the GRADE step
+            pipeline_exec: PipelineExecution containing the grading result from the GRADE step
         Returns:
             PipelineExecution with an added StepResult indicating success or failure of the export operation
         """
         try:
             # Extract username and score from input
-            username = input.submission.username
-            score = input.get_step_result(StepName.GRADE).data.final_score
+            username = pipeline_exec.submission.username
+            score = pipeline_exec.get_step_result(StepName.GRADE).data.final_score
 
             self._exporter_service.set_score(username, score)
 
             # Return success result
-            return input.add_step_result(StepResult(
+            return pipeline_exec.add_step_result(StepResult(
                 step=StepName.EXPORTER,
                 data=None,
                 status=StepStatus.SUCCESS
             ))
         except Exception as e:
             # Return failure result
-            return input.add_step_result(StepResult(
+            return pipeline_exec.add_step_result(StepResult(
                 step=StepName.EXPORTER,
                 data=None,
                 status=StepStatus.FAIL,

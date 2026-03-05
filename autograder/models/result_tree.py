@@ -22,7 +22,6 @@ The final score flows up from test results through subjects and categories to th
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
-import copy
 
 from autograder.models.criteria_tree import TestNode
 

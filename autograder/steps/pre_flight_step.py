@@ -19,41 +19,42 @@ class PreFlightStep(Step):
 
     def __init__(self, setup_config):
         self._setup_config = setup_config
+        self._pre_flight_service = None
         # Don't create service here, create it per-execution with language
 
-    def execute(self, input: PipelineExecution) -> PipelineExecution:
+    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Execute pre-flight checks on the submission, returns a reference to the sandbox if the grading process requires it.
 
         Args:
-            input: PipelineExecution containing submission data
+            pipeline_exec: PipelineExecution containing submission data
 
         Returns:
             StepResult with status SUCCESS if all checks pass, FAIL otherwise
         """
         # Create PreFlightService with submission language for language-specific config resolution
-        submission_language = input.submission.language
+        submission_language = pipeline_exec.submission.language
         self._pre_flight_service = PreFlightService(self._setup_config, submission_language)
 
         sandbox = None
         # Check required files first
-        submission_files = input.submission.submission_files
+        submission_files = pipeline_exec.submission.submission_files
         # Use the resolved required_files from the service (language-specific)
         if self._pre_flight_service.required_files:
             files_ok = self._pre_flight_service.check_required_files(submission_files)
             if not files_ok:
                 # File check failed, don't continue to setup commands
-                return input.add_step_result(StepResult(
+                return pipeline_exec.add_step_result(StepResult(
                         step=StepName.PRE_FLIGHT,
                         data=sandbox,  # sandbox is None here, which is correct
                         status=StepStatus.FAIL,
                         error=self._format_errors(),
-                        original_input=input
+                        original_input=pipeline_exec
                         ))
 
-        grading_template = input.get_step_result(StepName.LOAD_TEMPLATE).data
+        grading_template = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE).data
         if grading_template.requires_sandbox:
-            sandbox = self._pre_flight_service.create_sandbox(input.submission) # Needs error handling?
+            sandbox = self._pre_flight_service.create_sandbox(pipeline_exec.submission) # Needs error handling?
 
         # Check setup commands only if file check passed
         # Use the resolved setup_commands from the service (language-specific)
@@ -61,20 +62,20 @@ class PreFlightStep(Step):
             setup_ok = self._pre_flight_service.check_setup_commands(sandbox)
             if not setup_ok:
                 # self._pre_flight_service.destroy_sandbox(sandbox) #TODO: Decide when to destroy sandbox (Maybe after grading process finishes?
-                return input.add_step_result(StepResult(
+                return pipeline_exec.add_step_result(StepResult(
                     step=StepName.PRE_FLIGHT,
                     data=sandbox,#Return Sandbox Here anyway? (How to deal with sandbox destruction)
                     status=StepStatus.FAIL,
                     error=self._format_errors(),
-                    original_input=input
+                    original_input=pipeline_exec
                 ))
 
         # All checks passed
-        return input.add_step_result(StepResult(
+        return pipeline_exec.add_step_result(StepResult(
             step=StepName.PRE_FLIGHT,
             data=sandbox,
             status=StepStatus.SUCCESS,
-            original_input=input
+            original_input=pipeline_exec
         ))
 
     def _format_errors(self) -> str:
