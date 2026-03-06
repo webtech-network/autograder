@@ -23,7 +23,7 @@ class BaseExecutionTest(TestFunction):
         self.command_resolver = CommandResolver()
 
     def run_sandbox_execution(self, sandbox: SandboxContainer, inputs: list = None,
-                              program_command=None, __submission_language__=None, **kwargs):
+                              program_command=None, __submission_language__=None):
         """
         Resolves the command and executes it inside the sandbox.
         Returns the raw `output` from the sandbox run.
@@ -38,14 +38,14 @@ class BaseExecutionTest(TestFunction):
             )
 
         # 2. Run the command
-        if not resolved_command:
-            if inputs is None: 
-                raise ValueError("inputs parameter is required if no resolved command via language is found")
-            command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
-            return sandbox.run_command(command)
-        else:
+        if resolved_command:
             safe_inputs = inputs if inputs is not None else []
             return sandbox.run_commands(safe_inputs, program_command=resolved_command)
+        
+        if inputs is None: 
+            raise ValueError("inputs parameter is required if no resolved command via language is found")
+        command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
+        return sandbox.run_command(command)
 
     def check_for_base_errors(self, output) -> TestResult:
         """
@@ -114,15 +114,17 @@ class ExpectOutputTest(BaseExecutionTest):
             ParamDescription("program_command", "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).", "string or dict")
         ]
 
-    def execute(self, files, sandbox: SandboxContainer, inputs: list = None, expected_output: str = "",
+    def execute(self, files, sandbox: SandboxContainer, *args, inputs: list = None, expected_output: str = "",
                 program_command=None, __submission_language__=None, **kwargs) -> TestResult:
+        """
+        Execute the test by comparing program output with expected output.
+        """
         try:
             output = self.run_sandbox_execution(
                 sandbox=sandbox, 
                 inputs=inputs, 
                 program_command=program_command, 
-                __submission_language__=__submission_language__, 
-                **kwargs
+                __submission_language__=__submission_language__
             )
 
             # Check for generic execution failures
@@ -146,7 +148,7 @@ class ExpectOutputTest(BaseExecutionTest):
                 report=f"FAILURE: Output Mismatch.\nExpected: '{expected}'\nActual: '{actual_output}'"
             )
 
-        except Exception as e:
+        except (ValueError, TimeoutError, RuntimeError) as e:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
@@ -182,18 +184,20 @@ class DontFailTest(BaseExecutionTest):
             ParamDescription("program_command", "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).", "string or dict")
         ]
 
-    def execute(self, files, sandbox: SandboxContainer, input: str = "",
+    def execute(self, files, sandbox: SandboxContainer, *args, user_input: str = "",
                 program_command=None, __submission_language__=None, **kwargs) -> TestResult:
+        """
+        Execute the test by verifying the program doesn't crash with given input.
+        """
         try:
             # Reformat scalar input to standard list
-            inputs = [input] if input is not None and input != "" else []
+            inputs = [user_input] if user_input is not None and user_input != "" else []
             
             output = self.run_sandbox_execution(
                 sandbox=sandbox, 
                 inputs=inputs, 
                 program_command=program_command, 
-                __submission_language__=__submission_language__, 
-                **kwargs
+                __submission_language__=__submission_language__
             )
 
             # Check for generic execution failures
@@ -208,7 +212,7 @@ class DontFailTest(BaseExecutionTest):
                 report="Success: Program executed without errors."
             )
 
-        except Exception as e:
+        except (ValueError, TimeoutError, RuntimeError) as e:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
