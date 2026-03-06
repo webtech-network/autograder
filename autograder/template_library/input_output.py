@@ -72,7 +72,14 @@ class BaseExecutionTest(TestFunction):
                 score=0.0,
                 report=f"FAILURE: Your program crashed during execution.\nError:\n{output.stderr}"
             )
-            
+
+        if output.category == ResponseCategory.SYSTEM_ERROR:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=f"SYSTEM ERROR: An infrastructure error occurred during execution.\nDetails:\n{output.stderr}"
+            )
+
         return None
 
 # ===============================================================
@@ -179,7 +186,7 @@ class DontFailTest(BaseExecutionTest):
                 program_command=None, __submission_language__=None, **kwargs) -> TestResult:
         try:
             # Reformat scalar input to standard list
-            inputs = [input] if input else []
+            inputs = [input] if input is not None and input != "" else []
             
             output = self.run_sandbox_execution(
                 sandbox=sandbox, 
