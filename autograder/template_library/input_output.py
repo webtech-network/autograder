@@ -6,22 +6,93 @@ from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
 from autograder.services.command_resolver import CommandResolver
 from sandbox_manager.sandbox_container import SandboxContainer
+from sandbox_manager.models.sandbox_models import ResponseCategory
 
 
 # ===============================================================
-# region: TestFunction for Input/Output Validation
+# Base TestFunction for Executable Validations
 # ===============================================================
 
-class ExpectOutputTest(TestFunction):
+class BaseExecutionTest(TestFunction):
+    """
+    Abstract base class for tests that involve running a student's code
+    in a sandbox and handling basic execution results (timeouts, crashes).
+    """
+
+    def __init__(self):
+        self.command_resolver = CommandResolver()
+
+    def run_sandbox_execution(self, sandbox: SandboxContainer, inputs: list = None,
+                              program_command=None, __submission_language__=None):
+        """
+        Resolves the command and executes it inside the sandbox.
+        Returns the raw `output` from the sandbox run.
+        Can raise exceptions which the caller or subclass execute wrapper should catch.
+        """
+        # 1. Resolve the actual command
+        resolved_command = None
+        if program_command and __submission_language__:
+            resolved_command = self.command_resolver.resolve_command(
+                program_command,
+                __submission_language__
+            )
+
+        # 2. Run the command
+        if resolved_command:
+            safe_inputs = inputs if inputs is not None else []
+            return sandbox.run_commands(safe_inputs, program_command=resolved_command)
+        
+        if inputs is None: 
+            raise ValueError("inputs parameter is required if no resolved command via language is found")
+        command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
+        return sandbox.run_command(command)
+
+    def check_for_base_errors(self, output) -> TestResult:
+        """
+        Checks for Timeout, Compilation Error, or Runtime Error in the sandbox output.
+        Returns a TestResult with score 0.0 if an error is found, or None if successful.
+        """
+        if output.category == ResponseCategory.TIMEOUT:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=f"FAILURE: Program timed out. Ensure you don't have infinite loops. [Time: {output.execution_time:.2f}s]"
+            )
+
+        if output.category == ResponseCategory.COMPILATION_ERROR:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=f"FAILURE: Compilation Error.\nDetails:\n{output.stderr}"
+            )
+
+        if output.category == ResponseCategory.RUNTIME_ERROR:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=f"FAILURE: Your program crashed during execution.\nError:\n{output.stderr}"
+            )
+
+        if output.category == ResponseCategory.SYSTEM_ERROR:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=f"SYSTEM ERROR: An infrastructure error occurred during execution.\nDetails:\n{output.stderr}"
+            )
+
+        return None
+
+# ===============================================================
+# TestFunction for Input/Output Validation
+# ===============================================================
+
+class ExpectOutputTest(BaseExecutionTest):
     """
     Tests a command-line program by providing a series of inputs via stdin
     and comparing the program's stdout with an expected output.
 
     Supports multi-language submissions through dynamic command resolution.
     """
-
-    def __init__(self):
-        self.command_resolver = CommandResolver()
 
     @property
     def name(self):
@@ -43,52 +114,25 @@ class ExpectOutputTest(TestFunction):
             ParamDescription("program_command", "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).", "string or dict")
         ]
 
-    def execute(self, files, sandbox: SandboxContainer, inputs: list = None, expected_output: str = "",
+    def execute(self, files, sandbox: SandboxContainer, *args, inputs: list = None, expected_output: str = "",
                 program_command=None, __submission_language__=None, **kwargs) -> TestResult:
+        """
+        Execute the test by comparing program output with expected output.
+        """
         try:
-            # 1. Resolve the actual command
-            resolved_command = None
-            if program_command and __submission_language__:
-                resolved_command = self.command_resolver.resolve_command(
-                    program_command,
-                    __submission_language__
-                )
-            # ... (keep existing resolution logic) ...
+            output = self.run_sandbox_execution(
+                sandbox=sandbox, 
+                inputs=inputs, 
+                program_command=program_command, 
+                __submission_language__=__submission_language__
+            )
 
-            # 2. Run the command and get classified output
-            if not resolved_command:
-                if inputs is None: raise ValueError("inputs parameter is required")
-                command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
-                output = sandbox.run_command(command)
-            else:
-                output = sandbox.run_commands(inputs, program_command=resolved_command)
+            # Check for generic execution failures
+            error_result = self.check_for_base_errors(output)
+            if error_result:
+                return error_result
 
-            # 3. Handle specific execution failures based on Category
-            # (Assuming you updated CommandResponse to include .category as suggested previously)
-            from sandbox_manager.models.sandbox_models import ResponseCategory
-
-            if output.category == ResponseCategory.TIMEOUT:
-                return TestResult(
-                    test_name=self.name,
-                    score=0.0,
-                    report=f"FAILURE: Program timed out. Ensure you don't have infinite loops. [Time: {output.execution_time:.2f}s]"
-                )
-
-            if output.category == ResponseCategory.COMPILATION_ERROR:
-                return TestResult(
-                    test_name=self.name,
-                    score=0.0,
-                    report=f"FAILURE: Compilation Error.\nDetails:\n{output.stderr}"
-                )
-
-            if output.category == ResponseCategory.RUNTIME_ERROR:
-                return TestResult(
-                    test_name=self.name,
-                    score=0.0,
-                    report=f"FAILURE: Your program crashed during execution.\nError:\n{output.stderr}"
-                )
-
-            # 4. Standard I/O Comparison if execution succeeded
+            # Standard I/O Comparison if execution succeeded
             actual_output = output.stdout.strip()
             expected = expected_output.strip()
 
@@ -102,18 +146,80 @@ class ExpectOutputTest(TestFunction):
                 test_name=self.name,
                 score=0.0,
                 report=f"FAILURE: Output Mismatch.\nExpected: '{expected}'\nActual: '{actual_output}'"
-                )
+            )
 
-        except Exception as e:
+        except (ValueError, TimeoutError, RuntimeError) as e:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
                 report=f"SYSTEM ERROR: Internal autograder failure: {str(e)}"
             )
 
-# ===============================================================
-# endregion
-# ===============================================================
+class DontFailTest(BaseExecutionTest):
+    """
+    Tests that a command-line program does NOT crash when given a specific input.
+
+    Unlike ExpectOutputTest, this test ignores the program's stdout entirely.
+    It only checks that execution completes without a runtime error, compilation
+    error, or timeout. Useful for validating error handling (e.g., sending a
+    string when the program expects a number).
+    """
+
+    @property
+    def name(self):
+        return "dont_fail"
+
+    @property
+    def description(self):
+        return "Executa o programa do aluno com uma entrada específica e verifica que ele não falha (sem crash, sem timeout)."
+
+    @property
+    def required_file(self):
+        return None
+
+    @property
+    def parameter_description(self):
+        return [
+            ParamDescription("input", "String a ser enviada para o programa via stdin.", "string"),
+            ParamDescription("program_command", "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).", "string or dict")
+        ]
+
+    def execute(self, files, sandbox: SandboxContainer, *args, user_input: str = "",
+                program_command=None, __submission_language__=None, **kwargs) -> TestResult:
+        """
+        Execute the test by verifying the program doesn't crash with given input.
+        """
+        try:
+            # Reformat scalar input to standard list
+            inputs = [user_input] if user_input is not None and user_input != "" else []
+            
+            output = self.run_sandbox_execution(
+                sandbox=sandbox, 
+                inputs=inputs, 
+                program_command=program_command, 
+                __submission_language__=__submission_language__
+            )
+
+            # Check for generic execution failures
+            error_result = self.check_for_base_errors(output)
+            if error_result:
+                return error_result
+
+            # Program completed without crashing — success!
+            return TestResult(
+                test_name=self.name,
+                score=100.0,
+                report="Success: Program executed without errors."
+            )
+
+        except (ValueError, TimeoutError, RuntimeError) as e:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=f"SYSTEM ERROR: Internal autograder failure: {str(e)}"
+            )
+
+
 
 class InputOutputTemplate(Template):
     """
@@ -126,6 +232,7 @@ class InputOutputTemplate(Template):
 
         self.tests = {
             "expect_output": ExpectOutputTest(),
+            "dont_fail": DontFailTest(),
         }
 
     @property
