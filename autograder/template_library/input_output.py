@@ -6,6 +6,7 @@ from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
 from autograder.services.command_resolver import CommandResolver
 from sandbox_manager.sandbox_container import SandboxContainer
+from sandbox_manager.models.sandbox_models import ResponseCategory
 
 
 # ===============================================================
@@ -51,8 +52,6 @@ class BaseExecutionTest(TestFunction):
         Checks for Timeout, Compilation Error, or Runtime Error in the sandbox output.
         Returns a TestResult with score 0.0 if an error is found, or None if successful.
         """
-        from sandbox_manager.models.sandbox_models import ResponseCategory
-
         if output.category == ResponseCategory.TIMEOUT:
             return TestResult(
                 test_name=self.name,
