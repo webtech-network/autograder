@@ -177,7 +177,7 @@ class SandboxContainer:
                 # Execute program with stdin piped from echo
                 # This is more reliable than socket-based stdin
                 escaped_input = stdin_input.replace("'", "'\\''")
-                cmd = f"echo '{escaped_input}' | {program_command}"
+                cmd = f"echo '{escaped_input}' | ( {program_command} )"
                 shell_cmd = ["/bin/sh", "-c", cmd]
             else:
                 # Just echo the input (for testing)

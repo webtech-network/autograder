@@ -57,7 +57,7 @@ async def execute_code_endpoint(request: DeliberateCodeExecutionRequest):
     try:
         logger.info("Code execution request received for language: %s", request.language)
         result = await execute_code(request)
-        logger.info("Code execution completed with category: %s", result.category)
+        logger.info("Code execution completed with %d result(s)", len(result.results))
         return result
     except ValueError as e:
         logger.warning("Invalid request: %s", e)
