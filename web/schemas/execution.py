@@ -22,7 +22,7 @@ class DeliberateCodeExecutionRequest(BaseModel):
     language: str = Field(..., description="The programming language of the code to be executed (e.g., python, java, node, cpp).")
     submission_files: List[SubmissionFileData] = Field(..., description="List of files to be executed, including their content.")
     program_command: str = Field(..., description="The command to execute the program (e.g., 'python main.py', 'java Main', 'node app.js', './a.out').")
-    inputs: Optional[List[List[str]]] = Field(None, description="Optional list of inputs to be provided to the code during execution, one input may have multiple arguments.")
+    test_cases: Optional[List[List[str]]] = Field(None, description="Optional list of test cases to be evaluated. Each test case is a list of inputs/arguments.")
 
     @field_validator('language')
     @classmethod
@@ -42,12 +42,19 @@ class DeliberateCodeExecutionRequest(BaseModel):
         return v
 
 
-class DeliberateCodeExecutionResponse(BaseModel):
+class DeliberateCodeExecutionResult(BaseModel):
     """
-    Response schema for Deliberate Code Execution.
+    Result of a single code execution block representing a test case.
     """
     output: str = Field(..., description="The output of the executed code.")
     category: ResponseCategory = Field(..., description="The category of the execution result (e.g., success, runtime_error, timeout, system_error).")
     error_message: Optional[str] = Field(None, description="Any error that occurred during execution.")
     execution_time: float = Field(..., description="Execution time in seconds.")
+
+
+class DeliberateCodeExecutionResponse(BaseModel):
+    """
+    Response schema for Deliberate Code Execution containing all test cases evaluated.
+    """
+    results: List[DeliberateCodeExecutionResult] = Field(..., description="A list of execution results corresponding to each test case.")
 
