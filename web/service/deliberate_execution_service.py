@@ -50,6 +50,63 @@ def _get_error_message(result: CommandResponse) -> str:
     return error_message
 
 
+async def _execute_test_cases(
+    sandbox,
+    program_command: str,
+    test_cases: list[list[str]]
+) -> list[DeliberateCodeExecutionResult]:
+    """Execute a list of test cases in the sandbox."""
+    execution_results: list[DeliberateCodeExecutionResult] = []
+    
+    for idx, test_case_args in enumerate(test_cases):
+        logger.info("Executing test case %d of %d", idx + 1, len(test_cases))
+        
+        result: CommandResponse
+
+        if test_case_args:
+            # Format/flatten inputs if they're provided as list of lists
+            flattened_inputs = [str(input_args) for input_args in test_case_args]
+
+            logger.info("Executing with %d input(s) for test case %d", len(flattened_inputs), idx + 1)
+            result = await asyncio.to_thread(
+                sandbox.run_commands,
+                flattened_inputs,
+                program_command,
+                timeout=30,
+                workdir="/app"
+            )
+        else:
+            # No inputs, just run the command
+            logger.info("Executing without inputs for test case %d", idx + 1)
+            result = await asyncio.to_thread(
+                sandbox.run_command,
+                program_command,
+                timeout=30,
+                workdir="/app"
+            )
+
+        logger.info(
+            "Test case %d completed: category=%s, exit_code=%d, time=%.3fs",
+            idx + 1, result.category.value, result.exit_code, result.execution_time
+        )
+
+        # Build result item
+        output_parts = [part for part in (result.stdout, result.stderr) if part]
+        output = "\n".join(output_parts)
+        error_message = _get_error_message(result)
+
+        execution_results.append(
+            DeliberateCodeExecutionResult(
+                output=output,
+                category=result.category,
+                error_message=error_message,
+                execution_time=result.execution_time
+            )
+        )
+
+    return execution_results
+
+
 async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCodeExecutionResponse:
     """
     Execute code in a sandbox without grading.
@@ -101,59 +158,15 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         sandbox.prepare_workdir(files_dict)
         logger.info("Prepared workdir with %d file(s)", len(files_dict))
 
-        # Execute test cases
-        execution_results: list[DeliberateCodeExecutionResult] = []
-        
         # Determine test cases to run (at least 1 empty run if none provided)
         test_cases = request.test_cases if request.test_cases else [[]]
         
-        for idx, test_case_args in enumerate(test_cases):
-            logger.info("Executing test case %d of %d", idx + 1, len(test_cases))
-            
-            result: CommandResponse
-
-            if test_case_args:
-                # Format/flatten inputs if they're provided as list of lists
-                flattened_inputs = []
-                for input_args in test_case_args:
-                    flattened_inputs.append(str(input_args))
-
-                logger.info("Executing with %d input(s) for test case %d", len(flattened_inputs), idx + 1)
-                result = await asyncio.to_thread(
-                    sandbox.run_commands,
-                    flattened_inputs,
-                    request.program_command,
-                    timeout=30,
-                    workdir="/app"
-                )
-            else:
-                # No inputs, just run the command
-                logger.info("Executing without inputs for test case %d", idx + 1)
-                result = await asyncio.to_thread(
-                    sandbox.run_command,
-                    request.program_command,
-                    timeout=30,
-                    workdir="/app"
-                )
-
-            logger.info(
-                "Test case %d completed: category=%s, exit_code=%d, time=%.3fs",
-                idx + 1, result.category.value, result.exit_code, result.execution_time
-            )
-
-            # Build result item
-            output_parts = [part for part in (result.stdout, result.stderr) if part]
-            output = "\n".join(output_parts)
-            error_message = _get_error_message(result)
-
-            execution_results.append(
-                DeliberateCodeExecutionResult(
-                    output=output,
-                    category=result.category,
-                    error_message=error_message,
-                    execution_time=result.execution_time
-                )
-            )
+        # Execute test cases
+        execution_results = await _execute_test_cases(
+            sandbox, 
+            request.program_command, 
+            test_cases
+        )
 
         return DeliberateCodeExecutionResponse(results=execution_results)
 
