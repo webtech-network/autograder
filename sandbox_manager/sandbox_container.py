@@ -204,11 +204,14 @@ class SandboxContainer:
             stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
             stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
 
+            category = classify_output(stdout, stderr, result.exit_code, self.language)
+
             return CommandResponse(
                 stdout=stdout,
                 stderr=stderr,
                 exit_code=result.exit_code,
-                execution_time=execution_time
+                execution_time=execution_time,
+                category=category
             )
 
         except Exception as e:
@@ -217,7 +220,8 @@ class SandboxContainer:
                 stdout='',
                 stderr=f'Batch command execution failed: {str(e)}',
                 exit_code=-1,
-                execution_time=execution_time
+                execution_time=execution_time,
+                category=ResponseCategory.SYSTEM_ERROR
             )
 
     def make_request(self,
