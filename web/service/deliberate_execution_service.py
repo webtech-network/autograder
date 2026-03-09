@@ -11,7 +11,7 @@ from autograder.models.dataclass.submission import SubmissionFile
 from sandbox_manager.manager import get_sandbox_manager
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory, CommandResponse
 from web.config.logging import get_logger
-from web.schemas.execution import DeliberateCodeExecutionRequest, DeliberateCodeExecutionResponse
+from web.schemas.execution import DeliberateCodeExecutionRequest, DeliberateCodeExecutionResponse, DeliberateCodeExecutionResult
 
 
 logger = get_logger(__name__)
@@ -48,6 +48,63 @@ def _get_error_message(result: CommandResponse) -> str:
             error_message = result.stderr
 
     return error_message
+
+
+async def _execute_test_cases(
+    sandbox,
+    program_command: str,
+    test_cases: list[list[str]]
+) -> list[DeliberateCodeExecutionResult]:
+    """Execute a list of test cases in the sandbox."""
+    execution_results: list[DeliberateCodeExecutionResult] = []
+
+    for idx, test_case_args in enumerate(test_cases):
+        logger.info("Executing test case %d of %d", idx + 1, len(test_cases))
+
+        result: CommandResponse
+
+        if test_case_args:
+            # Format/flatten inputs if they're provided as list of lists
+            flattened_inputs = [str(input_args) for input_args in test_case_args]
+
+            logger.info("Executing with %d input(s) for test case %d", len(flattened_inputs), idx + 1)
+            result = await asyncio.to_thread(
+                sandbox.run_commands,
+                flattened_inputs,
+                program_command,
+                timeout=30,
+                workdir="/app"
+            )
+        else:
+            # No inputs, just run the command
+            logger.info("Executing without inputs for test case %d", idx + 1)
+            result = await asyncio.to_thread(
+                sandbox.run_command,
+                program_command,
+                timeout=30,
+                workdir="/app"
+            )
+
+        logger.info(
+            "Test case %d completed: category=%s, exit_code=%d, time=%.3fs",
+            idx + 1, result.category.value, result.exit_code, result.execution_time
+        )
+
+        # Build result item
+        output_parts = [part for part in (result.stdout, result.stderr) if part]
+        output = "\n".join(output_parts)
+        error_message = _get_error_message(result)
+
+        execution_results.append(
+            DeliberateCodeExecutionResult(
+                output=output,
+                category=result.category,
+                error_message=error_message,
+                execution_time=result.execution_time
+            )
+        )
+
+    return execution_results
 
 
 async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCodeExecutionResponse:
@@ -102,83 +159,30 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         sandbox.prepare_workdir(files_dict)
         logger.info("Prepared workdir with %d file(s)", len(files_dict))
 
-        # Execute code with timeout
-        # Note: The timeout parameter passed to run_command/run_commands is not enforced by Docker
-        # So we use asyncio.wait_for to enforce the timeout at the application level
-        execution_timeout = 30  # seconds
-        result: CommandResponse
+        # Determine test cases to run (at least 1 empty run if none provided)
+        test_cases = request.test_cases if request.test_cases else [[]]
 
-        try:
-            if request.inputs:
-                # Flatten inputs if they're provided as list of lists
-                # Each inner list represents arguments for a single input line
-                flattened_inputs = []
-                for input_args in request.inputs:
-                    # Join arguments with spaces if multiple args per line
-                    flattened_inputs.append(' '.join(input_args) if isinstance(input_args, list) else str(input_args))
-
-                logger.info("Executing with %d input(s)", len(flattened_inputs))
-                # Use run_commands for interactive input with timeout enforcement
-                result = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        sandbox.run_commands,
-                        flattened_inputs,
-                        request.program_command,
-                        timeout=execution_timeout,
-                        workdir="/app"
-                    ),
-                    timeout=execution_timeout
-                )
-            else:
-                # No inputs, just run the command with timeout enforcement
-                logger.info("Executing without inputs")
-                result = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        sandbox.run_command,
-                        request.program_command,
-                        timeout=execution_timeout,
-                        workdir="/app"
-                    ),
-                    timeout=execution_timeout
-                )
-        except asyncio.TimeoutError:
-            # Execution exceeded timeout - mark for destruction
-            timed_out = True
-            logger.warning("Execution timed out after %d seconds, sandbox will be destroyed", execution_timeout)
-            result = CommandResponse(
-                stdout='',
-                stderr=f'Execution timed out after {execution_timeout} seconds',
-                exit_code=124,  # Standard timeout exit code
-                execution_time=execution_timeout,
-                category=ResponseCategory.TIMEOUT
-            )
-
-        logger.info(
-            "Execution completed: category=%s, exit_code=%d, time=%.3fs",
-            result.category.value, result.exit_code, result.execution_time
+        # Execute test cases
+        execution_results = await _execute_test_cases(
+            sandbox,
+            request.program_command,
+            test_cases
         )
 
-        # Build response
-        # Combine stdout and stderr so callers see all output (e.g. output before a crash)
-        output_parts = [part for part in (result.stdout, result.stderr) if part]
-        output = "\n".join(output_parts)
-        error_message = _get_error_message(result)
-
-        return DeliberateCodeExecutionResponse(
-            output=output,
-            category=result.category,
-            error_message=error_message,
-            execution_time=result.execution_time
-        )
+        return DeliberateCodeExecutionResponse(results=execution_results)
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("Execution failed: %s", e, exc_info=True)
         # Return error response instead of raising
         return DeliberateCodeExecutionResponse(
-            output="",
-            category=ResponseCategory.SYSTEM_ERROR,
-            error_message=f"Execution failed: {str(e)}",
-            execution_time=0.0
+            results=[
+                DeliberateCodeExecutionResult(
+                    output="",
+                    category=ResponseCategory.SYSTEM_ERROR,
+                    error_message=f"Execution failed: {str(e)}",
+                    execution_time=0.0
+                )
+            ]
         )
 
     finally:
