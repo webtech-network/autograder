@@ -103,52 +103,88 @@ class SandboxContainer:
             TimeoutError: If command execution exceeds timeout
             Exception: If command execution fails
         """
+        import threading
+
         start_time = time.time()
+        result_container = {'result': None, 'exception': None}
 
-        try:
-            # Wrap command in shell to support shell features like pipes, redirection, etc.
-            shell_cmd = ["/bin/sh", "-c", command]
+        def execute_command():
+            try:
+                # Wrap command in shell to support shell features like pipes, redirection, etc.
+                shell_cmd = ["/bin/sh", "-c", command]
 
-            # Execute command in container
-            result = self.container_ref.exec_run(
-                cmd=shell_cmd,
-                workdir=workdir,
-                user="sandbox",
-                demux=True,  # Separate stdout and stderr
-                environment={},
-                stdout=True,
-                stderr=True,
-                stdin=False
-            )
+                # Execute command in container
+                exec_result = self.container_ref.exec_run(
+                    cmd=shell_cmd,
+                    workdir=workdir,
+                    user="sandbox",
+                    demux=True,  # Separate stdout and stderr
+                    environment={},
+                    stdout=True,
+                    stderr=True,
+                    stdin=False
+                )
+                result_container['result'] = exec_result
+            except Exception as e:
+                result_container['exception'] = e
 
-            execution_time = time.time() - start_time
+        # Execute in a thread with timeout
+        thread = threading.Thread(target=execute_command)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=timeout)
 
-            # Demux returns tuple (stdout, stderr) if demux=True
-            stdout_bytes, stderr_bytes = result.output if result.output else (b'', b'')
+        execution_time = time.time() - start_time
 
-            # Decode output
-            stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
-            stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
-
-            category = classify_output(stdout, stderr, result.exit_code, self.language)
-
-            return CommandResponse(
-                stdout=stdout,
-                stderr=stderr,
-                exit_code=result.exit_code,
-                execution_time=execution_time,
-                category=category  # Pass the classification
-            )
-
-        except Exception as e:
-            execution_time = time.time() - start_time
+        # Check if thread is still running (timeout occurred)
+        if thread.is_alive():
+            # Timeout occurred
             return CommandResponse(
                 stdout='',
-                stderr=f'Command execution failed: {str(e)}',
+                stderr=f'Execution timed out after {timeout} seconds',
+                exit_code=124,  # Standard timeout exit code
+                execution_time=execution_time,
+                category=ResponseCategory.TIMEOUT
+            )
+
+        # Check if an exception occurred
+        if result_container['exception']:
+            return CommandResponse(
+                stdout='',
+                stderr=f'Command execution failed: {str(result_container["exception"])}',
                 exit_code=-1,
                 execution_time=execution_time,
-                category=ResponseCategory.SYSTEM_ERROR  # System/Infrastructure failure
+                category=ResponseCategory.SYSTEM_ERROR
             )
+
+        # Process successful execution
+        result = result_container['result']
+        if result is None:
+            return CommandResponse(
+                stdout='',
+                stderr='Command execution failed: no result',
+                exit_code=-1,
+                execution_time=execution_time,
+                category=ResponseCategory.SYSTEM_ERROR
+            )
+
+        # Demux returns tuple (stdout, stderr) if demux=True
+        stdout_bytes, stderr_bytes = result.output if result.output else (b'', b'')
+
+        # Decode output
+        stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
+        stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
+
+        category = classify_output(stdout, stderr, result.exit_code, self.language)
+
+        return CommandResponse(
+            stdout=stdout,
+            stderr=stderr,
+            exit_code=result.exit_code,
+            execution_time=execution_time,
+            category=category  # Pass the classification
+        )
+
 
     def run_commands(self, commands: List[str], program_command: str = None, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
         """
@@ -167,61 +203,98 @@ class SandboxContainer:
         Returns:
             CommandResponse with combined output
         """
+        import threading
+
         start_time = time.time()
+        result_container = {'result': None, 'exception': None}
 
-        try:
-            # Join all commands with newlines to create input
-            stdin_input = '\n'.join(commands)
+        def execute_command():
+            try:
+                # Join all commands with newlines to create input
+                stdin_input = '\n'.join(commands)
 
-            if program_command:
-                # Execute program with stdin piped from echo
-                # This is more reliable than socket-based stdin
-                escaped_input = stdin_input.replace("'", "'\\''")
-                cmd = f"echo '{escaped_input}' | ( {program_command} )"
-                shell_cmd = ["/bin/sh", "-c", cmd]
-            else:
-                # Just echo the input (for testing)
-                escaped_input = stdin_input.replace("'", "'\\''")
-                shell_cmd = ["/bin/sh", "-c", f"echo '{escaped_input}'"]
+                if program_command:
+                    # Execute program with stdin piped from echo
+                    # This is more reliable than socket-based stdin
+                    escaped_input = stdin_input.replace("'", "'\\''")
+                    cmd = f"echo '{escaped_input}' | ( {program_command} )"
+                    shell_cmd = ["/bin/sh", "-c", cmd]
+                else:
+                    # Just echo the input (for testing)
+                    escaped_input = stdin_input.replace("'", "'\\''")
+                    shell_cmd = ["/bin/sh", "-c", f"echo '{escaped_input}'"]
 
-            # Execute command in container
-            result = self.container_ref.exec_run(
-                cmd=shell_cmd,
-                workdir=workdir,
-                user="sandbox",
-                demux=True,
-                stdout=True,
-                stderr=True,
-                stdin=False
-            )
+                # Execute command in container
+                exec_result = self.container_ref.exec_run(
+                    cmd=shell_cmd,
+                    workdir=workdir,
+                    user="sandbox",
+                    demux=True,
+                    stdout=True,
+                    stderr=True,
+                    stdin=False
+                )
+                result_container['result'] = exec_result
+            except Exception as e:
+                result_container['exception'] = e
 
-            execution_time = time.time() - start_time
+        # Execute in a thread with timeout
+        thread = threading.Thread(target=execute_command)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=timeout)
 
-            # Demux returns tuple (stdout, stderr) if demux=True
-            stdout_bytes, stderr_bytes = result.output if result.output else (b'', b'')
+        execution_time = time.time() - start_time
 
-            # Decode output
-            stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
-            stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
-
-            category = classify_output(stdout, stderr, result.exit_code, self.language)
-
-            return CommandResponse(
-                stdout=stdout,
-                stderr=stderr,
-                exit_code=result.exit_code,
-                execution_time=execution_time,
-                category=category
-            )
-
-        except Exception as e:
-            execution_time = time.time() - start_time
+        # Check if thread is still running (timeout occurred)
+        if thread.is_alive():
+            # Timeout occurred
             return CommandResponse(
                 stdout='',
-                stderr=f'Batch command execution failed: {str(e)}',
-                exit_code=-1,
-                execution_time=execution_time
+                stderr=f'Execution timed out after {timeout} seconds',
+                exit_code=124,  # Standard timeout exit code
+                execution_time=execution_time,
+                category=ResponseCategory.TIMEOUT
             )
+
+        # Check if an exception occurred
+        if result_container['exception']:
+            return CommandResponse(
+                stdout='',
+                stderr=f'Batch command execution failed: {str(result_container["exception"])}',
+                exit_code=-1,
+                execution_time=execution_time,
+                category=ResponseCategory.SYSTEM_ERROR
+            )
+
+        # Process successful execution
+        result = result_container['result']
+        if result is None:
+            return CommandResponse(
+                stdout='',
+                stderr='Batch command execution failed: no result',
+                exit_code=-1,
+                execution_time=execution_time,
+                category=ResponseCategory.SYSTEM_ERROR
+            )
+
+        # Demux returns tuple (stdout, stderr) if demux=True
+        stdout_bytes, stderr_bytes = result.output if result.output else (b'', b'')
+
+        # Decode output
+        stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
+        stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
+
+        category = classify_output(stdout, stderr, result.exit_code, self.language)
+
+        return CommandResponse(
+            stdout=stdout,
+            stderr=stderr,
+            exit_code=result.exit_code,
+            execution_time=execution_time,
+            category=category
+        )
+
 
     def make_request(self,
                      request_method: str,
