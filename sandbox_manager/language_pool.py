@@ -310,6 +310,30 @@ class LanguagePool:
         print(f"[{self.language}] 🎉 SANDBOX CREATED SUCCESSFULLY - container_id: {container.id[:12]}")
         return sandbox
 
+    def destroy_sandbox(self, sandbox: SandboxContainer) -> None:
+        """
+        Destroy a sandbox immediately without releasing it back to the pool.
+        Use this for sandboxes that timeout or encounter fatal errors.
+
+        Args:
+            sandbox: The sandbox to destroy
+        """
+        with self.lock:
+            if sandbox in self.active_sandboxes:
+                sandbox_id = sandbox.container_ref.id[:12]
+                self.active_sandboxes.remove(sandbox)
+                print(f"[{self.language}] 🔓 REMOVE FROM ACTIVE - sandbox_id: {sandbox_id}")
+                print(f"[{self.language}] 📊 BEFORE DESTROY - idle: {len(self.idle_sandboxes)}, active: {len(self.active_sandboxes) + 1}, total: {len(self.active_sandboxes) + len(self.idle_sandboxes) + 1}/{self.config.scale_limit}")
+            else:
+                raise ValueError("Sandbox not found in active sandboxes")
+
+        # Destroy outside the lock
+        self._destroy_sandbox(sandbox)
+        print(f"[{self.language}] 📊 AFTER DESTROY - idle: {len(self.idle_sandboxes)}, active: {len(self.active_sandboxes)}, total: {len(self.active_sandboxes) + len(self.idle_sandboxes)}/{self.config.scale_limit}")
+
+        # Replenish pool to maintain minimum size
+        self.replenish()
+
     def _destroy_sandbox(self, sandbox: SandboxContainer):
         sandbox_id = sandbox.container_ref.id[:12]
         print(f"[{self.language}] 🗑️ DESTROY SANDBOX - container_id: {sandbox_id}")
