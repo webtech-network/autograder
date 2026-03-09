@@ -11,13 +11,37 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import StaticPool
 
-# Mock the sandbox manager before importing main
-with patch("web.main.initialize_sandbox_manager"), \
-     patch("web.main.TemplateLibraryService"):
-    from web.main import app
 
 from web.database.base import Base
 from web.database import session
+
+
+# Mock external dependencies before importing app
+@pytest.fixture(scope="module", autouse=True)
+def mock_external_services():
+    """Mock external services for all tests."""
+    with patch("web.core.lifespan.initialize_sandbox_manager"), \
+         patch("web.core.lifespan.TemplateLibraryService") as mock_template, \
+         patch("web.core.lifespan.SandboxPoolConfig.load_from_yaml", return_value=[]):
+
+        # Setup template service mock
+        mock_service = Mock()
+        mock_service.get_all_templates_info = Mock(return_value=[
+            {"name": "webdev", "description": "Web development grading"},
+            {"name": "api", "description": "API testing"}
+        ])
+        mock_service.get_template_info = Mock(return_value={
+            "name": "webdev",
+            "description": "Web development grading",
+            "supported_languages": ["python", "javascript"]
+        })
+        mock_template.get_instance.return_value = mock_service
+
+        yield
+
+
+# Import app after mocking
+from web.main import app
 
 
 @pytest.fixture
@@ -168,30 +192,36 @@ async def test_create_and_get_submission(client):
     }
     await client.post("/api/v1/configs", json=config_data)
     
-    # Create submission
-    submission_data = {
-        "external_assignment_id": "test-assignment-submit",
-        "external_user_id": "user-456",
-        "username": "johndoe",
-        "files": [{"filename": "main.py", "content": "print('hello world')"}],
-        "metadata": {"ip": "127.0.0.1"}
-    }
-    
-    response = await client.post("/api/v1/submissions", json=submission_data)
-    assert response.status_code == 200
-    data = response.json()
-    assert data["external_user_id"] == "user-456"
-    assert data["username"] == "johndoe"
-    assert data["status"] == "pending"
-    
-    submission_id = data["id"]
-    
-    # Get submission
-    response = await client.get(f"/api/v1/submissions/{submission_id}")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == submission_id
-    assert data["submission_files"]["main.py"] == "print('hello world')"
+    # Mock grading to avoid actually running sandbox
+    mock_grading_tasks = set()
+
+    with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock), \
+         patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
+
+        # Create submission
+        submission_data = {
+            "external_assignment_id": "test-assignment-submit",
+            "external_user_id": "user-456",
+            "username": "johndoe",
+            "files": [{"filename": "main.py", "content": "print('hello world')"}],
+            "metadata": {"ip": "127.0.0.1"}
+        }
+
+        response = await client.post("/api/v1/submissions", json=submission_data)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["external_user_id"] == "user-456"
+        assert data["username"] == "johndoe"
+        assert data["status"] == "pending"
+
+        submission_id = data["id"]
+
+        # Get submission
+        response = await client.get(f"/api/v1/submissions/{submission_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == submission_id
+        assert data["submission_files"]["main.py"] == "print('hello world')"
 
 
 @pytest.mark.asyncio
@@ -206,22 +236,28 @@ async def test_get_user_submissions(client):
     }
     await client.post("/api/v1/configs", json=config_data)
     
-    # Create multiple submissions for same user
-    user_id = "user-789"
-    for i in range(3):
-        submission_data = {
-            "external_assignment_id": "test-assignment-user",
-            "external_user_id": user_id,
-            "username": "janedoe",
-            "files": [{"filename": "main.py", "content": f"print('submission {i}')"}]
-        }
-        await client.post("/api/v1/submissions", json=submission_data)
-    
-    # Get user submissions
-    response = await client.get(f"/api/v1/submissions/user/{user_id}")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 3
+    # Mock grading to avoid actually running sandbox
+    mock_grading_tasks = set()
+
+    with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock), \
+         patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
+
+        # Create multiple submissions for same user
+        user_id = "user-789"
+        for i in range(3):
+            submission_data = {
+                "external_assignment_id": "test-assignment-user",
+                "external_user_id": user_id,
+                "username": "janedoe",
+                "files": [{"filename": "main.py", "content": f"print('submission {i}')"}]
+            }
+            await client.post("/api/v1/submissions", json=submission_data)
+
+        # Get user submissions
+        response = await client.get(f"/api/v1/submissions/user/{user_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 3
 
 
 @pytest.mark.asyncio
