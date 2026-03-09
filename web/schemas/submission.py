@@ -63,6 +63,7 @@ class SubmissionResponse(BaseModel):
     grading_config_id: int
     external_user_id: str
     username: str
+    language: Optional[str] = None
     status: SubmissionStatus
     submitted_at: datetime
     graded_at: Optional[datetime] = None
