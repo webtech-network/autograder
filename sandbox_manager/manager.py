@@ -103,6 +103,18 @@ class SandboxManager:
         if lang in self.language_pools:
             self.language_pools[lang].release(sandbox)
 
+    def destroy_sandbox(self, lang: Language, sandbox: SandboxContainer):
+        """
+        Destroy a sandbox immediately without releasing it back to the pool.
+        Use this for sandboxes that timeout or encounter fatal errors.
+
+        Args:
+            lang: The language of the sandbox
+            sandbox: The sandbox to destroy
+        """
+        if lang in self.language_pools:
+            self.language_pools[lang].destroy_sandbox(sandbox)
+
     def acquire_sandbox(self, lang: Language):
         """
         Context manager for safe sandbox acquisition and guaranteed release.
