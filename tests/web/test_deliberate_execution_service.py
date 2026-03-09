@@ -8,7 +8,7 @@ from web.schemas.execution import DeliberateCodeExecutionRequest, DeliberateCode
 from sandbox_manager.models.sandbox_models import ResponseCategory, CommandResponse
 
 
-def _make_request(language="python", files=None, command="python main.py", inputs=None):
+def _make_request(language="python", files=None, command="python main.py", test_cases=None):
     """Helper to build a DeliberateCodeExecutionRequest."""
     if files is None:
         files = [{"filename": "main.py", "content": "print('hello')"}]
@@ -16,7 +16,7 @@ def _make_request(language="python", files=None, command="python main.py", input
         language=language,
         submission_files=files,
         program_command=command,
-        inputs=inputs,
+        test_cases=test_cases,
     )
 
 
@@ -123,7 +123,7 @@ async def test_execute_code_success_no_inputs():
     mock_manager.get_sandbox = Mock(return_value=mock_sandbox)
     mock_manager.release_sandbox = Mock()
 
-    request = _make_request(inputs=None)
+    request = _make_request(test_cases=None)
 
     with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=mock_manager), \
          patch("asyncio.to_thread", new=AsyncMock(return_value=cmd_response)):
@@ -131,9 +131,10 @@ async def test_execute_code_success_no_inputs():
         response = await execute_code(request)
 
     assert isinstance(response, DeliberateCodeExecutionResponse)
-    assert response.category == ResponseCategory.SUCCESS
-    assert response.output == "hello\n"
-    assert response.error_message is None
+    assert len(response.results) == 1
+    assert response.results[0].category == ResponseCategory.SUCCESS
+    assert response.results[0].output == "hello\n"
+    assert response.results[0].error_message is None
     mock_manager.release_sandbox.assert_called_once()
 
 
@@ -154,15 +155,16 @@ async def test_execute_code_success_with_inputs():
     mock_manager.get_sandbox = Mock(return_value=mock_sandbox)
     mock_manager.release_sandbox = Mock()
 
-    request = _make_request(inputs=[["5", "7"]])
+    request = _make_request(test_cases=[["5", "7"]])
 
     with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=mock_manager), \
          patch("asyncio.to_thread", new=AsyncMock(return_value=cmd_response)):
 
         response = await execute_code(request)
 
-    assert response.category == ResponseCategory.SUCCESS
-    assert response.output == "42\n"
+    assert len(response.results) == 1
+    assert response.results[0].category == ResponseCategory.SUCCESS
+    assert response.results[0].output == "42\n"
     mock_manager.release_sandbox.assert_called_once()
 
 
@@ -187,9 +189,10 @@ async def test_execute_code_execution_error():
 
         response = await execute_code(request)
 
-    assert response.category == ResponseCategory.SYSTEM_ERROR
-    assert "container crashed" in response.error_message
-    assert response.output == ""
+    assert len(response.results) == 1
+    assert response.results[0].category == ResponseCategory.SYSTEM_ERROR
+    assert "container crashed" in response.results[0].error_message
+    assert response.results[0].output == ""
     # Sandbox must still be released in the finally block
     mock_manager.release_sandbox.assert_called_once()
 
@@ -222,6 +225,7 @@ async def test_execute_code_runtime_error_response():
 
         response = await execute_code(request)
 
-    assert response.category == ResponseCategory.RUNTIME_ERROR
-    assert "Runtime error occurred" in response.error_message
-    assert "ZeroDivisionError" in response.error_message
+    assert len(response.results) == 1
+    assert response.results[0].category == ResponseCategory.RUNTIME_ERROR
+    assert "Runtime error occurred" in response.results[0].error_message
+    assert "ZeroDivisionError" in response.results[0].error_message
