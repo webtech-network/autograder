@@ -84,6 +84,7 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
 
     # Acquire sandbox
     sandbox = None
+    timed_out = False  # Track if execution timed out
     try:
         sandbox = sandbox_manager.get_sandbox(language)
         logger.info("Acquired sandbox for %s", language.value)
@@ -101,34 +102,55 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         sandbox.prepare_workdir(files_dict)
         logger.info("Prepared workdir with %d file(s)", len(files_dict))
 
-        # Execute code
+        # Execute code with timeout
+        # Note: The timeout parameter passed to run_command/run_commands is not enforced by Docker
+        # So we use asyncio.wait_for to enforce the timeout at the application level
+        execution_timeout = 30  # seconds
         result: CommandResponse
 
-        if request.inputs:
-            # Flatten inputs if they're provided as list of lists
-            # Each inner list represents arguments for a single input line
-            flattened_inputs = []
-            for input_args in request.inputs:
-                # Join arguments with spaces if multiple args per line
-                flattened_inputs.append(' '.join(input_args) if isinstance(input_args, list) else str(input_args))
+        try:
+            if request.inputs:
+                # Flatten inputs if they're provided as list of lists
+                # Each inner list represents arguments for a single input line
+                flattened_inputs = []
+                for input_args in request.inputs:
+                    # Join arguments with spaces if multiple args per line
+                    flattened_inputs.append(' '.join(input_args) if isinstance(input_args, list) else str(input_args))
 
-            logger.info("Executing with %d input(s)", len(flattened_inputs))
-            # Use run_commands for interactive input
-            result = await asyncio.to_thread(
-                sandbox.run_commands,
-                flattened_inputs,
-                request.program_command,
-                timeout=30,
-                workdir="/app"
-            )
-        else:
-            # No inputs, just run the command
-            logger.info("Executing without inputs")
-            result = await asyncio.to_thread(
-                sandbox.run_command,
-                request.program_command,
-                timeout=30,
-                workdir="/app"
+                logger.info("Executing with %d input(s)", len(flattened_inputs))
+                # Use run_commands for interactive input with timeout enforcement
+                result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        sandbox.run_commands,
+                        flattened_inputs,
+                        request.program_command,
+                        timeout=execution_timeout,
+                        workdir="/app"
+                    ),
+                    timeout=execution_timeout
+                )
+            else:
+                # No inputs, just run the command with timeout enforcement
+                logger.info("Executing without inputs")
+                result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        sandbox.run_command,
+                        request.program_command,
+                        timeout=execution_timeout,
+                        workdir="/app"
+                    ),
+                    timeout=execution_timeout
+                )
+        except asyncio.TimeoutError:
+            # Execution exceeded timeout - mark for destruction
+            timed_out = True
+            logger.warning("Execution timed out after %d seconds, sandbox will be destroyed", execution_timeout)
+            result = CommandResponse(
+                stdout='',
+                stderr=f'Execution timed out after {execution_timeout} seconds',
+                exit_code=124,  # Standard timeout exit code
+                execution_time=execution_timeout,
+                category=ResponseCategory.TIMEOUT
             )
 
         logger.info(
@@ -160,10 +182,16 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         )
 
     finally:
-        # Always release sandbox back to pool
+        # Release or destroy sandbox depending on timeout
         if sandbox:
-            sandbox_manager.release_sandbox(language, sandbox)
-            logger.info("Released sandbox for %s", language.value)
+            if timed_out:
+                # Destroy sandbox instead of releasing it, since it's still running
+                sandbox_manager.destroy_sandbox(language, sandbox)
+                logger.info("Destroyed timed-out sandbox for %s", language.value)
+            else:
+                # Normal release back to pool
+                sandbox_manager.release_sandbox(language, sandbox)
+                logger.info("Released sandbox for %s", language.value)
 
 
 
