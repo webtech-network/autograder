@@ -8,13 +8,7 @@ def classify_output(stdout: str, stderr: str, exit_code: int, language: Language
     if exit_code == 137:  # Common Docker OOM/Killed exit code
         return ResponseCategory.TIMEOUT
 
-    # Detect compilation errors (assuming your pipeline separates build/run)
-    # or detect them via stderr keywords
-    compilation_keywords = ["error:", "javac", "g++", "gcc"]
-    if any(k in stderr.lower() for k in compilation_keywords) and exit_code != 0:
-        return ResponseCategory.COMPILATION_ERROR
-
-    # Detect Runtime Errors
+    # Detect Runtime Errors FIRST (more specific than compilation errors)
     runtime_indicators = {
         Language.PYTHON: ["Traceback (most recent call last):", "Error:"],
         Language.JAVA: ["Exception in thread", "java.lang."],
@@ -26,5 +20,11 @@ def classify_output(stdout: str, stderr: str, exit_code: int, language: Language
     indicators = runtime_indicators.get(language, [])
     if any(ind in stderr for ind in indicators):
         return ResponseCategory.RUNTIME_ERROR
+
+    # Detect compilation errors (assuming your pipeline separates build/run)
+    # or detect them via stderr keywords
+    compilation_keywords = ["error:", "javac", "g++", "gcc"]
+    if any(k in stderr.lower() for k in compilation_keywords) and exit_code != 0:
+        return ResponseCategory.COMPILATION_ERROR
 
     return ResponseCategory.SYSTEM_ERROR
