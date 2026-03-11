@@ -1,7 +1,5 @@
 """Tests for ForbiddenImportTest."""
 
-import pytest
-
 from autograder.template_library.input_output import ForbiddenImportTest, InputOutputTemplate
 from autograder.models.dataclass.submission import SubmissionFile
 from sandbox_manager.models.sandbox_models import Language
@@ -20,6 +18,8 @@ class TestForbiddenImportRegistration:
 
 class TestForbiddenImportMetadata:
     """Test ForbiddenImportTest metadata and properties."""
+
+    test_fn: ForbiddenImportTest
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -46,6 +46,8 @@ class TestForbiddenImportMetadata:
 
 class TestForbiddenImportEdgeCases:
     """Test edge cases for ForbiddenImportTest."""
+
+    test_fn: ForbiddenImportTest
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -90,6 +92,9 @@ class TestForbiddenImportEdgeCases:
 
 class TestForbiddenImportPython:
     """Test ForbiddenImportTest with Python submissions."""
+
+    test_fn: ForbiddenImportTest
+    lang: Language
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -305,6 +310,9 @@ class TestForbiddenImportPython:
 class TestForbiddenImportJava:
     """Test ForbiddenImportTest with Java submissions."""
 
+    test_fn: ForbiddenImportTest
+    lang: Language
+
     def setup_method(self):
         """Set up test fixtures."""
         self.test_fn = ForbiddenImportTest()
@@ -375,6 +383,9 @@ class TestForbiddenImportJava:
 
 class TestForbiddenImportNode:
     """Test ForbiddenImportTest with JavaScript/Node submissions."""
+
+    test_fn: ForbiddenImportTest
+    lang: Language
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -493,6 +504,9 @@ class TestForbiddenImportNode:
 class TestForbiddenImportCpp:
     """Test ForbiddenImportTest with C++ submissions."""
 
+    test_fn: ForbiddenImportTest
+    lang: Language
+
     def setup_method(self):
         """Set up test fixtures."""
         self.test_fn = ForbiddenImportTest()
@@ -582,6 +596,9 @@ class TestForbiddenImportCpp:
 class TestForbiddenImportC:
     """Test ForbiddenImportTest with C submissions."""
 
+    test_fn: ForbiddenImportTest
+    lang: Language
+
     def setup_method(self):
         """Set up test fixtures."""
         self.test_fn = ForbiddenImportTest()
@@ -610,6 +627,8 @@ class TestForbiddenImportC:
 
 class TestForbiddenImportReport:
     """Test report content from ForbiddenImportTest."""
+
+    test_fn: ForbiddenImportTest
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -671,52 +690,63 @@ class TestForbiddenImportReport:
 class TestForbiddenImportHelpers:
     """Test internal helper methods of ForbiddenImportTest."""
 
+    test_fn: ForbiddenImportTest
+
     def setup_method(self):
         """Set up test fixtures."""
         self.test_fn = ForbiddenImportTest()
 
+    def _resolve_language(self, *args, **kwargs):
+        return getattr(self.test_fn, "_resolve_language")(*args, **kwargs)
+
+    def _build_patterns(self, *args, **kwargs):
+        return getattr(self.test_fn, "_build_patterns")(*args, **kwargs)
+
+    def _scan_file(self, *args, **kwargs):
+        return getattr(self.test_fn, "_scan_file")(*args, **kwargs)
+
     def test_resolve_language_none(self):
         """Test that None input returns None."""
-        assert self.test_fn._resolve_language(None) is None
+        assert self._resolve_language(None) is None
 
     def test_resolve_language_enum(self):
         """Test that a Language enum is returned as-is."""
-        assert self.test_fn._resolve_language(Language.PYTHON) == Language.PYTHON
+        assert self._resolve_language(Language.PYTHON) == Language.PYTHON
 
     def test_resolve_language_valid_string(self):
         """Test that a valid lowercase string resolves correctly."""
-        assert self.test_fn._resolve_language("python") == Language.PYTHON
+        assert self._resolve_language("python") == Language.PYTHON
 
     def test_resolve_language_invalid_string(self):
         """Test that an unsupported language string returns None."""
-        assert self.test_fn._resolve_language("cobol") is None
+        assert self._resolve_language("cobol") is None
 
     def test_resolve_language_uppercase_string(self):
         """Test behaviour with uppercase string (enum values are lowercase)."""
-        result = self.test_fn._resolve_language("Python")
+        result = self._resolve_language("Python")
         assert result is None or result == Language.PYTHON
 
     def test_build_patterns_returns_non_empty_list(self):
         """Test that _build_patterns returns a non-empty list for a known language."""
-        patterns = self.test_fn._build_patterns("os", Language.PYTHON)
+        patterns = self._build_patterns("os", Language.PYTHON)
         assert isinstance(patterns, list)
         assert len(patterns) > 0
 
     def test_build_patterns_unknown_language_returns_empty(self):
         """Test that _build_patterns returns empty list for unknown language."""
-        assert self.test_fn._build_patterns("os", "unknown_lang") == []
+        assert not self._build_patterns("os", "unknown_lang")
 
     def test_scan_file_no_violations(self):
         """Test that _scan_file returns empty list when no violations exist."""
-        violations = self.test_fn._scan_file("x = 1\n", ["os"], Language.PYTHON)
-        assert violations == []
+        violations = self._scan_file("x = 1\n", ["os"], Language.PYTHON)
+        assert not violations
 
     def test_scan_file_with_violation(self):
         """Test that _scan_file detects a forbidden import."""
-        violations = self.test_fn._scan_file("import os\n", ["os"], Language.PYTHON)
+        violations = self._scan_file("import os\n", ["os"], Language.PYTHON)
         assert "os" in violations
 
     def test_scan_file_deduplicates_per_library(self):
         """Test that _scan_file reports each library at most once."""
-        violations = self.test_fn._scan_file("import os\nfrom os import path\n", ["os"], Language.PYTHON)
+        violations = self._scan_file("import os\nfrom os import path\n", ["os"], Language.PYTHON)
         assert violations.count("os") == 1
