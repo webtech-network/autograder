@@ -348,5 +348,4 @@ This migration is backward compatible - existing submissions will have `pipeline
 - [API Documentation](API.md)
 - [Core Structures](core_structures.md)
 - [Setup Config Feature](setup_config_feature.md)
-- [Named Setup Commands](NAMED_SETUP_COMMANDS.md)
 
