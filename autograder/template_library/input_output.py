@@ -1,12 +1,15 @@
 import logging
+import re
+from typing import List, Optional
 
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
+from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.services.command_resolver import CommandResolver
 from sandbox_manager.sandbox_container import SandboxContainer
-from sandbox_manager.models.sandbox_models import ResponseCategory
+from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
 
 # ===============================================================
@@ -221,6 +224,177 @@ class DontFailTest(BaseExecutionTest):
 
 
 
+# ===============================================================
+# TestFunction for Forbidden Import Detection
+# ===============================================================
+
+class ForbiddenImportTest(TestFunction):
+    """
+    Tests that a submission does NOT import any of the specified forbidden libraries.
+
+    Performs static analysis on submission file contents using language-aware
+    regex patterns. Supports Python, Java, JavaScript/Node, C and C++.
+    """
+
+    # Language-specific regex builders: each returns a compiled pattern
+    # that matches an import of the given library name.
+    IMPORT_PATTERNS = {
+        Language.PYTHON: [
+            # import lib  /  import lib as x  /  import lib.sub
+            r'^\s*import\s+{lib}\b',
+            # from lib import ...  /  from lib.sub import ...
+            r'^\s*from\s+{lib}\b',
+        ],
+        Language.JAVA: [
+            # import pkg.Class;  /  import static pkg.Class.method;
+            r'^\s*import\s+(?:static\s+)?{lib}\b',
+        ],
+        Language.NODE: [
+            # require('lib')  /  require("lib")
+            r"\brequire\s*\(\s*['\"]{{lib}}['\"]\s*\)",
+            # import ... from 'lib'  /  import 'lib'
+            r'^\s*import\s+.*?[\'"]{{lib}}[\'"]',
+        ],
+        Language.CPP: [
+            # #include <lib>  /  #include <lib/header.h>  /  #include "lib..."
+            r'^\s*#\s*include\s*[<"]{lib}[/\.>"]',
+        ],
+        Language.C: [
+            r'^\s*#\s*include\s*[<"]{lib}[/\.>"]',
+        ],
+    }
+
+    @property
+    def name(self):
+        return "forbidden_import"
+
+    @property
+    def description(self):
+        return ("Analisa estaticamente os arquivos de submissão para verificar se "
+                "alguma biblioteca proibida foi importada. Penaliza a submissão caso "
+                "alguma importação proibida seja encontrada.")
+
+    @property
+    def required_file(self):
+        return None
+
+    @property
+    def parameter_description(self):
+        return [
+            ParamDescription(
+                "forbidden_imports",
+                "Lista de nomes de bibliotecas/módulos cuja importação é proibida.",
+                "list of strings"
+            ),
+        ]
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _build_patterns(self, library: str, language: Language) -> List[re.Pattern]:
+        """Return compiled regex patterns for detecting *library* in *language*."""
+        templates = self.IMPORT_PATTERNS.get(language, [])
+        compiled: List[re.Pattern] = []
+        for tmpl in templates:
+            # Support both {lib} and {{lib}} placeholders (Node patterns use
+            # double-braces to survive the first .format call on the class body).
+            raw = tmpl.replace('{{lib}}', library).replace('{lib}', re.escape(library))
+            compiled.append(re.compile(raw, re.MULTILINE))
+        return compiled
+
+    def _scan_file(self, content: str, forbidden: List[str],
+                   language: Language) -> List[str]:
+        """
+        Scan *content* for any forbidden imports.
+
+        Returns a list of human-readable violation strings.
+        """
+        violations: List[str] = []
+        for lib in forbidden:
+            patterns = self._build_patterns(lib, language)
+            for pattern in patterns:
+                match = pattern.search(content)
+                if match:
+                    violations.append(lib)
+                    break  # one match per library is enough
+        return violations
+
+    @staticmethod
+    def _resolve_language(submission_language=None) -> Optional[Language]:
+        """Resolve a raw language value into a Language enum member."""
+        if submission_language is None:
+            return None
+        if isinstance(submission_language, Language):
+            return submission_language
+        # Accept string values like "python", "java", etc.
+        for lang in Language:
+            if lang.value == str(submission_language).lower():
+                return lang
+        return None
+
+    # ------------------------------------------------------------------
+    # Execute
+    # ------------------------------------------------------------------
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer],
+                *args, forbidden_imports: List[str] = None,
+                __submission_language__=None, **kwargs) -> TestResult:
+        """
+        Scan every submission file for forbidden imports.
+
+        Returns score 100 if no forbidden imports are found, 0 otherwise.
+        """
+        if not forbidden_imports:
+            return TestResult(
+                test_name=self.name,
+                score=100.0,
+                report="No forbidden imports specified — nothing to check."
+            )
+
+        language = self._resolve_language(__submission_language__)
+
+        if language is None:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report="FAILURE: Submission language is not defined. Cannot check for forbidden imports."
+            )
+
+        if not files:
+            return TestResult(
+                test_name=self.name,
+                score=100.0,
+                report="No submission files to analyse."
+            )
+
+        all_violations: List[str] = []
+        for submission_file in files:
+            found = self._scan_file(
+                submission_file.content, forbidden_imports, language
+            )
+            for lib in found:
+                all_violations.append(
+                    f"  - '{lib}' encontrado em '{submission_file.filename}'"
+                )
+
+        if all_violations:
+            details = "\n".join(all_violations)
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=(
+                    f"FAILURE: Importações proibidas detectadas:\n{details}"
+                )
+            )
+
+        return TestResult(
+            test_name=self.name,
+            score=100.0,
+            report="Nenhuma importação proibida encontrada."
+        )
+
+
 class InputOutputTemplate(Template):
     """
     A template for command-line I/O assignments. It uses the SandboxExecutor
@@ -233,6 +407,7 @@ class InputOutputTemplate(Template):
         self.tests = {
             "expect_output": ExpectOutputTest(),
             "dont_fail": DontFailTest(),
+            "forbidden_import": ForbiddenImportTest(),
         }
 
     @property

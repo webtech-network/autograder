@@ -1,7 +1,11 @@
+import logging
+
 from autograder.models.dataclass.step_result import StepResult, StepName, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.template_library_service import TemplateLibraryService
 from autograder.models.abstract.step import Step
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateLoaderStep(Step):
@@ -24,9 +28,20 @@ class TemplateLoaderStep(Step):
         """
         try:
             if self._custom_template:
+                logger.info("Loading custom template (external_user_id=%s)", pipeline_exec.submission.user_id)
                 template = self._template_service.load_custom_template(self._custom_template) #TODO: Implement Custom Template Loading with Sandboxed Env
             else:
+                logger.info(
+                    "Loading built-in template: template=%s (external_user_id=%s)",
+                    self._template_name,
+                    pipeline_exec.submission.user_id,
+                )
                 template = self._template_service.load_builtin_template(self._template_name) # Load built-in template similar to custom to avoid code duplication
+            logger.info(
+                "Template loaded successfully: template=%s (external_user_id=%s)",
+                self._template_name,
+                pipeline_exec.submission.user_id,
+            )
             return pipeline_exec.add_step_result(
                 StepResult(
                     step=StepName.LOAD_TEMPLATE,
@@ -35,6 +50,12 @@ class TemplateLoaderStep(Step):
                 )
             )
         except Exception as e:
+            logger.error(
+                "Failed to load template: template=%s, error=%s (external_user_id=%s)",
+                self._template_name,
+                str(e),
+                pipeline_exec.submission.user_id,
+            )
             return pipeline_exec.add_step_result(
                 StepResult(
                     step=StepName.LOAD_TEMPLATE,
