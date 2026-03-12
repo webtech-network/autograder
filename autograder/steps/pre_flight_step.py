@@ -1,7 +1,11 @@
+import logging
+
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 from autograder.services.pre_flight_service import PreFlightService
+
+logger = logging.getLogger(__name__)
 
 
 class PreFlightStep(Step):
@@ -36,41 +40,71 @@ class PreFlightStep(Step):
         submission_language = pipeline_exec.submission.language
         self._pre_flight_service = PreFlightService(self._setup_config, submission_language)
 
+        logger.info(
+            "Pre-flight checks started: external_user_id=%s, language=%s",
+            pipeline_exec.submission.user_id,
+            submission_language.value if submission_language else "none",
+        )
+
         sandbox = None
         # Check required files first
         submission_files = pipeline_exec.submission.submission_files
         # Use the resolved required_files from the service (language-specific)
         if self._pre_flight_service.required_files:
+            logger.info(
+                "Checking required files: %s (external_user_id=%s)",
+                self._pre_flight_service.required_files,
+                pipeline_exec.submission.user_id,
+            )
             files_ok = self._pre_flight_service.check_required_files(submission_files)
             if not files_ok:
                 # File check failed, don't continue to setup commands
+                error_msg = self._format_errors()
+                logger.warning(
+                    "Required files check failed: %s (external_user_id=%s)",
+                    error_msg,
+                    pipeline_exec.submission.user_id,
+                )
                 return pipeline_exec.add_step_result(StepResult(
                         step=StepName.PRE_FLIGHT,
                         data=sandbox,  # sandbox is None here, which is correct
                         status=StepStatus.FAIL,
-                        error=self._format_errors(),
+                        error=error_msg,
                         original_input=pipeline_exec
                         ))
 
         grading_template = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE).data
         if grading_template.requires_sandbox:
+            logger.info("Creating sandbox for submission (external_user_id=%s)", pipeline_exec.submission.user_id)
             sandbox = self._pre_flight_service.create_sandbox(pipeline_exec.submission) # Needs error handling?
+            logger.info("Sandbox created successfully (external_user_id=%s)", pipeline_exec.submission.user_id)
 
         # Check setup commands only if file check passed
         # Use the resolved setup_commands from the service (language-specific)
         if self._pre_flight_service.setup_commands:
+            logger.info(
+                "Running setup commands (external_user_id=%s)",
+                pipeline_exec.submission.user_id,
+            )
             setup_ok = self._pre_flight_service.check_setup_commands(sandbox)
             if not setup_ok:
                 # self._pre_flight_service.destroy_sandbox(sandbox) #TODO: Decide when to destroy sandbox (Maybe after grading process finishes?
+                error_msg = self._format_errors()
+                logger.warning(
+                    "Setup commands check failed: %s (external_user_id=%s)",
+                    error_msg,
+                    pipeline_exec.submission.user_id,
+                )
                 return pipeline_exec.add_step_result(StepResult(
                     step=StepName.PRE_FLIGHT,
                     data=sandbox,#Return Sandbox Here anyway? (How to deal with sandbox destruction)
                     status=StepStatus.FAIL,
-                    error=self._format_errors(),
+                    error=error_msg,
                     original_input=pipeline_exec
                 ))
 
         # All checks passed
+        logger.info("Pre-flight checks passed (external_user_id=%s)", pipeline_exec.submission.user_id)
         return pipeline_exec.add_step_result(StepResult(
             step=StepName.PRE_FLIGHT,
             data=sandbox,

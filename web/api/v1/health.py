@@ -5,15 +5,18 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+from web.config.logging import get_logger
 from web.core.lifespan import get_template_service
 
 
+logger = get_logger(__name__)
 router = APIRouter(tags=["Health"])
 
 
 @router.get("/health")
 async def health_check():
     """Health check endpoint for monitoring."""
+    logger.debug("Health check requested")
     return {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -28,6 +31,11 @@ async def readiness_check():
 
     ready = template_service is not None
     status_code = 200 if ready else 503
+
+    if ready:
+        logger.debug("Readiness check: service is ready")
+    else:
+        logger.warning("Readiness check failed: template service is not initialized")
 
     return JSONResponse(
         status_code=status_code,
