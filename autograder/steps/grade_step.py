@@ -1,8 +1,12 @@
+import logging
+
 from autograder.models.dataclass.grade_step_result import GradeStepResult
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 from autograder.models.abstract.step import Step
 from autograder.services.grader_service import GraderService
+
+logger = logging.getLogger(__name__)
 
 
 class GradeStep(Step):
@@ -31,6 +35,8 @@ class GradeStep(Step):
             StepResult containing GradingResult with scores and result tree
         """
         try:
+            logger.info("Grading submission (user=%s)", pipeline_exec.submission.username)
+
             # If submission is sandboxed, feed grading template with container ref
             template = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE).data
 
@@ -62,6 +68,12 @@ class GradeStep(Step):
                 final_score=final_score, result_tree=result_tree
             )
 
+            logger.info(
+                "Grading completed: user=%s, score=%.2f",
+                pipeline_exec.submission.username,
+                final_score,
+            )
+
             return pipeline_exec.add_step_result(StepResult(
                 step=StepName.GRADE,
                 data=grading_result,
@@ -70,6 +82,11 @@ class GradeStep(Step):
             ))
 
         except Exception as e:
+            logger.error(
+                "Grading failed: user=%s, error=%s",
+                pipeline_exec.submission.username,
+                str(e),
+            )
             # Return error result
             return pipeline_exec.add_step_result(StepResult(
                 step=StepName.GRADE,

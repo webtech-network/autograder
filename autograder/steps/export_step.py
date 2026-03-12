@@ -1,6 +1,11 @@
+import logging
+
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
+
+logger = logging.getLogger(__name__)
+
 
 class ExporterStep(Step):
     """
@@ -23,7 +28,9 @@ class ExporterStep(Step):
             username = pipeline_exec.submission.username
             score = pipeline_exec.get_step_result(StepName.GRADE).data.final_score
 
+            logger.info("Exporting result: user=%s, score=%.2f", username, score)
             self._exporter_service.set_score(username, score)
+            logger.info("Result exported successfully: user=%s", username)
 
             # Return success result
             return pipeline_exec.add_step_result(StepResult(
@@ -32,6 +39,11 @@ class ExporterStep(Step):
                 status=StepStatus.SUCCESS
             ))
         except Exception as e:
+            logger.error(
+                "Export failed: user=%s, error=%s",
+                pipeline_exec.submission.username,
+                str(e),
+            )
             # Return failure result
             return pipeline_exec.add_step_result(StepResult(
                 step=StepName.EXPORTER,

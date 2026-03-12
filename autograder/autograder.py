@@ -1,3 +1,5 @@
+import logging
+
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.step_result import StepName
 from autograder.models.pipeline_execution import PipelineExecution, PipelineStatus
@@ -12,6 +14,8 @@ from autograder.steps.load_template_step import TemplateLoaderStep
 from autograder.steps.pre_flight_step import PreFlightStep
 from autograder.steps.build_tree_step import BuildTreeStep
 from autograder.models.dataclass.submission import Submission
+
+logger = logging.getLogger(__name__)
 
 
 class AutograderPipeline:
@@ -46,8 +50,17 @@ class AutograderPipeline:
         """
         pipeline_execution = PipelineExecution.start_execution(submission)
 
+        logger.info(
+            "Pipeline started: user=%s, user_id=%s, assignment_id=%s, language=%s, steps=%s",
+            submission.username,
+            submission.user_id,
+            submission.assignment_id,
+            submission.language.value if submission.language else "none",
+            list(self._steps.keys()),
+        )
+
         for step_name, step_instance in self._steps.items():
-            print("Executing step:", step_name)  # TODO: Replace with proper logging
+            logger.info("Executing step: %s (user=%s)", step_name, submission.username)
 
             try:
                 pipeline_execution = step_instance.execute(pipeline_execution)
@@ -55,19 +68,35 @@ class AutograderPipeline:
                 current_step_result = pipeline_execution.get_previous_step()
                 if current_step_result and not current_step_result.is_successful:
                     pipeline_execution.set_failure()
-                    print(f"Step {step_name} failed: {current_step_result.error}")  # TODO: Replace with proper logging
+                    logger.warning(
+                        "Step %s failed: %s (user=%s)",
+                        step_name,
+                        current_step_result.error,
+                        submission.username,
+                    )
                     break
+                logger.info("Step %s completed successfully (user=%s)", step_name, submission.username)
             except Exception as e:
                 pipeline_execution.status = PipelineStatus.INTERRUPTED
-                print(
-                    f"Error executing step {step_name}: {str(e)}"
-                )  # TODO: Replace with proper logging
+                logger.error(
+                    "Unhandled exception in step %s (user=%s): %s",
+                    step_name,
+                    submission.username,
+                    str(e),
+                    exc_info=True,
+                )
                 break
 
         pipeline_execution.finish_execution() # Generates GradingResult object in pipeline execution
 
         # Cleanup: Release sandbox back to pool if it was created
         self._cleanup_sandbox(pipeline_execution)
+
+        logger.info(
+            "Pipeline finished: user=%s, status=%s",
+            submission.username,
+            pipeline_execution.status,
+        )
 
         return pipeline_execution
 
@@ -84,9 +113,18 @@ class AutograderPipeline:
                     manager = get_sandbox_manager()
                     language = pipeline_execution.submission.language
                     manager.release_sandbox(language, sandbox)
+                    logger.info(
+                        "Sandbox released: user=%s, language=%s",
+                        pipeline_execution.submission.username,
+                        language.value if language else "none",
+                    )
         except Exception as e:
             # Log error but don't fail the pipeline
-            print(f"Warning: Failed to cleanup sandbox: {str(e)}")
+            logger.warning(
+                "Failed to cleanup sandbox (user=%s): %s",
+                pipeline_execution.submission.username,
+                str(e),
+            )
 
 
 def build_pipeline(
