@@ -35,7 +35,7 @@ class GradeStep(Step):
             StepResult containing GradingResult with scores and result tree
         """
         try:
-            logger.info("Grading submission (user=%s)", pipeline_exec.submission.username)
+            logger.info("Grading submission (external_user_id=%s)", pipeline_exec.submission.user_id)
 
             # If submission is sandboxed, feed grading template with container ref
             template = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE).data
@@ -69,8 +69,8 @@ class GradeStep(Step):
             )
 
             logger.info(
-                "Grading completed: user=%s, score=%.2f",
-                pipeline_exec.submission.username,
+                "Grading completed: external_user_id=%s, score=%.2f",
+                pipeline_exec.submission.user_id,
                 final_score,
             )
 
@@ -83,8 +83,8 @@ class GradeStep(Step):
 
         except Exception as e:
             logger.error(
-                "Grading failed: user=%s, error=%s",
-                pipeline_exec.submission.username,
+                "Grading failed: external_user_id=%s, error=%s",
+                pipeline_exec.submission.user_id,
                 str(e),
             )
             # Return error result

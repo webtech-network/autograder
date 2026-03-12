@@ -28,19 +28,19 @@ class TemplateLoaderStep(Step):
         """
         try:
             if self._custom_template:
-                logger.info("Loading custom template (user=%s)", pipeline_exec.submission.username)
+                logger.info("Loading custom template (external_user_id=%s)", pipeline_exec.submission.user_id)
                 template = self._template_service.load_custom_template(self._custom_template) #TODO: Implement Custom Template Loading with Sandboxed Env
             else:
                 logger.info(
-                    "Loading built-in template: template=%s (user=%s)",
+                    "Loading built-in template: template=%s (external_user_id=%s)",
                     self._template_name,
-                    pipeline_exec.submission.username,
+                    pipeline_exec.submission.user_id,
                 )
                 template = self._template_service.load_builtin_template(self._template_name) # Load built-in template similar to custom to avoid code duplication
             logger.info(
-                "Template loaded successfully: template=%s (user=%s)",
+                "Template loaded successfully: template=%s (external_user_id=%s)",
                 self._template_name,
-                pipeline_exec.submission.username,
+                pipeline_exec.submission.user_id,
             )
             return pipeline_exec.add_step_result(
                 StepResult(
@@ -51,10 +51,10 @@ class TemplateLoaderStep(Step):
             )
         except Exception as e:
             logger.error(
-                "Failed to load template: template=%s, error=%s (user=%s)",
+                "Failed to load template: template=%s, error=%s (external_user_id=%s)",
                 self._template_name,
                 str(e),
-                pipeline_exec.submission.username,
+                pipeline_exec.submission.user_id,
             )
             return pipeline_exec.add_step_result(
                 StepResult(

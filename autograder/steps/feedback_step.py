@@ -24,18 +24,18 @@ class FeedbackStep(Step):
     def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """Adds feedback to the grading result using the reporter service."""
         try:
-            logger.info("Generating feedback (user=%s)", pipeline_exec.submission.username)
+            logger.info("Generating feedback (external_user_id=%s)", pipeline_exec.submission.user_id)
             focused_tests: Focus = pipeline_exec.get_step_result(StepName.FOCUS).data
             feedback = self._reporter_service.generate_feedback(
                 grading_result=focused_tests,
                 feedback_config=self._feedback_config
             ) #TODO: Implement generate_feedback method @joaovitoralvarenga
-            logger.info("Feedback generated (user=%s)", pipeline_exec.submission.username)
+            logger.info("Feedback generated (external_user_id=%s)", pipeline_exec.submission.user_id)
             return pipeline_exec.add_step_result(feedback) #Assuming feedback is a StepResult
         except Exception as e:
             logger.error(
-                "Feedback generation failed: user=%s, error=%s",
-                pipeline_exec.submission.username,
+                "Feedback generation failed: external_user_id=%s, error=%s",
+                pipeline_exec.submission.user_id,
                 str(e),
             )
             return pipeline_exec.add_step_result(

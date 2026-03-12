@@ -37,7 +37,7 @@ class BuildTreeStep(Step):
             StepResult containing the built CriteriaTree
         """
         try:
-            logger.info("Building criteria tree (user=%s)", pipeline_exec.submission.username)
+            logger.info("Building criteria tree (external_user_id=%s)", pipeline_exec.submission.user_id)
             # Validate criteria configuration
             criteria_config = CriteriaConfig.from_dict(self._criteria_json)
             template = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE).data
@@ -47,8 +47,8 @@ class BuildTreeStep(Step):
                 template
             )
             logger.info(
-                "Criteria tree built successfully (user=%s)",
-                pipeline_exec.submission.username,
+                "Criteria tree built successfully (external_user_id=%s)",
+                pipeline_exec.submission.user_id,
             )
 
             return pipeline_exec.add_step_result(StepResult(
@@ -60,9 +60,9 @@ class BuildTreeStep(Step):
 
         except Exception as e:
             logger.error(
-                "Failed to build criteria tree: %s (user=%s)",
+                "Failed to build criteria tree: %s (external_user_id=%s)",
                 str(e),
-                pipeline_exec.submission.username,
+                pipeline_exec.submission.user_id,
             )
             return pipeline_exec.add_step_result(StepResult(
                 step=StepName.BUILD_TREE,

@@ -26,12 +26,12 @@ class FocusStep(Step):
         """
 
         try:
-            logger.info("Identifying focus areas (user=%s)", pipeline_exec.submission.username)
+            logger.info("Identifying focus areas (external_user_id=%s)", pipeline_exec.submission.user_id)
             result_tree = pipeline_exec.get_step_result(StepName.GRADE).data.result_tree
             main_subjects = self.__focus_service.find(result_tree)
             logger.info(
-                "Focus areas identified (user=%s)",
-                pipeline_exec.submission.username,
+                "Focus areas identified (external_user_id=%s)",
+                pipeline_exec.submission.user_id,
             )
 
             return pipeline_exec.add_step_result(
@@ -43,8 +43,8 @@ class FocusStep(Step):
             )
         except Exception as e:
             logger.error(
-                "Focus step failed: user=%s, error=%s",
-                pipeline_exec.submission.username,
+                "Focus step failed: external_user_id=%s, error=%s",
+                pipeline_exec.submission.user_id,
                 str(e),
             )
             return pipeline_exec.add_step_result(

@@ -51,8 +51,7 @@ class AutograderPipeline:
         pipeline_execution = PipelineExecution.start_execution(submission)
 
         logger.info(
-            "Pipeline started: user=%s, user_id=%s, assignment_id=%s, language=%s, steps=%s",
-            submission.username,
+            "Pipeline started: external_user_id=%s, assignment_id=%s, language=%s, steps=%s",
             submission.user_id,
             submission.assignment_id,
             submission.language.value if submission.language else "none",
@@ -60,7 +59,7 @@ class AutograderPipeline:
         )
 
         for step_name, step_instance in self._steps.items():
-            logger.info("Executing step: %s (user=%s)", step_name, submission.username)
+            logger.info("Executing step: %s (external_user_id=%s)", step_name, submission.user_id)
 
             try:
                 pipeline_execution = step_instance.execute(pipeline_execution)
@@ -69,19 +68,19 @@ class AutograderPipeline:
                 if current_step_result and not current_step_result.is_successful:
                     pipeline_execution.set_failure()
                     logger.warning(
-                        "Step %s failed: %s (user=%s)",
+                        "Step %s failed: %s (external_user_id=%s)",
                         step_name,
                         current_step_result.error,
-                        submission.username,
+                        submission.user_id,
                     )
                     break
-                logger.info("Step %s completed successfully (user=%s)", step_name, submission.username)
+                logger.info("Step %s completed successfully (external_user_id=%s)", step_name, submission.user_id)
             except Exception as e:
                 pipeline_execution.status = PipelineStatus.INTERRUPTED
                 logger.error(
-                    "Unhandled exception in step %s (user=%s): %s",
+                    "Unhandled exception in step %s (external_user_id=%s): %s",
                     step_name,
-                    submission.username,
+                    submission.user_id,
                     str(e),
                     exc_info=True,
                 )
@@ -93,8 +92,8 @@ class AutograderPipeline:
         self._cleanup_sandbox(pipeline_execution)
 
         logger.info(
-            "Pipeline finished: user=%s, status=%s",
-            submission.username,
+            "Pipeline finished: external_user_id=%s, status=%s",
+            submission.user_id,
             pipeline_execution.status,
         )
 
@@ -114,15 +113,15 @@ class AutograderPipeline:
                     language = pipeline_execution.submission.language
                     manager.release_sandbox(language, sandbox)
                     logger.info(
-                        "Sandbox released: user=%s, language=%s",
-                        pipeline_execution.submission.username,
+                        "Sandbox released: external_user_id=%s, language=%s",
+                        pipeline_execution.submission.user_id,
                         language.value if language else "none",
                     )
         except Exception as e:
             # Log error but don't fail the pipeline
             logger.warning(
-                "Failed to cleanup sandbox (user=%s): %s",
-                pipeline_execution.submission.username,
+                "Failed to cleanup sandbox (external_user_id=%s): %s",
+                pipeline_execution.submission.user_id,
                 str(e),
             )
 

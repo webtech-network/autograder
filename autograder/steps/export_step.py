@@ -24,13 +24,13 @@ class ExporterStep(Step):
             PipelineExecution with an added StepResult indicating success or failure of the export operation
         """
         try:
-            # Extract username and score from input
-            username = pipeline_exec.submission.username
+            # Extract external_user_id and score from input
+            external_user_id = pipeline_exec.submission.user_id
             score = pipeline_exec.get_step_result(StepName.GRADE).data.final_score
 
-            logger.info("Exporting result: user=%s, score=%.2f", username, score)
-            self._exporter_service.set_score(username, score)
-            logger.info("Result exported successfully: user=%s", username)
+            logger.info("Exporting result: external_user_id=%s, score=%.2f", external_user_id, score)
+            self._exporter_service.set_score(external_user_id, score)
+            logger.info("Result exported successfully: external_user_id=%s", external_user_id)
 
             # Return success result
             return pipeline_exec.add_step_result(StepResult(
@@ -40,8 +40,8 @@ class ExporterStep(Step):
             ))
         except Exception as e:
             logger.error(
-                "Export failed: user=%s, error=%s",
-                pipeline_exec.submission.username,
+                "Export failed: external_user_id=%s, error=%s",
+                pipeline_exec.submission.user_id,
                 str(e),
             )
             # Return failure result
