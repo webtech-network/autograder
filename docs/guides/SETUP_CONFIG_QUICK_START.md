@@ -75,6 +75,6 @@ alembic upgrade head
 ```
 
 ## Documentation
-- Full guide: [docs/setup_config_feature.md](setup_config_feature.md)
-- Configuration examples: [docs/configuration_examples.md](configuration_examples.md)
+- Full guide: [docs/features/setup_config_feature.md](../features/setup_config_feature.md)
+- Configuration examples: [docs/guides/configuration_examples.md](configuration_examples.md)
 

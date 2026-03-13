@@ -4,7 +4,7 @@ RESTful API for code submission grading using the Autograder system.
 
 > **📚 Main Documentation:**
 > - [API Reference →](../docs/API.md) — All endpoints, schemas, and examples  
-> - [Web Module Architecture →](../docs/web_module.md) — Architecture, configuration, deployment, and troubleshooting  
+> - [Web Module Architecture →](../docs/architecture/web_module.md) — Architecture, configuration, deployment, and troubleshooting  
 > - [Documentation Index →](../docs/index.md) — All available documentation
 
 ## Features

@@ -142,7 +142,7 @@
   - `web_refactoring.md` — Empty file
   - `WEB_REFACTORING_SUMMARY.md` — Empty file (in project root, not docs/)
 - **Action:** Extract any useful content into canonical docs, then move these to a `docs/archive/` folder or delete them.
-- **Status:** ⬜ To Do
+- **Status:** ✅ Done
 
 #### Item 13: Reconcile `web/README.md` with Main Documentation
 - **Type:** Consolidation
@@ -156,20 +156,27 @@
 - **File:** `docs/multi_language_support.md`
 - **Problem:** Uses old single-`language` field in API examples. Actual schema uses `languages: List[str]` (plural, list). Also uses `assignment_id` instead of `external_assignment_id`.
 - **Action:** Update all API examples in the document to use current schema field names.
-- **Status:** ⬜ To Do
+- **Status:** ✅ Done
 
 #### Item 15: Update `setup_config_feature.md` Examples
 - **Type:** Fix existing doc
 - **File:** `docs/setup_config_feature.md`
-- **Problem:** Uses `"language": "java"` (old single-field format) and shows `setup_commands` as plain strings in some examples vs named objects in others. References non-existent `example_java_config_with_setup.json`.
-- **Action:** Reconcile all examples with current codebase behavior.
-- **Status:** ⬜ To Do
+- **Problem:** Uses `"language": "java"` (old single-field format) and shows `setup_commands` as plain strings in some examples vs named objects in others. References non-existent `example_java_config_with_setup.json`. The document also does not reflect the current language-specific setup config format where each language has its own `required_files` and `setup_commands` block (e.g., `{"python": {...}, "java": {...}}`).
+- **Action:** Rewrite the document to reflect the current `PreFlightService._resolve_setup_config()` behavior, which expects a language-keyed dictionary. Update all examples to use the multi-language setup config format.
+- **Status:** ✅ Done
+
+#### Item 16: Remove Empty Documentation Directories
+- **Type:** Cleanup
+- **Files:** `docs/core/`, `docs/configuration/`, `docs/algorithms/`, `docs/sandbox/`, `docs/api/`, `docs/services/`, `docs/reference/`
+- **Problem:** Seven empty subdirectories exist under `docs/` with no content. These were likely created as placeholders for a planned documentation restructure that never materialized. They create confusion about where documentation should live and suggest a structure that doesn't match reality.
+- **Action:** Delete all empty directories. If a future restructure is desired, it should be planned holistically (see Item 19) rather than leaving empty shells.
+- **Status:** ✅ Done
 
 ---
 
 ### 🔵 Priority 4 — Enhancement & Agent Skills
 
-#### Item 16: Create Agent Skill Documents for Code Navigation
+#### Item 17: Create Agent Skill Documents for Code Navigation
 - **Type:** New documentation (agent-oriented)
 - **Files:** Create `.github/copilot-instructions.md` or similar agent skill files
 - **Problem:** AI agents working through the code lack contextual knowledge of project conventions, architecture patterns, and component relationships.
@@ -180,18 +187,31 @@
   - How to add a new sandbox language (Language enum → Docker image → pool config)
   - Common debugging patterns and log locations
   - Testing conventions (unit vs integration vs web tests)
-- **Status:** ⬜ To Do
+- **Status:** ✅ Done
 
-#### Item 17: Automated Documentation Validation
+#### Item 18: Automated Documentation Validation
 - **Type:** Enhancement / CI
 - **Problem:** Documentation drifts from code because there's no automated validation. Links break, schema examples become outdated, and endpoint paths fall out of sync with actual routes.
 - **Action:** Build a validation script (`scripts/validate_docs.py` or similar) and integrate it into CI. The script should check:
-  1. **Broken link detection** — Scan all `.md` files for relative links (`[text](path)`) and verify each target file exists on disk. Flag any dead links.
+  1. **Broken link detection** — Scan all `.md` files for relative links and verify each target file exists on disk. Flag any dead links.
   2. **Endpoint path validation** — Extract all HTTP paths referenced in `docs/API.md` (e.g., `POST /api/v1/configs`) and cross-reference them against actual FastAPI route registrations in `web/api/v1/`. Flag any documented paths that don't exist or any registered routes that are undocumented.
   3. **Schema field validation** — Parse request/response JSON examples in `docs/API.md` and compare top-level field names against the corresponding Pydantic model fields in `web/schemas/`. Flag mismatched, missing, or extra fields.
   4. **CI integration** — Run the validation as a GitHub Actions step on every PR that modifies files in `docs/` or `web/schemas/` or `web/api/`. Fail the check if any issues are found.
 - **Output:** The script should produce a clear report listing each issue with the file, line number, and description of the mismatch.
-- **Status:** ⬜ To Do
+- **Status:** ✅ Done
+
+#### Item 19: Restructure Documentation Directory Layout
+- **Type:** Enhancement
+- **Problem:** Documentation files are flat in `docs/` with no logical grouping. Feature docs (`focus_feature.md`, `setup_config_feature.md`, `multi_language_support.md`), architecture docs (`core_structures.md`, `sandbox_manager.md`), API docs (`API.md`), and planning docs (`NEW_FEATURES.md`, `DOCUMENTATION_MODERNIZATION_ROADMAP.md`) all sit at the same level. The `docs/index.md` provides a table-based index, but the filesystem itself doesn't reflect the categories.
+- **Action:** After all content fixes are complete (Items 12–15), reorganize into a clear directory structure:
+  - `docs/architecture/` — `core_structures.md`, `sandbox_manager.md`, `web_module.md`, `pipeline_execution_tracking.md`
+  - `docs/features/` — `setup_config_feature.md`, `focus_feature.md`, `multi_language_support.md`, `deliberate_code_execution.md`
+  - `docs/api/` — `API.md`, quick-start guides
+  - `docs/templates/` — Already exists, keep as-is
+  - `docs/guides/` — `development.md`, `configuration_examples.md`
+  - `docs/roadmaps/` — This file, `TECHNICAL_DEBT_ROADMAP.md`
+  - Update `docs/index.md` and all cross-references accordingly.
+- **Status:** ✅ Done
 
 ---
 
@@ -210,12 +230,14 @@
 | 9 | Template library docs | 🟡 P2 | ✅ Done |
 | 10 | Sandbox manager docs | 🟡 P2 | ✅ Done |
 | 11 | Documentation index | 🟡 P2 | ✅ Done |
-| 12 | Archive impl summaries | 🟢 P3 | ⬜ To Do |
+| 12 | Archive impl summaries | 🟢 P3 | ✅ Done |
 | 13 | Reconcile web/README | 🟢 P3 | ✅ Done |
-| 14 | Fix multi-language doc | 🟢 P3 | ⬜ To Do |
-| 15 | Fix setup config doc | 🟢 P3 | ⬜ To Do |
-| 16 | Agent skill documents | 🔵 P4 | ⬜ To Do |
-| 17 | Automated doc validation | 🔵 P4 | ⬜ To Do |
+| 14 | Fix multi-language doc | 🟢 P3 | ✅ Done |
+| 15 | Fix setup config doc | 🟢 P3 | ✅ Done |
+| 16 | Remove empty doc dirs | 🟢 P3 | ✅ Done |
+| 17 | Agent skill documents | 🔵 P4 | ✅ Done |
+| 18 | Automated doc validation | 🔵 P4 | ✅ Done |
+| 19 | Restructure docs layout | 🔵 P4 | ✅ Done |
 
 
 

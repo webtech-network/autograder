@@ -422,7 +422,7 @@ GET /api/v1/submissions/user/{external_user_id}?limit=100&offset=0
 
 Execute code in a sandbox **without grading**. This is a stateless feature designed for testing and debugging — no data is persisted.
 
-> 📚 For complete DCE documentation with examples in all languages, see [Deliberate Code Execution](deliberate_code_execution.md).
+> 📚 For complete DCE documentation with examples in all languages, see [Deliberate Code Execution](features/deliberate_code_execution.md).
 
 ### Execute Code
 

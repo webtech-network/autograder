@@ -2,7 +2,7 @@
 
 The `web/` module is the FastAPI-based REST API layer of the Autograder system. It handles HTTP requests, persists grading configurations and submissions to a database, and delegates actual grading to the core autograder pipeline via background tasks.
 
-> **For endpoint reference**, see [API Documentation](API.md).
+> **For endpoint reference**, see [API Documentation](../API.md).
 
 ---
 
@@ -33,7 +33,7 @@ Sandbox Manager                → Docker container execution
 - **Async throughout**: All database operations and grading use `async/await` via SQLAlchemy's async engine and `asyncio`
 - **Background grading**: Submissions are saved immediately, grading runs as an `asyncio.create_task` so the API responds without blocking
 - **Repository pattern**: Database access is abstracted behind repository classes, keeping endpoint handlers thin
-- **Stateless DCE**: The [Deliberate Code Execution](deliberate_code_execution.md) feature bypasses the database entirely for fast, stateless code execution
+- **Stateless DCE**: The [Deliberate Code Execution](../features/deliberate_code_execution.md) feature bypasses the database entirely for fast, stateless code execution
 
 ---
 

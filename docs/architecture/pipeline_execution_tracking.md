@@ -345,7 +345,7 @@ This migration is backward compatible - existing submissions will have `pipeline
 
 ## See Also
 
-- [API Documentation](API.md)
+- [API Documentation](../API.md)
 - [Core Structures](core_structures.md)
-- [Setup Config Feature](setup_config_feature.md)
+- [Setup Config Feature](../features/setup_config_feature.md)
 

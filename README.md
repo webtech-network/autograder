@@ -358,15 +358,15 @@ jobs:
 
 ## Useful Contents
 
-**📚 [Complete Data Structures Documentation →](docs/core_structures.md)**
+**📚 [Complete Data Structures Documentation →](docs/architecture/core_structures.md)**
 
-**📚 [Complete Configuration Examples →](docs/configuration_examples.md)**
+**📚 [Complete Configuration Examples →](docs/guides/configuration_examples.md)**
 
-**📚 [Complete Development Guide →](docs/development.md)**
+**📚 [Complete Development Guide →](docs/guides/development.md)**
 
-**📚 [Pipeline Execution Tracking →](docs/pipeline_execution_tracking.md)** ⭐ NEW
+**📚 [Pipeline Execution Tracking →](docs/architecture/pipeline_execution_tracking.md)** ⭐ NEW
 
-**📚 [Setup Config Feature →](docs/setup_config_feature.md)**
+**📚 [Setup Config Feature →](docs/features/setup_config_feature.md)**
 
 **📚 [Documentation Index →](docs/index.md)**
 
