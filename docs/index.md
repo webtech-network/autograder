@@ -9,15 +9,15 @@ Welcome to the Autograder documentation. This index organizes all available docu
 | Document | Description |
 |----------|-------------|
 | [README](../README.md) | Project overview, features, and quick start |
-| [Development Guide](development.md) | Setup, project structure, and contributing |
-| [Configuration Examples](configuration_examples.md) | Real-world grading configuration examples |
+| [Development Guide](guides/development.md) | Setup, project structure, and contributing |
+| [Configuration Examples](guides/configuration_examples.md) | Real-world grading configuration examples |
 
 ## API Reference
 
 | Document | Description |
 |----------|-------------|
 | [API Documentation](API.md) | Complete REST API reference — all endpoints, schemas, and examples |
-| [Web Module Architecture](web_module.md) | Web layer architecture, deployment, database configuration, and troubleshooting |
+| [Web Module Architecture](architecture/web_module.md) | Web layer architecture, deployment, database configuration, and troubleshooting |
 
 ## Grading Templates
 
@@ -31,27 +31,25 @@ Welcome to the Autograder documentation. This index organizes all available docu
 
 | Document | Description |
 |----------|-------------|
-| [Deliberate Code Execution](deliberate_code_execution.md) | Execute code without grading (DCE feature) |
-| [DCE Quick Start](DCE_QUICK_START.md) | Minimal examples to get started with DCE |
-| [Focus Feature](focus_feature.md) | Focus-based feedback highlighting high-impact improvements |
-| [Setup Config](setup_config_feature.md) | Preflight checks, required files, and setup commands |
-| [Setup Config Quick Start](SETUP_CONFIG_QUICK_START.md) | Quick guide for setup configuration |
-| [Multi-Language Support](multi_language_support.md) | Python, Java, Node.js, and C++ support |
-| [Pipeline Execution Tracking](pipeline_execution_tracking.md) | Step-by-step pipeline execution details |
-| [GitHub Action](github_module.md) | GitHub Classroom integration |
+| [Deliberate Code Execution](features/deliberate_code_execution.md) | Execute code without grading (DCE feature) |
+| [Focus Feature](features/focus_feature.md) | Focus-based feedback highlighting high-impact improvements |
+| [Setup Config](features/setup_config_feature.md) | Preflight checks, required files, and setup commands |
+| [Setup Config Quick Start](guides/SETUP_CONFIG_QUICK_START.md) | Quick guide for setup configuration |
+| [Multi-Language Support](features/multi_language_support.md) | Python, Java, Node.js, and C++ support |
+| [Pipeline Execution Tracking](architecture/pipeline_execution_tracking.md) | Step-by-step pipeline execution details |
+| [GitHub Action](guides/github_module.md) | GitHub Classroom integration |
 
 ## Architecture & Data Structures
 
 | Document | Description |
 |----------|-------------|
-| [Core Data Structures](core_structures.md) | CriteriaTree, ResultTree, Submission, GradingResult, and more |
-| [Sandbox Manager](sandbox_manager.md) | Container pooling, lifecycle, scaling, and security |
+| [Core Data Structures](architecture/core_structures.md) | CriteriaTree, ResultTree, Submission, GradingResult, and more |
+| [Sandbox Manager](architecture/sandbox_manager.md) | Container pooling, lifecycle, scaling, and security |
 | [Criteria Example](criteria_example.json) | Example criteria tree configuration (JSON) |
 
 ## Project Management
 
 | Document | Description |
 |----------|-------------|
-| [Documentation Modernization Roadmap](DOCUMENTATION_MODERNIZATION_ROADMAP.md) | Tracking documentation improvements |
-
-
+| [Documentation Modernization Roadmap](roadmaps/DOCUMENTATION_MODERNIZATION_ROADMAP.md) | Tracking documentation improvements |
+| [Technical Debt Roadmap](roadmaps/TECHNICAL_DEBT_ROADMAP.md) | Refactoring plan for architecture cohesion and code quality |
