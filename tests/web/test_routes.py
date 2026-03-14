@@ -105,7 +105,7 @@ class TestTemplateEndpoints:
     @pytest.mark.asyncio
     async def test_list_templates(self, client):
         """Test GET /api/v1/templates."""
-        with patch("web.core.lifespan.get_template_service") as mock_get:
+        with patch("web.api.v1.templates.get_template_service") as mock_get:
             mock_service = Mock()
             mock_service.get_all_templates_info = Mock(return_value=[
                 {"name": "webdev", "description": "Web dev"},
@@ -122,7 +122,7 @@ class TestTemplateEndpoints:
     @pytest.mark.asyncio
     async def test_get_template_info(self, client):
         """Test GET /api/v1/templates/{name}."""
-        with patch("web.core.lifespan.get_template_service") as mock_get:
+        with patch("web.api.v1.templates.get_template_service") as mock_get:
             mock_service = Mock()
             mock_service.get_template_info = Mock(return_value={
                 "name": "webdev",
@@ -140,7 +140,7 @@ class TestTemplateEndpoints:
     @pytest.mark.asyncio
     async def test_get_nonexistent_template(self, client):
         """Test GET /api/v1/templates/{name} with invalid template."""
-        with patch("web.core.lifespan.get_template_service") as mock_get:
+        with patch("web.api.v1.templates.get_template_service") as mock_get:
             mock_service = Mock()
             mock_service.get_template_info = Mock(side_effect=KeyError("Template not found"))
             mock_get.return_value = mock_service
@@ -272,11 +272,11 @@ class TestSubmissionEndpoints:
         }
         await client.post("/api/v1/configs", json=config_data)
 
-        # Mock the grading task
-        with patch("web.api.v1.submissions.asyncio.create_task") as mock_task, \
-             patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock):
+        # Mock the grading function and task tracking
+        mock_grading_tasks = set()
 
-            mock_task.return_value = Mock(add_done_callback=Mock())
+        with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock) as mock_grade, \
+             patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
 
             # Create submission
             submission_data = {
@@ -295,6 +295,7 @@ class TestSubmissionEndpoints:
             assert data["username"] == "student1"
             assert data["status"] == "pending"
 
+
     @pytest.mark.asyncio
     async def test_create_submission_with_language(self, client):
         """Test creating submission with explicit language."""
@@ -306,10 +307,10 @@ class TestSubmissionEndpoints:
         }
         await client.post("/api/v1/configs", json=config_data)
 
-        with patch("web.api.v1.submissions.asyncio.create_task") as mock_task, \
-             patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock):
+        mock_grading_tasks = set()
 
-            mock_task.return_value = Mock(add_done_callback=Mock())
+        with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock), \
+             patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
 
             submission_data = {
                 "external_assignment_id": "submit-lang-test",
@@ -346,8 +347,10 @@ class TestSubmissionEndpoints:
         }
 
         response = await client.post("/api/v1/submissions", json=submission_data)
-        assert response.status_code == 400
-        assert "not supported" in response.json()["detail"]
+        # 422 is returned because language validation happens at the pydantic schema level
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
 
     @pytest.mark.asyncio
     async def test_get_submission(self, client):
@@ -361,10 +364,10 @@ class TestSubmissionEndpoints:
         }
         await client.post("/api/v1/configs", json=config_data)
 
-        with patch("web.api.v1.submissions.asyncio.create_task") as mock_task, \
-             patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock):
+        mock_grading_tasks = set()
 
-            mock_task.return_value = Mock(add_done_callback=Mock())
+        with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock), \
+             patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
 
             submission_data = {
                 "external_assignment_id": "get-submit-test",
@@ -396,10 +399,10 @@ class TestSubmissionEndpoints:
         }
         await client.post("/api/v1/configs", json=config_data)
 
-        with patch("web.api.v1.submissions.asyncio.create_task") as mock_task, \
-             patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock):
+        mock_grading_tasks = set()
 
-            mock_task.return_value = Mock(add_done_callback=Mock())
+        with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock), \
+             patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
 
             # Create multiple submissions for same user
             for i in range(3):

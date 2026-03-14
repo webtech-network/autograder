@@ -111,9 +111,8 @@ curl -X POST "http://localhost:8000/api/v1/configs" \
   -d '{
     "external_assignment_id": "calc-multi-lang",
     "template_name": "input_output",
-    "language": "python",
+    "languages": ["python", "java", "node", "cpp"],
     "criteria_config": {
-      "test_library": "input_output",
       "base": {
         "weight": 100,
         "tests": [
@@ -153,8 +152,22 @@ curl -X POST "http://localhost:8000/api/v1/configs" \
       }
     },
     "setup_config": {
-      "required_files": [],
-      "setup_commands": []
+      "python": {
+        "required_files": ["calculator.py"],
+        "setup_commands": []
+      },
+      "java": {
+        "required_files": ["Calculator.java"],
+        "setup_commands": ["javac Calculator.java"]
+      },
+      "node": {
+        "required_files": ["calculator.js"],
+        "setup_commands": []
+      },
+      "cpp": {
+        "required_files": ["calculator.cpp"],
+        "setup_commands": ["g++ calculator.cpp -o calculator"]
+      }
     }
   }'
 ```
@@ -413,25 +426,37 @@ If your assignment uses `calculator.py`, also use:
 
 ### 4. Handle Compilation in setup_config
 
-For compiled languages, ensure setup_config handles compilation:
+For compiled languages, define setup commands per language:
 
 ```json
 {
   "setup_config": {
-    "required_files": [],
-    "setup_commands": [
-      // Java compilation happens automatically
-      // C++ needs explicit compilation
-      {
-        "name": "Compile C++ if needed",
-        "command": "g++ calculator.cpp -o calculator || true"
-      }
-    ]
+    "java": {
+      "required_files": ["Calculator.java"],
+      "setup_commands": ["javac Calculator.java"]
+    },
+    "cpp": {
+      "required_files": ["calculator.cpp"],
+      "setup_commands": [
+        {
+          "name": "Compile C++",
+          "command": "g++ calculator.cpp -o calculator"
+        }
+      ]
+    },
+    "python": {
+      "required_files": ["calculator.py"],
+      "setup_commands": []
+    },
+    "node": {
+      "required_files": ["calculator.js"],
+      "setup_commands": []
+    }
   }
 }
 ```
 
-**Note:** The pipeline creates language-specific sandboxes, so compilation commands should be conditional or use `|| true` to avoid failing for other languages.
+The pipeline resolves the correct language block at runtime based on the submission's language.
 
 ## Limitations
 
@@ -448,23 +473,30 @@ All languages run the same tests with the same inputs/outputs. You cannot have:
 }
 ```
 
-### 2. Setup Commands Are Not Language-Aware
+### 2. Setup Commands Are Now Language-Aware
 
-`setup_config` commands run regardless of submission language. Make them conditional:
+`setup_config` now uses a language-keyed format where each language has its own `required_files` and `setup_commands`:
 
-```bash
-# Good: conditional compilation
-"[ -f Calculator.java ] && javac Calculator.java || true"
-
-# Bad: always tries to compile Java
-"javac Calculator.java"
+```json
+{
+  "setup_config": {
+    "java": {
+      "required_files": ["Calculator.java"],
+      "setup_commands": ["javac Calculator.java"]
+    },
+    "cpp": {
+      "required_files": ["calculator.cpp"],
+      "setup_commands": ["g++ calculator.cpp -o calculator"]
+    }
+  }
+}
 ```
 
-### 3. File Requirements Don't Change
+Only the commands for the submission's language are executed during preflight.
 
-`required_files` is static. You can't require `calculator.py` for Python and `Calculator.java` for Java in the same config.
+### 3. File Requirements Are Language-Specific
 
-**Workaround:** Leave `required_files` empty for multi-language assignments.
+`required_files` is defined per language inside `setup_config`. Each language can require different files:
 
 ## Testing
 

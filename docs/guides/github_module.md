@@ -14,19 +14,19 @@ In short, the adopted solution consists of running a Docker container with the d
 
 ## Flow
 
-1. [Action.yml](/action.yml)
+1. [Action.yml](../../action.yml)
    Defines the inputs received by the action, describes the output as a JSON evaluation, and runs the container with the received data as environment variables.
 
-2. [Dockerfile](/github_action/Dockerfile.actions)
-   Builds the container that installs the Autograder repository and sets [Entrypoint.sh](/github_action/entrypoint.sh) as the script to be executed when the container starts.
+2. [Dockerfile](../../github_action/Dockerfile.actions)
+   Builds the container that installs the Autograder repository and sets [Entrypoint.sh](../../github_action/entrypoint.sh) as the script to be executed when the container starts.
 
-3. [Entrypoint.sh](/github_action/entrypoint.sh)
-   Validates that the required environment variables are present and executes [main.py](/github_action/main.py) with the received data passed as CLI arguments.
+3. [Entrypoint.sh](../../github_action/entrypoint.sh)
+   Validates that the required environment variables are present and executes [main.py](../../github_action/main.py) with the received data passed as CLI arguments.
 
-4. [main.py](/github_action/main.py)
-   Validates arguments, captures errors, and manipulates variables to run [github_adapter_service.py](/github_action/github_action_service.py) correctly in order to obtain and send the results.
+4. [main.py](../../github_action/main.py)
+   Validates arguments, captures errors, and manipulates variables to run [github_action_service.py](../../github_action/github_action_service.py) correctly in order to obtain and send the results.
 
-5. [github_adapter_service.py](/github_action/github_action_service.py)
+5. [github_action_service.py](../../github_action/github_action_service.py)
    Implements the underlying details based on Autograder's methods and the GitHub library to execute the logical procedures.
 
 ## Local testing

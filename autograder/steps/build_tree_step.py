@@ -1,8 +1,12 @@
+import logging
+
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.criteria_tree_service import CriteriaTreeService
 from autograder.models.abstract.step import Step
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
+
+logger = logging.getLogger(__name__)
 
 
 class BuildTreeStep(Step):
@@ -33,6 +37,7 @@ class BuildTreeStep(Step):
             StepResult containing the built CriteriaTree
         """
         try:
+            logger.info("Building criteria tree (external_user_id=%s)", pipeline_exec.submission.user_id)
             # Validate criteria configuration
             criteria_config = CriteriaConfig.from_dict(self._criteria_json)
             template = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE).data
@@ -40,6 +45,10 @@ class BuildTreeStep(Step):
             criteria_tree = self._criteria_tree_service.build_tree(
                 criteria_config,
                 template
+            )
+            logger.info(
+                "Criteria tree built successfully (external_user_id=%s)",
+                pipeline_exec.submission.user_id,
             )
 
             return pipeline_exec.add_step_result(StepResult(
@@ -50,6 +59,11 @@ class BuildTreeStep(Step):
             ))
 
         except Exception as e:
+            logger.error(
+                "Failed to build criteria tree: %s (external_user_id=%s)",
+                str(e),
+                pipeline_exec.submission.user_id,
+            )
             return pipeline_exec.add_step_result(StepResult(
                 step=StepName.BUILD_TREE,
                 data=None,
