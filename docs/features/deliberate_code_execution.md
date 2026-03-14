@@ -38,7 +38,7 @@ Execute code in a sandbox environment.
     }
   ],
   "program_command": "python main.py",
-  "inputs": [["optional", "stdin", "inputs"]]
+  "test_cases": [["optional", "stdin", "inputs"]]
 }
 ```
 
@@ -49,25 +49,30 @@ Execute code in a sandbox environment.
 | `language` | string | ✓ | Programming language: `python`, `java`, `node`, or `cpp` |
 | `submission_files` | array | ✓ | List of files with `filename` and `content` |
 | `program_command` | string | ✓ | Command to execute (e.g., `python main.py`) |
-| `inputs` | array | ✗ | Optional stdin inputs (list of lists) |
+| `test_cases` | array | ✗ | Optional test cases. Each test case is a list of stdin inputs. If omitted, the program runs once with no input. |
 
 #### Response
 
 ```json
 {
-  "output": "Hello, World!\n",
-  "category": "success",
-  "error_message": null,
-  "execution_time": 0.123
+  "results": [
+    {
+      "output": "Hello, World!\n",
+      "category": "success",
+      "error_message": null,
+      "execution_time": 0.123
+    }
+  ]
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `output` | string | Combined stdout/stderr output |
-| `category` | string | Result category: `success`, `runtime_error`, `compilation_error`, `timeout`, `system_error` |
-| `error_message` | string\|null | Error details if execution failed |
-| `execution_time` | float | Execution time in seconds |
+| `results` | array | One result object per test case (or one result if no test cases provided) |
+| `results[].output` | string | Combined stdout/stderr output |
+| `results[].category` | string | Result category: `success`, `runtime_error`, `compilation_error`, `timeout`, `system_error` |
+| `results[].error_message` | string\|null | Error details if execution failed |
+| `results[].execution_time` | float | Execution time in seconds |
 
 ## Examples
 
@@ -102,7 +107,7 @@ curl -X POST http://localhost:8000/api/v1/execute \
       }
     ],
     "program_command": "python calculator.py",
-    "inputs": [["10"], ["20"]]
+    "test_cases": [["10"], ["20"]]
   }'
 ```
 

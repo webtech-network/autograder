@@ -17,7 +17,7 @@ from web.schemas.execution import DeliberateCodeExecutionRequest, DeliberateCode
 logger = get_logger(__name__)
 
 
-def _get_error_message(result: CommandResponse) -> str:
+def _get_error_message(result: CommandResponse) -> str | None:
     """
     Build error message based on response category.
 
@@ -141,7 +141,6 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
 
     # Acquire sandbox
     sandbox = None
-    timed_out = False  # Track if execution timed out
     try:
         sandbox = sandbox_manager.get_sandbox(language)
         logger.info("Acquired sandbox for %s", language.value)
@@ -186,16 +185,10 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         )
 
     finally:
-        # Release or destroy sandbox depending on timeout
+        # Release sandbox back to pool
         if sandbox:
-            if timed_out:
-                # Destroy sandbox instead of releasing it, since it's still running
-                sandbox_manager.destroy_sandbox(language, sandbox)
-                logger.info("Destroyed timed-out sandbox for %s", language.value)
-            else:
-                # Normal release back to pool
-                sandbox_manager.release_sandbox(language, sandbox)
-                logger.info("Released sandbox for %s", language.value)
+            sandbox_manager.release_sandbox(language, sandbox)
+            logger.info("Released sandbox for %s", language.value)
 
 
 

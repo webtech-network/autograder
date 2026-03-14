@@ -215,7 +215,7 @@ Validates HTML, CSS, and JavaScript files.
 | `has_attribute` | Check element attributes | `tag`, `attribute`, `required_count` |
 | `check_css_property` | Validate CSS rules | `selector`, `property`, `expected_value` |
 
-And much more! Check the [WebDev Template Documentation](docs/templates/webdev.md) for the full list of tests.
+And much more! Check the [WebDev Template Documentation](docs/templates/web_dev.md) for the full list of tests.
 #### 4. Custom Templates
 Upload your own test functions for specialized grading contexts:
 
@@ -358,17 +358,17 @@ jobs:
 
 ## Useful Contents
 
-**📚 [Complete Data Structures Documentation →](docs/core_structures.md)**
+**📚 [Complete Data Structures Documentation →](docs/architecture/core_structures.md)**
 
-**📚 [Complete Configuration Examples →](docs/configuration_examples.md)**
+**📚 [Complete Configuration Examples →](docs/guides/configuration_examples.md)**
 
-**📚 [Complete Development Guide →](docs/development.md)**
+**📚 [Complete Development Guide →](docs/guides/development.md)**
 
-**📚 [Pipeline Execution Tracking →](docs/pipeline_execution_tracking.md)** ⭐ NEW
+**📚 [Pipeline Execution Tracking →](docs/architecture/pipeline_execution_tracking.md)** ⭐ NEW
 
-**📚 [Setup Config Feature →](docs/setup_config_feature.md)**
+**📚 [Setup Config Feature →](docs/features/setup_config_feature.md)**
 
-**📚 [Named Setup Commands →](docs/NAMED_SETUP_COMMANDS.md)**
+**📚 [Documentation Index →](docs/index.md)**
 
 ---
 

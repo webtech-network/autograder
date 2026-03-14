@@ -75,6 +75,6 @@ alembic upgrade head
 ```
 
 ## Documentation
-- Full guide: [docs/setup_config_feature.md](setup_config_feature.md)
-- Example config: [docs/example_java_config_with_setup.json](example_java_config_with_setup.json)
+- Full guide: [docs/features/setup_config_feature.md](../features/setup_config_feature.md)
+- Configuration examples: [docs/guides/configuration_examples.md](configuration_examples.md)
 

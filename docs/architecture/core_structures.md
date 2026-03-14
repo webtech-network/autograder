@@ -201,10 +201,12 @@ The complete grading result object returned after pipeline execution.
 
 ```python
 class GradingResult:
-    final_score: float           # Overall grade (0-100+)
-    feedback: str | None         # Generated feedback (if enabled)
-    result_tree: ResultTree      # Detailed score breakdown
-    execution_metadata: dict     # Pipeline execution info
+    final_score: float                     # Overall grade (0-100+)
+    feedback: Optional[str] = None         # Generated feedback (if enabled)
+    result_tree: Optional[ResultTree] = None  # Detailed score breakdown
+    focus: Optional[Focus] = None          # Focus object organizing tests by impact
+    error: Optional[str] = None            # Error message (if grading failed)
+    failed_at_step: Optional[str] = None   # Pipeline step where failure occurred
 ```
 
 ### Example
@@ -217,14 +219,13 @@ class GradingResult:
     "final_score": 91.0,
     "root": { ... }
   },
-  "execution_metadata": {
-    "template_used": "input_output",
-    "sandbox_language": "python",
-    "execution_time_seconds": 2.3,
-    "tests_executed": 12,
-    "tests_passed": 10,
-    "timestamp": "2026-02-16T10:05:03Z"
-  }
+  "focus": {
+    "high_impact": [ ... ],
+    "medium_impact": [ ... ],
+    "low_impact": [ ... ]
+  },
+  "error": null,
+  "failed_at_step": null
 }
 ```
 
@@ -325,12 +326,11 @@ Individual test execution result.
 
 ```python
 class TestResult:
-    test_name: str          # Name of the test function
-    score: float            # Score achieved (0-100)
-    report: str             # Human-readable result message
-    passed: bool            # Whether test passed (score >= threshold)
-    execution_time: float   # Time taken in seconds
-    error: str | None       # Error message (if test crashed)
+    test_name: str                            # Name of the test function
+    score: float                              # Score achieved (0-100)
+    report: str                               # Human-readable result message
+    subject_name: str = ""                    # Parent subject name
+    parameters: Optional[Dict[str, Any]]      # Test parameters used
 ```
 
 ### Example
@@ -340,9 +340,12 @@ class TestResult:
   "test_name": "expect_output",
   "score": 100,
   "report": "Output matched expected value 'Hello, Alice!'",
-  "passed": true,
-  "execution_time": 0.15,
-  "error": null
+  "subject_name": "Functionality",
+  "parameters": {
+    "inputs": ["Alice"],
+    "expected_output": "Hello, Alice!",
+    "program_command": "python3 main.py"
+  }
 }
 ```
 
@@ -354,12 +357,11 @@ Student submission data.
 
 ```python
 class Submission:
-    files: list[SubmissionFile]    # Uploaded files
-    language: str                   # Programming language
-    metadata: dict                  # Additional context
-    assignment_id: int              # Assignment identifier
-    username: str                   # Student identifier
-    user_id: int                    # Student ID
+    username: str                                   # Student identifier
+    user_id: int                                    # Student ID
+    assignment_id: int                              # Assignment identifier
+    submission_files: Dict[str, SubmissionFile]      # Uploaded files keyed by filename
+    language: Optional[Language] = None             # Programming language
 ```
 
 ### Submission File
@@ -368,7 +370,6 @@ class Submission:
 class SubmissionFile:
     filename: str      # Name of file
     content: str       # File contents (text)
-    path: str          # Relative path in submission
 ```
 
 ## Template
