@@ -360,7 +360,7 @@ jobs:
 
 **📚 [Complete Data Structures Documentation →](docs/architecture/core_structures.md)**
 
-**📚 [Complete Configuration Examples →](docs/guides/configuration_examples.md)**
+**📚 [Complete Configuration Examples →](docs/guides/criteria_configuration_examples.md)**
 
 **📚 [Complete Development Guide →](docs/guides/development.md)**
 

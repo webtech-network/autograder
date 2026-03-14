@@ -208,4 +208,4 @@ The `PipelineExecution` object provides `get_pipeline_execution_summary()` for s
 - [Setup Config Feature](../features/setup_config_feature.md) — Language-specific preflight configuration
 - [Focus Feature](../features/focus_feature.md) — Deep dive on the focus ranking algorithm
 - [Grading Engine](../features/grading_engine.md) — Deep dive on the tree-based grading engine
-- [Configuration Examples](../guides/configuration_examples.md) — Real-world grading configurations
+- [Configuration Examples](../guides/criteria_configuration_examples.md) — Real-world grading configurations
