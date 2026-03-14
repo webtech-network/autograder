@@ -33,11 +33,25 @@ Welcome to the Autograder documentation. This index organizes all available docu
 |----------|-------------|
 | [Deliberate Code Execution](features/deliberate_code_execution.md) | Execute code without grading (DCE feature) |
 | [Focus Feature](features/focus_feature.md) | Focus-based feedback highlighting high-impact improvements |
+| [Grading Engine](features/grading_engine.md) | Deep dive on the tree-based grading engine (traversal, weights, scoring) |
 | [Setup Config](features/setup_config_feature.md) | Preflight checks, required files, and setup commands |
 | [Setup Config Quick Start](guides/SETUP_CONFIG_QUICK_START.md) | Quick guide for setup configuration |
 | [Multi-Language Support](features/multi_language_support.md) | Python, Java, Node.js, and C++ support |
 | [Pipeline Execution Tracking](architecture/pipeline_execution_tracking.md) | Step-by-step pipeline execution details |
 | [GitHub Action](guides/github_module.md) | GitHub Classroom integration |
+
+## Pipeline
+
+| Document | Description |
+|----------|-------------|
+| [Pipeline Overview](pipeline/README.md) | Architecture, PipelineExecution, assembly rules, step dependency table |
+| [Load Template Step](pipeline/01-load-template.md) | Loads the grading template with test functions |
+| [Build Tree Step](pipeline/02-build-tree.md) | Constructs the CriteriaTree from JSON config |
+| [Pre-Flight Step](pipeline/03-pre-flight.md) | Validates files, creates sandbox, runs setup commands |
+| [Grade Step](pipeline/04-grade.md) | Executes tests and produces the scored ResultTree |
+| [Focus Step](pipeline/05-focus.md) | Ranks tests by impact on the final score |
+| [Feedback Step](pipeline/06-feedback.md) | Generates student-facing feedback reports |
+| [Export Step](pipeline/07-export.md) | Sends scores to external systems |
 
 ## Architecture & Data Structures
 
