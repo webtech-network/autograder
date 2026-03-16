@@ -1,6 +1,7 @@
 import logging
 
 from typing import Dict, Optional, Sequence, List, overload
+from autograder.services.command_resolver import CommandResolver
 from autograder.models.criteria_tree import (
     CriteriaTree,
     CategoryNode,
@@ -22,7 +23,8 @@ class GraderService:
         self.logger = logging.getLogger("GraderService")
         self.__submission_files = None
         self._sandbox = None
-        self._submission_language = None  # Track submission language
+        self._submission_language = None
+        self._command_resolver = CommandResolver()
 
     def set_sandbox(self, sandbox):
         self._sandbox = sandbox
@@ -31,12 +33,8 @@ class GraderService:
         return self._sandbox is not None
 
     def set_submission_language(self, language):
-        """Set the submission's language for command resolution."""
+        """Set the submission language so program_command can be resolved before execution."""
         self._submission_language = language
-
-    def get_submission_language(self):
-        """Get the submission's language."""
-        return self._submission_language
 
     def grade_from_tree(
         self,
@@ -151,13 +149,27 @@ class GraderService:
         return self.__process_holder(subject)
 
     def process_test(self, test: TestNode) -> TestResultNode:
-        """Execute a test and create a test result node."""
+        """Execute a test and create a test result node.
+
+        Resolves `program_command` in-place before calling execute() so that
+        test functions always receive a finalized string command.  No hidden
+        kwargs are injected; every key in test_params is a declared parameter.
+        """
         file_target = self.get_file_target(test)
 
-        # Pass submission language to test for command resolution
-        test_params = test.parameters or {}
-        if self._submission_language:
-            test_params['__submission_language__'] = self._submission_language
+        # Shallow-copy parameters so we don't mutate the original TestNode.
+        test_params = dict(test.parameters or {})
+
+        # Resolve program_command eagerly when the language is known.
+        if self._submission_language and 'program_command' in test_params:
+            raw_command = test_params['program_command']
+            # Only resolve dict / CMD placeholder formats; plain strings are
+            # already final (legacy format) and pass through unchanged.
+            if isinstance(raw_command, dict) or raw_command == 'CMD':
+                resolved = self._command_resolver.resolve_command(
+                    raw_command, self._submission_language
+                )
+                test_params['program_command'] = resolved
 
         test_result = test.test_function.execute(
             files=file_target, sandbox=self._sandbox, **test_params
