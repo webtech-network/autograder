@@ -283,7 +283,7 @@ These items prepare the codebase for future growth by establishing patterns and 
 | 4 | Fix FeedbackStep contract | 🔴 P1 | ⬜ To Do |
 | 5 | Decouple sandbox from pre-flight | 🟡 P2 | ⬜ To Do |
 | 6 | Decouple GraderService state | 🟡 P2 | ⬜ To Do |
-| 7 | Extract language resolution | 🟡 P2 | ⬜ To Do |
+| 7 | Extract language resolution | 🟡 P2 | ✅ Done |
 | 8 | Unify template registration | 🟡 P2 | ⬜ To Do |
 | 9 | Formalize PipelineExecution data flow | 🟡 P2 | ⬜ To Do |
 | 10 | Split web_dev.py monolith | 🟢 P3 | ⬜ To Do |
