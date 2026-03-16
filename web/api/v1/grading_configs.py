@@ -134,3 +134,33 @@ async def update_grading_config(
     logger.info("No fields to update for grading configuration: config_id=%d", config_id)
     return config
 
+
+@router.put("/external/{external_assignment_id}", response_model=GradingConfigResponse)
+async def update_grading_config_external(
+    external_assignment_id: str,
+    update: GradingConfigUpdate,
+    session: AsyncSession = Depends(get_db_session)
+):
+    """Update a grading configuration by its external assignment ID."""
+    logger.info("Updating grading configuration by external ID: assignment=%s", external_assignment_id)
+    repo = GradingConfigRepository(session)
+
+    # Get existing config
+    config = await repo.get_by_external_id(external_assignment_id)
+    if not config:
+        logger.warning("Grading configuration not found for update: assignment=%s", external_assignment_id)
+        raise HTTPException(status_code=404, detail="Configuration not found")
+
+    # Update fields
+    update_data = update.model_dump(exclude_unset=True)
+    if update_data:
+        updated_config = await repo.update_by_external_id(external_assignment_id, **update_data)
+        logger.info(
+            "Grading configuration updated by external ID: assignment=%s, fields=%s",
+            external_assignment_id,
+            list(update_data.keys()),
+        )
+        return updated_config
+
+    logger.info("No fields to update for grading configuration: assignment=%s", external_assignment_id)
+    return config
