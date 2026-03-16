@@ -24,6 +24,7 @@ API documentation (Swagger UI) available at: `http://localhost:8000/docs`
 | `GET` | `/api/v1/configs` | List all grading configurations |
 | `GET` | `/api/v1/configs/{external_assignment_id}` | Get configuration by assignment ID |
 | `PUT` | `/api/v1/configs/{config_id}` | Update a grading configuration |
+| `PUT` | `/api/v1/configs/external/{external_assignment_id}` | Update a grading configuration by external assignment ID |
 | `POST` | `/api/v1/submissions` | Submit code for grading |
 | `GET` | `/api/v1/submissions/{submission_id}` | Get submission details and results |
 | `GET` | `/api/v1/submissions/user/{external_user_id}` | List submissions by user |
@@ -183,6 +184,30 @@ Content-Type: application/json
 **Response (200 OK):** Returns the updated configuration object (same schema as create response).
 
 **Error (404):** Configuration not found.
+
+### Update Grading Configuration by External ID
+
+```http
+PUT /api/v1/configs/external/{external_assignment_id}
+Content-Type: application/json
+```
+
+Use this endpoint when you only know the LMS-specific assignment identifier and need to update the associated grading configuration without looking up its internal database ID. It accepts the same payload as the standard update route and performs a partial update via `exclude_unset` behavior.
+
+**Request Body (all fields optional):**
+```json
+{
+  "template_name": "web_dev",
+  "criteria_config": { ... },
+  "languages": ["python", "node"],
+  "setup_config": { ... },
+  "is_active": false
+}
+```
+
+**Response (200 OK):** Updated configuration object (same schema as the create response).
+
+**Error (404):** Configuration not found for the supplied `external_assignment_id`.
 
 ---
 
