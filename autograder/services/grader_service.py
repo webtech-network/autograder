@@ -19,6 +19,8 @@ from autograder.models.result_tree import (
 
 
 class GraderService:
+    """Service responsible for orchestrating the grading process using a configured criteria tree."""
+
     def __init__(self):
         self.logger = logging.getLogger("GraderService")
         self.__submission_files = None
@@ -27,9 +29,11 @@ class GraderService:
         self._command_resolver = CommandResolver()
 
     def set_sandbox(self, sandbox):
+        """Bind a sandbox environment to be used for executing test scenarios."""
         self._sandbox = sandbox
 
     def has_sandbox(self) -> bool:
+        """Check if a sandbox environment has been successfully bound to the grader."""
         return self._sandbox is not None
 
     def set_submission_language(self, language):
@@ -41,6 +45,7 @@ class GraderService:
         criteria_tree: CriteriaTree,
         submission_files: Dict[str, SubmissionFile],
     ) -> ResultTree:
+        """Traverse the generic built criteria tree to resolve inputs, grades and report to ResultTree."""
         self.__submission_files = submission_files
 
         # Create root node with category results
@@ -180,6 +185,7 @@ class GraderService:
         )
 
     def get_file_target(self, test_node: TestNode) -> Optional[List[SubmissionFile]]:
+        """Filter out the submission files strictly relevant to the current test node."""
         if not test_node.file_target or not self.__submission_files:
             return None
 

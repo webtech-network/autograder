@@ -65,7 +65,10 @@ class CommandResolver:
         if isinstance(program_command, dict):
             return self._resolve_from_dict(program_command, language)
 
-        self.logger.error(f"Invalid program_command format: {type(program_command)}. Only dict or 'CMD' placeholder are supported.")
+        self.logger.error(
+            "Invalid program_command format: %s. Only dict or 'CMD' placeholder are supported.",
+            type(program_command)
+        )
         return None
 
     def _resolve_from_dict(self, commands: Dict[str, str], language: Language) -> Optional[str]:
@@ -82,8 +85,9 @@ class CommandResolver:
 
         # No command found for this language
         self.logger.warning(
-            f"No command defined for language '{language.value}' in multi-language config. "
-            f"Available: {list(commands.keys())}"
+            "No command defined for language '%s' in multi-language config. Available: %s",
+            language.value,
+            list(commands.keys())
         )
         return None
 
@@ -97,40 +101,36 @@ class CommandResolver:
 
         This is used when program_command is "CMD" placeholder.
         """
+        command = None
         if language == Language.PYTHON:
-            # Look for common Python entry points
-            if fallback_filename:
-                return f"python3 {fallback_filename}"
-            return "python3 main.py"
-
-        if language == Language.JAVA:
+            command = f"python3 {fallback_filename}" if fallback_filename else "python3 main.py"
+        elif language == Language.JAVA:
             # Java requires class name without .java extension
             if fallback_filename and fallback_filename.endswith('.java'):
                 classname = fallback_filename[:-5]  # Remove .java
-                return f"java {classname}"
-            return "java Main"
-
-        if language == Language.NODE:
-            if fallback_filename:
-                return f"node {fallback_filename}"
-            return "node index.js"
-
-        if language == Language.CPP:
+                command = f"java {classname}"
+            else:
+                command = "java Main"
+        elif language == Language.NODE:
+            command = f"node {fallback_filename}" if fallback_filename else "node index.js"
+        elif language == Language.CPP:
             # C++ executables are typically compiled to a specific name
             if fallback_filename and fallback_filename.endswith('.cpp'):
                 executable = fallback_filename[:-4]  # Remove .cpp
-                return f"./{executable}"
-            return "./a.out"
-
+                command = f"./{executable}"
+            else:
+                command = "./a.out"
         elif language == Language.C:
             # C executables follow the same pattern as C++
             if fallback_filename and fallback_filename.endswith('.c'):
                 executable = fallback_filename[:-2]  # Remove .c
-                return f"./{executable}"
-            return "./a.out"
+                command = f"./{executable}"
+            else:
+                command = "./a.out"
+        else:
+            self.logger.error("Cannot auto-resolve command for language: %s", language)
 
-        self.logger.error("Cannot auto-resolve command for language: %s", language)
-        return None
+        return command
 
     def is_multi_language_format(self, program_command: Any) -> bool:
         """Check if program_command uses multi-language dict format."""
