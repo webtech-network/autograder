@@ -1,7 +1,6 @@
 """Integration test for multi-language command resolution in the pipeline."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from autograder.autograder import build_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
@@ -76,7 +75,7 @@ class TestMultiLanguageCommandResolution:
         )
 
         # Run pipeline
-        execution = pipeline.run(submission)
+        pipeline.run(submission)
 
         # Verify sandbox was called with Python command
         assert mock_sandbox.run_commands.called
@@ -148,7 +147,7 @@ class TestMultiLanguageCommandResolution:
         )
 
         # Run pipeline
-        execution = pipeline.run(submission)
+        pipeline.run(submission)
 
         # Verify sandbox was called with Java command
         assert mock_sandbox.run_commands.called
@@ -212,7 +211,7 @@ class TestMultiLanguageCommandResolution:
         )
 
         # Run pipeline
-        execution = pipeline.run(submission)
+        pipeline.run(submission)
 
         # Verify sandbox was called with auto-resolved Node command
         assert mock_sandbox.run_commands.called

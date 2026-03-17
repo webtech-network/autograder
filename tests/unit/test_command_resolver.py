@@ -1,12 +1,13 @@
 """Tests for CommandResolver service."""
 
-import pytest
 from autograder.services.command_resolver import CommandResolver
 from sandbox_manager.models.sandbox_models import Language
 
 
 class TestCommandResolver:
     """Test the CommandResolver service for multi-language command resolution."""
+
+    resolver: CommandResolver
 
     def setup_method(self):
         """Set up test fixtures."""
@@ -80,6 +81,16 @@ class TestCommandResolver:
 
         result = self.resolver.resolve_command(commands, Language.C)
         assert result == "./calculator"
+
+
+class TestCommandResolverCmdPlaceholder:
+    """Test the CommandResolver service for CMD placeholder resolution."""
+
+    resolver: CommandResolver
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.resolver = CommandResolver()
 
     def test_resolve_cmd_placeholder_python(self):
         """Test auto-resolution with CMD placeholder for Python."""
