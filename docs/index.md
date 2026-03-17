@@ -35,7 +35,6 @@ Welcome to the Autograder documentation. This index organizes all available docu
 | [Focus Feature](features/focus_feature.md) | Focus-based feedback highlighting high-impact improvements |
 | [Grading Engine](features/grading_engine.md) | Deep dive on the tree-based grading engine (traversal, weights, scoring) |
 | [Setup Config](features/setup_config_feature.md) | Preflight checks, required files, and setup commands |
-| [Setup Config Quick Start](guides/SETUP_CONFIG_QUICK_START.md) | Quick guide for setup configuration |
 | [Command Resolver & Multi-Language Support](features/command_resolver.md) | Python, Java, Node.js, C and C++ support |
 | [Pipeline Execution Tracking](architecture/pipeline_execution_tracking.md) | Step-by-step pipeline execution details |
 | [GitHub Action](guides/github_module.md) | GitHub Classroom integration |
