@@ -65,5 +65,4 @@ Welcome to the Autograder documentation. This index organizes all available docu
 
 | Document | Description |
 |----------|-------------|
-| [Documentation Modernization Roadmap](roadmaps/DOCUMENTATION_MODERNIZATION_ROADMAP.md) | Tracking documentation improvements |
 | [Technical Debt Roadmap](roadmaps/TECHNICAL_DEBT_ROADMAP.md) | Refactoring plan for architecture cohesion and code quality |
