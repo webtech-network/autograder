@@ -144,20 +144,20 @@ class TestCmdPlaceholderResolution:
 
 
 # ---------------------------------------------------------------------------
-# 3. Legacy string commands pass through unchanged
+# 3. Invalid formats handled
 # ---------------------------------------------------------------------------
 
-class TestLegacyStringPassthrough:
+class TestInvalidFormatHandled:
 
-    def test_string_command_is_not_modified(self):
+    def test_invalid_string_command_is_none(self):
         svc = _make_grader(Language.PYTHON)
         fn = RecordingTestFunction()
         node = _make_test_node({"program_command": "python3 my_script.py"}, fn)
 
         svc.process_test(node)
 
-        # Legacy strings bypass the resolver and are forwarded as-is
-        assert fn.recorded_kwargs["program_command"] == "python3 my_script.py"
+        # Non-CMD strings are invalid without legacy fallback, returning None
+        assert fn.recorded_kwargs["program_command"] is None
 
 
 # ---------------------------------------------------------------------------

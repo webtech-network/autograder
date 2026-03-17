@@ -163,13 +163,10 @@ class GraderService:
         # Resolve program_command eagerly when the language is known.
         if self._submission_language and 'program_command' in test_params:
             raw_command = test_params['program_command']
-            # Only resolve dict / CMD placeholder formats; plain strings are
-            # already final (legacy format) and pass through unchanged.
-            if isinstance(raw_command, dict) or raw_command == 'CMD':
-                resolved = self._command_resolver.resolve_command(
-                    raw_command, self._submission_language
-                )
-                test_params['program_command'] = resolved
+            resolved = self._command_resolver.resolve_command(
+                raw_command, self._submission_language
+            )
+            test_params['program_command'] = resolved
 
         test_result = test.test_function.execute(
             files=file_target, sandbox=self._sandbox, **test_params

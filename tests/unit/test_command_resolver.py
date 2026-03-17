@@ -12,13 +12,13 @@ class TestCommandResolver:
         """Set up test fixtures."""
         self.resolver = CommandResolver()
 
-    def test_resolve_legacy_single_command(self):
-        """Test resolving legacy single-string command format."""
+    def test_resolve_invalid_string_command(self):
+        """Test resolving invalid single-string command format returns None."""
         result = self.resolver.resolve_command(
             "python3 calculator.py",
             Language.PYTHON
         )
-        assert result == "python3 calculator.py"
+        assert result is None
 
     def test_resolve_multi_language_dict_python(self):
         """Test resolving multi-language dict format for Python."""
@@ -173,13 +173,6 @@ class TestCommandResolver:
         assert self.resolver.is_multi_language_format("python3 calc.py") is False
         assert self.resolver.is_multi_language_format("CMD") is False
         assert self.resolver.is_multi_language_format(None) is False
-
-    def test_is_legacy_format(self):
-        """Test detection of legacy single-string format."""
-        assert self.resolver.is_legacy_format("python3 calc.py") is True
-        assert self.resolver.is_legacy_format("CMD") is False
-        assert self.resolver.is_legacy_format({"python": "cmd"}) is False
-        assert self.resolver.is_legacy_format(None) is False
 
     def test_resolve_with_uppercase_language_keys(self):
         """Test that resolver handles uppercase language keys in dict."""
