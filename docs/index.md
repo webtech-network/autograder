@@ -10,7 +10,7 @@ Welcome to the Autograder documentation. This index organizes all available docu
 |----------|-------------|
 | [README](../README.md) | Project overview, features, and quick start |
 | [Development Guide](guides/development.md) | Setup, project structure, and contributing |
-| [Configuration Examples](guides/configuration_examples.md) | Real-world grading configuration examples |
+| [Configuration Examples](guides/criteria_configuration_examples.md) | Real-world grading configuration examples |
 
 ## API Reference
 

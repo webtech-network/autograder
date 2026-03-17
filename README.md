@@ -188,11 +188,11 @@ Each step receives a `PipelineExecution` object, performs its operation, and pas
 #### 1. Input/Output Template
 Tests command-line programs by providing inputs and validating outputs.
 
-| Test Name | Description | Key Parameters |
-|-----------|-------------|----------------|
-| `expect_output` | Execute program with inputs and verify output | `inputs`, `expected_output`, `program_command` |
-| `check_exit_code` | Validate program exit codes | `command`, `expected_exit_code` |
-| `timeout_test` | Ensure programs complete within time limits | `command`, `timeout_seconds` |
+| Test Name          | Description                                             | Key Parameters                               |
+|--------------------|---------------------------------------------------------|----------------------------------------------|
+| `expect_output`    | Execute program with inputs and verify output           | `inputs`, `expected_output`, `program_command` |
+| `dont_fail`        | Validates that a program don't crash on a given input   | `inputs`, `program_command`                  |
+| `forbidden_import` | Analyzes a file looking for specified libraries imports | `forbidden_imports`        |
 
 #### 2. API Testing Template
 Makes HTTP requests to student APIs and validates responses.
@@ -360,7 +360,7 @@ jobs:
 
 **📚 [Complete Data Structures Documentation →](docs/architecture/core_structures.md)**
 
-**📚 [Complete Configuration Examples →](docs/guides/configuration_examples.md)**
+**📚 [Complete Configuration Examples →](docs/guides/criteria_configuration_examples.md)**
 
 **📚 [Complete Development Guide →](docs/guides/development.md)**
 
@@ -409,7 +409,7 @@ The Autograder is designed for high performance:
 **Typical Performance:**
 - Grade submission: 1-3 seconds (with warm sandbox)
 - Cold start: 5-8 seconds (first request per language)
-- Concurrent submissions: 100+ with proper pool sizing
+- Concurrent submissions: 400+ with proper pool sizing
 
 ---
 
