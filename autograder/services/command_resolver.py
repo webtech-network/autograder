@@ -9,7 +9,7 @@ class CommandResolver:
     """
     Resolves program commands based on submission language.
 
-    Supports both legacy single-command format and new multi-language format.
+    Supports dict-based multi-language format and CMD placeholder.
     """
 
     # Default command patterns for each language
@@ -34,7 +34,7 @@ class CommandResolver:
         Resolve program command based on language.
 
         Args:
-            program_command: Either a string (legacy), dict (multi-language), or special value
+            program_command: Either a dict (multi-language), or special "CMD" placeholder value
             language: The submission's language
             fallback_filename: Optional filename to use for default command generation
 
@@ -42,9 +42,6 @@ class CommandResolver:
             Resolved command string, or None if no command should be used
 
         Examples:
-            # Legacy format (single command)
-            resolve_command("python3 calc.py", Language.PYTHON) -> "python3 calc.py"
-
             # Multi-language format
             resolve_command({
                 "python": "python3 calculator.py",
@@ -68,15 +65,7 @@ class CommandResolver:
         if isinstance(program_command, dict):
             return self._resolve_from_dict(program_command, language)
 
-        # Handle legacy string format (single command)
-        if isinstance(program_command, str):
-            self.logger.warning(
-                f"Using legacy single-command format: '{program_command}'. "
-                f"Consider using multi-language format or 'CMD' placeholder."
-            )
-            return program_command
-
-        self.logger.error(f"Invalid program_command format: {type(program_command)}")
+        self.logger.error(f"Invalid program_command format: {type(program_command)}. Only dict or 'CMD' placeholder are supported.")
         return None
 
     def _resolve_from_dict(self, commands: Dict[str, str], language: Language) -> Optional[str]:
@@ -146,8 +135,4 @@ class CommandResolver:
     def is_multi_language_format(self, program_command: Any) -> bool:
         """Check if program_command uses multi-language dict format."""
         return isinstance(program_command, dict)
-
-    def is_legacy_format(self, program_command: Any) -> bool:
-        """Check if program_command uses legacy single-string format."""
-        return isinstance(program_command, str) and program_command != "CMD"
 
