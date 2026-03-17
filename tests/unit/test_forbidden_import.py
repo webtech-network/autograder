@@ -33,11 +33,12 @@ class TestForbiddenImportMetadata:
         """Test that the description is not empty."""
         assert len(self.test_fn.description) > 0
 
-    def test_single_parameter_forbidden_imports(self):
-        """Test that the test has a single 'forbidden_imports' parameter."""
+    def test_parameter_descriptions(self):
+        """Test that the test has correct parameter descriptions."""
         params = self.test_fn.parameter_description
-        assert len(params) == 1
+        assert len(params) == 2
         assert params[0].name == "forbidden_imports"
+        assert params[1].name == "submission_language"
 
     def test_required_file_is_none(self):
         """Test that no specific file is required."""
@@ -75,7 +76,7 @@ class TestForbiddenImportEdgeCases:
         result = self.test_fn.execute(
             [], None,
             forbidden_imports=["os"],
-            __submission_language__=Language.PYTHON,
+            submission_language=Language.PYTHON,
         )
         assert result.score == 100.0
 
@@ -85,7 +86,7 @@ class TestForbiddenImportEdgeCases:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__="python",
+            submission_language="python",
         )
         assert result.score == 0.0
 
@@ -107,7 +108,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["numpy"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
         assert "numpy" in result.report
@@ -118,7 +119,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["numpy"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -128,7 +129,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["pandas"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -138,7 +139,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -148,7 +149,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -158,7 +159,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -168,7 +169,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -178,7 +179,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -188,7 +189,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -198,7 +199,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -208,7 +209,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["numpy"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -218,7 +219,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -228,7 +229,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -238,7 +239,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -248,7 +249,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -258,7 +259,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os", "sys"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
         assert "os" in result.report
@@ -273,7 +274,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
         assert "helpers.py" in result.report
@@ -288,7 +289,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
         assert "dirty.py" in result.report
@@ -302,7 +303,7 @@ class TestForbiddenImportPython:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os", "subprocess"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -324,7 +325,7 @@ class TestForbiddenImportJava:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["java.util.Scanner"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -334,7 +335,7 @@ class TestForbiddenImportJava:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["java.lang.Math"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -344,7 +345,7 @@ class TestForbiddenImportJava:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["java.util"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -354,7 +355,7 @@ class TestForbiddenImportJava:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["java.io.File"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -364,7 +365,7 @@ class TestForbiddenImportJava:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["java.util.Scanner"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -374,7 +375,7 @@ class TestForbiddenImportJava:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["java.io.File", "java.net.Socket"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
         assert "java.io.File" in result.report
@@ -398,7 +399,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["fs"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -408,7 +409,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["fs"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -418,7 +419,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["fs"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -428,7 +429,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["express"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -438,7 +439,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["fs"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -448,7 +449,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["express"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -458,7 +459,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["fs"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -468,7 +469,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["fs"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -482,7 +483,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["fs"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -495,7 +496,7 @@ class TestForbiddenImportNode:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["http"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
         assert "app.js" in result.report
@@ -518,7 +519,7 @@ class TestForbiddenImportCpp:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["thread"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -528,7 +529,7 @@ class TestForbiddenImportCpp:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["mylib"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -538,7 +539,7 @@ class TestForbiddenImportCpp:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["boost"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -548,7 +549,7 @@ class TestForbiddenImportCpp:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["pthread"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -558,7 +559,7 @@ class TestForbiddenImportCpp:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["thread"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -568,7 +569,7 @@ class TestForbiddenImportCpp:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["thread"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -578,7 +579,7 @@ class TestForbiddenImportCpp:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["thread"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -588,7 +589,7 @@ class TestForbiddenImportCpp:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["thread"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -610,7 +611,7 @@ class TestForbiddenImportC:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["pthread"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 0.0
 
@@ -620,7 +621,7 @@ class TestForbiddenImportC:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["pthread"],
-            __submission_language__=self.lang,
+            submission_language=self.lang,
         )
         assert result.score == 100.0
 
@@ -640,7 +641,7 @@ class TestForbiddenImportReport:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os"],
-            __submission_language__=Language.PYTHON,
+            submission_language=Language.PYTHON,
         )
         assert result.score == 100.0
         assert len(result.report) > 0
@@ -651,7 +652,7 @@ class TestForbiddenImportReport:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["subprocess"],
-            __submission_language__=Language.PYTHON,
+            submission_language=Language.PYTHON,
         )
         assert result.score == 0.0
         assert "subprocess" in result.report
@@ -667,7 +668,7 @@ class TestForbiddenImportReport:
         result = self.test_fn.execute(
             [], None,
             forbidden_imports=["os"],
-            __submission_language__=Language.PYTHON,
+            submission_language=Language.PYTHON,
         )
         assert result.score == 100.0
 
@@ -680,7 +681,7 @@ class TestForbiddenImportReport:
         result = self.test_fn.execute(
             files, None,
             forbidden_imports=["os", "sys"],
-            __submission_language__=Language.PYTHON,
+            submission_language=Language.PYTHON,
         )
         assert result.score == 0.0
         for token in ("os", "sys", "a.py", "b.py"):

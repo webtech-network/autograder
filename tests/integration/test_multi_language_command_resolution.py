@@ -1,7 +1,6 @@
 """Integration test for multi-language command resolution in the pipeline."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from autograder.autograder import build_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
@@ -76,7 +75,7 @@ class TestMultiLanguageCommandResolution:
         )
 
         # Run pipeline
-        execution = pipeline.run(submission)
+        pipeline.run(submission)
 
         # Verify sandbox was called with Python command
         assert mock_sandbox.run_commands.called
@@ -148,7 +147,7 @@ class TestMultiLanguageCommandResolution:
         )
 
         # Run pipeline
-        execution = pipeline.run(submission)
+        pipeline.run(submission)
 
         # Verify sandbox was called with Java command
         assert mock_sandbox.run_commands.called
@@ -212,80 +211,13 @@ class TestMultiLanguageCommandResolution:
         )
 
         # Run pipeline
-        execution = pipeline.run(submission)
+        pipeline.run(submission)
 
         # Verify sandbox was called with auto-resolved Node command
         assert mock_sandbox.run_commands.called
         call_args = mock_sandbox.run_commands.call_args
         # CMD should auto-resolve to default Node command
         assert "node" in call_args[1]['program_command']
-
-    @patch('autograder.services.pre_flight_service.get_sandbox_manager')
-    def test_pipeline_handles_legacy_command_format(self, mock_get_manager):
-        """Test backward compatibility with legacy single-command format."""
-        # Mock sandbox
-        mock_manager = Mock()
-        mock_sandbox = Mock()
-        mock_get_manager.return_value = mock_manager
-        mock_manager.get_sandbox.return_value = mock_sandbox
-        mock_sandbox.prepare_workdir.return_value = None
-
-        # Mock command execution
-        mock_output = Mock()
-        mock_output.stdout = "8"
-        mock_output.stderr = ""
-        mock_sandbox.run_commands.return_value = mock_output
-
-        # Create pipeline with legacy command format
-        pipeline = build_pipeline(
-            template_name="input_output",
-            include_feedback=False,
-            grading_criteria={
-                "test_library": "input_output",
-                "base": {
-                    "weight": 100,
-                    "tests": [
-                        {
-                            "name": "expect_output",
-                            "parameters": [
-                                {"name": "inputs", "value": ["5", "3"]},
-                                {"name": "expected_output", "value": "8"},
-                                {
-                                    "name": "program_command",
-                                    "value": "python3 calculator.py"  # Legacy format
-                                }
-                            ]
-                        }
-                    ]
-                }
-            },
-            feedback_config=None,
-            setup_config={}
-        )
-
-        # Create submission (language doesn't matter for legacy format)
-        files = {
-            "calculator.py": SubmissionFile(
-                filename="calculator.py",
-                content="print('test')"
-            )
-        }
-
-        submission = Submission(
-            username="testuser",
-            user_id=1,
-            assignment_id=1,
-            submission_files=files,
-            language=Language.PYTHON
-        )
-
-        # Run pipeline
-        execution = pipeline.run(submission)
-
-        # Verify sandbox was called with the legacy command as-is
-        assert mock_sandbox.run_commands.called
-        call_args = mock_sandbox.run_commands.call_args
-        assert call_args[1]['program_command'] == "python3 calculator.py"
 
     @patch('autograder.services.pre_flight_service.get_sandbox_manager')
     def test_pipeline_grading_with_multi_language_commands(self, mock_get_manager):

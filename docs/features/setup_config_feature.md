@@ -304,7 +304,7 @@ Benefits:
 
 ## Related Documentation
 
-- [Multi-Language Support](multi_language_support.md) — How command resolution works across languages
+- [Command Resolver & Multi-Language Support](command_resolver.md) — How command resolution works across languages
 - [Configuration Examples](../guides/criteria_configuration_examples.md) — Full grading configuration examples
 - [Pipeline Execution Tracking](../architecture/pipeline_execution_tracking.md) — How preflight results appear in pipeline summaries
 

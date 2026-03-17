@@ -7,7 +7,6 @@ from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
-from autograder.services.command_resolver import CommandResolver
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
@@ -22,31 +21,20 @@ class BaseExecutionTest(TestFunction):
     in a sandbox and handling basic execution results (timeouts, crashes).
     """
 
-    def __init__(self):
-        self.command_resolver = CommandResolver()
-
     def run_sandbox_execution(self, sandbox: SandboxContainer, inputs: list = None,
-                              program_command=None, __submission_language__=None):
+                              program_command: Optional[str] = None):
         """
-        Resolves the command and executes it inside the sandbox.
+        Executes the command inside the sandbox.
+        `program_command` must already be a resolved string (or None).
         Returns the raw `output` from the sandbox run.
-        Can raise exceptions which the caller or subclass execute wrapper should catch.
         """
-        # 1. Resolve the actual command
-        resolved_command = None
-        if program_command and __submission_language__:
-            resolved_command = self.command_resolver.resolve_command(
-                program_command,
-                __submission_language__
-            )
-
-        # 2. Run the command
-        if resolved_command:
+        # Run with a pre-resolved command
+        if program_command:
             safe_inputs = inputs if inputs is not None else []
-            return sandbox.run_commands(safe_inputs, program_command=resolved_command)
-        
-        if inputs is None: 
-            raise ValueError("inputs parameter is required if no resolved command via language is found")
+            return sandbox.run_commands(safe_inputs, program_command=program_command)
+
+        if inputs is None:
+            raise ValueError("inputs parameter is required if no program_command is provided")
         command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
         return sandbox.run_command(command)
 
@@ -118,16 +106,15 @@ class ExpectOutputTest(BaseExecutionTest):
         ]
 
     def execute(self, files, sandbox: SandboxContainer, *args, inputs: list = None, expected_output: str = "",
-                program_command=None, __submission_language__=None, **kwargs) -> TestResult:
+                program_command: Optional[str] = None, **kwargs) -> TestResult:
         """
         Execute the test by comparing program output with expected output.
         """
         try:
             output = self.run_sandbox_execution(
-                sandbox=sandbox, 
-                inputs=inputs, 
-                program_command=program_command, 
-                __submission_language__=__submission_language__
+                sandbox=sandbox,
+                inputs=inputs,
+                program_command=program_command,
             )
 
             # Check for generic execution failures
@@ -188,7 +175,7 @@ class DontFailTest(BaseExecutionTest):
         ]
 
     def execute(self, files, sandbox: SandboxContainer, *args, user_input: str = "",
-                program_command=None, __submission_language__=None, **kwargs) -> TestResult:
+                program_command: Optional[str] = None, **kwargs) -> TestResult:
         """
         Execute the test by verifying the program doesn't crash with given input.
         """
@@ -197,10 +184,9 @@ class DontFailTest(BaseExecutionTest):
             inputs = [user_input] if user_input is not None and user_input != "" else []
             
             output = self.run_sandbox_execution(
-                sandbox=sandbox, 
-                inputs=inputs, 
-                program_command=program_command, 
-                __submission_language__=__submission_language__
+                sandbox=sandbox,
+                inputs=inputs,
+                program_command=program_command,
             )
 
             # Check for generic execution failures
@@ -286,6 +272,11 @@ class ForbiddenImportTest(TestFunction):
                 "Lista de nomes de bibliotecas/módulos cuja importação é proibida.",
                 "list of strings"
             ),
+            ParamDescription(
+                "submission_language",
+                "Linguagem da submissão (ex: 'python', 'java'). Necessária para identificar padrões de importação corretos.",
+                "string or Language enum"
+            ),
         ]
 
     # ------------------------------------------------------------------
@@ -339,7 +330,7 @@ class ForbiddenImportTest(TestFunction):
 
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer],
                 *args, forbidden_imports: List[str] = None,
-                __submission_language__=None, **kwargs) -> TestResult:
+                submission_language=None, **kwargs) -> TestResult:
         """
         Scan every submission file for forbidden imports.
 
@@ -352,7 +343,7 @@ class ForbiddenImportTest(TestFunction):
                 report="No forbidden imports specified — nothing to check."
             )
 
-        language = self._resolve_language(__submission_language__)
+        language = self._resolve_language(submission_language)
 
         if language is None:
             return TestResult(
