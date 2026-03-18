@@ -1,10 +1,13 @@
 import json
+import logging
 from typing import List, Dict
 from openai import OpenAI
 from autograder.models.dataclass.test_result import TestResult
 from pydantic import BaseModel, Field
 import dotenv
 from autograder.utils.secrets_fetcher import get_secret
+
+logger = logging.getLogger(__name__)
 
 dotenv.load_dotenv()  # Load environment variables from .env file
 
@@ -73,7 +76,7 @@ class AiExecutor:
            It finds the corresponding TestResult by matching the test name.
         """
         if not self.test_results:
-            print("No test results to map back.")
+            logger.warning("No test results to map back.")
             return
 
         for ai_result in self.test_results:
@@ -81,12 +84,12 @@ class AiExecutor:
             matching_refs = [ref for ref in self.test_result_references if ref.test_name == ai_result.title]
             if matching_refs:
                 ref = matching_refs[0]
-                print("Found matching TestResult for AI result:",ref)
+                logger.debug("Found matching TestResult for AI result: %s", ref)
                 ref.score = ai_result.score
                 ref.report = ai_result.feedback
-                print(f"Mapped AI result '{ai_result.title}' with score {ai_result.score} to TestResult.")
+                logger.info("Mapped AI result '%s' with score %s to TestResult.", ai_result.title, ai_result.score)
             else:
-                print(f"No matching TestResult found for AI result '{ai_result.title}'.")
+                logger.warning("No matching TestResult found for AI result '%s'.", ai_result.title)
 
 
 
@@ -151,10 +154,10 @@ class AiExecutor:
                                 lembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. não mude a formatação ou a estrutura dos titulos dos tests.
 
                               """
-        print("System Prompt:\n", system_prompt)
-        print("User Prompt:\n", user_prompt)
+        logger.debug("System Prompt:\n%s", system_prompt)
+        logger.debug("User Prompt:\n%s", user_prompt)
         try:
-            print("Sending AI engine batch request...\n")
+            logger.info("Sending AI engine batch request...")
             response = self.client.responses.parse(
                 model="o4-mini-2025-04-16",
                 input=[
@@ -167,12 +170,12 @@ class AiExecutor:
             # Extracts and logs the results
             self.test_results = response.output[1].content[0].parsed.results
             for test_result in self.test_results:
-                print(f"""{test_result}\n""")
+                logger.debug("AI test result: %s", test_result)
             self.mapback()
             return self.test_result_references
 
         except Exception as e:
-            print(f"An error occurred while running the AI tests: {e}")
+            logger.error("An error occurred while running the AI tests: %s", e)
             return []
 
 

@@ -7,9 +7,12 @@ It provides a centralized way to access templates and their metadata.
 This is a singleton service that should be instantiated once at application startup.
 """
 
+import logging
 from typing import Dict, List, Optional
 from autograder.models.abstract.template import Template
 from autograder.template_library import TEMPLATE_REGISTRY, get_template_instance
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateLibraryService:
@@ -50,7 +53,7 @@ class TemplateLibraryService:
                 self._templates[template_name] = get_template_instance(template_name)
             except Exception as e:
                 # Log the error but continue loading other templates
-                print(f"Warning: Failed to load template '{template_name}': {e}")
+                logger.warning("Failed to load template '%s': %s", template_name, e)
 
     @classmethod
     def get_instance(cls) -> 'TemplateLibraryService':

@@ -3,9 +3,12 @@
 # https://aws.amazon.com/developer/language/python/
 
 import boto3
-import os
 import json
+import logging
+import os
 from botocore.exceptions import ClientError
+
+logger = logging.getLogger(__name__)
 
 def get_secret(secret_key : str, secret_name : str = None, region : str = "us-east-1"):
     """
@@ -32,7 +35,7 @@ def get_secret(secret_key : str, secret_name : str = None, region : str = "us-ea
         # In production, get the key from Secrets Manager
         return _get_secret_from_manager(secret_name, secret_key, region)
     # In development, get the key from a local environment variable
-    print("Fetching secret from local environment variable...")
+    logger.debug("Fetching secret from local environment variable...")
     api_key = os.environ.get(secret_key)
     if not api_key:
         raise ValueError("Environment variable not set for development.")
