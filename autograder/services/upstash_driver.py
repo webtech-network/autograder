@@ -1,7 +1,10 @@
 import json
+import logging
 import os
 from dotenv import load_dotenv
 from upstash_redis import Redis
+
+logger = logging.getLogger(__name__)
 
 load_dotenv() #TODO: place this in application startup
 class UpstashDriver:
@@ -49,11 +52,11 @@ class UpstashDriver:
             "quota": 10,
             "score": -1.0
         })
-        print(f"User '{username}' created.")
+        logger.info("User '%s' created.", username)
 
     def set_score(self, username: str, score: float):
         """Function to set the score of a user"""
         key = f"user:{username}"
         self.redis.hset(key, "score", score)
-        print(f"Score '{score}' set for user '{username}'.")
+        logger.info("Score '%s' set for user '%s'.", score, username)
 
