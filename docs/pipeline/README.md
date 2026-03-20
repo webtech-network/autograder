@@ -97,7 +97,7 @@ The `data` field is polymorphic — each step stores a different type:
 | PRE_FLIGHT | `SandboxContainer \| None` |
 | GRADE | `GradeStepResult` |
 | FOCUS | `Focus` |
-| FEEDBACK | `StepResult` (with feedback text) |
+| FEEDBACK | `str` (Markdown feedback) |
 | EXPORTER | `None` |
 
 ### Step Interface
@@ -126,7 +126,7 @@ Steps read data from previous steps via `pipeline_exec.get_step_result(StepName.
 | **Pre-Flight** | Load Template (checks if template requires sandbox) |
 | **Grade** | Load Template, Build Tree, Pre-Flight (optional — only if template requires sandbox) |
 | **Focus** | Grade (needs the `ResultTree` from grading) |
-| **Feedback** | Focus (needs the `Focus` object with ranked tests) |
+| **Feedback** | Grade, Focus (needs the `ResultTree` and `Focus` objects) |
 | **Export** | Grade (needs the final score) |
 
 The pipeline enforces ordering through insertion order, not through explicit dependency declarations. Steps are always added in the correct sequence by `build_pipeline()`.

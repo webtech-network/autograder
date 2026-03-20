@@ -277,10 +277,10 @@ These items prepare the codebase for future growth by establishing patterns and 
 
 | # | Item | Priority | Status |
 |---|------|----------|--------|
-| 1 | Fix inverted reporter mode | 🔴 P1 | ⬜ To Do |
-| 2 | Implement DefaultReporter | 🔴 P1 | ⬜ To Do |
+| 1 | Fix inverted reporter mode | 🔴 P1 | ✅ Done |
+| 2 | Implement DefaultReporter | 🔴 P1 | ✅ Done |
 | 3 | Remove stale test_library field | 🔴 P1 | ⬜ To Do |
-| 4 | Fix FeedbackStep contract | 🔴 P1 | ⬜ To Do |
+| 4 | Fix FeedbackStep contract | 🔴 P1 | ✅ Done |
 | 5 | Decouple sandbox from pre-flight | 🟡 P2 | ⬜ To Do |
 | 6 | Decouple GraderService state | 🟡 P2 | ⬜ To Do |
 | 7 | Extract language resolution | 🟡 P2 | ✅ Done |
