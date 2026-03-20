@@ -32,3 +32,13 @@ class StepResult(Generic[T]):
     @property
     def is_successful(self) -> bool:
         return self.status == StepStatus.SUCCESS and self.error is None
+
+    @classmethod
+    def success(cls, step: StepName, data: T) -> "StepResult[T]":
+        """Creates a successful StepResult."""
+        return cls(step=step, data=data, status=StepStatus.SUCCESS)
+
+    @classmethod
+    def fail(cls, step: StepName, error: str, data: Optional[T] = None) -> "StepResult[T]":
+        """Creates a failed StepResult."""
+        return cls(step=step, data=data, status=StepStatus.FAIL, error=error)

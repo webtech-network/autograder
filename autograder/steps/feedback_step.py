@@ -26,12 +26,19 @@ class FeedbackStep(Step):
         try:
             logger.info("Generating feedback (external_user_id=%s)", pipeline_exec.submission.user_id)
             focused_tests: Focus = pipeline_exec.get_step_result(StepName.FOCUS).data
-            feedback = self._reporter_service.generate_feedback(
+            grade_result = pipeline_exec.get_step_result(StepName.GRADE).data
+            
+            feedback_content = self._reporter_service.generate_feedback(
                 grading_result=focused_tests,
+                result_tree=grade_result.result_tree,
                 feedback_config=self._feedback_config
-            ) #TODO: Implement generate_feedback method @joaovitoralvarenga
+            )
+            feedback = StepResult.success(
+                step=StepName.FEEDBACK,
+                data=feedback_content
+            )
             logger.info("Feedback generated (external_user_id=%s)", pipeline_exec.submission.user_id)
-            return pipeline_exec.add_step_result(feedback) #Assuming feedback is a StepResult
+            return pipeline_exec.add_step_result(feedback)
         except Exception as e:
             logger.error(
                 "Feedback generation failed: external_user_id=%s, error=%s",
@@ -39,9 +46,8 @@ class FeedbackStep(Step):
                 str(e),
             )
             return pipeline_exec.add_step_result(
-                StepResult(
-                step=StepName.FEEDBACK,
-                data=None,
-                status=StepStatus.FAIL,
-                error=f"Failed to generate feedback: {str(e)}")
+                StepResult.fail(
+                    step=StepName.FEEDBACK,
+                    error=f"Failed to generate feedback: {str(e)}"
+                )
             )
