@@ -22,6 +22,10 @@ class ResultTreeFormatter:
         """Returns the main header for the result tree."""
         return [self.main_divisor(), "# 🎯 RESULT TREE", self.main_divisor()]
 
+    def summary_header(self) -> List[str]:
+        """Returns the header for the grading summary."""
+        return [self.main_divisor(), "## 📊 GRADING SUMMARY", self.main_divisor()]
+
     def resume(self, tree: ResultTree) -> str:
         """Returns a summarized test result with icons."""
         return (
@@ -50,6 +54,22 @@ class ResultTreeFormatter:
         """Returns a status icon based on the score."""
         return "✅" if score >= 100 else "❌"
 
+    def format_category(self, category: CategoryResultNode) -> str:
+        """Formats a category result node."""
+        return (
+            f"## 📘 {category.name.capitalize()} "
+            f"[weight: {category.weight:.0f}%] "
+            f"{self.icon_score(category.score)} {category.score:.1f}/100"
+        )
+
+    def format_subject(self, subject: SubjectResultNode) -> str:
+        """Formats a subject result node."""
+        return (
+            f"### 📘 {subject.name.capitalize()} "
+            f"[weight: {subject.weight:.0f}%] "
+            f"{self.icon_score(subject.score)} {subject.score:.1f}/100"
+        )
+
     def format_test(self, test: TestResultNode) -> str:
         """Formats a single test result as an H3 header with status."""
         status = self.icon_status(test.score)
@@ -72,6 +92,41 @@ class ResultTreeFormatter:
         if test.report:
             label = "Erro" if test.score < 100 else "Feedback"
             result.append(f"- 💬 **{label}:** {test.report}")
+
+        return result
+
+    def format_test_results(self, tree: ResultTree) -> List[str]:
+        """Formats overall test statistics."""
+        result = []
+        all_tests = tree.get_all_test_results()
+        passed = tree.get_passed_tests()
+        failed = tree.get_failed_tests()
+
+        result.append("### 📈 Estatísticas dos Testes")
+        result.append(f"- **Total:** {len(all_tests)}")
+        result.append(
+            f"- ✅ **Passou:** {len(passed)} ({len(passed) / len(all_tests) * 100:.1f}%)"
+        )
+        result.append(
+            f"- ❌ **Falhou:** {len(failed)} ({len(failed) / len(all_tests) * 100:.1f}%)"
+        )
+
+        avg_score = sum(t.score for t in all_tests) / len(all_tests)
+        result.append(f"- 📊 **Média de Notas:** {avg_score:.2f}")
+
+        return result
+
+    def format_failed_test_results(self, tree: ResultTree) -> List[str]:
+        """Formats a summary of failed tests."""
+        result = []
+        failed_tests = tree.get_failed_tests()
+
+        if failed_tests:
+            result.append("### ❌ Testes com Falha")
+            for test in failed_tests:
+                result.append(f"- **{test.name}:** {test.score:.1f}/100")
+                if test.report:
+                    result.append(f"  - 💬 {test.report}")
 
         return result
 

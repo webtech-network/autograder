@@ -46,9 +46,9 @@ class TestDefaultReporter(unittest.TestCase):
         report = self.reporter.generate_report(self.focus, self.result_tree, preferences)
         
         self.assertIn("Test Report", report)
-        self.assertIn("📊 RESUMO", report)
-        self.assertIn("Test 1", report)
-        self.assertIn("🏆 Final Score: 90.00/100", report)
+        self.assertIn("## 📊 RESUMO", report)
+        self.assertIn("### 🧪 Test 1", report)
+        self.assertIn("> **90.00 / 100**", report)
 
     def test_show_passed_tests_toggle(self):
         """Tests that passed tests are shown or hidden based on preferences."""
