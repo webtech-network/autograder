@@ -39,7 +39,7 @@ outputs:
 # Configures how the action is executed.
 runs:
   using: docker
-  image: "github_action/Dockerfile.actions"
+  image: "Dockerfile.actions"
   # Use 'env' to pass named variables to the container
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
