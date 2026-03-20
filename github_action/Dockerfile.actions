@@ -22,10 +22,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 6. Copy the rest of your application code
 COPY . .
 
-# 8. Copy the entrypoint and make it executable
-COPY github_action/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# 8. Make the entrypoint executable (already copied via COPY . .)
+RUN chmod +x /app/github_action/entrypoint.sh
 
 # 9. Set the entrypoint for the container
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/github_action/entrypoint.sh"]
 
