@@ -36,14 +36,13 @@ class DefaultReporter:
 
     def _add_title(self, preferences):
         title = preferences.general.report_title if preferences else "Relatório de Avaliação"
-        return [self._formatter.main_divisor(), title, self._formatter.main_divisor()]
+        return [f"# {title}", ""]
 
     def _add_summary(self, result_tree):
-        lines = ["", "📊 RESUMO"]
+        lines = [self._formatter.main_divisor(), "## 📊 RESUMO"]
         if result_tree.template_name:
             lines.append(self._formatter.template_name(result_tree.template_name))
         lines.append(self._formatter.resume(result_tree))
-        lines.append(self._formatter.secondary_divisor())
         return lines
 
     def _add_categorized_results(self, focus, preferences):
@@ -65,9 +64,11 @@ class DefaultReporter:
 
             if filtered_tests:
                 lines.append("")
-                lines.append(header)
+                lines.append(self._formatter.main_divisor())
+                lines.append(f"## {header}")
                 for focused_test in filtered_tests:
                     test = focused_test.test_result
+                    lines.append("")
                     lines.append(self._formatter.format_test(test))
                     details = self._formatter.format_test_details(test)
                     if details:
@@ -78,13 +79,14 @@ class DefaultReporter:
         return [
             "",
             self._formatter.main_divisor(),
-            self._formatter.final_score(score),
-            self._formatter.main_divisor()
+            "## 🏆 Nota Final",
+            "",
+            self._formatter.final_score(score)
         ]
 
     def _add_online_resources(self, resources):
-        lines = ["", "📚 RECURSOS DE APRENDIZADO"]
+        lines = ["", self._formatter.main_divisor(), "## 📚 Recursos de Aprendizado", ""]
         for resource in resources:
-            lines.append(f"• {resource.description}: {resource.url}")
+            lines.append(f"- 📘 [{resource.description}]({resource.url})")
         return lines
 
