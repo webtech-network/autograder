@@ -1,17 +1,17 @@
+from unittest.mock import MagicMock
 import sys
 from pathlib import Path
-
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from unittest.mock import MagicMock
 from autograder.services.report.default_reporter import DefaultReporter
-from autograder.models.dataclass.feedback_preferences import FeedbackPreferences, GeneralPreferences, DefaultReporterPreferences, LearningResource, AiReporterPreferences
+from autograder.models.dataclass.feedback_preferences import (
+    FeedbackPreferences, GeneralPreferences, DefaultReporterPreferences,
+    LearningResource, AiReporterPreferences
+)
 from autograder.models.dataclass.focus import Focus, FocusedTest
-from autograder.models.result_tree import TestResultNode, ResultTree, RootResultNode, CategoryResultNode
+from autograder.models.result_tree import TestResultNode, ResultTree, RootResultNode
+
 
 def create_mock_test(name, score, report, file_targets=None):
+    """Creates a mock TestResultNode for testing reporting."""
     test_node = MagicMock(spec=TestResultNode)
     test_node.name = name
     test_node.score = score
@@ -22,6 +22,7 @@ def create_mock_test(name, score, report, file_targets=None):
     return test_node
 
 def run_playroom():
+    """Runs a demonstration of the DefaultReporter with mock data."""
     reporter = DefaultReporter()
     
     # 1. Setup Mock Results

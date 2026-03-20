@@ -3,7 +3,7 @@ import logging
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.focus import Focus 
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
+from autograder.models.dataclass.step_result import StepName, StepResult
 from autograder.services.report.reporter_service import ReporterService
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class FeedbackStep(Step):
             )
             logger.info("Feedback generated (external_user_id=%s)", pipeline_exec.submission.user_id)
             return pipeline_exec.add_step_result(feedback)
-        except Exception as e:
+        except (ValueError, KeyError, AttributeError, TypeError, RuntimeError) as e:
             logger.error(
                 "Feedback generation failed: external_user_id=%s, error=%s",
                 pipeline_exec.submission.user_id,

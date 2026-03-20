@@ -6,11 +6,13 @@ T = TypeVar("T")
 
 
 class StepStatus(Enum):
+    """Enumeration of possible step execution statuses."""
     SUCCESS = "success"
     FAIL = "fail"
 
 
 class StepName(Enum):
+    """Enumeration of all available pipeline steps."""
     BOOTSTRAP = "BootstrapStep"
     LOAD_TEMPLATE = "LoadTemplateStep"
     BUILD_TREE = "BuildTreeStep"
@@ -23,6 +25,7 @@ class StepName(Enum):
 
 @dataclass
 class StepResult(Generic[T]):
+    """Represents the result of a single pipeline step execution."""
     step: StepName
     data: T
     status: StepStatus = StepStatus.SUCCESS
@@ -31,6 +34,7 @@ class StepResult(Generic[T]):
 
     @property
     def is_successful(self) -> bool:
+        """Checks if the step execution was successful and has no errors."""
         return self.status == StepStatus.SUCCESS and self.error is None
 
     @classmethod

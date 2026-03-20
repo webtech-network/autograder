@@ -8,7 +8,9 @@ from autograder.models.dataclass.step_result import StepResult, StepName, StepSt
 from autograder.models.dataclass.focus import Focus
 
 class TestFeedbackStepIntegration(unittest.TestCase):
+    """Integration tests for the FeedbackStep."""
     def test_feedback_step_execute(self):
+        """Tests the execution of FeedbackStep and its integration with ReporterService."""
         # Setup
         feedback_mode = "default"
         reporter_service = ReporterService(feedback_mode=feedback_mode)

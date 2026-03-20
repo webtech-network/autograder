@@ -1,21 +1,28 @@
 from autograder.services.report.default_reporter import DefaultReporter
 from autograder.services.report.ai_reporter import AiReporter
+from autograder.models.dataclass.feedback_preferences import (
+    FeedbackPreferences, GeneralPreferences, AiReporterPreferences, DefaultReporterPreferences
+)
+
 
 class ReporterService:
+    """Service that manages feedback generation using different reporter types."""
+
     def __init__(self, feedback_mode: str):
         if feedback_mode == "ai":
             self._reporter = AiReporter()
         else:
             self._reporter = DefaultReporter()
 
+    @property
+    def reporter(self):
+        """Returns the active reporter instance."""
+        return self._reporter
+
     def generate_feedback(self, grading_result, result_tree, feedback_config: dict):
         """
         Parses config into FeedbackPreferences and delegates report generation to the active reporter.
         """
-        from autograder.models.dataclass.feedback_preferences import (
-            FeedbackPreferences, GeneralPreferences, AiReporterPreferences, DefaultReporterPreferences
-        )
-
         # Simple manual parsing of the nested config dict into FeedbackPreferences
         general_cfg = feedback_config.get("general", {})
         ai_cfg = feedback_config.get("ai", {})
@@ -28,8 +35,8 @@ class ReporterService:
         )
 
         report_content = self._reporter.generate_report(
-            focus=grading_result, 
-            result_tree=result_tree, 
+            focus=grading_result,
+            result_tree=result_tree,
             preferences=preferences
         )
 
