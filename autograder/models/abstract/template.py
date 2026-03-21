@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Dict
 
 from autograder.models.abstract.test_function import TestFunction
 
@@ -19,18 +19,6 @@ class Template(ABC):
     @abstractmethod
     def requires_sandbox(self) -> bool:
         pass
-
-    @property
-    def requires_pre_executed_tree(self) -> bool:
-        return False
-
-    @property
-    def execution_helper(self) -> Any:
-        return None
-
-    @property
-    def requires_execution_helper(self) -> bool:
-        return self.execution_helper is not None
 
     @abstractmethod
     def get_test(self, name: str) -> TestFunction:

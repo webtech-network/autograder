@@ -82,16 +82,6 @@ class MockTemplate(Template):
         """Mock templates don't require sandboxes."""
         return False
 
-    @property
-    def requires_pre_executed_tree(self) -> bool:
-        """Mock templates don't require pre-executed trees."""
-        return False
-
-    @property
-    def execution_helper(self):
-        """No execution helper needed for mocks."""
-        return None
-
     def stop(self):
         """No cleanup needed for mock templates."""
         pass

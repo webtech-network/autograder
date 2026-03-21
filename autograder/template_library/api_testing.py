@@ -143,10 +143,6 @@ class ApiTestingTemplate(Template):
         return "Um modelo para avaliar tarefas onde alunos criam uma API web."
 
     @property
-    def requires_pre_executed_tree(self) -> bool:
-        return False
-
-    @property
     def requires_sandbox(self) -> bool:
         return True
 
@@ -164,4 +160,3 @@ class ApiTestingTemplate(Template):
         if not test_function:
             raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
         return test_function
-

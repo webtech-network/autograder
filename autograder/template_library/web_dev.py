@@ -1361,16 +1361,8 @@ class WebDevTemplate(Template):
         return "Um template abrangente para trabalhos de desenvolvimento web, incluindo testes para HTML, CSS e JavaScript."
 
     @property
-    def requires_pre_executed_tree(self) -> bool:
-        return False
-
-    @property
     def requires_sandbox(self) -> bool:
         return False
-
-    @property
-    def execution_helper(self):
-        return None
 
     def __init__(self, clean=False):
         self.tests = {
