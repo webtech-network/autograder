@@ -50,7 +50,9 @@ class TemplateLibraryService:
         """Load and cache all template instances at startup."""
         for template_name in TEMPLATE_REGISTRY:
             try:
-                self._templates[template_name] = get_template_instance(template_name)
+                template = get_template_instance(template_name)
+                template.validate_contract()
+                self._templates[template_name] = template
             except Exception as e:
                 # Log the error but continue loading other templates
                 logger.warning("Failed to load template '%s': %s", template_name, e)
@@ -199,4 +201,3 @@ class TemplateLibraryService:
             NotImplementedError: This feature is not yet implemented
         """
         raise NotImplementedError("Custom template loading is not yet implemented. This feature requires sandboxed environment support.")
-
