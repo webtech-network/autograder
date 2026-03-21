@@ -105,8 +105,7 @@ class AutograderPipeline:
             if pipeline_execution.has_step_result(StepName.PRE_FLIGHT):
                 from sandbox_manager.manager import get_sandbox_manager
 
-                preflight_result = pipeline_execution.get_step_result(StepName.PRE_FLIGHT)
-                sandbox = preflight_result.data
+                sandbox = pipeline_execution.get_sandbox()
 
                 if sandbox:  # Only if a sandbox was created
                     manager = get_sandbox_manager()
