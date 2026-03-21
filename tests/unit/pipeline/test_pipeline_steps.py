@@ -88,11 +88,6 @@ class MockTemplate(Template):
         return False
 
     @property
-    def requires_execution_helper(self) -> bool:
-        """Mock templates don't require execution helpers."""
-        return False
-
-    @property
     def execution_helper(self):
         """No execution helper needed for mocks."""
         return None

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any, Dict
 
 from autograder.models.abstract.test_function import TestFunction
 
@@ -19,10 +20,34 @@ class Template(ABC):
     def requires_sandbox(self) -> bool:
         pass
 
+    @property
+    def requires_pre_executed_tree(self) -> bool:
+        return False
+
+    @property
+    def execution_helper(self) -> Any:
+        return None
+
+    @property
+    def requires_execution_helper(self) -> bool:
+        return self.execution_helper is not None
+
     @abstractmethod
     def get_test(self, name: str) -> TestFunction:
         pass
 
-    def get_tests(self):
-        return self.tests
+    def get_tests(self) -> Dict[str, TestFunction]:
+        tests = getattr(self, "tests", None)
+        if not isinstance(tests, dict):
+            raise TypeError("Template must define a 'tests' dictionary.")
+        return tests
 
+    def validate_contract(self) -> None:
+        tests = self.get_tests()
+        for test_name, test_function in tests.items():
+            if not isinstance(test_name, str):
+                raise TypeError("Template tests keys must be strings.")
+            if not isinstance(test_function, TestFunction):
+                raise TypeError(
+                    f"Template test '{test_name}' must be a TestFunction instance."
+                )
