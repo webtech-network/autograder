@@ -8,9 +8,11 @@ This is a singleton service that should be instantiated once at application star
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Type
 from autograder.models.abstract.template import Template
-from autograder.template_library import TEMPLATE_REGISTRY, get_template_instance
+from autograder.template_library.web_dev import WebDevTemplate
+from autograder.template_library.api_testing import ApiTestingTemplate
+from autograder.template_library.input_output import InputOutputTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,11 @@ class TemplateLibraryService:
 
     _instance: Optional['TemplateLibraryService'] = None
     _initialized: bool = False
+    _TEMPLATE_REGISTRY: Dict[str, Type[Template]] = {
+        "webdev": WebDevTemplate,
+        "api": ApiTestingTemplate,
+        "input_output": InputOutputTemplate,
+    }
 
     def __new__(cls):
         """Ensure only one instance of the service exists."""
@@ -48,9 +55,10 @@ class TemplateLibraryService:
 
     def _load_all_templates(self):
         """Load and cache all template instances at startup."""
-        for template_name in TEMPLATE_REGISTRY:
+        for template_name in self._TEMPLATE_REGISTRY:
             try:
-                self._templates[template_name] = get_template_instance(template_name)
+                template_class = self._TEMPLATE_REGISTRY[template_name]
+                self._templates[template_name] = template_class()
             except Exception as e:
                 # Log the error but continue loading other templates
                 logger.warning("Failed to load template '%s': %s", template_name, e)
@@ -137,7 +145,7 @@ class TemplateLibraryService:
         Returns:
             A list of template identifier strings
         """
-        return list(TEMPLATE_REGISTRY.keys())
+        return list(self._TEMPLATE_REGISTRY.keys())
 
     def get_all_templates_info(self) -> List[dict]:
         """
@@ -199,4 +207,3 @@ class TemplateLibraryService:
             NotImplementedError: This feature is not yet implemented
         """
         raise NotImplementedError("Custom template loading is not yet implemented. This feature requires sandboxed environment support.")
-
