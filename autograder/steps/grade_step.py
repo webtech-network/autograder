@@ -43,20 +43,15 @@ class GradeStep(Step):
             # Check if PRE_FLIGHT step was executed (only if setup_config was provided)
             sandbox = pipeline_exec.get_sandbox()
 
-            if sandbox:
-                self._grader_service.set_sandbox(sandbox)
-
             if not sandbox and template.requires_sandbox:
                 raise RuntimeError("Grading template requires a sandbox environment, but no sandbox was created")
-
-            # Set submission language for command resolution
-            if pipeline_exec.submission.language:
-                self._grader_service.set_submission_language(pipeline_exec.submission.language)
 
             criteria_tree = pipeline_exec.get_built_criteria_tree()
             result_tree = self._grader_service.grade_from_tree(
                 criteria_tree=criteria_tree,
-                submission_files=pipeline_exec.submission.submission_files
+                submission_files=pipeline_exec.submission.submission_files,
+                sandbox=sandbox,
+                submission_language=pipeline_exec.submission.language,
             )
 
             # Create grading result
