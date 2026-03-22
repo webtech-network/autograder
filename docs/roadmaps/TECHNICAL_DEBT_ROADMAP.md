@@ -196,11 +196,11 @@ These items address inconsistencies, dead code, and patterns that make the codeb
 #### Item 16: Standardize the `Template` Abstract Class Contract
 
 - **File:** `autograder/models/abstract/template.py`
-- **Problem:** The `Template` ABC defines `get_test(name)` as abstract but `get_tests()` as a concrete method that accesses `self.tests` — an attribute that is not declared in the abstract class. Each concrete template (`WebDevTemplate`, `InputOutputTemplate`, `ApiTestingTemplate`) defines `self.tests` as a dict in `__init__`, but this is a convention, not a contract. The ABC also has properties like `requires_pre_executed_tree` and `execution_helper` that appear on some templates (`WebDevTemplate`, `ApiTestingTemplate`) but are not part of the abstract class.
-- **Impact:** The abstract class doesn't fully describe what a template must provide. A new template author must read existing implementations to understand the implicit contract (must have `self.tests` dict, may need `requires_pre_executed_tree`, etc.).
+- **Problem:** The `Template` ABC defines `get_test(name)` as abstract but `get_tests()` as a concrete method that accesses `self.tests` — an attribute that is not declared in the abstract class. Each concrete template (`WebDevTemplate`, `InputOutputTemplate`, `ApiTestingTemplate`) defines `self.tests` as a dict in `__init__`, but this is a convention, not a contract.
+- **Impact:** The abstract class doesn't fully describe what a template must provide. A new template author must read existing implementations to understand the implicit contract (must have `self.tests` dict, etc.).
 - **Action:**
   - Add `tests: Dict[str, TestFunction]` as a declared attribute (or abstract property) on the `Template` ABC.
-  - Either add `requires_pre_executed_tree` and `execution_helper` to the ABC with default implementations, or remove them from concrete templates if they're unused (they currently return `False` and `None` respectively and nothing reads them).
+  - Remove legacy/unused attributes from template implementations so the active contract only reflects currently used behavior.
   - Audit all template properties to ensure the ABC is the single source of truth for the template contract.
 
 ---
