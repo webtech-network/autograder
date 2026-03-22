@@ -2,8 +2,8 @@ import logging
 
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.focus import Focus 
+from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.models.dataclass.step_result import StepName, StepResult
 from autograder.services.report.reporter_service import ReporterService
 
 logger = logging.getLogger(__name__)
@@ -25,20 +25,22 @@ class FeedbackStep(Step):
         """Adds feedback to the grading result using the reporter service."""
         try:
             logger.info("Generating feedback (external_user_id=%s)", pipeline_exec.submission.user_id)
-            focused_tests: Focus = pipeline_exec.get_step_result(StepName.FOCUS).data
-            grade_result = pipeline_exec.get_step_result(StepName.GRADE).data
+            focused_tests: Focus = pipeline_exec.require_focus()
+            result_tree = pipeline_exec.get_result_tree()
             
             feedback_content = self._reporter_service.generate_feedback(
                 grading_result=focused_tests,
-                result_tree=grade_result.result_tree,
+                result_tree=result_tree,
                 feedback_config=self._feedback_config
             )
-            feedback = StepResult.success(
-                step=StepName.FEEDBACK,
-                data=feedback_content
-            )
             logger.info("Feedback generated (external_user_id=%s)", pipeline_exec.submission.user_id)
-            return pipeline_exec.add_step_result(feedback)
+            return pipeline_exec.add_step_result(
+                StepResult(
+                    step=StepName.FEEDBACK,
+                    data=feedback_content,
+                    status=StepStatus.SUCCESS,
+                )
+            )
         except (ValueError, KeyError, AttributeError, TypeError, RuntimeError) as e:
             logger.error(
                 "Feedback generation failed: external_user_id=%s, error=%s",
@@ -46,8 +48,10 @@ class FeedbackStep(Step):
                 str(e),
             )
             return pipeline_exec.add_step_result(
-                StepResult.fail(
+                StepResult(
                     step=StepName.FEEDBACK,
-                    error=f"Failed to generate feedback: {str(e)}"
+                    data=None,
+                    status=StepStatus.FAIL,
+                    error=f"Failed to generate feedback: {str(e)}",
                 )
             )

@@ -26,7 +26,7 @@ class ExporterStep(Step):
         try:
             # Extract external_user_id and score from input
             external_user_id = pipeline_exec.submission.user_id
-            score = pipeline_exec.get_step_result(StepName.GRADE).data.final_score
+            score = pipeline_exec.get_grade_step_result().final_score
 
             logger.info("Exporting result: external_user_id=%s, score=%.2f", external_user_id, score)
             self._exporter_service.set_score(external_user_id, score)
