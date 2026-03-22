@@ -1,7 +1,7 @@
 import logging
 
 from autograder.models.abstract.step import Step
-from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
+from autograder.models.dataclass.step_result import StepResult, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.focus_service import FocusService
 
@@ -27,7 +27,7 @@ class FocusStep(Step):
 
         try:
             logger.info("Identifying focus areas (external_user_id=%s)", pipeline_exec.submission.user_id)
-            result_tree = pipeline_exec.get_step_result(StepName.GRADE).data.result_tree
+            result_tree = pipeline_exec.get_result_tree()
             main_subjects = self.__focus_service.find(result_tree)
             logger.info(
                 "Focus areas identified (external_user_id=%s)",

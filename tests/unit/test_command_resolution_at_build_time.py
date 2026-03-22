@@ -45,10 +45,7 @@ class RecordingTestFunction(TestFunction):
 
 
 def _make_grader(language=None) -> GraderService:
-    svc = GraderService()
-    if language:
-        svc.set_submission_language(language)
-    return svc
+    return GraderService(), language
 
 
 def _make_test_node(params: dict, fn: TestFunction = None) -> TestNode:
@@ -66,7 +63,7 @@ class TestDictCommandResolutionInProcessTest:
 
     def test_dict_command_resolved_for_python(self):
         """Test proper dict resolution for Python language."""
-        svc = _make_grader(Language.PYTHON)
+        svc, language = _make_grader(Language.PYTHON)
         fn = RecordingTestFunction()
         node = _make_test_node({
             "program_command": {
@@ -75,13 +72,13 @@ class TestDictCommandResolutionInProcessTest:
             }
         }, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert fn.recorded_kwargs["program_command"] == "python3 calc.py"
 
     def test_dict_command_resolved_for_java(self):
         """Test proper dict resolution for Java language."""
-        svc = _make_grader(Language.JAVA)
+        svc, language = _make_grader(Language.JAVA)
         fn = RecordingTestFunction()
         node = _make_test_node({
             "program_command": {
@@ -90,13 +87,13 @@ class TestDictCommandResolutionInProcessTest:
             }
         }, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert fn.recorded_kwargs["program_command"] == "java Calc"
 
     def test_dict_command_missing_language_gives_none(self):
         """When language is not in the dict, resolved value is None."""
-        svc = _make_grader(Language.NODE)
+        svc, language = _make_grader(Language.NODE)
         fn = RecordingTestFunction()
         node = _make_test_node({
             "program_command": {
@@ -105,7 +102,7 @@ class TestDictCommandResolutionInProcessTest:
             }
         }, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert fn.recorded_kwargs["program_command"] is None
 
@@ -119,31 +116,31 @@ class TestCmdPlaceholderResolution:
 
     def test_cmd_resolved_for_python(self):
         """Test CMD placeholder resolves appropriately for Python."""
-        svc = _make_grader(Language.PYTHON)
+        svc, language = _make_grader(Language.PYTHON)
         fn = RecordingTestFunction()
         node = _make_test_node({"program_command": "CMD"}, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert fn.recorded_kwargs["program_command"] == "python3 main.py"
 
     def test_cmd_resolved_for_java(self):
         """Test CMD placeholder resolves appropriately for Java."""
-        svc = _make_grader(Language.JAVA)
+        svc, language = _make_grader(Language.JAVA)
         fn = RecordingTestFunction()
         node = _make_test_node({"program_command": "CMD"}, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert fn.recorded_kwargs["program_command"] == "java Main"
 
     def test_cmd_resolved_for_node(self):
         """Test CMD placeholder resolves appropriately for Node.js."""
-        svc = _make_grader(Language.NODE)
+        svc, language = _make_grader(Language.NODE)
         fn = RecordingTestFunction()
         node = _make_test_node({"program_command": "CMD"}, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert fn.recorded_kwargs["program_command"] == "node index.js"
 
@@ -157,11 +154,11 @@ class TestInvalidFormatHandled:
 
     def test_invalid_string_command_is_none(self):
         """Test non-CMD single strings fall back to None directly."""
-        svc = _make_grader(Language.PYTHON)
+        svc, language = _make_grader(Language.PYTHON)
         fn = RecordingTestFunction()
         node = _make_test_node({"program_command": "python3 my_script.py"}, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         # Non-CMD strings are invalid without legacy fallback, returning None
         assert fn.recorded_kwargs["program_command"] is None
@@ -176,23 +173,23 @@ class TestNoLanguageNoResolution:
 
     def test_dict_unchanged_when_no_language(self):
         """Without language, dict program_command is left as-is (resolver not called)."""
-        svc = _make_grader()          # no language
+        svc, language = _make_grader()          # no language
         fn = RecordingTestFunction()
         cmd_dict = {"python": "python3 calc.py"}
         node = _make_test_node({"program_command": cmd_dict}, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         # Dict should reach execute() untouched — resolution was skipped
         assert fn.recorded_kwargs["program_command"] == cmd_dict
 
     def test_cmd_unchanged_when_no_language(self):
         """Without language, CMD placeholder is unchanged (resolver not called)."""
-        svc = _make_grader()
+        svc, language = _make_grader()
         fn = RecordingTestFunction()
         node = _make_test_node({"program_command": "CMD"}, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert fn.recorded_kwargs["program_command"] == "CMD"
 
@@ -206,33 +203,33 @@ class TestNoHiddenKwarg:
 
     def test_no_hidden_kwarg_with_language_set(self):
         """Even when language is set, __submission_language__ must not appear in execute()."""
-        svc = _make_grader(Language.PYTHON)
+        svc, language = _make_grader(Language.PYTHON)
         fn = RecordingTestFunction()
         node = _make_test_node({"program_command": "CMD"}, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert "__submission_language__" not in fn.recorded_kwargs
 
     def test_no_hidden_kwarg_without_language(self):
         """Hidden kwarg shouldn't appear even if there is no language to configure."""
-        svc = _make_grader()
+        svc, language = _make_grader()
         fn = RecordingTestFunction()
         node = _make_test_node({}, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert "__submission_language__" not in fn.recorded_kwargs
 
     def test_no_hidden_kwarg_with_dict_command(self):
         """Hidden kwarg shouldn't appear even if there is a dict correctly configured."""
-        svc = _make_grader(Language.JAVA)
+        svc, language = _make_grader(Language.JAVA)
         fn = RecordingTestFunction()
         node = _make_test_node({
             "program_command": {"python": "python3 a.py", "java": "java A"}
         }, fn)
 
-        svc.process_test(node)
+        svc.process_test(node, submission_language=language)
 
         assert "__submission_language__" not in fn.recorded_kwargs
 

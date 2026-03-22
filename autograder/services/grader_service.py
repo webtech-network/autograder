@@ -23,45 +23,40 @@ class GraderService:
 
     def __init__(self):
         self.logger = logging.getLogger("GraderService")
-        self.__submission_files = None
-        self._sandbox = None
-        self._submission_language = None
         self._command_resolver = CommandResolver()
-
-    def set_sandbox(self, sandbox):
-        """Bind a sandbox environment to be used for executing test scenarios."""
-        self._sandbox = sandbox
-
-    def has_sandbox(self) -> bool:
-        """Check if a sandbox environment has been successfully bound to the grader."""
-        return self._sandbox is not None
-
-    def set_submission_language(self, language):
-        """Set the submission language so program_command can be resolved before execution."""
-        self._submission_language = language
 
     def grade_from_tree(
         self,
         criteria_tree: CriteriaTree,
         submission_files: Dict[str, SubmissionFile],
+        sandbox=None,
+        submission_language=None,
     ) -> ResultTree:
         """Traverse the generic built criteria tree to resolve inputs, grades and report to ResultTree."""
-        self.__submission_files = submission_files
-
-        # Create root node with category results
-
-        # Process base category (required)
-        base_result = self.process_category(criteria_tree.base)
+        base_result = self.process_category(
+            criteria_tree.base,
+            submission_files=submission_files,
+            sandbox=sandbox,
+            submission_language=submission_language,
+        )
         root = RootResultNode(name="root", base=base_result)
 
-        # Process bonus category (optional)
         if criteria_tree.bonus:
-            bonus_result = self.process_category(criteria_tree.bonus)
+            bonus_result = self.process_category(
+                criteria_tree.bonus,
+                submission_files=submission_files,
+                sandbox=sandbox,
+                submission_language=submission_language,
+            )
             root.bonus = bonus_result
 
-        # Process penalty category (optional)
         if criteria_tree.penalty:
-            penalty_result = self.process_category(criteria_tree.penalty)
+            penalty_result = self.process_category(
+                criteria_tree.penalty,
+                submission_files=submission_files,
+                sandbox=sandbox,
+                submission_language=submission_language,
+            )
             root.penalty = penalty_result
 
         result_tree = ResultTree(root)
@@ -104,7 +99,11 @@ class GraderService:
     def __process_holder(self, holder: SubjectNode) -> SubjectResultNode: ...
 
     def __process_holder(
-        self, holder: CategoryNode | SubjectNode
+        self,
+        holder: CategoryNode | SubjectNode,
+        submission_files: Dict[str, SubmissionFile],
+        sandbox=None,
+        submission_language=None,
     ) -> CategoryResultNode | SubjectResultNode:
         """Process a category or subject node and create corresponding result node."""
 
@@ -122,14 +121,28 @@ class GraderService:
         subject_results = []
         if holder.subjects:
             subject_results = [
-                self.process_subject(inner_subject) for inner_subject in holder.subjects
+                self.process_subject(
+                    inner_subject,
+                    submission_files=submission_files,
+                    sandbox=sandbox,
+                    submission_language=submission_language,
+                )
+                for inner_subject in holder.subjects
             ]
             self.__balance_nodes(subject_results, subjects_factor)
 
         # Process tests
         test_results = []
         if holder.tests:
-            test_results = [self.process_test(test) for test in holder.tests]
+            test_results = [
+                self.process_test(
+                    test,
+                    submission_files=submission_files,
+                    sandbox=sandbox,
+                    submission_language=submission_language,
+                )
+                for test in holder.tests
+            ]
             self.__balance_nodes(test_results, tests_factor)
 
         # Create appropriate result node type
@@ -149,32 +162,49 @@ class GraderService:
             tests=test_results,
         )
 
-    def process_subject(self, subject: SubjectNode) -> SubjectResultNode:
+    def process_subject(
+        self,
+        subject: SubjectNode,
+        submission_files: Dict[str, SubmissionFile],
+        sandbox=None,
+        submission_language=None,
+    ) -> SubjectResultNode:
         """Process a subject node from criteria tree and create result node."""
-        return self.__process_holder(subject)
+        return self.__process_holder(
+            subject,
+            submission_files=submission_files,
+            sandbox=sandbox,
+            submission_language=submission_language,
+        )
 
-    def process_test(self, test: TestNode) -> TestResultNode:
+    def process_test(
+        self,
+        test: TestNode,
+        submission_files: Optional[Dict[str, SubmissionFile]] = None,
+        sandbox=None,
+        submission_language=None,
+    ) -> TestResultNode:
         """Execute a test and create a test result node.
 
         Resolves `program_command` in-place before calling execute() so that
         test functions always receive a finalized string command.  No hidden
         kwargs are injected; every key in test_params is a declared parameter.
         """
-        file_target = self.get_file_target(test)
+        file_target = self.get_file_target(test, submission_files=submission_files)
 
         # Shallow-copy parameters so we don't mutate the original TestNode.
         test_params = dict(test.parameters or {})
 
         # Resolve program_command eagerly when the language is known.
-        if self._submission_language and 'program_command' in test_params:
+        if submission_language and 'program_command' in test_params:
             raw_command = test_params['program_command']
             resolved = self._command_resolver.resolve_command(
-                raw_command, self._submission_language
+                raw_command, submission_language
             )
             test_params['program_command'] = resolved
 
         test_result = test.test_function.execute(
-            files=file_target, sandbox=self._sandbox, **test_params
+            files=file_target, sandbox=sandbox, **test_params
         )
         return TestResultNode(
             name=test.name,
@@ -184,21 +214,36 @@ class GraderService:
             parameters=test_result.parameters,
         )
 
-    def get_file_target(self, test_node: TestNode) -> Optional[List[SubmissionFile]]:
+    def get_file_target(
+        self,
+        test_node: TestNode,
+        submission_files: Optional[Dict[str, SubmissionFile]],
+    ) -> Optional[List[SubmissionFile]]:
         """Filter out the submission files strictly relevant to the current test node."""
-        if not test_node.file_target or not self.__submission_files:
+        if not test_node.file_target or not submission_files:
             return None
 
         target_files = []
-        for file_name in self.__submission_files:
+        for file_name in submission_files:
             if file_name in test_node.file_target:
-                target_files.append(self.__submission_files[file_name])
+                target_files.append(submission_files[file_name])
 
         return target_files
 
-    def process_category(self, category: CategoryNode) -> CategoryResultNode:
+    def process_category(
+        self,
+        category: CategoryNode,
+        submission_files: Dict[str, SubmissionFile],
+        sandbox=None,
+        submission_language=None,
+    ) -> CategoryResultNode:
         """Process a category node from criteria tree and create result node."""
-        return self.__process_holder(category)
+        return self.__process_holder(
+            category,
+            submission_files=submission_files,
+            sandbox=sandbox,
+            submission_language=submission_language,
+        )
 
     def __find_first_test(self, node: CategoryNode | SubjectNode) -> Optional[TestNode]:
         """Find the first test node in the tree."""

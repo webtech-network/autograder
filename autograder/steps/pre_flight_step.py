@@ -73,7 +73,7 @@ class PreFlightStep(Step):
                         original_input=pipeline_exec
                         ))
 
-        grading_template = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE).data
+        grading_template = pipeline_exec.get_loaded_template()
         if grading_template.requires_sandbox:
             logger.info("Creating sandbox for submission (external_user_id=%s)", pipeline_exec.submission.user_id)
             sandbox = self._pre_flight_service.create_sandbox(pipeline_exec.submission) # Needs error handling?
@@ -118,4 +118,3 @@ class PreFlightStep(Step):
             return "Unknown preflight error"
         error_messages = self._pre_flight_service.get_error_messages()
         return "\n".join(error_messages)
-
