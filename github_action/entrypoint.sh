@@ -23,13 +23,10 @@ if [[ -z "$GITHUB_ACTOR" ]]; then
   exit 1
 fi
 if [[ -z "$OPENAI_KEY" ]]; then
-  echo "aaaa"
+  echo "OPENAI KEY defined"
 fi
 cd /app
 
-if [[ -z "$OPENAI_KEY" ]]; then
-  echo "aaaa"
-fi
 
 # --- 2. Dynamically Build Command Arguments ---
 # Initialize a bash array with the base command and the required arguments.

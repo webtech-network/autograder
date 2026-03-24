@@ -1,30 +1,28 @@
 name: "Prisma Autograder"
 author: "Arthur Carvalho"
-icon: box
 description: "An autograding tool for GitHub Classroom. flexible,extensive,consistent and generates feedback."
 
 # Defines the inputs that the action can receive.
 # These are mapped to the arguments in the `runs` section below.
 inputs:
   github-token:
-    description: >
-      GitHub token for API access. Defaults to the token provided by GitHub Actions.
+    description: "GitHub token for API access. Defaults to the token provided by GitHub Actions."
     required: false
     default: ${{ github.token }}
-  template_preset:
+  template-preset:
     description: 'Defines the set of grading rules and point values to apply. To create your own grading preset, use "custom".'
     required: true
   feedback-type:
-    description: 'The type or style of feedback to provide to the student (e.g., summary, detailed).'
+    description: "The type or style of feedback to provide to the student (e.g., summary, detailed)."
     required: true
-  custom_template:
+  custom-template:
     description: 'Optional custom grading template in JSON format. Required if template_preset is set to "custom".'
     required: false
-  openai_key:
-    description: 'OpenAI API key for AI feedback. REQUIRED for AI feedback mode in GitHub Actions.'
+  openai-key:
+    description: "OpenAI API key for AI feedback. REQUIRED for AI feedback mode in GitHub Actions."
     required: false
-  app_token:
-    description: 'The application token for the autograder service.'
+  app-token:
+    description: "The application token for the autograder service."
     required: false
   include-feedback:
     description: 'Whether to include/generate feedback. Use "true" or "false". Defaults to false.'
@@ -39,13 +37,13 @@ outputs:
 # Configures how the action is executed.
 runs:
   using: docker
-  image: "github_action/Dockerfile.actions"
+  image: "Dockerfile.actions"
   # Use 'env' to pass named variables to the container
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
-    APP_TOKEN: ${{ inputs.app_token }}
-    CUSTOM_TEMPLATE: ${{ inputs.custom_template }}
-    TEMPLATE_PRESET: ${{ inputs.template_preset }}
+    TEMPLATE_PRESET: ${{ inputs.template-preset }}
     FEEDBACK_TYPE: ${{ inputs.feedback-type }}
-    OPENAI_KEY: ${{ inputs.openai_key }}
+    CUSTOM_TEMPLATE: ${{ inputs.custom-template }}
+    OPENAI_KEY: ${{ inputs.openai-key }}
+    APP_TOKEN: ${{ inputs.app-token }}
     INCLUDE_FEEDBACK: ${{ inputs.include-feedback }}
