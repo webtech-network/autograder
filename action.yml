@@ -16,7 +16,7 @@ inputs:
     description: "The type or style of feedback to provide to the student (e.g., summary, detailed)."
     required: true
   custom-template:
-    description: 'Optional custom grading template in JSON format. Required if template_preset is set to "custom".'
+    description: 'Optional custom grading template in JSON format. Required if template-preset is set to "custom".'
     required: false
   openai-key:
     description: "OpenAI API key for AI feedback. REQUIRED for AI feedback mode in GitHub Actions."
