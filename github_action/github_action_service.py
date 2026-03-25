@@ -44,8 +44,8 @@ class GithubActionService:
             The result of the pipeline execution.
         """
         try:
-            print('run_autograder')
-            print(user_name, self.github_token, self.app_token, submission_files)
+            print(user_name, self.github_token, self.app_token)
+            print(submission_files)
             submission = Submission(
                 username=user_name,
                 user_id=self.github_token,
