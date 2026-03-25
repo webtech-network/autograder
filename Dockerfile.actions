@@ -23,5 +23,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN chmod +x github_action/entrypoint.sh
 
 # 8. Set the entrypoint for the container
-ENTRYPOINT ["github_action/entrypoint.sh"]
+ENTRYPOINT ["/app/github_action/entrypoint.sh"]
 
