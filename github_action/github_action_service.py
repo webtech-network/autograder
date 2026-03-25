@@ -216,12 +216,12 @@ class GithubActionService:
             template_name=template_preset,
             grading_criteria=self.__read_path(configuration_path, "criteria.json"),
             feedback_config=self.__read_path(configuration_path, "feedback.json"),
-            setup_config=self.__read_path(configuration_path, "setup.json"),
+            setup_config=self.__read_path(configuration_path, "setup.json", False),
             include_feedback=include_feedback,
             feedback_mode=feedback_mode,
         )
 
-    def __read_path(self, configuration_path: str, file_name: str):
+    def __read_path(self, configuration_path: str, file_name: str, required=True):
         """
         Read and parse a JSON configuration file from the given path.
 
@@ -243,6 +243,6 @@ class GithubActionService:
 
         with open(path, "r", encoding="utf-8") as f:
             content = f.read().strip()
-            if not content:
+            if not required and not content:
                 return {}
             return json.loads(content)
