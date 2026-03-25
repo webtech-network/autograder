@@ -242,4 +242,7 @@ class GithubActionService:
             )
 
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            content = f.read().strip()
+            if not content:
+                return {}
+            return json.loads(content)

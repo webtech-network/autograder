@@ -144,7 +144,6 @@ def __get_submission_files():
 
 
 def __build_pipeline(args, include_feedback: bool, service: GithubActionService):
-    print(args.template_preset, include_feedback, args.feedback_type)
     pipeline = service.autograder_pipeline(
         args.template_preset, include_feedback, args.feedback_type
     )
