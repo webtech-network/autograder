@@ -63,18 +63,17 @@ async def main():
     try:
         args = __parser_values()
 
-        print('1')
+        for key, value in vars(args).items():
+            print(f"{key}: {value}")
+
         if args.template_preset == "custom":
             raise SystemExit("Currently, this system does not accept custom templates.")
 
-        print('2')
         include_feedback = __has_feedback(args.include_feedback)
 
-        print('3')
         if args.openai_key:
             os.environ["OPENAI_API_KEY"] = args.openai_key
 
-        print('4')
         service = GithubActionService(args.github_token, args.app_token)
         print('5')
         pipeline = __build_pipeline(args, include_feedback, service)
@@ -88,12 +87,14 @@ async def main():
         success_execution = True
     except ValueError as e:
         logger.error("Invalid value provided: %s", e)
+        print_exc()
     except SystemExit as e:
         logger.critical(e)
+        print_exc()
     except Exception as e:
         logger.error(e, exc_info=True)
-    finally:
         print_exc()
+    finally:
         if not success_execution:
             raise SystemExit(1)
 
@@ -143,6 +144,7 @@ def __get_submission_files():
 
 
 def __build_pipeline(args, include_feedback: bool, service: GithubActionService):
+    print(args.template_preset, include_feedback, args.feedback_type)
     pipeline = service.autograder_pipeline(
         args.template_preset, include_feedback, args.feedback_type
     )
