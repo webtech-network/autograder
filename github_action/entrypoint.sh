@@ -22,14 +22,8 @@ if [[ -z "$GITHUB_ACTOR" ]]; then
   echo "Error: Environment variable GITHUB_ACTOR is not set." >&2
   exit 1
 fi
-if [[ -z "$OPENAI_KEY" ]]; then
-  echo "aaaa"
-fi
 cd /app
 
-if [[ -z "$OPENAI_KEY" ]]; then
-  echo "aaaa"
-fi
 
 # --- 2. Dynamically Build Command Arguments ---
 # Initialize a bash array with the base command and the required arguments.
@@ -54,7 +48,6 @@ if [[ -n "$FEEDBACK_TYPE" ]]; then
 fi
 
 if [[ -n "$OPENAI_KEY" ]]; then
-    echo "Adding OpenAI key to arguments."
     args+=("--openai-key" "$OPENAI_KEY")
 fi
 
