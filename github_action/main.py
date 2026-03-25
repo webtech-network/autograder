@@ -10,7 +10,6 @@ import os
 from argparse import ArgumentParser
 from .github_action_service import GithubActionService
 from autograder.autograder import AutograderPipeline
-from traceback import print_exc
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -63,9 +62,6 @@ async def main():
     try:
         args = __parser_values()
 
-        for key, value in vars(args).items():
-            print(f"{key}: {value}")
-
         if args.template_preset == "custom":
             raise SystemExit("Currently, this system does not accept custom templates.")
 
@@ -84,13 +80,10 @@ async def main():
         success_execution = True
     except ValueError as e:
         logger.error("Invalid value provided: %s", e)
-        print_exc()
     except SystemExit as e:
         logger.critical(e)
-        print_exc()
     except Exception as e:
         logger.error(e, exc_info=True)
-        print_exc()
     finally:
         if not success_execution:
             raise SystemExit(1)
