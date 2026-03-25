@@ -44,8 +44,6 @@ class GithubActionService:
             The result of the pipeline execution.
         """
         try:
-            print(user_name, self.github_token, self.app_token)
-            print(submission_files)
             submission = Submission(
                 username=user_name,
                 user_id=self.github_token,

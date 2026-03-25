@@ -46,15 +46,12 @@ class CriteriaTreeService:
 
         self.__template = template
 
-        print('t1')
         base_category = self.__parse_category("base", criteria_config.base)
         tree = CriteriaTree(base_category)
 
-        print('t2')
         if criteria_config.bonus:
             tree.bonus = self.__parse_category("bonus", criteria_config.bonus)
 
-        print('t3')
         if criteria_config.penalty:
             tree.penalty = self.__parse_category("penalty", criteria_config.penalty)
 
