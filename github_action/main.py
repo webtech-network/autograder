@@ -10,6 +10,7 @@ import os
 from argparse import ArgumentParser
 from .github_action_service import GithubActionService
 from autograder.autograder import AutograderPipeline
+from traceback import print_exc
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -62,18 +63,25 @@ async def main():
     try:
         args = __parser_values()
 
+        print('1')
         if args.template_preset == "custom":
             raise SystemExit("Currently, this system does not accept custom templates.")
 
+        print('2')
         include_feedback = __has_feedback(args.include_feedback)
 
+        print('3')
         if args.openai_key:
             os.environ["OPENAI_API_KEY"] = args.openai_key
 
+        print('4')
         service = GithubActionService(args.github_token, args.app_token)
+        print('5')
         pipeline = __build_pipeline(args, include_feedback, service)
+        print('6')
         grading_result = __retrieve_grading_score(args, service, pipeline)
 
+        print('7')
         service.export_results(
             grading_result.final_score, include_feedback, grading_result.feedback
         )
@@ -85,6 +93,7 @@ async def main():
     except Exception as e:
         logger.error(e, exc_info=True)
     finally:
+        print_exc()
         if not success_execution:
             raise SystemExit(1)
 
