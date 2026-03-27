@@ -69,12 +69,13 @@ class FocusService:
 
         # Initial Multiplier for a Category Root is 1.0 (100%)
         # Logic follows the same split as Subject if subjects_weight exists
-        subj_mult = 1.0
-        test_mult = 1.0
+        initial_mult = category.weight / 100.0
+        subj_mult = initial_mult
+        test_mult = initial_mult
 
         if category.subjects_weight is not None:
-            subj_mult = category.subjects_weight / 100
-            test_mult = (100 - category.subjects_weight) / 100
+            subj_mult *= category.subjects_weight / 100.0
+            test_mult *= (100.0 - category.subjects_weight) / 100.0
 
         for subject in category.subjects:
             child_weight_factor = subject.weight / 100

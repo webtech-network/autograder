@@ -1,7 +1,7 @@
 import logging
 
 from autograder.models.abstract.step import Step
-from autograder.models.dataclass.step_result import StepResult, StepStatus
+from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.focus_service import FocusService
 

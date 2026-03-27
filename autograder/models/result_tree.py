@@ -266,8 +266,8 @@ class RootResultNode:
         penalty_points = 0.0
         if self.penalty:
             penalty_score = self.penalty.calculate_score()
-            # Penalty subtracts: (penalty_score / 100) * penalty_weight
-            penalty_points = (penalty_score / 100.0) * self.penalty.weight
+            # Penalty subtracts: ((100 - penalty_score) / 100) * penalty_weight
+            penalty_points = ((100.0 - penalty_score) / 100.0) * self.penalty.weight
 
         # Final score = base + bonus - penalty (capped at 0-100)
         self.score = max(0.0, min(100.0, base_score + bonus_points - penalty_points))
