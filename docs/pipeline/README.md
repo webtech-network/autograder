@@ -135,7 +135,7 @@ The pipeline enforces ordering through insertion order, not through explicit dep
 
 ## Pipeline Assembly
 
-The `build_pipeline()` function (`autograder/autograder.py`) is the factory that constructs a pipeline from configuration parameters:
+The `build_pipeline()` function (`autograder/autograder.py`) leverages the `StepRegistry` factory to construct pipelines declaratively from configuration parameters:
 
 ```python
 pipeline = build_pipeline(
@@ -151,19 +151,15 @@ pipeline = build_pipeline(
 
 **Assembly rules:**
 
-1. **Load Template** and **Build Tree** are always added — they are mandatory for any grading workflow.
-2. **Pre-Flight** is added only if `setup_config is not None`. Even an empty `setup_config` (`{}`) triggers the step, because the step also handles sandbox creation when the template requires it.
-3. **Grade** is always added.
-4. **Focus** is always added (it runs after grading to rank tests by impact).
-5. **Feedback** is added only if `include_feedback=True`. It receives a `ReporterService` configured with the chosen `feedback_mode` (`"default"` or `"ai"`).
-6. **Export** is added only if `export_results=True`. It receives an `UpstashDriver` for external score storage.
+The `StepRegistry` applies the specific conditionality parameters natively for step constructions:
+1. **Load Template** and **Build Tree** are unconditionally instantiated. 
+2. **Pre-Flight** only resolves natively if `setup_config is not None`.
+3. **Grade** and **Focus** always evaluate into their respective steps.
+4. **Feedback** strictly resolves if `include_feedback=True`, consuming the `ReporterService` using the designated `feedback_mode`.
+5. **Export** compiles optionally through `export_results=True`.
 
-**Minimal pipeline** (no sandbox, no feedback, no export):
-```
-LOAD_TEMPLATE → BUILD_TREE → GRADE → FOCUS
-```
+These instantiated elements are natively pushed into the `AutograderPipeline` linearly along their static `execution_order` mapping:
 
-**Full pipeline** (all steps):
 ```
 LOAD_TEMPLATE → BUILD_TREE → PRE_FLIGHT → GRADE → FOCUS → FEEDBACK → EXPORT
 ```
