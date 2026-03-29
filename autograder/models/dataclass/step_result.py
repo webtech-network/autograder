@@ -30,6 +30,7 @@ class StepResult(Generic[T]):
     data: T
     status: StepStatus = StepStatus.SUCCESS
     error: Optional[str] = None
+    error_data: Any = None
     original_input: Any = None
 
     @property
@@ -43,6 +44,6 @@ class StepResult(Generic[T]):
         return cls(step=step, data=data, status=StepStatus.SUCCESS)
 
     @classmethod
-    def fail(cls, step: StepName, error: str, data: Optional[T] = None) -> "StepResult[T]":
+    def fail(cls, step: StepName, error: str, data: Optional[T] = None, error_data: Any = None) -> "StepResult[T]":
         """Creates a failed StepResult."""
-        return cls(step=step, data=data, status=StepStatus.FAIL, error=error)
+        return cls(step=step, data=data, status=StepStatus.FAIL, error=error, error_data=error_data)

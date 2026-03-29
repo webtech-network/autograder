@@ -70,6 +70,7 @@ class PreFlightStep(Step):
                         data=sandbox,  # sandbox is None here, which is correct
                         status=StepStatus.FAIL,
                         error=error_msg,
+                        error_data=self._pre_flight_service.fatal_errors,
                         original_input=pipeline_exec
                         ))
 
@@ -100,6 +101,7 @@ class PreFlightStep(Step):
                     data=sandbox,#Return Sandbox Here anyway? (How to deal with sandbox destruction)
                     status=StepStatus.FAIL,
                     error=error_msg,
+                    error_data=self._pre_flight_service.fatal_errors,
                     original_input=pipeline_exec
                 ))
 

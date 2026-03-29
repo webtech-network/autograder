@@ -295,7 +295,7 @@ These items prepare the codebase for future growth by establishing patterns and 
 | 16 | Standardize Template ABC | 🟢 P3 | ⬜ To Do |
 | 17 | Step registry pattern | 🔵 P4 | ⬜ To Do |
 | 18 | Formalize exporter plugin | 🔵 P4 | ⬜ To Do |
-| 19 | Separate summary from model | 🔵 P4 | ⬜ To Do |
+| 19 | Separate summary from model | 🔵 P4 | ✅ Done |
 | 20 | Consistent error handling | 🔵 P4 | ⬜ To Do |
 | 21 | Decouple AiExecutor batch | 🔵 P4 | ⬜ To Do |
 

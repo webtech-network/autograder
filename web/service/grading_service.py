@@ -12,6 +12,7 @@ from web.database import get_session
 from web.database.models.submission import SubmissionStatus
 from web.database.models.submission_result import PipelineStatus
 from web.repositories import SubmissionRepository, ResultRepository
+from autograder.serializers.pipeline_execution_serializer import PipelineExecutionSerializer
 
 
 logger = get_logger(__name__)
@@ -98,7 +99,7 @@ async def grade_submission(
                 if focus:
                     focus_dict = focus.to_dict()
 
-                pipeline_summary = pipeline_execution.get_pipeline_execution_summary()
+                pipeline_summary = PipelineExecutionSerializer.serialize(pipeline_execution)
 
                 # Store result
                 await result_repo.create(
@@ -134,7 +135,7 @@ async def grade_submission(
                 logger.warning(f"Submission {submission_id} pipeline failed: {error_msg}")
 
                 # Generate pipeline execution summary
-                pipeline_summary = pipeline_execution.get_pipeline_execution_summary()
+                pipeline_summary = PipelineExecutionSerializer.serialize(pipeline_execution)
 
                 # Generate enhanced feedback for preflight failures
                 from autograder.utils.feedback_generator import generate_preflight_feedback
