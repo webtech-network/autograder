@@ -245,30 +245,31 @@ class PipelineExecution:
     start_time: float               # Execution start timestamp
 ```
 
-### Methods
+### Pipeline Execution Summary
 
-```python
-def get_pipeline_execution_summary() -> dict:
-    """
-    Generate detailed summary for API responses.
-    
-    Returns:
+The `PipelineExecutionSerializer` (`autograder/serializers/pipeline_execution_serializer.py`) handles the conversion of an execution into a dictionary for API responses.
+
+#### `PipelineExecutionSerializer.serialize(execution) -> dict`
+
+Generates detailed summary for API responses.
+
+**Returns:**
+```json
+{
+    "status": "success" | "failed",
+    "failed_at_step": str | None,
+    "total_steps_planned": int,
+    "steps_completed": int,
+    "execution_time_ms": int,
+    "steps": [
         {
-            "status": "success" | "failed",
-            "failed_at_step": str | None,
-            "total_steps_planned": int,
-            "steps_completed": int,
-            "execution_time_ms": int,
-            "steps": [
-                {
-                    "name": "PRE_FLIGHT",
-                    "status": "success" | "fail",
-                    "message": str,
-                    "error_details": dict | None  # Present if step failed
-                }
-            ]
+            "name": "PreFlightStep",
+            "status": "success" | "fail",
+            "message": str,
+            "error_details": dict | None  # Present if step failed
         }
-    """
+    ]
+}
 ```
 
 ### Example Summary (Success)

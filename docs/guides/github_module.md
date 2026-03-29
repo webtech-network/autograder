@@ -17,7 +17,7 @@ In short, the adopted solution consists of running a Docker container with the d
 1. [Action.yml](../../action.yml)
    Defines the inputs received by the action, describes the output as a JSON evaluation, and runs the container with the received data as environment variables.
 
-2. [Dockerfile](../../github_action/Dockerfile.actions)
+2. [Dockerfile](../../Dockerfile.actions)
    Builds the container that installs the Autograder repository and sets [Entrypoint.sh](../../github_action/entrypoint.sh) as the script to be executed when the container starts.
 
 3. [Entrypoint.sh](../../github_action/entrypoint.sh)
