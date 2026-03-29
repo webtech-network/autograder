@@ -71,7 +71,7 @@ EMPTY ──▶ RUNNING ──▶ SUCCESS
 - `has_step_result(step_name)` — Checks if a step was executed.
 - `get_previous_step()` — Returns the most recently added step result.
 - `finish_execution()` — Assembles the `GradingResult` from the GRADE, FOCUS, and FEEDBACK step results if the pipeline succeeded.
-- `get_pipeline_execution_summary()` — Generates a structured dictionary for API responses with step details, timing, and error information.
+- `PipelineExecutionSerializer.serialize(execution)` — Generates a structured dictionary for API responses with step details, timing, and error information.
 
 ### StepResult
 
@@ -197,7 +197,7 @@ When a step fails:
 
 For unhandled exceptions, the status is set to `INTERRUPTED` and the same cleanup logic applies.
 
-The `PipelineExecution` object provides `get_pipeline_execution_summary()` for structured error reporting in API responses. See [Pipeline Execution Tracking](../architecture/pipeline_execution_tracking.md) for details on how this surfaces in the API.
+The `PipelineExecutionSerializer` provides structured error reporting in API responses. See [Pipeline Execution Tracking](../architecture/core_structures.md#pipeline-execution-summary) for details on how this surfaces in the API.
 
 ---
 
