@@ -7,6 +7,7 @@ from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
@@ -47,28 +48,28 @@ class BaseExecutionTest(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=f"FAILURE: Program timed out. Ensure you don't have infinite loops. [Time: {output.execution_time:.2f}s]"
+                report=t("io.execution.timeout", locale=kwargs.get("locale"), time=output.execution_time)
             )
 
         if output.category == ResponseCategory.COMPILATION_ERROR:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=f"FAILURE: Compilation Error.\nDetails:\n{output.stderr}"
+                report=t("io.execution.compilation_error", locale=kwargs.get("locale"), error=output.stderr)
             )
 
         if output.category == ResponseCategory.RUNTIME_ERROR:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=f"FAILURE: Your program crashed during execution.\nError:\n{output.stderr}"
+                report=t("io.execution.runtime_error", locale=kwargs.get("locale"), error=output.stderr)
             )
 
         if output.category == ResponseCategory.SYSTEM_ERROR:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=f"SYSTEM ERROR: An infrastructure error occurred during execution.\nDetails:\n{output.stderr}"
+                report=t("io.execution.system_error", locale=kwargs.get("locale"), error=output.stderr)
             )
 
         return None
@@ -91,7 +92,7 @@ class ExpectOutputTest(BaseExecutionTest):
 
     @property
     def description(self):
-        return "Executa o programa do aluno, fornece uma série de entradas separadas por linha e verifica se a saída final está correta."
+        return t("io.expect_output.description")
 
     @property
     def required_file(self):
@@ -100,9 +101,9 @@ class ExpectOutputTest(BaseExecutionTest):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("inputs", "Lista de strings a serem enviadas para o programa, cada uma em uma nova linha.", "list of strings"),
-            ParamDescription("expected_output", "A única string que o programa deve imprimir na saída padrão.", "string"),
-            ParamDescription("program_command", "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).", "string or dict")
+            ParamDescription("inputs", t("io.expect_output.params.inputs"), "list of strings"),
+            ParamDescription("expected_output", t("io.expect_output.params.expected"), "string"),
+            ParamDescription("program_command", t("io.expect_output.params.program_command"), "string or dict")
         ]
 
     def execute(self, files, sandbox: SandboxContainer, *args, inputs: list = None, expected_output: str = "",
@@ -130,19 +131,19 @@ class ExpectOutputTest(BaseExecutionTest):
                 return TestResult(
                     test_name=self.name,
                     score=100.0,
-                    report="Success: Output matches expected values."
+                    report=t("io.expect_output.report.success", locale=kwargs.get("locale"))
                 )
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=f"FAILURE: Output Mismatch.\nExpected: '{expected}'\nActual: '{actual_output}'"
+                report=t("io.expect_output.report.failure", locale=kwargs.get("locale"), expected=expected, actual=actual_output)
             )
 
         except (ValueError, TimeoutError, RuntimeError) as e:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=f"SYSTEM ERROR: Internal autograder failure: {str(e)}"
+                report=t("io.expect_output.report.internal_error", locale=kwargs.get("locale"), error=str(e))
             )
 
 class DontFailTest(BaseExecutionTest):
@@ -161,7 +162,7 @@ class DontFailTest(BaseExecutionTest):
 
     @property
     def description(self):
-        return "Executa o programa do aluno com uma entrada específica e verifica que ele não falha (sem crash, sem timeout)."
+        return t("io.dont_fail.description")
 
     @property
     def required_file(self):
@@ -170,8 +171,8 @@ class DontFailTest(BaseExecutionTest):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("input", "String a ser enviada para o programa via stdin.", "string"),
-            ParamDescription("program_command", "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).", "string or dict")
+            ParamDescription("input", t("io.expect_output.params.inputs"), "string"),
+            ParamDescription("program_command", t("io.expect_output.params.program_command"), "string or dict")
         ]
 
     def execute(self, files, sandbox: SandboxContainer, *args, user_input: str = "",
@@ -198,14 +199,14 @@ class DontFailTest(BaseExecutionTest):
             return TestResult(
                 test_name=self.name,
                 score=100.0,
-                report="Success: Program executed without errors."
+                report=t("io.dont_fail.report.success", locale=kwargs.get("locale"))
             )
 
         except (ValueError, TimeoutError, RuntimeError) as e:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=f"SYSTEM ERROR: Internal autograder failure: {str(e)}"
+                report=t("io.expect_output.report.internal_error", locale=kwargs.get("locale"), error=str(e))
             )
 
 
@@ -256,9 +257,7 @@ class ForbiddenImportTest(TestFunction):
 
     @property
     def description(self):
-        return ("Analisa estaticamente os arquivos de submissão para verificar se "
-                "alguma biblioteca proibida foi importada. Penaliza a submissão caso "
-                "alguma importação proibida seja encontrada.")
+        return t("io.forbidden_import.description")
 
     @property
     def required_file(self):
@@ -269,12 +268,12 @@ class ForbiddenImportTest(TestFunction):
         return [
             ParamDescription(
                 "forbidden_imports",
-                "Lista de nomes de bibliotecas/módulos cuja importação é proibida.",
+                t("io.forbidden_import.params.libraries"),
                 "list of strings"
             ),
             ParamDescription(
                 "submission_language",
-                "Linguagem da submissão (ex: 'python', 'java'). Necessária para identificar padrões de importação corretos.",
+                t("io.forbidden_import.params.language"),
                 "string or Language enum"
             ),
         ]
@@ -336,11 +335,12 @@ class ForbiddenImportTest(TestFunction):
 
         Returns score 100 if no forbidden imports are found, 0 otherwise.
         """
+        locale = kwargs.get("locale")
         if not forbidden_imports:
             return TestResult(
                 test_name=self.name,
                 score=100.0,
-                report="No forbidden imports specified — nothing to check."
+                report=t("io.forbidden_import.report.no_imports", locale=locale)
             )
 
         language = self._resolve_language(submission_language)
@@ -349,14 +349,14 @@ class ForbiddenImportTest(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report="FAILURE: Submission language is not defined. Cannot check for forbidden imports."
+                report=t("io.forbidden_import.report.no_lang", locale=locale)
             )
 
         if not files:
             return TestResult(
                 test_name=self.name,
                 score=100.0,
-                report="No submission files to analyse."
+                report=t("io.forbidden_import.report.no_files", locale=locale)
             )
 
         all_violations: List[str] = []
@@ -366,7 +366,7 @@ class ForbiddenImportTest(TestFunction):
             )
             for lib in found:
                 all_violations.append(
-                    f"  - '{lib}' encontrado em '{submission_file.filename}'"
+                    t("io.forbidden_import.report.violation", locale=locale, lib=lib, file=submission_file.filename)
                 )
 
         if all_violations:
@@ -374,15 +374,13 @@ class ForbiddenImportTest(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=(
-                    f"FAILURE: Importações proibidas detectadas:\n{details}"
-                )
+                report=t("io.forbidden_import.report.failure", locale=locale, details=details)
             )
 
         return TestResult(
             test_name=self.name,
             score=100.0,
-            report="Nenhuma importação proibida encontrada."
+            report=t("io.forbidden_import.report.success", locale=locale)
         )
 
 
@@ -403,11 +401,11 @@ class InputOutputTemplate(Template):
 
     @property
     def template_name(self):
-        return "Input/Output"
+        return t("io.template.name")
 
     @property
     def template_description(self):
-        return "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."
+        return t("io.template.description")
 
     @property
     def requires_sandbox(self) -> bool:
@@ -418,5 +416,3 @@ class InputOutputTemplate(Template):
         if not test_function:
             raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
         return test_function
-
-

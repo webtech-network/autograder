@@ -2,20 +2,23 @@ import logging
 from typing import List, Optional
 from autograder.models.dataclass.preflight_error import PreflightError, PreflightCheckType
 from autograder.models.dataclass.submission import Submission
+from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
 
 class PreFlightService:
-    def __init__(self, setup_config, submission_language: Language):
+    def __init__(self, setup_config, submission_language: Language, locale: str = "en"):
         """
         Initialize PreFlightService with language-specific setup configuration.
 
         Args:
             setup_config: Language-specific configs: {'python': {...}, 'java': {...}, 'node': {...}, 'cpp': {...}}
             submission_language: Language of the submission (required)
+            locale: User's locale for error messages (default: 'en')
         """
         self.submission_language = submission_language
+        self.locale = locale
         self.raw_setup_config = setup_config or {}
         self.logger = logging.getLogger("PreFlight")
         self.fatal_errors: List[PreflightError] = []
@@ -73,7 +76,7 @@ class PreFlightService:
 
         for file in self.required_files:
             if file not in submission_files:
-                error_msg = f"**Erro:** Arquivo ou diretório obrigatório não encontrado: `'{file}'`"
+                error_msg = t("preflight.error.required_file_missing", locale=self.locale, file=file)
                 self.logger.error(error_msg)
                 self.fatal_errors.append(PreflightError(
                     type=PreflightCheckType.FILE_CHECK,
@@ -99,7 +102,7 @@ class PreFlightService:
         """
         self.logger.debug("Checking setup commands")
         if not sandbox:
-            error_msg = "Sandbox environment is required for executing setup commands but was not created."
+            error_msg = t("preflight.error.setup_command_missing_sandbox", locale=self.locale)
             self.logger.error(error_msg)
             self.fatal_errors.append(PreflightError(
                 type=PreflightCheckType.SETUP_COMMAND,
@@ -117,7 +120,7 @@ class PreFlightService:
                 command_name = command_spec.get('name', f'Setup Command {idx + 1}')
                 command = command_spec.get('command')
                 if not command:
-                    error_msg = f"**Error:** Setup command '{command_name}' is missing the 'command' field"
+                    error_msg = t("preflight.error.setup_command_missing_field", locale=self.locale, command_name=command_name)
                     self.logger.error(error_msg)
                     self.fatal_errors.append(PreflightError(
                         type=PreflightCheckType.SETUP_COMMAND,
@@ -129,7 +132,7 @@ class PreFlightService:
                 command_name = f'Setup Command {idx + 1}'
                 command = command_spec
             else:
-                error_msg = f"**Error:** Invalid setup command format at index {idx}: expected string or object"
+                error_msg = t("preflight.error.setup_command_invalid_format", locale=self.locale, index=idx)
                 self.logger.error(error_msg)
                 self.fatal_errors.append(PreflightError(
                     type=PreflightCheckType.SETUP_COMMAND,
@@ -161,7 +164,7 @@ class PreFlightService:
                         }
                     ))
             except Exception as e:
-                error_msg = f"**Error:** Setup command '{command_name}' failed to execute: `{str(e)}`\n\nCommand: `{command}`"
+                error_msg = t("preflight.error.setup_command_failed_execution", locale=self.locale, command_name=command_name, error=str(e), command=command)
                 self.logger.error(error_msg)
                 self.fatal_errors.append(PreflightError(
                     type=PreflightCheckType.SETUP_COMMAND,
@@ -180,8 +183,8 @@ class PreFlightService:
             command: The actual command that was executed
             response: CommandResponse object with execution details
         """
-        error_msg = f"**Error:** Setup command '{command_name}' failed with exit code {response.exit_code}\n\n"
-        error_msg += f"**Command:** `{command}`\n\n"
+        error_msg = t("preflight.error.setup_command_failed_exit_code", locale=self.locale, command_name=command_name, exit_code=response.exit_code, command=command)
+        error_msg += "\n\n"
 
         if response.stdout and response.stdout.strip():
             error_msg += f"**Output (stdout):**\n```\n{response.stdout.strip()}\n```\n\n"
@@ -215,7 +218,7 @@ class PreFlightService:
                     sandbox.prepare_workdir(submission.submission_files)
                     self.logger.debug("Workdir prepared with %s files", len(submission.submission_files))
                 except Exception as e:
-                    error_msg = f"**Error:** Failed to prepare workdir in sandbox: `{str(e)}`"
+                    error_msg = t("preflight.error.workdir_preparation_failed", locale=self.locale, error=str(e))
                     self.logger.error(error_msg)
                     self.fatal_errors.append(PreflightError(
                         type=PreflightCheckType.SANDBOX_CREATION,
@@ -228,7 +231,7 @@ class PreFlightService:
 
             return sandbox
         except Exception as e:
-            error_msg = f"**Error:** Failed to create sandbox for language `{submission.language}`: `{str(e)}`"
+            error_msg = t("preflight.error.sandbox_creation_failed", locale=self.locale, language=submission.language, error=str(e))
             self.logger.error(error_msg)
             self.fatal_errors.append(PreflightError(
                 type=PreflightCheckType.SANDBOX_CREATION,

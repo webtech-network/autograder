@@ -31,6 +31,7 @@ class GraderService:
         submission_files: Dict[str, SubmissionFile],
         sandbox=None,
         submission_language=None,
+        locale: str = "en",
     ) -> ResultTree:
         """Traverse the generic built criteria tree to resolve inputs, grades and report to ResultTree."""
         base_result = self.process_category(
@@ -38,6 +39,7 @@ class GraderService:
             submission_files=submission_files,
             sandbox=sandbox,
             submission_language=submission_language,
+            locale=locale,
         )
         root = RootResultNode(name="root", base=base_result)
 
@@ -47,6 +49,7 @@ class GraderService:
                 submission_files=submission_files,
                 sandbox=sandbox,
                 submission_language=submission_language,
+                locale=locale,
             )
             root.bonus = bonus_result
 
@@ -56,6 +59,7 @@ class GraderService:
                 submission_files=submission_files,
                 sandbox=sandbox,
                 submission_language=submission_language,
+                locale=locale,
             )
             root.penalty = penalty_result
 
@@ -68,7 +72,7 @@ class GraderService:
             test_func = first_test.test_function
             if hasattr(test_func, "executor") and test_func.executor:
                 self.logger.info("Executing AI batch requests")
-                test_func.executor.stop()
+                test_func.executor.stop(locale=locale)
 
         return result_tree
 
@@ -104,6 +108,7 @@ class GraderService:
         submission_files: Dict[str, SubmissionFile],
         sandbox=None,
         submission_language=None,
+        locale: str = "en",
     ) -> CategoryResultNode | SubjectResultNode:
         """Process a category or subject node and create corresponding result node."""
 
@@ -126,6 +131,7 @@ class GraderService:
                     submission_files=submission_files,
                     sandbox=sandbox,
                     submission_language=submission_language,
+                    locale=locale,
                 )
                 for inner_subject in holder.subjects
             ]
@@ -140,6 +146,7 @@ class GraderService:
                     submission_files=submission_files,
                     sandbox=sandbox,
                     submission_language=submission_language,
+                    locale=locale,
                 )
                 for test in holder.tests
             ]
@@ -168,6 +175,7 @@ class GraderService:
         submission_files: Dict[str, SubmissionFile],
         sandbox=None,
         submission_language=None,
+        locale: str = "en",
     ) -> SubjectResultNode:
         """Process a subject node from criteria tree and create result node."""
         return self.__process_holder(
@@ -175,6 +183,7 @@ class GraderService:
             submission_files=submission_files,
             sandbox=sandbox,
             submission_language=submission_language,
+            locale=locale,
         )
 
     def process_test(
@@ -183,6 +192,7 @@ class GraderService:
         submission_files: Optional[Dict[str, SubmissionFile]] = None,
         sandbox=None,
         submission_language=None,
+        locale: str = "en",
     ) -> TestResultNode:
         """Execute a test and create a test result node.
 
@@ -204,7 +214,7 @@ class GraderService:
             test_params['program_command'] = resolved
 
         test_result = test.test_function.execute(
-            files=file_target, sandbox=sandbox, **test_params
+            files=file_target, sandbox=sandbox, locale=locale, **test_params
         )
         return TestResultNode(
             name=test.name,
@@ -236,6 +246,7 @@ class GraderService:
         submission_files: Dict[str, SubmissionFile],
         sandbox=None,
         submission_language=None,
+        locale: str = "en",
     ) -> CategoryResultNode:
         """Process a category node from criteria tree and create result node."""
         return self.__process_holder(
@@ -243,6 +254,7 @@ class GraderService:
             submission_files=submission_files,
             sandbox=sandbox,
             submission_language=submission_language,
+            locale=locale,
         )
 
     def __find_first_test(self, node: CategoryNode | SubjectNode) -> Optional[TestNode]:

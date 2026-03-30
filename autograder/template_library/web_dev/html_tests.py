@@ -7,6 +7,7 @@ from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 
 
@@ -17,14 +18,14 @@ class CheckHeadDetails(TestFunction):
         return "check_head_details"
     @property
     def description(self):
-        return "Verifica se uma tag de detalhe específica existe na seção `<head>`."
+        return t("web_dev.html.check_head.description")
     @property
     def required_file(self):
         return "HTML"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("detail_tag", "A tag a ser verificada.", "string")
+            ParamDescription("detail_tag", t("web_dev.html.check_head.param.detail_tag"), "string")
         ]
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, detail_tag: str = "", **kwargs) -> TestResult:
         """Executes the detail tag verification test in the head."""
@@ -36,7 +37,8 @@ class CheckHeadDetails(TestFunction):
         head = soup.find('head')
         found = head is not None and head.find(detail_tag) is not None
         score = 100 if found else 0
-        report = f"A tag `<{detail_tag}>` foi encontrada na seção `<head>`." if found else f"A tag `<{detail_tag}>` não foi encontrada na seção `<head>`."
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.check_head.report.found", locale=locale, detail_tag=detail_tag) if found else t("web_dev.html.check_head.report.not_found", locale=locale, detail_tag=detail_tag)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -51,14 +53,14 @@ class HasForbiddenTag(TestFunction):
         return "has_forbidden_tag"
     @property
     def description(self):
-        return "Verifica a presença de uma tag HTML proibida."
+        return t("web_dev.html.has_forbidden_tag.description")
     @property
     def required_file(self): 
         return "HTML"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("tag", "A tag HTML proibida a ser pesquisada.", "string")
+            ParamDescription("tag", t("web_dev.html.has_forbidden_tag.param.tag"), "string")
         ]
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, tag: str = "", **kwargs) -> TestResult:
         """Executes the forbidden tag verification."""
@@ -69,7 +71,8 @@ class HasForbiddenTag(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(tag) is not None
         score = 0 if found else 100
-        report = f"A tag `<{tag}>` foi encontrada e é proibida." if found else f"A tag `<{tag}>` não foi encontrada, ótimo!"
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.has_forbidden_tag.report.found", locale=locale, tag=tag) if found else t("web_dev.html.has_forbidden_tag.report.not_found", locale=locale, tag=tag)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -84,15 +87,15 @@ class HasAttribute(TestFunction):
         return "has_attribute"
     @property
     def description(self):
-        return "Verifica se um atributo HTML específico está presente em qualquer tag, um número mínimo de vezes."
+        return t("web_dev.html.has_attribute.description")
     @property
     def required_file(self):
         return "HTML"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("attribute", "O atributo a ser pesquisado (por exemplo, 'alt').", "string"),
-            ParamDescription("required_count", "O número mínimo de vezes que o atributo deve aparecer.", "integer")
+            ParamDescription("attribute", t("web_dev.html.has_attribute.param.attribute"), "string"),
+            ParamDescription("required_count", t("web_dev.html.has_attribute.param.required_count"), "integer")
         ]
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, attribute: str = "", required_count: int = 0, **kwargs) -> TestResult:
         """Executes the search for specific attributes."""
@@ -103,7 +106,7 @@ class HasAttribute(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(attrs={attribute: True}))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
-        report = f"O atributo `{attribute}` foi encontrado {found_count} vez(es) de {required_count} necessárias."
+        report = t("web_dev.html.has_attribute.report", locale=kwargs.get("locale"), attribute=attribute, found_count=found_count, required_count=required_count)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -118,16 +121,16 @@ class CheckAttributeAndValue(TestFunction):
         return "check_attribute_and_value"
     @property
     def description(self): 
-        return "Verifica se uma tag HTML específica contém um atributo específico com um determinado valor."
+        return t("web_dev.html.check_attribute_and_value.description")
     @property
     def required_file(self):
         return "HTML"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("tag", "A tag.", "string"),
-            ParamDescription("attribute", "O atributo.", "string"),
-            ParamDescription("value", "O valor esperado.", "string")
+            ParamDescription("tag", t("web_dev.html.check_attribute_and_value.param.tag"), "string"),
+            ParamDescription("attribute", t("web_dev.html.check_attribute_and_value.param.attribute"), "string"),
+            ParamDescription("value", t("web_dev.html.check_attribute_and_value.param.value"), "string")
         ]
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, tag: str = "", attribute: str = "", value: str = "", **kwargs) -> TestResult:
         """Executes the attribute and value verification."""
@@ -138,7 +141,8 @@ class CheckAttributeAndValue(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         elements = soup.find_all(tag, attrs={attribute: value})
         score = 100 if elements else 0
-        report = f"Encontrada a tag `<{tag}>` com `{attribute}='{value}'`." if score == 100 else f"Não foi encontrada a tag `<{tag}>` com `{attribute}='{value}'`."
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.check_attribute_and_value.report.found", locale=locale, tag=tag, attribute=attribute, value=value) if score == 100 else t("web_dev.html.check_attribute_and_value.report.not_found", locale=locale, tag=tag, attribute=attribute, value=value)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -153,7 +157,7 @@ class CheckNoInlineStyles(TestFunction):
         return "check_no_inline_styles"
     @property
     def description(self):
-        return "Garante que nenhum estilo em linha (inline) seja usado no arquivo HTML."
+        return t("web_dev.html.check_no_inline_styles.description")
     @property
     def required_file(self):
         return "HTML"
@@ -169,7 +173,8 @@ class CheckNoInlineStyles(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(style=True))
         score = 0 if found_count > 0 else 100
-        report = f"Foi encontrado {found_count} inline styles (`style='...'`). Mova todas as regras de estilo para seu arquivo `.css`." if found_count > 0 else "Excelente! Nenhum estilo inline foi encontrado."
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.check_no_inline_styles.report.found", locale=locale, found_count=found_count) if found_count > 0 else t("web_dev.html.check_no_inline_styles.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -183,7 +188,7 @@ class CheckInternalLinks(TestFunction):
         return "check_internal_links"
     @property
     def description(self):
-        return "Verifica a existência de um número mínimo de links âncora internos que apontam para IDs de elementos válidos."
+        return t("web_dev.html.check_internal_links.description")
     @property
     def required_file(self):
         return "HTML"
@@ -199,7 +204,7 @@ class CheckInternalLinks(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report="Conteúdo HTML não encontrado.",
+                report=t("web_dev.html.check_internal_links.report.no_content", locale=kwargs.get("locale")),
                 parameters={"required_count": required_count}
             )
 
@@ -208,7 +213,7 @@ class CheckInternalLinks(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report="Conteúdo HTML não encontrado.",
+                report=t("web_dev.html.check_internal_links.report.no_content", locale=kwargs.get("locale")),
                 parameters={"required_count": required_count}
             )
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -222,7 +227,7 @@ class CheckInternalLinks(TestFunction):
             if soup.find(id=target_id):
                 valid_links += 1
         score = min(100, int((valid_links / required_count) * 100)) if required_count > 0 else 100
-        report = f"Encontrados {valid_links} de {required_count} links internos válidos ('âncoras')."
+        report = t("web_dev.html.check_internal_links.report.valid", locale=kwargs.get("locale"), valid_links=valid_links, required_count=required_count)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -237,7 +242,7 @@ class CheckNoUnclosedTags(TestFunction):
         return "check_no_unclosed_tags"
     @property
     def description(self):
-        return "Detecta tags HTML que foram abertas mas não foram fechadas."
+        return t("web_dev.html.check_no_unclosed_tags.description")
     @property
     def required_file(self):
         return "HTML"
@@ -276,10 +281,11 @@ class CheckNoUnclosedTags(TestFunction):
             open_tags.append(tag)
         unclosed = len(open_tags)
         score = 100 if unclosed == 0 else 0
+        locale = kwargs.get("locale")
         report = (
-            "Você possui uma boa estrutura HTML sem tags abertas."
+            t("web_dev.html.check_no_unclosed_tags.report.not_found", locale=locale)
             if unclosed == 0
-            else "Foram identificadas tags HTML abertas ou estrutura incorreta no seu arquivo."
+            else t("web_dev.html.check_no_unclosed_tags.report.found", locale=locale)
         )
         return TestResult(
             test_name=self.name,
@@ -294,16 +300,16 @@ class LinkPointsToPageWithQueryParam(TestFunction):
         return "link_points_to_page_with_query_param"
     @property
     def description(self):
-        return "Verifica a existência de tags âncora que levam a uma página específica com um parâmetro de query string obrigatório."
+        return t("web_dev.html.link_points_to_page_with_query_param.description")
     @property
     def required_file(self):
         return "HTML"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("target_page", "A página de destino esperada para o link (ex: 'detalhes.html').", "string"),
-            ParamDescription("query_param", "O nome do parâmetro de query string a ser verificado (ex: 'id').", "string"),
-            ParamDescription("required_count", "O número mínimo de links válidos que devem estar presentes.", "integer")
+            ParamDescription("target_page", t("web_dev.html.link_points_to_page_with_query_param.param.target_page"), "string"),
+            ParamDescription("query_param", t("web_dev.html.link_points_to_page_with_query_param.param.query_param"), "string"),
+            ParamDescription("required_count", t("web_dev.html.link_points_to_page_with_query_param.param.required_count"), "integer")
         ]
 
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, target_page: str = "", query_param: str = "", required_count: int = 0, **kwargs) -> TestResult:
@@ -325,7 +331,7 @@ class LinkPointsToPageWithQueryParam(TestFunction):
                 if query_param in query_params:
                     valid_link_count += 1
         score = min(100, int((valid_link_count / required_count) * 100)) if required_count > 0 else 100
-        report = f"Encontrados {valid_link_count} de {required_count} links válidos para '{target_page}' com o parâmetro de consulta '{query_param}'."
+        report = t("web_dev.html.link_points_to_page_with_query_param.report", locale=kwargs.get("locale"), valid_link_count=valid_link_count, required_count=required_count, target_page=target_page, query_param=query_param)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -340,7 +346,7 @@ class CheckInternalLinksToArticle(TestFunction):
         return "check_internal_links_to_article"
     @property
     def description(self):
-        return "Verifica a existência de um número mínimo de links âncora internos apontando para IDs em tags `<article>`."
+        return t("web_dev.html.check_internal_links_to_article.description")
     @property
     def required_file(self):
         return "HTML"
@@ -355,7 +361,7 @@ class CheckInternalLinksToArticle(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report="Arquivo home.html não encontrado.",
+                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=kwargs.get("locale")),
                 parameters={"required_count": required_count}
             )
 
@@ -364,7 +370,7 @@ class CheckInternalLinksToArticle(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report="Arquivo home.html não encontrado.",
+                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=kwargs.get("locale")),
                 parameters={"required_count": required_count}
             )
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -378,7 +384,7 @@ class CheckInternalLinksToArticle(TestFunction):
             if target_element and target_element.name == 'article':
                 valid_links += 1
         score = min(100, int((valid_links / required_count) * 100)) if required_count > 0 else 100
-        report = f"Encontrados {valid_links} de {required_count} links internos válidos para tags <article>."
+        report = t("web_dev.html.check_internal_links_to_article.report.valid", locale=kwargs.get("locale"), valid_links=valid_links, required_count=required_count)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -393,15 +399,15 @@ class CheckTagNotInside(TestFunction):
         return "check_tag_not_inside"
     @property
     def description(self):
-        return "Verifica se uma tag específica não está aninhada em nenhum lugar dentro de outra tag específica."
+        return t("web_dev.html.check_tag_not_inside.description")
     @property
     def required_file(self):
         return "HTML"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("child_tag", "A tag filha.", "string"),
-            ParamDescription("parent_tag", "A tag pai.", "string")
+            ParamDescription("child_tag", t("web_dev.html.check_tag_not_inside.param.child_tag"), "string"),
+            ParamDescription("parent_tag", t("web_dev.html.check_tag_not_inside.param.parent_tag"), "string")
         ]
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, child_tag: str = "", parent_tag: str = "", **kwargs) -> TestResult:
         """Executes the forbidden nesting verification."""
@@ -413,7 +419,8 @@ class CheckTagNotInside(TestFunction):
         parent = soup.find(parent_tag)
         found = parent and parent.find(child_tag)
         score = 0 if found else 100
-        report = f"A tag `<{child_tag}>` não deve ser usada dentro da tag `<{parent_tag}>`." if found else f"A tag `<{child_tag}>` não foi encontrada dentro da tag `<{parent_tag}>`."
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.check_tag_not_inside.report.found", locale=locale, child_tag=child_tag, parent_tag=parent_tag) if found else t("web_dev.html.check_tag_not_inside.report.not_found", locale=locale, child_tag=child_tag, parent_tag=parent_tag)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -428,7 +435,7 @@ class CheckHeadingsSequential(TestFunction):
         return "check_headings_sequential"
     @property
     def description(self):
-        return "Verifica se os níveis de cabeçalho não pulam níveis."
+        return t("web_dev.html.check_headings_sequential.description")
     @property
     def required_file(self):
         return "HTML"
@@ -447,7 +454,7 @@ class CheckHeadingsSequential(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=100,
-                report="Apenas um nível de cabeçalho encontrado, portanto não há saltos."
+                report=t("web_dev.html.check_headings_sequential.report.one_level", locale=kwargs.get("locale"))
             )
         valid = True
         for i in range(len(headings) - 1):
@@ -457,10 +464,11 @@ class CheckHeadingsSequential(TestFunction):
                 valid = False
                 break
         score = 100 if valid else 0
+        locale = kwargs.get("locale")
         report = (
-            "A hierarquia de cabeçalhos está bem estruturada."
+            t("web_dev.html.check_headings_sequential.report.valid", locale=locale)
             if valid
-            else "A ordem dos cabeçalhos (`<h1>`, `<h2>`, etc.) não é sequencial. Evite pular níveis."
+            else t("web_dev.html.check_headings_sequential.report.invalid", locale=locale)
         )
         return TestResult(
             test_name=self.name,
@@ -475,15 +483,15 @@ class HasTag(TestFunction):
         return "has_tag"
     @property
     def description(self):
-        return "Verifica se uma tag HTML específica aparece um número mínimo de vezes."
+        return t("web_dev.html.has_tag.description")
     @property
     def required_file(self):
         return "HTML"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("tag", "A tag HTML a ser pesquisada (por exemplo, 'div').", "string"),
-            ParamDescription("required_count", "O número mínimo de vezes que a tag deve aparecer.", "integer")
+            ParamDescription("tag", t("web_dev.html.has_tag.param.tag"), "string"),
+            ParamDescription("required_count", t("web_dev.html.has_tag.param.required_count"), "integer")
         ]
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, tag: str = "", required_count: int = 0, **kwargs) -> TestResult:
         """Executes the tag presence verification."""
@@ -494,7 +502,7 @@ class HasTag(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(tag))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
-        report = f"Foram encontradas {found_count} de {required_count} tags `<{tag}>` necessárias."
+        report = t("web_dev.html.has_tag.report", locale=kwargs.get("locale"), found_count=found_count, required_count=required_count, tag=tag)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -509,7 +517,7 @@ class CheckBootstrapLinked(TestFunction):
         return "check_bootstrap_linked"
     @property
     def description(self):
-        return "Verifica se o framework Bootstrap (CSS ou JS) está vinculado no arquivo HTML."
+        return t("web_dev.html.check_bootstrap_linked.description")
     @property
     def required_file(self):
         return "HTML"
@@ -526,7 +534,8 @@ class CheckBootstrapLinked(TestFunction):
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 100 if found else 0
-        report = "O framework Bootstrap foi encontrado no seu HTML." if found else "Não foi encontrado um link para o CSS ou JS do Bootstrap."
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.check_bootstrap_linked.report.found", locale=locale) if found else t("web_dev.html.check_bootstrap_linked.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -540,7 +549,7 @@ class CheckBootstrapUsage(TestFunction):
         return "check_bootstrap_usage"
     @property
     def description(self):
-        return "Verifica se o Bootstrap está vinculado no arquivo HTML."
+        return t("web_dev.html.check_bootstrap_usage.description")
     @property
     def required_file(self):
         return "HTML"
@@ -557,7 +566,8 @@ class CheckBootstrapUsage(TestFunction):
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 0 if found else 100
-        report = "Você está usando bootstrap no seu CSS." if found else "Você não está usando bootstrap no seu CSS."
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.check_bootstrap_usage.report.found", locale=locale) if found else t("web_dev.html.check_bootstrap_usage.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -571,7 +581,7 @@ class UsesSemanticTags(TestFunction):
         return "uses_semantic_tags"
     @property
     def description(self):
-        return "Verifica se o HTML usa pelo menos uma tag semântica comum."
+        return t("web_dev.html.uses_semantic_tags.description")
     @property
     def required_file(self):
         return "HTML"
@@ -587,7 +597,8 @@ class UsesSemanticTags(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(("article", "section", "nav", "aside", "figure")) is not None
         score = 100 if found else 40
-        report = "Utilizou tags semânticas." if found else "Não usou nenhuma tag do tipo (`<article>`, `<section>`, `<nav>`) na estrutura do HTML."
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.uses_semantic_tags.report.found", locale=locale) if found else t("web_dev.html.uses_semantic_tags.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -601,7 +612,7 @@ class CheckCssLinked(TestFunction):
         return "check_css_linked"
     @property
     def description(self):
-        return "Verifica se uma folha de estilo CSS externa está vinculada no HTML."
+        return t("web_dev.html.check_css_linked.description")
     @property
     def required_file(self):
         return "HTML"
@@ -617,7 +628,8 @@ class CheckCssLinked(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", rel="stylesheet") is not None
         score = 100 if found else 0
-        report = "Arquivo CSS está corretamente linkado com o HTML." if found else "Não foi encontrada a tag `<link rel='stylesheet'>` no seu HTML."
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.check_css_linked.report.found", locale=locale) if found else t("web_dev.html.check_css_linked.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -631,7 +643,7 @@ class CheckAllImagesHaveAlt(TestFunction):
         return "check_all_images_have_alt"
     @property
     def description(self):
-        return "Verifica se todas as tags `<img>` possuem um atributo `alt` não vazio."
+        return t("web_dev.html.check_all_images_have_alt.description")
     @property
     def required_file(self):
         return "HTML"
@@ -647,10 +659,10 @@ class CheckAllImagesHaveAlt(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         images = soup.find_all("img")
         if not images:
-            return TestResult(test_name=self.name, score=100, report="Nenhuma imagem encontrada para verificar.")
+            return TestResult(test_name=self.name, score=100, report=t("web_dev.html.check_all_images_have_alt.report.no_images", locale=kwargs.get("locale")))
         with_alt = sum(1 for img in images if img.has_attr('alt') and img['alt'].strip())
         score = int((with_alt / len(images)) * 100) if len(images) > 0 else 100
-        report = f"{with_alt} de {len(images)} imagens tem o atributo `alt` preenchido."
+        report = t("web_dev.html.check_all_images_have_alt.report.valid", locale=kwargs.get("locale"), with_alt=with_alt, total_images=len(images))
         return TestResult(
             test_name=self.name,
             score=score,
@@ -664,15 +676,15 @@ class HasClass(TestFunction):
         return "has_class"
     @property
     def description(self):
-        return "Verifica a presença de classes CSS específicas, com suporte a curingas, um número mínimo de vezes."
+        return t("web_dev.html.has_class.description")
     @property
     def required_file(self):
         return "HTML"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("class_names", "Uma lista de nomes de classes a serem pesquisadas. Curingas (*) são suportados (por exemplo, 'col-*').", "list of strings"),
-            ParamDescription("required_count", "O número mínimo de vezes que as classes devem aparecer no total.", "integer")
+            ParamDescription("class_names", t("web_dev.html.has_class.param.class_names"), "list of strings"),
+            ParamDescription("required_count", t("web_dev.html.has_class.param.required_count"), "integer")
         ]
 
     def _compile_patterns(self, class_names: Optional[List[str]]) -> List[re.Pattern]:
@@ -696,7 +708,7 @@ class HasClass(TestFunction):
                         found_count += 1
                         found_classes.append(cls)
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
-        report = f"Foram encontradas {found_count} de {required_count} classes CSS necessárias. Classes encontradas: {list(set(found_classes))}"
+        report = t("web_dev.html.has_class.report", locale=kwargs.get("locale"), found_count=found_count, required_count=required_count, classes=list(set(found_classes)))
         return TestResult(
             test_name=self.name,
             score=score,
@@ -710,7 +722,7 @@ class CheckHtmlDirectChildren(TestFunction):
         return "check_html_direct_children"
     @property
     def description(self):
-        return "Garante que os únicos filhos diretos da tag `<html>` são `<head>` e `<body>`."
+        return t("web_dev.html.check_html_direct_children.description")
     @property
     def required_file(self):
         return "HTML"
@@ -726,10 +738,11 @@ class CheckHtmlDirectChildren(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         html_tag = soup.find('html')
         if not html_tag:
-            return TestResult(test_name=self.name, score=0, report="Tag <html> não encontrada.")
+            return TestResult(test_name=self.name, score=0, report=t("web_dev.html.check_html_direct_children.report.no_html", locale=kwargs.get("locale")))
         children_names = [child.name for child in html_tag.findChildren(recursive=False) if child.name]
         is_valid = all(name in ['head', 'body'] for name in children_names) and 'head' in children_names and 'body' in children_names
-        report = "Estrutura da tag <html> está correta." if is_valid else "A tag <html> deve conter apenas as tags <head> e <body> como filhos diretos."
+        locale = kwargs.get("locale")
+        report = t("web_dev.html.check_html_direct_children.report.valid", locale=locale) if is_valid else t("web_dev.html.check_html_direct_children.report.invalid", locale=locale)
         return TestResult(
             test_name=self.name,
             score=100 if is_valid else 0,

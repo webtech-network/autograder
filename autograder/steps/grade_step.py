@@ -55,6 +55,7 @@ class GradeStep(Step):
             submission_files=pipeline_exec.submission.submission_files,
             sandbox=sandbox,
             submission_language=pipeline_exec.submission.language,
+            locale=pipeline_exec.submission.locale,
         )
 
         # Create grading result

@@ -41,7 +41,8 @@ class PreFlightStep(Step):
             PipelineExecution with updated step results.
         """
         submission_language = pipeline_exec.submission.language
-        self._pre_flight_service = PreFlightService(self._setup_config, submission_language)
+        locale = pipeline_exec.submission.locale
+        self._pre_flight_service = PreFlightService(self._setup_config, submission_language, locale=locale)
 
         logger.info(
             "Pre-flight (file check) started: external_user_id=%s, language=%s",

@@ -1,5 +1,6 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from dataclasses import dataclass, field
+from autograder.translations import t
 
 
 @dataclass
@@ -16,7 +17,7 @@ class LearningResource:
 @dataclass
 class GeneralPreferences:
     """Preferences applicable to both Default and AI reporters."""
-    report_title: str = "Relatório de Avaliação"
+    report_title: Optional[str] = None # Will default to t("feedback.report_title") if None
     show_score: bool = True
     show_passed_tests: bool = False
     add_report_summary: bool = True
@@ -34,19 +35,19 @@ class AiReporterPreferences:
     submission_files_to_read: List[str] = field(default_factory=list)
 
 
-def _default_category_headers() -> Dict[str, str]:
+def _default_category_headers(locale: str = "en") -> Dict[str, str]:
     """Factory function for default category headers."""
     return {
-        "base": "✅ Requisitos Essenciais",
-        "bonus": "⭐ Pontos Extras",
-        "penalty": "❌ Pontos a Melhorar"
+        "base": t("feedback.category.base", locale=locale),
+        "bonus": t("feedback.category.bonus", locale=locale),
+        "penalty": t("feedback.category.penalty", locale=locale)
     }
 
 
 @dataclass
 class DefaultReporterPreferences:
     """Preferences specific to the Default (template-based) Reporter."""
-    category_headers: Dict[str, str] = field(default_factory=_default_category_headers)
+    category_headers: Dict[str, str] = field(default_factory=dict) # Should be initialized in FeedbackPreferences
 
 
 @dataclass
@@ -58,5 +59,14 @@ class FeedbackPreferences:
     general: GeneralPreferences = field(default_factory=GeneralPreferences)
     ai: AiReporterPreferences = field(default_factory=AiReporterPreferences)
     default: DefaultReporterPreferences = field(default_factory=DefaultReporterPreferences)
+    locale: str = "en"
+
+    def __post_init__(self):
+        """Initialize defaults based on locale if not provided."""
+        if self.general.report_title is None:
+            self.general.report_title = t("feedback.report_title", locale=self.locale)
+        
+        if not self.default.category_headers:
+            self.default.category_headers = _default_category_headers(self.locale)
 
 

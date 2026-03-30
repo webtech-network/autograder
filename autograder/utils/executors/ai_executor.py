@@ -3,6 +3,7 @@ import logging
 from typing import List, Dict
 from openai import OpenAI
 from autograder.models.dataclass.test_result import TestResult
+from autograder.translations import t
 from pydantic import BaseModel, Field
 import dotenv
 from autograder.utils.secrets_fetcher import get_secret
@@ -132,28 +133,13 @@ class AiExecutor:
             submission_files_str += f"{filename}:\n{content}\n{'_' * 30}\n"
         return submission_files_str
 
-    def stop(self):
+    def stop(self, locale: str = "en"):
         tests = self._create_test_batch()
         submission_files = self._create_submission_files_string()
-        system_prompt = f"""
-                               Você é um assistente de avaliação de código especialista e rigoroso. Sua tarefa é avaliar os arquivos de uma submissão de usuário em relação a uma lista de testes.
-                               Você DEVE responder com um único objeto JSON válido. Este objeto deve conter uma única chave, "results", que é um array de objetos de resultado de teste, um para cada teste fornecido.
-                               NÃO inclua nenhum texto, explicação ou formatação fora do objeto JSON principal.
-                               O esquema JSON para a sua resposta DEVE ser o seguinte:
-                               {AIResponseModel.model_json_schema()}
-                               lembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. não mude a formatação ou a estrutura dos titulos dos tests.
-                               """
-        user_prompt = f"""
-                                Por favor, avalie os arquivos de submissão do usuário abaixo em relação a todos os casos de teste listados.
+        
+        system_prompt = t("ai.system_prompt", locale=locale, json_schema=AIResponseModel.model_json_schema())
+        user_prompt = t("ai.user_prompt", locale=locale, submission_files=submission_files, tests=tests)
 
-                                ## ARQUIVOS DE SUBMISSÃO DO USUÁRIO ##
-                                {submission_files}
-
-                                ## CASOS DE TESTE PARA AVALIAR ##
-                                {tests}
-                                lembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. não mude a formatação ou a estrutura dos titulos dos tests.
-
-                              """
         logger.debug("System Prompt:\n%s", system_prompt)
         logger.debug("User Prompt:\n%s", user_prompt)
         try:
@@ -180,6 +166,3 @@ class AiExecutor:
 
 
 ai_executor = AiExecutor()
-
-
-
