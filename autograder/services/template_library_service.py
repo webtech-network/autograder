@@ -10,7 +10,7 @@ This is a singleton service that should be instantiated once at application star
 import logging
 from typing import Dict, List, Optional, Type
 from autograder.models.abstract.template import Template
-from autograder.template_library.web_dev import WebDevTemplate
+from autograder.template_library.web_dev.template import WebDevTemplate
 from autograder.template_library.api_testing import ApiTestingTemplate
 from autograder.template_library.input_output import InputOutputTemplate
 

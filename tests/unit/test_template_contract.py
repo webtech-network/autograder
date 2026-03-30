@@ -6,7 +6,7 @@ from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
 from autograder.template_library.api_testing import ApiTestingTemplate
 from autograder.template_library.input_output import InputOutputTemplate
-from autograder.template_library.web_dev import WebDevTemplate
+from autograder.template_library.web_dev.template import WebDevTemplate
 
 
 class DummyTest(TestFunction):
