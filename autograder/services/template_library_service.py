@@ -10,7 +10,7 @@ This is a singleton service that should be instantiated once at application star
 import logging
 from typing import Dict, List, Optional, Type
 from autograder.models.abstract.template import Template
-from autograder.template_library.web_dev import WebDevTemplate
+from autograder.template_library.web_dev.template import WebDevTemplate
 from autograder.template_library.api_testing import ApiTestingTemplate
 from autograder.template_library.input_output import InputOutputTemplate
 
@@ -55,11 +55,10 @@ class TemplateLibraryService:
 
     def _load_all_templates(self):
         """Load and cache all template instances at startup."""
-        for template_name in self._TEMPLATE_REGISTRY:
+        for template_name, template_class in self._TEMPLATE_REGISTRY.items():
             try:
-                template_class = self._TEMPLATE_REGISTRY[template_name]
                 self._templates[template_name] = template_class()
-            except Exception as e:
+            except RuntimeError as e:
                 # Log the error but continue loading other templates
                 logger.warning("Failed to load template '%s': %s", template_name, e)
 
@@ -85,7 +84,7 @@ class TemplateLibraryService:
             for template in cls._instance._templates.values():  # pylint: disable=protected-access
                 try:
                     template.stop()
-                except Exception:
+                except (AttributeError, RuntimeError):
                     pass
             cls._instance = None
             cls._initialized = False
