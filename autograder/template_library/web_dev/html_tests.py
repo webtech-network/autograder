@@ -11,6 +11,7 @@ from sandbox_manager.sandbox_container import SandboxContainer
 
 
 class CheckHeadDetails(TestFunction):
+    """Checks if a specific detail tag exists in the <head> section."""
     @property
     def name(self):
         return "check_head_details"
@@ -25,16 +26,15 @@ class CheckHeadDetails(TestFunction):
         return [
             ParamDescription("detail_tag", "A tag a ser verificada.", "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], detail_tag: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, detail_tag: str = "", **kwargs) -> TestResult:
+        """Executes the detail tag verification test in the head."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
         html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         head = soup.find('head')
-        if not head:
-            return TestResult(test_name=self.name, score=0, report="Tag <head> não encontrada.")
-        found = head.find(detail_tag) is not None
+        found = head is not None and head.find(detail_tag) is not None
         score = 100 if found else 0
         report = f"A tag `<{detail_tag}>` foi encontrada na seção `<head>`." if found else f"A tag `<{detail_tag}>` não foi encontrada na seção `<head>`."
         return TestResult(
@@ -45,6 +45,7 @@ class CheckHeadDetails(TestFunction):
         )
 
 class HasForbiddenTag(TestFunction):
+    """Checks for the presence of a forbidden HTML tag."""
     @property
     def name(self):
         return "has_forbidden_tag"
@@ -59,7 +60,8 @@ class HasForbiddenTag(TestFunction):
         return [
             ParamDescription("tag", "A tag HTML proibida a ser pesquisada.", "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], tag: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, tag: str = "", **kwargs) -> TestResult:
+        """Executes the forbidden tag verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -76,6 +78,7 @@ class HasForbiddenTag(TestFunction):
         )
 
 class HasAttribute(TestFunction):
+    """Checks if an HTML attribute is present a certain number of times."""
     @property
     def name(self):
         return "has_attribute"
@@ -91,7 +94,8 @@ class HasAttribute(TestFunction):
             ParamDescription("attribute", "O atributo a ser pesquisado (por exemplo, 'alt').", "string"),
             ParamDescription("required_count", "O número mínimo de vezes que o atributo deve aparecer.", "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], attribute: str = "", required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, attribute: str = "", required_count: int = 0, **kwargs) -> TestResult:
+        """Executes the search for specific attributes."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -108,6 +112,7 @@ class HasAttribute(TestFunction):
         )
 
 class CheckAttributeAndValue(TestFunction):
+    """Checks if a tag contains an attribute with a specific value."""
     @property
     def name(self):
         return "check_attribute_and_value"
@@ -124,7 +129,8 @@ class CheckAttributeAndValue(TestFunction):
             ParamDescription("attribute", "O atributo.", "string"),
             ParamDescription("value", "O valor esperado.", "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], tag: str = "", attribute: str = "", value: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, tag: str = "", attribute: str = "", value: str = "", **kwargs) -> TestResult:
+        """Executes the attribute and value verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -141,6 +147,7 @@ class CheckAttributeAndValue(TestFunction):
         )
 
 class CheckNoInlineStyles(TestFunction):
+    """Ensures that no inline styles are used."""
     @property
     def name(self):
         return "check_no_inline_styles"
@@ -153,12 +160,14 @@ class CheckNoInlineStyles(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the search for inline styles."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
         html_content = files[0].content
-        found_count = len(BeautifulSoup(html_content, 'html.parser').find_all(style=True))
+        soup = BeautifulSoup(html_content, 'html.parser')
+        found_count = len(soup.find_all(style=True))
         score = 0 if found_count > 0 else 100
         report = f"Foi encontrado {found_count} inline styles (`style='...'`). Mova todas as regras de estilo para seu arquivo `.css`." if found_count > 0 else "Excelente! Nenhum estilo inline foi encontrado."
         return TestResult(
@@ -168,6 +177,7 @@ class CheckNoInlineStyles(TestFunction):
         )
 
 class CheckInternalLinks(TestFunction):
+    """Checks for the existence of internal links (#id)."""
     @property
     def name(self):
         return "check_internal_links"
@@ -183,7 +193,8 @@ class CheckInternalLinks(TestFunction):
             ParamDescription("required_count", "O número mínimo de links válidos.", "integer")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, required_count: int = 0, **kwargs) -> TestResult:
+        """Executes the internal link verification."""
         if not files or len(files) == 0:
             return TestResult(
                 test_name=self.name,
@@ -205,7 +216,8 @@ class CheckInternalLinks(TestFunction):
         valid_links = 0
         for link in links:
             target_id = link['href'][1:]
-            if not target_id: continue
+            if not target_id:
+                continue
             # Check if any element has this ID
             if soup.find(id=target_id):
                 valid_links += 1
@@ -219,6 +231,7 @@ class CheckInternalLinks(TestFunction):
         )
 
 class CheckNoUnclosedTags(TestFunction):
+    """Detector for unclosed HTML tags."""
     @property
     def name(self):
         return "check_no_unclosed_tags"
@@ -231,7 +244,8 @@ class CheckNoUnclosedTags(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the search for unclosed tags."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -265,7 +279,7 @@ class CheckNoUnclosedTags(TestFunction):
         report = (
             "Você possui uma boa estrutura HTML sem tags abertas."
             if unclosed == 0
-            else f"Foram identificadas tags HTML abertas ou estrutura incorreta no seu arquivo."
+            else "Foram identificadas tags HTML abertas ou estrutura incorreta no seu arquivo."
         )
         return TestResult(
             test_name=self.name,
@@ -274,6 +288,7 @@ class CheckNoUnclosedTags(TestFunction):
         )
 
 class LinkPointsToPageWithQueryParam(TestFunction):
+    """Checks links that lead to pages with query parameters."""
     @property
     def name(self):
         return "link_points_to_page_with_query_param"
@@ -291,7 +306,8 @@ class LinkPointsToPageWithQueryParam(TestFunction):
             ParamDescription("required_count", "O número mínimo de links válidos que devem estar presentes.", "integer")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], target_page: str = "", query_param: str = "", required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, target_page: str = "", query_param: str = "", required_count: int = 0, **kwargs) -> TestResult:
+        """Executes the verification of links with query parameters."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -318,6 +334,7 @@ class LinkPointsToPageWithQueryParam(TestFunction):
         )
 
 class CheckInternalLinksToArticle(TestFunction):
+    """Checks internal links that point to <article> tags."""
     @property
     def name(self):
         return "check_internal_links_to_article"
@@ -332,7 +349,8 @@ class CheckInternalLinksToArticle(TestFunction):
         return [
             ParamDescription("required_count", "O número mínimo de links válidos.", "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, required_count: int = 0, **kwargs) -> TestResult:
+        """Executes the verification of links to articles."""
         if not files or len(files) == 0:
             return TestResult(
                 test_name=self.name,
@@ -354,11 +372,12 @@ class CheckInternalLinksToArticle(TestFunction):
         valid_links = 0
         for link in links:
             target_id = link['href'][1:]
-            if not target_id: continue
+            if not target_id:
+                continue
             target_element = soup.find(id=target_id)
             if target_element and target_element.name == 'article':
                 valid_links += 1
-        score = min(100, int((valid_links / required_count) * 100))
+        score = min(100, int((valid_links / required_count) * 100)) if required_count > 0 else 100
         report = f"Encontrados {valid_links} de {required_count} links internos válidos para tags <article>."
         return TestResult(
             test_name=self.name,
@@ -368,6 +387,7 @@ class CheckInternalLinksToArticle(TestFunction):
         )
 
 class CheckTagNotInside(TestFunction):
+    """Ensures that a tag is not inside another."""
     @property
     def name(self):
         return "check_tag_not_inside"
@@ -383,7 +403,8 @@ class CheckTagNotInside(TestFunction):
             ParamDescription("child_tag", "A tag filha.", "string"),
             ParamDescription("parent_tag", "A tag pai.", "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], child_tag: str = "", parent_tag: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, child_tag: str = "", parent_tag: str = "", **kwargs) -> TestResult:
+        """Executes the forbidden nesting verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -391,15 +412,17 @@ class CheckTagNotInside(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         parent = soup.find(parent_tag)
         found = parent and parent.find(child_tag)
+        score = 0 if found else 100
         report = f"A tag `<{child_tag}>` não deve ser usada dentro da tag `<{parent_tag}>`." if found else f"A tag `<{child_tag}>` não foi encontrada dentro da tag `<{parent_tag}>`."
         return TestResult(
             test_name=self.name,
-            score=0 if found else 100,
+            score=score,
             report=report,
             parameters={"child_tag": child_tag, "parent_tag": parent_tag}
         )
 
 class CheckHeadingsSequential(TestFunction):
+    """Checks if heading levels (h1-h6) are sequential."""
     @property
     def name(self):
         return "check_headings_sequential"
@@ -412,7 +435,8 @@ class CheckHeadingsSequential(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the heading sequence verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -445,6 +469,7 @@ class CheckHeadingsSequential(TestFunction):
         )
 
 class HasTag(TestFunction):
+    """Checks if an HTML tag appears a minimum number of times."""
     @property
     def name(self):
         return "has_tag"
@@ -460,7 +485,8 @@ class HasTag(TestFunction):
             ParamDescription("tag", "A tag HTML a ser pesquisada (por exemplo, 'div').", "string"),
             ParamDescription("required_count", "O número mínimo de vezes que a tag deve aparecer.", "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], tag: str = "", required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, tag: str = "", required_count: int = 0, **kwargs) -> TestResult:
+        """Executes the tag presence verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -477,6 +503,7 @@ class HasTag(TestFunction):
         )
 
 class CheckBootstrapLinked(TestFunction):
+    """Checks if Bootstrap is linked."""
     @property
     def name(self):
         return "check_bootstrap_linked"
@@ -489,8 +516,8 @@ class CheckBootstrapLinked(TestFunction):
     @property
     def parameter_description(self):
         return []
-
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the Bootstrap link verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -507,6 +534,7 @@ class CheckBootstrapLinked(TestFunction):
         )
 
 class CheckBootstrapUsage(TestFunction):
+    """Checks if Bootstrap is being used."""
     @property
     def name(self):
         return "check_bootstrap_usage"
@@ -519,7 +547,8 @@ class CheckBootstrapUsage(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the Bootstrap usage verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -536,6 +565,7 @@ class CheckBootstrapUsage(TestFunction):
         )
 
 class UsesSemanticTags(TestFunction):
+    """Checks if the HTML uses semantic tags."""
     @property
     def name(self):
         return "uses_semantic_tags"
@@ -548,7 +578,8 @@ class UsesSemanticTags(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the semantic tags verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -564,6 +595,7 @@ class UsesSemanticTags(TestFunction):
         )
 
 class CheckCssLinked(TestFunction):
+    """Checks if CSS is linked."""
     @property
     def name(self):
         return "check_css_linked"
@@ -576,7 +608,8 @@ class CheckCssLinked(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the CSS link verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -592,6 +625,7 @@ class CheckCssLinked(TestFunction):
         )
 
 class CheckAllImagesHaveAlt(TestFunction):
+    """Checks if all images have an alt attribute."""
     @property
     def name(self):
         return "check_all_images_have_alt"
@@ -604,7 +638,8 @@ class CheckAllImagesHaveAlt(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the alt attribute verification in images."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -614,7 +649,7 @@ class CheckAllImagesHaveAlt(TestFunction):
         if not images:
             return TestResult(test_name=self.name, score=100, report="Nenhuma imagem encontrada para verificar.")
         with_alt = sum(1 for img in images if img.has_attr('alt') and img['alt'].strip())
-        score = int((with_alt / len(images)) * 100)
+        score = int((with_alt / len(images)) * 100) if len(images) > 0 else 100
         report = f"{with_alt} de {len(images)} imagens tem o atributo `alt` preenchido."
         return TestResult(
             test_name=self.name,
@@ -623,6 +658,7 @@ class CheckAllImagesHaveAlt(TestFunction):
         )
 
 class HasClass(TestFunction):
+    """Checks for the presence of specific CSS classes (supports wildcards)."""
     @property
     def name(self):
         return "has_class"
@@ -639,21 +675,21 @@ class HasClass(TestFunction):
             ParamDescription("required_count", "O número mínimo de vezes que as classes devem aparecer no total.", "integer")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], class_names: list[str] = None, required_count: int = 0, **kwargs) -> TestResult:
+    def _compile_patterns(self, class_names: Optional[List[str]]) -> List[re.Pattern]:
+        """Helper to compile regex patterns for classes."""
+        return [re.compile(name.replace('*', r'\S*')) for name in (class_names or [])]
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, class_names: list[str] = None, required_count: int = 0, **kwargs) -> TestResult:
+        """Executes the search for CSS classes in the HTML."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
         html_content = files[0].content
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = 0
-        # Compile regex patterns from class names with wildcards
-        patterns = [re.compile(name.replace('*', r'\S*')) for name in (class_names or [])]
-
-        # Find all tags that have a 'class' attribute
-        all_elements_with_class = soup.find_all(class_=True)
+        patterns = self._compile_patterns(class_names)
         found_classes = []
-        for element in all_elements_with_class:
-            # element['class'] is a list of all classes on that tag
+        for element in soup.find_all(class_=True):
             for pattern in patterns:
                 for cls in element['class']:
                     if pattern.fullmatch(cls):
@@ -668,6 +704,7 @@ class HasClass(TestFunction):
             parameters={"class_names": class_names, "required_count": required_count})
 
 class CheckHtmlDirectChildren(TestFunction):
+    """Ensures that <html> has only <head> and <body> as first-level children."""
     @property
     def name(self):
         return "check_html_direct_children"
@@ -680,7 +717,8 @@ class CheckHtmlDirectChildren(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the direct structure verification of <html>."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -697,4 +735,3 @@ class CheckHtmlDirectChildren(TestFunction):
             score=100 if is_valid else 0,
             report=report
         )
-

@@ -1,9 +1,24 @@
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
-from autograder.template_library.web_dev.html_tests import *
-from autograder.template_library.web_dev.css_tests import *
-from autograder.template_library.web_dev.js_tests import *
-from autograder.template_library.web_dev.structure_tests import *
+from autograder.template_library.web_dev.html_tests import (
+    HasClass, CheckBootstrapLinked, CheckInternalLinks, HasTag, HasForbiddenTag,
+    HasAttribute, CheckNoUnclosedTags, CheckNoInlineStyles, UsesSemanticTags,
+    CheckCssLinked, CheckHeadDetails, CheckAttributeAndValue, CheckInternalLinksToArticle,
+    CheckTagNotInside, CheckHeadingsSequential, CheckAllImagesHaveAlt,
+    CheckHtmlDirectChildren, LinkPointsToPageWithQueryParam, CheckBootstrapUsage
+)
+from autograder.template_library.web_dev.css_tests import (
+    CssUsesProperty, CountOverUsage, HasStyle, CheckIdSelectorOverUsage,
+    UsesRelativeUnits, CheckMediaQueries, CheckFlexboxUsage, CountUnusedCssClasses
+)
+from autograder.template_library.web_dev.js_tests import (
+    JsUsesFeature, UsesForbiddenMethod, CountGlobalVars, JsUsesQueryStringParsing,
+    JsHasJsonArrayWithId, JsUsesDomManipulation, HasNoJsFramework
+)
+from autograder.template_library.web_dev.structure_tests import (
+    CheckDirExists, CheckProjectStructure
+)
+
 
 class WebDevTemplate(Template):
     """
@@ -22,6 +37,7 @@ class WebDevTemplate(Template):
         return False
 
     def __init__(self, clean=False):
+        # pylint: disable=unused-argument
         self.tests = {
             "has_class": HasClass(),
             "check_bootstrap_linked": CheckBootstrapLinked(),

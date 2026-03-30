@@ -1,7 +1,5 @@
 import re
 from typing import Optional, List
-from urllib.parse import parse_qs, urlparse
-from bs4 import BeautifulSoup
 
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
@@ -11,6 +9,7 @@ from sandbox_manager.sandbox_container import SandboxContainer
 
 
 class CountGlobalVars(TestFunction):
+    """Counts variables in the global scope of JS."""
     @property
     def name(self):
         return "count_global_vars"
@@ -25,7 +24,8 @@ class CountGlobalVars(TestFunction):
         return [
             ParamDescription("max_allowed", "O número máximo de variáveis globais permitidas.", "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], max_allowed: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, max_allowed: int = 0, **kwargs) -> TestResult:
+        """Executes the global variable count."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No JavaScript file provided.")
 
@@ -41,6 +41,7 @@ class CountGlobalVars(TestFunction):
         )
 
 class HasNoJsFramework(TestFunction):
+    """Checks if forbidden JS frameworks are present."""
     @property
     def name(self):
         return "has_no_js_framework"
@@ -58,7 +59,8 @@ class HasNoJsFramework(TestFunction):
             ParamDescription("js_file", "O nome do arquivo JavaScript a ser analisado.", "string")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], html_file: str = "", js_file: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, html_file: str = "", js_file: str = "", **kwargs) -> TestResult:
+        """Executes the framework verification."""
         if not files:
             return TestResult(self.name, 0, "No files provided.")
 
@@ -84,6 +86,7 @@ class HasNoJsFramework(TestFunction):
         )
 
 class JsUsesQueryStringParsing(TestFunction):
+    """Checks for query string reading in JS."""
     @property
     def name(self):
         return "js_uses_query_string_parsing"
@@ -97,7 +100,8 @@ class JsUsesQueryStringParsing(TestFunction):
     def parameter_description(self):
         return []
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the query string pattern search."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No JavaScript file provided.")
 
@@ -114,6 +118,7 @@ class JsUsesQueryStringParsing(TestFunction):
         )
 
 class UsesForbiddenMethod(TestFunction):
+    """Checks and penalizes the use of forbidden methods."""
     @property
     def name(self):
         return "uses_forbidden_method"
@@ -128,7 +133,8 @@ class UsesForbiddenMethod(TestFunction):
         return [
             ParamDescription("method", "O nome do método proibido.", "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], method: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, method: str = "", **kwargs) -> TestResult:
+        """Executes the search for forbidden methods."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No JavaScript file provided.")
 
@@ -144,6 +150,7 @@ class UsesForbiddenMethod(TestFunction):
         )
 
 class JsUsesFeature(TestFunction):
+    """Checks if a specific JS feature is present."""
     @property
     def name(self): return "js_uses_feature"
     @property
@@ -155,7 +162,8 @@ class JsUsesFeature(TestFunction):
         return [
             ParamDescription("feature", "A funcionalidade a ser pesquisada.", "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], feature: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, feature: str = "", **kwargs) -> TestResult:
+        """Executes the search for features (literal string)."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No JavaScript file provided.")
 
@@ -170,6 +178,7 @@ class JsUsesFeature(TestFunction):
         )
 
 class JsUsesDomManipulation(TestFunction):
+    """Checks for the use of DOM manipulation methods."""
     @property
     def name(self):
         return "js_uses_dom_manipulation"
@@ -186,7 +195,8 @@ class JsUsesDomManipulation(TestFunction):
             ParamDescription("required_count", "Número mínimo total de vezes que esses métodos devem aparecer.", "integer")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], methods: list = None, required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, methods: list = None, required_count: int = 0, **kwargs) -> TestResult:
+        """Executes the search for DOM manipulations."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No JavaScript file provided.")
 
@@ -206,6 +216,7 @@ class JsUsesDomManipulation(TestFunction):
         )
 
 class JsHasJsonArrayWithId(TestFunction):
+    """Checks for the existence of an array of objects with mandatory keys."""
     @property
     def name(self):
         return "js_has_json_array_with_id"
@@ -222,7 +233,8 @@ class JsHasJsonArrayWithId(TestFunction):
             ParamDescription("min_items", "O número mínimo de itens esperados no array.", "integer")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], required_key: str = "", min_items: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, required_key: str = "", min_items: int = 0, **kwargs) -> TestResult:
+        """Executes the JSON structure check in JS."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No JavaScript file provided.")
 
@@ -249,4 +261,3 @@ class JsHasJsonArrayWithId(TestFunction):
             report=report,
             parameters={"required_key": required_key, "min_items": min_items}
         )
-

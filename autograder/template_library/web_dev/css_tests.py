@@ -1,6 +1,5 @@
 import re
 from typing import Optional, List
-from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup
 
 from autograder.models.abstract.test_function import TestFunction
@@ -11,6 +10,7 @@ from sandbox_manager.sandbox_container import SandboxContainer
 
 
 class CountUnusedCssClasses(TestFunction):
+    """Analyzes unused CSS classes in the HTML."""
     @property
     def name(self):
         return "count_unused_css_classes"
@@ -27,9 +27,50 @@ class CountUnusedCssClasses(TestFunction):
             ParamDescription("html_file", "Nome do arquivo HTML a ser analisado (ex: 'index.html').", "string"),
             ParamDescription("css_file", "Nome do arquivo CSS a ser analisado (ex: 'styles.css').", "string")
         ]
-    def execute (self,submission_files, html_file: str, css_file: str) -> TestResult:
+
+    def _extract_css_classes(self, css_content: str) -> set:
+        """Extracts class names from the CSS content."""
+        if not css_content:
+            return set()
+        css_classes = set()
+        token_pattern = re.compile(
+            r'(/\*.*?\*/)|'           # Comentaries (ignoring)
+            r'(".*?")|'               # Double String (ignoring)
+            r"('.*?')|"               # Simple String (ignoring)
+            r'(\{)|'                  # Open brace
+            r'(\})|'                  # Close brace
+            r'(\.[a-zA-Z_-][\w-]*)',  # CSS class selector
+            re.DOTALL
+        )
+        depth = 0
+        for match in token_pattern.finditer(css_content):
+            groups = match.groups()
+            if groups[0] or groups[1] or groups[2]: # comment or strings
+                continue
+            if groups[3]: # {
+                depth += 1
+            elif groups[4]: # }
+                depth = max(0, depth - 1)
+            elif groups[5] and depth == 0: # .class
+                css_classes.add(groups[5][1:])
+        return css_classes
+
+    def _extract_html_classes(self, html_content: str) -> set:
+        """Extracts class names from the HTML content."""
+        used_classes = set()
+        if html_content:
+            soup = BeautifulSoup(html_content, "html.parser")
+            for el in soup.find_all(class_=True):
+                for cls in el.get("class", []):
+                    used_classes.add(cls)
+        return used_classes
+
+    def execute(self, files, sandbox, *args, submission_files=None, html_file: str = "", css_file: str = "", **kwargs) -> TestResult:
+        """Executes the unused CSS class verification."""
+        submission_files = submission_files or {}
         html_content = submission_files.get(html_file, "")
         css_content = submission_files.get(css_file, "")
+        
         if not html_content and not css_content:
             return TestResult(
                 self.name, 
@@ -38,58 +79,30 @@ class CountUnusedCssClasses(TestFunction):
                 {
                     "html_file": html_file, 
                     "css_file": css_file, 
-                    "html_found": False, 
-                    "css_found": False,
                     "unused_count": 0,
                     "category": "none"
                 }
             )
-        css_classes = set()
-        if css_content:
-            token_pattern = re.compile(
-                r'(/\*.*?\*/)|'           # Comentaries (ignoring)
-                r'(".*?")|'               # Double String (ignoring)
-                r"('.*?')|"               # Simple String (ignoring)
-                r'(\{)|'                  # Open brace
-                r'(\})|'                  # Close brace
-                r'(\.[a-zA-Z_-][\w-]*)',  # CSS class selector
-                re.DOTALL
-            )
-            depth = 0
-            for m in token_pattern.finditer(css_content):
-                comment, double_str, simple_str, open_brace, close_brace, class_token = m.groups()
-                if comment or double_str or simple_str:
-                    continue
-                if open_brace:
-                    depth += 1
-                    continue
-                if close_brace:
-                    depth = max(0, depth - 1)
-                    continue
-                if class_token and depth == 0:
-                    css_classes.add(class_token[1:])
-        used_classes = set()
-        if html_content:
-            soup = BeautifulSoup(html_content, "html.parser")
-            for el in soup.find_all(class_=True):
-                for cls in el.get("class", []):
-                    used_classes.add(cls)
-        html_found = bool(html_content)
-        css_found = bool(css_content)
+
+        css_classes = self._extract_css_classes(css_content)
+        used_classes = self._extract_html_classes(html_content)
+        
+        html_found, css_found = bool(html_content), bool(css_content)
         if html_found and css_found:
             unused_classes = sorted(css_classes - used_classes)
             category = "css_only_unused"
-        elif css_found and not html_found:
+        elif css_found:
             unused_classes = sorted(css_classes)
             category = "css_only_unused"
-        elif html_found and not css_found:
+        elif html_found:
             unused_classes = sorted(used_classes - css_classes)
             category = "html_classes_without_css"
         else:
-            unused_classes = []
-            category = "none"
+            unused_classes, category = [], "none"
+
         unused_count = len(unused_classes)
         score = 100 if unused_count == 0 else 0
+        
         if category == "html_classes_without_css":
             report = (
                 "Nenhuma classe no HTML sem definição em CSS."
@@ -102,22 +115,17 @@ class CountUnusedCssClasses(TestFunction):
                 if unused_count == 0
                 else f"{unused_count} classes CSS não utilizadas: {unused_classes}"
             )
-        return TestResult(
-            test_name=self.name,
-            score=score,
-            report=report,
-            parameters={
-                "html_file": html_file,
-                "css_file": css_file,
-                "html_found": html_found,
-                "css_found": css_found,
-                "unused_count": unused_count,
-                "unused_classes_sample": unused_classes[:20],
-                "category": category
-            }
-        )
+        
+        return TestResult(self.name, score, report, {
+            "html_file": html_file, 
+            "css_file": css_file, 
+            "unused_count": unused_count, 
+            "category": category,
+            "unused_classes_sample": unused_classes[:20]
+        })
 
 class CheckFlexboxUsage(TestFunction):
+    """Checks for Flexbox usage in CSS."""
     @property
     def name(self):
         return "check_flexbox_usage"
@@ -130,7 +138,8 @@ class CheckFlexboxUsage(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the search for Flexbox properties."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
@@ -145,6 +154,7 @@ class CheckFlexboxUsage(TestFunction):
         )
 
 class CountOverUsage(TestFunction):
+    """Penalizes over usage of a specific text."""
     @property
     def name(self):
         return "count_over_usage"
@@ -160,7 +170,8 @@ class CountOverUsage(TestFunction):
             ParamDescription("text", "O texto a ser contado.", "string"),
             ParamDescription("max_allowed", "O número máximo de ocorrências permitidas.", "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], text: str = "", max_allowed: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, text: str = "", max_allowed: int = 0, **kwargs) -> TestResult:
+        """Executes the excess count verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
@@ -176,6 +187,7 @@ class CountOverUsage(TestFunction):
         )
 
 class UsesRelativeUnits(TestFunction):
+    """Checks for the use of relative units (em, rem, etc.)."""
     @property
     def name(self):
         return "uses_relative_units"
@@ -188,7 +200,8 @@ class UsesRelativeUnits(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the search for relative units."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
@@ -203,6 +216,7 @@ class UsesRelativeUnits(TestFunction):
         )
 
 class CheckIdSelectorOverUsage(TestFunction):
+    """Counts ID selectors in the CSS to avoid over usage."""
     @property
     def name(self):
         return "Check ID Selector Over Usage"
@@ -217,50 +231,46 @@ class CheckIdSelectorOverUsage(TestFunction):
         return [
             ParamDescription("max_allowed", "Número máximo de seletores de ID permitidos.", "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], max_allowed: int = 0, **kwargs) -> TestResult:
-        if not files or len(files) == 0:
-            return TestResult(self.name, 0, "No CSS file provided.")
-        css_content = files[0].content
+
+    def _get_id_selectors(self, css_content: str) -> List[str]:
+        """Helper to extract ID selectors from CSS."""
         token_pattern = re.compile(
-            r'(/\*.*?\*/)|'          # Comentaries (ignoring)
-            r'("[^"]*")|'            # Double String (ignoring)
-            r"('[^']*')|"            # Simple String (ignoring)
-            r'(@media\b)|'           # @media
+            r'(/\*.*?\*/)|'          # Comentaries
+            r'("[^"]*")|'            # Strings
+            r"('[^']*')|"            # Strings
+            r'(@media\b)|'           # @media block
             r'(\{)|'                 # Open brace
             r'(\})|'                 # Close brace
-            r'(#[a-zA-Z_][\w-]*)',   # Possible ID
+            r'(#[a-zA-Z_][\w-]*)',   # ID Selector
             re.DOTALL | re.IGNORECASE
         )
-        selectors = []
-        context_stack = [True] 
-        next_block_flag = False
+        selectors, context_stack, next_block = [], [True], False
         for match in token_pattern.finditer(css_content):
-            comment, double_str, simple_str, media_key, open_brace, close_brace, found_id = match.groups()
-            if comment or double_str or simple_str:
-                continue
-            if media_key:
-                next_block_flag = True
-            elif open_brace:
-                context_stack.append(bool(next_block_flag))
-                next_block_flag = False
-            elif close_brace:
-                if len(context_stack) > 1:
-                    context_stack.pop()
-            elif found_id:
-                current_context_is_selector_area = context_stack[-1]
-                if current_context_is_selector_area:
-                    selectors.append(found_id)
+            groups = match.groups()
+            if any(groups[0:3]): continue # comments/strings
+            if groups[3]: # @media
+                next_block = True
+            elif groups[4]: # {
+                context_stack.append(bool(next_block))
+                next_block = False
+            elif groups[5]: # {
+                if len(context_stack) > 1: context_stack.pop()
+            elif groups[6] and context_stack[-1]: # #id in selector area
+                selectors.append(groups[6])
+        return selectors
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, max_allowed: int = 0, **kwargs) -> TestResult:
+        """Executes the ID selector verification."""
+        if not files or len(files) == 0:
+            return TestResult(self.name, 0, "No CSS file provided.")
+        selectors = self._get_id_selectors(files[0].content)
         found_count = len(selectors)
         score = 100 if found_count <= max_allowed else 0
         report = f"{found_count} seletores de ID detectados (limite: {max_allowed})." if score == 0 else "Uso controlado de seletores de ID."
-        return TestResult(
-            test_name=self.name,
-            score=score,
-            report=report,
-            parameters={"max_allowed": max_allowed}
-        )
+        return TestResult(self.name, score, report, {"max_allowed": max_allowed})
 
 class HasStyle(TestFunction):
+    """Checks if a specific CSS style rule appears."""
     @property
     def name(self):
         return "has_style"
@@ -276,7 +286,8 @@ class HasStyle(TestFunction):
             ParamDescription("style", "A regra de estilo.", "string"),
             ParamDescription("count", "O número mínimo de ocorrências.", "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], style: str = "", count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, style: str = "", count: int = 0, **kwargs) -> TestResult:
+        """Executes the search for style rules."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
@@ -292,6 +303,7 @@ class HasStyle(TestFunction):
         )
 
 class CheckMediaQueries(TestFunction):
+    """Checks if media queries exist in the CSS."""
     @property
     def name(self):
         return "check_media_queries"
@@ -304,7 +316,8 @@ class CheckMediaQueries(TestFunction):
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+        """Executes the search for media queries."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
@@ -319,6 +332,7 @@ class CheckMediaQueries(TestFunction):
         )
 
 class CssUsesProperty(TestFunction):
+    """Checks if a CSS property-value pair exists."""
     @property
     def name(self):
         return "css_uses_property"
@@ -334,7 +348,8 @@ class CssUsesProperty(TestFunction):
             ParamDescription("prop", "A propriedade CSS.", "string"),
             ParamDescription("value", "O valor esperado.", "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], prop: str = "", value: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, prop: str = "", value: str = "", **kwargs) -> TestResult:
+        """Executes the search for a CSS property/value pair."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
@@ -349,4 +364,3 @@ class CssUsesProperty(TestFunction):
             report=report,
             parameters={"prop": prop, "value": value}
         )
-

@@ -1,7 +1,4 @@
-import re
 from typing import Optional, List
-from urllib.parse import parse_qs, urlparse
-from bs4 import BeautifulSoup
 
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
@@ -11,6 +8,7 @@ from sandbox_manager.sandbox_container import SandboxContainer
 
 
 class CheckProjectStructure(TestFunction):
+    """Checks if a specific file exists in the submission."""
     @property
     def name(self):
         return "check_project_structure"
@@ -26,7 +24,8 @@ class CheckProjectStructure(TestFunction):
             ParamDescription("submission_files", "O dicionário de arquivos enviados.", "dictionary"),
             ParamDescription("expected_structure", "O caminho do arquivo esperado.", "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], expected_structure: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, expected_structure: str = "", **kwargs) -> TestResult:
+        """Executes the file existence check."""
         if not files:
             return TestResult(self.name, 0, "No files provided.")
 
@@ -42,6 +41,7 @@ class CheckProjectStructure(TestFunction):
         )
 
 class CheckDirExists(TestFunction):
+    """Checks if a specific directory exists in the submission."""
     @property
     def name(self):
         return "check_dir_exists"
@@ -57,7 +57,8 @@ class CheckDirExists(TestFunction):
             ParamDescription("submission_files", "O dicionário de arquivos enviados.", "dictionary"),
             ParamDescription("dir_path", "O caminho do diretório.", "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], dir_path: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, dir_path: str = "", **kwargs) -> TestResult:
+        """Executes the directory existence check."""
         if not files:
             return TestResult(self.name, 0, "No files provided.")
 
@@ -71,4 +72,3 @@ class CheckDirExists(TestFunction):
             report=report,
             parameters={"dir_path": dir_path}
         )
-
