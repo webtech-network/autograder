@@ -22,48 +22,37 @@ class TemplateLoaderStep(Step):
         self._custom_template = custom_template
         self._template_service = TemplateLibraryService.get_instance()
 
-    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
+    @property
+    def step_name(self) -> StepName:
+        return StepName.LOAD_TEMPLATE
+
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Load the grading template, either built-in or custom, and return it as part of the step result.
         """
-        try:
-            if self._custom_template:
-                logger.info("Loading custom template (external_user_id=%s)", pipeline_exec.submission.user_id)
-                template = self._template_service.load_custom_template(self._custom_template) #TODO: Implement Custom Template Loading with Sandboxed Env
-            else:
-                logger.info(
-                    "Loading built-in template: template=%s (external_user_id=%s)",
-                    self._template_name,
-                    pipeline_exec.submission.user_id,
-                )
-                template = self._template_service.load_builtin_template(self._template_name) # Load built-in template similar to custom to avoid code duplication
+        if self._custom_template:
+            logger.info("Loading custom template (external_user_id=%s)", pipeline_exec.submission.user_id)
+            template = self._template_service.load_custom_template(self._custom_template) #TODO: Implement Custom Template Loading with Sandboxed Env
+        else:
             logger.info(
-                "Template loaded successfully: template=%s (external_user_id=%s)",
+                "Loading built-in template: template=%s (external_user_id=%s)",
                 self._template_name,
                 pipeline_exec.submission.user_id,
             )
-            return pipeline_exec.add_step_result(
-                StepResult(
-                    step=StepName.LOAD_TEMPLATE,
-                    data=template,
-                    status=StepStatus.SUCCESS
-                )
+            template = self._template_service.load_builtin_template(self._template_name) # Load built-in template similar to custom to avoid code duplication
+        
+        logger.info(
+            "Template loaded successfully: template=%s (external_user_id=%s)",
+            self._template_name,
+            pipeline_exec.submission.user_id,
+        )
+        return pipeline_exec.add_step_result(
+            StepResult(
+                step=StepName.LOAD_TEMPLATE,
+                data=template,
+                status=StepStatus.SUCCESS
             )
-        except Exception as e:
-            logger.error(
-                "Failed to load template: template=%s, error=%s (external_user_id=%s)",
-                self._template_name,
-                str(e),
-                pipeline_exec.submission.user_id,
-            )
-            return pipeline_exec.add_step_result(
-                StepResult(
-                    step=StepName.LOAD_TEMPLATE,
-                    data=None,
-                    status=StepStatus.FAIL,
-                    error=f"Failed to load template: {str(e)}"
-                )
-            )
+        )
 
 
 

@@ -26,7 +26,11 @@ class PreFlightStep(Step):
         self._pre_flight_service = None
         # Don't create service here, create it per-execution with language
 
-    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
+    @property
+    def step_name(self) -> StepName:
+        return StepName.PRE_FLIGHT
+
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Execute pre-flight checks on the submission, returns a reference to the sandbox if the grading process requires it.
 

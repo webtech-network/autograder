@@ -24,7 +24,11 @@ class GradeStep(Step):
         """
         self._grader_service = GraderService()
 
-    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
+    @property
+    def step_name(self) -> StepName:
+        return StepName.GRADE
+
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Grade a submission based on the criteria tree and template.
 
@@ -34,57 +38,41 @@ class GradeStep(Step):
         Returns:
             StepResult containing GradingResult with scores and result tree
         """
-        try:
-            logger.info("Grading submission (external_user_id=%s)", pipeline_exec.submission.user_id)
+        logger.info("Grading submission (external_user_id=%s)", pipeline_exec.submission.user_id)
 
-            # If submission is sandboxed, feed grading template with container ref
-            template = pipeline_exec.get_loaded_template()
+        # If submission is sandboxed, feed grading template with container ref
+        template = pipeline_exec.get_loaded_template()
 
-            # Check if PRE_FLIGHT step was executed (only if setup_config was provided)
-            sandbox = pipeline_exec.get_sandbox()
+        # Check if PRE_FLIGHT step was executed (only if setup_config was provided)
+        sandbox = pipeline_exec.get_sandbox()
 
-            if not sandbox and template.requires_sandbox:
-                raise RuntimeError("Grading template requires a sandbox environment, but no sandbox was created")
+        if not sandbox and template.requires_sandbox:
+            raise RuntimeError("Grading template requires a sandbox environment, but no sandbox was created")
 
-            criteria_tree = pipeline_exec.get_built_criteria_tree()
-            result_tree = self._grader_service.grade_from_tree(
-                criteria_tree=criteria_tree,
-                submission_files=pipeline_exec.submission.submission_files,
-                sandbox=sandbox,
-                submission_language=pipeline_exec.submission.language,
-            )
+        criteria_tree = pipeline_exec.get_built_criteria_tree()
+        result_tree = self._grader_service.grade_from_tree(
+            criteria_tree=criteria_tree,
+            submission_files=pipeline_exec.submission.submission_files,
+            sandbox=sandbox,
+            submission_language=pipeline_exec.submission.language,
+        )
 
-            # Create grading result
-            final_score = result_tree.calculate_final_score()
+        # Create grading result
+        final_score = result_tree.calculate_final_score()
 
-            grading_result = GradeStepResult(
-                final_score=final_score, result_tree=result_tree
-            )
+        grading_result = GradeStepResult(
+            final_score=final_score, result_tree=result_tree
+        )
 
-            logger.info(
-                "Grading completed: external_user_id=%s, score=%.2f",
-                pipeline_exec.submission.user_id,
-                final_score,
-            )
+        logger.info(
+            "Grading completed: external_user_id=%s, score=%.2f",
+            pipeline_exec.submission.user_id,
+            final_score,
+        )
 
-            return pipeline_exec.add_step_result(StepResult(
-                step=StepName.GRADE,
-                data=grading_result,
-                status=StepStatus.SUCCESS,
-                original_input=pipeline_exec
-            ))
-
-        except Exception as e:
-            logger.error(
-                "Grading failed: external_user_id=%s, error=%s",
-                pipeline_exec.submission.user_id,
-                str(e),
-            )
-            # Return error result
-            return pipeline_exec.add_step_result(StepResult(
-                step=StepName.GRADE,
-                data=None,
-                status=StepStatus.FAIL,
-                error=str(e),
-                original_input=pipeline_exec,
-            ))
+        return pipeline_exec.add_step_result(StepResult(
+            step=StepName.GRADE,
+            data=grading_result,
+            status=StepStatus.SUCCESS,
+            original_input=pipeline_exec
+        ))

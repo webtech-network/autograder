@@ -6,9 +6,18 @@ T = TypeVar("T")
 
 
 class StepStatus(Enum):
-    """Enumeration of possible step execution statuses."""
+    """
+    Enumeration of possible step execution statuses.
+    
+    - SUCCESS: The step executed successfully to completion.
+    - FAIL: The step executed to completion but the result was a logical failure 
+            (e.g., student submission failed pre-flight, code failed to compile).
+    - INTERRUPTED: The step encountered an unexpected system-level error or unhandled 
+                   exception preventing it from concluding properly.
+    """
     SUCCESS = "success"
     FAIL = "fail"
+    INTERRUPTED = "interrupted"
 
 
 class StepName(Enum):

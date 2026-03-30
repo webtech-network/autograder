@@ -289,7 +289,7 @@ def test_invalid_input_type():
     result = pipeline_execution.get_step_result(StepName.GRADE)
 
     # Verify it fails gracefully
-    assert result.status == StepStatus.FAIL, "Should fail with missing prerequisites"
+    assert result.status == StepStatus.INTERRUPTED, "Should fail with missing prerequisites"
     assert result.error is not None, "Should have error message"
 
     print("✓ GradeStep correctly handled missing prerequisites")
@@ -326,8 +326,12 @@ def test_build_tree_and_grade_pipeline():
     class MockTemplateLoaderStep(Step):
         def __init__(self, template):
             self.template = template
+            
+        @property
+        def step_name(self) -> StepName:
+            return StepName.LOAD_TEMPLATE
 
-        def execute(self, input):
+        def _execute(self, input):
             return input.add_step_result(StepResult(
                 step=StepName.LOAD_TEMPLATE,
                 data=self.template,
