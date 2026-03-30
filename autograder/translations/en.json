@@ -1,0 +1,480 @@
+{
+  "preflight": {
+    "error": {
+      "required_file_missing": "**Error:** Required file or directory not found: `'{file}'`",
+      "sandbox_creation_failed": "**Error:** Failed to create sandbox for language `{language}`: `{error}`",
+      "workdir_preparation_failed": "**Error:** Failed to prepare workdir in sandbox: `{error}`",
+      "setup_command_missing_sandbox": "Sandbox environment is required for executing setup commands but was not created.",
+      "setup_command_missing_field": "**Error:** Setup command '{command_name}' is missing the 'command' field",
+      "setup_command_invalid_format": "**Error:** Invalid setup command format at index {index}: expected string or object",
+      "setup_command_failed_execution": "**Error:** Setup command '{command_name}' failed to execute: `{error}`\n\nCommand: `{command}`",
+      "setup_command_failed_exit_code": "**Error:** Setup command '{command_name}' failed with exit code {exit_code}\n\n**Command:** `{command}`"
+    }
+  },
+  "feedback": {
+    "report_title": "Evaluation Report",
+    "category": {
+      "base": "✅ Essential Requirements",
+      "bonus": "⭐ Extra Points",
+      "penalty": "❌ Points to Improve"
+    },
+    "preflight": {
+      "failed_title": "## Preflight Check Failed",
+      "failed_subtitle": "Your submission failed during the setup phase before grading could begin.\n\n",
+      "required_file_missing_header": "### Required File Missing",
+      "missing_label": "**Missing:** {missing_file}",
+      "what_to_do": "**What to do:**",
+      "upload_instruction": "- Make sure you upload a file named exactly **`{missing_file}`**",
+      "typo_instruction": "- Check for typos in the filename (case-sensitive)",
+      "verify_instruction": "- Verify the file is included in your submission",
+      "resubmit_instruction": "- Resubmit with all required files",
+      "setup_command_failed_header": "### Setup Command Failed: {command_name}",
+      "command_executed_label": "**Command executed:**",
+      "exit_code_label": "**Exit code:** {exit_code}",
+      "error_output_label": "**Error output:**",
+      "output_label": "**Output:**",
+      "compilation_fix_instruction": "- Fix the compilation errors shown above",
+      "line_number_instruction": "- Pay attention to the line numbers and error messages",
+      "common_issues_instruction": "- Common issues: missing semicolons, undefined variables, syntax errors",
+      "compilation_resubmit_instruction": "- Resubmit after fixing all compilation errors",
+      "gpp_fix_instruction": "- Fix the compilation/linking errors shown above",
+      "gpp_syntax_instruction": "- Check for syntax errors and missing includes",
+      "gpp_verify_instruction": "- Verify all required files are present",
+      "gpp_resubmit_instruction": "- Resubmit after fixing the errors",
+      "review_error_instruction": "- Review the error output above",
+      "generic_fix_instruction": "- Fix any issues in your code or configuration",
+      "generic_resubmit_instruction": "- Resubmit after resolving the error",
+      "contact_instructor_instruction": "- Contact your instructor if you need help",
+      "generic_error_instruction": "- Review the error message"
+    }
+  },
+  "ai": {
+    "system_prompt": "You are an expert and rigorous code evaluation assistant. Your task is to evaluate a user's submission files against a list of tests.\nYou MUST respond with a single valid JSON object. This object must contain a single key, \"results\", which is an array of test result objects, one for each provided test.\nDO NOT include any text, explanation, or formatting outside of the main JSON object.\nThe JSON schema for your response MUST be as follows:\n{json_schema}\nRemember: test names must match exactly the names provided in the test list. Do not change the formatting or structure of the test titles.",
+    "user_prompt": "Please evaluate the user's submission files below against all listed test cases.\n\n## USER SUBMISSION FILES ##\n{submission_files}\n\n## TEST CASES TO EVALUATE ##\n{tests}\nRemember: test names must match exactly the names provided in the test list. Do not change the formatting or structure of the test titles."
+  },
+  "web_dev": {
+    "error": {
+      "no_html": "No HTML file provided.",
+      "no_css": "No CSS file provided.",
+      "no_js": "No JS file provided.",
+      "no_files": "No files provided."
+    },
+    "html": {
+      "check_head": {
+        "description": "Checks if a specific detail tag exists in the <head> section.",
+        "param": {
+          "detail_tag": "The tag to be checked."
+        },
+        "report": {
+          "found": "The tag `<{detail_tag}>` was found in the `<head>` section.",
+          "not_found": "The tag `<{detail_tag}>` was not found in the `<head>` section."
+        }
+      },
+      "has_forbidden_tag": {
+        "description": "Checks for the presence of a forbidden HTML tag.",
+        "param": {
+          "tag": "The forbidden HTML tag to search for."
+        },
+        "report": {
+          "found": "The tag `<{tag}>` was found and is forbidden.",
+          "not_found": "The tag `<{tag}>` was not found, great!"
+        }
+      },
+      "has_attribute": {
+        "description": "Checks if a specific HTML attribute is present a minimum number of times.",
+        "param": {
+          "attribute": "The attribute to search for (e.g., 'alt').",
+          "required_count": "The minimum number of times the attribute must appear."
+        },
+        "report": "The attribute `{attribute}` was found {found_count} time(s) out of {required_count} required."
+      },
+      "check_attribute_and_value": {
+        "description": "Checks if a specific HTML tag contains a specific attribute with a certain value.",
+        "param": {
+          "tag": "The tag.",
+          "attribute": "The attribute.",
+          "value": "The expected value."
+        },
+        "report": {
+          "found": "Found tag `<{tag}>` with `{attribute}='{value}'`.",
+          "not_found": "Tag `<{tag}>` with `{attribute}='{value}'` was not found."
+        }
+      },
+      "check_no_inline_styles": {
+        "description": "Ensures that no inline styles are used in the HTML file.",
+        "report": {
+          "found": "Found {found_count} inline styles (`style='...'`). Move all style rules to your `.css` file.",
+          "not_found": "Excellent! No inline styles were found."
+        }
+      },
+      "check_internal_links": {
+        "description": "Checks for the existence of internal anchor links pointing to valid element IDs.",
+        "param": {
+          "required_count": "The minimum number of valid links."
+        },
+        "report": {
+          "no_content": "HTML content not found.",
+          "valid": "Found {valid_links} of {required_count} valid internal links ('anchors')."
+        }
+      },
+      "check_no_unclosed_tags": {
+        "description": "Detects HTML tags that were opened but not closed.",
+        "report": {
+          "found": "Unclosed HTML tags or incorrect structure identified in your file.",
+          "not_found": "You have a good HTML structure with no unclosed tags."
+        }
+      },
+      "link_points_to_page_with_query_param": {
+        "description": "Checks for anchor tags leading to a specific page with a required query string parameter.",
+        "param": {
+          "target_page": "The expected destination page (e.g., 'details.html').",
+          "query_param": "The name of the query string parameter to check (e.g., 'id').",
+          "required_count": "The minimum number of valid links."
+        },
+        "report": "Found {valid_link_count} of {required_count} valid links for '{target_page}' with the query parameter '{query_param}'."
+      },
+      "check_internal_links_to_article": {
+        "description": "Checks for internal anchor links pointing to IDs on `<article>` tags.",
+        "param": {
+          "required_count": "The minimum number of valid links."
+        },
+        "report": {
+          "no_file": "File home.html not found.",
+          "valid": "Found {valid_links} of {required_count} valid internal links to <article> tags."
+        }
+      },
+      "check_tag_not_inside": {
+        "description": "Checks if a specific tag is not nested anywhere inside another specific tag.",
+        "param": {
+          "child_tag": "The child tag.",
+          "parent_tag": "The parent tag."
+        },
+        "report": {
+          "found": "The tag `<{child_tag}>` should not be used inside the tag `<{parent_tag}>`.",
+          "not_found": "The tag `<{child_tag}>` was not found inside the tag `<{parent_tag}>`."
+        }
+      },
+      "check_headings_sequential": {
+        "description": "Checks if heading levels (h1-h6) are sequential and do not skip levels.",
+        "report": {
+          "one_level": "Only one heading level found, so no skips.",
+          "valid": "The heading hierarchy is well-structured.",
+          "invalid": "The heading order (`<h1>`, `<h2>`, etc.) is not sequential. Avoid skipping levels."
+        }
+      },
+      "has_tag": {
+        "description": "Checks if a specific HTML tag appears a minimum number of times.",
+        "param": {
+          "tag": "The HTML tag to search for (e.g., 'div').",
+          "required_count": "The minimum number of times the tag must appear."
+        },
+        "report": "Found {found_count} of {required_count} required `<{tag}>` tags."
+      },
+      "check_bootstrap_linked": {
+        "description": "Checks if the Bootstrap framework (CSS or JS) is linked in the HTML file.",
+        "report": {
+          "found": "Bootstrap framework found in your HTML.",
+          "not_found": "No link to Bootstrap CSS or JS was found."
+        }
+      },
+      "check_bootstrap_usage": {
+        "description": "Checks if Bootstrap is being used in the HTML file.",
+        "report": {
+          "found": "You are using Bootstrap in your project.",
+          "not_found": "You are not using Bootstrap in your project."
+        }
+      },
+      "uses_semantic_tags": {
+        "description": "Checks if the HTML uses at least one common semantic tag.",
+        "report": {
+          "found": "Used semantic tags.",
+          "not_found": "Did not use any semantic tags like (`<article>`, `<section>`, `<nav>`) in the HTML structure."
+        }
+      },
+      "check_css_linked": {
+        "description": "Checks if an external CSS stylesheet is linked in the HTML.",
+        "report": {
+          "found": "CSS file is correctly linked to the HTML.",
+          "not_found": "The tag `<link rel='stylesheet'>` was not found in your HTML."
+        }
+      },
+      "check_all_images_have_alt": {
+        "description": "Checks if all `<img>` tags have a non-empty `alt` attribute.",
+        "report": {
+          "no_images": "No images found to check.",
+          "valid": "{with_alt} of {total_images} images have the `alt` attribute filled."
+        }
+      },
+      "has_class": {
+        "description": "Checks for the presence of specific CSS classes, with wildcard support, a minimum number of times.",
+        "param": {
+          "class_names": "A list of class names to search for. Wildcards (*) are supported (e.g., 'col-*').",
+          "required_count": "The minimum total number of times the classes must appear."
+        },
+        "report": "Found {found_count} of {required_count} required CSS classes. Classes found: {classes}"
+      },
+      "check_html_direct_children": {
+        "description": "Ensures that the only direct children of the `<html>` tag are `<head>` and `<body>`.",
+        "report": {
+          "no_html": "Tag <html> not found.",
+          "valid": "Structure of the <html> tag is correct.",
+          "invalid": "The <html> tag must contain only <head> and <body> tags as direct children."
+        }
+      }
+    },
+    "css": {
+      "count_unused_css_classes": {
+        "description": "Counts the number of unused CSS classes in the HTML and/or CSS code.",
+        "param": {
+          "submission_files": "The dictionary of submitted files.",
+          "html_file": "Name of the HTML file to analyze (e.g., 'index.html').",
+          "css_file": "Name of the CSS file to analyze (e.g., 'styles.css')."
+        },
+        "report": {
+          "no_files": "No HTML or CSS files provided.",
+          "html_no_css": {
+            "unused": "{unused_count} classes found in HTML without CSS definition: {unused_classes}",
+            "none": "No classes in HTML without CSS definition."
+          },
+          "css_unused": {
+            "unused": "{unused_count} unused CSS classes: {unused_classes}",
+            "none": "No unused CSS classes found."
+          }
+        }
+      },
+      "check_flexbox_usage": {
+        "description": "Checks if Flexbox properties are used in the CSS file.",
+        "report": {
+          "found": "Flexbox properties are being used in the CSS.",
+          "not_found": "Flexbox properties were not found in your CSS."
+        }
+      },
+      "count_over_usage": {
+        "description": "Penalizes the use of a specific text string if it exceeds a maximum allowed count.",
+        "param": {
+          "text": "The text to be counted.",
+          "max_allowed": "The maximum number of allowed occurrences."
+        },
+        "report": {
+          "over": "Overuse of `{text}` detected {found_count} times (maximum allowed: {max_allowed}).",
+          "ok": "Overuse of `{text}` not detected."
+        }
+      },
+      "uses_relative_units": {
+        "description": "Checks if the CSS file uses relative units like em, rem, %, vh, vw.",
+        "report": {
+          "found": "Relative measures are being used in the CSS.",
+          "not_found": "Relative measures like (em, rem, %, vh, vw) were not used in your CSS."
+        }
+      },
+      "check_id_selector_over_usage": {
+        "description": "Counts valid ID selectors in the CSS.",
+        "param": {
+          "max_allowed": "Maximum number of allowed ID selectors."
+        },
+        "report": {
+          "over": "{found_count} ID selectors detected (limit: {max_allowed}).",
+          "ok": "Controlled use of ID selectors."
+        }
+      },
+      "has_style": {
+        "description": "Checks if a specific CSS style rule appears a minimum number of times.",
+        "param": {
+          "style": "The style rule.",
+          "count": "The minimum number of occurrences."
+        },
+        "report": "Found {found_count} of {count} `{style}` styling rules."
+      },
+      "check_media_queries": {
+        "description": "Checks if there are media queries in the CSS file.",
+        "report": {
+          "found": "Media queries are being used in the CSS.",
+          "not_found": "No use of media queries was found in your CSS."
+        }
+      },
+      "css_uses_property": {
+        "description": "Checks if a specific CSS property and value pair exists.",
+        "param": {
+          "prop": "The CSS property.",
+          "value": "The expected value."
+        },
+        "report": {
+          "found": "The property `{prop}: {value};` was found.",
+          "not_found": "The CSS property `{prop}: {value};` was not found."
+        }
+      }
+    },
+    "js": {
+      "count_global_vars": {
+        "description": "Counts the number of variables declared in the global scope.",
+        "param": {
+          "max_allowed": "The maximum number of allowed global variables."
+        },
+        "report": {
+          "over": "Warning: {found_count} global variables detected (maximum allowed: {max_allowed}).",
+          "ok": "Good job keeping the global scope clean."
+        }
+      },
+      "has_no_js_framework": {
+        "description": "Checks for the presence of forbidden JavaScript frameworks (React, Vue, Angular).",
+        "param": {
+          "submission_files": "The dictionary of submitted files.",
+          "html_file": "The name of the HTML file to analyze.",
+          "js_file": "The name of the JavaScript file to analyze."
+        },
+        "report": {
+          "found": "JavaScript framework usage (React, Vue, Angular) detected. The use of frameworks is not allowed in this activity.",
+          "not_found": "Great! No forbidden JavaScript frameworks were detected."
+        }
+      },
+      "js_uses_query_string_parsing": {
+        "description": "Checks if the JavaScript code contains patterns for reading query strings from the URL.",
+        "report": {
+          "found": "The JavaScript code implements reading URL parameters.",
+          "not_found": "The logic to read URL parameters (e.g., URLSearchParams) was not found in your JavaScript."
+        }
+      },
+      "uses_forbidden_method": {
+        "description": "Checks and penalizes the use of a forbidden method or keyword.",
+        "param": {
+          "method": "The name of the forbidden method."
+        },
+        "report": {
+          "found": "Penalty: Forbidden method `{method}()` detected.",
+          "not_found": "Great! The forbidden method `{method}()` was not used."
+        }
+      },
+      "js_uses_feature": {
+        "description": "Performs a simple string search to check if a specific feature is present.",
+        "param": {
+          "feature": "The feature to search for."
+        },
+        "report": {
+          "found": "The feature `{feature}` has been implemented.",
+          "not_found": "The JavaScript feature `{feature}` was not found in your code."
+        }
+      },
+      "js_uses_dom_manipulation": {
+        "description": "Checks if the JS code uses a minimum number of common DOM manipulation methods.",
+        "param": {
+          "methods": "A list of methods to search for (e.g., ['createElement', 'appendChild']).",
+          "required_count": "Total minimum number of times these methods must appear."
+        },
+        "report": "Found {found_count} of {required_count} required DOM manipulation method calls."
+      },
+      "js_has_json_array_with_id": {
+        "description": "Checks for the existence of a JS object array where each object has a specific required key.",
+        "param": {
+          "required_key": "The key that must exist in each object (e.g., 'id').",
+          "min_items": "The minimum number of items expected in the array."
+        },
+        "report": {
+          "no_data": "Data structure (array) in JSON format not found in your JavaScript file.",
+          "found": "Found data structure with {found_items} of {min_items} required items, all with the '{required_key}' key."
+        }
+      }
+    },
+    "structure": {
+      "check_project_structure": {
+        "description": "Checks if the expected structure path exists in the submission files.",
+        "param": {
+          "submission_files": "The dictionary of submitted files.",
+          "expected_structure": "The expected file path."
+        },
+        "report": {
+          "found": "The file '{expected_structure}' exists.",
+          "not_found": "The file '{expected_structure}' does not exist."
+        }
+      },
+      "check_dir_exists": {
+        "description": "Checks if a specific directory exists in the submission.",
+        "param": {
+          "submission_files": "The dictionary of submitted files.",
+          "dir_path": "The directory path."
+        },
+        "report": {
+          "found": "The directory '{dir_path}' exists.",
+          "not_found": "The directory '{dir_path}' does not exist."
+        }
+      }
+    }
+  },
+  "io": {
+    "execution": {
+      "timeout": "FAILURE: Program timed out. Ensure you don't have infinite loops. [Time: {time:.2f}s]",
+      "compilation_error": "FAILURE: Compilation Error.\nDetails:\n{error}",
+      "runtime_error": "FAILURE: Your program crashed during execution.\nError:\n{error}",
+      "system_error": "SYSTEM ERROR: An infrastructure error occurred during execution.\nDetails:\n{error}"
+    },
+    "expect_output": {
+      "description": "Executes the student program, providing a series of line-separated inputs and verifying if the final output is correct.",
+      "params": {
+        "inputs": "List of strings to be sent to the program, each on a new line.",
+        "expected": "The single string the program must print to standard output.",
+        "program_command": "(Optional) Command to run the program. Can be string (legacy), dict (multi-lang), or 'CMD' (auto-resolve)."
+      },
+      "report": {
+        "success": "Success: Output matches expected values.",
+        "failure": "FAILURE: Output Mismatch.\nExpected: '{expected}'\nActual: '{actual}'",
+        "internal_error": "SYSTEM ERROR: Internal autograder failure: {error}"
+      }
+    },
+    "dont_fail": {
+      "description": "Executes the student program with specific input and verifies it doesn't fail (no crash, no timeout).",
+      "report": {
+        "success": "Success: Program executed without errors."
+      }
+    },
+    "forbidden_import": {
+      "description": "Statically analyzes submission files to check if any forbidden libraries were imported. Penalizes the submission if any forbidden imports are found.",
+      "params": {
+        "libraries": "List of library/module names whose import is forbidden.",
+        "language": "Submission language (e.g., 'python', 'java'). Required to identify correct import patterns."
+      },
+      "report": {
+        "no_imports": "No forbidden imports specified — nothing to check.",
+        "no_lang": "FAILURE: Submission language is not defined. Cannot check for forbidden imports.",
+        "no_files": "No submission files to analyze.",
+        "violation": "  - '{lib}' found in '{file}'",
+        "failure": "FAILURE: Forbidden imports detected:\n{details}",
+        "success": "No forbidden imports found."
+      }
+    },
+    "template": {
+      "name": "Input/Output",
+      "description": "A template for evaluating assignments based on command-line input and output."
+    }
+  },
+  "api_testing": {
+    "health_check": {
+      "description": "Checks if a specific endpoint is running and returns status code 200.",
+      "params": {
+        "endpoint": "The endpoint to be tested (e.g., '/health')."
+      },
+      "report": {
+        "success": "Success! Endpoint '{endpoint}' is alive and returned status code 200.",
+        "failure": "Endpoint '{endpoint}' returned status code {code} instead of 200.",
+        "request_failed": "API request to the container failed: {error}",
+        "unexpected_error": "An unexpected error occurred: {error}"
+      }
+    },
+    "check_response_json": {
+      "description": "Checks if an endpoint's JSON response has a specific key and value.",
+      "params": {
+        "endpoint": "The API endpoint to be tested (e.g., '/api/data').",
+        "expected_key": "The JSON key to check.",
+        "expected_value": "The expected value for the specified key."
+      },
+      "report": {
+        "request_failed": "Request failed with status code {code}.",
+        "success": "Success! Response from '{endpoint}' contained the expected key-value pair ('{key}': '{value}').",
+        "failure": "JSON response from '{endpoint}' did not contain the expected value. Expected '{expected}' for key '{key}', but got '{actual}'.",
+        "invalid_json": "Response from '{endpoint}' was not valid JSON."
+      }
+    },
+    "template": {
+      "name": "API Testing",
+      "description": "A template for evaluating assignments where students create a web API."
+    }
+  }
+}
