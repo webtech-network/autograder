@@ -1,4 +1,4 @@
-# Step 4: Grade
+# Step 5: Grade
 
 ## Purpose
 
@@ -6,7 +6,7 @@ The Grade step is the core of the autograder. It walks the `CriteriaTree`, execu
 
 ## How It Works
 
-1. **Retrieve inputs** — The step reads the `Template` (from Load Template), the `CriteriaTree` (from Build Tree), and optionally the `SandboxContainer` (from Pre-Flight).
+1. **Retrieve inputs** — The step reads the `Template` (from Load Template), the `CriteriaTree` (from Build Tree), and optionally the `SandboxContainer` (from Sandbox).
 2. **Configure the grader** — If a sandbox exists, it's injected into the `GraderService`. The submission language is also set for command resolution in multi-language assignments.
 3. **Tree traversal and execution** — The `GraderService.grade_from_tree()` method recursively processes the criteria tree:
    - For each **category** (base, bonus, penalty): process its subjects and direct tests.
@@ -23,7 +23,7 @@ The grading engine is a complex subsystem with its own weight balancing, file ta
 |------|---------------|
 | **Load Template** | The `Template` to check sandbox requirements |
 | **Build Tree** | The `CriteriaTree` with embedded test functions |
-| **Pre-Flight** | The `SandboxContainer` (only if template requires sandbox) |
+| **Sandbox** | The `SandboxContainer` (only if template requires sandbox) |
 
 ## Input
 
@@ -31,7 +31,7 @@ The grading engine is a complex subsystem with its own weight balancing, file ta
 |--------|------|
 | Pipeline | `StepName.LOAD_TEMPLATE` → `Template` |
 | Pipeline | `StepName.BUILD_TREE` → `CriteriaTree` |
-| Pipeline | `StepName.PRE_FLIGHT` → `SandboxContainer \| None` (optional) |
+| Pipeline | `StepName.SANDBOX` → `SandboxContainer \| None` (optional) |
 | Pipeline | `pipeline_exec.submission` → submission files and language |
 
 ## Output
@@ -62,6 +62,12 @@ Sibling weights are balanced to sum to 100 at each level. If they don't, the `Gr
 - Template requires sandbox but none was created → `RuntimeError`.
 - A test function raises an unhandled exception → the entire step fails with `StepStatus.FAIL`.
 - CriteriaTree node missing `subjects_weight` when both subjects and tests exist → `ValueError`.
+
+## Next Step
+
+Once the results are in, the pipeline proceeds to **[Step 6: Focus](06-focus.md)** to rank results by impact.
+
+---
 
 ## Source
 

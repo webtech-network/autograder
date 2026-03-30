@@ -1,4 +1,4 @@
-# Step 7: Export
+# Step 8: Export
 
 ## Purpose
 
@@ -42,6 +42,8 @@ This step is only added to the pipeline when `export_results=True` is passed to 
 - Missing environment variables for Upstash (`UPSTASH_REDIS_URL`, `UPSTASH_REDIS_TOKEN`) → connection failure.
 
 Export failures do not affect the grading result — the score and feedback are already computed. However, the pipeline status will reflect the failure.
+
+---
 
 ## Source
 
