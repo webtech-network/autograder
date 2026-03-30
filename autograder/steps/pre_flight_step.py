@@ -32,91 +32,38 @@ class PreFlightStep(Step):
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
-        Execute pre-flight checks on the submission, returns a reference to the sandbox if the grading process requires it.
+        Execute pre-flight checks (required files) on the submission.
 
         Args:
-            pipeline_exec: PipelineExecution containing submission data
+            pipeline_exec: PipelineExecution context.
 
         Returns:
-            StepResult with status SUCCESS if all checks pass, FAIL otherwise
+            PipelineExecution with updated step results.
         """
-        # Create PreFlightService with submission language for language-specific config resolution
         submission_language = pipeline_exec.submission.language
         self._pre_flight_service = PreFlightService(self._setup_config, submission_language)
 
         logger.info(
-            "Pre-flight checks started: external_user_id=%s, language=%s",
+            "Pre-flight (file check) started: external_user_id=%s, language=%s",
             pipeline_exec.submission.user_id,
             submission_language.value if submission_language else "none",
         )
 
-        sandbox = None
-        # Check required files first
-        submission_files = pipeline_exec.submission.submission_files
-        # Use the resolved required_files from the service (language-specific)
         if self._pre_flight_service.required_files:
-            logger.info(
-                "Checking required files: %s (external_user_id=%s)",
-                self._pre_flight_service.required_files,
-                pipeline_exec.submission.user_id,
-            )
-            files_ok = self._pre_flight_service.check_required_files(submission_files)
+            logger.info("Checking required files for submission (external_user_id=%s)", pipeline_exec.submission.user_id)
+            files_ok = self._pre_flight_service.check_required_files(pipeline_exec.submission.submission_files)
+            
             if not files_ok:
-                # File check failed, don't continue to setup commands
                 error_msg = self._format_errors()
-                logger.warning(
-                    "Required files check failed: %s (external_user_id=%s)",
-                    error_msg,
-                    pipeline_exec.submission.user_id,
-                )
-                return pipeline_exec.add_step_result(StepResult(
-                        step=StepName.PRE_FLIGHT,
-                        data=sandbox,  # sandbox is None here, which is correct
-                        status=StepStatus.FAIL,
-                        error=error_msg,
-                        error_data=self._pre_flight_service.fatal_errors,
-                        original_input=pipeline_exec
-                        ))
-
-        grading_template = pipeline_exec.get_loaded_template()
-        if grading_template.requires_sandbox:
-            logger.info("Creating sandbox for submission (external_user_id=%s)", pipeline_exec.submission.user_id)
-            sandbox = self._pre_flight_service.create_sandbox(pipeline_exec.submission) # Needs error handling?
-            logger.info("Sandbox created successfully (external_user_id=%s)", pipeline_exec.submission.user_id)
-
-        # Check setup commands only if file check passed
-        # Use the resolved setup_commands from the service (language-specific)
-        if self._pre_flight_service.setup_commands:
-            logger.info(
-                "Running setup commands (external_user_id=%s)",
-                pipeline_exec.submission.user_id,
-            )
-            setup_ok = self._pre_flight_service.check_setup_commands(sandbox)
-            if not setup_ok:
-                # self._pre_flight_service.destroy_sandbox(sandbox) #TODO: Decide when to destroy sandbox (Maybe after grading process finishes?
-                error_msg = self._format_errors()
-                logger.warning(
-                    "Setup commands check failed: %s (external_user_id=%s)",
-                    error_msg,
-                    pipeline_exec.submission.user_id,
-                )
-                return pipeline_exec.add_step_result(StepResult(
-                    step=StepName.PRE_FLIGHT,
-                    data=sandbox,#Return Sandbox Here anyway? (How to deal with sandbox destruction)
-                    status=StepStatus.FAIL,
+                logger.warning("Required files check failed (external_user_id=%s): %s", pipeline_exec.submission.user_id, error_msg)
+                return pipeline_exec.add_step_result(StepResult.fail(
+                    step=self.step_name,
                     error=error_msg,
-                    error_data=self._pre_flight_service.fatal_errors,
-                    original_input=pipeline_exec
+                    error_data=self._pre_flight_service.fatal_errors
                 ))
 
-        # All checks passed
-        logger.info("Pre-flight checks passed (external_user_id=%s)", pipeline_exec.submission.user_id)
-        return pipeline_exec.add_step_result(StepResult(
-            step=StepName.PRE_FLIGHT,
-            data=sandbox,
-            status=StepStatus.SUCCESS,
-            original_input=pipeline_exec
-        ))
+        logger.info("Pre-flight (file check) passed (external_user_id=%s)", pipeline_exec.submission.user_id)
+        return pipeline_exec.add_step_result(StepResult.success(self.step_name, None))
 
     def _format_errors(self) -> str:
         """Format all preflight errors into a single error message."""

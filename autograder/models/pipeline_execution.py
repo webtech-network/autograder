@@ -38,6 +38,7 @@ class PipelineExecution:
     submission: Submission
     status: PipelineStatus = PipelineStatus.EMPTY
     result: Optional[GradingResult] = None
+    sandbox: Optional["SandboxContainer"] = field(default=None, init=False)
     start_time: float = field(default_factory=time.time)  # Track execution time
 
     def add_step_result(self, step_result: StepResult) -> 'PipelineExecution':
@@ -76,12 +77,7 @@ class PipelineExecution:
         )
 
     def get_sandbox(self) -> Optional["SandboxContainer"]:
-        if not self.has_step_result(StepName.PRE_FLIGHT):
-            return None
-        return cast(
-            Optional["SandboxContainer"],
-            self.get_step_result(StepName.PRE_FLIGHT).data,
-        )
+        return self.sandbox
 
     def get_grade_step_result(self) -> "GradeStepResult":
         return cast(

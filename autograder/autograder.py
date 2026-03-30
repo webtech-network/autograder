@@ -93,20 +93,17 @@ class AutograderPipeline:
     def _cleanup_sandbox(self, pipeline_execution: PipelineExecution) -> None:
         """Release sandbox back to pool after pipeline execution."""
         try:
-            if pipeline_execution.has_step_result(StepName.PRE_FLIGHT):
+            sandbox = pipeline_execution.sandbox
+            if sandbox:
                 from sandbox_manager.manager import get_sandbox_manager
-
-                sandbox = pipeline_execution.get_sandbox()
-
-                if sandbox:  # Only if a sandbox was created
-                    manager = get_sandbox_manager()
-                    language = pipeline_execution.submission.language
-                    manager.release_sandbox(language, sandbox)
-                    logger.info(
-                        "Sandbox released: external_user_id=%s, language=%s",
-                        pipeline_execution.submission.user_id,
-                        language.value if language else "none",
-                    )
+                manager = get_sandbox_manager()
+                language = pipeline_execution.submission.language
+                manager.release_sandbox(language, sandbox)
+                logger.info(
+                    "Sandbox released: external_user_id=%s, language=%s",
+                    pipeline_execution.submission.user_id,
+                    language.value if language else "none",
+                )
         except Exception as e:
             # Log error but don't fail the pipeline
             logger.warning(
@@ -158,6 +155,7 @@ def build_pipeline(
         StepName.LOAD_TEMPLATE,
         StepName.BUILD_TREE,
         StepName.PRE_FLIGHT,
+        StepName.SANDBOX,
         StepName.GRADE,
         StepName.FOCUS,
         StepName.FEEDBACK,
