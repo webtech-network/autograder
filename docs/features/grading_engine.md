@@ -2,7 +2,7 @@
 
 ## Overview
 
-The grading engine is the core subsystem behind the [Grade pipeline step](../pipeline/04-grade.md). It takes a `CriteriaTree` (the rubric) and a student submission, executes every test function in the tree, and produces a `ResultTree` — a scored mirror of the criteria tree with actual results, reports, and aggregated scores at every level.
+The grading engine is the core subsystem behind the [Grade pipeline step](../pipeline/05-grade.md). It takes a `CriteriaTree` (the rubric) and a student submission, executes every test function in the tree, and produces a `ResultTree` — a scored mirror of the criteria tree with actual results, reports, and aggregated scores at every level.
 
 This document covers the engine's internal mechanics: how it traverses the tree, executes tests, resolves files, handles weights, and calculates scores.
 
