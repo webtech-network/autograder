@@ -2,7 +2,7 @@ import logging
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
+from autograder.models.dataclass.step_result import StepResult, StepName
 from autograder.services.pre_flight_service import PreFlightService
 
 logger = logging.getLogger(__name__)

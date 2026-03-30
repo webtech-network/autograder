@@ -28,6 +28,13 @@ class AutograderPipeline:
         self._steps = {}
 
     def add_step(self, step_name: StepName, step: Step) -> None:
+        """
+        Adds a grading step to the pipeline.
+
+        Args:
+            step_name: The unique identifier for the step.
+            step: The Step instance to be executed.
+        """
         self._steps[step_name] = step
 
     def run(self, submission: Submission):
