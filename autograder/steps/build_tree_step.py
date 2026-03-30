@@ -26,7 +26,11 @@ class BuildTreeStep(Step):
         self._criteria_json = criteria_json
         self._criteria_tree_service = CriteriaTreeService()
 
-    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
+    @property
+    def step_name(self) -> StepName:
+        return StepName.BUILD_TREE
+
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Build a criteria tree from the configuration and template.
 
@@ -36,38 +40,23 @@ class BuildTreeStep(Step):
         Returns:
             StepResult containing the built CriteriaTree
         """
-        try:
-            logger.info("Building criteria tree (external_user_id=%s)", pipeline_exec.submission.user_id)
-            # Validate criteria configuration
-            criteria_config = CriteriaConfig.from_dict(self._criteria_json)
-            template = pipeline_exec.get_loaded_template()
-            # Build the criteria tree with embedded test functions
-            criteria_tree = self._criteria_tree_service.build_tree(
-                criteria_config,
-                template
-            )
-            logger.info(
-                "Criteria tree built successfully (external_user_id=%s)",
-                pipeline_exec.submission.user_id,
-            )
+        logger.info("Building criteria tree (external_user_id=%s)", pipeline_exec.submission.user_id)
+        # Validate criteria configuration
+        criteria_config = CriteriaConfig.from_dict(self._criteria_json)
+        template = pipeline_exec.get_loaded_template()
+        # Build the criteria tree with embedded test functions
+        criteria_tree = self._criteria_tree_service.build_tree(
+            criteria_config,
+            template
+        )
+        logger.info(
+            "Criteria tree built successfully (external_user_id=%s)",
+            pipeline_exec.submission.user_id,
+        )
 
-            return pipeline_exec.add_step_result(StepResult(
-                step=StepName.BUILD_TREE,
-                data=criteria_tree,
-                status=StepStatus.SUCCESS,
-                original_input=pipeline_exec
-            ))
-
-        except Exception as e:
-            logger.error(
-                "Failed to build criteria tree: %s (external_user_id=%s)",
-                str(e),
-                pipeline_exec.submission.user_id,
-            )
-            return pipeline_exec.add_step_result(StepResult(
-                step=StepName.BUILD_TREE,
-                data=None,
-                status=StepStatus.FAIL,
-                error=f"Failed to build criteria tree: {str(e)}",
-                original_input=pipeline_exec
-            ))
+        return pipeline_exec.add_step_result(StepResult(
+            step=StepName.BUILD_TREE,
+            data=criteria_tree,
+            status=StepStatus.SUCCESS,
+            original_input=pipeline_exec
+        ))

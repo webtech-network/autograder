@@ -3,16 +3,7 @@ import logging
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.step_result import StepName
 from autograder.models.pipeline_execution import PipelineExecution, PipelineStatus
-from autograder.services.focus_service import FocusService
-from autograder.services.report.reporter_service import ReporterService
-from autograder.services.upstash_driver import UpstashDriver
-from autograder.steps.export_step import ExporterStep
-from autograder.steps.feedback_step import FeedbackStep
-from autograder.steps.focus_step import FocusStep
-from autograder.steps.grade_step import GradeStep
-from autograder.steps.load_template_step import TemplateLoaderStep
-from autograder.steps.pre_flight_step import PreFlightStep
-from autograder.steps.build_tree_step import BuildTreeStep
+from autograder.steps.step_registry import StepRegistry
 from autograder.models.dataclass.submission import Submission
 
 logger = logging.getLogger(__name__)
@@ -151,38 +142,31 @@ def build_pipeline(
     """
     pipeline = AutograderPipeline()
 
-    # Load template
-    pipeline.add_step(
-        StepName.LOAD_TEMPLATE, TemplateLoaderStep(template_name, custom_template)
-    )  # Passes the template to the next step
+    config = {
+        "template_name": template_name,
+        "include_feedback": include_feedback,
+        "grading_criteria": grading_criteria,
+        "feedback_config": feedback_config,
+        "setup_config": setup_config,
+        "custom_template": custom_template,
+        "feedback_mode": feedback_mode,
+        "export_results": export_results,
+    }
+    registry = StepRegistry(config)
 
-    pipeline.add_step(
-        StepName.BUILD_TREE, BuildTreeStep(grading_criteria)
-    )  # Uses template to match selected tests in criteria and builds tree
+    execution_order = [
+        StepName.LOAD_TEMPLATE,
+        StepName.BUILD_TREE,
+        StepName.PRE_FLIGHT,
+        StepName.GRADE,
+        StepName.FOCUS,
+        StepName.FEEDBACK,
+        StepName.EXPORTER,
+    ]
 
-    # Run pre-flight if setup_config is provided (even if empty), as the step will create sandbox if template requires it
-    if setup_config is not None:
-        pipeline.add_step(StepName.PRE_FLIGHT, PreFlightStep(setup_config))
-
-    pipeline.add_step(
-        StepName.GRADE, GradeStep()
-    )  # Generates GradingResult with final score and result tree
-
-    focus_service = FocusService()
-    pipeline.add_step(StepName.FOCUS, FocusStep(focus_service))
-
-    # Feedback generation (if configured)
-    if include_feedback:
-
-        reporter_service = ReporterService(feedback_mode=feedback_mode)
-        pipeline.add_step(
-            StepName.FEEDBACK, FeedbackStep(reporter_service, feedback_config)
-        )  # Uses GradingResult to generate feedback and appends it to GradingResult
-
-    # Export results
-    if export_results:
-        pipeline.add_step(
-            StepName.EXPORTER, ExporterStep(UpstashDriver)
-        )  # Exports final results and feedback to external system
+    for step_name in execution_order:
+        step_instance = registry.build_step(step_name)
+        if step_instance is not None:
+            pipeline.add_step(step_name, step_instance)
 
     return pipeline

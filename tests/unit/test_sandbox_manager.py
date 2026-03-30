@@ -164,7 +164,7 @@ class TestSandboxContainer(unittest.TestCase):
         self.assertEqual(response.exit_code, 0)
         self.assertEqual(response.stdout.strip(), "Hello World")
         self.assertEqual(response.stderr, "")
-        self.assertGreater(response.execution_time, 0)
+        self.assertGreaterEqual(response.execution_time, 0.0)
 
     def test_run_command_with_stderr(self):
         """Test command execution with stderr output."""

@@ -249,7 +249,14 @@ class PipelineExecution:
 
 The `PipelineExecutionSerializer` (`autograder/serializers/pipeline_execution_serializer.py`) handles the conversion of an execution into a dictionary for API responses.
 
+#### Step Status Semantics
+During execution, steps return a `StepResult` which contains a `status`:
+- `SUCCESS`: The step executed correctly and produced the expected output data.
+- `FAIL`: The step executed correctly, but encountered a logical domain failure (e.g. pre-flight file check missing required files, or code styling was bad).
+- `INTERRUPTED`: The step encountered an unexpected system-level error or unhandled exception. The pipeline base class traps this to prevent full collapse.
+
 #### `PipelineExecutionSerializer.serialize(execution) -> dict`
+
 
 Generates detailed summary for API responses.
 

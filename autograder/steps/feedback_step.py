@@ -21,37 +21,26 @@ class FeedbackStep(Step):
         self._reporter_service = reporter_service
         self._feedback_config = feedback_config
 
-    def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
+    @property
+    def step_name(self) -> StepName:
+        return StepName.FEEDBACK
+
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """Adds feedback to the grading result using the reporter service."""
-        try:
-            logger.info("Generating feedback (external_user_id=%s)", pipeline_exec.submission.user_id)
-            focused_tests: Focus = pipeline_exec.require_focus()
-            result_tree = pipeline_exec.get_result_tree()
-            
-            feedback_content = self._reporter_service.generate_feedback(
-                grading_result=focused_tests,
-                result_tree=result_tree,
-                feedback_config=self._feedback_config
+        logger.info("Generating feedback (external_user_id=%s)", pipeline_exec.submission.user_id)
+        focused_tests: Focus = pipeline_exec.require_focus()
+        result_tree = pipeline_exec.get_result_tree()
+        
+        feedback_content = self._reporter_service.generate_feedback(
+            grading_result=focused_tests,
+            result_tree=result_tree,
+            feedback_config=self._feedback_config
+        )
+        logger.info("Feedback generated (external_user_id=%s)", pipeline_exec.submission.user_id)
+        return pipeline_exec.add_step_result(
+            StepResult(
+                step=StepName.FEEDBACK,
+                data=feedback_content,
+                status=StepStatus.SUCCESS,
             )
-            logger.info("Feedback generated (external_user_id=%s)", pipeline_exec.submission.user_id)
-            return pipeline_exec.add_step_result(
-                StepResult(
-                    step=StepName.FEEDBACK,
-                    data=feedback_content,
-                    status=StepStatus.SUCCESS,
-                )
-            )
-        except (ValueError, KeyError, AttributeError, TypeError, RuntimeError) as e:
-            logger.error(
-                "Feedback generation failed: external_user_id=%s, error=%s",
-                pipeline_exec.submission.user_id,
-                str(e),
-            )
-            return pipeline_exec.add_step_result(
-                StepResult(
-                    step=StepName.FEEDBACK,
-                    data=None,
-                    status=StepStatus.FAIL,
-                    error=f"Failed to generate feedback: {str(e)}",
-                )
-            )
+        )
