@@ -28,6 +28,7 @@ async def grade_submission(
     username: str,
     external_user_id: str,
     submission_files: dict,
+    locale: str = "en",
 ):
     """
     Background task to grade a submission.
@@ -68,7 +69,8 @@ async def grade_submission(
                 user_id=external_user_id,
                 assignment_id=grading_config_id,
                 submission_files=files_to_grade,
-                language=Language[language.upper()] if language else None
+                language=Language[language.upper()] if language else None,
+                locale=locale,
             )
 
             # Run pipeline in a thread to avoid blocking the event loop
@@ -142,7 +144,7 @@ async def grade_submission(
                 feedback = None
                 failed_step_name = pipeline_summary.get("failed_at_step")
                 if failed_step_name == "PreFlightStep":
-                    feedback = generate_preflight_feedback(pipeline_summary)
+                    feedback = generate_preflight_feedback(pipeline_summary, locale=locale)
 
                 await result_repo.create(
                     submission_id=submission_id,

@@ -32,7 +32,7 @@ class Translator:
         json_path = os.path.join(current_dir, f"{normalized_locale}.json")
 
         try:
-            with open(json_path, 'r', encoding='utf-8') as f:
+            with open(json_path, 'r', encoding='utf-8-sig') as f:
                 data = json.load(f)
                 self._catalogs[normalized_locale] = data
                 return data

@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution

@@ -4,12 +4,13 @@ from typing import Dict, Any, Optional
 from autograder.translations import t
 
 
-def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any]) -> str:
+def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any], locale: str = "en") -> str:
     """
     Generate human-readable feedback for preflight failures.
 
     Args:
         pipeline_execution_summary: Pipeline execution summary dict
+        locale: Locale string for translations (e.g. 'en', 'pt_br')
 
     Returns:
         Markdown-formatted feedback string
@@ -20,11 +21,6 @@ def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any]) -> s
         if step["name"] == "PreFlightStep" and step["status"] == "fail":
             preflight_step = step
             break
-
-    # Extract locale from summary if available, fallback to 'en'
-    # The summary structure usually contains submission details
-    submission = pipeline_execution_summary.get("submission", {})
-    locale = submission.get("locale", "en")
 
     if not preflight_step:
         return t("feedback.preflight.failed_title", locale=locale) + "\n\n" + t("feedback.preflight.failed_subtitle", locale=locale)
