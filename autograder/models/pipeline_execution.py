@@ -132,7 +132,7 @@ class PipelineExecution:
         """
         return cast("ResultTree", self.get_grade_step_result().result_tree)
 
-    def require_focus(self) -> "Focus":
+    def get_focus(self) -> "Focus":
         """
         Retrieves the Focus object identified for the submission.
         """
@@ -140,14 +140,6 @@ class PipelineExecution:
             "Focus",
             self._require_step_data(StepName.FOCUS, "focus"),
         )
-
-    def get_focus(self) -> Optional["Focus"]:
-        """
-        Retrieves the Focus object if focus identification step was executed.
-        """
-        if not self.has_step_result(StepName.FOCUS):
-            return None
-        return cast(Optional["Focus"], self.get_step_result(StepName.FOCUS).data)
 
     def get_feedback(self) -> Optional[str]:
         """

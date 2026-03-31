@@ -28,7 +28,7 @@ class FeedbackStep(Step):
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """Adds feedback to the grading result using the reporter service."""
         logger.info("Generating feedback (external_user_id=%s)", pipeline_exec.submission.user_id)
-        focused_tests: Focus = pipeline_exec.require_focus()
+        focused_tests: Focus = pipeline_exec.get_focus()
         result_tree = pipeline_exec.get_result_tree()
         
         feedback_content = self._reporter_service.generate_feedback(

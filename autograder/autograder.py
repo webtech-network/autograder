@@ -161,8 +161,8 @@ def build_pipeline(
     execution_order = [
         StepName.LOAD_TEMPLATE,
         StepName.BUILD_TREE,
-        StepName.PRE_FLIGHT,
         StepName.SANDBOX,
+        StepName.PRE_FLIGHT,
         StepName.GRADE,
         StepName.FOCUS,
         StepName.FEEDBACK,

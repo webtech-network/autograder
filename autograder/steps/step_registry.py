@@ -49,16 +49,15 @@ class StepRegistry:
         return BuildTreeStep(self.config.get("grading_criteria"))
 
     def _build_pre_flight(self) -> Optional[Step]:
+        # Always return PreFlightStep; it handles file checks and setup commands.
+        # It will gracefully handle cases where no setup_config is provided.
         setup_config = self.config.get("setup_config")
-        if setup_config is not None:
-            return PreFlightStep(setup_config)
-        return None
+        return PreFlightStep(setup_config)
 
     def _build_sandbox(self) -> Optional[Step]:
-        setup_config = self.config.get("setup_config")
-        if setup_config is not None:
-            return SandboxStep(setup_config)
-        return None
+        # Always return SandboxStep; it will skip itself if the template doesn't require it.
+        # This allows for assignments that require a sandbox but have no setup commands.
+        return SandboxStep()
 
     def _build_grade(self) -> Optional[Step]:
         return GradeStep()
