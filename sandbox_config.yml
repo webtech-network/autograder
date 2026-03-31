@@ -4,7 +4,7 @@ general:
     # - This is the baseline number always kept ready
     # - System will automatically create more on-demand up to scale_limit
     # Development: 2-3, Production: 3-5 depending on expected baseline load
-    pool_size: 3
+    pool_size: 1
 
     # SCALE LIMIT: Maximum total sandboxes (active + idle) per language
     # - System scales UP automatically when all sandboxes are busy
@@ -15,7 +15,7 @@ general:
     #   - Medium load (10-50 concurrent users): 20-30
     #   - Heavy load (50+ concurrent users): 50+
     # Note: Each sandbox uses ~128MB RAM + 0.5 CPU
-    scale_limit: 10
+    scale_limit: 3
 
     # IDLE TIMEOUT: Seconds before destroying idle sandboxes above pool_size
     # - Sandboxes are destroyed only if: total > pool_size AND idle > idle_timeout
