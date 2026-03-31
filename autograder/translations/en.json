@@ -1,4 +1,4 @@
-﻿{
+{
   "preflight": {
     "error": {
       "required_file_missing": "**Error:** Required file or directory not found: `'{file}'`",
@@ -16,8 +16,8 @@
   "feedback": {
     "report_title": "Evaluation Report",
     "category": {
-      "base": "âœ… Essential Requirements",
-      "bonus": "â­ Extra Points",
+      "base": "✅ Essential Requirements",
+      "bonus": "⭐ Extra Points",
       "penalty": "âŒ Points to Improve"
     },
     "report": {
@@ -456,7 +456,7 @@
         "language": "Submission language (e.g., 'python', 'java'). Required to identify correct import patterns."
       },
       "report": {
-        "no_imports": "No forbidden imports specified â€” nothing to check.",
+        "no_imports": "No forbidden imports specified — nothing to check.",
         "no_lang": "FAILURE: Submission language is not defined. Cannot check for forbidden imports.",
         "no_files": "No submission files to analyze.",
         "violation": "  - '{lib}' found in '{file}'",
@@ -500,8 +500,7 @@
       "name": "API Testing",
       "description": "A template for evaluating assignments where students create a web API."
     }
-  }
-,
+  },
   "system": {
     "error": {
       "step_interrupted": "An unexpected error occurred during step execution: {error}"
