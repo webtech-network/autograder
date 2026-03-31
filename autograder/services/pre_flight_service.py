@@ -127,7 +127,7 @@ class PreFlightService:
 
         for idx, command_spec in enumerate(self.setup_commands):
             # Call SandboxService to execute one command at a time
-            response = self._sandbox_service.run_setup_command(sandbox, command_spec, idx)
+            response = self._sandbox_service.run_setup_command(sandbox, command_spec, idx, locale=self.locale)
 
             # Check if response indicates an error
             if response.category != ResponseCategory.SUCCESS:

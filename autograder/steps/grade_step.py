@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from autograder.models.dataclass.grade_step_result import GradeStepResult
 from autograder.models.pipeline_execution import PipelineExecution
@@ -28,7 +29,7 @@ class GradeStep(Step):
     def step_name(self) -> StepName:
         return StepName.GRADE
 
-    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
+    def _execute(self, pipeline_exec: PipelineExecution, locale: Optional[str] = None) -> PipelineExecution:
         """
         Grade a submission based on the criteria tree and template.
 

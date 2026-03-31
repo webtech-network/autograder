@@ -1,4 +1,4 @@
-{
+﻿{
   "preflight": {
     "error": {
       "required_file_missing": "**Error:** Required file or directory not found: `'{file}'`",
@@ -8,15 +8,39 @@
       "setup_command_missing_field": "**Error:** Setup command '{command_name}' is missing the 'command' field",
       "setup_command_invalid_format": "**Error:** Invalid setup command format at index {index}: expected string or object",
       "setup_command_failed_execution": "**Error:** Setup command '{command_name}' failed to execute: `{error}`\n\nCommand: `{command}`",
-      "setup_command_failed_exit_code": "**Error:** Setup command '{command_name}' failed with exit code {exit_code}\n\n**Command:** `{command}`"
+      "setup_command_failed_exit_code": "**Error:** Setup command '{command_name}' failed with exit code {exit_code}\n\n**Command:** `{command}`",
+      "missing_sandbox": "Sandbox environment is required for executing setup commands but was not created.",
+      "unknown": "Unknown preflight error."
     }
   },
   "feedback": {
     "report_title": "Evaluation Report",
     "category": {
-      "base": "✅ Essential Requirements",
-      "bonus": "⭐ Extra Points",
-      "penalty": "❌ Points to Improve"
+      "base": "âœ… Essential Requirements",
+      "bonus": "â­ Extra Points",
+      "penalty": "âŒ Points to Improve"
+    },
+    "report": {
+      "header": "RESULT TREE",
+      "summary_header": "GRADING SUMMARY",
+      "tests_label": "Tests",
+      "passed_label": "passed",
+      "failed_label": "failed",
+      "template_label": "Template",
+      "weight_label": "weight",
+      "file_label": "File",
+      "score_label": "Score",
+      "params_label": "Parameters",
+      "error_label": "Error",
+      "feedback_label": "Feedback",
+      "final_score_label": "Final Score",
+      "learning_resources_label": "Learning Resources",
+      "stats_header": "Test Statistics",
+      "total_label": "Total",
+      "passed_count_label": "Passed",
+      "failed_count_label": "Failed",
+      "avg_score_label": "Average Score",
+      "failed_tests_header": "Failed Tests"
     },
     "preflight": {
       "failed_title": "## Preflight Check Failed",
@@ -432,7 +456,7 @@
         "language": "Submission language (e.g., 'python', 'java'). Required to identify correct import patterns."
       },
       "report": {
-        "no_imports": "No forbidden imports specified — nothing to check.",
+        "no_imports": "No forbidden imports specified â€” nothing to check.",
         "no_lang": "FAILURE: Submission language is not defined. Cannot check for forbidden imports.",
         "no_files": "No submission files to analyze.",
         "violation": "  - '{lib}' found in '{file}'",
@@ -475,6 +499,12 @@
     "template": {
       "name": "API Testing",
       "description": "A template for evaluating assignments where students create a web API."
+    }
+  }
+,
+  "system": {
+    "error": {
+      "step_interrupted": "An unexpected error occurred during step execution: {error}"
     }
   }
 }

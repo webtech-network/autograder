@@ -1,3 +1,4 @@
+from typing import Optional
 from autograder.services.report.default_reporter import DefaultReporter
 from autograder.services.report.ai_reporter import AiReporter
 from autograder.models.dataclass.feedback_preferences import (
@@ -19,7 +20,7 @@ class ReporterService:
         """Returns the active reporter instance."""
         return self._reporter
 
-    def generate_feedback(self, grading_result, result_tree, feedback_config: dict, locale: str = "en"):
+    def generate_feedback(self, grading_result, result_tree, feedback_config: dict, locale: Optional[str] = None):
         """
         Parses config into FeedbackPreferences and delegates report generation to the active reporter.
         """

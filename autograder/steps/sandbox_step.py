@@ -1,9 +1,11 @@
 import logging
+from typing import Optional
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepName
 from autograder.services.sandbox_service import SandboxService
+from autograder.translations import t
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +27,13 @@ class SandboxStep(Step):
     def step_name(self) -> StepName:
         return StepName.SANDBOX
 
-    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
+    def _execute(self, pipeline_exec: PipelineExecution, locale: Optional[str] = None) -> PipelineExecution:
         """
         Execute sandbox acquisition and preparation.
 
         Args:
             pipeline_exec: PipelineExecution context.
+            locale: User's locale for error messages.
 
         Returns:
             PipelineExecution with updated sandbox and step result.
@@ -46,11 +49,11 @@ class SandboxStep(Step):
         
         if sandbox is None:
             # Sandbox creation failed, error details are already logged in the service
-            error_msg = "Failed to create sandbox environment for code execution."
             logger.error("Sandbox creation failed (external_user_id=%s)", pipeline_exec.submission.user_id)
+            lang_val = pipeline_exec.submission.language.value if pipeline_exec.submission.language else "unknown"
             return pipeline_exec.add_step_result(StepResult.fail(
                 step=self.step_name,
-                error=error_msg
+                error=t("preflight.error.sandbox_creation_failed", locale=locale, language=lang_val, error="See logs for details")
             ))
 
         # Store sandbox in PipelineExecution for downstream steps and cleanup
