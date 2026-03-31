@@ -326,6 +326,11 @@ GET /api/v1/submissions/{submission_id}
         "message": "Criteria tree built successfully"
       },
       {
+        "name": "SANDBOX",
+        "status": "success",
+        "message": "Sandbox created and attached to pipeline"
+      },
+      {
         "name": "PRE_FLIGHT",
         "status": "success",
         "message": "All preflight checks passed"

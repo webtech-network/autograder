@@ -39,7 +39,7 @@ The `setup_config` uses a **language-keyed dictionary** format:
 
 ### How Resolution Works
 
-When a submission arrives, `PreFlightService` looks up the submission's language in the `setup_config` dictionary and uses only that language's block. For example, a Python submission uses the `"python"` block; a Java submission uses the `"java"` block. If the submission's language is not present in the config, an empty config is used (no checks, no commands).
+When a submission arrives, `PreFlightService` (for file checks) and `SandboxService` (for setup commands) resolve the submission's language in the `setup_config` dictionary. For example, a Python submission uses the `"python"` block; a Java submission uses the `"java"` block. If the submission's language is not present in the config, an empty config is used (no checks, no commands).
 
 ### Fields (Per Language)
 
@@ -49,7 +49,7 @@ When a submission arrives, `PreFlightService` looks up the submission's language
 
 - **`setup_commands`** (optional): List of shell commands to execute during preflight
   - Type: `Array<string | object>`
-  - Commands are executed in order in the sandbox environment
+  - Commands are orchestrated via `SandboxService` and executed in order in the sandbox environment
   - If any command fails (non-zero exit code), the submission fails
   - Supports both string format (`"javac Calculator.java"`) and named object format (`{"name": "Compile", "command": "javac Calculator.java"}`)
 
@@ -294,13 +294,16 @@ Benefits:
    - `setup_config: Mapped[Optional[dict]]` column
 
 3. **PreFlightService** (`autograder/services/pre_flight_service.py`):
-   - `_resolve_setup_config()` resolves the language-keyed dictionary at runtime
+   - Handles resolution and validation of required files.
 
-4. **PreFlightStep** (`autograder/steps/pre_flight_step.py`):
-   - Creates `PreFlightService` with the submission's language for config resolution
+4. **SandboxService** (`autograder/services/sandbox_service.py`):
+   - Handles sandbox lifecycle and orchestration of setup command execution.
 
-5. **Pipeline Builder** (`autograder/autograder.py`):
-   - `build_pipeline()` passes `setup_config` to `PreFlightStep`
+5. **PreFlightStep** (`autograder/steps/pre_flight_step.py`):
+   - Co-ordinates both `PreFlightService` (files) and `SandboxService` (commands) during the preflight phase.
+
+6. **SandboxStep** (`autograder/steps/sandbox_step.py`):
+   - Uses `SandboxService` to acquire and prepare the environment *before* pre-flight checks occur.
 
 ## Related Documentation
 
