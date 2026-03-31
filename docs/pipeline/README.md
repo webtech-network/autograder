@@ -10,7 +10,7 @@ The pipeline is:
 - **Fail-fast**: If any step fails, the pipeline stops immediately and reports the failure point.
 
 ```
-Submission ──▶ [LOAD_TEMPLATE] ──▶ [BUILD_TREE] ──▶ [PRE_FLIGHT] ──▶ [SANDBOX] ──▶ [GRADE] ──▶ [FOCUS] ──▶ [FEEDBACK] ──▶ [EXPORT]
+Submission ──▶ [LOAD_TEMPLATE] ──▶ [BUILD_TREE] ──▶ [SANDBOX] ──▶ [PRE_FLIGHT] ──▶ [GRADE] ──▶ [FOCUS] ──▶ [FEEDBACK] ──▶ [EXPORT]
                                                                                                                 │
                                                                                                         PipelineExecution
                                                                                                         (with GradingResult)
@@ -124,8 +124,8 @@ Steps read data from previous steps via `pipeline_exec.get_step_result(StepName.
 |------|----------|
 | **Load Template** | — (no dependencies) |
 | **Build Tree** | Load Template (needs the `Template` to match test functions) |
-| **Pre-Flight** | — (no dependencies) |
 | **Sandbox** | Load Template (checks if template requires sandbox) |
+| **Pre-Flight** | Load Template, Sandbox (requires sandbox to run setup commands) |
 | **Grade** | Load Template, Build Tree, Sandbox (optional — only if template requires sandbox) |
 | **Focus** | Grade (needs the `ResultTree` from grading) |
 | **Feedback** | Grade, Focus (needs the `ResultTree` and `Focus` objects) |
@@ -154,8 +154,7 @@ pipeline = build_pipeline(
 **Assembly rules:**
 
 The `StepRegistry` applies the specific conditionality parameters natively for step constructions:
-1. **Load Template** and **Build Tree** are unconditionally instantiated. 
-2. **Pre-Flight** and **Sandbox** only resolve natively if `setup_config is not None`.
+1. **Load Template**, **Build Tree**, **Sandbox**, and **Pre-Flight** are unconditionally instantiated. 
 3. **Grade** and **Focus** always evaluate into their respective steps.
 4. **Feedback** strictly resolves if `include_feedback=True`, consuming the `ReporterService` using the designated `feedback_mode`.
 5. **Export** compiles optionally through `export_results=True`.
@@ -163,7 +162,7 @@ The `StepRegistry` applies the specific conditionality parameters natively for s
 These instantiated elements are natively pushed into the `AutograderPipeline` linearly along their static `execution_order` mapping:
 
 ```
-LOAD_TEMPLATE → BUILD_TREE → PRE_FLIGHT → SANDBOX → GRADE → FOCUS → FEEDBACK → EXPORT
+LOAD_TEMPLATE → BUILD_TREE → SANDBOX → PRE_FLIGHT → GRADE → FOCUS → FEEDBACK → EXPORT
 ```
 
 ---
@@ -174,8 +173,8 @@ LOAD_TEMPLATE → BUILD_TREE → PRE_FLIGHT → SANDBOX → GRADE → FOCUS → 
 |------|------|-------------|----------------|
 | [Load Template](01-load-template.md) | `load_template_step.py` | Loads the grading template (built-in or custom) containing test functions | None |
 | [Build Tree](02-build-tree.md) | `build_tree_step.py` | Constructs the `CriteriaTree` from JSON config, matching test functions from the template | Load Template |
-| [Pre-Flight](03-pre-flight.md) | `pre_flight_step.py` | Validates that all required files exist in the submission | None |
-| [Sandbox](04-sandbox.md) | `sandbox_step.py` | Creates the sandbox environment and executes setup commands (compilation, etc.) | Load Template |
+| [Sandbox](03-sandbox.md) | `sandbox_step.py` | Creates the sandbox environment and prepares the workspace | Load Template |
+| [Pre-Flight](04-pre-flight.md) | `pre_flight_step.py` | Validates required files and executes setup commands (compilation, etc.) | Sandbox |
 | [Grade](05-grade.md) | `grade_step.py` | Executes all tests against the submission and produces the scored `ResultTree` | Load Template, Build Tree, Sandbox* |
 | [Focus](06-focus.md) | `focus_step.py` | Ranks all tests by their impact on the final score | Grade |
 | [Feedback](07-feedback.md) | `feedback_step.py` | Generates student-facing feedback reports (default or AI-powered) | Focus |

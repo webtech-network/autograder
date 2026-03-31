@@ -136,7 +136,7 @@ class TestPipelineLanguageHandling:
             pass
 
         # Verify sandbox was requested with Java language
-        # This will be called during preflight
+        # This will be called during SandboxStep
         if mock_manager.get_sandbox.called:
             mock_manager.get_sandbox.assert_called_with(Language.JAVA)
 

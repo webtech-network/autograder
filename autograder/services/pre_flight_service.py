@@ -3,6 +3,7 @@ from typing import List, Optional
 from autograder.models.dataclass.preflight_error import PreflightError, PreflightCheckType
 from autograder.models.dataclass.submission import Submission
 from autograder.translations import t
+from autograder.services.sandbox_service import SandboxService
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
@@ -22,6 +23,7 @@ class PreFlightService:
         self.raw_setup_config = setup_config or {}
         self.logger = logging.getLogger("PreFlight")
         self.fatal_errors: List[PreflightError] = []
+        self._sandbox_service = SandboxService()
 
         # Resolve language-specific config
         resolved_config = self._resolve_setup_config(setup_config, submission_language)
@@ -63,6 +65,19 @@ class PreFlightService:
         self.logger.warning("No setup config found for language %s, using empty config", lang_key)
         return {}
 
+    def has_errors(self) -> bool:
+        """
+        Check if any fatal errors were recorded during preflight checks.
+        """
+        return len(self.fatal_errors) > 0
+
+    def get_error_messages(self) -> List[str]:
+        """
+        Get all fatal error messages recorded during preflight checks.
+        These messages are typically Markdown strings for student feedback.
+        """
+        return [error.message for error in self.fatal_errors]
+
     def check_required_files(self, submission_files) -> bool:
         """
         Checks for the existence of required files in the submission.
@@ -90,17 +105,12 @@ class PreFlightService:
 
     def check_setup_commands(self, sandbox: SandboxContainer) -> bool:
         """
-        Executes setup commands in a sandbox environment.
-        Returns True if all commands succeed, False otherwise.
-
-        Setup commands can be either:
-        - String: "javac Calculator.java"
-        - Object: {"name": "Compile Calculator", "command": "javac Calculator.java"}
-
-        args:
-            - sandbox: The sandbox container where setup commands should be executed. Should not be None if setup_commands are defined.
+        Executes setup commands in the sandbox and interprets the results.
+        Creates PreflightError objects for any failures.
+        
+        Returns:
+            True if all commands succeeded, False otherwise. Errors are stored in self.fatal_errors.
         """
-        self.logger.debug("Checking setup commands")
         if not sandbox:
             error_msg = t("preflight.error.setup_command_missing_sandbox", locale=self.locale)
             self.logger.error(error_msg)
@@ -110,141 +120,60 @@ class PreFlightService:
                 details={}
             ))
             return False
+
         if not self.setup_commands:
             self.logger.debug("No setup commands to execute")
             return True
 
         for idx, command_spec in enumerate(self.setup_commands):
-            # Parse command specification (supports both string and object format)
-            if isinstance(command_spec, dict):
-                command_name = command_spec.get('name', f'Setup Command {idx + 1}')
-                command = command_spec.get('command')
-                if not command:
-                    error_msg = t("preflight.error.setup_command_missing_field", locale=self.locale, command_name=command_name)
-                    self.logger.error(error_msg)
-                    self.fatal_errors.append(PreflightError(
-                        type=PreflightCheckType.SETUP_COMMAND,
-                        message=error_msg,
-                        details={"command_name": command_name, "index": idx}
-                    ))
-                    continue
-            elif isinstance(command_spec, str):
-                command_name = f'Setup Command {idx + 1}'
-                command = command_spec
-            else:
-                error_msg = t("preflight.error.setup_command_invalid_format", locale=self.locale, index=idx)
+            # Call SandboxService to execute one command at a time
+            response = self._sandbox_service.run_setup_command(sandbox, command_spec, idx)
+
+            # Check if response indicates an error
+            if response.category != ResponseCategory.SUCCESS:
+                # Extract command name and command for error reporting
+                if isinstance(command_spec, dict):
+                    command_name = command_spec.get('name', f'Setup Command {idx + 1}')
+                    command = command_spec.get('command', '')
+                else:
+                    command_name = f'Setup Command {idx + 1}'
+                    command = command_spec
+
+                error_msg = self._format_command_error(command_name, command, response)
                 self.logger.error(error_msg)
                 self.fatal_errors.append(PreflightError(
                     type=PreflightCheckType.SETUP_COMMAND,
                     message=error_msg,
-                    details={"index": idx, "type": str(type(command_spec))}
+                    details={
+                        "command_name": command_name,
+                        "command": command,
+                        "exit_code": response.exit_code,
+                        "category": response.category.value,
+                        "stdout": response.stdout,
+                        "stderr": response.stderr
+                    }
                 ))
-                continue
+                # Stop on first failure for setup commands (e.g., failed compilation)
+                return False
 
-            self.logger.debug(f"Executing setup command '{command_name}': {command}")
-            try:
-                response = sandbox.run_command(command)
-                self.logger.debug(f"Setup command '{command_name}' exit code: {response.exit_code}")
-                self.logger.debug(f"Setup command '{command_name}' category: {response.category.value}")
+        return True
 
-                # Use the new category classification
-                if response.category != ResponseCategory.SUCCESS:
-                    error_msg = self._format_setup_command_error(command_name, command, response)
-                    self.logger.error(error_msg)
-                    self.fatal_errors.append(PreflightError(
-                        type=PreflightCheckType.SETUP_COMMAND,
-                        message=error_msg,
-                        details={
-                            "command_name": command_name,
-                            "command": command,
-                            "exit_code": response.exit_code,
-                            "category": response.category.value,  # Track the category here
-                            "stdout": response.stdout,
-                            "stderr": response.stderr
-                        }
-                    ))
-            except Exception as e:
-                error_msg = t("preflight.error.setup_command_failed_execution", locale=self.locale, command_name=command_name, error=str(e), command=command)
-                self.logger.error(error_msg)
-                self.fatal_errors.append(PreflightError(
-                    type=PreflightCheckType.SETUP_COMMAND,
-                    message=error_msg,
-                    details={"command_name": command_name, "command": command, "error": str(e)}
-                ))
+    def _format_command_error(self, command_name: str, command: str, response) -> str:
+        """Helper to format detailed error messages for students."""
+        if response.category == ResponseCategory.SYSTEM_ERROR:
+            # For system errors, we use a generic system error message
+            return t("io.execution.system_error", locale=self.locale, error=response.stderr)
 
-        return len([e for e in self.fatal_errors if e.type == PreflightCheckType.SETUP_COMMAND]) == 0
-
-    def _format_setup_command_error(self, command_name: str, command: str, response) -> str:
-        """
-        Format a detailed error message for failed setup commands.
-
-        Args:
-            command_name: Human-readable name of the command
-            command: The actual command that was executed
-            response: CommandResponse object with execution details
-        """
-        error_msg = t("preflight.error.setup_command_failed_exit_code", locale=self.locale, command_name=command_name, exit_code=response.exit_code, command=command)
-        error_msg += "\n\n"
+        error_msg = t("preflight.error.setup_command_failed_exit_code",
+                      locale=self.locale,
+                      command_name=command_name,
+                      exit_code=response.exit_code,
+                      command=command)
 
         if response.stdout and response.stdout.strip():
-            error_msg += f"**Output (stdout):**\n```\n{response.stdout.strip()}\n```\n\n"
+            error_msg += f"\n\n**Output (stdout):**\n```\n{response.stdout.strip()}\n```"
 
         if response.stderr and response.stderr.strip():
-            error_msg += f"**Error Output (stderr):**\n```\n{response.stderr.strip()}\n```"
+            error_msg += f"\n\n**Error Output (stderr):**\n```\n{response.stderr.strip()}\n```"
 
         return error_msg.strip()
-
-    def create_sandbox(self, submission: Submission) -> Optional[SandboxContainer]:
-        """
-        Creates a sandbox environment for the submission if needed.
-        Sandbox image is based on the submission language.
-        Returns the created SandboxContainer or None if not needed.
-
-        args:
-            - submission: The submission object containing necessary information for sandbox creation (e.g., language, files).
-        """
-        if not submission.language:
-            self.logger.error("No language specified in submission for sandbox creation")
-            raise ValueError("Submission language is required for sandbox creation")
-        try:
-            from sandbox_manager.manager import get_sandbox_manager
-            sandbox_manager = get_sandbox_manager()
-            sandbox = sandbox_manager.get_sandbox(submission.language)
-            self.logger.debug("Sandbox created for language %s", submission.language)
-
-            # Prepare workdir by copying submission files to container
-            if submission.submission_files:
-                try:
-                    sandbox.prepare_workdir(submission.submission_files)
-                    self.logger.debug("Workdir prepared with %s files", len(submission.submission_files))
-                except Exception as e:
-                    error_msg = t("preflight.error.workdir_preparation_failed", locale=self.locale, error=str(e))
-                    self.logger.error(error_msg)
-                    self.fatal_errors.append(PreflightError(
-                        type=PreflightCheckType.SANDBOX_CREATION,
-                        message=error_msg,
-                        details={"error": str(e)}
-                    ))
-                    # Release the sandbox back to pool since it's unusable
-                    sandbox_manager.release_sandbox(submission.language, sandbox)
-                    return None
-
-            return sandbox
-        except Exception as e:
-            error_msg = t("preflight.error.sandbox_creation_failed", locale=self.locale, language=submission.language, error=str(e))
-            self.logger.error(error_msg)
-            self.fatal_errors.append(PreflightError(
-                type=PreflightCheckType.SANDBOX_CREATION,
-                message=error_msg,
-                details={"language": submission.language, "error": str(e)}
-            ))
-            return None
-
-
-    def has_errors(self) -> bool:
-        """Check if any fatal errors were found during preflight checks."""
-        return len(self.fatal_errors) > 0
-
-    def get_error_messages(self) -> List[str]:
-        """Get all error messages as a list of strings."""
-        return [error.message for error in self.fatal_errors]
