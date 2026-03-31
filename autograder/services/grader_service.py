@@ -213,6 +213,11 @@ class GraderService:
             )
             test_params['program_command'] = resolved
 
+        # Inject the actual submission language so tests like forbidden_import
+        # always operate on the real language rather than a config-time guess.
+        if submission_language and 'submission_language' in test_params:
+            test_params['submission_language'] = submission_language
+
         test_result = test.test_function.execute(
             files=file_target, sandbox=sandbox, locale=locale, **test_params
         )
@@ -229,9 +234,17 @@ class GraderService:
         test_node: TestNode,
         submission_files: Optional[Dict[str, SubmissionFile]],
     ) -> Optional[List[SubmissionFile]]:
-        """Filter out the submission files strictly relevant to the current test node."""
-        if not test_node.file_target or not submission_files:
+        """Filter out the submission files strictly relevant to the current test node.
+
+        When no file_target is specified, returns all submission files so that
+        tests like forbidden_import can scan the actual submitted file regardless
+        of language.
+        """
+        if not submission_files:
             return None
+
+        if not test_node.file_target:
+            return list(submission_files.values())
 
         target_files = []
         for file_name in submission_files:
