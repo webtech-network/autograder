@@ -16,13 +16,13 @@
   "feedback": {
     "report_title": "Relatório de Avaliação",
     "category": {
-      "base": "âœ… Requisitos Essenciais",
+      "base": "✅ Requisitos Essenciais",
       "bonus": "⭐ Pontos Extras",
-      "penalty": "âŒ Pontos a Melhorar"
+      "penalty": "❌ Pontos a Melhorar"
     },
     "report": {
-      "header": "RESULTADO DA AVALIAÃ‡ÃƒO",
-      "summary_header": "RESUMO DA AVALIAÃ‡ÃƒO",
+      "header": "RESULTADO DA AVALIAÇÃO",
+      "summary_header": "RESUMO DA AVALIAÇÃO",
       "tests_label": "Testes",
       "passed_label": "aprovados",
       "failed_label": "reprovados",
@@ -73,8 +73,8 @@
     }
   },
   "ai": {
-    "system_prompt": "VocÃª Ã© um assistente de avaliaÃ§Ã£o de cÃ³digo especialista e rigoroso. Sua tarefa Ã© avaliar os arquivos de uma submissÃ£o de usuÃ¡rio em relaÃ§Ã£o a uma lista de testes.\nVocÃª DEVE responder com um Ãºnico objeto JSON vÃ¡lido. Este objeto deve conter uma Ãºnica chave, \"results\", que Ã© um array de objetos de resultado de teste, um para cada teste fornecido.\nNÃƒO inclua nenhum texto, explicaÃ§Ã£o ou formataÃ§Ã£o fora do objeto JSON principal.\nO esquema JSON para a sua resposta DEVE ser o seguinte:\n{json_schema}\nLembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. NÃ£o mude a formataÃ§Ã£o ou a estrutura dos tÃ­tulos dos testes.",
-    "user_prompt": "Por favor, avalie os arquivos de submissÃ£o do usuÃ¡rio abaixo em relaÃ§Ã£o a todos os casos de teste listados.\n\n## ARQUIVOS DE SUBMISSÃƒO DO USUÃRIO ##\n{submission_files}\n\n## CASOS DE TESTE PARA AVALIAR ##\n{tests}\nLembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. NÃ£o mude a formataÃ§Ã£o ou a estrutura dos tÃ­tulos dos testes."
+    "system_prompt": "Você é um assistente de avaliação de código especialista e rigoroso. Sua tarefa é avaliar os arquivos de uma submissão de usuário em relação a uma lista de testes.\nVocê DEVE responder com um único objeto JSON válido. Este objeto deve conter uma única chave, \"results\", que é um array de objetos de resultado de teste, um para cada teste fornecido.\nNÃO inclua nenhum texto, explicação ou formatação fora do objeto JSON principal.\nO esquema JSON para a sua resposta DEVE ser o seguinte:\n{json_schema}\nLembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. Não mude a formatação ou a estrutura dos títulos dos testes.",
+    "user_prompt": "Por favor, avalie os arquivos de submissão do usuário abaixo em relação a todos os casos de teste listados.\n\n## ARQUIVOS DE SUBMISSÃO DO USUÁRIO ##\n{submission_files}\n\n## CASOS DE TESTE PARA AVALIAR ##\n{tests}\nLembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. Não mude a formatação ou a estrutura dos títulos dos testes."
   },
   "web_dev": {
     "error": {
@@ -348,7 +348,7 @@
         },
         "report": {
           "found": "Uso de framework JavaScript (React, Vue, Angular) detectado. O uso de frameworks não é permitido nesta atividade.",
-          "not_found": "Ã“timo! Nenhum framework JavaScript proibido foi detectado."
+          "not_found": "Ótimo! Nenhum framework JavaScript proibido foi detectado."
         }
       },
       "js_uses_query_string_parsing": {
@@ -365,7 +365,7 @@
         },
         "report": {
           "found": "Penalidade: Método proibido `{method}()` detectado.",
-          "not_found": "Ã“timo! O mÃ©todo proibido `{method}()` nÃ£o foi usado."
+          "not_found": "Ótimo! O método proibido `{method}()` não foi usado."
         }
       },
       "js_uses_feature": {

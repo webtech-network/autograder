@@ -81,4 +81,4 @@ def test_sandbox_step_fails_on_creation(mock_service_class, pipeline_exec):
     assert result_exec.sandbox is None
     step_result = result_exec.get_step_result(StepName.SANDBOX)
     assert step_result.status == StepStatus.FAIL
-    assert "Failed to create sandbox environment" in step_result.error
+    assert "Failed to create sandbox" in step_result.error

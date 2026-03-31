@@ -331,7 +331,7 @@ def test_build_tree_and_grade_pipeline():
         def step_name(self) -> StepName:
             return StepName.LOAD_TEMPLATE
 
-        def _execute(self, input):
+        def _execute(self, input, locale=None):
             return input.add_step_result(StepResult(
                 step=StepName.LOAD_TEMPLATE,
                 data=self.template,
