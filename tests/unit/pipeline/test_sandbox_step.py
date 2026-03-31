@@ -21,22 +21,20 @@ def pipeline_exec(submission):
     """Fixture providing a PipelineExecution instance starting from submission."""
     return PipelineExecution.start_execution(submission)
 
-@patch("autograder.steps.sandbox_step.PreFlightService")
-def test_sandbox_step_success(mock_services_class, pipeline_exec):
-    """Tests successful sandbox creation and setup command execution."""
+@patch("autograder.steps.sandbox_step.SandboxService")
+def test_sandbox_step_success(mock_service_class, pipeline_exec):
+    """Tests successful sandbox creation."""
     # Setup mock template
     mock_template = MagicMock()
     mock_template.requires_sandbox = True
     pipeline_exec.add_step_result(MagicMock(step=StepName.LOAD_TEMPLATE, data=mock_template))
     
     # Setup mock service and sandbox
-    mock_service = mock_services_class.return_value
+    mock_service = mock_service_class.return_value
     mock_sandbox = MagicMock(spec=SandboxContainer)
     mock_service.create_sandbox.return_value = mock_sandbox
-    mock_service.setup_commands = ["echo 'hello'"]
-    mock_service.check_setup_commands.return_value = True
     
-    step = SandboxStep(setup_config={})
+    step = SandboxStep()
     result_exec = step.execute(pipeline_exec)
     
     # Assertions
@@ -46,15 +44,15 @@ def test_sandbox_step_success(mock_services_class, pipeline_exec):
     assert step_result.status == StepStatus.SUCCESS
     assert step_result.data is mock_sandbox
 
-@patch("autograder.steps.sandbox_step.PreFlightService")
-def test_sandbox_step_skipped_when_not_required(mock_services_class, pipeline_exec):
+@patch("autograder.steps.sandbox_step.SandboxService")
+def test_sandbox_step_skipped_when_not_required(mock_service_class, pipeline_exec):
     """Tests that sandbox step is skipped if the template does not require it."""
     # Setup mock template
     mock_template = MagicMock()
     mock_template.requires_sandbox = False
     pipeline_exec.add_step_result(MagicMock(step=StepName.LOAD_TEMPLATE, data=mock_template))
     
-    step = SandboxStep(setup_config={})
+    step = SandboxStep()
     result_exec = step.execute(pipeline_exec)
     
     # Assertions
@@ -62,30 +60,27 @@ def test_sandbox_step_skipped_when_not_required(mock_services_class, pipeline_ex
     step_result = result_exec.get_step_result(StepName.SANDBOX)
     assert step_result.status == StepStatus.SUCCESS
     assert step_result.data is None
-    mock_services_class.return_value.create_sandbox.assert_not_called()
+    mock_service_class.return_value.create_sandbox.assert_not_called()
 
-@patch("autograder.steps.sandbox_step.PreFlightService")
-def test_sandbox_step_fails_on_setup_but_preserves_sandbox(mock_services_class, pipeline_exec):
-    """Tests that sandbox is preserved for cleanup even if setup commands fail."""
+@patch("autograder.steps.sandbox_step.SandboxService")
+def test_sandbox_step_fails_on_creation(mock_service_class, pipeline_exec):
+    """Tests that sandbox step fails if creation fails."""
     # Setup mock template
     mock_template = MagicMock()
     mock_template.requires_sandbox = True
     pipeline_exec.add_step_result(MagicMock(step=StepName.LOAD_TEMPLATE, data=mock_template))
     
-    # Setup mock service and sandbox
-    mock_service = mock_services_class.return_value
-    mock_sandbox = MagicMock(spec=SandboxContainer)
-    mock_service.create_sandbox.return_value = mock_sandbox
-    mock_service.setup_commands = ["fail_command"]
-    mock_service.check_setup_commands.return_value = False
+    # Setup mock service to fail
+    mock_service = mock_service_class.return_value
+    mock_service.create_sandbox.return_value = None
     mock_service.has_errors.return_value = True
-    mock_service.get_error_messages.return_value = ["Setup failed"]
+    mock_service.get_error_messages.return_value = ["Creation failed"]
     
-    step = SandboxStep(setup_config={})
+    step = SandboxStep()
     result_exec = step.execute(pipeline_exec)
     
     # Assertions
-    assert result_exec.sandbox is mock_sandbox  # CRITICAL: Sandbox must be preserved for cleanup
+    assert result_exec.sandbox is None
     step_result = result_exec.get_step_result(StepName.SANDBOX)
     assert step_result.status == StepStatus.FAIL
-    assert "Setup failed" in step_result.error
+    assert "Creation failed" in step_result.error

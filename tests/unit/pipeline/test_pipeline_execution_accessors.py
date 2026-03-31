@@ -39,7 +39,6 @@ def test_typed_accessors_return_expected_artifacts():
     assert pipeline_exec.get_built_criteria_tree() is tree
     assert pipeline_exec.get_grade_step_result() is grade
     assert pipeline_exec.get_result_tree() is result_tree
-    assert pipeline_exec.require_focus() is focus
     assert pipeline_exec.get_focus() is focus
     assert pipeline_exec.get_feedback() == "ok"
     assert pipeline_exec.get_sandbox() is None
@@ -62,3 +61,9 @@ def test_typed_accessors_raise_on_missing_required_artifacts():
         assert False, "Expected ValueError for missing template data"
     except ValueError as exc:
         assert "required" in str(exc).lower()
+
+    try:
+        pipeline_exec.get_focus()
+        assert False, "Expected ValueError for missing focus step"
+    except ValueError as exc:
+        assert "not executed" in str(exc).lower()
