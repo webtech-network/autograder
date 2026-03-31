@@ -7,6 +7,7 @@ from autograder.models.abstract.step import Step
 from autograder.steps.load_template_step import TemplateLoaderStep
 from autograder.steps.build_tree_step import BuildTreeStep
 from autograder.steps.pre_flight_step import PreFlightStep
+from autograder.steps.sandbox_step import SandboxStep
 from autograder.steps.grade_step import GradeStep
 from autograder.steps.focus_step import FocusStep
 from autograder.steps.feedback_step import FeedbackStep
@@ -32,6 +33,7 @@ class StepRegistry:
             StepName.LOAD_TEMPLATE: self._build_load_template,
             StepName.BUILD_TREE: self._build_build_tree,
             StepName.PRE_FLIGHT: self._build_pre_flight,
+            StepName.SANDBOX: self._build_sandbox,
             StepName.GRADE: self._build_grade,
             StepName.FOCUS: self._build_focus,
             StepName.FEEDBACK: self._build_feedback,
@@ -47,10 +49,15 @@ class StepRegistry:
         return BuildTreeStep(self.config.get("grading_criteria"))
 
     def _build_pre_flight(self) -> Optional[Step]:
+        # Always return PreFlightStep; it handles file checks and setup commands.
+        # It will gracefully handle cases where no setup_config is provided.
         setup_config = self.config.get("setup_config")
-        if setup_config is not None:
-            return PreFlightStep(setup_config)
-        return None
+        return PreFlightStep(setup_config)
+
+    def _build_sandbox(self) -> Optional[Step]:
+        # Always return SandboxStep; it will skip itself if the template doesn't require it.
+        # This allows for assignments that require a sandbox but have no setup commands.
+        return SandboxStep()
 
     def _build_grade(self) -> Optional[Step]:
         return GradeStep()

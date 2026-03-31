@@ -1,4 +1,4 @@
-# Step 5: Focus
+# Step 6: Focus
 
 ## Purpose
 
@@ -72,6 +72,12 @@ For a comprehensive explanation of the focus algorithm, data storage, and use ca
 
 - Grade step result missing or malformed → exception caught, `StepStatus.FAIL`.
 - Empty result tree → produces empty focus lists (not a failure).
+
+## Next Step
+
+After identifying the most impactful errors, the pipeline proceeds to **[Step 7: Feedback](07-feedback.md)** to generate student-facing reports.
+
+---
 
 ## Source
 

@@ -1,4 +1,4 @@
-# Step 6: Feedback
+# Step 7: Feedback
 
 ## Purpose
 
@@ -98,6 +98,12 @@ This step is only added to the pipeline when `include_feedback=True` is passed t
 - Missing dependency results (Focus or Grade) → `StepStatus.FAIL`.
 - Malformed configuration (e.g., incorrect types in the config dict) → `StepStatus.FAIL`.
 - Runtime error during reporter generation → `StepStatus.FAIL` with error details.
+
+## Next Step
+
+After generating feedback, the pipeline proceeds to **[Step 8: Export](08-export.md)** to send results to external systems.
+
+---
 
 ## Source
 

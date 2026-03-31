@@ -341,6 +341,10 @@ def test_build_tree_and_grade_pipeline():
     pipeline.add_step(StepName.LOAD_TEMPLATE, MockTemplateLoaderStep(template))
     pipeline.add_step(StepName.BUILD_TREE, BuildTreeStep(criteria))
     pipeline.add_step(StepName.GRADE, GradeStep())
+    
+    from autograder.steps.focus_step import FocusStep
+    from autograder.services.focus_service import FocusService
+    pipeline.add_step(StepName.FOCUS, FocusStep(FocusService()))
 
     # Run pipeline
     pipeline_execution = pipeline.run(submission)

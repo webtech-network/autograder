@@ -285,12 +285,13 @@ Generates detailed summary for API responses.
 {
   "status": "success",
   "failed_at_step": null,
-  "total_steps_planned": 7,
-  "steps_completed": 7,
+  "total_steps_planned": 8,
+  "steps_completed": 8,
   "execution_time_ms": 4521,
   "steps": [
     {"name": "LOAD_TEMPLATE", "status": "success"},
-    {"name": "PRE_FLIGHT", "status": "success", "message": "All preflight checks passed"},
+    {"name": "PRE_FLIGHT", "status": "success", "message": "Required files found"},
+    {"name": "SANDBOX", "status": "success", "message": "Sandbox environment ready"},
     {"name": "GRADE", "status": "success", "message": "Grading completed: 85.5/100"}
   ]
 }
@@ -301,14 +302,16 @@ Generates detailed summary for API responses.
 ```json
 {
   "status": "failed",
-  "failed_at_step": "PRE_FLIGHT",
-  "total_steps_planned": 7,
-  "steps_completed": 3,
+  "failed_at_step": "SANDBOX",
+  "total_steps_planned": 8,
+  "steps_completed": 4,
   "execution_time_ms": 1523,
   "steps": [
     {"name": "LOAD_TEMPLATE", "status": "success"},
+    {"name": "BUILD_TREE", "status": "success"},
+    {"name": "PRE_FLIGHT", "status": "success"},
     {
-      "name": "PRE_FLIGHT",
+      "name": "SANDBOX",
       "status": "fail",
       "message": "Setup command 'Compile Calculator.java' failed",
       "error_details": {

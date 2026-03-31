@@ -46,11 +46,12 @@ Welcome to the Autograder documentation. This index organizes all available docu
 | [Pipeline Overview](pipeline/README.md) | Architecture, PipelineExecution, assembly rules, step dependency table |
 | [Load Template Step](pipeline/01-load-template.md) | Loads the grading template with test functions |
 | [Build Tree Step](pipeline/02-build-tree.md) | Constructs the CriteriaTree from JSON config |
-| [Pre-Flight Step](pipeline/03-pre-flight.md) | Validates files, creates sandbox, runs setup commands |
-| [Grade Step](pipeline/04-grade.md) | Executes tests and produces the scored ResultTree |
-| [Focus Step](pipeline/05-focus.md) | Ranks tests by impact on the final score |
-| [Feedback Step](pipeline/06-feedback.md) | Generates student-facing feedback reports |
-| [Export Step](pipeline/07-export.md) | Sends scores to external systems |
+| [Sandbox Step](pipeline/03-sandbox.md) | Creates the Docker sandbox and prepares the workspace |
+| [Pre-Flight Step](pipeline/04-pre-flight.md) | Validates required files and executes setup commands |
+| [Grade Step](pipeline/05-grade.md) | Executes tests and produces the scored ResultTree |
+| [Focus Step](pipeline/06-focus.md) | Ranks tests by impact on the final score |
+| [Feedback Step](pipeline/07-feedback.md) | Generates student-facing feedback reports |
+| [Export Step](pipeline/08-export.md) | Sends scores to external systems |
 
 ## Architecture & Data Structures
 

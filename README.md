@@ -171,11 +171,12 @@ The pipeline executes these steps in sequence:
 
 1. **Load Template** - Select test functions from the template library
 2. **Build Tree** - Construct the grading rubric hierarchy  
-3. **Pre-Flight** - Validate requirements and acquire sandbox (if needed)
-4. **Grade** - Execute tests and calculate weighted scores
-5. **Focus** - Identify high-impact failed tests
-6. **Feedback** - Generate student-facing reports
-7. **Export** - Send results to external systems (optional)
+3. **Sandbox** - Secure environment acquisition and initial workspace preparation
+4. **Pre-Flight** - Validate requirements and execute setup/compilation commands  
+5. **Grade** - Execute tests and calculate weighted scores
+6. **Focus** - Identify high-impact failed tests
+7. **Feedback** - Generate student-friendly reports
+8. **Export** - Send results to external systems (optional)
 
 Each step receives a `PipelineExecution` object, performs its operation, and passes results to the next step.
 

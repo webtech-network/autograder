@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional, Dict, Any, TYPE_CHECKING, cast
+from typing import List, Optional, Any, TYPE_CHECKING, cast
 import time
 
 from autograder.models.dataclass.grading_result import GradingResult
@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 
 
 class PipelineStatus(Enum):
+    """
+    Status of the autograder pipeline execution.
+    """
     SUCCESS = "success"
     FAILED = "failed"
     RUNNING = "running"
@@ -38,21 +41,48 @@ class PipelineExecution:
     submission: Submission
     status: PipelineStatus = PipelineStatus.EMPTY
     result: Optional[GradingResult] = None
+    sandbox: Optional["SandboxContainer"] = field(default=None, init=False)
     start_time: float = field(default_factory=time.time)  # Track execution time
 
     def add_step_result(self, step_result: StepResult) -> 'PipelineExecution':
+        """
+        Adds a single StepResult to the list of execution results.
+
+        Args:
+            step_result: The result objects to be added.
+        Returns:
+            The current PipelineExecution instance for chaining.
+        """
         self.step_results.append(step_result)
         return self
 
 
 
     def get_step_result(self, step_name: StepName) -> StepResult:
+        """
+        Retrieves the StepResult for a given step name.
+
+        Args:
+            step_name: The StepName to look for.
+        Returns:
+            The corresponding StepResult.
+        Raises:
+            ValueError: If the step result was not found.
+        """
         for step_result in self.step_results:
             if step_result.step == step_name:
                 return step_result
         raise ValueError(f"Step {step_name} was not executed in the pipeline.")
 
     def has_step_result(self, step_name: StepName) -> bool:
+        """
+        Checks if the pipeline result contains record of a given step execution.
+
+        Args:
+            step_name: The StepName to check.
+        Returns:
+            True if step result exists, False otherwise.
+        """
         return any(step_result.step == step_name for step_result in self.step_results)
 
     def _require_step_data(self, step_name: StepName, artifact_name: str) -> Any:
@@ -64,54 +94,71 @@ class PipelineExecution:
         return step_result.data
 
     def get_loaded_template(self) -> "Template":
+        """
+        Retrieves the Grading Template object loaded for this execution.
+        """
         return cast(
             "Template",
             self._require_step_data(StepName.LOAD_TEMPLATE, "template"),
         )
 
     def get_built_criteria_tree(self) -> "CriteriaTree":
+        """
+        Retrieves the CriteriaTree object generated from the grading criteria.
+        """
         return cast(
             "CriteriaTree",
             self._require_step_data(StepName.BUILD_TREE, "criteria tree"),
         )
 
     def get_sandbox(self) -> Optional["SandboxContainer"]:
-        if not self.has_step_result(StepName.PRE_FLIGHT):
-            return None
-        return cast(
-            Optional["SandboxContainer"],
-            self.get_step_result(StepName.PRE_FLIGHT).data,
-        )
+        """
+        Retrieves the SandboxContainer object if it was created during the pipeline.
+        """
+        return self.sandbox
 
     def get_grade_step_result(self) -> "GradeStepResult":
+        """
+        Retrieves the GradeStepResult object produced by the grading step.
+        """
         return cast(
             "GradeStepResult",
             self._require_step_data(StepName.GRADE, "grade result"),
         )
 
     def get_result_tree(self) -> "ResultTree":
+        """
+        Retrieves the ResultTree object containing the grading results.
+        """
         return cast("ResultTree", self.get_grade_step_result().result_tree)
 
-    def require_focus(self) -> "Focus":
+    def get_focus(self) -> "Focus":
+        """
+        Retrieves the Focus object identified for the submission.
+        """
         return cast(
             "Focus",
             self._require_step_data(StepName.FOCUS, "focus"),
         )
 
-    def get_focus(self) -> Optional["Focus"]:
-        if not self.has_step_result(StepName.FOCUS):
-            return None
-        return cast(Optional["Focus"], self.get_step_result(StepName.FOCUS).data)
-
     def get_feedback(self) -> Optional[str]:
+        """
+        Retrieves the feedback string if feedback generation step was executed.
+        """
         if not self.has_step_result(StepName.FEEDBACK):
             return None
         return cast(Optional[str], self.get_step_result(StepName.FEEDBACK).data)
 
     def get_previous_step(self) -> Optional[StepResult]:
+        """
+        Retrieves the result of the last executed step in the pipeline.
+        """
         return self.step_results[-1] if self.step_results else None
 
     def set_failure(self):
+        """
+        Marks the pipeline execution status as FAILED.
+        """
         self.status = PipelineStatus.FAILED
 
     def finish_execution(self):
@@ -138,7 +185,14 @@ class PipelineExecution:
 
     @classmethod
     def start_execution(cls, submission: Submission) -> 'PipelineExecution':
+        """
+        Initializes a new PipelineExecution with the submission data.
 
+        Args:
+            submission: The submission to be graded.
+        Returns:
+            A new PipelineExecution instance starting from the BOOTSTRAP step.
+        """
         bootstrap = StepResult(
             step=StepName.BOOTSTRAP,
             data=submission,
