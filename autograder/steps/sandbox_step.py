@@ -45,13 +45,12 @@ class SandboxStep(Step):
         sandbox = self._sandbox_service.create_sandbox(pipeline_exec.submission)
         
         if sandbox is None:
-            # Sandbox creation failed, errors are in the service
-            error_msg = self._format_errors()
-            logger.error("Sandbox creation failed: %s", error_msg)
+            # Sandbox creation failed, error details are already logged in the service
+            error_msg = "Failed to create sandbox environment for code execution."
+            logger.error("Sandbox creation failed (external_user_id=%s)", pipeline_exec.submission.user_id)
             return pipeline_exec.add_step_result(StepResult.fail(
                 step=self.step_name,
-                error=error_msg,
-                error_data=self._sandbox_service.fatal_errors
+                error=error_msg
             ))
 
         # Store sandbox in PipelineExecution for downstream steps and cleanup
@@ -59,9 +58,3 @@ class SandboxStep(Step):
         logger.info("Sandbox created and attached to pipeline (external_user_id=%s)", pipeline_exec.submission.user_id)
 
         return pipeline_exec.add_step_result(StepResult.success(self.step_name, sandbox))
-
-    def _format_errors(self) -> str:
-        """Format all errors from the sandbox service into a single message."""
-        if not self._sandbox_service.has_errors():
-            return "Unknown sandbox error"
-        return "\n".join(self._sandbox_service.get_error_messages())

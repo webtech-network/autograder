@@ -5,7 +5,6 @@ from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepName
 from autograder.services.pre_flight_service import PreFlightService
-from autograder.services.sandbox_service import SandboxService
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,6 @@ class PreFlightStep(Step):
     def __init__(self, setup_config):
         self._setup_config = setup_config
         self._pre_flight_service = None
-        self._sandbox_service = SandboxService()
 
     @property
     def step_name(self) -> StepName:
@@ -74,7 +72,7 @@ class PreFlightStep(Step):
                 ))
 
             logger.info("Running setup commands in sandbox (external_user_id=%s)", pipeline_exec.submission.user_id)
-            setup_ok = self._sandbox_service.run_setup_commands(sandbox, self._pre_flight_service.setup_commands)
+            setup_ok = self._pre_flight_service.check_setup_commands(sandbox)
             
             if not setup_ok:
                 error_msg = self._format_errors()
@@ -82,20 +80,14 @@ class PreFlightStep(Step):
                 return pipeline_exec.add_step_result(StepResult.fail(
                     step=self.step_name,
                     error=error_msg,
-                    error_data=self._sandbox_service.fatal_errors
+                    error_data=self._pre_flight_service.fatal_errors
                 ))
 
         logger.info("Pre-flight checks passed (external_user_id=%s)", pipeline_exec.submission.user_id)
         return pipeline_exec.add_step_result(StepResult.success(self.step_name, None))
 
     def _format_errors(self) -> str:
-        """Format all errors from both services into a single message."""
-        errors = []
+        """Format all errors from PreFlightService into a single message."""
         if self._pre_flight_service and self._pre_flight_service.has_errors():
-            errors.extend(self._pre_flight_service.get_error_messages())
-        if self._sandbox_service and self._sandbox_service.has_errors():
-            errors.extend(self._sandbox_service.get_error_messages())
-            
-        if not errors:
-            return "Unknown preflight error"
-        return "\n".join(errors)
+            return "\n".join(self._pre_flight_service.get_error_messages())
+        return "Unknown preflight error"

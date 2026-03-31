@@ -39,7 +39,7 @@ The `setup_config` uses a **language-keyed dictionary** format:
 
 ### How Resolution Works
 
-When a submission arrives, `PreFlightService` (for file checks) and `SandboxService` (for setup commands) resolve the submission's language in the `setup_config` dictionary. For example, a Python submission uses the `"python"` block; a Java submission uses the `"java"` block. If the submission's language is not present in the config, an empty config is used (no checks, no commands).
+When a submission arrives, `PreFlightService` resolves the submission's language in the `setup_config` dictionary. For example, a Python submission uses the `"python"` block; a Java submission uses the `"java"` block. If the submission's language is not present in the config, an empty config is used (no checks, no commands). The `PreFlightService` then orchestrates the execution, calling `SandboxService` for each individual setup command.
 
 ### Fields (Per Language)
 
@@ -49,8 +49,8 @@ When a submission arrives, `PreFlightService` (for file checks) and `SandboxServ
 
 - **`setup_commands`** (optional): List of shell commands to execute during preflight
   - Type: `Array<string | object>`
-  - Commands are orchestrated via `SandboxService` and executed in order in the sandbox environment
-  - If any command fails (non-zero exit code), the submission fails
+  - Commands are executed **one by one** in the sandbox environment.
+  - **Stop on Failure**: If any command fails (non-zero exit code or system error), execution **stops immediately** and the entire submission is marked as FAILED. Subsequent commands are not attempted.
   - Supports both string format (`"javac Calculator.java"`) and named object format (`{"name": "Compile", "command": "javac Calculator.java"}`)
 
 ## Language-Specific Examples
@@ -295,12 +295,14 @@ Benefits:
 
 3. **PreFlightService** (`autograder/services/pre_flight_service.py`):
    - Handles resolution and validation of required files.
+   - Orchestrates the loop of setup commands, ensuring execution stops at the first failure.
 
 4. **SandboxService** (`autograder/services/sandbox_service.py`):
-   - Handles sandbox lifecycle and orchestration of setup command execution.
+   - Handles sandbox lifecycle (creation/release).
+   - Executes individual setup commands within the sandbox and returns raw execution results.
 
 5. **PreFlightStep** (`autograder/steps/pre_flight_step.py`):
-   - Co-ordinates both `PreFlightService` (files) and `SandboxService` (commands) during the preflight phase.
+   - The pipeline step that uses `PreFlightService` to perform all pre-grading validations.
 
 6. **SandboxStep** (`autograder/steps/sandbox_step.py`):
    - Uses `SandboxService` to acquire and prepare the environment *before* pre-flight checks occur.

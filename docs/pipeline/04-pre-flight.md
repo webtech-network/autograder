@@ -15,7 +15,7 @@ The step execution follows these logic gates:
 1. **Required Files Check**: It compares the files in the submission against the list provided in the `required_files` section of the `setup_config` for the submission's language.
 
 2. **Setup Commands Execution**: If the `setup_config` contains `setup_commands`, they are executed sequentially within the sandbox created in **Step 3**.
-    - If any command fails (non-zero exit code), the step fails.
+    - **Stop on Failure**: If any command fails (non-zero or invalid response), the step **stops immediately** and fails the entire pre-flight check. Subsequent commands are not executed.
     - Setup commands are orchestrated via the `SandboxService`.
 
 If both checks pass, the step succeeds and the pipeline continues to **Step 5: Grade**.

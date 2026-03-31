@@ -73,8 +73,6 @@ def test_sandbox_step_fails_on_creation(mock_service_class, pipeline_exec):
     # Setup mock service to fail
     mock_service = mock_service_class.return_value
     mock_service.create_sandbox.return_value = None
-    mock_service.has_errors.return_value = True
-    mock_service.get_error_messages.return_value = ["Creation failed"]
     
     step = SandboxStep()
     result_exec = step.execute(pipeline_exec)
@@ -83,4 +81,4 @@ def test_sandbox_step_fails_on_creation(mock_service_class, pipeline_exec):
     assert result_exec.sandbox is None
     step_result = result_exec.get_step_result(StepName.SANDBOX)
     assert step_result.status == StepStatus.FAIL
-    assert "Creation failed" in step_result.error
+    assert "Failed to create sandbox environment" in step_result.error
