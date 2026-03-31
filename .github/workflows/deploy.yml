@@ -73,13 +73,13 @@ jobs:
 
             # 3. Docker Authentication
             echo "🔑 Logging into GHCR..."
-            echo "$PULL_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "$PULL_TOKEN" | docker login ghcr.io -u autograder-webtech --password-stdin
 
             # 4. Pull and Restart
             echo "🚀 Deploying $SERVICE_NAME..."
-            docker-compose -f docker-compose.yml pull "$SERVICE_NAME"
-            docker-compose -f docker-compose.yml up -d --no-deps "$SERVICE_NAME"
-            
+            docker compose -f docker-compose.yml pull "$SERVICE_NAME"
+            docker compose -f docker-compose.yml up -d --no-deps "$SERVICE_NAME"
+              
             # 5. Cleanup
             docker logout ghcr.io
             echo "✅ Deployment finished successfully!"
