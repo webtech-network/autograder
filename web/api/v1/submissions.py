@@ -118,6 +118,7 @@ async def create_submission(
             username=db_submission.username,
             external_user_id=db_submission.external_user_id,
             submission_files=db_submission.submission_files,
+            locale=submission.locale,
         )
     )
 

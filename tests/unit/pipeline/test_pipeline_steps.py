@@ -7,24 +7,22 @@ These tests verify:
 3. Single vs multi-submission pipeline modes work correctly
 """
 
-import sys
-from pathlib import Path
 from typing import List
 
-from autograder.models.dataclass.param_description import ParamDescription
 from autograder.autograder import AutograderPipeline
-from autograder.utils.printers.result_tree import ResultTreePrinter
-
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from autograder.steps.build_tree_step import BuildTreeStep
-from autograder.steps.grade_step import GradeStep
-from autograder.models.dataclass.step_result import StepStatus
+from autograder.models.abstract.step import Step
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
+from autograder.models.dataclass.param_description import ParamDescription
+from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
+from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from autograder.models.pipeline_execution import PipelineExecution
+from autograder.services.focus_service import FocusService
+from autograder.steps.build_tree_step import BuildTreeStep
+from autograder.steps.focus_step import FocusStep
+from autograder.steps.grade_step import GradeStep
+from autograder.utils.printers.result_tree import ResultTreePrinter
 
 
 # Mock Template and TestFunction for testing
@@ -84,15 +82,34 @@ class MockTemplate(Template):
 
     def stop(self):
         """No cleanup needed for mock templates."""
-        pass
 
-    def get_test(self, test_name: str):
+    def get_test(self, name: str):
         """Get a test function by name."""
-        return self._tests.get(test_name)
+        return self._tests.get(name)
 
     def get_available_tests(self):
         """Get list of available test names."""
         return list(self._tests.keys())
+
+
+class MockTemplateLoaderStep(Step):
+    """Mock step that injects a template into the pipeline execution."""
+
+    def __init__(self, template):
+        self.template = template
+
+    @property
+    def step_name(self) -> StepName:
+        """Return the step name."""
+        return StepName.LOAD_TEMPLATE
+
+    def _execute(self, pipeline_exec: PipelineExecution, locale=None):
+        """Inject the template into the pipeline execution."""
+        return pipeline_exec.add_step_result(StepResult(
+            step=StepName.LOAD_TEMPLATE,
+            data=self.template,
+            status=StepStatus.SUCCESS
+        ))
 
 
 def create_simple_criteria():
@@ -158,7 +175,6 @@ def test_build_tree_step():
     template = MockTemplate()
 
     # Create a mock submission
-    from autograder.models.dataclass.submission import Submission, SubmissionFile
     submission = Submission(
         username="test_user",
         user_id=1,
@@ -167,9 +183,6 @@ def test_build_tree_step():
     )
 
     # Start pipeline execution
-    from autograder.models.pipeline_execution import PipelineExecution
-    from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
-
     pipeline_execution = PipelineExecution.start_execution(submission)
 
     # Add template to pipeline execution (simulating LoadTemplateStep)
@@ -213,7 +226,6 @@ def test_grade_from_tree():
     template = MockTemplate()
 
     # Create a mock submission
-    from autograder.models.dataclass.submission import Submission, SubmissionFile
     submission = Submission(
         username="test_user",
         user_id=1,
@@ -222,9 +234,6 @@ def test_grade_from_tree():
     )
 
     # Start pipeline execution
-    from autograder.models.pipeline_execution import PipelineExecution
-    from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
-
     pipeline_execution = PipelineExecution.start_execution(submission)
 
     # Add template to pipeline execution (simulating LoadTemplateStep)
@@ -267,7 +276,6 @@ def test_invalid_input_type():
     print("=" * 80)
 
     # Create a mock submission
-    from autograder.models.dataclass.submission import Submission, SubmissionFile
     submission = Submission(
         username="test_user",
         user_id=1,
@@ -276,9 +284,6 @@ def test_invalid_input_type():
     )
 
     # Start pipeline execution without adding required steps
-    from autograder.models.pipeline_execution import PipelineExecution
-    from autograder.models.dataclass.step_result import StepName
-
     pipeline_execution = PipelineExecution.start_execution(submission)
 
     # Try to execute grade step without template or criteria tree
@@ -307,7 +312,6 @@ def test_build_tree_and_grade_pipeline():
     template = MockTemplate()
 
     # Create a mock submission
-    from autograder.models.dataclass.submission import Submission, SubmissionFile
     submission = Submission(
         username="test_user",
         user_id=1,
@@ -316,34 +320,10 @@ def test_build_tree_and_grade_pipeline():
     )
 
     # Build pipeline
-    from autograder.models.dataclass.step_result import StepName
     pipeline = AutograderPipeline()
-
-    # Add load template step manually (simulating TemplateLoaderStep)
-    from autograder.models.dataclass.step_result import StepResult, StepStatus
-    from autograder.models.abstract.step import Step
-
-    class MockTemplateLoaderStep(Step):
-        def __init__(self, template):
-            self.template = template
-            
-        @property
-        def step_name(self) -> StepName:
-            return StepName.LOAD_TEMPLATE
-
-        def _execute(self, input):
-            return input.add_step_result(StepResult(
-                step=StepName.LOAD_TEMPLATE,
-                data=self.template,
-                status=StepStatus.SUCCESS
-            ))
-
     pipeline.add_step(StepName.LOAD_TEMPLATE, MockTemplateLoaderStep(template))
     pipeline.add_step(StepName.BUILD_TREE, BuildTreeStep(criteria))
     pipeline.add_step(StepName.GRADE, GradeStep())
-    
-    from autograder.steps.focus_step import FocusStep
-    from autograder.services.focus_service import FocusService
     pipeline.add_step(StepName.FOCUS, FocusStep(FocusService()))
 
     # Run pipeline

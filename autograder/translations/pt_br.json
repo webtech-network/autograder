@@ -1,0 +1,509 @@
+{
+  "preflight": {
+    "error": {
+      "required_file_missing": "**Erro:** Arquivo ou diretório obrigatório não encontrado: `'{file}'`",
+      "sandbox_creation_failed": "**Erro:** Falha ao criar sandbox para linguagem `{language}`: `{error}`",
+      "workdir_preparation_failed": "**Erro:** Falha ao preparar workdir na sandbox: `{error}`",
+      "setup_command_missing_sandbox": "O ambiente Sandbox é obrigatório para executar os comandos de configuração mas não foi criado.",
+      "setup_command_missing_field": "**Erro:** Comando de configuração '{command_name}' está faltando o campo 'command'",
+      "setup_command_invalid_format": "**Erro:** Formato de comando de configuração inválido no índice {index}: esperado string ou objeto",
+      "setup_command_failed_execution": "**Erro:** Falha ao executar comando de configuração '{command_name}': `{error}`\n\nComando: `{command}`",
+      "setup_command_failed_exit_code": "**Erro:** Comando de configuração '{command_name}' falhou com código de saída {exit_code}\n\n**Comando:** `{command}`",
+      "missing_sandbox": "Ambiente de sandbox não encontrado para execução dos comandos de configuração.",
+      "unknown": "Erro desconhecido na fase de pré-verificação."
+    }
+  },
+  "feedback": {
+    "report_title": "Relatório de Avaliação",
+    "category": {
+      "base": "✅ Requisitos Essenciais",
+      "bonus": "⭐ Pontos Extras",
+      "penalty": "❌ Pontos a Melhorar"
+    },
+    "report": {
+      "header": "RESULTADO DA AVALIAÇÃO",
+      "summary_header": "RESUMO DA AVALIAÇÃO",
+      "tests_label": "Testes",
+      "passed_label": "aprovados",
+      "failed_label": "reprovados",
+      "template_label": "Template",
+      "weight_label": "peso",
+      "file_label": "Arquivo",
+      "score_label": "Nota",
+      "params_label": "Parâmetros",
+      "error_label": "Erro",
+      "feedback_label": "Feedback",
+      "final_score_label": "Nota Final",
+      "learning_resources_label": "Recursos de Aprendizado",
+      "stats_header": "Estatísticas dos Testes",
+      "total_label": "Total",
+      "passed_count_label": "Passou",
+      "failed_count_label": "Falhou",
+      "avg_score_label": "Média de Notas",
+      "failed_tests_header": "Testes com Falha"
+    },
+    "preflight": {
+      "failed_title": "## Falha na Verificação Prévia",
+      "failed_subtitle": "Sua submissão falhou durante a fase de configuração antes de iniciar a correção.\n\n",
+      "required_file_missing_header": "### Arquivo Obrigatório Ausente",
+      "missing_label": "**Faltando:** {missing_file}",
+      "what_to_do": "**O que fazer:**",
+      "upload_instruction": "- Certifique-se de enviar um arquivo nomeado exatamente como **`{missing_file}`**",
+      "typo_instruction": "- Verifique erros de digitação no nome do arquivo (diferencia maiúsculas e minúsculas)",
+      "verify_instruction": "- Verifique se o arquivo está incluído no seu envio",
+      "resubmit_instruction": "- Reenvie com todos os arquivos necessários",
+      "setup_command_failed_header": "### Falha no Comando de Configuração: {command_name}",
+      "command_executed_label": "**Comando executado:**",
+      "exit_code_label": "**Código de saída:** {exit_code}",
+      "error_output_label": "**Saída de erro:**",
+      "output_label": "**Saída:**",
+      "compilation_fix_instruction": "- Corrija os erros de compilação mostrados acima",
+      "line_number_instruction": "- Preste atenção aos números das linhas e mensagens de erro",
+      "common_issues_instruction": "- Problemas comuns: falta de ponto e vírgula, variáveis não definidas, erros de sintaxe",
+      "compilation_resubmit_instruction": "- Reenvie após corrigir todos os erros de compilação",
+      "gpp_fix_instruction": "- Corrija os erros de compilação/ligação mostrados acima",
+      "gpp_syntax_instruction": "- Verifique erros de sintaxe e includes ausentes",
+      "gpp_verify_instruction": "- Verifique se todos os arquivos necessários estão presentes",
+      "gpp_resubmit_instruction": "- Reenvie após corrigir os erros",
+      "review_error_instruction": "- Revise a saída de erro acima",
+      "generic_fix_instruction": "- Corrija quaisquer problemas no seu código ou configuração",
+      "generic_resubmit_instruction": "- Reenvie após resolver o erro",
+      "contact_instructor_instruction": "- Entre em contato com seu instrutor se precisar de ajuda",
+      "generic_error_instruction": "- Revise a mensagem de erro"
+    }
+  },
+  "ai": {
+    "system_prompt": "Você é um assistente de avaliação de código especialista e rigoroso. Sua tarefa é avaliar os arquivos de uma submissão de usuário em relação a uma lista de testes.\nVocê DEVE responder com um único objeto JSON válido. Este objeto deve conter uma única chave, \"results\", que é um array de objetos de resultado de teste, um para cada teste fornecido.\nNÃO inclua nenhum texto, explicação ou formatação fora do objeto JSON principal.\nO esquema JSON para a sua resposta DEVE ser o seguinte:\n{json_schema}\nLembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. Não mude a formatação ou a estrutura dos títulos dos testes.",
+    "user_prompt": "Por favor, avalie os arquivos de submissão do usuário abaixo em relação a todos os casos de teste listados.\n\n## ARQUIVOS DE SUBMISSÃO DO USUÁRIO ##\n{submission_files}\n\n## CASOS DE TESTE PARA AVALIAR ##\n{tests}\nLembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. Não mude a formatação ou a estrutura dos títulos dos testes."
+  },
+  "web_dev": {
+    "error": {
+      "no_html": "Nenhum arquivo HTML fornecido.",
+      "no_css": "Nenhum arquivo CSS fornecido.",
+      "no_js": "Nenhum arquivo JS fornecido.",
+      "no_files": "Nenhum arquivo fornecido."
+    },
+    "html": {
+      "check_head": {
+        "description": "Verifica se uma tag de detalhe específica existe na seção `<head>`.",
+        "param": {
+          "detail_tag": "A tag a ser verificada."
+        },
+        "report": {
+          "found": "A tag `<{detail_tag}>` foi encontrada na seção `<head>`.",
+          "not_found": "A tag `<{detail_tag}>` não foi encontrada na seção `<head>`."
+        }
+      },
+      "has_forbidden_tag": {
+        "description": "Verifica a presença de uma tag HTML proibida.",
+        "param": {
+          "tag": "A tag HTML proibida a ser pesquisada."
+        },
+        "report": {
+          "found": "A tag `<{tag}>` foi encontrada e é proibida.",
+          "not_found": "A tag `<{tag}>` não foi encontrada, ótimo!"
+        }
+      },
+      "has_attribute": {
+        "description": "Verifica se um atributo HTML específico está presente em qualquer tag, um número mínimo de vezes.",
+        "param": {
+          "attribute": "O atributo a ser pesquisado (por exemplo, 'alt').",
+          "required_count": "O número mínimo de vezes que o atributo deve aparecer."
+        },
+        "report": "O atributo `{attribute}` foi encontrado {found_count} vez(es) de {required_count} necessárias."
+      },
+      "check_attribute_and_value": {
+        "description": "Verifica se uma tag HTML específica contém um atributo específico com um determinado valor.",
+        "param": {
+          "tag": "A tag.",
+          "attribute": "O atributo.",
+          "value": "O valor esperado."
+        },
+        "report": {
+          "found": "Encontrada a tag `<{tag}>` com `{attribute}='{value}'`.",
+          "not_found": "Não foi encontrada a tag `<{tag}>` com `{attribute}='{value}'`."
+        }
+      },
+      "check_no_inline_styles": {
+        "description": "Garante que nenhum estilo em linha (inline) seja usado no arquivo HTML.",
+        "report": {
+          "found": "Foi encontrado {found_count} inline styles (`style='...'`). Mova todas as regras de estilo para seu arquivo `.css`.",
+          "not_found": "Excelente! Nenhum estilo inline foi encontrado."
+        }
+      },
+      "check_internal_links": {
+        "description": "Verifica a existência de um número mínimo de links âncora internos que apontam para IDs de elementos válidos.",
+        "param": {
+          "required_count": "O número mínimo de links válidos."
+        },
+        "report": {
+          "no_content": "Conteúdo HTML não encontrado.",
+          "valid": "Encontrados {valid_links} de {required_count} links internos válidos ('âncoras')."
+        }
+      },
+      "check_no_unclosed_tags": {
+        "description": "Detecta tags HTML que foram abertas mas não foram fechadas.",
+        "report": {
+          "found": "Foram identificadas tags HTML abertas ou estrutura incorreta no seu arquivo.",
+          "not_found": "Você possui uma boa estrutura HTML sem tags abertas."
+        }
+      },
+      "link_points_to_page_with_query_param": {
+        "description": "Verifica a existência de tags âncora que levam a uma página específica com um parâmetro de query string obrigatório.",
+        "param": {
+          "target_page": "A página de destino esperada para o link (ex: 'detalhes.html').",
+          "query_param": "O nome do parâmetro de query string a ser verificado (ex: 'id').",
+          "required_count": "O número mínimo de links válidos que devem estar presentes."
+        },
+        "report": "Encontrados {valid_link_count} de {required_count} links válidos para '{target_page}' com o parâmetro de consulta '{query_param}'."
+      },
+      "check_internal_links_to_article": {
+        "description": "Verifica a existência de um número mínimo de links âncora internos apontando para IDs em tags `<article>`.",
+        "param": {
+          "required_count": "O número mínimo de links válidos."
+        },
+        "report": {
+          "no_file": "Arquivo home.html não encontrado.",
+          "valid": "Encontrados {valid_links} de {required_count} links internos válidos para tags <article>."
+        }
+      },
+      "check_tag_not_inside": {
+        "description": "Verifica se uma tag específica não está aninhada em nenhum lugar dentro de outra tag específica.",
+        "param": {
+          "child_tag": "A tag filha.",
+          "parent_tag": "A tag pai."
+        },
+        "report": {
+          "found": "A tag `<{child_tag}>` não deve ser usada dentro da tag `<{parent_tag}>`.",
+          "not_found": "A tag `<{child_tag}>` não foi encontrada dentro da tag `<{parent_tag}>`."
+        }
+      },
+      "check_headings_sequential": {
+        "description": "Verifica se os níveis de cabeçalho não pulam níveis.",
+        "report": {
+          "one_level": "Apenas um nível de cabeçalho encontrado, portanto não há saltos.",
+          "valid": "A hierarquia de cabeçalhos está bem estruturada.",
+          "invalid": "A ordem dos cabeçalhos (`<h1>`, `<h2>`, etc.) não é sequencial. Evite pular níveis."
+        }
+      },
+      "has_tag": {
+        "description": "Verifica se uma tag HTML específica aparece um número mínimo de vezes.",
+        "param": {
+          "tag": "A tag HTML a ser pesquisada (por exemplo, 'div').",
+          "required_count": "O número mínimo de vezes que a tag deve aparecer."
+        },
+        "report": "Foram encontradas {found_count} de {required_count} tags `<{tag}>` necessárias."
+      },
+      "check_bootstrap_linked": {
+        "description": "Verifica se o framework Bootstrap (CSS ou JS) está vinculado no arquivo HTML.",
+        "report": {
+          "found": "O framework Bootstrap foi encontrado no seu HTML.",
+          "not_found": "Não foi encontrado um link para o CSS ou JS do Bootstrap."
+        }
+      },
+      "check_bootstrap_usage": {
+        "description": "Verifica se o Bootstrap está vinculado no arquivo HTML.",
+        "report": {
+          "found": "Você está usando bootstrap no seu CSS.",
+          "not_found": "Você não está usando bootstrap no seu CSS."
+        }
+      },
+      "uses_semantic_tags": {
+        "description": "Verifica se o HTML usa pelo menos uma tag semântica comum.",
+        "report": {
+          "found": "Utilizou tags semânticas.",
+          "not_found": "Não usou nenhuma tag do tipo (`<article>`, `<section>`, `<nav>`) na estrutura do HTML."
+        }
+      },
+      "check_css_linked": {
+        "description": "Verifica se uma folha de estilo CSS externa está vinculada no HTML.",
+        "report": {
+          "found": "Arquivo CSS está corretamente linkado com o HTML.",
+          "not_found": "Não foi encontrada a tag `<link rel='stylesheet'>` no seu HTML."
+        }
+      },
+      "check_all_images_have_alt": {
+        "description": "Verifica se todas as tags `<img>` possuem um atributo `alt` não vazio.",
+        "report": {
+          "no_images": "Nenhuma imagem encontrada para verificar.",
+          "valid": "{with_alt} de {total_images} imagens tem o atributo `alt` preenchido."
+        }
+      },
+      "has_class": {
+        "description": "Verifica a presença de classes CSS específicas, com suporte a curingas, um número mínimo de vezes.",
+        "param": {
+          "class_names": "Uma lista de nomes de classes a serem pesquisadas. Curingas (*) são suportados (por exemplo, 'col-*').",
+          "required_count": "O número mínimo de vezes que as classes devem aparecer no total."
+        },
+        "report": "Foram encontradas {found_count} de {required_count} classes CSS necessárias. Classes encontradas: {classes}"
+      },
+      "check_html_direct_children": {
+        "description": "Garante que os únicos filhos diretos da tag `<html>` são `<head>` e `<body>`.",
+        "report": {
+          "no_html": "Tag <html> não encontrada.",
+          "valid": "Estrutura da tag <html> está correta.",
+          "invalid": "A tag <html> deve conter apenas as tags <head> e <body> como filhos diretos."
+        }
+      }
+    },
+    "css": {
+      "count_unused_css_classes": {
+        "description": "Conta o número de classes CSS não utilizadas no código HTML e/ou CSS.",
+        "param": {
+          "submission_files": "O dicionário de arquivos enviados.",
+          "html_file": "Nome do arquivo HTML a ser analisado (ex: 'index.html').",
+          "css_file": "Nome do arquivo CSS a ser analisado (ex: 'styles.css').."
+        },
+        "report": {
+          "no_files": "Nenhum arquivo HTML ou CSS fornecido.",
+          "html_no_css": {
+            "unused": "{unused_count} classes encontradas no HTML sem definição em CSS: {unused_classes}",
+            "none": "Nenhuma classe no HTML sem definição em CSS."
+          },
+          "css_unused": {
+            "unused": "{unused_count} classes CSS não utilizadas: {unused_classes}",
+            "none": "Nenhuma classe CSS não utilizada encontrada."
+          }
+        }
+      },
+      "check_flexbox_usage": {
+        "description": "Verifica se propriedades Flexbox são usadas no arquivo CSS.",
+        "report": {
+          "found": "Propriedades `flexbox` estão sendo utilizadas no CSS.",
+          "not_found": "Propriedades `flexbox` não foram encontradas no seu CSS."
+        }
+      },
+      "count_over_usage": {
+        "description": "Penaliza o uso de uma string de texto específica se exceder uma contagem máxima permitida.",
+        "param": {
+          "text": "O texto a ser contado.",
+          "max_allowed": "O número máximo de ocorrências permitidas."
+        },
+        "report": {
+          "over": "Uso exagerado de `{text}` detectado {found_count} vezes (máximo permitido: {max_allowed}).",
+          "ok": "Uso exagerado de `{text}` não detectado."
+        }
+      },
+      "uses_relative_units": {
+        "description": "Verifica se o arquivo CSS usa unidades relativas como em, rem, %, vh, vw.",
+        "report": {
+          "found": "Estão sendo utilizadas medidas relativas no CSS.",
+          "not_found": "Não foram utilizadas medidas relativas como (em, rem, %, vh, vw) no seu CSS."
+        }
+      },
+      "check_id_selector_over_usage": {
+        "description": "Conta seletores de ID válidos no CSS.",
+        "param": {
+          "max_allowed": "Número máximo de seletores de ID permitidos."
+        },
+        "report": {
+          "over": "{found_count} seletores de ID detectados (limite: {max_allowed}).",
+          "ok": "Uso controlado de seletores de ID."
+        }
+      },
+      "has_style": {
+        "description": "Verifica se uma regra de estilo CSS específica aparece um número mínimo de vezes.",
+        "param": {
+          "style": "A regra de estilo.",
+          "count": "O número mínimo de ocorrências."
+        },
+        "report": "Encontrados {found_count} de {count} `{style}` regras de estilização."
+      },
+      "check_media_queries": {
+        "description": "Verifica se existem media queries no arquivo CSS.",
+        "report": {
+          "found": "Media queries estão sendo utilizadas no CSS.",
+          "not_found": "Não foi encontrado o uso de media queries no seu CSS."
+        }
+      },
+      "css_uses_property": {
+        "description": "Verifica se um par de propriedade e valor CSS específico existe.",
+        "param": {
+          "prop": "A propriedade CSS.",
+          "value": "O valor esperado."
+        },
+        "report": {
+          "found": "A propriedade `{prop}: {value};` foi encontrada.",
+          "not_found": "A propriedade CSS `{prop}: {value};` não foi encontrada."
+        }
+      }
+    },
+    "js": {
+      "count_global_vars": {
+        "description": "Conta o número de variáveis declaradas no escopo global.",
+        "param": {
+          "max_allowed": "O número máximo de variáveis globais permitidas."
+        },
+        "report": {
+          "over": "Atenção: {found_count} variáveis globais detectadas (máximo permitido: {max_allowed}).",
+          "ok": "Bom trabalho mantendo o escopo global limpo."
+        }
+      },
+      "has_no_js_framework": {
+        "description": "Verifica a presença de frameworks JavaScript proibidos (React, Vue, Angular).",
+        "param": {
+          "submission_files": "O dicionário de arquivos enviados.",
+          "html_file": "O nome do arquivo HTML a ser analisado.",
+          "js_file": "O nome do arquivo JavaScript a ser analisado."
+        },
+        "report": {
+          "found": "Uso de framework JavaScript (React, Vue, Angular) detectado. O uso de frameworks não é permitido nesta atividade.",
+          "not_found": "Ótimo! Nenhum framework JavaScript proibido foi detectado."
+        }
+      },
+      "js_uses_query_string_parsing": {
+        "description": "Verifica se o código JavaScript contém padrões para ler query strings da URL.",
+        "report": {
+          "found": "O código JavaScript implementa a leitura de parâmetros da URL.",
+          "not_found": "Não foi encontrada a lógica para ler parâmetros da URL (ex: URLSearchParams) no seu JavaScript."
+        }
+      },
+      "uses_forbidden_method": {
+        "description": "Verifica e penaliza o uso de um método ou palavra-chave proibida.",
+        "param": {
+          "method": "O nome do método proibido."
+        },
+        "report": {
+          "found": "Penalidade: Método proibido `{method}()` detectado.",
+          "not_found": "Ótimo! O método proibido `{method}()` não foi usado."
+        }
+      },
+      "js_uses_feature": {
+        "description": "Realiza uma busca de string simples para verificar se uma funcionalidade específica está presente.",
+        "param": {
+          "feature": "A funcionalidade a ser pesquisada."
+        },
+        "report": {
+          "found": "A funcionalidade `{feature}` foi implementada.",
+          "not_found": "A funcionalidade JavaScript `{feature}` não foi encontrada no seu código."
+        }
+      },
+      "js_uses_dom_manipulation": {
+        "description": "Verifica se o código JS usa um número mínimo de métodos comuns de manipulação do DOM.",
+        "param": {
+          "methods": "Uma lista de métodos a serem pesquisados (ex: ['createElement', 'appendChild']).",
+          "required_count": "Número mínimo total de vezes que esses métodos devem aparecer."
+        },
+        "report": "Foram encontradas {found_count} de {required_count} chamadas a métodos de manipulação do DOM necessárias."
+      },
+      "js_has_json_array_with_id": {
+        "description": "Verifica a existência de um array de objetos JS onde cada objeto possui uma chave específica obrigatória.",
+        "param": {
+          "required_key": "A chave que deve existir em cada objeto (ex: 'id').",
+          "min_items": "O número mínimo de itens esperados no array."
+        },
+        "report": {
+          "no_data": "Não foi encontrada uma estrutura de dados (array) no formato JSON em seu arquivo JavaScript.",
+          "found": "Encontrada estrutura de dados com {found_items} de {min_items} itens necessários, todos com a chave '{required_key}'."
+        }
+      }
+    },
+    "structure": {
+      "check_project_structure": {
+        "description": "Verifica se o caminho da estrutura esperada existe nos arquivos de envio.",
+        "param": {
+          "submission_files": "O dicionário de arquivos enviados.",
+          "expected_structure": "O caminho do arquivo esperado."
+        },
+        "report": {
+          "found": "O arquivo '{expected_structure}' existe.",
+          "not_found": "O arquivo '{expected_structure}' não existe."
+        }
+      },
+      "check_dir_exists": {
+        "description": "Verifica se um diretório específico existe no envio.",
+        "param": {
+          "submission_files": "O dicionário de arquivos enviados.",
+          "dir_path": "O caminho do diretório."
+        },
+        "report": {
+          "found": "O diretório '{dir_path}' existe.",
+          "not_found": "O diretório '{dir_path}' não existe."
+        }
+      }
+    }
+  },
+  "io": {
+    "execution": {
+      "timeout": "FALHA: O tempo de execução do programa expirou. Verifique se há loops infinitos. [Tempo: {time:.2f}s]",
+      "compilation_error": "FALHA: Erro de Compilação.\nDetalhes:\n{error}",
+      "runtime_error": "FALHA: O programa falhou durante a execução (crash).\nErro:\n{error}",
+      "system_error": "ERRO DE SISTEMA: Ocorreu um erro de infraestrutura durante a execução.\nDetalhes:\n{error}"
+    },
+    "expect_output": {
+      "description": "Executa o programa do aluno, fornece uma série de entradas separadas por linha e verifica se a saída final está correta.",
+      "params": {
+        "inputs": "Lista de strings a serem enviadas para o programa, cada uma em uma nova linha.",
+        "expected": "A única string que o programa deve imprimir na saída padrão.",
+        "program_command": "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve)."
+      },
+      "report": {
+        "success": "Sucesso: A saída corresponde aos valores esperados.",
+        "failure": "FALHA: Saída Incorreta.\nEsperado: '{expected}'\nObtido: '{actual}'",
+        "internal_error": "ERRO DE SISTEMA: Falha interna do autograder: {error}"
+      }
+    },
+    "dont_fail": {
+      "description": "Executes the student program with specific input and verifies it doesn't fail (no crash, no timeout).",
+      "report": {
+        "success": "Sucesso: O programa foi executado sem erros."
+      }
+    },
+    "forbidden_import": {
+      "description": "Analisa estaticamente os arquivos de submissão para verificar se alguma biblioteca proibida foi importada. Penaliza a submissão caso alguma importação proibida seja encontrada.",
+      "params": {
+        "libraries": "Lista de nomes de bibliotecas/módulos cuja importação é proibida.",
+        "language": "Linguagem da submissão (ex: 'python', 'java'). Necessária para identificar padrões de importação corretos."
+      },
+      "report": {
+        "no_imports": "Nenhuma importação proibida especificada â€” nada para verificar.",
+        "no_lang": "FALHA: A linguagem da submissão não foi definida. Não é possível verificar importações proibidas.",
+        "no_files": "Nenhum arquivo de submissão para analisar.",
+        "violation": "  - '{lib}' encontrado em '{file}'",
+        "failure": "FALHA: Importações proibidas detectadas:\n{details}",
+        "success": "Nenhuma importação proibida encontrada."
+      }
+    },
+    "template": {
+      "name": "Entrada/Saída (I/O)",
+      "description": "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."
+    }
+  },
+  "api_testing": {
+    "health_check": {
+      "description": "Verifica se um endpoint específico está em execução e retorna status code 200.",
+      "params": {
+        "endpoint": "O endpoint a ser testado (ex: '/health')."
+      },
+      "report": {
+        "success": "Sucesso! O endpoint '{endpoint}' está ativo e retornou status code 200.",
+        "failure": "O endpoint '{endpoint}' retornou status code {code} em vez de 200.",
+        "request_failed": "A requisição da API para o container falhou: {error}",
+        "unexpected_error": "Ocorreu um erro inesperado: {error}"
+      }
+    },
+    "check_response_json": {
+      "description": "Verifica se a resposta em JSON de um endpoint possui a chave e valor específicos.",
+      "params": {
+        "endpoint": "O endpoint da API a ser testado (ex: '/api/data').",
+        "expected_key": "A chave JSON a ser verificada.",
+        "expected_value": "O valor esperado para a chave especificada."
+      },
+      "report": {
+        "request_failed": "A requisição falhou com status code {code}.",
+        "success": "Sucesso! A resposta de '{endpoint}' continha o par chave-valor esperado ('{key}': '{value}').",
+        "failure": "A resposta JSON de '{endpoint}' não continha o valor esperado. Esperado '{expected}' para a chave '{key}', mas obteve '{actual}'.",
+        "invalid_json": "A resposta de '{endpoint}' não é um JSON válido."
+      }
+    },
+    "template": {
+      "name": "Testes de API",
+      "description": "Um modelo para avaliar tarefas onde alunos criam uma API web."
+    }
+  },
+  "system": {
+    "error": {
+      "step_interrupted": "Ocorreu um erro inesperado durante a execução da etapa: {error}"
+    }
+  }
+}

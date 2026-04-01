@@ -7,6 +7,7 @@ from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
+from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 
 # Configure basic logging
@@ -25,7 +26,7 @@ class HealthCheckTest(TestFunction):
 
     @property
     def description(self):
-        return "Verifica se um endpoint específico está em execução e retorna status code 200."
+        return t("api_testing.health_check.description")
 
     @property
     def required_file(self):
@@ -34,7 +35,7 @@ class HealthCheckTest(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("endpoint", "O endpoint a ser testado (ex: '/health').", "string")
+            ParamDescription("endpoint", t("api_testing.health_check.params.endpoint"), "string")
         ]
 
     def __init__(self):
@@ -46,17 +47,18 @@ class HealthCheckTest(TestFunction):
         report = ""
         score = 0
 
+        locale = kwargs.get("locale")
         try:
             response = sandbox.make_request("GET", endpoint)
             if response.status_code == 200:
                 score = 100
-                report = f"Success! Endpoint '{endpoint}' is alive and returned status code 200."
+                report = t("api_testing.health_check.report.success", locale=locale, endpoint=endpoint)
             else:
-                report = f"Endpoint '{endpoint}' returned status code {response.status_code} instead of 200."
+                report = t("api_testing.health_check.report.failure", locale=locale, endpoint=endpoint, code=response.status_code)
         except requests.RequestException as e:
-            report = f"API request to the container failed: {e}"
+            report = t("api_testing.health_check.report.request_failed", locale=locale, error=str(e))
         except Exception as e:
-            report = f"An unexpected error occurred: {e}"
+            report = t("api_testing.health_check.report.unexpected_error", locale=locale, error=str(e))
 
         return TestResult(
             test_name=self.name,
@@ -74,7 +76,7 @@ class CheckResponseJsonTest(TestFunction):
 
     @property
     def description(self):
-        return "Verifica se a resposta em JSON de um endpoint possui a chave e valor específicos."
+        return t("api_testing.check_response_json.description")
 
     @property
     def required_file(self):
@@ -83,9 +85,9 @@ class CheckResponseJsonTest(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("endpoint", "O endpoint da API a ser testado (ex: '/api/data').", "string"),
-            ParamDescription("expected_key", "A chave JSON que vai verificar a resposta.", "string"),
-            ParamDescription("expected_value", "O valor esperado para a chave especificada.", "any")
+            ParamDescription("endpoint", t("api_testing.check_response_json.params.endpoint"), "string"),
+            ParamDescription("expected_key", t("api_testing.check_response_json.params.expected_key"), "string"),
+            ParamDescription("expected_value", t("api_testing.check_response_json.params.expected_value"), "any")
         ]
 
     def __init__(self):
@@ -97,25 +99,26 @@ class CheckResponseJsonTest(TestFunction):
         report = ""
         score = 0
 
+        locale = kwargs.get("locale")
         try:
             response = sandbox.make_request("GET", endpoint)
             if response.status_code != 200:
-                return TestResult(self.name, 0, f"Request failed with status code {response.status_code}.")
+                return TestResult(self.name, 0, t("api_testing.check_response_json.report.request_failed", locale=locale, code=response.status_code))
 
             try:
                 data = response.json()
                 if data.get(expected_key) == expected_value:
                     score = 100
-                    report = f"Success! Response from '{endpoint}' contained the expected key-value pair ('{expected_key}': '{expected_value}')."
+                    report = t("api_testing.check_response_json.report.success", locale=locale, endpoint=endpoint, key=expected_key, value=expected_value)
                 else:
-                    report = f"JSON response from '{endpoint}' did not contain the expected value. Expected '{expected_value}' for key '{expected_key}', but got '{data.get(expected_key)}'."
+                    report = t("api_testing.check_response_json.report.failure", locale=locale, endpoint=endpoint, key=expected_key, expected=expected_value, actual=data.get(expected_key))
             except json.JSONDecodeError:
-                report = f"Response from '{endpoint}' was not valid JSON."
+                report = t("api_testing.check_response_json.report.invalid_json", locale=locale, endpoint=endpoint)
 
         except requests.RequestException as e:
-            report = f"API request to the container failed: {e}"
+            report = t("api_testing.health_check.report.request_failed", locale=locale, error=str(e))
         except Exception as e:
-            report = f"An unexpected error occurred: {e}"
+            report = t("api_testing.health_check.report.unexpected_error", locale=locale, error=str(e))
 
         return TestResult(
             test_name=self.name,
@@ -136,11 +139,11 @@ class ApiTestingTemplate(Template):
 
     @property
     def template_name(self):
-        return "API de Testes"
+        return t("api_testing.template.name")
 
     @property
     def template_description(self):
-        return "Um modelo para avaliar tarefas onde alunos criam uma API web."
+        return t("api_testing.template.description")
 
     @property
     def requires_sandbox(self) -> bool:

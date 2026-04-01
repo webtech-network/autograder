@@ -3,6 +3,7 @@ from typing import List, Optional, Any
 from autograder.models.dataclass.submission import Submission
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory, CommandResponse
+from autograder.translations import t
 
 class SandboxService:
     """
@@ -59,7 +60,7 @@ class SandboxService:
         except Exception as e:
             self.logger.warning("Failed to release sandbox: %s", str(e))
 
-    def run_setup_command(self, sandbox: SandboxContainer, command_spec: Any, idx: int = 0) -> CommandResponse:
+    def run_setup_command(self, sandbox: SandboxContainer, command_spec: Any, idx: int = 0, locale: Optional[str] = None) -> CommandResponse:
         """
         Executes a single setup command (e.g., compilation) in the provided sandbox.
         
@@ -70,15 +71,17 @@ class SandboxService:
             sandbox: The sandbox container to execute the command in.
             command_spec: Command specification (either string or dict with 'command' key).
             idx: Optional index used for default naming if 'name' is not provided in spec.
+            locale: User's locale for error messages (default: None, resolves to 'en')
         
         Returns:
             CommandResponse: Result of the command. ResponseCategory indicates success/failure.
         """
         if not sandbox:
-            self.logger.error("Sandbox environment is required for executing setup commands")
+            error_msg = t("preflight.error.setup_command_missing_sandbox", locale=locale)
+            self.logger.error(error_msg)
             return CommandResponse(
                 stdout="",
-                stderr="Sandbox environment is required for executing setup commands but was not created.",
+                stderr=error_msg,
                 exit_code=-1,
                 execution_time=0,
                 category=ResponseCategory.SYSTEM_ERROR
@@ -89,7 +92,7 @@ class SandboxService:
             command_name = command_spec.get('name', f'Setup Command {idx + 1}')
             command = command_spec.get('command')
             if not command:
-                error_msg = f"Setup command '{command_name}' is missing the 'command' field"
+                error_msg = t("preflight.error.setup_command_missing_field", locale=locale, command_name=command_name)
                 self.logger.error(error_msg)
                 return CommandResponse(
                     stdout="",
@@ -102,7 +105,7 @@ class SandboxService:
             command_name = f'Setup Command {idx + 1}'
             command = command_spec
         else:
-            error_msg = f"Invalid setup command format: expected string or dict, got {type(command_spec).__name__}"
+            error_msg = t("preflight.error.setup_command_invalid_format", locale=locale, index=idx)
             self.logger.error(error_msg)
             return CommandResponse(
                 stdout="",
@@ -116,7 +119,7 @@ class SandboxService:
         try:
             return sandbox.run_command(command)
         except Exception as e:
-            error_msg = f"Setup command '{command_name}' failed to execute: {str(e)}"
+            error_msg = t("preflight.error.setup_command_failed_execution", locale=locale, command_name=command_name, error=str(e), command=command)
             self.logger.error(error_msg)
             return CommandResponse(
                 stdout="",

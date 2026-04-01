@@ -34,7 +34,8 @@ class FeedbackStep(Step):
         feedback_content = self._reporter_service.generate_feedback(
             grading_result=focused_tests,
             result_tree=result_tree,
-            feedback_config=self._feedback_config
+            feedback_config=self._feedback_config,
+            locale=pipeline_exec.locale
         )
         logger.info("Feedback generated (external_user_id=%s)", pipeline_exec.submission.user_id)
         return pipeline_exec.add_step_result(

@@ -1,5 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
+from autograder.translations import t
 
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 from autograder.models.pipeline_execution import PipelineExecution
@@ -20,16 +21,20 @@ class Step(ABC):
         This provides a shared error-handling wrapper catching unexpected exceptions
         and logging them, marking the step status as INTERRUPTED.
         """
+        locale = pipeline_exec.locale
         try:
             return self._execute(pipeline_exec)
         except Exception as e:
             logger.exception("Step %s was interrupted: %s", self.step_name.value, str(e))
+            
+            error_msg = t("system.error.step_interrupted", locale=locale, error=str(e))
+            
             return pipeline_exec.add_step_result(
                 StepResult(
                     step=self.step_name,
                     data=None,
                     status=StepStatus.INTERRUPTED,
-                    error=f"Step execution interrupted: {str(e)}",
+                    error=error_msg,
                     original_input=pipeline_exec
                 )
             )

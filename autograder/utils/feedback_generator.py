@@ -1,14 +1,16 @@
 """Utility for generating human-readable feedback from pipeline execution."""
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+from autograder.translations import t
 
 
-def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any]) -> str:
+def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any], locale: str = "en") -> str:
     """
     Generate human-readable feedback for preflight failures.
 
     Args:
         pipeline_execution_summary: Pipeline execution summary dict
+        locale: Locale string for translations (e.g. 'en', 'pt_br')
 
     Returns:
         Markdown-formatted feedback string
@@ -21,23 +23,23 @@ def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any]) -> s
             break
 
     if not preflight_step:
-        return "## Preflight Check Failed\n\nYour submission failed during the preflight phase."
+        return t("feedback.preflight.failed_title", locale=locale) + "\n\n" + t("feedback.preflight.failed_subtitle", locale=locale)
 
     error_details = preflight_step.get("error_details", {})
     error_type = error_details.get("error_type", "unknown")
 
-    feedback = "## Preflight Check Failed\n\n"
-    feedback += "Your submission failed during the setup phase before grading could begin.\n\n"
+    feedback = t("feedback.preflight.failed_title", locale=locale) + "\n\n"
+    feedback += t("feedback.preflight.failed_subtitle", locale=locale)
 
     if error_type == "required_file_missing":
         missing_file = error_details.get("missing_file", "unknown file")
-        feedback += f"### Required File Missing\n\n"
-        feedback += f"**Missing:** {missing_file}\n\n"
-        feedback += "**What to do:**\n"
-        feedback += f"- Make sure you upload a file named exactly **`{missing_file}`**\n"
-        feedback += "- Check for typos in the filename (case-sensitive)\n"
-        feedback += "- Verify the file is included in your submission\n"
-        feedback += "- Resubmit with all required files\n"
+        feedback += f"{t('feedback.preflight.required_file_missing_header', locale=locale)}\n\n"
+        feedback += f"{t('feedback.preflight.missing_label', locale=locale, missing_file=missing_file)}\n\n"
+        feedback += f"{t('feedback.preflight.what_to_do', locale=locale)}\n"
+        feedback += f"{t('feedback.preflight.upload_instruction', locale=locale, missing_file=missing_file)}\n"
+        feedback += f"{t('feedback.preflight.typo_instruction', locale=locale)}\n"
+        feedback += f"{t('feedback.preflight.verify_instruction', locale=locale)}\n"
+        feedback += f"{t('feedback.preflight.resubmit_instruction', locale=locale)}\n"
 
     elif error_type == "setup_command_failed":
         failed_cmd = error_details.get("failed_command", {})
@@ -47,46 +49,46 @@ def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any]) -> s
         stderr = failed_cmd.get("stderr", "")
         stdout = failed_cmd.get("stdout", "")
 
-        feedback += f"### Setup Command Failed: {cmd_name}\n\n"
+        feedback += f"{t('feedback.preflight.setup_command_failed_header', locale=locale, command_name=cmd_name)}\n\n"
 
         if command:
-            feedback += f"**Command executed:**\n```bash\n{command}\n```\n\n"
+            feedback += f"{t('feedback.preflight.command_executed_label', locale=locale)}\n```bash\n{command}\n```\n\n"
 
-        feedback += f"**Exit code:** {exit_code}\n\n"
+        feedback += f"{t('feedback.preflight.exit_code_label', locale=locale, exit_code=exit_code)}\n\n"
 
         if stderr:
-            feedback += "**Error output:**\n```\n"
+            feedback += f"{t('feedback.preflight.error_output_label', locale=locale)}\n```\n"
             feedback += stderr
             feedback += "\n```\n\n"
 
         if stdout:
-            feedback += "**Output:**\n```\n"
+            feedback += f"{t('feedback.preflight.output_label', locale=locale)}\n```\n"
             feedback += stdout
             feedback += "\n```\n\n"
 
         # Add specific guidance for compilation errors
         if "javac" in command and "error:" in stderr:
-            feedback += "**What to do:**\n"
-            feedback += "- Fix the compilation errors shown above\n"
-            feedback += "- Pay attention to the line numbers and error messages\n"
-            feedback += "- Common issues: missing semicolons, undefined variables, syntax errors\n"
-            feedback += "- Resubmit after fixing all compilation errors\n"
+            feedback += f"{t('feedback.preflight.what_to_do', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.compilation_fix_instruction', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.line_number_instruction', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.common_issues_instruction', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.compilation_resubmit_instruction', locale=locale)}\n"
         elif "g++" in command or "gcc" in command:
-            feedback += "**What to do:**\n"
-            feedback += "- Fix the compilation/linking errors shown above\n"
-            feedback += "- Check for syntax errors and missing includes\n"
-            feedback += "- Verify all required files are present\n"
-            feedback += "- Resubmit after fixing the errors\n"
+            feedback += f"{t('feedback.preflight.what_to_do', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.gpp_fix_instruction', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.gpp_syntax_instruction', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.gpp_verify_instruction', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.gpp_resubmit_instruction', locale=locale)}\n"
         else:
-            feedback += "**What to do:**\n"
-            feedback += "- Review the error output above\n"
-            feedback += "- Fix any issues in your code or configuration\n"
-            feedback += "- Resubmit after resolving the error\n"
+            feedback += f"{t('feedback.preflight.what_to_do', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.review_error_instruction', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.generic_fix_instruction', locale=locale)}\n"
+            feedback += f"{t('feedback.preflight.generic_resubmit_instruction', locale=locale)}\n"
     else:
-        feedback += "**What to do:**\n"
-        feedback += "- Review the error message\n"
-        feedback += "- Contact your instructor if you need help\n"
-        feedback += "- Resubmit after fixing the issue\n"
+        feedback += f"{t('feedback.preflight.what_to_do', locale=locale)}\n"
+        feedback += f"{t('feedback.preflight.generic_error_instruction', locale=locale)}\n"
+        feedback += f"{t('feedback.preflight.contact_instructor_instruction', locale=locale)}\n"
+        feedback += f"{t('feedback.preflight.generic_resubmit_instruction', locale=locale)}\n"
 
     return feedback
 

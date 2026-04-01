@@ -2,21 +2,24 @@ import logging
 from typing import List, Optional
 from autograder.models.dataclass.preflight_error import PreflightError, PreflightCheckType
 from autograder.models.dataclass.submission import Submission
+from autograder.translations import t
 from autograder.services.sandbox_service import SandboxService
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
 
 class PreFlightService:
-    def __init__(self, setup_config, submission_language: Language):
+    def __init__(self, setup_config, submission_language: Language, locale: str = "en"):
         """
         Initialize PreFlightService with language-specific setup configuration.
 
         Args:
             setup_config: Language-specific configs: {'python': {...}, 'java': {...}, 'node': {...}, 'cpp': {...}}
             submission_language: Language of the submission (required)
+            locale: User's locale for error messages (default: 'en')
         """
         self.submission_language = submission_language
+        self.locale = locale
         self.raw_setup_config = setup_config or {}
         self.logger = logging.getLogger("PreFlight")
         self.fatal_errors: List[PreflightError] = []
@@ -88,7 +91,7 @@ class PreFlightService:
 
         for file in self.required_files:
             if file not in submission_files:
-                error_msg = f"**Erro:** Arquivo ou diretório obrigatório não encontrado: `'{file}'`"
+                error_msg = t("preflight.error.required_file_missing", locale=self.locale, file=file)
                 self.logger.error(error_msg)
                 self.fatal_errors.append(PreflightError(
                     type=PreflightCheckType.FILE_CHECK,
@@ -109,7 +112,7 @@ class PreFlightService:
             True if all commands succeeded, False otherwise. Errors are stored in self.fatal_errors.
         """
         if not sandbox:
-            error_msg = "Sandbox environment is required for executing setup commands but was not created."
+            error_msg = t("preflight.error.setup_command_missing_sandbox", locale=self.locale)
             self.logger.error(error_msg)
             self.fatal_errors.append(PreflightError(
                 type=PreflightCheckType.SETUP_COMMAND,
@@ -124,7 +127,7 @@ class PreFlightService:
 
         for idx, command_spec in enumerate(self.setup_commands):
             # Call SandboxService to execute one command at a time
-            response = self._sandbox_service.run_setup_command(sandbox, command_spec, idx)
+            response = self._sandbox_service.run_setup_command(sandbox, command_spec, idx, locale=self.locale)
 
             # Check if response indicates an error
             if response.category != ResponseCategory.SUCCESS:
@@ -158,20 +161,19 @@ class PreFlightService:
     def _format_command_error(self, command_name: str, command: str, response) -> str:
         """Helper to format detailed error messages for students."""
         if response.category == ResponseCategory.SYSTEM_ERROR:
-            # For system errors, the stderr already contains the error message
-            return f"**Error:** {response.stderr}"
-        
-        error_msg = f"**Error:** Setup command '{command_name}' failed"
-        if response.category:
-            error_msg += f" ({response.category.value})"
-        error_msg += f" with exit code {response.exit_code}\n\n"
-        
-        error_msg += f"**Command:** `{command}`\n\n"
+            # For system errors, we use a generic system error message
+            return t("io.execution.system_error", locale=self.locale, error=response.stderr)
+
+        error_msg = t("preflight.error.setup_command_failed_exit_code",
+                      locale=self.locale,
+                      command_name=command_name,
+                      exit_code=response.exit_code,
+                      command=command)
 
         if response.stdout and response.stdout.strip():
-            error_msg += f"**Output (stdout):**\n```\n{response.stdout.strip()}\n```\n\n"
+            error_msg += f"\n\n**Output (stdout):**\n```\n{response.stdout.strip()}\n```"
 
         if response.stderr and response.stderr.strip():
-            error_msg += f"**Error Output (stderr):**\n```\n{response.stderr.strip()}\n```"
+            error_msg += f"\n\n**Error Output (stderr):**\n```\n{response.stderr.strip()}\n```"
 
         return error_msg.strip()

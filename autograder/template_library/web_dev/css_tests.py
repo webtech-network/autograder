@@ -6,6 +6,7 @@ from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 
 
@@ -16,16 +17,16 @@ class CountUnusedCssClasses(TestFunction):
         return "count_unused_css_classes"
     @property
     def description(self):
-        return "Conta o número de classes CSS não utilizadas no código HTML e/ou CSS"
+        return t("web_dev.css.count_unused_css_classes.description")
     @property
     def required_file(self):
         return None
     @property
     def parameter_description(self):
         return [
-            ParamDescription("submission_files", "O dicionário de arquivos enviados.", "dictionary"),
-            ParamDescription("html_file", "Nome do arquivo HTML a ser analisado (ex: 'index.html').", "string"),
-            ParamDescription("css_file", "Nome do arquivo CSS a ser analisado (ex: 'styles.css').", "string")
+            ParamDescription("submission_files", t("web_dev.css.count_unused_css_classes.param.submission_files"), "dictionary"),
+            ParamDescription("html_file", t("web_dev.css.count_unused_css_classes.param.html_file"), "string"),
+            ParamDescription("css_file", t("web_dev.css.count_unused_css_classes.param.css_file"), "string")
         ]
 
     def _extract_css_classes(self, css_content: str) -> set:
@@ -75,7 +76,7 @@ class CountUnusedCssClasses(TestFunction):
             return TestResult(
                 self.name, 
                 0, 
-                "Nenhum arquivo HTML ou CSS fornecido.", 
+                t("web_dev.css.count_unused_css_classes.report.no_files", locale=kwargs.get("locale")), 
                 {
                     "html_file": html_file, 
                     "css_file": css_file, 
@@ -103,17 +104,18 @@ class CountUnusedCssClasses(TestFunction):
         unused_count = len(unused_classes)
         score = 100 if unused_count == 0 else 0
         
+        locale = kwargs.get("locale")
         if category == "html_classes_without_css":
             report = (
-                "Nenhuma classe no HTML sem definição em CSS."
+                t("web_dev.css.count_unused_css_classes.report.html_no_css.none", locale=locale)
                 if unused_count == 0
-                else f"{unused_count} classes encontradas no HTML sem definição em CSS: {unused_classes}"
+                else t("web_dev.css.count_unused_css_classes.report.html_no_css.unused", locale=locale, unused_count=unused_count, unused_classes=unused_classes)
             )
         else:
             report = (
-                "Nenhuma classe CSS não utilizada encontrada."
+                t("web_dev.css.count_unused_css_classes.report.css_unused.none", locale=locale)
                 if unused_count == 0
-                else f"{unused_count} classes CSS não utilizadas: {unused_classes}"
+                else t("web_dev.css.count_unused_css_classes.report.css_unused.unused", locale=locale, unused_count=unused_count, unused_classes=unused_classes)
             )
         
         return TestResult(self.name, score, report, {
@@ -131,7 +133,7 @@ class CheckFlexboxUsage(TestFunction):
         return "check_flexbox_usage"
     @property
     def description(self):
-        return "Verifica se propriedades Flexbox são usadas no arquivo CSS."
+        return t("web_dev.css.check_flexbox_usage.description")
     @property
     def required_file(self):
         return "CSS"
@@ -146,7 +148,8 @@ class CheckFlexboxUsage(TestFunction):
         css_content = files[0].content
         found = re.search(r"\b(display\s*:\s*flex|flex-)", css_content) is not None
         score = 100 if found else 0
-        report = "Propriedades `flexbox` estão sendo utilizadas no CSS." if found else "Propriedades `flexbox` não foram encontradas no seu CSS."
+        locale = kwargs.get("locale")
+        report = t("web_dev.css.check_flexbox_usage.report.found", locale=locale) if found else t("web_dev.css.check_flexbox_usage.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -160,15 +163,15 @@ class CountOverUsage(TestFunction):
         return "count_over_usage"
     @property
     def description(self):
-        return "Penaliza o uso de uma string de texto específica se exceder uma contagem máxima permitida."
+        return t("web_dev.css.count_over_usage.description")
     @property
     def required_file(self):
         return "CSS"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("text", "O texto a ser contado.", "string"),
-            ParamDescription("max_allowed", "O número máximo de ocorrências permitidas.", "integer")
+            ParamDescription("text", t("web_dev.css.count_over_usage.param.text"), "string"),
+            ParamDescription("max_allowed", t("web_dev.css.count_over_usage.param.max_allowed"), "integer")
         ]
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, text: str = "", max_allowed: int = 0, **kwargs) -> TestResult:
         """Executes the excess count verification."""
@@ -178,7 +181,8 @@ class CountOverUsage(TestFunction):
         css_content = files[0].content
         found_count = css_content.count(text)
         score = 100 if found_count <= max_allowed else 0
-        report = f"Uso exagerado de `{text}` detectado {found_count} vezes (máximo permitido: {max_allowed})." if score == 0 else f"Uso exagerado de `{text}` não detectado."
+        locale = kwargs.get("locale")
+        report = t("web_dev.css.count_over_usage.report.over", locale=locale, text=text, found_count=found_count, max_allowed=max_allowed) if score == 0 else t("web_dev.css.count_over_usage.report.ok", locale=locale, text=text)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -193,7 +197,7 @@ class UsesRelativeUnits(TestFunction):
         return "uses_relative_units"
     @property
     def description(self):
-        return "Verifica se o arquivo CSS usa unidades relativas como em, rem, %, vh, vw."
+        return t("web_dev.css.uses_relative_units.description")
     @property
     def required_file(self):
         return "CSS"
@@ -208,7 +212,8 @@ class UsesRelativeUnits(TestFunction):
         css_content = files[0].content
         found = re.search(r"\b(em|rem|%|vh|vw)\b", css_content) is not None
         score = 100 if found else 0
-        report = "Estão sendo utilizadas medidas relativas no CSS." if found else "Não foram utilizadas medidas relativas como (em, rem, %, vh, vw) no seu CSS."
+        locale = kwargs.get("locale")
+        report = t("web_dev.css.uses_relative_units.report.found", locale=locale) if found else t("web_dev.css.uses_relative_units.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -222,14 +227,14 @@ class CheckIdSelectorOverUsage(TestFunction):
         return "Check ID Selector Over Usage"
     @property
     def description(self):
-        return "Conta seletores de ID válidos no CSS."
+        return t("web_dev.css.check_id_selector_over_usage.description")
     @property
     def required_file(self):
         return "CSS"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("max_allowed", "Número máximo de seletores de ID permitidos.", "integer")
+            ParamDescription("max_allowed", t("web_dev.css.check_id_selector_over_usage.param.max_allowed"), "integer")
         ]
 
     def _get_id_selectors(self, css_content: str) -> List[str]:
@@ -266,7 +271,8 @@ class CheckIdSelectorOverUsage(TestFunction):
         selectors = self._get_id_selectors(files[0].content)
         found_count = len(selectors)
         score = 100 if found_count <= max_allowed else 0
-        report = f"{found_count} seletores de ID detectados (limite: {max_allowed})." if score == 0 else "Uso controlado de seletores de ID."
+        locale = kwargs.get("locale")
+        report = t("web_dev.css.check_id_selector_over_usage.report.over", locale=locale, found_count=found_count, max_allowed=max_allowed) if score == 0 else t("web_dev.css.check_id_selector_over_usage.report.ok", locale=locale)
         return TestResult(self.name, score, report, {"max_allowed": max_allowed})
 
 class HasStyle(TestFunction):
@@ -276,15 +282,15 @@ class HasStyle(TestFunction):
         return "has_style"
     @property
     def description(self):
-        return "Verifica se uma regra de estilo CSS específica aparece um número mínimo de vezes."
+        return t("web_dev.css.has_style.description")
     @property
     def required_file(self):
         return "CSS"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("style", "A regra de estilo.", "string"),
-            ParamDescription("count", "O número mínimo de ocorrências.", "integer")
+            ParamDescription("style", t("web_dev.css.has_style.param.style"), "string"),
+            ParamDescription("count", t("web_dev.css.has_style.param.count"), "integer")
         ]
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, style: str = "", count: int = 0, **kwargs) -> TestResult:
         """Executes the search for style rules."""
@@ -294,7 +300,7 @@ class HasStyle(TestFunction):
         css_content = files[0].content
         found_count = len(re.findall(rf"{re.escape(style)}\s*:\s*[^;]+;", css_content, re.IGNORECASE))
         score = min(100, int((found_count / count) * 100)) if count > 0 else 100
-        report = f"Encontrados {found_count} de {count} `{style}` regras de estilização."
+        report = t("web_dev.css.has_style.report", locale=kwargs.get("locale"), found_count=found_count, count=count, style=style)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -309,7 +315,7 @@ class CheckMediaQueries(TestFunction):
         return "check_media_queries"
     @property
     def description(self):
-        return "Verifica se existem media queries no arquivo CSS."
+        return t("web_dev.css.check_media_queries.description")
     @property
     def required_file(self):
         return "CSS"
@@ -324,7 +330,8 @@ class CheckMediaQueries(TestFunction):
         css_content = files[0].content
         found = re.search(r"@media\s+[^{]+\{", css_content) is not None
         score = 100 if found else 0
-        report = "Media queries estão sendo utilizadas no CSS." if found else "Não foi encontrado o uso de media queries no seu CSS."
+        locale = kwargs.get("locale")
+        report = t("web_dev.css.check_media_queries.report.found", locale=locale) if found else t("web_dev.css.check_media_queries.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -338,15 +345,15 @@ class CssUsesProperty(TestFunction):
         return "css_uses_property"
     @property
     def description(self):
-        return "Verifica se um par de propriedade e valor CSS específico existe."
+        return t("web_dev.css.css_uses_property.description")
     @property
     def required_file(self):
         return "CSS"
     @property
     def parameter_description(self):
         return [
-            ParamDescription("prop", "A propriedade CSS.", "string"),
-            ParamDescription("value", "O valor esperado.", "string")
+            ParamDescription("prop", t("web_dev.css.css_uses_property.param.prop"), "string"),
+            ParamDescription("value", t("web_dev.css.css_uses_property.param.value"), "string")
         ]
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, prop: str = "", value: str = "", **kwargs) -> TestResult:
         """Executes the search for a CSS property/value pair."""
@@ -357,7 +364,8 @@ class CssUsesProperty(TestFunction):
         pattern = re.compile(rf"{re.escape(prop)}\s*:\s*.*{re.escape(value)}", re.IGNORECASE)
         found = pattern.search(css_content) is not None
         score = 100 if found else 0
-        report = f"A propriedade `{prop}: {value};` foi encontrada." if found else f"A propriedade CSS `{prop}: {value};` não foi encontrada."
+        locale = kwargs.get("locale")
+        report = t("web_dev.css.css_uses_property.report.found", locale=locale, prop=prop, value=value) if found else t("web_dev.css.css_uses_property.report.not_found", locale=locale, prop=prop, value=value)
         return TestResult(
             test_name=self.name,
             score=score,

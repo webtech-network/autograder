@@ -46,7 +46,7 @@ class TestDefaultReporter(unittest.TestCase):
         report = self.reporter.generate_report(self.focus, self.result_tree, preferences)
         
         self.assertIn("Test Report", report)
-        self.assertIn("## 📊 RESUMO", report)
+        self.assertIn("## GRADING SUMMARY", report)
         self.assertIn("### 🧪 Test 1", report)
         self.assertIn("> **90.00 / 100**", report)
 
@@ -68,8 +68,8 @@ class TestDefaultReporter(unittest.TestCase):
     def test_empty_focus_graceful(self):
         """Tests that the reporter handles empty focus/tree gracefully."""
         report = self.reporter.generate_report(None, None, None)
-        self.assertIn("Relatório de Avaliação", report)
-        self.assertNotIn("📊 RESUMO", report)
+        self.assertIn("Evaluation Report", report)
+        self.assertNotIn("GRADING SUMMARY", report)
 
 if __name__ == "__main__":
     unittest.main()

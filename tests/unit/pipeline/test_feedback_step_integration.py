@@ -58,7 +58,7 @@ class TestFeedbackStepIntegration(unittest.TestCase):
         self.assertIsNotNone(feedback_result)
         self.assertEqual(feedback_result.status, StepStatus.SUCCESS)
         self.assertIn("Integration Test Title", feedback_result.data)
-        self.assertIn("📊 RESUMO", feedback_result.data)
+        self.assertIn("GRADING SUMMARY", feedback_result.data)
         
         # Check if ReporterService was used
         # (Implicitly checked by the data being "Default report generated.")
