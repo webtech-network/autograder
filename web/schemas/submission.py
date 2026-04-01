@@ -30,7 +30,7 @@ class SubmissionCreate(BaseModel):
     username: str = Field(..., description="Username of the submitter")
     files: List[SubmissionFileData] = Field(..., description="List of files to submit")
     language: Optional[str] = Field(None, description="Optional language override")
-    locale: Optional[str] = Field("en", description="Optional locale for feedback (e.g., 'en', 'pt')")
+    locale: Optional[str] = Field("en", description="Optional locale for feedback (e.g., 'en', 'pt_br')")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Optional submission metadata")
 
     @field_validator('language')
