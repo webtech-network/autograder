@@ -44,6 +44,11 @@ class PipelineExecution:
     sandbox: Optional["SandboxContainer"] = field(default=None, init=False)
     start_time: float = field(default_factory=time.time)  # Track execution time
 
+    @property
+    def locale(self) -> str:
+        """Returns the locale for this pipeline execution, sourced from the submission."""
+        return self.submission.locale
+
     def add_step_result(self, step_result: StepResult) -> 'PipelineExecution':
         """
         Adds a single StepResult to the list of execution results.

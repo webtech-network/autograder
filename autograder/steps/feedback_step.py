@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.focus import Focus 
@@ -26,7 +25,7 @@ class FeedbackStep(Step):
     def step_name(self) -> StepName:
         return StepName.FEEDBACK
 
-    def _execute(self, pipeline_exec: PipelineExecution, locale: Optional[str] = None) -> PipelineExecution:
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """Adds feedback to the grading result using the reporter service."""
         logger.info("Generating feedback (external_user_id=%s)", pipeline_exec.submission.user_id)
         focused_tests: Focus = pipeline_exec.get_focus()
@@ -36,7 +35,7 @@ class FeedbackStep(Step):
             grading_result=focused_tests,
             result_tree=result_tree,
             feedback_config=self._feedback_config,
-            locale=pipeline_exec.submission.locale
+            locale=pipeline_exec.locale
         )
         logger.info("Feedback generated (external_user_id=%s)", pipeline_exec.submission.user_id)
         return pipeline_exec.add_step_result(

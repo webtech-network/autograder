@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
@@ -20,7 +19,7 @@ class ExporterStep(Step):
     def step_name(self) -> StepName:
         return StepName.EXPORTER
 
-    def _execute(self, pipeline_exec: PipelineExecution, locale: Optional[str] = None) -> PipelineExecution:
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Export the final grading result to an external system.
         Args:

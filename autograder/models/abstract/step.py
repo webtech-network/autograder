@@ -1,6 +1,5 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 from autograder.translations import t
 
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
@@ -22,9 +21,9 @@ class Step(ABC):
         This provides a shared error-handling wrapper catching unexpected exceptions
         and logging them, marking the step status as INTERRUPTED.
         """
-        locale = pipeline_exec.submission.locale if pipeline_exec.submission else None
+        locale = pipeline_exec.locale
         try:
-            return self._execute(pipeline_exec, locale=locale)
+            return self._execute(pipeline_exec)
         except Exception as e:
             logger.exception("Step %s was interrupted: %s", self.step_name.value, str(e))
             
@@ -41,7 +40,7 @@ class Step(ABC):
             )
 
     @abstractmethod
-    def _execute(self, pipeline_exec: PipelineExecution, locale: Optional[str] = None) -> PipelineExecution:
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """Internal execution logic to be implemented by subclasses."""
         pass
 

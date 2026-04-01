@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
@@ -31,14 +31,14 @@ class PreFlightStep(Step):
     def step_name(self) -> StepName:
         return StepName.PRE_FLIGHT
 
-    def _execute(self, pipeline_exec: PipelineExecution, locale: Optional[str] = None) -> PipelineExecution:
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Execute pre-flight checks (required files) and setup commands.
         
         Note: Sandbox must have been created in a previous step (SandboxStep).
         """
         submission_language = pipeline_exec.submission.language
-        self._pre_flight_service = PreFlightService(self._setup_config, submission_language, locale=locale)
+        self._pre_flight_service = PreFlightService(self._setup_config, submission_language, locale=pipeline_exec.locale)
 
         logger.info(
             "Pre-flight checks started: external_user_id=%s, language=%s",
@@ -65,7 +65,7 @@ class PreFlightStep(Step):
             sandbox = pipeline_exec.sandbox
             if not sandbox:
                 # If SandboxStep was skipped but we have commands, we must report an error.
-                error_msg = t("preflight.error.missing_sandbox", locale=locale)
+                error_msg = t("preflight.error.missing_sandbox", locale=pipeline_exec.locale)
                 logger.error("Sandbox required for setup commands but was not found in pipeline execution.")
                 return pipeline_exec.add_step_result(StepResult.fail(
                     step=self.step_name,

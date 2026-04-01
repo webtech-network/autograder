@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from autograder.models.dataclass.step_result import StepResult, StepName, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
@@ -27,7 +26,7 @@ class TemplateLoaderStep(Step):
     def step_name(self) -> StepName:
         return StepName.LOAD_TEMPLATE
 
-    def _execute(self, pipeline_exec: PipelineExecution, locale: Optional[str] = None) -> PipelineExecution:
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Load the grading template, either built-in or custom, and return it as part of the step result.
         """

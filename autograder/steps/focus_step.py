@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
@@ -21,7 +20,7 @@ class FocusStep(Step):
     def step_name(self) -> StepName:
         return StepName.FOCUS
 
-    def _execute(self, pipeline_exec: PipelineExecution, locale: Optional[str] = None) -> PipelineExecution:
+    def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
         Trim the result tree to get the main points of failure
         Args:
