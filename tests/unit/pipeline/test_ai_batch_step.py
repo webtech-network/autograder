@@ -14,8 +14,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from autograder.models.abstract.ai_test_function import AiTestFunction
-from autograder.models.abstract.step import Step
-from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.criteria_tree import (
     CategoryNode,

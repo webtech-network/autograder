@@ -197,12 +197,15 @@ class GraderService:
         """Execute a test and create a test result node.
 
         Resolves `program_command` in-place before calling execute() so that
-        test functions always receive a finalized string command.  No hidden
-        kwargs are injected; every key in test_params is a declared parameter.
+        test functions always receive a finalized string command.  Every key in
+        ``test_params`` is a declared parameter of the test function.
 
-        ``pre_computed_results`` is forwarded to ``test_function.execute()`` as a
-        kwarg so that :class:`~autograder.models.abstract.ai_test_function.AiTestFunction`
+        ``pre_computed_results`` is intentionally forwarded to
+        ``test_function.execute()`` as an extra kwarg so that
+        :class:`~autograder.models.abstract.ai_test_function.AiTestFunction`
         implementations can return the pre-computed result without a further API call.
+        Regular test functions that do not declare this parameter must accept
+        ``**kwargs`` or ignore it.
         """
         file_target = self.get_file_target(test, submission_files=submission_files)
 
