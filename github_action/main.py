@@ -72,11 +72,8 @@ async def main():
 
         service = GithubActionService(args.github_token, args.app_token)
         pipeline = __build_pipeline(args, include_feedback, service)
-        grading_result = __retrieve_grading_score(args, service, pipeline)
+        __retrieve_grading_score(args, service, pipeline)
 
-        service.export_results(
-            grading_result.final_score, include_feedback, grading_result.feedback
-        )
         success_execution = True
     except ValueError as e:
         logger.error("Invalid value provided: %s", e)
