@@ -78,12 +78,11 @@ class TestMain:
         mock_service_cls.assert_not_called()
 
     def test_successful_run_without_feedback(self):
-        """Asserts main() runs successfully and calls export_results with include_feedback=False when feedback is disabled."""
+        """Asserts main() runs successfully when feedback is disabled. Export happens inside the pipeline."""
         execution = _make_pipeline_execution(final_score=90.0, feedback="")
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
         mock_service.run_autograder.return_value = execution
-        mock_service.export_results = MagicMock()
 
         with patch.object(sys, "argv", _make_argv(include_feedback="false")), patch(
             "github_action.main.GithubActionService", return_value=mock_service
@@ -91,30 +90,23 @@ class TestMain:
             run(main_module.main())
 
         mock_service.run_autograder.assert_called_once()
-        mock_service.export_results.assert_called_once_with(
-            90.0, False, execution.result.feedback
-        )
 
     def test_successful_run_with_feedback(self):
-        """Asserts main() runs successfully and calls export_results with include_feedback=True when feedback is enabled."""
+        """Asserts main() runs successfully when feedback is enabled. Export happens inside the pipeline."""
         execution = _make_pipeline_execution(final_score=75.0, feedback="Good work!")
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
         mock_service.run_autograder.return_value = execution
-        mock_service.export_results = MagicMock()
 
         with patch.object(
             sys, "argv", _make_argv(include_feedback="true", openai_key=None)
         ), patch("github_action.main.GithubActionService", return_value=mock_service):
             run(main_module.main())
 
-        mock_service.export_results.assert_called_once_with(
-            75.0, True, execution.result.feedback
-        )
+        mock_service.run_autograder.assert_called_once()
 
     def test_raises_when_grading_result_is_none(self):
-        """main() raises SystemExit(1) when run_autograder returns None result;
-        verify run_autograder was reached and export_results was never called."""
+        """main() raises SystemExit(1) when run_autograder returns None result."""
         execution = MagicMock()
         execution.result = None
 
@@ -130,7 +122,6 @@ class TestMain:
 
         assert exc_info.value.code == 1
         mock_service.run_autograder.assert_called_once()
-        mock_service.export_results.assert_not_called()
 
     def test_sets_openai_api_key_env_when_provided(self):
         """Asserts OPENAI_API_KEY is set in the environment before autograder_pipeline is called when openai_key is provided."""
@@ -252,21 +243,22 @@ class TestHasFeedback:
         )
 
     def _invoke(self, value):
-        """Call __has_feedback through main() by inspecting its import branch."""
-        # The cleanest way: drive it through the include_feedback argv path
-        # and observe what export_results receives.
+        """Call __has_feedback through main() by inspecting the autograder_pipeline call."""
+        # Drive it through the include_feedback argv path
+        # and observe what autograder_pipeline receives.
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
         mock_service.run_autograder.return_value = execution
         captured = {}
 
-        def capture_export(
-            score, include_feedback, feedback
+        def capture_pipeline(
+            template, include_feedback, feedback_mode
         ):  # pylint: disable=unused-argument
             captured["include_feedback"] = include_feedback
+            return MagicMock()
 
-        mock_service.export_results.side_effect = capture_export
+        mock_service.autograder_pipeline.side_effect = capture_pipeline
 
         argv = _make_argv(include_feedback=value) if value is not None else _make_argv()
         with patch.object(sys, "argv", argv), patch(
@@ -279,25 +271,8 @@ class TestHasFeedback:
     def test_none_returns_false(self):
         """Asserts include_feedback defaults to False when --include-feedback is not passed on the command line."""
         # No --include-feedback arg → defaults to False
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-        captured = {}
-
-        def capture(
-            score, include_feedback, feedback
-        ):  # pylint: disable=unused-argument
-            captured["v"] = include_feedback
-
-        mock_service.export_results.side_effect = capture
-
-        with patch.object(sys, "argv", _make_argv()), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            run(main_module.main())
-
-        assert captured["v"] is False
+        result = self._invoke(None)
+        assert result is False
 
     def test_true_string_returns_true(self):
         """Asserts the lowercase string 'true' is correctly converted to the boolean True."""
@@ -320,8 +295,7 @@ class TestHasFeedback:
         assert result is False
 
     def test_invalid_value_raises_value_error(self):
-        """main() raises SystemExit(1) on invalid include_feedback value;
-        verify export_results is never reached."""
+        """main() raises SystemExit(1) on invalid include_feedback value."""
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -334,11 +308,9 @@ class TestHasFeedback:
                 run(main_module.main())
 
         assert exc_info.value.code == 1
-        mock_service.export_results.assert_not_called()
 
     def test_invalid_value_raises_for_numeric_string(self):
-        """main() raises SystemExit(1) on numeric include_feedback value;
-        verify export_results is never reached."""
+        """main() raises SystemExit(1) on numeric include_feedback value."""
         execution = _make_pipeline_execution()
         mock_service = MagicMock()
         mock_service.autograder_pipeline.return_value = MagicMock()
@@ -351,7 +323,6 @@ class TestHasFeedback:
                 run(main_module.main())
 
         assert exc_info.value.code == 1
-        mock_service.export_results.assert_not_called()
 
 
 class TestGetSubmissionFiles:
