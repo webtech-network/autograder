@@ -129,6 +129,7 @@ def build_pipeline(
     custom_template=None,
     feedback_mode=None,
     export_results=False,
+    exporter=None,
     locale="en",
 ) -> AutograderPipeline:
     """
@@ -156,6 +157,7 @@ def build_pipeline(
         "custom_template": custom_template,
         "feedback_mode": feedback_mode,
         "export_results": export_results,
+        "exporter": exporter,
         "locale": locale,
     }
     registry = StepRegistry(config)

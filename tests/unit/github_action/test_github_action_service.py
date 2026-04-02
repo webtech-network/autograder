@@ -440,8 +440,12 @@ class TestAutograderPipeline:
             "os.path.exists", side_effect=fake_exists
         ), patch("builtins.open", side_effect=fake_open_read), patch(
             "github_action.github_action_service.build_pipeline"
-        ) as mock_build:
+        ) as mock_build, patch(
+            "github_action.github_action_service.GithubClassroomExporter"
+        ) as mock_exporter_cls:
             mock_build.return_value = MagicMock()
+            mock_exporter = MagicMock()
+            mock_exporter_cls.return_value = mock_exporter
             service.autograder_pipeline("python", True, "default")
 
         mock_build.assert_called_once_with(
@@ -451,6 +455,8 @@ class TestAutograderPipeline:
             setup_config=setup,
             include_feedback=True,
             feedback_mode="default",
+            export_results=True,
+            exporter=mock_exporter,
         )
 
     def test_raises_file_not_found_when_criteria_missing(self):

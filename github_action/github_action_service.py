@@ -3,6 +3,7 @@ import os
 
 from autograder.autograder import build_pipeline, AutograderPipeline
 from autograder.models.dataclass.submission import Submission
+from github_action.github_classroom_exporter import GithubClassroomExporter
 from github import Github
 from github.GithubException import UnknownObjectException
 from github.Repository import Repository
@@ -212,6 +213,8 @@ class GithubActionService:
         submission_path = os.path.join(base_path, "submission")
         configuration_path = os.path.join(submission_path, ".github", "autograder")
 
+        exporter = GithubClassroomExporter(self)
+
         return build_pipeline(
             template_name=template_preset,
             grading_criteria=self.__read_path(configuration_path, "criteria.json", False),
@@ -219,6 +222,8 @@ class GithubActionService:
             setup_config=self.__read_path(configuration_path, "setup.json"),
             include_feedback=include_feedback,
             feedback_mode=feedback_mode,
+            export_results=True,
+            exporter=exporter,
         )
 
     def __read_path(self, configuration_path: str, file_name: str, optional=True):

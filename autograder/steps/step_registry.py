@@ -74,7 +74,8 @@ class StepRegistry:
 
     def _build_exporter(self) -> Optional[Step]:
         if self.config.get("export_results"):
-            return ExporterStep(UpstashDriver)
+            exporter = self.config.get("exporter") or UpstashDriver()
+            return ExporterStep(exporter)
         return None
 
     def build_step(self, step_name: StepName) -> Optional[Step]:
