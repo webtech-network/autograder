@@ -167,6 +167,7 @@ def build_pipeline(
         StepName.BUILD_TREE,
         StepName.SANDBOX,
         StepName.PRE_FLIGHT,
+        StepName.AI_BATCH,
         StepName.GRADE,
         StepName.FOCUS,
         StepName.FEEDBACK,
