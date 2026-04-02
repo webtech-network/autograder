@@ -10,10 +10,10 @@ The pipeline is:
 - **Fail-fast**: If any step fails, the pipeline stops immediately and reports the failure point.
 
 ```
-Submission ──▶ [LOAD_TEMPLATE] ──▶ [BUILD_TREE] ──▶ [SANDBOX] ──▶ [PRE_FLIGHT] ──▶ [GRADE] ──▶ [FOCUS] ──▶ [FEEDBACK] ──▶ [EXPORT]
-                                                                                                                │
-                                                                                                        PipelineExecution
-                                                                                                        (with GradingResult)
+Submission ──▶ [LOAD_TEMPLATE] ──▶ [BUILD_TREE] ──▶ [SANDBOX] ──▶ [PRE_FLIGHT] ──▶ [AI_BATCH] ──▶ [GRADE] ──▶ [FOCUS] ──▶ [FEEDBACK] ──▶ [EXPORT]
+                                                                                                                             │
+                                                                                                                     PipelineExecution
+                                                                                                                     (with GradingResult)
 ```
 
 ---

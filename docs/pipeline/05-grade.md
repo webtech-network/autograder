@@ -24,6 +24,7 @@ The grading engine is a complex subsystem with its own weight balancing, file ta
 | **Load Template** | The `Template` to check sandbox requirements |
 | **Build Tree** | The `CriteriaTree` with embedded test functions |
 | **Sandbox** | The `SandboxContainer` (only if template requires sandbox) |
+| **AI Batch** | Pre-computed AI test results (optional; empty dict if no AI tests) |
 
 ## Input
 
@@ -32,6 +33,7 @@ The grading engine is a complex subsystem with its own weight balancing, file ta
 | Pipeline | `StepName.LOAD_TEMPLATE` → `Template` |
 | Pipeline | `StepName.BUILD_TREE` → `CriteriaTree` |
 | Pipeline | `StepName.SANDBOX` → `SandboxContainer \| None` (optional) |
+| Pipeline | `StepName.AI_BATCH` → `Dict[str, TestResult]` (optional) |
 | Pipeline | `pipeline_exec.submission` → submission files and language |
 
 ## Output

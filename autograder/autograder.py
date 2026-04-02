@@ -178,4 +178,10 @@ def build_pipeline(
         if step_instance is not None:
             pipeline.add_step(step_name, step_instance)
 
+    
+    # debugando
+    if StepName.AI_BATCH not in pipeline._steps:
+        logger.info(
+            "AiBatchStep not included in pipeline: AI tests will be skipped for this run."
+        )
     return pipeline
