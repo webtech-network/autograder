@@ -1,5 +1,7 @@
 import logging
+from typing import Optional
 
+from autograder.models.abstract.exporter import Exporter
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
@@ -9,10 +11,11 @@ logger = logging.getLogger(__name__)
 
 class ExporterStep(Step):
     """
-    Step that exports the final grading result to an external system (e.g., Upstash).
+    Step that exports the final grading result to an external system
+    via a pluggable Exporter implementation.
     """
 
-    def __init__(self, exporter_service):
+    def __init__(self, exporter_service: Exporter):
         self._exporter_service = exporter_service
 
     @property
@@ -27,12 +30,13 @@ class ExporterStep(Step):
         Returns:
             PipelineExecution with an added StepResult indicating success or failure of the export operation
         """
-        # Extract external_user_id and score from input
+        # Extract external_user_id, score and optional feedback
         external_user_id = pipeline_exec.submission.user_id
         score = pipeline_exec.get_grade_step_result().final_score
+        feedback: Optional[str] = pipeline_exec.get_feedback()
 
         logger.info("Exporting result: external_user_id=%s, score=%.2f", external_user_id, score)
-        self._exporter_service.set_score(external_user_id, score)
+        self._exporter_service.export(external_user_id, score, feedback)
         logger.info("Result exported successfully: external_user_id=%s", external_user_id)
 
         # Return success result
@@ -41,3 +45,4 @@ class ExporterStep(Step):
             data=None,
             status=StepStatus.SUCCESS
         ))
+
