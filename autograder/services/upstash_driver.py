@@ -1,13 +1,16 @@
 import json
 import logging
 import os
+from typing import Optional
 from dotenv import load_dotenv
 from upstash_redis import Redis
+
+from autograder.models.abstract.exporter import Exporter
 
 logger = logging.getLogger(__name__)
 
 load_dotenv() #TODO: place this in application startup
-class UpstashDriver:
+class UpstashDriver(Exporter):
     def __init__(self):
         self.redis = Redis(
             os.getenv("UPSTASH_REDIS_URL"),
@@ -59,4 +62,8 @@ class UpstashDriver:
         key = f"user:{username}"
         self.redis.hset(key, "score", score)
         logger.info("Score '%s' set for user '%s'.", score, username)
+
+    def export(self, user_id: str, score: float, feedback: Optional[str] = None) -> None:
+        """Export score to Upstash Redis. Feedback is not stored."""
+        self.set_score(user_id, score)
 
