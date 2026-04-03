@@ -137,6 +137,15 @@ class PipelineExecution:
         """
         return cast("ResultTree", self.get_grade_step_result().result_tree)
 
+    def get_ai_batch_results(self) -> Optional[dict]:
+        """
+        Retrieves the AI batch results dict produced by AiBatchStep, or None if
+        the step was not part of this pipeline execution.
+        """
+        if not self.has_step_result(StepName.AI_BATCH):
+            return None
+        return cast(Optional[dict], self.get_step_result(StepName.AI_BATCH).data)
+
     def get_focus(self) -> "Focus":
         """
         Retrieves the Focus object identified for the submission.

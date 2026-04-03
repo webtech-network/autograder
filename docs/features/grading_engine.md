@@ -145,19 +145,31 @@ This allows tests to operate on specific files (e.g., a `has_tag` test targeting
 
 ---
 
-## AI Executor Integration
+## AI Test Execution
 
-Some templates use an `AiExecutor` for batch AI-powered test execution. After the tree traversal completes, the engine checks if the first test has an attached executor and calls `executor.stop()` to flush any pending AI batch requests:
+Some templates include AI-powered tests that delegate evaluation to an LLM. These tests extend the `AiTestFunction` ABC (instead of `TestFunction` directly) and implement a `build_prompt()` method that describes what the AI should evaluate.
 
-```python
-first_test = self.__find_first_test(criteria_tree.base)
-if first_test and hasattr(first_test, "test_function"):
-    test_func = first_test.test_function
-    if hasattr(test_func, "executor") and test_func.executor:
-        test_func.executor.stop()
+AI test execution is handled by a dedicated pipeline step — `AiBatchStep` — that runs **before** the Grade step:
+
+1. `AiBatchStep` walks the criteria tree and collects every `AiTestFunction` instance.
+2. It calls `build_prompt()` on each one to produce the evaluation prompt.
+3. All prompts are sent to the AI model in a **single batched request** via `AiExecutor.run()`.
+4. The results are stored as `Dict[test_name, TestResult]` in the step's `StepResult.data`.
+
+During grading, `GraderService` passes this dict as `pre_computed_results` to every `test_function.execute()` call. `AiTestFunction.execute()` looks up its test name in the dict and returns the pre-computed result directly — no further API call, no in-place mutation.
+
+```
+AiBatchStep                                    GradeStep
+  ├── Walk CriteriaTree                          ├── grade_from_tree(pre_computed_results=...)
+  ├── Collect AiTestFunction instances            │     └── process_test(pre_computed_results=...)
+  ├── build_prompt() for each                     │           └── test_func.execute(pre_computed_results=...)
+  ├── AiExecutor.run() → Dict[name, TestResult]   │                 └── return pre_computed[self.name]
+  └── Store in StepResult(AI_BATCH)               └── Build ResultTree with real scores
 ```
 
-This is a post-processing step that ensures all AI-batched results are resolved before the `ResultTree` is returned.
+If no AI test functions exist in the criteria tree, `AiBatchStep` exits immediately with an empty dict and costs nothing.
+
+For standalone usage (e.g. unit tests without a full pipeline), `AiTestFunction.execute()` falls back to a single-test API call via `AiExecutor`, so AI tests remain independently executable.
 
 ---
 

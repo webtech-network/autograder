@@ -8,6 +8,7 @@ from autograder.steps.load_template_step import TemplateLoaderStep
 from autograder.steps.build_tree_step import BuildTreeStep
 from autograder.steps.pre_flight_step import PreFlightStep
 from autograder.steps.sandbox_step import SandboxStep
+from autograder.steps.ai_batch_step import AiBatchStep
 from autograder.steps.grade_step import GradeStep
 from autograder.steps.focus_step import FocusStep
 from autograder.steps.feedback_step import FeedbackStep
@@ -34,6 +35,7 @@ class StepRegistry:
             StepName.BUILD_TREE: self._build_build_tree,
             StepName.PRE_FLIGHT: self._build_pre_flight,
             StepName.SANDBOX: self._build_sandbox,
+            StepName.AI_BATCH: self._build_ai_batch,
             StepName.GRADE: self._build_grade,
             StepName.FOCUS: self._build_focus,
             StepName.FEEDBACK: self._build_feedback,
@@ -58,6 +60,9 @@ class StepRegistry:
         # Always return SandboxStep; it will skip itself if the template doesn't require it.
         # This allows for assignments that require a sandbox but have no setup commands.
         return SandboxStep()
+
+    def _build_ai_batch(self) -> Optional[Step]:
+        return AiBatchStep()
 
     def _build_grade(self) -> Optional[Step]:
         return GradeStep()

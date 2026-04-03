@@ -27,6 +27,7 @@ class StepName(Enum):
     BUILD_TREE = "BuildTreeStep"
     PRE_FLIGHT = "PreFlightStep"
     SANDBOX = "SandboxStep"
+    AI_BATCH = "AiBatchStep"
     GRADE = "GradeStep"
     FOCUS = "FocusStep"
     FEEDBACK = "FeedbackStep"
