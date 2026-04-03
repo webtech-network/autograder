@@ -9,11 +9,11 @@ Covers:
 """
 
 from typing import Dict, List, Optional
+import autograder.utils.executors.ai_executor as ai_executor_mod
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from autograder.models.abstract.ai_test_function import AiTestFunction
+from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.criteria_tree import (
     CategoryNode,
@@ -26,9 +26,11 @@ from autograder.models.dataclass.step_result import StepName, StepResult, StepSt
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.pipeline_execution import PipelineExecution
+from autograder.models.result_tree import CategoryResultNode, ResultTree, RootResultNode
 from autograder.services.grader_service import GraderService
 from autograder.steps.ai_batch_step import AiBatchStep
 from autograder.steps.grade_step import GradeStep
+from autograder.utils.executors.ai_executor import AiExecutor, TestInput, TestOutput
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +88,10 @@ class _ConcreteAiTest(AiTestFunction):
 # ---------------------------------------------------------------------------
 
 class TestAiTestFunctionPreComputedPath:
+    """Tests for AiTestFunction pre-computed results lookup and fallback path."""
+
     def test_returns_precomputed_result_when_present(self):
+        """Pre-computed result for this test's name is returned directly."""
         func = _ConcreteAiTest()
         expected = TestResult(
             test_name="ai_code_review", score=85.0, report="Good work.", subject_name=""
@@ -106,8 +111,8 @@ class TestAiTestFunctionPreComputedPath:
         # to return an empty dict, which triggers the "no result" guard.
         with patch(
             "autograder.utils.executors.ai_executor.AiExecutor"
-        ) as MockExecutor:
-            MockExecutor.return_value.run.return_value = {}
+        ) as mock_executor:
+            mock_executor.return_value.run.return_value = {}
             result = func.execute(files=[], sandbox=None, pre_computed_results=pre_computed)
 
         assert result.test_name == "ai_code_review"
@@ -115,6 +120,7 @@ class TestAiTestFunctionPreComputedPath:
         assert "no result" in result.report.lower()
 
     def test_fallback_called_when_no_precomputed(self):
+        """Fallback path is invoked when no pre_computed_results are provided."""
         func = _ConcreteAiTest()
         fallback_result = TestResult(
             test_name="ai_code_review", score=70.0, report="Fallback.", subject_name=""
@@ -122,19 +128,20 @@ class TestAiTestFunctionPreComputedPath:
 
         with patch(
             "autograder.utils.executors.ai_executor.AiExecutor"
-        ) as MockExecutor:
-            MockExecutor.return_value.run.return_value = {"ai_code_review": fallback_result}
+        ) as mock_executor:
+            mock_executor.return_value.run.return_value = {"ai_code_review": fallback_result}
             result = func.execute(files=[], sandbox=None)
 
         assert result is fallback_result
 
     def test_fallback_returns_zero_result_on_empty_api_response(self):
+        """Empty API response yields a zero-score TestResult for this function's name."""
         func = _ConcreteAiTest()
 
         with patch(
             "autograder.utils.executors.ai_executor.AiExecutor"
-        ) as MockExecutor:
-            MockExecutor.return_value.run.return_value = {}
+        ) as mock_executor:
+            mock_executor.return_value.run.return_value = {}
             result = func.execute(files=None, sandbox=None)
 
         assert result.score == 0
@@ -172,7 +179,7 @@ def _build_criteria_tree_no_ai() -> CriteriaTree:
         def parameter_description(self):
             return []
 
-        def execute(self, files, sandbox, **kwargs):
+        def execute(self, files, sandbox, *args, **kwargs):
             return TestResult(test_name="regular", score=100, report="ok", subject_name="")
 
     test_node = TestNode(name="reg_test", test_function=_RegularTest())
@@ -181,7 +188,10 @@ def _build_criteria_tree_no_ai() -> CriteriaTree:
 
 
 class TestAiBatchStep:
+    """Tests for the AiBatchStep pipeline step."""
+
     def test_skips_gracefully_when_no_ai_tests(self):
+        """Step exits with an empty results dict when no AI test functions are found."""
         step = AiBatchStep()
         tree = _build_criteria_tree_no_ai()
         pipeline_exec = _make_pipeline_exec()
@@ -195,6 +205,7 @@ class TestAiBatchStep:
         assert ai_result.data == {}
 
     def test_collects_ai_tests_and_calls_executor(self):
+        """AI test functions are collected and passed to AiExecutor in a single call."""
         ai_func = _ConcreteAiTest()
         tree = _build_criteria_tree_with_ai_test(ai_func)
         submission = _make_submission({"main.py": "code"})
@@ -207,8 +218,8 @@ class TestAiBatchStep:
 
         with patch(
             "autograder.steps.ai_batch_step.AiExecutor"
-        ) as MockExecutor:
-            MockExecutor.return_value.run.return_value = {"ai_code_review": expected_ai_result}
+        ) as mock_executor:
+            mock_executor.return_value.run.return_value = {"ai_code_review": expected_ai_result}
             result_exec = AiBatchStep().execute(pipeline_exec)
 
         assert result_exec.has_step_result(StepName.AI_BATCH)
@@ -216,17 +227,18 @@ class TestAiBatchStep:
         assert data["ai_code_review"] is expected_ai_result
 
     def test_executor_called_with_correct_files(self):
+        """AiExecutor.run receives the submission files keyed by filename."""
         ai_func = _ConcreteAiTest()
         tree = _build_criteria_tree_with_ai_test(ai_func)
         submission = _make_submission({"main.py": "my code"})
         pipeline_exec = _make_pipeline_exec(submission)
         pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
 
-        with patch("autograder.steps.ai_batch_step.AiExecutor") as MockExecutor:
-            MockExecutor.return_value.run.return_value = {}
+        with patch("autograder.steps.ai_batch_step.AiExecutor") as mock_executor:
+            mock_executor.return_value.run.return_value = {}
             AiBatchStep().execute(pipeline_exec)
 
-        _executor_instance = MockExecutor.return_value
+        _executor_instance = mock_executor.return_value
         call_args = _executor_instance.run.call_args
         # Second positional arg is the submission_files dict
         files_passed = call_args[0][1]
@@ -234,18 +246,20 @@ class TestAiBatchStep:
         assert files_passed["main.py"] == "my code"
 
     def test_step_result_stored_in_pipeline(self):
+        """AI_BATCH StepResult is accessible via get_ai_batch_results() after execution."""
         ai_func = _ConcreteAiTest()
         tree = _build_criteria_tree_with_ai_test(ai_func)
         pipeline_exec = _make_pipeline_exec()
         pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
 
-        with patch("autograder.steps.ai_batch_step.AiExecutor") as MockExecutor:
-            MockExecutor.return_value.run.return_value = {}
+        with patch("autograder.steps.ai_batch_step.AiExecutor") as mock_executor:
+            mock_executor.return_value.run.return_value = {}
             result_exec = AiBatchStep().execute(pipeline_exec)
 
-        assert result_exec.get_ai_batch_results() == {}
+        assert not result_exec.get_ai_batch_results()
 
     def test_handles_multiple_ai_tests_in_tree(self):
+        """All AI test functions across the tree are collected into a single batch."""
         class _AiTest2(AiTestFunction):
             @property
             def name(self):
@@ -270,11 +284,11 @@ class TestAiBatchStep:
         pipeline_exec = _make_pipeline_exec()
         pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
 
-        with patch("autograder.steps.ai_batch_step.AiExecutor") as MockExecutor:
-            MockExecutor.return_value.run.return_value = {}
+        with patch("autograder.steps.ai_batch_step.AiExecutor") as mock_executor:
+            mock_executor.return_value.run.return_value = {}
             AiBatchStep().execute(pipeline_exec)
 
-        call_args = MockExecutor.return_value.run.call_args
+        call_args = mock_executor.return_value.run.call_args
         test_inputs = call_args[0][0]  # first positional arg is List[TestInput]
         names = [ti.test_name for ti in test_inputs]
         assert "ai_code_review" in names
@@ -289,6 +303,7 @@ class TestGraderServicePreComputedResults:
     """GraderService must thread pre_computed_results through to test functions."""
 
     def test_pre_computed_results_forwarded_to_test_function(self):
+        """GraderService passes pre_computed_results as a kwarg to test_function.execute."""
         received_kwargs = {}
 
         class _CapturingTest(TestFunction):
@@ -304,7 +319,7 @@ class TestGraderServicePreComputedResults:
             def parameter_description(self):
                 return []
 
-            def execute(self, files, sandbox, **kwargs):
+            def execute(self, files, sandbox, *args, **kwargs):
                 received_kwargs.update(kwargs)
                 return TestResult(test_name="capture", score=50, report="", subject_name="")
 
@@ -343,7 +358,7 @@ class TestGraderServicePreComputedResults:
             def parameter_description(self):
                 return []
 
-            def execute(self, files, sandbox, **kwargs):
+            def execute(self, files, sandbox, *args, **kwargs):
                 return TestResult(test_name="old_style", score=100, report="ok", subject_name="")
 
         test_node = TestNode(name="old_test", test_function=_TestWithExecutorAttr())
@@ -352,7 +367,7 @@ class TestGraderServicePreComputedResults:
 
         svc = GraderService()
         # Should complete without calling executor.stop()
-        result_tree = svc.grade_from_tree(criteria_tree=tree, submission_files={})
+        _ = svc.grade_from_tree(criteria_tree=tree, submission_files={})
 
         # The executor.stop() should never have been called
         _TestWithExecutorAttr.executor.stop.assert_not_called()
@@ -371,8 +386,6 @@ class TestGradeStepPassesAiBatchResults:
         pipeline_exec = _make_pipeline_exec()
 
         # Inject required prior steps
-        from autograder.models.abstract.template import Template
-
         class _FakeTemplate(Template):
             @property
             def template_name(self):
@@ -395,6 +408,7 @@ class TestGradeStepPassesAiBatchResults:
         return pipeline_exec
 
     def test_pre_computed_results_passed_to_grader_service(self):
+        """GradeStep forwards AI_BATCH pre_computed_results to GraderService.grade_from_tree."""
         pre_computed = {"ai_code_review": TestResult("ai_code_review", 77, "good", "")}
         pipeline_exec = self._make_pipeline_with_tree_and_ai_batch(pre_computed)
 
@@ -403,7 +417,6 @@ class TestGradeStepPassesAiBatchResults:
         def _fake_grade_from_tree(**kwargs):
             captured.update(kwargs)
             # Return a minimal ResultTree
-            from autograder.models.result_tree import ResultTree, RootResultNode, CategoryResultNode
             cat = CategoryResultNode(name="base", weight=100)
             root = RootResultNode(name="root", base=cat)
             return ResultTree(root)
@@ -417,8 +430,6 @@ class TestGradeStepPassesAiBatchResults:
         """When AI_BATCH step was not in the pipeline, None must be passed."""
         tree = _build_criteria_tree_no_ai()
         pipeline_exec = _make_pipeline_exec()
-
-        from autograder.models.abstract.template import Template
 
         class _FakeTemplate(Template):
             @property
@@ -443,7 +454,6 @@ class TestGradeStepPassesAiBatchResults:
 
         def _fake_grade_from_tree(**kwargs):
             captured.update(kwargs)
-            from autograder.models.result_tree import ResultTree, RootResultNode, CategoryResultNode
             cat = CategoryResultNode(name="base", weight=100)
             root = RootResultNode(name="root", base=cat)
             return ResultTree(root)
@@ -462,34 +472,30 @@ class TestAiExecutorStateless:
     """AiExecutor.run() must be stateless: no global singleton, no mutation."""
 
     def test_run_returns_empty_dict_on_empty_test_list(self):
-        from autograder.utils.executors.ai_executor import AiExecutor
-
+        """run() returns an empty dict immediately when no tests are provided."""
         executor = AiExecutor.__new__(AiExecutor)  # skip __init__ (avoids API key lookup)
         # Patch the client attribute so no real API call happens
         executor.client = MagicMock()
 
         result = executor.run(tests=[], submission_files={})
-        assert result == {}
+        assert not result
         executor.client.responses.parse.assert_not_called()
 
     def test_two_instances_are_independent(self):
         """Verify there is no module-level singleton that could bleed state."""
-        import autograder.utils.executors.ai_executor as mod
-
-        assert not hasattr(mod, "ai_executor"), (
+        assert not hasattr(ai_executor_mod, "ai_executor"), (
             "Module-level 'ai_executor' singleton must have been removed."
         )
 
     def test_outputs_to_results_maps_by_title(self):
-        from autograder.utils.executors.ai_executor import AiExecutor, TestInput, TestOutput
-
+        """_outputs_to_results builds a dict keyed by test name using output titles."""
         inputs = [TestInput(test_name="t1", prompt="p1"), TestInput(test_name="t2", prompt="p2")]
         outputs = [
             TestOutput(title="t1", feedback="fb1", subject="s1", score=80.0),
             TestOutput(title="t2", feedback="fb2", subject="s2", score=60.0),
         ]
 
-        mapping = AiExecutor._outputs_to_results(inputs, outputs)
+        mapping = AiExecutor._outputs_to_results(inputs, outputs)  # pylint: disable=protected-access
 
         assert "t1" in mapping
         assert mapping["t1"].score == 80.0
@@ -498,14 +504,13 @@ class TestAiExecutorStateless:
         assert mapping["t2"].score == 60.0
 
     def test_outputs_to_results_skips_unknown_titles(self):
-        from autograder.utils.executors.ai_executor import AiExecutor, TestInput, TestOutput
-
+        """Output entries whose title does not match any input are silently dropped."""
         inputs = [TestInput(test_name="t1", prompt="p")]
         outputs = [
             TestOutput(title="unknown_test", feedback="fb", subject="s", score=50.0)
         ]
 
-        mapping = AiExecutor._outputs_to_results(inputs, outputs)
+        mapping = AiExecutor._outputs_to_results(inputs, outputs)  # pylint: disable=protected-access
 
         assert "unknown_test" not in mapping
-        assert mapping == {}
+        assert not mapping
