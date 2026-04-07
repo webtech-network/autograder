@@ -7,6 +7,7 @@ This document provides comprehensive examples for configuring grading criteria.
 - [Simple Configurations](#simple-configurations)
 - [Hierarchical Rubrics](#hierarchical-rubrics)
 - [Input/Output Examples](#inputoutput-examples)
+- [Complexity Testing Examples](#complexity-testing-examples)
 - [Web Development Examples](#web-development-examples)
 - [API Testing Examples](#api-testing-examples)
 - [Complete Assignment Examples](#complete-assignment-examples)
@@ -323,6 +324,146 @@ The simplest possible configuration - one test, full weight.
           "expected_exit_code": 1
         },
         "weight": 50
+      }
+    ]
+  }
+}
+```
+
+## Complexity Testing Examples
+
+### Sorting Algorithm — Strict
+
+Verify that a sorting implementation runs in O(n log n).
+
+```json
+{
+  "test_library": "input_output",
+  "base": {
+    "tests": [
+      {
+        "name": "complexity",
+        "parameters": {
+          "program_command": "python3 sort.py",
+          "expected_complexity": "O(n log n)",
+          "input_generator": "random_array",
+          "scoring": "strict"
+        },
+        "weight": 100
+      }
+    ]
+  }
+}
+```
+
+### Search Algorithm — Graduated
+
+Students get partial credit if their search is O(n) instead of O(log n).
+
+```json
+{
+  "test_library": "input_output",
+  "base": {
+    "tests": [
+      {
+        "name": "complexity",
+        "parameters": {
+          "program_command": "CMD",
+          "expected_complexity": "O(log n)",
+          "input_generator": "sorted_array",
+          "scoring": "graduated"
+        },
+        "weight": 100
+      }
+    ]
+  }
+}
+```
+
+### Combined Correctness + Complexity
+
+Test both correctness (expect_output) and efficiency (complexity) in one assignment.
+
+```json
+{
+  "test_library": "input_output",
+  "base": {
+    "weight": 100,
+    "subjects_weight": 100,
+    "subjects": [
+      {
+        "subject_name": "Correctness",
+        "weight": 60,
+        "tests": [
+          {
+            "name": "expect_output",
+            "parameters": {
+              "inputs": ["5", "3 1 4 1 5"],
+              "expected_output": "1 1 3 4 5",
+              "program_command": "python3 sort.py"
+            },
+            "weight": 50
+          },
+          {
+            "name": "expect_output",
+            "parameters": {
+              "inputs": ["1", "42"],
+              "expected_output": "42",
+              "program_command": "python3 sort.py"
+            },
+            "weight": 50
+          }
+        ]
+      },
+      {
+        "subject_name": "Efficiency",
+        "weight": 40,
+        "tests": [
+          {
+            "name": "complexity",
+            "parameters": {
+              "program_command": "python3 sort.py",
+              "expected_complexity": "O(n log n)",
+              "input_generator": "random_array",
+              "scoring": "graduated",
+              "test_sizes": [1000, 5000, 25000, 125000]
+            },
+            "weight": 100
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Custom Scoring Table
+
+Full control over how each detected complexity maps to points.
+
+```json
+{
+  "test_library": "input_output",
+  "base": {
+    "tests": [
+      {
+        "name": "complexity",
+        "parameters": {
+          "program_command": "python3 solve.py",
+          "expected_complexity": "O(n)",
+          "input_generator": "random_array",
+          "scoring": "custom",
+          "score_table": {
+            "O(1)": 100,
+            "O(log n)": 100,
+            "O(n)": 100,
+            "O(n log n)": 75,
+            "O(n^2)": 30,
+            "O(n^3)": 0,
+            "O(exponential)": 0
+          }
+        },
+        "weight": 100
       }
     ]
   }

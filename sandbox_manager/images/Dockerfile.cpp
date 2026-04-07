@@ -1,7 +1,7 @@
 FROM alpine:3.18
 
 # Install Build Tools
-RUN apk add --no-cache gcc g++ make musl-dev
+RUN apk add --no-cache gcc g++ make musl-dev python3
 
 # Create User
 RUN addgroup -S sandbox && adduser -S sandbox -G sandbox

@@ -81,6 +81,104 @@ Executes a program with a specific input and verifies it completes **without cra
 
 ---
 
+### `complexity`
+
+Measures the **algorithmic complexity** of a student's program by running it with increasing input sizes, timing each execution inside the sandbox, and classifying the growth rate via log-log regression. Useful for verifying that a sorting algorithm is O(n log n) rather than O(n²), or that a search runs in O(log n).
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `program_command` | string or dict | ✓ | — | Command to execute (same format as `expect_output`, supports `"CMD"`) |
+| `expected_complexity` | string | ✓ | `"O(n)"` | Expected class: `O(1)`, `O(log n)`, `O(sqrt(n))`, `O(n)`, `O(n log n)`, `O(n^2)`, `O(n^3)`, `O(exponential)` |
+| `input_generator` | string | ✗ | `"random_array"` | Built-in generator name (see table below) |
+| `scoring` | string | ✗ | `"graduated"` | Scoring mode: `strict`, `graduated`, or `custom` |
+| `score_table` | dict | ✗ | — | Custom score map (only used when `scoring` = `"custom"`) |
+| `test_sizes` | list[int] | ✗ | `[500, 2500, 12500, 62500]` | Input sizes to benchmark |
+| `inconclusive_policy` | string | ✗ | `"partial"` | What to do when R² is too low: `partial` (50 points) or `fail` (0 points) |
+| `repeats` | int | ✗ | `3` | Repetitions per size (minimum time is kept) |
+| `timeout` | int | ✗ | `30` | Per-execution timeout in seconds |
+| `input_args` | dict | ✗ | — | Extra arguments passed to the input generator (e.g., `min_value`, `max_value`) |
+
+#### Input Generators
+
+| Generator | Format sent to stdin | Use case |
+|-----------|---------------------|----------|
+| `random_array` | `N\nv1 v2 ... vN` | Sorting, searching algorithms |
+| `sorted_array` | `N\nv1 v2 ... vN` (ascending) | Best-case analysis |
+| `reverse_sorted_array` | `N\nv1 v2 ... vN` (descending) | Worst-case analysis |
+| `random_string` | `abcxyz...` (N chars) | String algorithms |
+| `random_pairs` | `N\na1 b1\na2 b2\n...` | Graph/pair-based algorithms |
+| `single_number` | `N` | Number theory algorithms |
+| `random_matrix` | `R C\nrow1\nrow2\n...` (√N × √N) | Matrix algorithms |
+
+#### Scoring Modes
+
+- **`strict`** — 100 if detected ≤ expected, 0 otherwise.
+- **`graduated`** — Partial credit based on how far off: same=100, +1 class=80, +2=60, +3=30, +4+=0.
+- **`custom`** — Professor defines a `score_table` mapping each complexity class to a score.
+
+#### How It Works
+
+1. Generates inputs for each size using the chosen generator
+2. Injects a benchmark wrapper script into the sandbox
+3. Runs the student's program for each input size (with warmup + repeats)
+4. Collects minimum execution times per size
+5. Fits a power-law model via log-log regression to determine growth rate (α exponent)
+6. For α in the O(n)/O(n log n) gray zone, performs dual model fitting to discriminate
+7. Computes a score based on detected vs expected complexity
+
+**Example — Strict scoring:**
+```json
+{
+  "name": "complexity",
+  "parameters": {
+    "program_command": "python3 sort.py",
+    "expected_complexity": "O(n log n)",
+    "input_generator": "random_array",
+    "scoring": "strict"
+  },
+  "weight": 100
+}
+```
+
+**Example — Graduated scoring with custom sizes:**
+```json
+{
+  "name": "complexity",
+  "parameters": {
+    "program_command": "CMD",
+    "expected_complexity": "O(n)",
+    "input_generator": "random_array",
+    "scoring": "graduated",
+    "test_sizes": [1000, 5000, 25000, 125000]
+  },
+  "weight": 50
+}
+```
+
+**Example — Custom scoring table:**
+```json
+{
+  "name": "complexity",
+  "parameters": {
+    "program_command": "python3 search.py",
+    "expected_complexity": "O(log n)",
+    "input_generator": "sorted_array",
+    "scoring": "custom",
+    "score_table": {
+      "O(1)": 100,
+      "O(log n)": 100,
+      "O(sqrt(n))": 70,
+      "O(n)": 40,
+      "O(n log n)": 10,
+      "O(n^2)": 0
+    }
+  },
+  "weight": 100
+}
+```
+
+---
+
 ## Usage Example
 
 ```json

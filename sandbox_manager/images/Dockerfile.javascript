@@ -2,6 +2,9 @@ FROM node:18-alpine
 
 RUN addgroup -S sandbox && adduser -S sandbox -G sandbox
 
+# Complexity Benchmark Dependency
+RUN apk add --no-cache python3
+
 # Remove npm/yarn to prevent students from installing packages at runtime
 # (Pre-install allowed packages before this step if needed)
 RUN npm uninstall -g npm yarn \

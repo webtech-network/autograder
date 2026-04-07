@@ -464,6 +464,31 @@
         "success": "Nenhuma importação proibida encontrada."
       }
     },
+    "complexity": {
+      "description": "Mede a complexidade algorítmica do programa do aluno executando-o com múltiplos tamanhos de entrada e classificando a taxa de crescimento via análise de regressão.",
+      "params": {
+        "program_command": "Comando para executar o programa do aluno (ex: 'python3 {file}').",
+        "expected_complexity": "A classe de complexidade máxima esperada (ex: 'O(n log n)').",
+        "input_generator": "Nome do gerador de entrada (ex: 'random_array', 'sorted_array', 'single_number').",
+        "scoring": "Modo de pontuação: 'strict' (aprovado/reprovado), 'graduated' (crédito parcial), ou 'custom' (tabela definida pelo professor).",
+        "test_sizes": "Lista de tamanhos de entrada para benchmark (padrão: [500, 2500, 12500, 62500]).",
+        "inconclusive_policy": "Política quando a confiança da medição é baixa: 'partial', 'pass', 'fail', ou 'retry'."
+      },
+      "report": {
+        "success": "Análise de Complexidade:\nDetectada: {detected} | Esperada: {expected}\nConfiança (R\u00b2): {r2}\nNota: {grade}/100",
+        "no_sandbox": "FALHA: Nenhum sandbox disponível para teste de complexidade. Um sandbox é necessário para executar benchmarks.",
+        "no_command": "FALHA: Nenhum program_command especificado. O teste de complexidade requer um comando para executar o programa do aluno.",
+        "invalid_generator": "FALHA: Gerador de entrada desconhecido '{generator}'. Verifique a configuração do teste.",
+        "benchmark_timeout": "FALHA: O benchmark expirou. O programa do aluno pode ser muito lento ou conter um loop infinito.",
+        "warmup_timeout": "FALHA: O programa expirou durante a execução de aquecimento. Pode ser lento demais mesmo para o menor tamanho de entrada.",
+        "size_timeout": "FALHA: O programa expirou para o tamanho de entrada N={size}. O algoritmo pode ser ineficiente demais para essa escala.",
+        "runtime_error": "FALHA: O programa crashou para o tamanho de entrada N={size}.\nErro: {error}",
+        "unknown_error": "FALHA: Ocorreu um erro inesperado durante o benchmark: {error}",
+        "no_results": "FALHA: O benchmark não produziu resultados. O script wrapper pode ter falhado.",
+        "inconclusive": "INCONCLUSIVO: A confiança da medição é muito baixa (R\u00b2 = {r2}).\nMelhor estimativa: {detected}, mas os dados não se ajustam de forma confiável.\nPossível causa: o comportamento do programa varia significativamente entre tamanhos de entrada.",
+        "internal_error": "ERRO DE SISTEMA: Falha interna do autograder durante o teste de complexidade: {error}"
+      }
+    },
     "template": {
       "name": "Entrada/Saída (I/O)",
       "description": "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."

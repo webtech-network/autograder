@@ -7,6 +7,7 @@ from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from autograder.template_library.complexity.test_function import ComplexityTest
 from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
@@ -397,6 +398,7 @@ class InputOutputTemplate(Template):
             "expect_output": ExpectOutputTest(),
             "dont_fail": DontFailTest(),
             "forbidden_import": ForbiddenImportTest(),
+            "complexity": ComplexityTest(),
         }
 
     @property

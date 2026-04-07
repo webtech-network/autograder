@@ -464,6 +464,31 @@
         "success": "No forbidden imports found."
       }
     },
+    "complexity": {
+      "description": "Measures the algorithmic complexity of a student's program by running it with multiple input sizes and classifying the growth rate via regression analysis.",
+      "params": {
+        "program_command": "Command to run the student's program (e.g., 'python3 {file}').",
+        "expected_complexity": "The maximum expected complexity class (e.g., 'O(n log n)').",
+        "input_generator": "Input generator name (e.g., 'random_array', 'sorted_array', 'single_number').",
+        "scoring": "Scoring mode: 'strict' (pass/fail), 'graduated' (partial credit), or 'custom' (professor-defined table).",
+        "test_sizes": "List of input sizes to benchmark (default: [500, 2500, 12500, 62500]).",
+        "inconclusive_policy": "Policy when measurement confidence is low: 'partial', 'pass', 'fail', or 'retry'."
+      },
+      "report": {
+        "success": "Complexity Analysis:\nDetected: {detected} | Expected: {expected}\nConfidence (R\u00b2): {r2}\nGrade: {grade}/100",
+        "no_sandbox": "FAILURE: No sandbox available for complexity testing. A sandbox is required to run benchmarks.",
+        "no_command": "FAILURE: No program_command specified. The complexity test requires a command to run the student's program.",
+        "invalid_generator": "FAILURE: Unknown input generator '{generator}'. Check the test configuration.",
+        "benchmark_timeout": "FAILURE: The benchmark timed out. The student's program may be too slow or contain an infinite loop.",
+        "warmup_timeout": "FAILURE: The program timed out during warmup execution. It may be too slow even for the smallest input size.",
+        "size_timeout": "FAILURE: The program timed out for input size N={size}. The algorithm may be too inefficient for this input scale.",
+        "runtime_error": "FAILURE: The program crashed for input size N={size}.\nError: {error}",
+        "unknown_error": "FAILURE: An unexpected error occurred during benchmarking: {error}",
+        "no_results": "FAILURE: The benchmark produced no results. The wrapper script may have failed.",
+        "inconclusive": "INCONCLUSIVE: The measurement confidence is too low (R\u00b2 = {r2}).\nBest guess: {detected}, but the data does not fit reliably.\nPossible cause: the program's behavior varies significantly between input sizes.",
+        "internal_error": "SYSTEM ERROR: Internal autograder failure during complexity test: {error}"
+      }
+    },
     "template": {
       "name": "Input/Output",
       "description": "A template for evaluating assignments based on command-line input and output."
