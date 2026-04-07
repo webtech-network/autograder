@@ -9,6 +9,7 @@ from autograder.models.criteria_tree import (
     TestNode,
 )
 from autograder.models.dataclass.submission import SubmissionFile
+from autograder.models.dataclass.test_result import TestResult
 from autograder.models.result_tree import (
     ResultTree,
     RootResultNode,
@@ -32,6 +33,7 @@ class GraderService:
         sandbox=None,
         submission_language=None,
         locale: str = "en",
+        pre_computed_results: Optional[Dict[str, TestResult]] = None,
     ) -> ResultTree:
         """Traverse the generic built criteria tree to resolve inputs, grades and report to ResultTree."""
         base_result = self.process_category(
@@ -40,6 +42,7 @@ class GraderService:
             sandbox=sandbox,
             submission_language=submission_language,
             locale=locale,
+            pre_computed_results=pre_computed_results,
         )
         root = RootResultNode(name="root", base=base_result)
 
@@ -50,6 +53,7 @@ class GraderService:
                 sandbox=sandbox,
                 submission_language=submission_language,
                 locale=locale,
+                pre_computed_results=pre_computed_results,
             )
             root.bonus = bonus_result
 
@@ -60,21 +64,11 @@ class GraderService:
                 sandbox=sandbox,
                 submission_language=submission_language,
                 locale=locale,
+                pre_computed_results=pre_computed_results,
             )
             root.penalty = penalty_result
 
-        result_tree = ResultTree(root)
-
-        # Handle AI executor batch if needed
-        # Note: For tree-based grading, the template is embedded in test nodes
-        first_test = self.__find_first_test(criteria_tree.base)
-        if first_test and hasattr(first_test, "test_function"):
-            test_func = first_test.test_function
-            if hasattr(test_func, "executor") and test_func.executor:
-                self.logger.info("Executing AI batch requests")
-                test_func.executor.stop(locale=locale)
-
-        return result_tree
+        return ResultTree(root)
 
     def __balance_nodes(
         self,
@@ -109,6 +103,7 @@ class GraderService:
         sandbox=None,
         submission_language=None,
         locale: str = "en",
+        pre_computed_results: Optional[Dict[str, TestResult]] = None,
     ) -> CategoryResultNode | SubjectResultNode:
         """Process a category or subject node and create corresponding result node."""
 
@@ -132,6 +127,7 @@ class GraderService:
                     sandbox=sandbox,
                     submission_language=submission_language,
                     locale=locale,
+                    pre_computed_results=pre_computed_results,
                 )
                 for inner_subject in holder.subjects
             ]
@@ -147,6 +143,7 @@ class GraderService:
                     sandbox=sandbox,
                     submission_language=submission_language,
                     locale=locale,
+                    pre_computed_results=pre_computed_results,
                 )
                 for test in holder.tests
             ]
@@ -176,6 +173,7 @@ class GraderService:
         sandbox=None,
         submission_language=None,
         locale: str = "en",
+        pre_computed_results: Optional[Dict[str, TestResult]] = None,
     ) -> SubjectResultNode:
         """Process a subject node from criteria tree and create result node."""
         return self.__process_holder(
@@ -184,6 +182,7 @@ class GraderService:
             sandbox=sandbox,
             submission_language=submission_language,
             locale=locale,
+            pre_computed_results=pre_computed_results,
         )
 
     def process_test(
@@ -193,12 +192,20 @@ class GraderService:
         sandbox=None,
         submission_language=None,
         locale: str = "en",
+        pre_computed_results: Optional[Dict[str, TestResult]] = None,
     ) -> TestResultNode:
         """Execute a test and create a test result node.
 
         Resolves `program_command` in-place before calling execute() so that
-        test functions always receive a finalized string command.  No hidden
-        kwargs are injected; every key in test_params is a declared parameter.
+        test functions always receive a finalized string command.  Every key in
+        ``test_params`` is a declared parameter of the test function.
+
+        ``pre_computed_results`` is intentionally forwarded to
+        ``test_function.execute()`` as an extra kwarg so that
+        :class:`~autograder.models.abstract.ai_test_function.AiTestFunction`
+        implementations can return the pre-computed result without a further API call.
+        Regular test functions that do not declare this parameter must accept
+        ``**kwargs`` or ignore it.
         """
         file_target = self.get_file_target(test, submission_files=submission_files)
 
@@ -219,7 +226,11 @@ class GraderService:
             test_params['submission_language'] = submission_language
 
         test_result = test.test_function.execute(
-            files=file_target, sandbox=sandbox, locale=locale, **test_params
+            files=file_target,
+            sandbox=sandbox,
+            locale=locale,
+            pre_computed_results=pre_computed_results,
+            **test_params,
         )
         return TestResultNode(
             name=test.name,
@@ -260,6 +271,7 @@ class GraderService:
         sandbox=None,
         submission_language=None,
         locale: str = "en",
+        pre_computed_results: Optional[Dict[str, TestResult]] = None,
     ) -> CategoryResultNode:
         """Process a category node from criteria tree and create result node."""
         return self.__process_holder(
@@ -268,20 +280,5 @@ class GraderService:
             sandbox=sandbox,
             submission_language=submission_language,
             locale=locale,
+            pre_computed_results=pre_computed_results,
         )
-
-    def __find_first_test(self, node: CategoryNode | SubjectNode) -> Optional[TestNode]:
-        """Find the first test node in the tree."""
-        if isinstance(node, TestNode):
-            return node
-
-        if hasattr(node, "tests") and node.tests:
-            return node.tests[0]
-
-        if hasattr(node, "subjects") and node.subjects:
-            for subject in node.subjects:
-                result = self.__find_first_test(subject)
-                if result:
-                    return result
-
-        return None

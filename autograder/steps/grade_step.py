@@ -50,12 +50,19 @@ class GradeStep(Step):
             raise RuntimeError("Grading template requires a sandbox environment, but no sandbox was created")
 
         criteria_tree = pipeline_exec.get_built_criteria_tree()
+
+        # Retrieve pre-computed AI results produced by AiBatchStep (if the step ran).
+        pre_computed_results = None
+        if pipeline_exec.has_step_result(StepName.AI_BATCH):
+            pre_computed_results = pipeline_exec.get_step_result(StepName.AI_BATCH).data
+
         result_tree = self._grader_service.grade_from_tree(
             criteria_tree=criteria_tree,
             submission_files=pipeline_exec.submission.submission_files,
             sandbox=sandbox,
             submission_language=pipeline_exec.submission.language,
             locale=pipeline_exec.locale,
+            pre_computed_results=pre_computed_results,
         )
 
         # Create grading result

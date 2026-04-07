@@ -167,6 +167,7 @@ def build_pipeline(
         StepName.BUILD_TREE,
         StepName.SANDBOX,
         StepName.PRE_FLIGHT,
+        StepName.AI_BATCH,
         StepName.GRADE,
         StepName.FOCUS,
         StepName.FEEDBACK,
@@ -178,4 +179,6 @@ def build_pipeline(
         if step_instance is not None:
             pipeline.add_step(step_name, step_instance)
 
+    
+    
     return pipeline
