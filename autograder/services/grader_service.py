@@ -254,7 +254,7 @@ class GraderService:
         if not submission_files:
             return None
 
-        if not test_node.file_target:
+        if not test_node.file_target or test_node.file_target == ["all"]:
             return list(submission_files.values())
 
         target_files = []
