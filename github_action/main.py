@@ -10,6 +10,7 @@ import os
 from argparse import ArgumentParser
 from .github_action_service import GithubActionService
 from autograder.autograder import AutograderPipeline
+from autograder.models.dataclass.submission import SubmissionFile
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -123,7 +124,9 @@ def __get_submission_files():
 
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    submission_files_dict[relative_path] = f.read()
+                    submission_files_dict[relative_path] = SubmissionFile(
+                        filename=relative_path, content=f.read()
+                    )
             except OSError as e:
                 logger.warning("Could not read file %s: %s", file_path, e)
 
