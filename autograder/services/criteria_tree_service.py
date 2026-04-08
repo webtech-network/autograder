@@ -96,11 +96,13 @@ class CriteriaTreeService:
         if not test_function:
             raise ValueError(f"Couldn't find test {config.name}")
 
+        file_target = [config.file] if config.file else None
+
         test = TestNode(
             config.name,
             test_function,
             config.get_kwargs_dict() or {},
-            config.file,
+            file_target,
         )
 
         return test
