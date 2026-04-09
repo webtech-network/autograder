@@ -103,7 +103,9 @@ class CriteriaTreeService:
             test_function,
             config.get_kwargs_dict() or {},
             file_target,
+            config.weight,
         )
+
 
         return test
 
