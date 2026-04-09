@@ -360,8 +360,8 @@ class TestGetSubmissionFiles:
 
         assert "readme.txt" in result
         assert os.path.join("src", "main.py") in result
-        assert result["readme.txt"] == "readme content"
-        assert result[os.path.join("src", "main.py")] == "print('hello')"
+        assert result["readme.txt"].content == "readme content"
+        assert result[os.path.join("src", "main.py")].content == "print('hello')"
 
     def test_skips_git_directory(self):
         """Asserts the .git directory is removed from the subdirectory list and is not traversed during the walk."""
