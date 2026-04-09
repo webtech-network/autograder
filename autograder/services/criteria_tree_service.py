@@ -103,8 +103,9 @@ class CriteriaTreeService:
             test_function,
             config.get_kwargs_dict() or {},
             file_target,
-            config.weight,
+            config.weight if config.weight is not None else 100.0,
         )
+
 
 
         return test

@@ -238,7 +238,9 @@ class GraderService:
             score=test_result.score,
             report=test_result.report,
             parameters=test_result.parameters,
+            weight=test.weight,
         )
+
 
     def get_file_target(
         self,
