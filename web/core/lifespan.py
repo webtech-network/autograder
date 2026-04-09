@@ -1,9 +1,11 @@
 """Application lifespan management."""
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 
 from autograder.services.template_library_service import TemplateLibraryService
@@ -44,6 +46,9 @@ async def lifespan(app: FastAPI):
     Shutdown:
     - Clean up resources
     """
+
+    load_dotenv()  # Load environment variables first from .env file
+
     global template_service, grading_tasks
 
     # Startup

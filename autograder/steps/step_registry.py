@@ -1,3 +1,4 @@
+import os
 from typing import Dict, Callable, Any, Optional
 
 from autograder.models.dataclass.step_result import StepName
@@ -79,7 +80,11 @@ class StepRegistry:
 
     def _build_exporter(self) -> Optional[Step]:
         if self.config.get("export_results"):
-            exporter = self.config.get("exporter") or UpstashDriver()
+            # Update the fallback to include the required credentials
+            exporter = self.config.get("exporter") or UpstashDriver(
+                redis_url=os.getenv("UPSTASH_REDIS_URL"),
+                redis_token=os.getenv("UPSTASH_REDIS_TOKEN")
+            )
             return ExporterStep(exporter)
         return None
 
