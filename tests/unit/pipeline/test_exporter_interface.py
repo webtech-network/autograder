@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 from typing import Optional
 
 from autograder.models.abstract.exporter import Exporter
@@ -43,7 +43,8 @@ class TestExporterInterface:
     def test_upstash_driver_export_delegates(self):
         """UpstashDriver.export() delegates to set_score()."""
         with patch("autograder.services.upstash_driver.Redis"):
-            driver = UpstashDriver()
+            # Pass dummy credentials to satisfy the new __init__ parameters
+            driver = UpstashDriver(redis_url="mock_url", redis_token="mock_token")
             driver.set_score = MagicMock()
             
             driver.export("user123", 95.0, "Optional feedback")
@@ -85,4 +86,10 @@ class TestExporterInterface:
             
             assert isinstance(step, ExporterStep)
             assert step._exporter_service is mock_driver
-            mock_driver_cls.assert_called_once()
+            
+            # Verify that the driver was initialized with strings (even if empty)
+            # This matches the os.getenv("...", "") logic
+            mock_driver_cls.assert_called_once_with(
+                redis_url=ANY, 
+                redis_token=ANY
+            )
