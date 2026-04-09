@@ -7,6 +7,7 @@ with the autograder workflow to process student submissions and generate feedbac
 
 import logging
 import os
+from dotenv import load_dotenv
 from argparse import ArgumentParser
 from .github_action_service import GithubActionService
 from autograder.autograder import AutograderPipeline
@@ -59,6 +60,9 @@ async def main():
     This makes the Adapter accessible to the GitHub Action workflow,
     that runs by entrypoint.sh script with all arguments passed to it.
     """
+
+    load_dotenv()  # Load environment variables from .env file if present
+
     success_execution = False
     try:
         args = __parser_values()

@@ -1,23 +1,22 @@
 import json
 import logging
-import os
 from typing import Optional
-from dotenv import load_dotenv
 from upstash_redis import Redis
 
 from autograder.models.abstract.exporter import Exporter
 
 logger = logging.getLogger(__name__)
 
-load_dotenv() #TODO: place this in application startup
-class UpstashDriver(Exporter):
-    def __init__(self):
-        self.redis = Redis(
-            os.getenv("UPSTASH_REDIS_URL"),
-            os.getenv("UPSTASH_REDIS_TOKEN") # should it do it? should it remain expecting the Redis python object?
-        )
 
-    def get_user_quota(self,user_credentials: str) -> int:
+class UpstashDriver(Exporter):
+    def __init__(self, redis_url: str, redis_token: str):
+        """Initialize the driver with explicit credentials."""
+        if not redis_url or not redis_token:
+            raise ValueError("UpstashDriver requires both redis_url and redis_token.")
+        
+        self.redis = Redis(redis_url, redis_token)
+
+    def get_user_quota(self, user_credentials: str) -> int:
         """Function to get the quota of a user based on his username"""
         key = f"user:{user_credentials}"
         result = self.redis.hget(key, "quota")
