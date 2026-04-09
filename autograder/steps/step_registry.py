@@ -82,8 +82,8 @@ class StepRegistry:
         if self.config.get("export_results"):
             # Update the fallback to include the required credentials
             exporter = self.config.get("exporter") or UpstashDriver(
-                redis_url=os.getenv("UPSTASH_REDIS_URL", ""),
-                redis_token=os.getenv("UPSTASH_REDIS_TOKEN", "")
+                redis_url=os.getenv("UPSTASH_REDIS_URL"),
+                redis_token=os.getenv("UPSTASH_REDIS_TOKEN")
             )
             return ExporterStep(exporter)
         return None

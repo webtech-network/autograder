@@ -87,8 +87,9 @@ class TestExporterInterface:
             assert isinstance(step, ExporterStep)
             assert step._exporter_service is mock_driver
             
-            # Verify that the driver was initialized with strings (even if empty)
-            # This matches the os.getenv("...", "") logic
+            # Verify that the driver is initialized with environment variables.
+            # UpstashDriver.__init__ handles validation and raises ValueError if 
+            # redis_url or redis_token are missing (None).
             mock_driver_cls.assert_called_once_with(
                 redis_url=ANY, 
                 redis_token=ANY
