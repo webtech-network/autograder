@@ -175,6 +175,29 @@ class TestSandboxLifecycle:
             assert "autograder.sandbox.pool_id" in labels
             assert "autograder.sandbox.created_at" in labels
 
+    def test_deterministic_container_naming(self):
+        """Test that sandbox containers have deterministic names following ag-sbx-{lang}-{pool8}-{seq4}."""
+        import re
+        with self.manager.acquire_sandbox(Language.PYTHON) as sandbox:
+            sandbox.container_ref.reload()
+            name = sandbox.container_ref.name
+            # Must match ag-sbx-{lang}-{pool8}-{seq4}
+            assert re.match(r'^ag-sbx-python-[a-f0-9]{8}-\d{4}$', name), f"Unexpected container name: {name}"
+
+    def test_container_name_sequence_increments(self):
+        """Test that sequential sandbox creations produce incrementing sequence numbers."""
+        import re
+        sequences = []
+        for _ in range(2):
+            with self.manager.acquire_sandbox(Language.PYTHON) as sandbox:
+                sandbox.container_ref.reload()
+                name = sandbox.container_ref.name
+                match = re.search(r'-(\d{4})$', name)
+                assert match, f"No sequence found in name: {name}"
+                sequences.append(int(match.group(1)))
+        # Sequences should be strictly increasing
+        assert sequences[1] > sequences[0], f"Sequences not incrementing: {sequences}"
+
     def test_shutdown_destroys_all_containers(self):
         """Test that shutdown destroys all containers."""
         # Acquire multiple sandboxes

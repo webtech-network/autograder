@@ -1,5 +1,5 @@
 # 1. Use an official Python image as the base
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # 2. Set environment variables
 ENV PYTHONUNBUFFERED=1

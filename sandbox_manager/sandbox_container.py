@@ -363,4 +363,5 @@ class SandboxContainer:
             raise requests.RequestException(f"HTTP {method} request to {url} failed: {str(e)}")
 
     def __repr__(self):
-        return f"<SandboxContainer lang={self.language.value} state={self.state.value} id={self.container_ref.id[:12]}>"
+        name = self.container_ref.name or "unnamed"
+        return f"<SandboxContainer lang={self.language.value} state={self.state.value} name={name} id={self.container_ref.id[:12]}>"
