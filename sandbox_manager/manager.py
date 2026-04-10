@@ -57,10 +57,10 @@ def _cleanup_orphaned_containers(client: docker.DockerClient):
             print(f"[SandboxManager] Found {len(orphaned_containers)} orphaned container(s)")
             for container in orphaned_containers:
                 try:
-                    print(f"[SandboxManager] Removing orphaned container {container.id[:12]}...")
+                    print(f"[SandboxManager] Removing orphaned container {container.name} ({container.id[:12]})...")
                     container.remove(force=True)
                 except Exception as e:
-                    print(f"[SandboxManager] Failed to remove orphaned container {container.id[:12]}: {e}")
+                    print(f"[SandboxManager] Failed to remove orphaned container {container.name} ({container.id[:12]}): {e}")
             print(f"[SandboxManager] Orphan cleanup complete")
         else:
             print("[SandboxManager] No orphaned containers found")

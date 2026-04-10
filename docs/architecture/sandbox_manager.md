@@ -220,6 +220,10 @@ make build-sandboxes
 
 Each container is created with:
 
+- **Name:** Deterministic format `ag-sbx-{lang}-{pool8}-{seq4}` (e.g., `ag-sbx-py-a1b2c3d4-0001`)
+  - `lang`: language key (`python`, `java`, `node`, `cpp`, `c`)
+  - `pool8`: first 8 chars of the pool's UUID
+  - `seq4`: zero-padded per-pool creation sequence
 - **Memory limit:** 128 MB (no swap)
 - **CPU limit:** 0.5 CPU cores
 - **Process limit:** 64 PIDs

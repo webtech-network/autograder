@@ -30,6 +30,7 @@ class LanguagePool:
         self.config = config
         self.client = client
         self.pool_id = str(uuid.uuid4())  # Unique identifier for this pool instance
+        self._sandbox_seq = 0  # Per-pool creation sequence counter
 
         self.idle_sandboxes : deque[SandboxContainer] = deque()
         self.active_sandboxes : Set[SandboxContainer] = set()
@@ -243,7 +244,8 @@ class LanguagePool:
 
         Containers are kept alive with 'sleep infinity' to allow exec commands.
         """
-        print(f"[{self.language}] CREATE SANDBOX - Starting container creation...")
+        container_name = self._build_container_name()
+        print(f"[{self.language}] CREATE SANDBOX - Starting container creation ({container_name})...")
 
         # Container labels for tracking and orphan cleanup
         labels = {
@@ -259,6 +261,7 @@ class LanguagePool:
             print(f"[{self.language}] Attempting to create with gVisor runtime (runsc)...")
             container = self.client.containers.run(
                 image=self.language.image,
+                name=container_name,
                 detach=True,
                 command="sleep infinity",  # Keep container alive for exec commands
                 runtime="runsc",  # gVisor runtime for enhanced isolation
@@ -277,13 +280,14 @@ class LanguagePool:
                 ],
                 labels=labels
             )
-            print(f"[{self.language}] Container created with gVisor - container_id: {container.id[:12]}")
+            print(f"[{self.language}] Container created with gVisor - {container_name} ({container.id[:12]})")
         except Exception as e:
             # If gVisor is not available, use default runtime with same constraints
             if "unknown or invalid runtime name" in str(e).lower() or "runsc" in str(e).lower():
                 print(f"[{self.language}] gVisor runtime not available, falling back to default runtime")
                 container = self.client.containers.run(
                     image=self.language.image,
+                    name=container_name,
                     detach=True,
                     command="sleep infinity",  # Keep container alive for exec commands
                     # No runtime specified = default runc
@@ -302,15 +306,20 @@ class LanguagePool:
                     ],
                     labels=labels
                 )
-                print(f"[{self.language}] Container created with default runtime - container_id: {container.id[:12]}")
+                print(f"[{self.language}] Container created with default runtime - {container_name} ({container.id[:12]})")
             else:
                 # Re-raise if it's a different error
                 print(f"[{self.language}] Container creation failed: {e}")
                 raise
 
         sandbox = SandboxContainer(language=self.language, container_ref=container)
-        print(f"[{self.language}] SANDBOX CREATED SUCCESSFULLY - container_id: {container.id[:12]}")
+        print(f"[{self.language}] SANDBOX CREATED SUCCESSFULLY - {container_name} ({container.id[:12]})")
         return sandbox
+
+    def _build_container_name(self) -> str:
+        """Build deterministic container name: ag-sbx-{lang}-{pool8}-{seq4}"""
+        self._sandbox_seq += 1
+        return f"ag-sbx-{self.language.value}-{self.pool_id[:8]}-{self._sandbox_seq:04d}"
 
     def destroy_sandbox(self, sandbox: SandboxContainer) -> None:
         """
