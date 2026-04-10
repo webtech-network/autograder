@@ -21,8 +21,11 @@ class TestConfig(BaseModel):
     parameters: Optional[List[ParameterConfig]] = Field(
         None, description="Named parameters for the test function"
     )
+    weight: Optional[float] = Field(100.0, ge=0, description="Weight of this test")
+
 
     model_config = {"extra": "forbid"}
+
 
     def get_args_list(self) -> List[Any]:
         """Convert named parameters to positional arguments list."""
