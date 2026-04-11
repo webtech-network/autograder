@@ -7,16 +7,18 @@ Create Date: 2026-04-11
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
+# pylint: disable=invalid-name
 revision = '002'
 down_revision = '001'
 branch_labels = None
 depends_on = None
+# pylint: enable=invalid-name
 
 
 def upgrade() -> None:
+    """Add feedback columns to grading_configurations table."""
     # Add feedback columns to grading_configurations table
     op.add_column('grading_configurations',
                   sa.Column('feedback_config', sa.JSON(), nullable=True))
@@ -25,6 +27,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Remove feedback columns from grading_configurations table."""
     # Remove feedback columns from grading_configurations table
     op.drop_column('grading_configurations', 'include_feedback')
     op.drop_column('grading_configurations', 'feedback_config')

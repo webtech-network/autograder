@@ -1,9 +1,9 @@
 """GradingConfiguration database model."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Integer, String, Text, DateTime, JSON
+from sqlalchemy import Boolean, Integer, String, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 

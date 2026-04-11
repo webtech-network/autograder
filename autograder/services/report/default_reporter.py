@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 from autograder.utils.formatters.result_tree import ResultTreeFormatter
 from autograder.translations import t
 
