@@ -19,7 +19,7 @@ from web.schemas import (
     SubmissionResponse,
     SubmissionDetailResponse,
 )
-from web.service.grading_service import grade_submission
+from web.service.grading_service import grade_submission, GradingRequest
 
 
 logger = get_logger(__name__)
@@ -107,20 +107,19 @@ async def create_submission(
     # Schedule concurrent grading task using asyncio
     # This allows multiple submissions to be graded simultaneously,
     # fully utilizing the sandbox pool's capacity
-    task = asyncio.create_task(
-        grade_submission(
-            submission_id=db_submission.id,
-            grading_config_id=grading_config.id,
-            template_name=grading_config.template_name,
-            criteria_config=grading_config.criteria_config,
-            setup_config=grading_config.setup_config,
-            language=db_submission.language,
-            username=db_submission.username,
-            external_user_id=db_submission.external_user_id,
-            submission_files=db_submission.submission_files,
-            locale=submission.locale,
-        )
+    grading_request = GradingRequest(
+        submission_id=db_submission.id,
+        grading_config_id=grading_config.id,
+        template_name=grading_config.template_name,
+        criteria_config=grading_config.criteria_config,
+        setup_config=grading_config.setup_config,
+        language=db_submission.language,
+        username=db_submission.username,
+        external_user_id=db_submission.external_user_id,
+        submission_files=db_submission.submission_files,
+        locale=submission.locale,
     )
+    task = asyncio.create_task(grade_submission(grading_request))
 
     # Track task to prevent garbage collection
     grading_tasks = get_grading_tasks()
