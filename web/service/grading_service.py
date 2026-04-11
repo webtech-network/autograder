@@ -28,6 +28,8 @@ class GradingRequest:
     template_name: str
     criteria_config: dict
     setup_config: dict
+    feedback_config: dict
+    include_feedback: bool
     language: str
     username: str
     external_user_id: str
@@ -88,9 +90,9 @@ async def _run_pipeline(request: GradingRequest):
     """Build the autograder pipeline and run it in a thread."""
     pipeline = build_pipeline(
         template_name=request.template_name,
-        include_feedback=True,
+        include_feedback=request.include_feedback,
         grading_criteria=request.criteria_config,
-        feedback_config={},
+        feedback_config=request.feedback_config or {},
         setup_config=request.setup_config if request.setup_config else {},
         custom_template=None,
     )

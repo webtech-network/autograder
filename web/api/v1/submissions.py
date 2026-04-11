@@ -113,6 +113,8 @@ async def create_submission(
         template_name=grading_config.template_name,
         criteria_config=grading_config.criteria_config,
         setup_config=grading_config.setup_config,
+        feedback_config=grading_config.feedback_config or {},
+        include_feedback=grading_config.include_feedback,
         language=db_submission.language,
         username=db_submission.username,
         external_user_id=db_submission.external_user_id,

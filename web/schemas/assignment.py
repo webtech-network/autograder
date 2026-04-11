@@ -18,7 +18,14 @@ class GradingConfigCreate(BaseModel):
         default=None,
         description="Setup configuration including required_files and setup_commands for preflight checks"
     )
-    # TODO: Include feedback options
+    feedback_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Feedback preferences for the DefaultReporter (show_score, show_passed_tests, report_title, etc.)"
+    )
+    include_feedback: bool = Field(
+        default=True,
+        description="Whether to generate a feedback report after grading"
+    )
 
     @field_validator('languages')
     @classmethod
@@ -64,6 +71,8 @@ class GradingConfigUpdate(BaseModel):
     criteria_config: Optional[Dict[str, Any]] = None
     languages: Optional[List[str]] = None
     setup_config: Optional[Dict[str, Any]] = None
+    feedback_config: Optional[Dict[str, Any]] = None
+    include_feedback: Optional[bool] = None
     is_active: Optional[bool] = None
 
     @field_validator('languages')
@@ -118,6 +127,8 @@ class GradingConfigResponse(BaseModel):
     criteria_config: Dict[str, Any]
     languages: List[str]
     setup_config: Optional[Dict[str, Any]]
+    feedback_config: Optional[Dict[str, Any]]
+    include_feedback: bool
     version: int
     created_at: datetime
     updated_at: datetime
