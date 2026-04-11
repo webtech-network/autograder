@@ -1,3 +1,4 @@
+# pylint: disable=invalid-name
 """add feedback columns to grading config
 
 Revision ID: 002
