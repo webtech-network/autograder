@@ -51,11 +51,12 @@ async def grade_submission(
             # Build autograder pipeline
             pipeline = build_pipeline(
                 template_name=template_name,
-                include_feedback=False,  # Keep False for now
+                include_feedback=True,
                 grading_criteria=criteria_config,
-                feedback_config=None,
+                feedback_config={},
                 setup_config=setup_config if setup_config else {},
                 custom_template=None,  # Keep None to use default template behavior
+                locale=locale,
             )
 
             files_to_grade = {
