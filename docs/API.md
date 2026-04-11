@@ -76,6 +76,21 @@ Content-Type: application/json
   "setup_config": {
     "required_files": ["main.py"],
     "setup_commands": []
+  },
+  "include_feedback": true,
+  "feedback_config": {
+    "general": {
+      "report_title": "Evaluation Report",
+      "show_score": true,
+      "show_passed_tests": false,
+      "add_report_summary": true,
+      "online_content": [
+        {
+          "url": "https://docs.python.org/3/tutorial/",
+          "description": "Python Tutorial"
+        }
+      ]
+    }
   }
 }
 ```
@@ -89,6 +104,8 @@ Content-Type: application/json
 | `criteria_config` | object | ✓ | Grading criteria tree configuration |
 | `languages` | list[string] | ✓ | Supported languages: `python`, `java`, `node`, `cpp` |
 | `setup_config` | object | ✗ | Setup configuration for preflight checks |
+| `include_feedback` | boolean | ✗ | Whether to generate a feedback report after grading (default: `true`) |
+| `feedback_config` | object | ✗ | Feedback preferences — see [FeedbackConfig Reference](#feedbackconfig-reference) |
 
 **Response (201 Created):**
 ```json
@@ -99,6 +116,8 @@ Content-Type: application/json
   "criteria_config": { ... },
   "languages": ["python", "java"],
   "setup_config": { ... },
+  "include_feedback": true,
+  "feedback_config": { ... },
   "version": 1,
   "created_at": "2026-02-16T10:00:00Z",
   "updated_at": "2026-02-16T10:00:00Z",
@@ -177,6 +196,8 @@ Content-Type: application/json
   "criteria_config": { ... },
   "languages": ["python", "node"],
   "setup_config": { ... },
+  "include_feedback": false,
+  "feedback_config": { ... },
   "is_active": false
 }
 ```
@@ -201,6 +222,8 @@ Use this endpoint when you only know the LMS-specific assignment identifier and 
   "criteria_config": { ... },
   "languages": ["python", "node"],
   "setup_config": { ... },
+  "include_feedback": true,
+  "feedback_config": { ... },
   "is_active": false
 }
 ```
@@ -210,6 +233,60 @@ Use this endpoint when you only know the LMS-specific assignment identifier and 
 **Error (404):** Configuration not found for the supplied `external_assignment_id`.
 
 ---
+
+## FeedbackConfig Reference
+
+The `feedback_config` object controls how the `DefaultReporter` generates the post-grading Markdown report. All fields are optional.
+
+```json
+{
+  "general": {
+    "report_title": "Evaluation Report",
+    "show_score": true,
+    "show_passed_tests": false,
+    "add_report_summary": true,
+    "online_content": [
+      {
+        "url": "https://docs.python.org/3/tutorial/",
+        "description": "Python Official Tutorial"
+      }
+    ]
+  },
+  "default": {
+    "category_headers": {
+      "base": "✅ Essential Requirements",
+      "penalty": "❌ Points to Improve",
+      "bonus": "⭐ Extra Points"
+    }
+  }
+}
+```
+
+### `general` fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `report_title` | string | `"Evaluation Report"` | Custom title at the top of the report |
+| `show_score` | boolean | `true` | Append the final score section at the bottom of the report |
+| `show_passed_tests` | boolean | `false` | Include tests that passed (score = 100) in the results |
+| `add_report_summary` | boolean | `true` | Add a summary section with template name and score breakdown |
+| `online_content` | list[object] | `[]` | Learning resources appended at the end of the report |
+
+### `online_content` object fields
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `url` | string | Full URL of the resource |
+| `description` | string | Human-readable label for the link |
+| `linked_tests` | list[string] | Optional: List of test names. If provided, the resource is only shown if at least one of these tests fails. |
+
+Resources without `linked_tests` are always displayed at the end of the report. Resources with `linked_tests` act as "targeted hints" that only appear when relevant.
+
+### `default` fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `category_headers` | object | Override section headers per category (`base`, `penalty`, `bonus`) |
 
 ## Submissions
 

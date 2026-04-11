@@ -1,9 +1,9 @@
 """GradingConfiguration database model."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Integer, String, Text, DateTime, JSON
+from sqlalchemy import Boolean, Integer, String, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -25,9 +25,11 @@ class GradingConfiguration(Base):
     criteria_config: Mapped[dict] = mapped_column(JSON, nullable=False)
     languages: Mapped[list] = mapped_column(JSON, nullable=False)  # List of supported languages
     setup_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    feedback_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    include_feedback: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)  # pylint: disable=not-callable
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)  # pylint: disable=not-callable
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
     # Relationships

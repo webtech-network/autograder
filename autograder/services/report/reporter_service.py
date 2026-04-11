@@ -2,7 +2,7 @@ from typing import Optional
 from autograder.services.report.default_reporter import DefaultReporter
 from autograder.services.report.ai_reporter import AiReporter
 from autograder.models.dataclass.feedback_preferences import (
-    FeedbackPreferences, GeneralPreferences, AiReporterPreferences, DefaultReporterPreferences
+    FeedbackPreferences, GeneralPreferences, AiReporterPreferences, DefaultReporterPreferences, LearningResource
 )
 
 
@@ -28,6 +28,13 @@ class ReporterService:
         general_cfg = feedback_config.get("general", {})
         ai_cfg = feedback_config.get("ai", {})
         default_cfg = feedback_config.get("default", {})
+
+        # Convert online_content dicts to LearningResource objects
+        if "online_content" in general_cfg:
+            general_cfg["online_content"] = [
+                LearningResource(**r) if isinstance(r, dict) else r 
+                for r in general_cfg["online_content"]
+            ]
 
         preferences = FeedbackPreferences(
             general=GeneralPreferences(**general_cfg),

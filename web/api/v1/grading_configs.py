@@ -53,6 +53,8 @@ async def create_grading_config(
         criteria_config=config.criteria_config,
         languages=config.languages,
         setup_config=config.setup_config,
+        feedback_config=config.feedback_config,
+        include_feedback=config.include_feedback,
     )
 
     logger.info(

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 from autograder.utils.formatters.result_tree import ResultTreeFormatter
 from autograder.translations import t
 
@@ -33,7 +33,8 @@ class DefaultReporter:
 
         # 5. Online Resources
         if preferences and preferences.general.online_content:
-            lines.extend(self._add_online_resources(preferences.general.online_content, locale=locale))
+            failed_names = {t.name for t in result_tree.get_failed_tests()} if result_tree else set()
+            lines.extend(self._add_online_resources(preferences.general.online_content, failed_names, locale=locale))
 
         return "\n".join(lines)
 
@@ -92,10 +93,21 @@ class DefaultReporter:
             self._formatter.final_score(score)
         ]
 
-    def _add_online_resources(self, resources, locale: Optional[str] = None):
+    def _add_online_resources(self, resources, failed_test_names: set, locale=None):
+        """
+        Append learning resources to the report.
+
+        A resource is included if:
+        - it has no linked_tests (global resource, always shown), OR
+        - at least one of its linked_tests is in failed_test_names.
+        """
         resources_label = t("feedback.report.learning_resources_label", locale=locale) or "📚 Learning Resources"
         lines = ["", self._formatter.main_divisor(), f"## {resources_label}", ""]
-        for resource in resources:
+        visible = [
+            r for r in resources
+            if not r.linked_tests or (set(r.linked_tests) & failed_test_names)
+        ]
+        for resource in visible:
             lines.append(f"- 📘 [{resource.description}]({resource.url})")
-        return lines
+        return lines if len(lines) > 4 else []  # skip section if nothing to show
 
