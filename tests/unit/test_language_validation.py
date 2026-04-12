@@ -18,7 +18,6 @@ class TestLanguageValidation:
             config = GradingConfigCreate(
                 external_assignment_id="test-001",
                 template_name="input_output",
-                criteria_config={"test_library": "input_output"},
                 languages=[lang]
             )
             # Should normalize to lowercase
@@ -30,7 +29,6 @@ class TestLanguageValidation:
             GradingConfigCreate(
                 external_assignment_id="test-001",
                 template_name="input_output",
-                criteria_config={"test_library": "input_output"},
                 languages=["javascript"]  # Should be "node"
             )
 
@@ -45,7 +43,6 @@ class TestLanguageValidation:
             GradingConfigCreate(
                 external_assignment_id="test-001",
                 template_name="input_output",
-                criteria_config={"test_library": "input_output"},
                 languages=[""]
             )
 
@@ -62,7 +59,6 @@ class TestLanguageValidation:
                 GradingConfigCreate(
                     external_assignment_id="test-001",
                     template_name="input_output",
-                    criteria_config={"test_library": "input_output"},
                     languages=[lang]
                 )
 

@@ -129,7 +129,6 @@ curl -X POST "http://localhost:8000/api/v1/configs" \
     "template_name": "input_output",
     "language": "python",
     "criteria_config": {
-      "test_library": "input_output",
       "base": {
         "weight": 100,
         "tests": [{

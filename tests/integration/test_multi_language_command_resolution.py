@@ -31,7 +31,6 @@ class TestMultiLanguageCommandResolution:
             template_name="input_output",
             include_feedback=False,
             grading_criteria={
-                "test_library": "input_output",
                 "base": {
                     "weight": 100,
                     "tests": [
@@ -103,7 +102,6 @@ class TestMultiLanguageCommandResolution:
             template_name="input_output",
             include_feedback=False,
             grading_criteria={
-                "test_library": "input_output",
                 "base": {
                     "weight": 100,
                     "tests": [
@@ -175,7 +173,6 @@ class TestMultiLanguageCommandResolution:
             template_name="input_output",
             include_feedback=False,
             grading_criteria={
-                "test_library": "input_output",
                 "base": {
                     "weight": 100,
                     "tests": [
@@ -245,7 +242,6 @@ class TestMultiLanguageCommandResolution:
             template_name="input_output",
             include_feedback=False,
             grading_criteria={
-                "test_library": "input_output",
                 "base": {
                     "weight": 100,
                     "tests": [

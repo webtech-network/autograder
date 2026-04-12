@@ -1,5 +1,4 @@
 {
-  "test_library": "input_output",
   "base": {
     "weight": 100,
     "subjects": [

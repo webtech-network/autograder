@@ -19,7 +19,6 @@ class TestLanguageValidationAPI:
                     "external_assignment_id": "test-valid-lang-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
                     "languages": ["python", "java"]
@@ -40,7 +39,6 @@ class TestLanguageValidationAPI:
                     "external_assignment_id": "test-invalid-lang-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
                     "languages": ["javascript"]  # Should be "node"
@@ -63,7 +61,6 @@ class TestLanguageValidationAPI:
                     "external_assignment_id": "test-case-lang-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
                     "languages": ["PYTHON", "Java"]  # Mixed case
@@ -84,7 +81,6 @@ class TestLanguageValidationAPI:
                     "external_assignment_id": "test-node-lang-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
                     "languages": ["node", "cpp"]
@@ -105,7 +101,6 @@ class TestLanguageValidationAPI:
                     "external_assignment_id": "test-empty-lang-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
                     "languages": []
@@ -124,7 +119,6 @@ class TestLanguageValidationAPI:
                     "external_assignment_id": "test-update-lang-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
                     "languages": ["python"]
@@ -153,7 +147,6 @@ class TestLanguageValidationAPI:
                     "external_assignment_id": "test-submit-lang-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
                     "languages": ["python", "java"]

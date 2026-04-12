@@ -59,7 +59,6 @@ class ConcurrentTester:
             "template_name": "input_output",
             "languages": ["python", "java", "node", "cpp"],
             "criteria_config": {
-                "test_library": "input_output",
                 "base": {
                     "weight": 100,
                     "tests": [

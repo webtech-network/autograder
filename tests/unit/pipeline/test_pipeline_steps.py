@@ -115,7 +115,6 @@ class MockTemplateLoaderStep(Step):
 def create_simple_criteria():
     """Create a simple criteria configuration for testing."""
     return {
-        "test_library": "input_output",
         "base": {
             "weight": 100,
             "subjects": [
