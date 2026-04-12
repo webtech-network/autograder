@@ -38,12 +38,13 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started:
-      - Local Docs Development: getting-started/mkdocs-local-development.md
+      - Run Your First Grading Workflow: getting-started/mkdocs-local-development.md
+      - Development Guide: guides/development.md
   - Core Concepts:
       - Pipeline Architecture: core/pipeline-architecture.md
       - Criteria Tree: core/criteria-tree.md
       - Sandbox Management: core/sandbox-management.md
-      - Template System: core/template-system.md
+      - Template Library: core/template-library.md
       - Feedback Generation: core/feedback-generation.md
       - Educational Criteria Design: guides/criteria-tree-educational-standards.md
   - API:
@@ -77,6 +78,7 @@ nav:
       - Localization: features/localization.md
   - Guides:
       - Development Guide: guides/development.md
+      - Docs Site Development: guides/docs-site-development.md
       - Criteria Configuration Examples: guides/criteria_configuration_examples.md
       - GitHub Module: guides/github_module.md
   - Roadmaps:

@@ -7,7 +7,7 @@ This documentation is organized to be both practical for first-time users and de
 1. [Pipeline Architecture](core/pipeline-architecture.md)
 2. [Criteria Tree](core/criteria-tree.md)
 3. [Sandbox Management](core/sandbox-management.md)
-4. [Template System](core/template-system.md)
+4. [Template Library](core/template-library.md)
 5. [Feedback Generation](core/feedback-generation.md)
 
 ## Learning Paths
@@ -27,7 +27,7 @@ This documentation is organized to be both practical for first-time users and de
 
 ### Template author
 
-- [Template System](core/template-system.md)
+- [Template Library](core/template-library.md)
 - [Input/Output Template](template-library/input_output.md)
 - [API Testing Template](template-library/api_testing.md)
 - [Web Development Template](template-library/web_dev.md)

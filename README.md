@@ -154,7 +154,7 @@ The **SandboxManager** provides secure, isolated execution environments:
 - **Automatic Lifecycle**: TTL management, health checks, and cleanup
 - **Resource Control**: Memory limits, timeouts, and isolation
 
-#### Template System
+#### Template Library
 
 Templates provide test functions for different assignment contexts:
 

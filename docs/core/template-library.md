@@ -1,4 +1,4 @@
-# Template System
+# Template Library
 
 ## What it is
 
