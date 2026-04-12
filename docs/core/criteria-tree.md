@@ -58,8 +58,8 @@ Use subject names that represent real learning objectives ("Input validation", "
         "subject_name": "Correctness",
         "weight": 70,
         "tests": [
-          {"name": "expect_output", "weight": 70, "parameters": {"expected_output": "42"}},
-          {"name": "dont_fail", "weight": 30, "parameters": {"inputs": ["10"]}}
+          {"name": "expect_output", "weight": 70, "parameters": {"expected_output": "42", "inputs": ["10"]}},
+          {"name": "dont_fail", "weight": 30, "parameters": {"user_input": "10"}}
         ]
       },
       {

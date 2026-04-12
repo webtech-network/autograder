@@ -1,8 +1,8 @@
-# API Testing Template (`api_testing`)
+# API Testing Template (`api`)
 
 The API Testing template validates student-built web APIs by making HTTP requests to a running server inside a sandbox container and checking the responses.
 
-> **Template name for configs:** `api_testing`  
+> **Template name for configs:** `api`  
 > **Requires sandbox:** Yes  
 > **Communication:** HTTP requests to the containerized application via `SandboxContainer.make_request()`
 
@@ -63,7 +63,7 @@ Sends a GET request to an endpoint and verifies the JSON response contains a spe
 ```json
 {
   "external_assignment_id": "rest-api-assignment",
-  "template_name": "api_testing",
+  "template_name": "api",
   "languages": ["python", "node"],
   "setup_config": {
     "required_files": ["app.py"],

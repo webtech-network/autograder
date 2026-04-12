@@ -39,7 +39,6 @@ nav:
   - Home: index.md
   - Getting Started:
       - Local Docs Development: getting-started/mkdocs-local-development.md
-      - Development Guide: guides/development.md
   - Core Concepts:
       - Pipeline Architecture: core/pipeline-architecture.md
       - Criteria Tree: core/criteria-tree.md
