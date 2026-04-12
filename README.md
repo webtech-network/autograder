@@ -312,6 +312,33 @@ Includes endpoints for:
 
 ---
 
+## Documentation Website (MkDocs)
+
+The documentation now ships as an MkDocs site with focused learning paths for:
+
+- Pipeline architecture
+- Criteria tree design
+- Sandbox management
+- Template system
+- Feedback generation and educational standards
+
+Run locally:
+
+```bash
+pip install -r requirements-docs.txt
+mkdocs serve
+```
+
+Build in strict mode:
+
+```bash
+mkdocs build --strict
+```
+
+Core docs entry point: **[docs/index.md](docs/index.md)**
+
+---
+
 ## GitHub Action
 
 Seamlessly integrate with GitHub Classroom.
@@ -439,4 +466,3 @@ For questions, suggestions, or support:
 Made by educators, for educators
 
 </div>
-

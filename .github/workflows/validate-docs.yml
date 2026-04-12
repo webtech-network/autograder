@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
       - 'web/schemas/**'
       - 'web/api/**'
       - 'scripts/validate_docs.py'
@@ -16,5 +18,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install docs dependencies
+        run: pip install -r requirements-docs.txt
       - name: Validate documentation
         run: python scripts/validate_docs.py
+      - name: Build docs site
+        run: mkdocs build --strict

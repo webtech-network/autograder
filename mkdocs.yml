@@ -1,0 +1,86 @@
+site_name: Autograder Documentation
+site_description: Educational-standards-driven autograding platform documentation
+site_url: https://webtech-network.github.io/autograder/
+repo_url: https://github.com/webtech-network/autograder
+repo_name: webtech-network/autograder
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Local Docs Development: getting-started/mkdocs-local-development.md
+      - Development Guide: guides/development.md
+  - Core Concepts:
+      - Pipeline Architecture: core/pipeline-architecture.md
+      - Criteria Tree: core/criteria-tree.md
+      - Sandbox Management: core/sandbox-management.md
+      - Template System: core/template-system.md
+      - Feedback Generation: core/feedback-generation.md
+      - Educational Criteria Design: guides/criteria-tree-educational-standards.md
+  - API:
+      - REST API Reference: API.md
+  - Pipeline Deep Dive:
+      - Overview: pipeline/README.md
+      - 01 Load Template: pipeline/01-load-template.md
+      - 02 Build Tree: pipeline/02-build-tree.md
+      - 03 Sandbox: pipeline/03-sandbox.md
+      - 04 Pre Flight: pipeline/04-pre-flight.md
+      - 04.5 AI Batch: pipeline/04.5-ai-batch.md
+      - 05 Grade: pipeline/05-grade.md
+      - 06 Focus: pipeline/06-focus.md
+      - 07 Feedback: pipeline/07-feedback.md
+      - 08 Export: pipeline/08-export.md
+  - Architecture Reference:
+      - Core Structures: architecture/core_structures.md
+      - Pipeline Execution Tracking: architecture/pipeline_execution_tracking.md
+      - Sandbox Manager Internals: architecture/sandbox_manager.md
+      - Web Module: architecture/web_module.md
+  - Templates:
+      - Input Output Template: template-library/input_output.md
+      - API Testing Template: template-library/api_testing.md
+      - Web Development Template: template-library/web_dev.md
+  - Features:
+      - Grading Engine: features/grading_engine.md
+      - Focus Feature: features/focus_feature.md
+      - Deliberate Code Execution: features/deliberate_code_execution.md
+      - Setup Config: features/setup_config_feature.md
+      - Command Resolver: features/command_resolver.md
+      - Localization: features/localization.md
+  - Guides:
+      - Development Guide: guides/development.md
+      - Criteria Configuration Examples: guides/criteria_configuration_examples.md
+      - GitHub Module: guides/github_module.md
+  - Roadmaps:
+      - MkDocs Documentation Roadmap: roadmaps/MKDOCS_DOCUMENTATION_ROADMAP.md
+      - Feature Roadmap: roadmaps/FEATURE_ROADMAP.md
+      - Technical Debt Roadmap: roadmaps/TECHNICAL_DEBT_ROADMAP.md
