@@ -1,12 +1,14 @@
 # Makefile for Autograder Development
 # Simplifies common development tasks
 
-.PHONY: help install install-dev test test-cov lint format type-check security clean build docs run-api run-api-tests examples-demo start-autograder docker-build sandbox-build sandbox-build-all sandbox-clean db-migrate db-upgrade db-downgrade db-current db-history db-init db-reset
+.PHONY: help install install-dev test test-cov lint format type-check security clean build docs docs-build docs-serve run-api run-api-tests examples-demo start-autograder docker-build sandbox-build sandbox-build-all sandbox-clean db-migrate db-upgrade db-downgrade db-current db-history db-init db-reset
 
 # Default target
 help:
 	@echo "Available commands:"
 	@echo "  make install             - Install production dependencies"
+	@echo "  make docs-build          - Build docs site with MkDocs (strict mode)"
+	@echo "  make docs-serve          - Serve docs site locally with live reload"
 	@echo "  make examples-demo       - Run interactive demo webpage"
 	@echo "  make start-autograder    - Start the Autograder API server"
 	@echo ""
@@ -31,6 +33,12 @@ help:
 # Installation
 install:
 	pip install -r requirements.txt
+
+docs-build:
+	mkdocs build --strict
+
+docs-serve:
+	mkdocs serve
 
 # Database Migrations
 db-upgrade:
@@ -126,6 +134,5 @@ sandbox-test:
 sandbox-list:
 	@echo "Sandbox images:"
 	@docker images | grep sandbox- || echo "No sandbox images found"
-
 
 
