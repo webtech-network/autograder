@@ -75,7 +75,7 @@ class LanguagePool:
                                 self.language, new_sandbox.container_ref.id[:12])
                     return new_sandbox
                 except Exception as e:
-                    logger.error("[%s] SCALE-UP FAILED - Error: %s", self.language, e)
+                    logger.exception("[%s] SCALE-UP FAILED - Error: %s", self.language, e)
                     raise ValueError(f"Failed to create sandbox for language {self.language}: {e}")
 
             # At scale limit and all busy - fail
@@ -109,7 +109,7 @@ class LanguagePool:
                         logger.info("[%s] SCALE-DOWN - destroyed sandbox_id: %s",
                                     self.language, sandbox_id)
                     except Exception as e:
-                        logger.error("[%s] Error destroying sandbox during scale-down: %s",
+                        logger.exception("[%s] Error destroying sandbox during scale-down: %s",
                                      self.language, e)
             else:
                 raise ValueError("Sandbox not found in active sandboxes")
@@ -165,7 +165,7 @@ class LanguagePool:
                     logger.info("[%s] REPLENISH SUCCESS - sandbox_id: %s",
                                 self.language, new_sandbox.container_ref.id[:12])
                 except Exception as e:
-                    logger.error("[%s] REPLENISH FAILED - Error: %s", self.language, e)
+                    logger.exception("[%s] REPLENISH FAILED - Error: %s", self.language, e)
                     break
 
     def check_ttls(self):
@@ -320,7 +320,7 @@ class LanguagePool:
                             self.language, container_name, container.id[:12])
             else:
                 # Re-raise if it's a different error
-                logger.error("[%s] Container creation failed: %s", self.language, e)
+                logger.exception("[%s] Container creation failed: %s", self.language, e)
                 raise
 
         sandbox = SandboxContainer(language=self.language, container_ref=container)
@@ -363,7 +363,7 @@ class LanguagePool:
             sandbox.container_ref.remove()
             logger.info("[%s] SANDBOX DESTROYED - container_id: %s", self.language, sandbox_id)
         except Exception as e:
-            logger.error("[%s] Error destroying sandbox %s: %s", self.language, sandbox_id, e)
+            logger.exception("[%s] Error destroying sandbox %s: %s", self.language, sandbox_id, e)
 
     def shutdown(self):
         """
@@ -388,6 +388,6 @@ class LanguagePool:
                 self._destroy_sandbox(sandbox)
                 destroyed_count += 1
             except Exception as e:
-                logger.error("[%s] Error destroying sandbox during shutdown: %s", self.language, e)
+                logger.exception("[%s] Error destroying sandbox during shutdown: %s", self.language, e)
 
         logger.info("[%s] Pool shutdown complete. Destroyed %s containers.", self.language, destroyed_count)
