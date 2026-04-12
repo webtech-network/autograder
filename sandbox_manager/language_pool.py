@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 import threading
 import uuid
 from collections import deque
@@ -19,6 +20,9 @@ LABEL_POOL_ID = "autograder.sandbox.pool_id"
 LABEL_CREATED_AT = "autograder.sandbox.created_at"
 SANDBOX_VERSION = "1.0"
 
+# Create module-level logger
+logger = logging.getLogger(__name__)
+
 
 class LanguagePool:
     def __init__(self,
@@ -38,7 +42,8 @@ class LanguagePool:
         # Only blocks for this pool, allowing concurrent access to different pools
         self.lock = threading.Lock()
 
-        print(f"[{self.language}] POOL INITIALIZED - pool_size: {config.pool_size}, scale_limit: {config.scale_limit}, pool_id: {self.pool_id[:8]}")
+        logger.info("[%s] POOL INITIALIZED - pool_size: %s, scale_limit: %s, pool_id: %s",
+                    language, config.pool_size, config.scale_limit, self.pool_id[:8])
 
     def acquire(self) -> SandboxContainer:
         with self.lock:
@@ -46,38 +51,36 @@ class LanguagePool:
             current_idle = len(self.idle_sandboxes)
             current_active = len(self.active_sandboxes)
 
-            print(f"[{self.language}] ACQUIRE REQUEST - idle: {current_idle}, active: {current_active}, total: {current_total}/{self.config.scale_limit}")
+            logger.debug("[%s] ACQUIRE REQUEST - idle: %s, active: %s, total: %s/%s",
+                         self.language, current_idle, current_active, current_total, self.config.scale_limit)
 
             # Try to get an idle sandbox first
             if self.idle_sandboxes:
                 sandbox = self.idle_sandboxes.popleft()
                 sandbox.pickup() # Update state and timestamp
                 self.active_sandboxes.add(sandbox)
-                print(f"[{self.language}] ACQUIRED from idle pool - sandbox_id: {sandbox.container_ref.id[:12]}")
-                print(f"[{self.language}] AFTER ACQUIRE - idle: {len(self.idle_sandboxes)}, active: {len(self.active_sandboxes)}")
+                logger.info("[%s] ACQUIRED from idle pool - sandbox_id: %s",
+                            self.language, sandbox.container_ref.id[:12])
                 return sandbox
 
             # No idle sandboxes - check if we can scale up
             if current_total < self.config.scale_limit:
                 # We can create a new sandbox on-demand
-                print(f"[{self.language}] NO IDLE SANDBOXES - Attempting scale-up...")
-                print(f"[{self.language}] SCALING UP: creating sandbox #{current_total + 1} (limit: {self.config.scale_limit})")
+                logger.info("[%s] NO IDLE SANDBOXES - Attempting scale-up...", self.language)
                 try:
                     new_sandbox = self._create_sandbox()
                     new_sandbox.pickup()
                     self.active_sandboxes.add(new_sandbox)
-                    print(f"[{self.language}] SCALE-UP SUCCESS - created sandbox_id: {new_sandbox.container_ref.id[:12]}")
-                    print(f"[{self.language}] AFTER SCALE-UP - idle: {len(self.idle_sandboxes)}, active: {len(self.active_sandboxes)}, total: {len(self.active_sandboxes) + len(self.idle_sandboxes)}/{self.config.scale_limit}")
+                    logger.info("[%s] SCALE-UP SUCCESS - created sandbox_id: %s",
+                                self.language, new_sandbox.container_ref.id[:12])
                     return new_sandbox
                 except Exception as e:
-                    print(f"[{self.language}] SCALE-UP FAILED - Error: {e}")
+                    logger.error("[%s] SCALE-UP FAILED - Error: %s", self.language, e)
                     raise ValueError(f"Failed to create sandbox for language {self.language}: {e}")
 
             # At scale limit and all busy - fail
-            print(f"[{self.language}] BOTTLENECK DETECTED!")
-            print(f"[{self.language}] All {current_total} sandboxes are BUSY (idle: 0, active: {current_active})")
-            print(f"[{self.language}] Scale limit reached: {self.config.scale_limit}")
-            print(f"[{self.language}] Cannot scale further - BLOCKING REQUEST")
+            logger.warning("[%s] BOTTLENECK DETECTED - All %s sandboxes are BUSY (scale_limit: %s)",
+                           self.language, current_total, self.config.scale_limit)
             raise ValueError(
                 f"No idle sandboxes available for language {self.language}. "
                 f"All {current_total} sandboxes are busy (scale_limit: {self.config.scale_limit})"
@@ -92,24 +95,22 @@ class LanguagePool:
                 # Check if we should reuse or destroy
                 current_total = len(self.active_sandboxes) + len(self.idle_sandboxes)
 
-                print(f"[{self.language}] RELEASE - sandbox_id: {sandbox_id}")
-                print(f"[{self.language}] BEFORE RELEASE - idle: {len(self.idle_sandboxes)}, active: {len(self.active_sandboxes) + 1}, total: {current_total + 1}/{self.config.scale_limit}")
-
                 # Reuse if below scale_limit, otherwise destroy to scale down
                 if current_total <= self.config.scale_limit:
                     # Return to idle pool for reuse
                     sandbox.last_updated = datetime.now()  # Reset timestamp
                     self.idle_sandboxes.append(sandbox)
-                    print(f"[{self.language}] REUSE - returned to idle pool")
-                    print(f"[{self.language}] AFTER RELEASE - idle: {len(self.idle_sandboxes)}, active: {len(self.active_sandboxes)}, total: {current_total}/{self.config.scale_limit}")
+                    logger.info("[%s] RELEASE - sandbox_id: %s returned to idle pool",
+                                self.language, sandbox_id)
                 else:
                     # Above scale_limit, destroy to scale down
                     try:
                         self._destroy_sandbox(sandbox)
-                        print(f"[{self.language}] SCALE-DOWN - destroyed sandbox_id: {sandbox_id}")
-                        print(f"[{self.language}] AFTER SCALE-DOWN - idle: {len(self.idle_sandboxes)}, active: {len(self.active_sandboxes)}, total: {current_total - 1}/{self.config.scale_limit}")
+                        logger.info("[%s] SCALE-DOWN - destroyed sandbox_id: %s",
+                                    self.language, sandbox_id)
                     except Exception as e:
-                        print(f"[{self.language}] Error destroying sandbox during scale-down: {e}")
+                        logger.error("[%s] Error destroying sandbox during scale-down: %s",
+                                     self.language, e)
             else:
                 raise ValueError("Sandbox not found in active sandboxes")
 
@@ -151,19 +152,20 @@ class LanguagePool:
             needed = self.config.pool_size - current_idle
 
             if needed > 0:
-                print(f"[{self.language}] REPLENISH CHECK - idle: {current_idle}/{self.config.pool_size} (need {needed} more), total: {current_total_sandboxes}/{self.config.scale_limit}")
+                logger.debug("[%s] REPLENISH CHECK - idle: %s/%s (need %s more), total: %s/%s",
+                             self.language, current_idle, self.config.pool_size, needed,
+                             current_total_sandboxes, self.config.scale_limit)
 
             # Maintain minimum pool_size of idle sandboxes
             while len(self.idle_sandboxes) < self.config.pool_size and current_total_sandboxes < self.config.scale_limit:
                 try:
-                    print(f"[{self.language}] REPLENISH: Creating sandbox #{current_total_sandboxes + 1}...")
                     new_sandbox = self._create_sandbox()
                     self.idle_sandboxes.append(new_sandbox)
                     current_total_sandboxes += 1
-                    print(f"[{self.language}] REPLENISH SUCCESS - sandbox_id: {new_sandbox.container_ref.id[:12]}")
-                    print(f"[{self.language}] AFTER REPLENISH - idle: {len(self.idle_sandboxes)}/{self.config.pool_size}, total: {current_total_sandboxes}/{self.config.scale_limit}")
+                    logger.info("[%s] REPLENISH SUCCESS - sandbox_id: %s",
+                                self.language, new_sandbox.container_ref.id[:12])
                 except Exception as e:
-                    print(f"[{self.language}] REPLENISH FAILED - Error: {e}")
+                    logger.error("[%s] REPLENISH FAILED - Error: %s", self.language, e)
                     break
 
     def check_ttls(self):
@@ -179,7 +181,8 @@ class LanguagePool:
         # 1. Active TTL (Runtime limit)
         for sandbox in active_snapshot:
             if (now - sandbox.last_updated).total_seconds() > self.config.running_timeout:
-                print(f"[{self.language}] Sandbox {sandbox.container_ref.id} exceeded running timeout, destroying...")
+                logger.warning("[%s] Sandbox %s exceeded running timeout, destroying...",
+                              self.language, sandbox.container_ref.id)
                 self.release(sandbox)
 
         # 2. Idle TTL (Scale down)
@@ -214,13 +217,18 @@ class LanguagePool:
             utilization = stats['utilization']
 
             # Log with appropriate warning level based on utilization
-            # Only log stats if there are active operations or high utilization
             if utilization >= 90:
-                print(f"[{self.language}] HIGH LOAD - idle: {stats['idle']}, active: {stats['active']}, total: {stats['total']}/{stats['scale_limit']}, utilization: {utilization:.1f}%")
+                logger.warning("[%s] HIGH LOAD - idle: %s, active: %s, total: %s/%s, utilization: %.1f%%",
+                              self.language, stats['idle'], stats['active'],
+                              stats['total'], stats['scale_limit'], utilization)
             elif utilization >= 70:
-                print(f"[{self.language}] MODERATE LOAD - idle: {stats['idle']}, active: {stats['active']}, total: {stats['total']}/{stats['scale_limit']}, utilization: {utilization:.1f}%")
+                logger.info("[%s] MODERATE LOAD - idle: %s, active: %s, total: %s/%s, utilization: %.1f%%",
+                            self.language, stats['idle'], stats['active'],
+                            stats['total'], stats['scale_limit'], utilization)
             elif stats['active'] > 0:
-                print(f"[{self.language}] STATS - idle: {stats['idle']}, active: {stats['active']}, total: {stats['total']}/{stats['scale_limit']}, utilization: {utilization:.1f}%")
+                logger.debug("[%s] STATS - idle: %s, active: %s, total: %s/%s, utilization: %.1f%%",
+                             self.language, stats['idle'], stats['active'],
+                             stats['total'], stats['scale_limit'], utilization)
 
     def get_stats(self) -> dict:
         """
@@ -245,7 +253,8 @@ class LanguagePool:
         Containers are kept alive with 'sleep infinity' to allow exec commands.
         """
         container_name = self._build_container_name()
-        print(f"[{self.language}] CREATE SANDBOX - Starting container creation ({container_name})...")
+        logger.info("[%s] CREATE SANDBOX - Starting container creation (%s)...",
+                    self.language, container_name)
 
         # Container labels for tracking and orphan cleanup
         labels = {
@@ -258,7 +267,7 @@ class LanguagePool:
 
         # Try to use gVisor runtime for enhanced security, fall back to default if not available
         try:
-            print(f"[{self.language}] Attempting to create with gVisor runtime (runsc)...")
+            logger.debug("[%s] Attempting to create with gVisor runtime (runsc)...", self.language)
             container = self.client.containers.run(
                 image=self.language.image,
                 name=container_name,
@@ -280,11 +289,12 @@ class LanguagePool:
                 ],
                 labels=labels
             )
-            print(f"[{self.language}] Container created with gVisor - {container_name} ({container.id[:12]})")
+            logger.info("[%s] Container created with gVisor - %s (%s)",
+                        self.language, container_name, container.id[:12])
         except Exception as e:
             # If gVisor is not available, use default runtime with same constraints
             if "unknown or invalid runtime name" in str(e).lower() or "runsc" in str(e).lower():
-                print(f"[{self.language}] gVisor runtime not available, falling back to default runtime")
+                logger.info("[%s] gVisor runtime not available, falling back to default runtime", self.language)
                 container = self.client.containers.run(
                     image=self.language.image,
                     name=container_name,
@@ -306,14 +316,16 @@ class LanguagePool:
                     ],
                     labels=labels
                 )
-                print(f"[{self.language}] Container created with default runtime - {container_name} ({container.id[:12]})")
+                logger.info("[%s] Container created with default runtime - %s (%s)",
+                            self.language, container_name, container.id[:12])
             else:
                 # Re-raise if it's a different error
-                print(f"[{self.language}] Container creation failed: {e}")
+                logger.error("[%s] Container creation failed: %s", self.language, e)
                 raise
 
         sandbox = SandboxContainer(language=self.language, container_ref=container)
-        print(f"[{self.language}] SANDBOX CREATED SUCCESSFULLY - {container_name} ({container.id[:12]})")
+        logger.info("[%s] SANDBOX CREATED SUCCESSFULLY - %s (%s)",
+                    self.language, container_name, container.id[:12])
         return sandbox
 
     def _build_container_name(self) -> str:
@@ -333,34 +345,32 @@ class LanguagePool:
             if sandbox in self.active_sandboxes:
                 sandbox_id = sandbox.container_ref.id[:12]
                 self.active_sandboxes.remove(sandbox)
-                print(f"[{self.language}] REMOVE FROM ACTIVE - sandbox_id: {sandbox_id}")
-                print(f"[{self.language}] BEFORE DESTROY - idle: {len(self.idle_sandboxes)}, active: {len(self.active_sandboxes) + 1}, total: {len(self.active_sandboxes) + len(self.idle_sandboxes) + 1}/{self.config.scale_limit}")
+                logger.info("[%s] REMOVE FROM ACTIVE - sandbox_id: %s", self.language, sandbox_id)
             else:
                 raise ValueError("Sandbox not found in active sandboxes")
 
         # Destroy outside the lock
         self._destroy_sandbox(sandbox)
-        print(f"[{self.language}] AFTER DESTROY - idle: {len(self.idle_sandboxes)}, active: {len(self.active_sandboxes)}, total: {len(self.active_sandboxes) + len(self.idle_sandboxes)}/{self.config.scale_limit}")
 
         # Replenish pool to maintain minimum size
         self.replenish()
 
     def _destroy_sandbox(self, sandbox: SandboxContainer):
         sandbox_id = sandbox.container_ref.id[:12]
-        print(f"[{self.language}] DESTROY SANDBOX - container_id: {sandbox_id}")
+        logger.info("[%s] DESTROY SANDBOX - container_id: %s", self.language, sandbox_id)
         try:
             sandbox.container_ref.stop(timeout=1)
             sandbox.container_ref.remove()
-            print(f"[{self.language}] SANDBOX DESTROYED - container_id: {sandbox_id}")
+            logger.info("[%s] SANDBOX DESTROYED - container_id: %s", self.language, sandbox_id)
         except Exception as e:
-            print(f"[{self.language}] Error destroying sandbox {sandbox_id}: {e}")
+            logger.error("[%s] Error destroying sandbox %s: %s", self.language, sandbox_id, e)
 
     def shutdown(self):
         """
         Destroy all containers in this pool (both active and idle).
         Called during system shutdown to ensure cleanup.
         """
-        print(f"[{self.language}] Shutting down pool, destroying all containers...")
+        logger.info("[%s] Shutting down pool, destroying all containers...", self.language)
 
         with self.lock:
             # Copy sets/deques to avoid modification during iteration
@@ -378,7 +388,6 @@ class LanguagePool:
                 self._destroy_sandbox(sandbox)
                 destroyed_count += 1
             except Exception as e:
-                print(f"[{self.language}] Error destroying sandbox during shutdown: {e}")
+                logger.error("[%s] Error destroying sandbox during shutdown: %s", self.language, e)
 
-        print(f"[{self.language}] Pool shutdown complete. Destroyed {destroyed_count} containers.")
-
+        logger.info("[%s] Pool shutdown complete. Destroyed %s containers.", self.language, destroyed_count)
