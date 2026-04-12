@@ -44,7 +44,7 @@ nav:
       - Pipeline Architecture: core/pipeline-architecture.md
       - Criteria Tree: core/criteria-tree.md
       - Sandbox Management: core/sandbox-management.md
-      - Template System: core/template-system.md
+      - Template Library: core/template-library.md
       - Feedback Generation: core/feedback-generation.md
       - Educational Criteria Design: guides/criteria-tree-educational-standards.md
   - API:

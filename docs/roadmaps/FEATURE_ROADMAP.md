@@ -93,7 +93,7 @@ How this integrates with the existing grading template strategy (whether it beco
 
 #### Open Challenges
 
-- **Integration with the template system.** How static analysis tests fit into the existing grading template strategy needs further discussion — whether as a new template type, an extension to existing templates, or a separate layer that can be composed with any template.
+- **Integration with the Template Library.** How static analysis tests fit into the existing grading template strategy needs further discussion — whether as a new template type, an extension to existing templates, or a separate layer that can be composed with any template.
 - **Balancing language-agnostic and language-specific checks.** The hybrid approach needs a clear structure so that educators can configure both general and language-specific checks without the system becoming overly complex.
 
 ---
