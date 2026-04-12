@@ -230,7 +230,6 @@ class TestCriteriaConfig:
     def test_criteria_config_basic(self):
         """Test basic CriteriaConfig creation"""
         criteria = CriteriaConfig(
-            test_library="web_dev",
             base=CategoryConfig(
                 weight=100,
                 subjects=[
@@ -242,7 +241,6 @@ class TestCriteriaConfig:
                 ]
             )
         )
-        assert criteria.test_library == "web_dev"
         assert criteria.base.weight == 100
         assert criteria.bonus is None
         assert criteria.penalty is None
@@ -250,7 +248,6 @@ class TestCriteriaConfig:
     def test_criteria_config_with_all_categories(self):
         """Test CriteriaConfig with base, bonus, and penalty"""
         criteria = CriteriaConfig(
-            test_library="web_dev",
             base=CategoryConfig(
                 weight=100,
                 subjects=[
@@ -282,7 +279,6 @@ class TestCriteriaConfig:
                 ]
             )
         )
-        assert criteria.test_library == "web_dev"
         assert criteria.base.weight == 100
         assert criteria.bonus.weight == 40
         assert criteria.penalty.weight == 50
@@ -294,7 +290,6 @@ class TestSchemaIntegration:
     def test_parse_full_schema(self, criteria_config):
         """Test that the full schema parses successfully"""
         assert isinstance(criteria_config, CriteriaConfig)
-        assert criteria_config.test_library == "web_dev"
 
     def test_base_category_parsed(self, criteria_config):
         """Test that base category is parsed correctly"""
@@ -434,13 +429,11 @@ class TestSchemaIntegration:
 
         criteria = CriteriaConfig.from_json(json_str)
         assert isinstance(criteria, CriteriaConfig)
-        assert criteria.test_library == "web_dev"
 
     def test_from_dict_method(self, criteria_schema_dict):
         """Test parsing from dictionary"""
         criteria = CriteriaConfig.from_dict(criteria_schema_dict)
         assert isinstance(criteria, CriteriaConfig)
-        assert criteria.test_library == "web_dev"
 
     def test_round_trip_serialization(self, criteria_config):
         """Test that we can serialize and deserialize the config"""
@@ -451,7 +444,6 @@ class TestSchemaIntegration:
         reparsed = CriteriaConfig.from_dict(config_dict)
 
         # Verify they match
-        assert reparsed.test_library == criteria_config.test_library
         assert reparsed.base.weight == criteria_config.base.weight
         assert len(reparsed.base.subjects) == len(criteria_config.base.subjects)
 
@@ -476,7 +468,6 @@ class TestSchemaIntegration:
         # Test at criteria level
         with pytest.raises(ValueError):
             CriteriaConfig(
-                test_library="web_dev",
                 base=CategoryConfig(
                     weight=100,
                     subjects=[

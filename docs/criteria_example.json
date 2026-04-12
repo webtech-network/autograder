@@ -1,5 +1,4 @@
 {
-  "test_library": "web_dev",
   "base": {
     "weight": 100,
     "subjects": [

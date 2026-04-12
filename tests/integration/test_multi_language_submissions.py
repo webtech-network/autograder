@@ -29,7 +29,6 @@ class TestMultiLanguageSubmissions:
                     "external_assignment_id": "multi-lang-calc-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {
                             "weight": 100,
                             "tests": [
@@ -200,7 +199,6 @@ int main() {
                     "external_assignment_id": "test-invalid-lang-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
                     "language": "python"
@@ -240,7 +238,6 @@ int main() {
                     "external_assignment_id": "test-flexible-lang-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {
                             "weight": 100,
                             "tests": [
@@ -309,7 +306,6 @@ int main() {
                     "external_assignment_id": "test-case-001",
                     "template_name": "input_output",
                     "criteria_config": {
-                        "test_library": "input_output",
                         "base": {"weight": 100, "tests": []}
                     },
                     "language": "python"
