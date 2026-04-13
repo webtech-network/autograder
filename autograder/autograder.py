@@ -86,7 +86,7 @@ class AutograderPipeline:
 
         pipeline_execution.finish_execution() # Generates GradingResult object in pipeline execution
 
-        # Cleanup: Release sandbox back to pool if it was created
+        # Cleanup: Destroy sandbox if it was created
         self._cleanup_sandbox(pipeline_execution)
 
         logger.info(
@@ -98,16 +98,17 @@ class AutograderPipeline:
         return pipeline_execution
 
     def _cleanup_sandbox(self, pipeline_execution: PipelineExecution) -> None:
-        """Release sandbox back to pool after pipeline execution."""
+        """Destroy sandbox after pipeline execution to avoid cross-submission reuse."""
         try:
             sandbox = pipeline_execution.sandbox
             if sandbox:
                 from sandbox_manager.manager import get_sandbox_manager
                 manager = get_sandbox_manager()
                 language = pipeline_execution.submission.language
-                manager.release_sandbox(language, sandbox)
+                manager.destroy_sandbox(language, sandbox)
+                pipeline_execution.sandbox = None
                 logger.info(
-                    "Sandbox released: external_user_id=%s, language=%s",
+                    "Sandbox destroyed: external_user_id=%s, language=%s",
                     pipeline_execution.submission.user_id,
                     language.value if language else "none",
                 )

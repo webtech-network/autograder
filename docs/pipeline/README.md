@@ -39,7 +39,7 @@ Key behaviors:
 - After each step, the pipeline checks the latest `StepResult`. If it failed, the pipeline sets its status to `FAILED` and breaks.
 - Unhandled exceptions set the status to `INTERRUPTED`.
 - After all steps (or early exit), `finish_execution()` is called to assemble the final `GradingResult`.
-- Sandbox cleanup always runs at the end, regardless of success or failure.
+- Sandbox cleanup always runs at the end, regardless of success or failure, and destroys the sandbox used by that submission.
 
 ### PipelineExecution
 
@@ -191,7 +191,7 @@ When a step fails:
 2. The pipeline detects the failure via `get_previous_step()` and calls `set_failure()`.
 3. No further steps are executed.
 4. `finish_execution()` is called — since the status is `FAILED`, `result` remains `None`.
-5. Sandbox cleanup always runs: if a Sandbox step created a sandbox, it is released back to the pool regardless of pipeline outcome.
+5. Sandbox cleanup always runs: if a Sandbox step created a sandbox, it is destroyed regardless of pipeline outcome, and the pool replenishes with a fresh container.
 
 For unhandled exceptions, the status is set to `INTERRUPTED` and the same cleanup logic applies.
 
