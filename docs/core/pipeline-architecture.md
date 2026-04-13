@@ -24,7 +24,7 @@ LOAD_TEMPLATE -> BUILD_TREE -> SANDBOX -> PRE_FLIGHT -> AI_BATCH -> GRADE -> FOC
 2. Each step receives the same `PipelineExecution` and appends one `StepResult`.
 3. If a step fails, execution stops early.
 4. `finish_execution()` assembles `GradingResult` from grade/focus/feedback artifacts.
-5. Sandbox cleanup runs at the end.
+5. Sandbox cleanup runs at the end and destroys any sandbox used by the submission.
 
 ## Core data contract
 
