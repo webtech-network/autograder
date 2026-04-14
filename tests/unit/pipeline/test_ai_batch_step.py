@@ -199,10 +199,7 @@ class TestAiBatchStep:
 
         result_exec = step.execute(pipeline_exec)
 
-        assert result_exec.has_step_result(StepName.AI_BATCH)
-        ai_result = result_exec.get_step_result(StepName.AI_BATCH)
-        assert ai_result.status == StepStatus.SUCCESS
-        assert ai_result.data == {}
+        assert not result_exec.has_step_result(StepName.AI_BATCH)
 
     def test_collects_ai_tests_and_calls_executor(self):
         """AI test functions are collected and passed to AiExecutor in a single call."""

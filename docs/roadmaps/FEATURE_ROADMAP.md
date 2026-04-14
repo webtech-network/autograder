@@ -145,3 +145,48 @@ Configurations in the marketplace would be tagged and searchable by language, co
 - **Community-driven growth:** Every configuration published makes the platform more valuable for the next teacher. Adoption feeds adoption.
 - **Consistency across institutions:** Common assignment types can converge on well-tested, community-vetted grading criteria.
 - **Reduced setup time:** Instead of spending time building a criteria tree, educators spend time teaching.
+
+---
+
+### Item 6: GitHub Action External/Private Execution Mode
+
+- **Priority:** TBD
+- **Summary:** Add a GitHub Action mode that fetches grading configuration from an Autograder Cloud instance and publishes grading results back to that instance, without requiring grader config files inside student repositories.
+
+#### Description
+
+Today, the GitHub Action reads grading files from `submission/.github/autograder` (criteria, feedback, setup). That makes grading logic visible in the student repository and tightly couples execution to repository-resident configuration.
+
+This feature introduces an alternate execution mode (`external`/`private`) for the GitHub Action:
+
+1. Action receives `grading_config_id` and `autograder_cloud_url` (plus auth token).
+2. Action fetches grading configuration from the cloud instance.
+3. Action builds the pipeline locally and grades the checked-out submission files.
+4. Action exports grading results back to the cloud instance so the platform can persist submissions, averages, and analytics.
+
+The existing repository-config mode remains available for GitHub Classroom workflows that depend on in-repo config files.
+
+#### Motivation
+
+- **Private grading logic:** Students cannot inspect the exact grading criteria/setup in repository files.
+- **Multi-platform integration:** Platforms such as Prisma can keep assignment lifecycle and reporting centralized while still using GitHub repositories as submission sources.
+- **Operational control:** Institutions can update grading rules centrally in one cloud instance instead of editing many classroom repositories.
+- **Better observability:** Results are persisted in one place for dashboards, historical analysis, and cross-assignment metrics.
+
+#### Proposed Direction
+
+- Add `execution_mode` input to the action (`repo` default, `external` optional).
+- In `external` mode, require:
+  - `grading_config_id`
+  - `autograder_cloud_url`
+  - `autograder_cloud_token` (or equivalent secure credential)
+- Add a cloud config client in `github_action` to fetch config by ID.
+- Add a cloud exporter path to persist grading outcomes to the cloud API.
+- Keep pipeline construction and grading semantics consistent across modes.
+
+#### Open Challenges
+
+- **API contracts:** Define stable fetch/export endpoints and payload versioning between action and cloud.
+- **Auth/security:** Ensure secure token handling and least-privilege access.
+- **Failure semantics:** Decide how network or export failures should affect Action status and retries.
+- **Backwards compatibility:** Keep current GitHub Classroom mode behavior intact with zero migration required.

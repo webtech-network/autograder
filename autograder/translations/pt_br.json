@@ -467,6 +467,26 @@
     "template": {
       "name": "Entrada/Saída (I/O)",
       "description": "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."
+    },
+    "expect_file_artifact": {
+      "description": "Executa o programa do aluno, extrai um arquivo gerado do sandbox e valida seu conteúdo contra os valores esperados.",
+      "params": {
+        "program_command": "(Opcional) Comando para executar o programa. Pode ser uma string ou dict (multi-idioma).",
+        "artifact_path": "Caminho relativo (sob /app) do arquivo que o programa deve gerar (ex: 'output.txt').",
+        "expected_content": "O conteúdo esperado do arquivo ou padrão para comparação.",
+        "match_mode": "Modo de comparação: 'exact' (padrão), 'contains' ou 'regex'.",
+        "inputs": "Lista de strings a serem enviadas para o programa via stdin.",
+        "normalization": "Se deve normalizar quebras de linha e remover espaços em branco no final (padrão: true)."
+      },
+      "report": {
+        "success": "Sucesso: O artefato '{path}' corresponde ao conteúdo esperado.",
+        "mismatch": "FALHA: Conteúdo divergente no artefato '{path}'.\nEsperado:\n{expected}\nObtido:\n{actual}",
+        "file_not_found": "FALHA: O artefato esperado '{path}' não foi encontrado. Verifique se o seu programa cria este arquivo.",
+        "extraction_error": "FALHA: Não foi possível ler o artefato do sandbox.\nDetalhes: {error}",
+        "invalid_path": "ERRO DE CONFIGURAÇÃO: Caminho de artefato inválido.\nDetalhes: {error}",
+        "invalid_match_mode": "ERRO DE CONFIGURAÇÃO: match_mode '{mode}' inválido. Deve ser 'exact', 'contains' ou 'regex'.",
+        "invalid_regex": "ERRO DE CONFIGURAÇÃO: Padrão regex inválido.\nDetalhes: {error}"
+      }
     }
   },
   "api_testing": {

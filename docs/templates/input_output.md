@@ -56,6 +56,84 @@ Executes a program with a series of stdin inputs and compares the program's stdo
 
 ---
 
+### `expect_file_artifact`
+
+Executes a program and then extracts a generated file from the sandbox container, comparing its content against an expected value. Useful for assignments where students must produce output files (e.g., reports, sorted data, metrics).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `artifact_path` | string | ✓ | Relative path under `/app` of the file the program must generate (e.g., `output.txt`) |
+| `expected_content` | string | ✓ | Expected file content or pattern to match against |
+| `program_command` | string | ✗ | Command to execute (same format as `expect_output`) |
+| `match_mode` | string | ✗ | `exact` (default), `contains`, or `regex` |
+| `inputs` | list[string] | ✗ | List of strings sent to stdin before extraction |
+| `normalization` | boolean | ✗ | Normalize line endings and trim trailing whitespace (default: `true`) |
+
+**Scoring:** 100 if file content matches, 0 otherwise.
+
+**Error handling:** Inherits all execution error detection from `expect_output` (timeouts, compilation errors, runtime errors), plus:
+- Missing artifact file
+- Artifact extraction failure
+- Invalid regex pattern
+- Invalid artifact path (absolute or traversal paths are rejected)
+
+**Artifact path conventions:**
+- Paths are relative to `/app` (the sandbox working directory)
+- Absolute paths (`/etc/passwd`) and traversal paths (`../secret`) are rejected
+- The file must be a regular file (not a directory or symlink)
+- Maximum extracted file size: 1 MB
+
+**Exact match example:**
+```json
+{
+  "name": "expect_file_artifact",
+  "parameters": {
+    "inputs": ["1000"],
+    "program_command": {
+      "python": "python3 main.py",
+      "java": "java Main",
+      "node": "node main.js",
+      "cpp": "./main"
+    },
+    "artifact_path": "matricula_selecao.txt",
+    "match_mode": "exact",
+    "expected_content": "comparacoes: 10\nmovimentacoes: 4\ntempo: 0.001s"
+  },
+  "weight": 100
+}
+```
+
+**Regex match example** (for variable values like execution time):
+```json
+{
+  "name": "expect_file_artifact",
+  "parameters": {
+    "inputs": ["1000"],
+    "program_command": "CMD",
+    "artifact_path": "matricula_insercao.txt",
+    "match_mode": "regex",
+    "expected_content": "comparacoes:\\s*\\d+\\s+movimentacoes:\\s*\\d+\\s+tempo:\\s*[0-9.]+s"
+  },
+  "weight": 100
+}
+```
+
+**Contains match example:**
+```json
+{
+  "name": "expect_file_artifact",
+  "parameters": {
+    "program_command": "python3 main.py",
+    "artifact_path": "report.txt",
+    "match_mode": "contains",
+    "expected_content": "PASSED"
+  },
+  "weight": 50
+}
+```
+
+---
+
 ### `dont_fail`
 
 Executes a program with a specific input and verifies it completes **without crashing**. The program's stdout is ignored — this test only validates that execution succeeds. Useful for testing error handling (e.g., sending invalid input).

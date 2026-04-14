@@ -227,7 +227,7 @@ class TestSandboxContainer(unittest.TestCase):
         mock_requests.post.return_value = mock_response
 
         json_data = {"name": "John", "email": "john@example.com"}
-        response = self.sandbox.make_request("POST", "/api/users", json_data=json_data)
+        response = self.sandbox.make_request("POST", "/api/users", json=json_data)
 
         self.assertEqual(response.status_code, 201)
         mock_requests.post.assert_called_once()
