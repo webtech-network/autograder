@@ -58,8 +58,11 @@ class CommandResolver:
             return None
 
         # Handle special "CMD" placeholder for auto-resolution
-        if isinstance(program_command, str) and program_command == "CMD":
-            return self._auto_resolve_command(language, fallback_filename)
+        if isinstance(program_command, str):
+            if program_command == "CMD":
+                return self._auto_resolve_command(language, fallback_filename)
+            # If it's any other string, use it directly as the command
+            return program_command
 
         # Handle dict format (multi-language)
         if isinstance(program_command, dict):
