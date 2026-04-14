@@ -46,6 +46,16 @@ class CommandResponse:
         return self.stdout
 
 
+@dataclass
+class ExtractedFile:
+    """Result of extracting a single file from a sandbox container."""
+    path: str
+    content_bytes: bytes
+    size: int
+    content_text: str = ""
+    encoding: str = "utf-8"
+
+
 class HttpResponse:
     """Wrapper for HTTP responses from containerized applications."""
 
