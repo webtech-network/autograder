@@ -39,7 +39,7 @@ class BaseExecutionTest(TestFunction):
         command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
         return sandbox.run_command(command)
 
-    def check_for_base_errors(self, output) -> TestResult:
+    def check_for_base_errors(self, output, **kwargs) -> TestResult:
         """
         Checks for Timeout, Compilation Error, or Runtime Error in the sandbox output.
         Returns a TestResult with score 0.0 if an error is found, or None if successful.
@@ -119,7 +119,7 @@ class ExpectOutputTest(BaseExecutionTest):
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output)
+            error_result = self.check_for_base_errors(output, **kwargs)
             if error_result:
                 return error_result
 
@@ -191,7 +191,7 @@ class DontFailTest(BaseExecutionTest):
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output)
+            error_result = self.check_for_base_errors(output, **kwargs)
             if error_result:
                 return error_result
 
