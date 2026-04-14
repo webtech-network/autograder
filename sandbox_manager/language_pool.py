@@ -278,8 +278,8 @@ class LanguagePool:
                 memswap_limit="128m",
                 nano_cpus=500000000,  # 0.5 CPU
                 pids_limit=64,
+                # Note: No tmpfs for /tmp to allow asset injection
                 tmpfs={
-                    '/tmp': 'rw,size=32m,noexec',
                     '/app': 'rw,size=64m,exec'  # Writable workspace for student code
                 },
                 network_mode="none",
@@ -305,10 +305,7 @@ class LanguagePool:
                     memswap_limit="128m",
                     nano_cpus=500000000,  # 0.5 CPU
                     pids_limit=64,
-                    tmpfs={
-                        '/tmp': 'rw,size=32m,noexec',
-                        # Note: /app intentionally NOT in tmpfs — see above.
-                    },
+                    # Note: No tmpfs for /tmp to allow asset injection
                     network_mode="none",
                     cap_drop=["ALL"],
                     ulimits=[
@@ -322,6 +319,7 @@ class LanguagePool:
                 # Re-raise if it's a different error
                 logger.exception("[%s] Container creation failed: %s", self.language, e)
                 raise
+
 
         sandbox = SandboxContainer(language=self.language, container_ref=container)
         logger.info("[%s] SANDBOX CREATED SUCCESSFULLY - %s (%s)",

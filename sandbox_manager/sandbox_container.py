@@ -112,16 +112,22 @@ class SandboxContainer:
             
             tar_content = asset.tar_content
             
-            # Ensure parent directory exists in container
+            # Ensure parent directory exists in container and has correct permissions
             parent_dir = os.path.dirname(target_path)
             if parent_dir and parent_dir != '/':
                 self.container_ref.exec_run(
                     cmd=f"mkdir -p {parent_dir}",
                     user="root"
                 )
+                # Ensure world-writable so sandbox user can read injected assets
+                self.container_ref.exec_run(
+                    cmd=f"chmod 777 {parent_dir}",
+                    user="root"
+                )
             
             # Inject tar archive
             # path='/' because the tar content already contains the full target path
+            # (e.g. tmp/test_asset.txt)
             success = self.container_ref.put_archive(
                 path='/',
                 data=tar_content

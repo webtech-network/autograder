@@ -18,15 +18,7 @@ def create_tar_archive(filename: str, content: bytes, target_path: str, read_onl
     """
     out = io.BytesIO()
     with tarfile.open(fileobj=out, mode='w') as tar:
-        # We use a tar-compatible relative path for the tar entry name,
-        # but we provide the target_path directory as the container's put_archive
-        # target.
-        # Actually, if we use put_archive(path='/', tar_bytes), the tar should
-        # contain the full path.
-        # If we use put_archive(path='/tmp', tar_bytes), the tar should contain
-        # relative paths to /tmp.
-        
-        # Let's assume we use put_archive(path='/', ...) for simplicity.
+        # Let's use put_archive(path='/', ...) for simplicity.
         # Ensure the path in the tar is relative (tar doesn't like absolute paths)
         tar_name = target_path.lstrip('/')
         
