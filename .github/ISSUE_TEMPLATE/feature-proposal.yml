@@ -1,0 +1,101 @@
+name: Feature proposal
+description: Propose a new feature with scope, rationale, and acceptance criteria.
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for new features and product capabilities.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature overview
+      description: What is the feature?
+      placeholder: Describe the feature in a few lines.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Problem/opportunity and expected value.
+      placeholder: Why do we need this now?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope (phase-based if applicable)
+      description: Define rollout phases, boundaries, and priorities.
+      placeholder: |
+        Phase 1:
+        - ...
+
+        Phase 2:
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: functional_requirements
+    attributes:
+      label: Functional requirements summary
+      description: Core behaviors and constraints.
+      placeholder: List required capabilities and expected behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: architecture
+    attributes:
+      label: Architecture notes
+      description: Expected implementation direction, data model, or integration notes.
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+      description: Concrete outputs expected across backend/frontend/docs/tests.
+      placeholder: |
+        - Backend:
+        - Frontend:
+        - Documentation:
+        - Tests:
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: Use checklist format whenever possible.
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Related issues/PRs/docs/specs.
+      placeholder: |
+        - Parent issue:
+        - Depends on:
+        - Spec doc:
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked for related existing feature requests.
+          required: true
+        - label: I included scope boundaries and acceptance criteria.
+          required: true
+

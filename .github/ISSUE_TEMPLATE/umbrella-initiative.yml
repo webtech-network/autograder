@@ -1,0 +1,87 @@
+name: Umbrella initiative
+description: Coordinate a multi-issue initiative with phased strategy and child tasks.
+title: "Umbrella: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for broad initiatives split across multiple child issues.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: High-level objective and expected end state.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Product/engineering rationale and urgency.
+    validations:
+      required: true
+
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Product and architecture decisions
+      description: Key decisions that constrain implementation.
+      placeholder: |
+        - Decision 1:
+        - Decision 2:
+    validations:
+      required: true
+
+  - type: textarea
+    id: strategy
+    attributes:
+      label: Implementation strategy (phased)
+      description: Ordered phases and major milestones.
+      placeholder: |
+        1. Phase one
+        2. Phase two
+        3. Phase three
+    validations:
+      required: true
+
+  - type: textarea
+    id: child_issues
+    attributes:
+      label: Child issues
+      description: Add a checklist of linked issues.
+      placeholder: |
+        - [ ] #123 Child issue title
+        - [ ] #124 Child issue title
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      description: Measurable completion criteria for the initiative.
+      placeholder: |
+        - [ ] Outcome 1
+        - [ ] Outcome 2
+        - [ ] Outcome 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: roadmap_reference
+    attributes:
+      label: Roadmap reference (optional)
+      description: Link roadmap docs or strategic planning artifacts.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I split the initiative into child issues with clear ownership.
+          required: true
+        - label: I provided measurable completion criteria.
+          required: true
+

@@ -4,14 +4,17 @@
 <img width="397" height="300" alt="image" src="https://github.com/user-attachments/assets/1e07d48e-08ac-4491-be92-569a9610e44d" />
 
 
-**A educational-standards-driven autograding tool that transforms assignment grading into an engaging learning experience.**
+**An educational-standards-driven autograding tool that transforms assignment grading into an engaging learning experience.**
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED.svg)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Tests](https://github.com/webtech-network/autograder/actions/workflows/pytest.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/pytest.yml)
+[![Lint](https://github.com/webtech-network/autograder/actions/workflows/pylint.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/pylint.yml)
+[![Docs](https://github.com/webtech-network/autograder/actions/workflows/validate-docs.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/validate-docs.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-[Features](#features) • [Architecture](#architecture) • [Quick Start](#quick-start) • [Templates](#grading-templates) • [Pipeline](#pipeline-workflow) • [API](#rest-api) • [GitHub Action](#github-action)
+[Features](#features) • [Architecture](#architecture) • [Quick Start](#quick-start) • [Templates](#grading-templates) • [Pipeline](#pipeline-workflow) • [API](#rest-api) • [GitHub Action](#github-action) • [Docs](https://webtech-network.github.io/autograder/) • [Community](#community-standards)
 
 </div>
 
@@ -51,7 +54,7 @@ Then open **http://localhost:8080** in your browser to:
 -  View real-time grading results and score breakdowns
 -  Explore all API endpoints interactively
 
-> **Note:** Requires the API server running. Start it with: `make start-autograder `
+> **Note:** This demo requires the API server to be running. Start it with: `make start-autograder`
 
 ---
 
@@ -192,7 +195,7 @@ Tests command-line programs by providing inputs and validating outputs.
 | Test Name          | Description                                             | Key Parameters                               |
 |--------------------|---------------------------------------------------------|----------------------------------------------|
 | `expect_output`    | Execute program with inputs and verify output           | `inputs`, `expected_output`, `program_command` |
-| `dont_fail`        | Validates that a program don't crash on a given input   | `inputs`, `program_command`                  |
+| `dont_fail`        | Validates that a program does not crash on a given input | `inputs`, `program_command`                 |
 | `forbidden_import` | Analyzes a file looking for specified libraries imports | `forbidden_imports`        |
 
 #### 2. API Testing Template
@@ -252,7 +255,7 @@ class MyCustomTest(TestFunction):
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/autograder.git
+git clone https://github.com/webtech-network/autograder.git
 cd autograder
 ```
 
@@ -283,18 +286,18 @@ general:
 
 4. **Build sandbox images**
 ```bash
-make build-sandboxes
+make sandbox-build-all
 ```
 
 5. **Start the system**
 
 **As a Web API:**
 ```bash
-docker-compose up
+make start-autograder
 ```
 
 **As a GitHub Action:**
-See [GitHub Action](#-github-action) section.
+See [GitHub Action](#github-action) section.
 
 ---
 
@@ -303,7 +306,7 @@ See [GitHub Action](#-github-action) section.
 The Autograder provides a FastAPI-based REST API for integration with learning management systems.
 
 
-**📚 [Complete API Documentation →](docs/API.md)**
+**📚 [Complete API Documentation →](https://webtech-network.github.io/autograder/API/)**
 
 Includes endpoints for:
 - Creating grading configurations
@@ -312,91 +315,53 @@ Includes endpoints for:
 
 ---
 
-## Documentation Website (MkDocs)
-
-The documentation now ships as an MkDocs site with focused learning paths for:
-
-- Pipeline architecture
-- Criteria tree design
-- Sandbox management
-- Template system
-- Feedback generation and educational standards
-
-Run locally:
-
-```bash
-pip install -r requirements-docs.txt
-mkdocs serve
-```
-
-Build in strict mode:
-
-```bash
-mkdocs build --strict
-```
-
-Core docs entry point: **[docs/index.md](docs/index.md)**
-
----
-
 ## GitHub Action
 
-Seamlessly integrate with GitHub Classroom.
+The Autograder GitHub Action runs the grading pipeline in GitHub Actions and reports results to GitHub Classroom.
 
-### Usage
-
-Add to your `.github/workflows/classroom.yml`:
+### Quick usage
 
 ```yaml
-name: Autograding
-
+name: Autograder
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  grade:
+  grading:
+    permissions: write-all
     runs-on: ubuntu-latest
+    if: github.actor != 'github-classroom[bot]'
     steps:
-      - uses: actions/checkout@v2
-      
-      - name: Run Autograder
-        uses: your-org/autograder@v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          template_preset: 'input_output'
-          feedback-type: 'ai'
-          include-feedback: 'true'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          openai_key: ${{ secrets.OPENAI_API_KEY }}
+          path: submission
+
+      - name: Run Autograder
+        uses: webtech-network/autograder@main
+        with:
+          template-preset: "webdev"
+          feedback-type: "default"
+          include-feedback: "true"
+          openai-key: ${{ secrets.ENGINE }}
 ```
 
-### Configuration
+### Learn more
 
-**Inputs:**
-- `template_preset`: Template to use (`input_output`, `api_testing`, `web_dev`, `custom`)
-- `feedback-type`: `default` or `ai`
-- `include-feedback`: `true` or `false`
-- `custom_template`: JSON template for custom grading
-- `openai_key`: Required for AI feedback mode
-
-**Outputs:**
-- `result`: Final Score is Sent to Github Classroom!
+- **Module overview and internals:** [docs/github_action/README.md](docs/github_action/README.md)
+- **Configuration reference and troubleshooting:** [docs/github_action/configuration.md](docs/github_action/configuration.md)
+- **Reference implementation:** [webtech-network/demo-autograder](https://github.com/webtech-network/demo-autograder)
+- **How to adapt the demo to your course:** [docs/github_action/demo-autograder.md](docs/github_action/demo-autograder.md)
 
 ---
 
-## Useful Contents
+## Full Documentation
 
-**📚 [Complete Data Structures Documentation →](docs/architecture/core_structures.md)**
-
-**📚 [Complete Configuration Examples →](docs/guides/criteria_configuration_examples.md)**
-
-**📚 [Complete Development Guide →](docs/guides/development.md)**
-
-**📚 [Pipeline Execution Tracking →](docs/architecture/pipeline_execution_tracking.md)** ⭐ NEW
-
-**📚 [Setup Config Feature →](docs/features/setup_config_feature.md)**
-
-**📚 [Documentation Index →](docs/index.md)**
+Full documentation available at [GitHub Pages](https://webtech-network.github.io/autograder/)
 
 ---
 
@@ -426,18 +391,27 @@ jobs:
 
 ## Performance
 
-The Autograder is designed for high performance:
-
 - **Warm Containers**: Pre-started sandboxes eliminate cold-start delays
 - **Async Processing**: FastAPI enables high concurrency
-- **Pipeline Efficiency**: Stateless pipelines can be reused indefinitely
 - **Configurable Pools**: Scale sandbox pools based on demand
-- **Database Optimization**: Efficient storage of configurations and results
 
 **Typical Performance:**
 - Grade submission: 1-3 seconds (with warm sandbox)
 - Cold start: 5-8 seconds (first request per language)
 - Concurrent submissions: 400+ with proper pool sizing
+
+---
+
+## Community Standards
+
+We are committed to building a welcoming and inclusive community.
+
+- **Code of Conduct**: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- **Contributing Guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Security Policy**: [SECURITY.md](SECURITY.md)
+- **Support**: [SUPPORT.md](SUPPORT.md)
+- **Issue Templates**: [`.github/ISSUE_TEMPLATE`](.github/ISSUE_TEMPLATE)
+- **PR Template**: [`.github/pull_request_template.md`](.github/pull_request_template.md)
 
 ---
 
@@ -448,14 +422,6 @@ For questions, suggestions, or support:
 - **Issues**: [GitHub Issues](https://github.com/webtech-network/autograder/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/webtech-network/autograder/discussions)
 - **Email**: arthurcarvalhorodrigues2409@gmail.com
-
----
-
-## Acknowledgments
-
-- Built with care for educators and students
-- Powered by FastAPI, Docker, and modern Python
-- Inspired by the need for fair, consistent, and engaging assessment
 
 ---
 

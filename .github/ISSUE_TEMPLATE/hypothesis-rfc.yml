@@ -1,0 +1,83 @@
+name: Hypothesis / RFC
+description: Capture exploratory proposals and open design questions.
+title: "[Hypothesis] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for early-stage ideas that still require validation.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What current scenario motivated this hypothesis?
+    validations:
+      required: true
+
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis
+      description: State the proposal as a testable hypothesis.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and assumptions
+      description: Known constraints, decisions, or guardrails.
+      placeholder: |
+        Defined constraints:
+        - ...
+
+        Assumptions:
+        - ...
+
+  - type: textarea
+    id: open_questions
+    attributes:
+      label: Open questions
+      description: List unresolved decisions that need team input.
+      placeholder: |
+        - Should we...?
+        - What is the impact of...?
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: How this hypothesis will be evaluated (tests, spikes, metrics).
+    validations:
+      required: true
+
+  - type: textarea
+    id: success_criteria
+    attributes:
+      label: Success criteria
+      description: Evidence that would validate or invalidate the hypothesis.
+      placeholder: |
+        - [ ] Signal 1
+        - [ ] Signal 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References (optional)
+      description: Related discussions/issues/PRs/docs.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I clearly separated confirmed constraints from open questions.
+          required: true
+        - label: I included a validation plan and measurable success criteria.
+          required: true
+

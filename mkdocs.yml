@@ -49,6 +49,10 @@ nav:
       - Educational Criteria Design: guides/criteria-tree-educational-standards.md
   - API:
       - REST API Reference: API.md
+  - GitHub Action:
+      - Overview: github_action/README.md
+      - Configuration: github_action/configuration.md
+      - Demo Repository Walkthrough: github_action/demo-autograder.md
   - Pipeline Deep Dive:
       - Overview: pipeline/README.md
       - 01 Load Template: pipeline/01-load-template.md
@@ -80,7 +84,7 @@ nav:
       - Development Guide: guides/development.md
       - Docs Site Development: guides/docs-site-development.md
       - Criteria Configuration Examples: guides/criteria_configuration_examples.md
-      - GitHub Module: guides/github_module.md
+      - GitHub Module (legacy): guides/github_module.md
   - Roadmaps:
       - MkDocs Documentation Roadmap: roadmaps/MKDOCS_DOCUMENTATION_ROADMAP.md
       - Feature Roadmap: roadmaps/FEATURE_ROADMAP.md

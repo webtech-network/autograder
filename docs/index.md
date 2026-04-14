@@ -32,11 +32,18 @@ This documentation is organized to be both practical for first-time users and de
 - [API Testing Template](template-library/api_testing.md)
 - [Web Development Template](template-library/web_dev.md)
 
+### GitHub Classroom / CI integrator
+
+- [GitHub Action module overview](github_action/README.md)
+- [GitHub Action configuration reference](github_action/configuration.md)
+- [Demo repository walkthrough](github_action/demo-autograder.md)
+
 ## Quick Access
 
 | Area | Entry Point |
 |------|-------------|
 | API reference | [API.md](API.md) |
+| GitHub Action | [github_action/README.md](github_action/README.md) |
 | Pipeline steps | [pipeline/README.md](pipeline/README.md) |
 | Features | [features/grading_engine.md](features/grading_engine.md) |
 | Development setup | [guides/development.md](guides/development.md) |

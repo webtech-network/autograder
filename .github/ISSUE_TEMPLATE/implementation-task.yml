@@ -1,0 +1,101 @@
+name: Implementation task
+description: Track a concrete execution task (performance, security, refactor, docs, etc.).
+title: "[Task] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for focused execution issues, including work derived from umbrella issues.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Performance
+        - Security/API
+        - Refactor/Technical Debt
+        - Documentation
+        - Testing/Quality
+        - Integration
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Relevant background and current behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is wrong with the current state?
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What outcome should this task deliver?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Proposed implementation approach.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      description: Include what is explicitly in and out of scope.
+      placeholder: |
+        In scope:
+        - ...
+
+        Out of scope:
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References and dependencies
+      description: Parent issues, related PRs, or linked backend/frontend tasks.
+      placeholder: |
+        - Parent umbrella:
+        - Related issue:
+        - Dependency:
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I identified concrete acceptance criteria.
+          required: true
+        - label: I documented dependencies and scope boundaries.
+          required: true
+
