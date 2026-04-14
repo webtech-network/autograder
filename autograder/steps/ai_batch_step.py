@@ -57,13 +57,7 @@ class AiBatchStep(Step):
 
         if not ai_test_entries:
             logger.info("No AI test functions found; skipping AI batch request.")
-            return pipeline_exec.add_step_result(
-                StepResult(
-                    step=StepName.AI_BATCH,
-                    data={},
-                    status=StepStatus.SUCCESS,
-                )
-            )
+            return pipeline_exec
 
         test_inputs: List[TestInput] = []
         all_files: Dict[str, str] = {}
