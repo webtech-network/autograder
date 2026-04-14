@@ -96,6 +96,7 @@ class ExpectOutputTest(BaseExecutionTest):
 
     @property
     def required_file(self):
+        """Returns the name of the file required for this test, or None if not applicable."""
         return None
 
     @property
@@ -106,11 +107,15 @@ class ExpectOutputTest(BaseExecutionTest):
             ParamDescription("program_command", t("io.expect_output.params.program_command"), "string or dict")
         ]
 
-    def execute(self, files, sandbox: SandboxContainer, *args, inputs: list = None, expected_output: str = "",
-                program_command: Optional[str] = None, **kwargs) -> TestResult:
+    def execute(self, files, sandbox: SandboxContainer, *args, **kwargs) -> TestResult:
         """
         Execute the test by comparing program output with expected output.
         """
+        inputs = kwargs.get("inputs")
+        expected_output = kwargs.get("expected_output", "")
+        program_command = kwargs.get("program_command")
+        locale = kwargs.get("locale")
+
         try:
             output = self.run_sandbox_execution(
                 sandbox=sandbox,
@@ -119,7 +124,7 @@ class ExpectOutputTest(BaseExecutionTest):
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output, locale=kwargs.get("locale"))
+            error_result = self.check_for_base_errors(output, locale=locale)
             if error_result:
                 return error_result
 
@@ -131,19 +136,19 @@ class ExpectOutputTest(BaseExecutionTest):
                 return TestResult(
                     test_name=self.name,
                     score=100.0,
-                    report=t("io.expect_output.report.success", locale=kwargs.get("locale"))
+                    report=t("io.expect_output.report.success", locale=locale)
                 )
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=t("io.expect_output.report.failure", locale=kwargs.get("locale"), expected=expected, actual=actual_output)
+                report=t("io.expect_output.report.failure", locale=locale, expected=expected, actual=actual_output)
             )
 
         except (ValueError, TimeoutError, RuntimeError) as e:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=t("io.expect_output.report.internal_error", locale=kwargs.get("locale"), error=str(e))
+                report=t("io.expect_output.report.internal_error", locale=locale, error=str(e))
             )
 
 class DontFailTest(BaseExecutionTest):
@@ -166,6 +171,7 @@ class DontFailTest(BaseExecutionTest):
 
     @property
     def required_file(self):
+        """Returns the name of the file required for this test, or None if not applicable."""
         return None
 
     @property
@@ -175,11 +181,14 @@ class DontFailTest(BaseExecutionTest):
             ParamDescription("program_command", t("io.expect_output.params.program_command"), "string or dict")
         ]
 
-    def execute(self, files, sandbox: SandboxContainer, *args, user_input: str = "",
-                program_command: Optional[str] = None, **kwargs) -> TestResult:
+    def execute(self, files, sandbox: SandboxContainer, *args, **kwargs) -> TestResult:
         """
         Execute the test by verifying the program doesn't crash with given input.
         """
+        user_input = kwargs.get("user_input", "")
+        program_command = kwargs.get("program_command")
+        locale = kwargs.get("locale")
+
         try:
             # Reformat scalar input to standard list
             inputs = [user_input] if user_input is not None and user_input != "" else []
@@ -191,7 +200,7 @@ class DontFailTest(BaseExecutionTest):
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output, locale=kwargs.get("locale"))
+            error_result = self.check_for_base_errors(output, locale=locale)
             if error_result:
                 return error_result
 
@@ -199,14 +208,14 @@ class DontFailTest(BaseExecutionTest):
             return TestResult(
                 test_name=self.name,
                 score=100.0,
-                report=t("io.dont_fail.report.success", locale=kwargs.get("locale"))
+                report=t("io.dont_fail.report.success", locale=locale)
             )
 
         except (ValueError, TimeoutError, RuntimeError) as e:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=t("io.expect_output.report.internal_error", locale=kwargs.get("locale"), error=str(e))
+                report=t("io.expect_output.report.internal_error", locale=locale, error=str(e))
             )
 
 
@@ -233,6 +242,7 @@ class ExpectFileArtifactTest(BaseExecutionTest):
 
     @property
     def required_file(self):
+        """Returns the name of the file required for this test, or None if not applicable."""
         return None
 
     @property
@@ -269,36 +279,24 @@ class ExpectFileArtifactTest(BaseExecutionTest):
             return bool(re.search(expected, actual))
         return actual == expected
 
-    def execute(self, files, sandbox: SandboxContainer, *args,
-                program_command: Optional[str] = None,
-                artifact_path: str = "",
-                expected_content: str = "",
-                match_mode: str = "exact",
-                inputs: list = None,
-                normalization: bool = True,
-                **kwargs) -> TestResult:
+    def execute(self, files, sandbox: SandboxContainer, *args, **kwargs) -> TestResult:
+        """
+        Execute the test by extracting a file from the sandbox and comparing its content.
+        """
+        program_command = kwargs.get("program_command")
+        artifact_path = kwargs.get("artifact_path", "")
+        expected_content = kwargs.get("expected_content", "")
+        match_mode = kwargs.get("match_mode", "exact")
+        inputs = kwargs.get("inputs")
+        normalization = kwargs.get("normalization", True)
         locale = kwargs.get("locale")
 
-        # Validate artifact_path
-        path_error = self._validate_artifact_path(artifact_path)
-        if path_error:
-            return TestResult(test_name=self.name, score=0.0,
-                              report=t("io.expect_file_artifact.report.invalid_path", locale=locale, error=path_error))
+        # 1. Validation
+        validation_error = self._validate_params(artifact_path, match_mode, expected_content, locale)
+        if validation_error:
+            return validation_error
 
-        # Validate match_mode
-        if match_mode not in ("exact", "contains", "regex"):
-            return TestResult(test_name=self.name, score=0.0,
-                              report=t("io.expect_file_artifact.report.invalid_match_mode", locale=locale, mode=match_mode))
-
-        # Pre-compile regex to catch bad patterns early
-        if match_mode == "regex":
-            try:
-                re.compile(expected_content)
-            except re.error as e:
-                return TestResult(test_name=self.name, score=0.0,
-                                  report=t("io.expect_file_artifact.report.invalid_regex", locale=locale, error=str(e)))
-
-        # Execute student program
+        # 2. Execution
         try:
             output = self.run_sandbox_execution(sandbox=sandbox, inputs=inputs, program_command=program_command)
             error_result = self.check_for_base_errors(output, locale=locale)
@@ -308,31 +306,52 @@ class ExpectFileArtifactTest(BaseExecutionTest):
             return TestResult(test_name=self.name, score=0.0,
                               report=t("io.expect_output.report.internal_error", locale=locale, error=str(e)))
 
-        # Extract artifact
-        full_path = f"/app/{artifact_path}"
+        # 3. Extraction and Comparison
+        return self._extract_and_compare(sandbox, artifact_path, expected_content, match_mode, normalization, locale)
+
+    def _validate_params(self, artifact_path: str, match_mode: str, expected_content: str, locale: str) -> Optional[TestResult]:
+        """Validate input parameters for the test."""
+        path_error = self._validate_artifact_path(artifact_path)
+        if path_error:
+            return TestResult(test_name=self.name, score=0.0,
+                              report=t("io.expect_file_artifact.report.invalid_path", locale=locale, error=path_error))
+
+        if match_mode not in ("exact", "contains", "regex"):
+            return TestResult(test_name=self.name, score=0.0,
+                              report=t("io.expect_file_artifact.report.invalid_match_mode", locale=locale, mode=match_mode))
+
+        if match_mode == "regex":
+            try:
+                re.compile(expected_content)
+            except re.error as e:
+                return TestResult(test_name=self.name, score=0.0,
+                                  report=t("io.expect_file_artifact.report.invalid_regex", locale=locale, error=str(e)))
+        return None
+
+    def _extract_and_compare(self, sandbox: SandboxContainer, path: str, expected: str, 
+                             mode: str, normalization: bool, locale: str) -> TestResult:
+        """Extract the artifact and compare its content."""
         try:
-            extracted = sandbox.extract_file(full_path)
+            extracted = sandbox.extract_file(f"/app/{path}")
         except FileNotFoundError:
             return TestResult(test_name=self.name, score=0.0,
-                              report=t("io.expect_file_artifact.report.file_not_found", locale=locale, path=artifact_path))
+                              report=t("io.expect_file_artifact.report.file_not_found", locale=locale, path=path))
         except (ValueError, RuntimeError) as e:
             return TestResult(test_name=self.name, score=0.0,
                               report=t("io.expect_file_artifact.report.extraction_error", locale=locale, error=str(e)))
 
-        # Compare content
         actual = extracted.content_text
-        expected = expected_content
         if normalization:
             actual = self._normalize(actual)
             expected = self._normalize(expected)
 
-        if self._match(actual, expected, match_mode):
+        if self._match(actual, expected, mode):
             return TestResult(test_name=self.name, score=100.0,
-                              report=t("io.expect_file_artifact.report.success", locale=locale, path=artifact_path))
+                              report=t("io.expect_file_artifact.report.success", locale=locale, path=path))
 
         return TestResult(test_name=self.name, score=0.0,
                           report=t("io.expect_file_artifact.report.mismatch", locale=locale,
-                                   path=artifact_path, expected=expected, actual=actual))
+                                   path=path, expected=expected, actual=actual))
 
 
 # ===============================================================
@@ -385,6 +404,7 @@ class ForbiddenImportTest(TestFunction):
 
     @property
     def required_file(self):
+        """Returns the name of the file required for this test, or None if not applicable."""
         return None
 
     @property
