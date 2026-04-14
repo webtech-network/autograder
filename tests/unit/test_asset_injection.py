@@ -44,7 +44,7 @@ class TestAssetInjection:
     def test_asset_resolver(self, mock_s3_provider_cls):
         """Test AssetSourceResolver orchestration."""
         mock_s3_provider = mock_s3_provider_cls.return_value
-        mock_s3_provider.get_asset_tar.return_value = b"tarcontent"
+        mock_s3_provider.get_asset.return_value = b"rawcontent"
         
         resolver = AssetSourceResolver()
         assets_config = [
@@ -56,17 +56,22 @@ class TestAssetInjection:
         assert len(resolved) == 1
         assert isinstance(resolved[0], ResolvedAsset)
         assert resolved[0].target == "/tmp/dst"
-        assert resolved[0].tar_content == b"tarcontent"
+        assert resolved[0].content == b"rawcontent"
         
-        mock_s3_provider.get_asset_tar.assert_called_once_with("src", "/tmp/dst", True)
+        mock_s3_provider.get_asset.assert_called_once_with("src", "/tmp/dst", True)
 
     def test_sandbox_inject_assets(self):
-        """Test SandboxContainer.inject_assets call to Docker SDK."""
+        """Test SandboxContainer.inject_assets refactored Base64 injection."""
         container_ref = MagicMock()
+        # Mock success response
+        mock_res = MagicMock()
+        mock_res.exit_code = 0
+        container_ref.exec_run.return_value = mock_res
+        
         sandbox = SandboxContainer(MagicMock(), container_ref)
         
         resolved_assets = [
-            ResolvedAsset(target="/tmp/data.csv", tar_content=b"tarcontent")
+            ResolvedAsset(target="/tmp/data.csv", content=b"rawcontent", read_only=True)
         ]
         
         sandbox.inject_assets(resolved_assets)
@@ -77,8 +82,13 @@ class TestAssetInjection:
             user="root"
         )
         
-        # Check if put_archive was called
-        container_ref.put_archive.assert_called_once_with(
-            path='/',
-            data=b"tarcontent"
-        )
+        # Check if Base64 injection was called
+        # The command contains the base64 encoded string
+        # b"rawcontent" encoded is "cmF3Y29udGVudA=="
+        call_args = container_ref.exec_run.call_args_list
+        found_b64_call = False
+        for call in call_args:
+            if "cmF3Y29udGVudA==" in str(call):
+                found_b64_call = True
+                break
+        assert found_b64_call, "Base64 injection call not found in exec_run calls"
