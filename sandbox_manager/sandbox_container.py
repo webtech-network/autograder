@@ -93,7 +93,7 @@ class SandboxContainer:
 
     def inject_assets(self, resolved_assets: List['ResolvedAsset']) -> None:
         """
-        Inject resolved assets into the container under /tmp using Docker's put_archive.
+        Inject resolved assets into the container under /tmp using base64 and exec_run.
         
         Args:
             resolved_assets: List of ResolvedAsset objects.
@@ -104,13 +104,15 @@ class SandboxContainer:
         if not resolved_assets:
             return
 
+        import base64
+
         for asset in resolved_assets:
             # Ensure target path starts with /tmp/
             target_path = asset.target
             if not target_path.startswith('/tmp/'):
                 target_path = os.path.join('/tmp', target_path.lstrip('/'))
             
-            tar_content = asset.tar_content
+            content = asset.content
             
             # Ensure parent directory exists in container and has correct permissions
             parent_dir = os.path.dirname(target_path)
@@ -119,22 +121,33 @@ class SandboxContainer:
                     cmd=f"mkdir -p {parent_dir}",
                     user="root"
                 )
-                # Ensure world-writable so sandbox user can read injected assets
+                # Ensure world-readable so sandbox user can read injected assets
                 self.container_ref.exec_run(
-                    cmd=f"chmod 777 {parent_dir}",
+                    cmd=f"chmod 755 {parent_dir}",
                     user="root"
                 )
             
-            # Inject tar archive
-            # path='/' because the tar content already contains the full target path
-            # (e.g. tmp/test_asset.txt)
-            success = self.container_ref.put_archive(
-                path='/',
-                data=tar_content
+            # Encode content as base64 to safely pass through shell
+            content_b64 = base64.b64encode(content).decode('ascii')
+
+            # Create the file using base64 decode
+            # Using /bin/sh -c to support redirection and pipes
+            cmd = f"echo '{content_b64}' | base64 -d > {target_path}"
+            result = self.container_ref.exec_run(
+                cmd=["/bin/sh", "-c", cmd],
+                user="root"
             )
-            
-            if not success:
-                raise RuntimeError(f"Failed to inject asset to {target_path}")
+
+            if result.exit_code != 0:
+                output = result.output.decode() if result.output else "No output"
+                raise RuntimeError(f"Failed to create asset file {target_path}: {output}")
+
+            # Set file permissions (read-only if requested)
+            mode = "444" if asset.read_only else "644"
+            self.container_ref.exec_run(
+                cmd=f"chmod {mode} {target_path}",
+                user="root"
+            )
 
     def run_command(self, command: str, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
         """
