@@ -61,6 +61,27 @@ services:
       retries: 3
       start_period: 40s
 
+  # Ministack for S3 emulation (AWS-compatible services)
+  ministack:
+    image: ministackorg/ministack:latest
+    container_name: autograder-ministack
+    ports:
+      - "4566:4566"
+    environment:
+      - GATEWAY_PORT=4566
+      - MINISTACK_HOST=ministack
+      - MINISTACK_REGION=us-east-1
+      - PERSIST_STATE=1
+      - S3_PERSIST=1
+      - S3_DATA_DIR=/data/s3
+      - STATE_DIR=/data/state
+      - LOG_LEVEL=INFO
+    volumes:
+      - ministack_data:/data
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+    driver: local
+  ministack_data:
     driver: local

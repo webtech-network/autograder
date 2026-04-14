@@ -12,11 +12,18 @@ This feature:
 
 ## Setup Config Structure
 
-The `setup_config` uses a **language-keyed dictionary** format:
+The `setup_config` uses a **language-keyed dictionary** format, with an optional root-level `assets` list for global static assets:
 
 ```json
 {
   "setup_config": {
+    "assets": [
+      {
+        "source": "datasets/tp2/RESTAURANTES.CSV",
+        "target": "/tmp/RESTAURANTES.CSV",
+        "read_only": true
+      }
+    ],
     "python": {
       "required_files": ["calculator.py"],
       "setup_commands": []
@@ -36,6 +43,17 @@ The `setup_config` uses a **language-keyed dictionary** format:
   }
 }
 ```
+
+### Static Assets (Global)
+
+The root-level `assets` field allows injecting grader-owned files (e.g., datasets, test fixtures) from a trusted S3 provider into the sandbox environment before setup commands and grading execution.
+
+- **`assets`** (optional): List of assets to inject
+  - **`source`**: Required. Relative path to the file in the configured S3 bucket (e.g., `datasets/RESTAURANTES.CSV`).
+  - **`target`**: Required. Absolute path in the container where the file will be placed. **Note**: All assets are automatically placed under `/tmp/` if the target path doesn't already start with it.
+  - **`read_only`**: Optional (default: `true`). If true, the file will be injected with `0444` permissions.
+
+Assets are resolved and injected **before** language-specific setup commands run. If an asset fails to resolve or inject, the preflight step fails.
 
 ### How Resolution Works
 

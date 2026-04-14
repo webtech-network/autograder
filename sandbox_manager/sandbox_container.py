@@ -1,12 +1,16 @@
 import os
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 from docker.models.containers import Container
 import requests
 from sandbox_manager.models.sandbox_models import Language, SandboxState, CommandResponse, HttpResponse, \
     ResponseCategory
 from sandbox_manager.utils.classify_output import classify_output
+
+if TYPE_CHECKING:
+    from autograder.models.dataclass.asset import ResolvedAsset
+    from autograder.models.dataclass.submission import SubmissionFile
 
 
 class SandboxContainer:
@@ -86,6 +90,45 @@ class SandboxContainer:
 
         except Exception as e:
             raise Exception(f"Error preparing workdir: {str(e)}")
+
+    def inject_assets(self, resolved_assets: List['ResolvedAsset']) -> None:
+        """
+        Inject resolved assets into the container under /tmp using Docker's put_archive.
+        
+        Args:
+            resolved_assets: List of ResolvedAsset objects.
+            
+        Raises:
+            Exception: If injection fails.
+        """
+        if not resolved_assets:
+            return
+
+        for asset in resolved_assets:
+            # Ensure target path starts with /tmp/
+            target_path = asset.target
+            if not target_path.startswith('/tmp/'):
+                target_path = os.path.join('/tmp', target_path.lstrip('/'))
+            
+            tar_content = asset.tar_content
+            
+            # Ensure parent directory exists in container
+            parent_dir = os.path.dirname(target_path)
+            if parent_dir and parent_dir != '/':
+                self.container_ref.exec_run(
+                    cmd=f"mkdir -p {parent_dir}",
+                    user="root"
+                )
+            
+            # Inject tar archive
+            # path='/' because the tar content already contains the full target path
+            success = self.container_ref.put_archive(
+                path='/',
+                data=tar_content
+            )
+            
+            if not success:
+                raise RuntimeError(f"Failed to inject asset to {target_path}")
 
     def run_command(self, command: str, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
         """

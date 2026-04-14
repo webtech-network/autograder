@@ -10,22 +10,28 @@ from autograder.translations import t
 logger = logging.getLogger(__name__)
 
 
+from autograder.models.config.setup import SetupConfig
+from autograder.services.assets.resolver import AssetSourceResolver
+
 class PreFlightStep(Step):
     """
     The Pre-flight step is responsible for:
         - Running Pre-Grading validations on submissions
+        - Injecting static assets into the sandbox
         - Executing setup commands (e.g., compilation) in the sandbox
 
     Pre-Grading Checks are run in order:
     1. Required files check
-    2. Setup commands check (only if files check passes and sandbox exists)
+    2. Assets injection (requires sandbox from StepName.SANDBOX)
+    3. Setup commands check (only if files check passes and sandbox exists)
 
     If any check fails, the step returns a FAIL status with error details.
     """
 
     def __init__(self, setup_config):
-        self._setup_config = setup_config
+        self._setup_config = SetupConfig.from_dict(setup_config)
         self._pre_flight_service = None
+        self._asset_resolver = AssetSourceResolver()
 
     @property
     def step_name(self) -> StepName:
@@ -33,9 +39,7 @@ class PreFlightStep(Step):
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
-        Execute pre-flight checks (required files) and setup commands.
-        
-        Note: Sandbox must have been created in a previous step (SandboxStep).
+        Execute pre-flight checks (required files, assets, setup commands).
         """
         submission_language = pipeline_exec.submission.language
         self._pre_flight_service = PreFlightService(self._setup_config, submission_language, locale=pipeline_exec.locale)
@@ -50,7 +54,7 @@ class PreFlightStep(Step):
         if self._pre_flight_service.required_files:
             logger.info("Checking required files for submission (external_user_id=%s)", pipeline_exec.submission.user_id)
             files_ok = self._pre_flight_service.check_required_files(pipeline_exec.submission.submission_files)
-            
+
             if not files_ok:
                 error_msg = self._format_errors()
                 logger.warning("Required files check failed (external_user_id=%s): %s", pipeline_exec.submission.user_id, error_msg)
@@ -60,7 +64,30 @@ class PreFlightStep(Step):
                     error_data=self._pre_flight_service.fatal_errors
                 ))
 
-        # 2. Check setup commands (requires sandbox from a previous step)
+        # 2. Inject assets (requires sandbox)
+        sandbox = pipeline_exec.sandbox
+        if self._setup_config.assets:
+            if not sandbox:
+                error_msg = t("preflight.error.setup_command_missing_sandbox", locale=pipeline_exec.locale)
+                return pipeline_exec.add_step_result(StepResult.fail(
+                    step=self.step_name,
+                    error=error_msg
+                ))
+
+            logger.info("Injecting assets into sandbox (external_user_id=%s)", pipeline_exec.submission.user_id)
+            try:
+                resolved_assets = self._asset_resolver.resolve_assets(self._setup_config.assets)
+                sandbox.inject_assets(resolved_assets)
+            except Exception as e:
+                error_msg = f"Failed to inject assets: {str(e)}"
+                logger.error("Asset injection failed (external_user_id=%s): %s", pipeline_exec.submission.user_id, error_msg)
+                return pipeline_exec.add_step_result(StepResult.fail(
+                    step=self.step_name,
+                    error=error_msg
+                ))
+
+        # 3. Check setup commands (requires sandbox from a previous step)
+
         if self._pre_flight_service.setup_commands:
             sandbox = pipeline_exec.sandbox
             if not sandbox:
