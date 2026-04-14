@@ -33,14 +33,15 @@ class AssetSourceResolver:
             read_only = asset.read_only
             
             # Resolve asset
-            tar_content = self.provider.get_asset_tar(source, target, read_only)
+            content = self.provider.get_asset(source, target, read_only)
             
-            if not tar_content:
+            if not content:
                 raise RuntimeError(f"Failed to resolve asset: source={source}, target={target}")
                 
             resolved_assets.append(ResolvedAsset(
                 target=target,
-                tar_content=tar_content
+                content=content,
+                read_only=read_only
             ))
             
         return resolved_assets

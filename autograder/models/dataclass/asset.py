@@ -4,4 +4,5 @@ from dataclasses import dataclass
 class ResolvedAsset:
     """Resolved asset ready for injection into a sandbox."""
     target: str
-    tar_content: bytes
+    content: bytes
+    read_only: bool = True

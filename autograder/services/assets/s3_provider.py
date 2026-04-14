@@ -5,7 +5,6 @@ from botocore.config import Config
 from typing import Optional
 from autograder.services.assets.provider import AssetProvider
 from autograder.services.assets.cache_manager import AssetCacheManager
-from autograder.services.assets.tar_utils import create_tar_archive
 
 logger = logging.getLogger("S3AssetProvider")
 
@@ -30,17 +29,13 @@ class S3AssetProvider(AssetProvider):
             config=Config(signature_version='s3v4')
         )
         
-    def get_asset_tar(self, source: str, target: str, read_only: bool = True) -> Optional[bytes]:
+    def get_asset(self, source: str, target: str, read_only: bool = True) -> Optional[bytes]:
         """
-        Fetch asset from S3 and return a tar archive (cached).
+        Fetch asset from S3 and return raw content (cached).
         """
-        # Create a unique cache key based on source, target, and read_only
-        # source: relative S3 path (e.g., datasets/tp2/RESTAURANTES.CSV)
-        # target: absolute container path (e.g., /tmp/RESTAURANTES.CSV)
-        # read_only: boolean
-        
-        # Sanitize keys for cache
-        cache_key = f"{source}_{target}_{read_only}.tar".replace('/', '_')
+        # Create a unique cache key based on source
+        # (target and read_only no longer affect the content itself)
+        cache_key = f"{source}.raw".replace('/', '_')
         
         # Check cache
         cached_content = self.cache_manager.get(cache_key)
@@ -54,14 +49,10 @@ class S3AssetProvider(AssetProvider):
             response = self.s3.get_object(Bucket=self.bucket_name, Key=source)
             raw_content = response['Body'].read()
             
-            # Package into tar
-            filename = os.path.basename(source)
-            tar_content = create_tar_archive(filename, raw_content, target, read_only)
-            
             # Store in cache
-            self.cache_manager.put(cache_key, tar_content)
+            self.cache_manager.put(cache_key, raw_content)
             
-            return tar_content
+            return raw_content
         except Exception as e:
             logger.error("Failed to fetch asset from S3 (%s): %s", source, str(e))
             return None
