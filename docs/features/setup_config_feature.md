@@ -53,7 +53,23 @@ The root-level `assets` field allows injecting grader-owned files (e.g., dataset
   - **`target`**: Required. Absolute path in the container where the file will be placed. **Note**: All assets are automatically placed under `/tmp/` if the target path doesn't already start with it.
   - **`read_only`**: Optional (default: `true`). If true, the file will be injected with `0444` permissions.
 
-Assets are resolved and injected **before** language-specific setup commands run. If an asset fails to resolve or inject, the preflight step fails.
+### Secure Injection Method
+
+Assets are resolved and injected **before** language-specific setup commands run. The autograder uses a secure **Base64-encoded `exec_run`** method to inject files, which provides several benefits:
+- **gVisor Compatibility**: Works seamlessly with high-isolation runtimes like gVisor (`runsc`).
+- **Security**: Allows maintaining the `noexec` flag on `/tmp` while still supporting dynamic file injection.
+- **Root-to-Sandbox Handover**: Files are created as `root` to ensure correct placement, then `chmod`ed to be readable by the non-privileged `sandbox` user.
+
+### S3 Infrastructure Requirements
+
+For asset injection to work, the autograder API must be configured with S3 credentials. In a development environment using the provided `docker-compose.yml`, this is handled by the `ministack` service.
+
+Required environment variables:
+- `CRITERIA_ASSETS_BUCKET_NAME`: The name of the S3 bucket.
+- `S3_ENDPOINT_URL`: The URL of the S3 service (e.g., `http://ministack:4566`).
+- `AWS_ACCESS_ID` & `AWS_SECRET_ACCESS_KEY`: Credentials for the S3 provider.
+
+If an asset fails to resolve (e.g., file not found in S3) or inject, the preflight step fails.
 
 ### How Resolution Works
 
