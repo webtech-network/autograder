@@ -39,8 +39,10 @@ def _make_tar_directory_only(dirname: str) -> bytes:
 
 
 class TestExtractFile(unittest.TestCase):
+    """Tests for file extraction from sandbox containers."""
 
     def setUp(self):
+        """Set up the test case with a mock container."""
         self.mock_container = MagicMock()
         self.mock_container.id = "abc123def456"
         self.sandbox = SandboxContainer(

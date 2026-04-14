@@ -5,6 +5,7 @@ import requests
 
 
 class Language(Enum):
+    """Supported programming languages in the sandbox."""
     PYTHON = ("python", "sandbox-py:latest")
     JAVA = ("java", "sandbox-java:latest")
     NODE = ("node", "sandbox-node:latest")
@@ -18,11 +19,13 @@ class Language(Enum):
         return obj
 
 class SandboxState(Enum):
+    """Current state of a sandbox instance."""
     IDLE = "idle"
     BUSY = "busy"
     STOPPED = "stopped"
 
 class ResponseCategory(Enum):
+    """Classification of the execution result."""
     SUCCESS = "success"             # Program ran and exited with 0
     RUNTIME_ERROR = "runtime_error" # Program crashed (e.g., Exception, Segmentation Fault)
     TIMEOUT = "timeout"             # Program was killed because it took too long
@@ -31,6 +34,7 @@ class ResponseCategory(Enum):
 
 @dataclass
 class CommandResponse:
+    """Represents the output and metadata of a command execution."""
     stdout: str
     stderr: str
     exit_code: int
@@ -40,6 +44,7 @@ class CommandResponse:
 
     @property
     def output(self) -> str:
+        """Alias for stdout."""
         return self.stdout
 
     def __str__(self):
@@ -64,14 +69,17 @@ class HttpResponse:
 
     @property
     def status_code(self) -> int:
+        """Returns the HTTP status code."""
         return self._response.status_code
 
     @property
     def text(self) -> str:
+        """Returns the response body as text."""
         return self._response.text
 
     @property
     def headers(self) -> Dict[str, str]:
+        """Returns the response headers."""
         return dict(self._response.headers)
 
     def json(self) -> Any:
@@ -80,10 +88,12 @@ class HttpResponse:
 
     @property
     def content(self) -> bytes:
+        """Returns the response body as bytes."""
         return self._response.content
 
     @property
     def ok(self) -> bool:
+        """Returns True if status_code is less than 400."""
         return self._response.ok
 
     def __repr__(self):

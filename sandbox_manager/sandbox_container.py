@@ -1,4 +1,8 @@
+import base64
+import io
 import os
+import tarfile
+import threading
 import time
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -10,6 +14,10 @@ from sandbox_manager.utils.classify_output import classify_output
 
 
 class SandboxContainer:
+    """
+    Manages a Docker container used as a sandbox for code execution.
+    Handles file preparation, command execution, and file extraction.
+    """
     def __init__(self, language: Language,
                  container_ref: Container,
                  port: int = None
@@ -48,10 +56,9 @@ class SandboxContainer:
         if not submission_files:
             return
 
-        import base64
 
         try:
-            for filename, submission_file in submission_files.items():
+            for submission_file in submission_files.values():
                 file_path = submission_file.filename
                 file_content = submission_file.content
 
@@ -66,7 +73,7 @@ class SandboxContainer:
                         user="sandbox"
                     )
                     if result.exit_code != 0:
-                        raise Exception(f"Failed to create directory {full_dir_path}")
+                        raise RuntimeError(f"Failed to create directory {full_dir_path}")
 
                 # Encode content as base64 to safely pass through shell
                 content_b64 = base64.b64encode(file_content.encode('utf-8')).decode('ascii')
@@ -80,219 +87,125 @@ class SandboxContainer:
                 )
 
                 if result.exit_code != 0:
-                    raise Exception(f"Failed to create file {full_file_path}: {result.output}")
+                    raise RuntimeError(f"Failed to create file {full_file_path}: {result.output}")
 
             self._workdir_prepared = True
 
         except Exception as e:
-            raise Exception(f"Error preparing workdir: {str(e)}")
+            raise RuntimeError(f"Error preparing workdir: {str(e)}") from e
 
-    def run_command(self, command: str, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
-        """
-        Execute a single command in the sandbox container.
-
-        Args:
-            command: The command to execute
-            timeout: Maximum execution time in seconds (default: 30)
-            workdir: Working directory for command execution (default: /app)
-
-        Returns:
-            CommandResponse with stdout, stderr, exit_code, and execution_time
-
-        Raises:
-            TimeoutError: If command execution exceeds timeout
-            Exception: If command execution fails
-        """
-        import threading
-
+    def _run_with_timeout(self, execute_fn, timeout: int):
+        """Helper to run a function in a thread with a timeout."""
         start_time = time.time()
-        result_container = {'result': None, 'exception': None}
+        container = {'result': None, 'exception': None}
 
-        def execute_command():
+        def target():
             try:
-                # Wrap command in shell to support shell features like pipes, redirection, etc.
-                shell_cmd = ["/bin/sh", "-c", command]
-
-                # Execute command in container
-                exec_result = self.container_ref.exec_run(
-                    cmd=shell_cmd,
-                    workdir=workdir,
-                    user="sandbox",
-                    demux=True,  # Separate stdout and stderr
-                    environment={},
-                    stdout=True,
-                    stderr=True,
-                    stdin=False
-                )
-                result_container['result'] = exec_result
+                container['result'] = execute_fn()
             except Exception as e:
-                result_container['exception'] = e
+                container['exception'] = e
 
-        # Execute in a thread with timeout
-        thread = threading.Thread(target=execute_command)
+        thread = threading.Thread(target=target)
         thread.daemon = True
         thread.start()
         thread.join(timeout=timeout)
 
         execution_time = time.time() - start_time
+        return container['result'], container['exception'], thread.is_alive(), execution_time
 
-        # Check if thread is still running (timeout occurred)
-        if thread.is_alive():
-            # Timeout occurred
-            return CommandResponse(
-                stdout='',
-                stderr=f'Execution timed out after {timeout} seconds',
-                exit_code=124,  # Standard timeout exit code
-                execution_time=execution_time,
-                category=ResponseCategory.TIMEOUT
+    def run_command(self, command: str, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
+        """
+        Execute a single command in the sandbox container.
+        """
+        def execute():
+            return self.container_ref.exec_run(
+                cmd=["/bin/sh", "-c", command],
+                workdir=workdir,
+                user="sandbox",
+                demux=True,
+                stdout=True,
+                stderr=True,
+                stdin=False
             )
 
-        # Check if an exception occurred
-        if result_container['exception']:
+        result, exception, timed_out, exec_time = self._run_with_timeout(execute, timeout)
+
+        if timed_out:
             return CommandResponse(
-                stdout='',
-                stderr=f'Command execution failed: {str(result_container["exception"])}',
-                exit_code=-1,
-                execution_time=execution_time,
-                category=ResponseCategory.SYSTEM_ERROR
+                stdout='', stderr=f'Execution timed out after {timeout} seconds',
+                exit_code=124, execution_time=exec_time, category=ResponseCategory.TIMEOUT
             )
 
-        # Process successful execution
-        result = result_container['result']
+        if exception:
+            return CommandResponse(
+                stdout='', stderr=f'Command execution failed: {str(exception)}',
+                exit_code=-1, execution_time=exec_time, category=ResponseCategory.SYSTEM_ERROR
+            )
+
         if result is None:
             return CommandResponse(
-                stdout='',
-                stderr='Command execution failed: no result',
-                exit_code=-1,
-                execution_time=execution_time,
-                category=ResponseCategory.SYSTEM_ERROR
+                stdout='', stderr='Command execution failed: no result',
+                exit_code=-1, execution_time=exec_time, category=ResponseCategory.SYSTEM_ERROR
             )
 
-        # Demux returns tuple (stdout, stderr) if demux=True
         stdout_bytes, stderr_bytes = result.output if result.output else (b'', b'')
-
-        # Decode output
         stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
         stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
 
-        category = classify_output(stdout, stderr, result.exit_code, self.language)
-
         return CommandResponse(
-            stdout=stdout,
-            stderr=stderr,
-            exit_code=result.exit_code,
-            execution_time=execution_time,
-            category=category  # Pass the classification
+            stdout=stdout, stderr=stderr, exit_code=result.exit_code,
+            execution_time=exec_time,
+            category=classify_output(stdout, stderr, result.exit_code, self.language)
         )
 
 
     def run_commands(self, commands: List[str], program_command: str = None, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
         """
         Execute a batch of commands with stdin input streaming for interactive programs.
-
-        This is designed for programs that expect sequential stdin input, like:
-        - Calculator: ["ADD", "10", "20"] -> expects "30"
-        - Interactive prompts that read multiple inputs
-
-        Args:
-            commands: List of input strings to send to the program
-            program_command: The program to run (e.g., "python3 calculator.py"). If None, uses stdin directly
-            timeout: Maximum execution time in seconds (default: 30)
-            workdir: Working directory for command execution (default: /app)
-
-        Returns:
-            CommandResponse with combined output
         """
-        import threading
+        def execute():
+            stdin_input = '\n'.join(commands)
+            if program_command:
+                escaped_input = stdin_input.replace("'", "'\\''")
+                cmd = f"echo '{escaped_input}' | ( {program_command} )"
+                shell_cmd = ["/bin/sh", "-c", cmd]
+            else:
+                escaped_input = stdin_input.replace("'", "'\\''")
+                shell_cmd = ["/bin/sh", "-c", f"echo '{escaped_input}'"]
 
-        start_time = time.time()
-        result_container = {'result': None, 'exception': None}
-
-        def execute_command():
-            try:
-                # Join all commands with newlines to create input
-                stdin_input = '\n'.join(commands)
-
-                if program_command:
-                    # Execute program with stdin piped from echo
-                    # This is more reliable than socket-based stdin
-                    escaped_input = stdin_input.replace("'", "'\\''")
-                    cmd = f"echo '{escaped_input}' | ( {program_command} )"
-                    shell_cmd = ["/bin/sh", "-c", cmd]
-                else:
-                    # Just echo the input (for testing)
-                    escaped_input = stdin_input.replace("'", "'\\''")
-                    shell_cmd = ["/bin/sh", "-c", f"echo '{escaped_input}'"]
-
-                # Execute command in container
-                exec_result = self.container_ref.exec_run(
-                    cmd=shell_cmd,
-                    workdir=workdir,
-                    user="sandbox",
-                    demux=True,
-                    stdout=True,
-                    stderr=True,
-                    stdin=False
-                )
-                result_container['result'] = exec_result
-            except Exception as e:
-                result_container['exception'] = e
-
-        # Execute in a thread with timeout
-        thread = threading.Thread(target=execute_command)
-        thread.daemon = True
-        thread.start()
-        thread.join(timeout=timeout)
-
-        execution_time = time.time() - start_time
-
-        # Check if thread is still running (timeout occurred)
-        if thread.is_alive():
-            # Timeout occurred
-            return CommandResponse(
-                stdout='',
-                stderr=f'Execution timed out after {timeout} seconds',
-                exit_code=124,  # Standard timeout exit code
-                execution_time=execution_time,
-                category=ResponseCategory.TIMEOUT
+            return self.container_ref.exec_run(
+                cmd=shell_cmd, workdir=workdir, user="sandbox",
+                demux=True, stdout=True, stderr=True, stdin=False
             )
 
-        # Check if an exception occurred
-        if result_container['exception']:
+        result, exception, timed_out, exec_time = self._run_with_timeout(execute, timeout)
+
+        if timed_out:
             return CommandResponse(
-                stdout='',
-                stderr=f'Batch command execution failed: {str(result_container["exception"])}',
-                exit_code=-1,
-                execution_time=execution_time,
-                category=ResponseCategory.SYSTEM_ERROR
+                stdout='', stderr=f'Execution timed out after {timeout} seconds',
+                exit_code=124, execution_time=exec_time, category=ResponseCategory.TIMEOUT
             )
 
-        # Process successful execution
-        result = result_container['result']
+        if exception:
+            return CommandResponse(
+                stdout='', stderr=f'Batch command execution failed: {str(exception)}',
+                exit_code=-1, execution_time=exec_time, category=ResponseCategory.SYSTEM_ERROR
+            )
+
         if result is None:
             return CommandResponse(
-                stdout='',
-                stderr='Batch command execution failed: no result',
-                exit_code=-1,
-                execution_time=execution_time,
-                category=ResponseCategory.SYSTEM_ERROR
+                stdout='', stderr='Batch command execution failed: no result',
+                exit_code=-1, execution_time=exec_time, category=ResponseCategory.SYSTEM_ERROR
             )
 
-        # Demux returns tuple (stdout, stderr) if demux=True
         stdout_bytes, stderr_bytes = result.output if result.output else (b'', b'')
-
-        # Decode output
         stdout = stdout_bytes.decode('utf-8', errors='replace') if stdout_bytes else ''
         stderr = stderr_bytes.decode('utf-8', errors='replace') if stderr_bytes else ''
 
-        category = classify_output(stdout, stderr, result.exit_code, self.language)
-
         return CommandResponse(
-            stdout=stdout,
-            stderr=stderr,
-            exit_code=result.exit_code,
-            execution_time=execution_time,
-            category=category
+            stdout=stdout, stderr=stderr, exit_code=result.exit_code,
+            execution_time=exec_time,
+            category=classify_output(stdout, stderr, result.exit_code, self.language)
         )
 
 
@@ -312,38 +225,33 @@ class SandboxContainer:
             ValueError: If the archive contains no regular file or file exceeds max_bytes.
             RuntimeError: If the tar stream cannot be read.
         """
-        import io
-        import tarfile
 
         try:
-            bits, stat = self.container_ref.get_archive(path)
+            bits, _ = self.container_ref.get_archive(path)
         except Exception as e:
-            if "404" in str(e) or "Not Found" in str(e) or "No such" in str(e):
-                raise FileNotFoundError(f"File not found in container: {path}")
-            raise RuntimeError(f"Failed to retrieve archive from container: {e}")
+            if any(msg in str(e) for msg in ("404", "Not Found", "No such")):
+                raise FileNotFoundError(f"File not found in container: {path}") from e
+            raise RuntimeError(f"Failed to retrieve archive from container: {e}") from e
 
         try:
             raw = b"".join(bits)
-            tar = tarfile.open(fileobj=io.BytesIO(raw))
+            with tarfile.open(fileobj=io.BytesIO(raw)) as tar:
+                # Find the first regular file in the archive
+                member = next((m for m in tar.getmembers() if m.isfile()), None)
+
+                if member is None:
+                    raise ValueError(f"No regular file found in archive for path: {path}")
+
+                if member.size > max_bytes:
+                    raise ValueError(
+                        f"File exceeds maximum size: {member.size} bytes > {max_bytes} bytes"
+                    )
+
+                content_bytes = tar.extractfile(member).read()
+        except (ValueError, RuntimeError):
+            raise
         except Exception as e:
-            raise RuntimeError(f"Failed to read tar stream: {e}")
-
-        # Find the first regular file in the archive
-        member = None
-        for m in tar.getmembers():
-            if m.isfile():
-                member = m
-                break
-
-        if member is None:
-            raise ValueError(f"No regular file found in archive for path: {path}")
-
-        if member.size > max_bytes:
-            raise ValueError(
-                f"File exceeds maximum size: {member.size} bytes > {max_bytes} bytes"
-            )
-
-        content_bytes = tar.extractfile(member).read()
+            raise RuntimeError(f"Failed to read tar stream: {e}") from e
         try:
             content_text = content_bytes.decode("utf-8")
             encoding = "utf-8"
@@ -359,71 +267,36 @@ class SandboxContainer:
             encoding=encoding,
         )
 
-    def make_request(self,
-                     request_method: str,
-                     endpoint: str,
-                     data: Optional[dict] = None,
-                     json_data: Optional[dict] = None,
-                     headers: Optional[dict] = None,
-                     timeout: int = 5) -> HttpResponse:
+    def make_request(self, method: str, endpoint: str, **kwargs) -> HttpResponse:
         """
         Make an HTTP request to a containerized web application.
-
-        Args:
-            request_method: HTTP method (GET, POST, PUT, DELETE, etc.)
-            endpoint: API endpoint path (e.g., '/api/users')
-            data: Form data to send (for POST/PUT)
-            json_data: JSON data to send (for POST/PUT)
-            headers: Additional HTTP headers
-            timeout: Request timeout in seconds (default: 5)
-
-        Returns:
-            HttpResponse wrapping the requests.Response
-
-        Raises:
-            ValueError: If port is not configured for this container
-            requests.RequestException: If request fails
         """
         if self.port is None:
             raise ValueError("Container port not configured for HTTP requests")
 
-        # Construct URL
         url = f"http://localhost:{self.port}{endpoint}"
-
-        # Prepare headers
-        request_headers = headers or {}
-
-        # Make request based on method
-        method = request_method.upper()
+        method = method.upper()
+        timeout = kwargs.pop('timeout', 5)
 
         try:
-            if method == 'GET':
-                response = requests.get(url, headers=request_headers, timeout=timeout)
-            elif method == 'POST':
-                if json_data:
-                    response = requests.post(url, json=json_data, headers=request_headers, timeout=timeout)
-                else:
-                    response = requests.post(url, data=data, headers=request_headers, timeout=timeout)
-            elif method == 'PUT':
-                if json_data:
-                    response = requests.put(url, json=json_data, headers=request_headers, timeout=timeout)
-                else:
-                    response = requests.put(url, data=data, headers=request_headers, timeout=timeout)
-            elif method == 'DELETE':
-                response = requests.delete(url, headers=request_headers, timeout=timeout)
-            elif method == 'PATCH':
-                if json_data:
-                    response = requests.patch(url, json=json_data, headers=request_headers, timeout=timeout)
-                else:
-                    response = requests.patch(url, data=data, headers=request_headers, timeout=timeout)
-            else:
+            # Map methods to requests functions
+            method_map = {
+                'GET': requests.get,
+                'POST': requests.post,
+                'PUT': requests.put,
+                'DELETE': requests.delete,
+                'PATCH': requests.patch,
+            }
+
+            if method not in method_map:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
+            # Extract any remaining kwargs as request parameters
+            response = method_map[method](url, timeout=timeout, **kwargs)
             return HttpResponse(response)
 
         except requests.RequestException as e:
-            # Re-raise with more context
-            raise requests.RequestException(f"HTTP {method} request to {url} failed: {str(e)}")
+            raise requests.RequestException(f"HTTP {method} request to {url} failed: {str(e)}") from e
 
     def __repr__(self):
         name = self.container_ref.name or "unnamed"
