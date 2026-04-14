@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 from docker.models.containers import Container
 import requests
 from sandbox_manager.models.sandbox_models import Language, SandboxState, CommandResponse, HttpResponse, \
-    ResponseCategory
+    ResponseCategory, ExtractedFile
 from sandbox_manager.utils.classify_output import classify_output
 
 
@@ -295,6 +295,69 @@ class SandboxContainer:
             category=category
         )
 
+
+    def extract_file(self, path: str, max_bytes: int = 1_048_576) -> ExtractedFile:
+        """
+        Extract a single file from the container using Docker get_archive.
+
+        Args:
+            path: Absolute path inside the container (e.g. /app/output.txt).
+            max_bytes: Maximum allowed file size in bytes (default 1 MB).
+
+        Returns:
+            ExtractedFile with content and metadata.
+
+        Raises:
+            FileNotFoundError: If the file does not exist in the container.
+            ValueError: If the archive contains no regular file or file exceeds max_bytes.
+            RuntimeError: If the tar stream cannot be read.
+        """
+        import io
+        import tarfile
+
+        try:
+            bits, stat = self.container_ref.get_archive(path)
+        except Exception as e:
+            if "404" in str(e) or "Not Found" in str(e) or "No such" in str(e):
+                raise FileNotFoundError(f"File not found in container: {path}")
+            raise RuntimeError(f"Failed to retrieve archive from container: {e}")
+
+        try:
+            raw = b"".join(bits)
+            tar = tarfile.open(fileobj=io.BytesIO(raw))
+        except Exception as e:
+            raise RuntimeError(f"Failed to read tar stream: {e}")
+
+        # Find the first regular file in the archive
+        member = None
+        for m in tar.getmembers():
+            if m.isfile():
+                member = m
+                break
+
+        if member is None:
+            raise ValueError(f"No regular file found in archive for path: {path}")
+
+        if member.size > max_bytes:
+            raise ValueError(
+                f"File exceeds maximum size: {member.size} bytes > {max_bytes} bytes"
+            )
+
+        content_bytes = tar.extractfile(member).read()
+        try:
+            content_text = content_bytes.decode("utf-8")
+            encoding = "utf-8"
+        except UnicodeDecodeError:
+            content_text = content_bytes.decode("latin-1")
+            encoding = "latin-1"
+
+        return ExtractedFile(
+            path=path,
+            content_bytes=content_bytes,
+            size=len(content_bytes),
+            content_text=content_text,
+            encoding=encoding,
+        )
 
     def make_request(self,
                      request_method: str,

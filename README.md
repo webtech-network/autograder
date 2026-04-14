@@ -195,6 +195,7 @@ Tests command-line programs by providing inputs and validating outputs.
 | Test Name          | Description                                             | Key Parameters                               |
 |--------------------|---------------------------------------------------------|----------------------------------------------|
 | `expect_output`    | Execute program with inputs and verify output           | `inputs`, `expected_output`, `program_command` |
+| `expect_file_artifact` | Execute program and validate a generated output file | `artifact_path`, `expected_content`, `program_command` |
 | `dont_fail`        | Validates that a program does not crash on a given input | `inputs`, `program_command`                 |
 | `forbidden_import` | Analyzes a file looking for specified libraries imports | `forbidden_imports`        |
 

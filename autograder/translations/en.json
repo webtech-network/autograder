@@ -467,6 +467,26 @@
     "template": {
       "name": "Input/Output",
       "description": "A template for evaluating assignments based on command-line input and output."
+    },
+    "expect_file_artifact": {
+      "description": "Executes the student program, then extracts a generated file from the sandbox and validates its content against expected values.",
+      "params": {
+        "program_command": "(Optional) Command to run the program. Can be a string or dict (multi-lang).",
+        "artifact_path": "Relative path (under /app) of the file the program must generate (e.g. 'output.txt').",
+        "expected_content": "The expected file content or pattern to match against.",
+        "match_mode": "Comparison mode: 'exact' (default), 'contains', or 'regex'.",
+        "inputs": "List of strings to be sent to the program via stdin.",
+        "normalization": "Whether to normalize line endings and trim trailing whitespace (default: true)."
+      },
+      "report": {
+        "success": "Success: Artifact '{path}' matches expected content.",
+        "mismatch": "FAILURE: Content mismatch in artifact '{path}'.\nExpected:\n{expected}\nActual:\n{actual}",
+        "file_not_found": "FAILURE: Expected artifact '{path}' was not found. Make sure your program creates this file.",
+        "extraction_error": "FAILURE: Could not read artifact from sandbox.\nDetails: {error}",
+        "invalid_path": "CONFIGURATION ERROR: Invalid artifact path.\nDetails: {error}",
+        "invalid_match_mode": "CONFIGURATION ERROR: Invalid match_mode '{mode}'. Must be 'exact', 'contains', or 'regex'.",
+        "invalid_regex": "CONFIGURATION ERROR: Invalid regex pattern.\nDetails: {error}"
+      }
     }
   },
   "api_testing": {
