@@ -39,7 +39,7 @@ class BaseExecutionTest(TestFunction):
         command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
         return sandbox.run_command(command)
 
-    def check_for_base_errors(self, output) -> TestResult:
+    def check_for_base_errors(self, output, **kwargs) -> TestResult:
         """
         Checks for Timeout, Compilation Error, or Runtime Error in the sandbox output.
         Returns a TestResult with score 0.0 if an error is found, or None if successful.
@@ -119,7 +119,7 @@ class ExpectOutputTest(BaseExecutionTest):
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output)
+            error_result = self.check_for_base_errors(output, locale=kwargs.get("locale"))
             if error_result:
                 return error_result
 
@@ -191,7 +191,7 @@ class DontFailTest(BaseExecutionTest):
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output)
+            error_result = self.check_for_base_errors(output, locale=kwargs.get("locale"))
             if error_result:
                 return error_result
 
@@ -209,6 +209,130 @@ class DontFailTest(BaseExecutionTest):
                 report=t("io.expect_output.report.internal_error", locale=kwargs.get("locale"), error=str(e))
             )
 
+
+
+# ===============================================================
+# TestFunction for File Artifact Validation
+# ===============================================================
+
+class ExpectFileArtifactTest(BaseExecutionTest):
+    """
+    Tests a command-line program by running it, then extracting a generated
+    file from the sandbox and comparing its content against expected values.
+
+    Supports exact, contains, and regex matching modes.
+    """
+
+    @property
+    def name(self):
+        return "expect_file_artifact"
+
+    @property
+    def description(self):
+        return t("io.expect_file_artifact.description")
+
+    @property
+    def required_file(self):
+        return None
+
+    @property
+    def parameter_description(self):
+        return [
+            ParamDescription("program_command", t("io.expect_file_artifact.params.program_command"), "string or dict"),
+            ParamDescription("artifact_path", t("io.expect_file_artifact.params.artifact_path"), "string"),
+            ParamDescription("expected_content", t("io.expect_file_artifact.params.expected_content"), "string"),
+            ParamDescription("match_mode", t("io.expect_file_artifact.params.match_mode"), "string"),
+            ParamDescription("inputs", t("io.expect_file_artifact.params.inputs"), "list of strings"),
+            ParamDescription("normalization", t("io.expect_file_artifact.params.normalization"), "boolean"),
+        ]
+
+    @staticmethod
+    def _validate_artifact_path(artifact_path: str) -> Optional[str]:
+        """Return an error message if the path is unsafe, else None."""
+        if not artifact_path:
+            return "artifact_path is required"
+        if artifact_path.startswith("/") or ".." in artifact_path.split("/"):
+            return f"Invalid artifact_path (absolute or traversal): {artifact_path}"
+        return None
+
+    @staticmethod
+    def _normalize(text: str) -> str:
+        """Normalize line endings and strip trailing whitespace per line."""
+        lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        return "\n".join(line.rstrip() for line in lines).strip()
+
+    @staticmethod
+    def _match(actual: str, expected: str, mode: str) -> bool:
+        if mode == "contains":
+            return expected in actual
+        if mode == "regex":
+            return bool(re.search(expected, actual))
+        return actual == expected
+
+    def execute(self, files, sandbox: SandboxContainer, *args,
+                program_command: Optional[str] = None,
+                artifact_path: str = "",
+                expected_content: str = "",
+                match_mode: str = "exact",
+                inputs: list = None,
+                normalization: bool = True,
+                **kwargs) -> TestResult:
+        locale = kwargs.get("locale")
+
+        # Validate artifact_path
+        path_error = self._validate_artifact_path(artifact_path)
+        if path_error:
+            return TestResult(test_name=self.name, score=0.0,
+                              report=t("io.expect_file_artifact.report.invalid_path", locale=locale, error=path_error))
+
+        # Validate match_mode
+        if match_mode not in ("exact", "contains", "regex"):
+            return TestResult(test_name=self.name, score=0.0,
+                              report=t("io.expect_file_artifact.report.invalid_match_mode", locale=locale, mode=match_mode))
+
+        # Pre-compile regex to catch bad patterns early
+        if match_mode == "regex":
+            try:
+                re.compile(expected_content)
+            except re.error as e:
+                return TestResult(test_name=self.name, score=0.0,
+                                  report=t("io.expect_file_artifact.report.invalid_regex", locale=locale, error=str(e)))
+
+        # Execute student program
+        try:
+            output = self.run_sandbox_execution(sandbox=sandbox, inputs=inputs, program_command=program_command)
+            error_result = self.check_for_base_errors(output, locale=locale)
+            if error_result:
+                return error_result
+        except (ValueError, TimeoutError, RuntimeError) as e:
+            return TestResult(test_name=self.name, score=0.0,
+                              report=t("io.expect_output.report.internal_error", locale=locale, error=str(e)))
+
+        # Extract artifact
+        full_path = f"/app/{artifact_path}"
+        try:
+            extracted = sandbox.extract_file(full_path)
+        except FileNotFoundError:
+            return TestResult(test_name=self.name, score=0.0,
+                              report=t("io.expect_file_artifact.report.file_not_found", locale=locale, path=artifact_path))
+        except (ValueError, RuntimeError) as e:
+            return TestResult(test_name=self.name, score=0.0,
+                              report=t("io.expect_file_artifact.report.extraction_error", locale=locale, error=str(e)))
+
+        # Compare content
+        actual = extracted.content_text
+        expected = expected_content
+        if normalization:
+            actual = self._normalize(actual)
+            expected = self._normalize(expected)
+
+        if self._match(actual, expected, match_mode):
+            return TestResult(test_name=self.name, score=100.0,
+                              report=t("io.expect_file_artifact.report.success", locale=locale, path=artifact_path))
+
+        return TestResult(test_name=self.name, score=0.0,
+                          report=t("io.expect_file_artifact.report.mismatch", locale=locale,
+                                   path=artifact_path, expected=expected, actual=actual))
 
 
 # ===============================================================
@@ -396,6 +520,7 @@ class InputOutputTemplate(Template):
         self.tests = {
             "expect_output": ExpectOutputTest(),
             "dont_fail": DontFailTest(),
+            "expect_file_artifact": ExpectFileArtifactTest(),
             "forbidden_import": ForbiddenImportTest(),
         }
 
