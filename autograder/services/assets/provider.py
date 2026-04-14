@@ -15,4 +15,4 @@ class AssetProvider(ABC):
         Returns:
             Raw content as bytes, or None if not found or on error.
         """
-        pass
+        ...

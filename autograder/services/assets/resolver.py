@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import List, Optional
+from typing import List
 from autograder.services.assets.s3_provider import S3AssetProvider
 from autograder.services.assets.cache_manager import AssetCacheManager
 from autograder.models.config.setup import AssetConfig

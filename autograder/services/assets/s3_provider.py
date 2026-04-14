@@ -14,7 +14,7 @@ class S3AssetProvider(AssetProvider):
         
         # Environment variables
         self.bucket_name = os.getenv("CRITERIA_ASSETS_BUCKET_NAME")
-        self.access_key = os.getenv("AWS_ACCESS_ID")
+        self.access_key = os.getenv("AWS_ACCESS_KEY_ID") or os.getenv("AWS_ACCESS_ID")
         self.secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
         self.region = os.getenv("AWS_REGION", "us-east-1")
         self.endpoint_url = os.getenv("S3_ENDPOINT_URL")

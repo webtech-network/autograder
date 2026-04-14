@@ -50,7 +50,7 @@ The root-level `assets` field allows injecting grader-owned files (e.g., dataset
 
 - **`assets`** (optional): List of assets to inject
   - **`source`**: Required. Relative path to the file in the configured S3 bucket (e.g., `datasets/RESTAURANTES.CSV`).
-  - **`target`**: Required. Absolute path in the container where the file will be placed. **Note**: All assets are automatically placed under `/tmp/` if the target path doesn't already start with it.
+  - **`target`**: Required. Absolute path in the container where the file will be placed. Use a path under `/tmp/` (for example, `/tmp/RESTAURANTES.CSV`). Do not rely on non-`/tmp/` paths being automatically remapped.
   - **`read_only`**: Optional (default: `true`). If true, the file will be injected with `0444` permissions.
 
 ### Secure Injection Method

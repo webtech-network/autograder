@@ -1,7 +1,6 @@
 import pytest
-import os
 from unittest.mock import MagicMock, patch
-from autograder.models.dataclass.submission import Submission, SubmissionFile
+from autograder.models.dataclass.submission import Submission
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.steps.pre_flight_step import PreFlightStep
 from sandbox_manager.sandbox_container import SandboxContainer

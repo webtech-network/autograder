@@ -70,7 +70,9 @@ services:
 
   # Ministack for S3 emulation (AWS-compatible services)
   ministack:
-    image: ministackorg/ministack:latest
+    # Pin to a specific Ministack version for reproducible local/dev environments.
+    # Upgrade this tag intentionally after validating compatibility.
+    image: ministackorg/ministack:1.0.0
     container_name: autograder-ministack
     ports:
       - "4566:4566"

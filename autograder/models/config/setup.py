@@ -1,6 +1,5 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field, field_validator
-import os
 
 
 class AssetConfig(BaseModel):
