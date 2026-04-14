@@ -38,6 +38,13 @@ services:
       # API Configuration
       API_HOST: 0.0.0.0
       API_PORT: 8000
+
+      # S3 Assets Configuration
+      CRITERIA_ASSETS_BUCKET_NAME: autograder-assets
+      AWS_ACCESS_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+      S3_ENDPOINT_URL: http://ministack:4566
       
       # Optional: Add your API keys here
       # OPENAI_API_KEY: ${OPENAI_API_KEY}
