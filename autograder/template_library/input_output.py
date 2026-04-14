@@ -124,7 +124,7 @@ class ExpectOutputTest(BaseExecutionTest):
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output, locale=locale)
+            error_result = self.check_for_base_errors(output, **kwargs)
             if error_result:
                 return error_result
 
@@ -200,7 +200,7 @@ class DontFailTest(BaseExecutionTest):
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output, locale=locale)
+            error_result = self.check_for_base_errors(output, **kwargs)
             if error_result:
                 return error_result
 

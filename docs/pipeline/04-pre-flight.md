@@ -4,15 +4,18 @@
 
 The Pre-Flight step runs initial validation checks on the submission and prepares the code for grading. It acts as the final "gatekeeper" that ensures both the file structure is correct and the code is in an executable state (e.g., compiled).
 
-This step performs two main functions:
-1. **Required files check**: Ensuring all mandatory files defined in the assignment configuration exist.
-2. **Setup commands execution**: Running compilation or initialization scripts (e.g., `javac`, `npm install`, `gcc`) inside the sandbox.
+This step performs three main functions:
+1. **Asset injection**: Injecting grader-owned static files (datasets, test fixtures) from S3 into the sandbox.
+2. **Required files check**: Ensuring all mandatory files defined in the assignment configuration exist.
+3. **Setup commands execution**: Running compilation or initialization scripts (e.g., `javac`, `npm install`, `gcc`) inside the sandbox.
 
 ## How It Works
 
 The step execution follows these logic gates:
 
-1. **Required Files Check**: It compares the files in the submission against the list provided in the `required_files` section of the `setup_config` for the submission's language.
+1. **Asset Injection**: If the `setup_config` contains an `assets` list, the `PreFlightService` resolves each asset via the `AssetSourceResolver`. Assets are fetched from S3 and injected into the container's `/tmp` directory using a secure Base64-encoded `exec_run` method (fully compatible with gVisor).
+
+2. **Required Files Check**: It compares the files in the submission against the list provided in the `required_files` section of the `setup_config` for the submission's language.
 
 2. **Setup Commands Execution**: If the `setup_config` contains `setup_commands`, they are executed sequentially within the sandbox created in **Step 3**.
     - **Stop on Failure**: If any command fails (non-zero or invalid response), the step **stops immediately** and fails the entire pre-flight check. Subsequent commands are not executed.

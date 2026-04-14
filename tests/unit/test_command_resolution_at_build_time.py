@@ -152,16 +152,16 @@ class TestCmdPlaceholderResolution:
 class TestInvalidFormatHandled:
     """Test grader handling of invalid command formats."""
 
-    def test_invalid_string_command_is_none(self):
-        """Test non-CMD single strings fall back to None directly."""
+    def test_string_command_is_resolved(self):
+        """Test non-CMD single strings are resolved directly."""
         svc, language = _make_grader(Language.PYTHON)
         fn = RecordingTestFunction()
         node = _make_test_node({"program_command": "python3 my_script.py"}, fn)
 
         svc.process_test(node, submission_language=language)
 
-        # Non-CMD strings are invalid without legacy fallback, returning None
-        assert fn.recorded_kwargs["program_command"] is None
+        # Single strings are now supported and resolved directly
+        assert fn.recorded_kwargs["program_command"] == "python3 my_script.py"
 
 
 # ---------------------------------------------------------------------------

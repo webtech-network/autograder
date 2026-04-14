@@ -13,13 +13,13 @@ class TestCommandResolver:
         """Set up test fixtures."""
         self.resolver = CommandResolver()
 
-    def test_resolve_invalid_string_command(self):
-        """Test resolving invalid single-string command format returns None."""
+    def test_resolve_direct_string_command(self):
+        """Test resolving direct single-string command format."""
         result = self.resolver.resolve_command(
             "python3 calculator.py",
             Language.PYTHON
         )
-        assert result is None
+        assert result == "python3 calculator.py"
 
     def test_resolve_multi_language_dict_python(self):
         """Test resolving multi-language dict format for Python."""

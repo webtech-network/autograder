@@ -130,6 +130,14 @@ sandbox.prepare_workdir(submission_files)
 # Files are now available in /app inside the container
 ```
 
+### `inject_assets(resolved_assets)`
+Injects static assets (datasets, fixtures) into the container's `/tmp` directory. Uses a secure Base64-encoded `exec_run` method compatible with gVisor.
+
+```python
+sandbox.inject_assets(resolved_assets)
+# Assets are now available in /tmp (or specified path)
+```
+
 ### `run_command(command, timeout=30, workdir="/app")`
 Executes a single shell command in the container. Returns a `CommandResponse`.
 

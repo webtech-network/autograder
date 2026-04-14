@@ -38,6 +38,13 @@ services:
       # API Configuration
       API_HOST: 0.0.0.0
       API_PORT: 8000
+
+      # S3 Assets Configuration
+      CRITERIA_ASSETS_BUCKET_NAME: autograder-assets
+      AWS_ACCESS_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+      S3_ENDPOINT_URL: http://ministack:4566
       
       # Optional: Add your API keys here
       # OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -61,6 +68,29 @@ services:
       retries: 3
       start_period: 40s
 
+  # Ministack for S3 emulation (AWS-compatible services)
+  ministack:
+    # Pin to a specific Ministack version for reproducible local/dev environments.
+    # Upgrade this tag intentionally after validating compatibility.
+    image: ministackorg/ministack:1.0.0
+    container_name: autograder-ministack
+    ports:
+      - "4566:4566"
+    environment:
+      - GATEWAY_PORT=4566
+      - MINISTACK_HOST=ministack
+      - MINISTACK_REGION=us-east-1
+      - PERSIST_STATE=1
+      - S3_PERSIST=1
+      - S3_DATA_DIR=/data/s3
+      - STATE_DIR=/data/state
+      - LOG_LEVEL=INFO
+    volumes:
+      - ministack_data:/data
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+    driver: local
+  ministack_data:
     driver: local

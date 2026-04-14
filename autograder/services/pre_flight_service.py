@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Union
 from autograder.models.dataclass.preflight_error import PreflightError, PreflightCheckType
 from autograder.models.dataclass.submission import Submission
 from autograder.translations import t
@@ -8,62 +8,58 @@ from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
 
+from autograder.models.config.setup import SetupConfig, LanguageSetupConfig
+
 class PreFlightService:
-    def __init__(self, setup_config, submission_language: Language, locale: str = "en"):
+    def __init__(self, setup_config: Optional[Union[SetupConfig, dict]], submission_language: Language, locale: str = "en"):
         """
         Initialize PreFlightService with language-specific setup configuration.
 
         Args:
-            setup_config: Language-specific configs: {'python': {...}, 'java': {...}, 'node': {...}, 'cpp': {...}}
+            setup_config: SetupConfig model or dict containing assets and language-specific configs
             submission_language: Language of the submission (required)
             locale: User's locale for error messages (default: 'en')
         """
         self.submission_language = submission_language
         self.locale = locale
-        self.raw_setup_config = setup_config or {}
+        
+        if isinstance(setup_config, dict):
+            self.setup_config = SetupConfig.from_dict(setup_config)
+        else:
+            self.setup_config = setup_config or SetupConfig()
+            
         self.logger = logging.getLogger("PreFlight")
         self.fatal_errors: List[PreflightError] = []
         self._sandbox_service = SandboxService()
 
         # Resolve language-specific config
-        resolved_config = self._resolve_setup_config(setup_config, submission_language)
+        resolved_config = self._resolve_setup_config(self.setup_config, submission_language)
 
-        self.required_files = resolved_config.get('required_files', [])
-        self.setup_commands = resolved_config.get('setup_commands', [])
+        self.required_files = resolved_config.required_files
+        self.setup_commands = resolved_config.setup_commands
 
-    def _resolve_setup_config(self, setup_config, submission_language: Language) -> dict:
+    def _resolve_setup_config(self, setup_config: SetupConfig, submission_language: Language) -> LanguageSetupConfig:
         """
-        Resolve setup config for the submission language.
-
-        Format (required):
-        {
-            "python": {
-                "required_files": ["file.py"],
-                "setup_commands": []
-            },
-            "java": {
-                "required_files": ["File.java"],
-                "setup_commands": ["javac File.java"]
-            },
-            "node": {
-                "required_files": ["file.js"],
-                "setup_commands": ["npm install"]
-            },
-            "cpp": {
-                "required_files": ["file.cpp"],
-                "setup_commands": ["g++ file.cpp -o file"]
-            }
-        }
+        Resolve language-specific setup config.
         """
-        if not setup_config:
-            return {}
-
         lang_key = submission_language.value
-        if lang_key in setup_config:
+        # Using getattr since language keys are fields or extra attributes in SetupConfig
+        config = getattr(setup_config, lang_key, None)
+        
+        if config and isinstance(config, LanguageSetupConfig):
             self.logger.info("Using setup config for %s", lang_key)
-            return setup_config[lang_key]
+            return config
+            
+        # Check in model_extra if it's not a predefined field
+        if setup_config.model_extra and lang_key in setup_config.model_extra:
+            raw_extra = setup_config.model_extra[lang_key]
+            if isinstance(raw_extra, dict):
+                return LanguageSetupConfig(**raw_extra)
+            elif isinstance(raw_extra, LanguageSetupConfig):
+                return raw_extra
+
         self.logger.warning("No setup config found for language %s, using empty config", lang_key)
-        return {}
+        return LanguageSetupConfig()
 
     def has_errors(self) -> bool:
         """

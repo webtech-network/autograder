@@ -5,12 +5,16 @@ import tarfile
 import threading
 import time
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 from docker.models.containers import Container
 import requests
 from sandbox_manager.models.sandbox_models import Language, SandboxState, CommandResponse, HttpResponse, \
     ResponseCategory, ExtractedFile
 from sandbox_manager.utils.classify_output import classify_output
+
+if TYPE_CHECKING:
+    from autograder.models.dataclass.asset import ResolvedAsset
+    from autograder.models.dataclass.submission import SubmissionFile
 
 
 class SandboxContainer:
@@ -93,6 +97,64 @@ class SandboxContainer:
 
         except Exception as e:
             raise RuntimeError(f"Error preparing workdir: {str(e)}") from e
+
+    def inject_assets(self, resolved_assets: List['ResolvedAsset']) -> None:
+        """
+        Inject resolved assets into the container under /tmp using base64 and exec_run.
+        
+        Args:
+            resolved_assets: List of ResolvedAsset objects.
+            
+        Raises:
+            Exception: If injection fails.
+        """
+        if not resolved_assets:
+            return
+
+        import base64
+
+        for asset in resolved_assets:
+            # Ensure target path starts with /tmp/
+            target_path = asset.target
+            if not target_path.startswith('/tmp/'):
+                target_path = os.path.join('/tmp', target_path.lstrip('/'))
+            
+            content = asset.content
+            
+            # Ensure parent directory exists in container and has correct permissions
+            parent_dir = os.path.dirname(target_path)
+            if parent_dir and parent_dir != '/':
+                self.container_ref.exec_run(
+                    cmd=f"mkdir -p {parent_dir}",
+                    user="root"
+                )
+                # Ensure world-readable so sandbox user can read injected assets
+                self.container_ref.exec_run(
+                    cmd=f"chmod 755 {parent_dir}",
+                    user="root"
+                )
+            
+            # Encode content as base64 to safely pass through shell
+            content_b64 = base64.b64encode(content).decode('ascii')
+
+            # Create the file using base64 decode
+            # Using /bin/sh -c to support redirection and pipes
+            cmd = f"echo '{content_b64}' | base64 -d > {target_path}"
+            result = self.container_ref.exec_run(
+                cmd=["/bin/sh", "-c", cmd],
+                user="root"
+            )
+
+            if result.exit_code != 0:
+                output = result.output.decode() if result.output else "No output"
+                raise RuntimeError(f"Failed to create asset file {target_path}: {output}")
+
+            # Set file permissions (read-only if requested)
+            mode = "444" if asset.read_only else "644"
+            self.container_ref.exec_run(
+                cmd=f"chmod {mode} {target_path}",
+                user="root"
+            )
 
     def _run_with_timeout(self, execute_fn, timeout: int):
         """Helper to run a function in a thread with a timeout."""
