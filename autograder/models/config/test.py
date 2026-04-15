@@ -8,13 +8,16 @@ class ParameterConfig(BaseModel):
     name: str = Field(..., description="Parameter name")
     value: Any = Field(..., description="Parameter value")
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "allow"}
 
 
 class TestConfig(BaseModel):
     """Configuration for a single test execution."""
 
-    name: str = Field(..., description="Name of the test function in the template")
+    name: str = Field(..., description="Display name of the test")
+    type: Optional[str] = Field(
+        None, description="Technical type of the test (e.g., expect_output)"
+    )
     file: Optional[str] = Field(
         None, description="Target file for the test (if applicable)"
     )
@@ -24,7 +27,7 @@ class TestConfig(BaseModel):
     weight: Optional[float] = Field(100.0, ge=0, description="Weight of this test")
 
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "allow"}
 
 
     def get_args_list(self) -> List[Any]:
@@ -35,6 +38,11 @@ class TestConfig(BaseModel):
 
     def get_kwargs_dict(self) -> Dict[str, Any]:
         """Convert named parameters to keyword arguments dictionary."""
-        if not self.parameters:
-            return {}
-        return {param.name: param.value for param in self.parameters}
+        kwargs = {}
+        if self.parameters:
+            kwargs.update({param.name: param.value for param in self.parameters})
+
+        if self.model_extra:
+            kwargs.update(self.model_extra)
+
+        return kwargs
