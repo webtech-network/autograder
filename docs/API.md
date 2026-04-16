@@ -36,7 +36,7 @@ Set the `AUTOGRADER_INTEGRATION_TOKEN` environment variable on the server:
 export AUTOGRADER_INTEGRATION_TOKEN=$(openssl rand -hex 32)
 ```
 
-When the variable is **not set or empty**, the server will reject all requests to protected endpoints with `401 Unauthorized`. The token **must** be configured before using integration endpoints.
+When the variable is **not set or empty**, the server will fail to start the integration auth configuration and protected endpoints will return `503 Service Unavailable`. The token **must** be configured and non-empty before using integration endpoints.
 
 ### Usage
 
