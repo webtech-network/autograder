@@ -290,7 +290,7 @@ async def ingest_external_result(
         else PipelineStatus.FAILED
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     # Create submission record (no files — externally graded)
     submission_repo = SubmissionRepository(session)

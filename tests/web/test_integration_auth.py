@@ -41,11 +41,12 @@ from web.main import app
 @pytest.fixture(autouse=True)
 def _set_integration_token():
     """Ensure the integration token is set for every test."""
+    old_integration_auth_config = getattr(auth_module, "integration_auth_config", None)
     cfg = IntegrationAuthConfig.__new__(IntegrationAuthConfig)
     cfg.token = TEST_TOKEN
     auth_module.integration_auth_config = cfg
     yield
-    auth_module.integration_auth_config = cfg
+    auth_module.integration_auth_config = old_integration_auth_config
 
 
 @pytest.fixture

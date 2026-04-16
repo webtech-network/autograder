@@ -2,7 +2,7 @@
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock, patch
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import StaticPool
 

@@ -23,7 +23,13 @@ async def require_integration_token(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> None:
     """Enforce Bearer-token auth on integration endpoints."""
-    config = get_integration_auth_config()
+    try:
+        config = get_integration_auth_config()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Integration authentication is not configured",
+        ) from exc
 
     if credentials is None:
         raise HTTPException(

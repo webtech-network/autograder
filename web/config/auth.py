@@ -10,7 +10,12 @@ class IntegrationAuthConfig:
             raise ValueError(
                 "AUTOGRADER_INTEGRATION_TOKEN environment variable must be set"
             )
-        self.token: str = os.environ["AUTOGRADER_INTEGRATION_TOKEN"]
+        token = os.environ["AUTOGRADER_INTEGRATION_TOKEN"].strip()
+        if not token:
+            raise ValueError(
+                "AUTOGRADER_INTEGRATION_TOKEN environment variable must be non-empty"
+            )
+        self.token: str = token
 
 
 integration_auth_config: IntegrationAuthConfig | None = None
