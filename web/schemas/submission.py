@@ -79,3 +79,54 @@ class SubmissionDetailResponse(SubmissionResponse):
     submission_files: Dict[str, str]
     submission_metadata: Optional[Dict[str, Any]] = None
     pipeline_execution: Optional[Dict[str, Any]] = None  # NEW: Detailed pipeline execution info
+
+
+class ExternalResultStatus(str, Enum):
+    """Status of an externally graded submission."""
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ExternalResultCreate(BaseModel):
+    """Schema for ingesting externally computed grading results."""
+    grading_config_id: int = Field(..., description="Internal grading configuration ID")
+    external_user_id: str = Field(..., description="External user ID from LMS/platform")
+    username: str = Field(..., description="Username of the submitter")
+    language: str = Field(..., description="Language the submission was graded in")
+    status: ExternalResultStatus = Field(..., description="Grading outcome: completed or failed")
+    final_score: float = Field(..., description="Final grading score", ge=0.0)
+    feedback: Optional[str] = Field(None, description="Generated feedback text")
+    result_tree: Optional[Dict[str, Any]] = Field(None, description="Scored result tree")
+    focus: Optional[Dict[str, Any]] = Field(None, description="Sorted failed tests by impact")
+    pipeline_execution: Optional[Dict[str, Any]] = Field(None, description="Pipeline step execution details")
+    execution_time_ms: int = Field(..., description="Total execution time in milliseconds", ge=0)
+    error_message: Optional[str] = Field(None, description="Error message for failed runs")
+    submission_metadata: Optional[Dict[str, Any]] = Field(None, description="Repository/run metadata")
+
+    @field_validator('language')
+    @classmethod
+    def validate_language(cls, v: str) -> str:
+        """Validate that the language is supported."""
+        language_upper = v.upper()
+        valid_languages = [lang.name for lang in Language]
+        if language_upper not in valid_languages:
+            valid_languages_lower = [lang.value for lang in Language]
+            raise ValueError(
+                f"Unsupported language '{v}'. "
+                f"Supported languages are: {', '.join(valid_languages_lower)}"
+            )
+        return Language[language_upper].value
+
+
+class ExternalResultResponse(BaseModel):
+    """Response after ingesting an external grading result."""
+    model_config = ConfigDict(from_attributes=True)
+
+    submission_id: int
+    grading_config_id: int
+    external_user_id: str
+    username: str
+    status: SubmissionStatus
+    final_score: float
+    graded_at: datetime
+    execution_time_ms: int
