@@ -44,10 +44,11 @@ class TestParameterConfig:
         assert param.value == 1
         assert isinstance(param.value, int)
 
-    def test_parameter_config_forbid_extra(self):
-        """Test that extra fields are forbidden"""
-        with pytest.raises(ValueError):
-            ParameterConfig(name="tag", value="body", extra_field="not allowed")
+    def test_parameter_config_allow_extra(self):
+        """Test that extra fields are allowed"""
+        param = ParameterConfig(name="tag", value="body", extra_field="allowed")
+        assert param.name == "tag"
+        assert param.extra_field == "allowed"
 
 
 class TestTestConfig:
@@ -471,24 +472,25 @@ class TestSchemaIntegration:
                 tests=[TestConfig(file="test.html", name="test")]
             )
 
-    def test_extra_fields_forbidden(self):
-        """Test that extra fields are forbidden at all levels"""
+    def test_extra_fields_allowed(self):
+        """Test that extra fields are allowed at all levels"""
         # Test at criteria level
-        with pytest.raises(ValueError):
-            CriteriaConfig(
-                test_library="web_dev",
-                base=CategoryConfig(
-                    weight=100,
-                    subjects=[
-                        SubjectConfig(
-                            subject_name="html",
-                            weight=60,
-                            tests=[TestConfig(file="index.html", name="has_tag")]
-                        )
-                    ]
-                ),
-                extra_field="not allowed"
-            )
+        criteria = CriteriaConfig(
+            test_library="web_dev",
+            base=CategoryConfig(
+                weight=100,
+                subjects=[
+                    SubjectConfig(
+                        subject_name="html",
+                        weight=60,
+                        tests=[TestConfig(file="index.html", name="has_tag", extra_field="allowed")]
+                    )
+                ]
+            ),
+            extra_field="allowed"
+        )
+        assert criteria.extra_field == "allowed"
+        assert criteria.base.subjects[0].tests[0].extra_field == "allowed"
 
 
 class TestWeightCalculations:

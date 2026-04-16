@@ -92,9 +92,11 @@ class CriteriaTreeService:
             return None
 
     def __parse_test(self, config: TestConfig) -> TestNode:
-        test_function = self.__find_test_function(config.name)
+        # Use technical 'type' for function lookup, falling back to 'name' for legacy support
+        function_name = config.type or config.name
+        test_function = self.__find_test_function(function_name)
         if not test_function:
-            raise ValueError(f"Couldn't find test {config.name}")
+            raise ValueError(f"Couldn't find test function '{function_name}'")
 
         file_target = [config.file] if config.file else None
 

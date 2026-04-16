@@ -21,7 +21,7 @@ class SubjectConfig(BaseModel):
         description="Weight of the subject when it is a heterogeneous tree",
     )
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "allow"}
 
     @model_validator(mode="after")
     def check_subjects_and_tests(self) -> "SubjectConfig":

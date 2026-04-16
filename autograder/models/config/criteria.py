@@ -14,7 +14,7 @@ class CriteriaConfig(BaseModel):
     bonus: Optional[CategoryConfig] = Field(None, description="Bonus points criteria")
     penalty: Optional[CategoryConfig] = Field(None, description="Penalty criteria")
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "allow"}
 
     @classmethod
     def from_dict(cls, data: dict) -> "CriteriaConfig":
