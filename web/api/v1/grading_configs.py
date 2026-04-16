@@ -5,7 +5,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from web.api.deps import get_db_session
+from web.api.deps import get_db_session, require_integration_token
 from web.config.logging import get_logger
 from web.repositories import GradingConfigRepository
 from web.schemas import (
@@ -64,6 +64,32 @@ async def create_grading_config(
         db_config.template_name,
     )
     return db_config
+
+
+@router.get("/id/{config_id}", response_model=GradingConfigResponse, dependencies=[Depends(require_integration_token)])
+async def get_grading_config_by_id(
+    config_id: int,
+    session: AsyncSession = Depends(get_db_session)
+):
+    """Get grading configuration by internal config ID."""
+    logger.info("Fetching grading configuration by ID: config_id=%d", config_id)
+    repo = GradingConfigRepository(session)
+    config = await repo.get_by_id(config_id)
+
+    if not config:
+        logger.warning("Grading configuration not found: config_id=%d", config_id)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Configuration with id {config_id} not found"
+        )
+
+    logger.info(
+        "Grading configuration fetched: config_id=%d, assignment=%s, template=%s",
+        config.id,
+        config.external_assignment_id,
+        config.template_name,
+    )
+    return config
 
 
 @router.get("/{external_assignment_id}", response_model=GradingConfigResponse)
