@@ -16,23 +16,64 @@ API documentation (Swagger UI) available at: `http://localhost:8000/docs`
 
 ---
 
+## Authentication
+
+Most endpoints are public and require no authentication. Two endpoints designed for machine-to-machine integration (GitHub Action external mode) are protected with a Bearer token.
+
+### Protected Endpoints
+
+| Endpoint | Method |
+|----------|--------|
+| `/api/v1/configs/id/{config_id}` | GET |
+| `/api/v1/submissions/external-results` | POST |
+
+### Setup
+
+Set the `AUTOGRADER_INTEGRATION_TOKEN` environment variable on the server:
+
+```bash
+# Generate a strong random token
+export AUTOGRADER_INTEGRATION_TOKEN=$(openssl rand -hex 32)
+```
+
+When the variable is **not set or empty**, the server will reject all requests to protected endpoints with `401 Unauthorized`. The token **must** be configured before using integration endpoints.
+
+### Usage
+
+Include the token in the `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer $AUTOGRADER_INTEGRATION_TOKEN" \
+     http://localhost:8000/api/v1/configs/id/1
+```
+
+### Error Responses
+
+| Status | Condition |
+|--------|-----------|
+| `401 Unauthorized` | Missing or invalid token |
+
+---
+
 ## Endpoints Overview
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/configs` | Create a grading configuration |
-| `GET` | `/api/v1/configs` | List all grading configurations |
-| `GET` | `/api/v1/configs/{external_assignment_id}` | Get configuration by assignment ID |
-| `PUT` | `/api/v1/configs/{config_id}` | Update a grading configuration |
-| `PUT` | `/api/v1/configs/external/{external_assignment_id}` | Update a grading configuration by external assignment ID |
-| `POST` | `/api/v1/submissions` | Submit code for grading |
-| `GET` | `/api/v1/submissions/{submission_id}` | Get submission details and results |
-| `GET` | `/api/v1/submissions/user/{external_user_id}` | List submissions by user |
-| `POST` | `/api/v1/execute` | Execute code without grading (DCE) |
-| `GET` | `/api/v1/templates` | List available grading templates |
-| `GET` | `/api/v1/templates/{template_name}` | Get template details |
-| `GET` | `/api/v1/health` | Health check |
-| `GET` | `/api/v1/ready` | Readiness check |
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| `POST` | `/api/v1/configs` | Create a grading configuration | |
+| `GET` | `/api/v1/configs` | List all grading configurations | |
+| `GET` | `/api/v1/configs/id/{config_id}` | Get configuration by internal ID | ✓ |
+| `GET` | `/api/v1/configs/{external_assignment_id}` | Get configuration by assignment ID | |
+| `PUT` | `/api/v1/configs/{config_id}` | Update a grading configuration | |
+| `PUT` | `/api/v1/configs/external/{external_assignment_id}` | Update a grading configuration by external assignment ID | |
+| `POST` | `/api/v1/submissions` | Submit code for grading | |
+| `GET` | `/api/v1/submissions/{submission_id}` | Get submission details and results | |
+| `GET` | `/api/v1/submissions/user/{external_user_id}` | List submissions by user | |
+| `POST` | `/api/v1/submissions/external-results` | Ingest externally computed grading results | ✓ |
+| `POST` | `/api/v1/execute` | Execute code without grading (DCE) | |
+| `GET` | `/api/v1/templates` | List available grading templates | |
+| `GET` | `/api/v1/templates/{template_name}` | Get template details | |
+| `GET` | `/api/v1/health` | Health check | |
+| `GET` | `/api/v1/ready` | Readiness check | |
 
 ---
 
@@ -157,6 +198,37 @@ GET /api/v1/configs?limit=100&offset=0
   }
 ]
 ```
+
+### Get Grading Configuration by Internal ID
+
+```http
+GET /api/v1/configs/id/{config_id}
+Authorization: Bearer <token>
+```
+
+>  **Protected** — requires a valid integration token (see [Authentication](#authentication)).
+
+Fetch a grading configuration using its internal database ID. This is used by external/private mode (e.g. GitHub Action) when only the `grading_config_id` is known.
+
+**Response (200 OK):**
+```json
+{
+  "id": 1,
+  "external_assignment_id": "assignment-42",
+  "template_name": "input_output",
+  "criteria_config": { ... },
+  "languages": ["python", "java"],
+  "setup_config": { ... },
+  "include_feedback": true,
+  "feedback_config": { ... },
+  "version": 1,
+  "created_at": "2026-02-16T10:00:00Z",
+  "updated_at": "2026-02-16T10:00:00Z",
+  "is_active": true
+}
+```
+
+**Error (404):** Configuration not found.
 
 ### Get Grading Configuration
 
@@ -522,6 +594,77 @@ GET /api/v1/submissions/user/{external_user_id}?limit=100&offset=0
   }
 ]
 ```
+
+### Ingest External Grading Results
+
+```http
+POST /api/v1/submissions/external-results
+Content-Type: application/json
+Authorization: Bearer <token>
+```
+
+> 🔒 **Protected** — requires a valid integration token (see [Authentication](#authentication)).
+
+Persist grading results computed outside the cloud instance (e.g. GitHub Action running in external/private mode). Creates both a `submission` and a `submission_result` row, making the result visible through the standard submission retrieval endpoints.
+
+**Request Body:**
+```json
+{
+  "grading_config_id": 1,
+  "external_user_id": "user_001",
+  "username": "student123",
+  "language": "python",
+  "status": "completed",
+  "final_score": 85.5,
+  "feedback": "## Grade: 85.5/100\n...",
+  "result_tree": { ... },
+  "focus": { ... },
+  "pipeline_execution": { ... },
+  "execution_time_ms": 4521,
+  "error_message": null,
+  "submission_metadata": {
+    "repo": "org/repo",
+    "run_id": "123"
+  }
+}
+```
+
+**Request Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `grading_config_id` | int | ✓ | Internal grading configuration ID |
+| `external_user_id` | string | ✓ | External user ID from your platform |
+| `username` | string | ✓ | Username of the submitter |
+| `language` | string | ✓ | Language used for grading (must be supported by the config) |
+| `status` | string | ✓ | `completed` or `failed` |
+| `final_score` | float | ✓ | Final grading score (≥ 0) |
+| `feedback` | string | ✗ | Generated feedback text |
+| `result_tree` | object | ✗ | Scored result tree |
+| `focus` | object | ✗ | Failed tests sorted by impact |
+| `pipeline_execution` | object | ✗ | Pipeline step execution details |
+| `execution_time_ms` | int | ✓ | Total execution time in milliseconds (≥ 0) |
+| `error_message` | string | ✗ | Error message for failed runs |
+| `submission_metadata` | object | ✗ | Repository/run metadata |
+
+**Response (200 OK):**
+```json
+{
+  "submission_id": 5,
+  "grading_config_id": 1,
+  "external_user_id": "user_001",
+  "username": "student123",
+  "status": "completed",
+  "final_score": 85.5,
+  "graded_at": "2026-02-16T10:05:03Z",
+  "execution_time_ms": 4521
+}
+```
+
+**Errors:**
+- `404`: Grading configuration not found
+- `400`: Language not supported for this configuration
+- `422`: Validation error (invalid status, negative score, missing required fields)
 
 ---
 
