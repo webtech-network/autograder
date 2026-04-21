@@ -853,6 +853,102 @@ GET /api/v1/ready
 
 ---
 
+## External Mode Integration
+
+This section describes how the Autograder GitHub Action in **external mode** interacts with the API. The action makes exactly two authenticated calls per grading run.
+
+### Integration sequence
+
+```
+1. GET  /api/v1/configs/id/{grading_config_id}     # fetch grading config
+2. POST /api/v1/submissions/external-results        # submit result (or failure)
+```
+
+Both endpoints require the `Authorization: Bearer <token>` header where the token matches `AUTOGRADER_INTEGRATION_TOKEN` on the server.
+
+### Config fetch
+
+```http
+GET /api/v1/configs/id/{grading_config_id}
+Authorization: Bearer <token>
+```
+
+Returns the full grading configuration object (see [Get Grading Configuration by Internal ID](#get-grading-configuration-by-internal-id)). The action uses the following fields from the response:
+
+| Field | Used for |
+|-------|----------|
+| `id` | Sent back as `grading_config_id` in the result payload |
+| `template_name` | Selects the grading template |
+| `criteria_config` | Grading rubric |
+| `languages` | Validates `submission-language`; defaults to `languages[0]` if omitted |
+| `include_feedback` | Whether to run the feedback step |
+| `setup_config` | Pre-flight setup commands and required files |
+| `feedback_config` | Reporter configuration |
+
+### Result submission (success)
+
+```http
+POST /api/v1/submissions/external-results
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "grading_config_id": 42,
+  "external_user_id": "github-actor-login",
+  "username": "github-actor-login",
+  "language": "python",
+  "status": "completed",
+  "final_score": 85.5,
+  "feedback": "## Grade: 85.5/100\n...",
+  "result_tree": { ... },
+  "focus": { ... },
+  "pipeline_execution": { ... },
+  "execution_time_ms": 3200,
+  "error_message": null,
+  "submission_metadata": {
+    "github_repository": "org/repo",
+    "github_sha": "abc123",
+    "github_run_id": "999",
+    "github_actor": "student1",
+    "github_ref": "refs/heads/main"
+  }
+}
+```
+
+### Result submission (failure)
+
+When grading fails, the action posts a failure payload before exiting non-zero:
+
+```json
+{
+  "grading_config_id": 42,
+  "external_user_id": "github-actor-login",
+  "username": "github-actor-login",
+  "language": "python",
+  "status": "failed",
+  "final_score": 0.0,
+  "feedback": null,
+  "result_tree": null,
+  "focus": null,
+  "pipeline_execution": null,
+  "execution_time_ms": 1500,
+  "error_message": "Sandbox timed out after 30 s",
+  "submission_metadata": { ... }
+}
+```
+
+### Error handling
+
+| Scenario | Action behaviour |
+|----------|-----------------|
+| `401` on config fetch | Exits non-zero; no result posted |
+| `404` on config fetch | Exits non-zero; no result posted |
+| 5xx / network error on config fetch | Retries with exponential back-off; then exits non-zero |
+| Grading raises exception | Posts failure payload, then exits non-zero |
+| `401` / `4xx` on result submission | Exits non-zero (failure recorded in Action log) |
+
+---
+
 ## Error Responses
 
 All endpoints use FastAPI's standard error response format:

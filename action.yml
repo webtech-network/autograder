@@ -28,6 +28,22 @@ inputs:
     description: 'Whether to include/generate feedback. Use "true" or "false". Defaults to false.'
     required: false
     default: "false"
+  execution-mode:
+    description: 'Execution mode for the autograder. Use "repo" (default) for repository-config mode or "external" to load config from the Autograder Cloud.'
+    required: false
+    default: "repo"
+  grading-config-id:
+    description: "The grading configuration ID from the Autograder Cloud. Required when execution-mode is \"external\"."
+    required: false
+  autograder-cloud-url:
+    description: "The base URL of the Autograder Cloud instance. Required when execution-mode is \"external\"."
+    required: false
+  autograder-cloud-token:
+    description: "Authentication token for the Autograder Cloud API. Required when execution-mode is \"external\"."
+    required: false
+  submission-language:
+    description: "Programming language of the student submission (e.g. 'python', 'java'). Validated against the grading config's supported languages. Defaults to the first language in the config when omitted. Only used in external mode."
+    required: false
 
 # Defines the output variable of the action.
 outputs:
@@ -47,3 +63,8 @@ runs:
     OPENAI_KEY: ${{ inputs.openai-key }}
     APP_TOKEN: ${{ inputs.app-token }}
     INCLUDE_FEEDBACK: ${{ inputs.include-feedback }}
+    EXECUTION_MODE: ${{ inputs.execution-mode }}
+    GRADING_CONFIG_ID: ${{ inputs.grading-config-id }}
+    AUTOGRADER_CLOUD_URL: ${{ inputs.autograder-cloud-url }}
+    AUTOGRADER_CLOUD_TOKEN: ${{ inputs.autograder-cloud-token }}
+    SUBMISSION_LANGUAGE: ${{ inputs.submission-language }}

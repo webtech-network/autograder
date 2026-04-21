@@ -454,3 +454,306 @@ class TestGetSubmissionFiles:
         assert ".git" not in captured_dirs[0]
         assert ".github" not in captured_dirs[0]
         assert "src" in captured_dirs[0]
+
+
+# ---------------------------------------------------------------------------
+# Helpers for external-mode tests
+# ---------------------------------------------------------------------------
+
+
+def _make_argv_external(
+    *,
+    github_token="gh-token",
+    template_preset="python",
+    student_name="student1",
+    feedback_type="default",
+    app_token="app-token",
+    grading_config_id="cfg-123",
+    autograder_cloud_url="https://cloud.example.com",
+    autograder_cloud_token="cloud-tok",
+    include_feedback=None,
+):
+    """Build a sys.argv list for external execution mode."""
+    argv = [
+        "entrypoint",
+        "--github-token", github_token,
+        "--template-preset", template_preset,
+        "--student-name", student_name,
+        "--feedback-type", feedback_type,
+        "--app-token", app_token,
+        "--execution-mode", "external",
+        "--grading-config-id", grading_config_id,
+        "--autograder-cloud-url", autograder_cloud_url,
+        "--autograder-cloud-token", autograder_cloud_token,
+    ]
+    if include_feedback is not None:
+        argv += ["--include-feedback", include_feedback]
+    return argv
+
+
+class TestExecutionModeArgParsing:
+    """
+    Argument parsing for --execution-mode and related external-mode flags.
+    """
+
+    def test_default_execution_mode_is_repo(self):
+        """Asserts --execution-mode defaults to 'repo' when not supplied."""
+        argv = _make_argv()
+        with patch.object(sys, "argv", argv):
+            parsed = main_module.parser.parse_args(argv[1:])
+        assert parsed.execution_mode == "repo"
+
+    def test_external_mode_parsed_correctly(self):
+        """Asserts --execution-mode external is accepted and stored."""
+        argv = _make_argv_external()
+        with patch.object(sys, "argv", argv):
+            parsed = main_module.parser.parse_args(argv[1:])
+        assert parsed.execution_mode == "external"
+
+    def test_invalid_mode_causes_system_exit(self):
+        """Asserts an invalid --execution-mode value causes argparse to raise SystemExit."""
+        argv = _make_argv() + ["--execution-mode", "invalid"]
+        with patch.object(sys, "argv", argv):
+            with pytest.raises(SystemExit):
+                main_module.parser.parse_args(argv[1:])
+
+    def test_external_mode_args_stored(self):
+        """Asserts grading-config-id, autograder-cloud-url and autograder-cloud-token are parsed."""
+        argv = _make_argv_external(
+            grading_config_id="cfg-42",
+            autograder_cloud_url="https://cloud.example.com",
+            autograder_cloud_token="secret",
+        )
+        with patch.object(sys, "argv", argv):
+            parsed = main_module.parser.parse_args(argv[1:])
+        assert parsed.grading_config_id == "cfg-42"
+        assert parsed.autograder_cloud_url == "https://cloud.example.com"
+        assert parsed.autograder_cloud_token == "secret"
+
+
+class TestExternalModeValidation:
+    """
+    __parser_values validation rules for external mode (fail-fast checks).
+    """
+
+    def test_missing_grading_config_id_raises_system_exit(self):
+        """Asserts SystemExit(1) is raised when external mode is used without grading-config-id."""
+        argv = _make_argv_external(grading_config_id="")
+        # Replace the empty string element pairs
+        argv = [
+            "entrypoint",
+            "--github-token", "gh-token",
+            "--template-preset", "python",
+            "--student-name", "student1",
+            "--execution-mode", "external",
+            "--autograder-cloud-url", "https://cloud.example.com",
+            "--autograder-cloud-token", "tok",
+        ]
+        mock_service = MagicMock()
+        with patch.object(sys, "argv", argv), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
+        assert exc_info.value.code == 1
+        mock_service.autograder_pipeline_from_cloud.assert_not_called()
+
+    def test_missing_cloud_url_raises_system_exit(self):
+        """Asserts SystemExit(1) is raised when external mode is used without autograder-cloud-url."""
+        argv = [
+            "entrypoint",
+            "--github-token", "gh-token",
+            "--template-preset", "python",
+            "--student-name", "student1",
+            "--execution-mode", "external",
+            "--grading-config-id", "cfg-123",
+            "--autograder-cloud-token", "tok",
+        ]
+        mock_service = MagicMock()
+        with patch.object(sys, "argv", argv), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
+        assert exc_info.value.code == 1
+        mock_service.autograder_pipeline_from_cloud.assert_not_called()
+
+    def test_missing_cloud_token_raises_system_exit(self):
+        """Asserts SystemExit(1) is raised when external mode is used without autograder-cloud-token."""
+        argv = [
+            "entrypoint",
+            "--github-token", "gh-token",
+            "--template-preset", "python",
+            "--student-name", "student1",
+            "--execution-mode", "external",
+            "--grading-config-id", "cfg-123",
+            "--autograder-cloud-url", "https://cloud.example.com",
+        ]
+        mock_service = MagicMock()
+        with patch.object(sys, "argv", argv), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
+        assert exc_info.value.code == 1
+        mock_service.autograder_pipeline_from_cloud.assert_not_called()
+
+
+class TestSubmissionLanguageArgParsing:
+    """Tests for --submission-language argument."""
+
+    def test_submission_language_defaults_to_none(self):
+        """Asserts --submission-language defaults to None when not supplied."""
+        argv = _make_argv_external()
+        with patch.object(sys, "argv", argv):
+            parsed = main_module.parser.parse_args(argv[1:])
+        assert parsed.submission_language is None
+
+    def test_submission_language_parsed_correctly(self):
+        """Asserts --submission-language value is stored."""
+        argv = _make_argv_external() + ["--submission-language", "python"]
+        with patch.object(sys, "argv", argv):
+            parsed = main_module.parser.parse_args(argv[1:])
+        assert parsed.submission_language == "python"
+
+    def test_submission_language_forwarded_to_service(self):
+        """Asserts --submission-language is forwarded to autograder_pipeline_from_cloud."""
+        execution = _make_pipeline_execution()
+        mock_service = MagicMock()
+        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
+        mock_service.run_autograder.return_value = execution
+
+        argv = _make_argv_external(grading_config_id="cfg-1") + ["--submission-language", "java"]
+        with patch.object(sys, "argv", argv), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            run(main_module.main())
+
+        call_kwargs = mock_service.autograder_pipeline_from_cloud.call_args
+        assert call_kwargs[0][5] == "java"  # submission_language positional arg
+
+
+class TestExternalModeRouting:
+    """
+    main() routes to the correct service method based on --execution-mode.
+    """
+
+    def test_repo_mode_calls_autograder_pipeline(self):
+        """Asserts autograder_pipeline is called (not autograder_pipeline_from_cloud) in repo mode."""
+        execution = _make_pipeline_execution()
+        mock_service = MagicMock()
+        mock_service.autograder_pipeline.return_value = MagicMock()
+        mock_service.run_autograder.return_value = execution
+
+        with patch.object(sys, "argv", _make_argv()), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            run(main_module.main())
+
+        mock_service.autograder_pipeline.assert_called_once()
+        mock_service.autograder_pipeline_from_cloud.assert_not_called()
+
+    def test_external_mode_calls_autograder_pipeline_from_cloud(self):
+        """Asserts autograder_pipeline_from_cloud is called (not autograder_pipeline) in external mode."""
+        execution = _make_pipeline_execution()
+        mock_service = MagicMock()
+        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
+        mock_service.run_autograder.return_value = execution
+
+        with patch.object(sys, "argv", _make_argv_external()), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            run(main_module.main())
+
+        mock_service.autograder_pipeline_from_cloud.assert_called_once()
+        mock_service.autograder_pipeline.assert_not_called()
+
+    def test_external_mode_passes_cloud_params_to_service(self):
+        """Asserts cloud URL, token, config ID, feedback mode, and student name are forwarded."""
+        execution = _make_pipeline_execution()
+        mock_service = MagicMock()
+        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
+        mock_service.run_autograder.return_value = execution
+
+        with patch.object(
+            sys,
+            "argv",
+            _make_argv_external(
+                grading_config_id="cfg-99",
+                autograder_cloud_url="https://mycloud.io",
+                autograder_cloud_token="super-secret",
+                student_name="bob",
+            ),
+        ), patch("github_action.main.GithubActionService", return_value=mock_service):
+            run(main_module.main())
+
+        mock_service.autograder_pipeline_from_cloud.assert_called_once_with(
+            "cfg-99",
+            "https://mycloud.io",
+            "super-secret",
+            "default",  # feedback_type
+            "bob",      # student_name
+            None,       # submission_language (not provided)
+        )
+
+    def test_external_mode_runs_autograder_after_cloud_pipeline(self):
+        """Asserts run_autograder is still called after building the pipeline from cloud config."""
+        execution = _make_pipeline_execution(final_score=72.0)
+        mock_pipeline = MagicMock()
+        mock_service = MagicMock()
+        mock_service.autograder_pipeline_from_cloud.return_value = mock_pipeline
+        mock_service.run_autograder.return_value = execution
+
+        with patch.object(sys, "argv", _make_argv_external()), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            run(main_module.main())
+
+        mock_service.run_autograder.assert_called_once()
+
+    def test_external_mode_none_grading_result_raises_system_exit(self):
+        """Asserts SystemExit(1) is raised when external mode pipeline returns None result."""
+        execution = MagicMock()
+        execution.result = None
+        mock_service = MagicMock()
+        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
+        mock_service.run_autograder.return_value = execution
+
+        with patch.object(sys, "argv", _make_argv_external()), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
+
+        assert exc_info.value.code == 1
+
+    def test_external_mode_failure_calls_submit_failure_to_cloud(self):
+        """Asserts submit_failure_to_cloud is called when grading raises an exception."""
+        mock_service = MagicMock()
+        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
+        mock_service.run_autograder.side_effect = RuntimeError("sandbox crash")
+
+        with patch.object(sys, "argv", _make_argv_external()), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
+
+        assert exc_info.value.code == 1
+        mock_service.submit_failure_to_cloud.assert_called_once()
+        call_args = mock_service.submit_failure_to_cloud.call_args
+        assert "sandbox crash" in call_args[0][0]
+
+    def test_external_mode_failure_not_called_when_config_fetch_fails(self):
+        """Asserts submit_failure_to_cloud is NOT called when pipeline build itself raises."""
+        mock_service = MagicMock()
+        mock_service.autograder_pipeline_from_cloud.side_effect = RuntimeError("cloud unreachable")
+
+        with patch.object(sys, "argv", _make_argv_external()), patch(
+            "github_action.main.GithubActionService", return_value=mock_service
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                run(main_module.main())
+
+        assert exc_info.value.code == 1
+        mock_service.submit_failure_to_cloud.assert_not_called()

@@ -22,6 +22,26 @@ if [[ -z "$GITHUB_ACTOR" ]]; then
   echo "Error: Environment variable GITHUB_ACTOR is not set." >&2
   exit 1
 fi
+
+# --- 1b. Mode-specific validation ---
+# Resolve effective execution mode (default: repo)
+EFFECTIVE_MODE="${EXECUTION_MODE:-repo}"
+
+if [[ "$EFFECTIVE_MODE" == "external" ]]; then
+  if [[ -z "$GRADING_CONFIG_ID" ]]; then
+    echo "Error: GRADING_CONFIG_ID is required when execution-mode is 'external'." >&2
+    exit 1
+  fi
+  if [[ -z "$AUTOGRADER_CLOUD_URL" ]]; then
+    echo "Error: AUTOGRADER_CLOUD_URL is required when execution-mode is 'external'." >&2
+    exit 1
+  fi
+  if [[ -z "$AUTOGRADER_CLOUD_TOKEN" ]]; then
+    echo "Error: AUTOGRADER_CLOUD_TOKEN is required when execution-mode is 'external'." >&2
+    exit 1
+  fi
+fi
+
 cd /app
 
 
@@ -34,6 +54,7 @@ args=(
     "--github-token" "$GITHUB_TOKEN"
     "--template-preset" "$TEMPLATE_PRESET"
     "--student-name" "$GITHUB_ACTOR"
+    "--execution-mode" "$EFFECTIVE_MODE"
 )
 
 # Conditionally add optional arguments to the array ONLY if they are set.
@@ -53,6 +74,22 @@ fi
 
 if [[ -n "$INCLUDE_FEEDBACK" ]]; then
   args+=("--include-feedback" "$INCLUDE_FEEDBACK")
+fi
+
+if [[ -n "$GRADING_CONFIG_ID" ]]; then
+    args+=("--grading-config-id" "$GRADING_CONFIG_ID")
+fi
+
+if [[ -n "$AUTOGRADER_CLOUD_URL" ]]; then
+    args+=("--autograder-cloud-url" "$AUTOGRADER_CLOUD_URL")
+fi
+
+if [[ -n "$AUTOGRADER_CLOUD_TOKEN" ]]; then
+    args+=("--autograder-cloud-token" "$AUTOGRADER_CLOUD_TOKEN")
+fi
+
+if [[ -n "$SUBMISSION_LANGUAGE" ]]; then
+    args+=("--submission-language" "$SUBMISSION_LANGUAGE")
 fi
 
 
