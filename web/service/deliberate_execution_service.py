@@ -188,5 +188,5 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
     finally:
         # Always release sandbox back to pool
         if sandbox and sandbox_manager:
-            sandbox_manager.release_sandbox(sandbox)
+            sandbox_manager.release_sandbox(language, sandbox)
             logger.info("Released sandbox for %s", language.value)
