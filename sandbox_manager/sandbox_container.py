@@ -1,4 +1,5 @@
 import base64
+import base64
 import io
 import os
 import tarfile
@@ -273,7 +274,11 @@ class SandboxContainer:
 
     def extract_file(self, path: str, max_bytes: int = 1_048_576) -> ExtractedFile:
         """
-        Extract a single file from the container using Docker get_archive.
+        Extract a single file from the container using exec_run + base64.
+
+        Uses exec_run instead of Docker get_archive for compatibility with
+        gVisor (runsc), where files created via exec_run are not visible to
+        the get_archive API.
 
         Args:
             path: Absolute path inside the container (e.g. /app/output.txt).
@@ -284,36 +289,40 @@ class SandboxContainer:
 
         Raises:
             FileNotFoundError: If the file does not exist in the container.
-            ValueError: If the archive contains no regular file or file exceeds max_bytes.
-            RuntimeError: If the tar stream cannot be read.
+            ValueError: If the file exceeds max_bytes.
+            RuntimeError: If the extraction command fails.
         """
+        # Check file exists and get its size
+        check = self.container_ref.exec_run(
+            cmd=["/bin/sh", "-c", f"test -f {path} && stat -c %s {path} 2>/dev/null || stat -f %z {path} 2>/dev/null"],
+            user="sandbox",
+        )
+        if check.exit_code != 0:
+            raise FileNotFoundError(f"File not found in container: {path}")
+
+        size_str = check.output.decode("utf-8", errors="replace").strip() if check.output else ""
+        try:
+            size = int(size_str)
+        except (ValueError, TypeError):
+            size = 0
+
+        if size > max_bytes:
+            raise ValueError(f"File exceeds maximum size: {size} bytes > {max_bytes} bytes")
+
+        # Read file content via base64 to safely transport binary data
+        result = self.container_ref.exec_run(
+            cmd=["/bin/sh", "-c", f"base64 {path}"],
+            user="sandbox",
+        )
+        if result.exit_code != 0:
+            stderr = result.output.decode("utf-8", errors="replace") if result.output else ""
+            raise RuntimeError(f"Failed to read file from container: {stderr}")
 
         try:
-            bits, _ = self.container_ref.get_archive(path)
+            content_bytes = base64.b64decode(result.output)
         except Exception as e:
-            if any(msg in str(e) for msg in ("404", "Not Found", "No such")):
-                raise FileNotFoundError(f"File not found in container: {path}") from e
-            raise RuntimeError(f"Failed to retrieve archive from container: {e}") from e
+            raise RuntimeError(f"Failed to decode file content: {e}") from e
 
-        try:
-            raw = b"".join(bits)
-            with tarfile.open(fileobj=io.BytesIO(raw)) as tar:
-                # Find the first regular file in the archive
-                member = next((m for m in tar.getmembers() if m.isfile()), None)
-
-                if member is None:
-                    raise ValueError(f"No regular file found in archive for path: {path}")
-
-                if member.size > max_bytes:
-                    raise ValueError(
-                        f"File exceeds maximum size: {member.size} bytes > {max_bytes} bytes"
-                    )
-
-                content_bytes = tar.extractfile(member).read()
-        except (ValueError, RuntimeError):
-            raise
-        except Exception as e:
-            raise RuntimeError(f"Failed to read tar stream: {e}") from e
         try:
             content_text = content_bytes.decode("utf-8")
             encoding = "utf-8"
