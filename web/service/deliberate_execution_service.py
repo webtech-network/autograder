@@ -8,6 +8,7 @@ It uses the sandbox manager to execute code and return outputs.
 import asyncio
 
 from autograder.models.dataclass.submission import SubmissionFile
+from autograder.services.assets.resolver import AssetSourceResolver
 from sandbox_manager.manager import get_sandbox_manager
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory, CommandResponse
 from web.config.logging import get_logger
@@ -158,6 +159,20 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         sandbox.prepare_workdir(files_dict)
         logger.info("Prepared workdir with %d file(s)", len(files_dict))
 
+        # Resolve and inject assets if provided
+        if request.assets:
+            logger.info("Resolving and injecting %d assets for deliberate execution", len(request.assets))
+            asset_resolver = AssetSourceResolver()
+            resolved_assets = await asyncio.to_thread(
+                asset_resolver.resolve_assets,
+                request.assets
+            )
+            await asyncio.to_thread(
+                sandbox.inject_assets,
+                resolved_assets
+            )
+            logger.info("Successfully injected %d assets", len(resolved_assets))
+
         # Determine test cases to run (at least 1 empty run if none provided)
         test_cases = request.test_cases if request.test_cases else [[]]
 
@@ -170,28 +185,8 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
 
         return DeliberateCodeExecutionResponse(results=execution_results)
 
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error("Execution failed: %s", e, exc_info=True)
-        # Return error response instead of raising
-        return DeliberateCodeExecutionResponse(
-            results=[
-                DeliberateCodeExecutionResult(
-                    output="",
-                    category=ResponseCategory.SYSTEM_ERROR,
-                    error_message=f"Execution failed: {str(e)}",
-                    execution_time=0.0
-                )
-            ]
-        )
-
     finally:
-        # Release sandbox back to pool
-        if sandbox:
+        # Always release sandbox back to pool
+        if sandbox and sandbox_manager:
             sandbox_manager.release_sandbox(language, sandbox)
             logger.info("Released sandbox for %s", language.value)
-
-
-
-
-
-

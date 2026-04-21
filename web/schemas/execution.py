@@ -11,6 +11,7 @@ feature. It will not store anything for further queries.
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
+from autograder.models.config.setup import AssetConfig
 from sandbox_manager.models.sandbox_models import ResponseCategory, Language
 from web.schemas.submission import SubmissionFileData
 
@@ -23,6 +24,7 @@ class DeliberateCodeExecutionRequest(BaseModel):
     submission_files: List[SubmissionFileData] = Field(..., description="List of files to be executed, including their content.")
     program_command: str = Field(..., description="The command to execute the program (e.g., 'python main.py', 'java Main', 'node app.js', './a.out').")
     test_cases: Optional[List[List[str]]] = Field(None, description="Optional list of test cases to be evaluated. Each test case is a list of inputs/arguments.")
+    assets: Optional[List[AssetConfig]] = Field(default_factory=list, description="Optional list of assets to be injected into the sandbox before execution.")
 
     @field_validator('language')
     @classmethod
