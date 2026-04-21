@@ -39,6 +39,7 @@ class GithubActionService:
         self.repo = self.get_repository(app_token)
         self._cloud_exporter: Optional[CloudExporter] = None
         self._submission_language: Optional[Language] = None
+        self._locale: str = "en"
 
     def run_autograder(
         self, pipeline: AutograderPipeline, user_name: str, submission_files: dict
@@ -60,6 +61,7 @@ class GithubActionService:
                 assignment_id=self.app_token,
                 submission_files=submission_files,
                 language=self._submission_language,
+                locale=self._locale,
             )
 
             return pipeline.run(submission)
@@ -300,6 +302,7 @@ class GithubActionService:
         exporter = CloudExporter(client, config_db_id, language, student_name)
         self._cloud_exporter = exporter
         self._submission_language = Language(language)
+        self._locale = locale
 
         return build_pipeline(
             template_name=config.get("template_name"),
