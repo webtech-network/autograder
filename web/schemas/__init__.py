@@ -11,6 +11,8 @@ from web.schemas.submission import (
     SubmissionDetailResponse,
     SubmissionStatus,
     SubmissionFileData,
+    ExternalResultCreate,
+    ExternalResultResponse,
 )
 from web.schemas.execution import (
     DeliberateCodeExecutionRequest,
@@ -26,6 +28,8 @@ __all__ = [
     "SubmissionDetailResponse",
     "SubmissionStatus",
     "SubmissionFileData",
+    "ExternalResultCreate",
+    "ExternalResultResponse",
     "DeliberateCodeExecutionRequest",
     "DeliberateCodeExecutionResponse",
 ]

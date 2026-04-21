@@ -1,23 +1,28 @@
 """Submission endpoints."""
 
 import asyncio
+from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from web.api.deps import get_db_session
+from web.api.deps import get_db_session, require_integration_token
 from web.config.logging import get_logger
 from web.core.lifespan import get_grading_tasks
 from web.database.models.submission import SubmissionStatus
+from web.database.models.submission_result import PipelineStatus
 from web.repositories import (
     GradingConfigRepository,
     SubmissionRepository,
+    ResultRepository,
 )
 from web.schemas import (
     SubmissionCreate,
     SubmissionResponse,
     SubmissionDetailResponse,
+    ExternalResultCreate,
+    ExternalResultResponse,
 )
 from web.service.grading_service import grade_submission, GradingRequest
 
@@ -223,3 +228,118 @@ async def get_user_submissions(
     logger.info("Found %d submission(s) for user=%s", len(submissions), external_user_id)
     return submissions
 
+
+@router.post("/external-results", response_model=ExternalResultResponse, dependencies=[Depends(require_integration_token)])
+async def ingest_external_result(
+    payload: ExternalResultCreate,
+    session: AsyncSession = Depends(get_db_session)
+):
+    """Ingest an externally computed grading result.
+
+    Creates a submission row and a matching submission_result row from
+    results computed outside the cloud instance (e.g. GitHub Action in
+    external/private mode).
+    """
+    logger.info(
+        "External result ingestion: user=%s, config_id=%d, status=%s, score=%.2f",
+        payload.external_user_id,
+        payload.grading_config_id,
+        payload.status.value,
+        payload.final_score,
+    )
+
+    # Validate grading config exists
+    config_repo = GradingConfigRepository(session)
+    grading_config = await config_repo.get_by_id(payload.grading_config_id)
+    if not grading_config:
+        logger.warning(
+            "External result rejected: grading config not found config_id=%d (user=%s)",
+            payload.grading_config_id,
+            payload.external_user_id,
+        )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Grading configuration with id {payload.grading_config_id} not found"
+        )
+
+    # Validate language is supported by this config
+    if payload.language not in grading_config.languages:
+        logger.warning(
+            "External result rejected: unsupported language '%s' for config_id=%d (supported=%s)",
+            payload.language,
+            payload.grading_config_id,
+            grading_config.languages,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Language '{payload.language}' is not supported for this configuration. "
+                   f"Supported languages: {', '.join(grading_config.languages)}"
+        )
+
+    # Map external status to internal submission status
+    submission_status = (
+        SubmissionStatus.COMPLETED
+        if payload.status.value == "completed"
+        else SubmissionStatus.FAILED
+    )
+
+    # Map to pipeline status
+    pipeline_status = (
+        PipelineStatus.SUCCESS
+        if payload.status.value == "completed"
+        else PipelineStatus.FAILED
+    )
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    # Create submission record (no files — externally graded)
+    submission_repo = SubmissionRepository(session)
+    db_submission = await submission_repo.create(
+        grading_config_id=grading_config.id,
+        external_user_id=payload.external_user_id,
+        username=payload.username,
+        submission_files={},
+        language=payload.language,
+        status=submission_status,
+        submission_metadata=payload.submission_metadata,
+    )
+    db_submission.graded_at = now
+
+    # Flush to obtain the submission ID before creating the result row
+    await session.flush()
+
+    # Create submission result record
+    result_repo = ResultRepository(session)
+    await result_repo.create(
+        submission_id=db_submission.id,
+        final_score=payload.final_score,
+        result_tree=payload.result_tree,
+        feedback=payload.feedback,
+        focus=payload.focus,
+        pipeline_execution=payload.pipeline_execution,
+        execution_time_ms=payload.execution_time_ms,
+        pipeline_status=pipeline_status,
+        error_message=payload.error_message,
+    )
+
+    await session.commit()
+
+    logger.info(
+        "External result ingested: submission_id=%d, config_id=%d, user=%s, score=%.2f, status=%s",
+        db_submission.id,
+        grading_config.id,
+        payload.external_user_id,
+        payload.final_score,
+        submission_status.value,
+    )
+
+    return ExternalResultResponse(
+        submission_id=db_submission.id,
+        grading_config_id=grading_config.id,
+        external_user_id=payload.external_user_id,
+        username=payload.username,
+        status=submission_status,
+        final_score=payload.final_score,
+        graded_at=now,
+        execution_time_ms=payload.execution_time_ms,
+    )
