@@ -185,6 +185,19 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
 
         return DeliberateCodeExecutionResponse(results=execution_results)
 
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error("Execution failed: %s", e, exc_info=True)
+        return DeliberateCodeExecutionResponse(
+            results=[
+                DeliberateCodeExecutionResult(
+                    output="",
+                    category=ResponseCategory.SYSTEM_ERROR,
+                    error_message=f"Execution failed: {str(e)}",
+                    execution_time=0.0
+                )
+            ]
+        )
+
     finally:
         # Always release sandbox back to pool
         if sandbox and sandbox_manager:
