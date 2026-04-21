@@ -468,7 +468,7 @@ def _make_argv_external(
     student_name="student1",
     feedback_type="default",
     app_token="app-token",
-    grading_config_id="cfg-123",
+    grading_config_id="123",
     autograder_cloud_url="https://cloud.example.com",
     autograder_cloud_token="cloud-tok",
     include_feedback=None,
@@ -623,7 +623,7 @@ class TestSubmissionLanguageArgParsing:
         mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
         mock_service.run_autograder.return_value = execution
 
-        argv = _make_argv_external(grading_config_id="cfg-1") + ["--submission-language", "java"]
+        argv = _make_argv_external(grading_config_id="1") + ["--submission-language", "java"]
         with patch.object(sys, "argv", argv), patch(
             "github_action.main.GithubActionService", return_value=mock_service
         ):
@@ -679,7 +679,7 @@ class TestExternalModeRouting:
             sys,
             "argv",
             _make_argv_external(
-                grading_config_id="cfg-99",
+                grading_config_id="99",
                 autograder_cloud_url="https://mycloud.io",
                 autograder_cloud_token="super-secret",
                 student_name="bob",
@@ -688,7 +688,7 @@ class TestExternalModeRouting:
             run(main_module.main())
 
         mock_service.autograder_pipeline_from_cloud.assert_called_once_with(
-            "cfg-99",
+            99,
             "https://mycloud.io",
             "super-secret",
             "default",  # feedback_type

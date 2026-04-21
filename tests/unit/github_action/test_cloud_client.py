@@ -95,10 +95,10 @@ class TestGetGradingConfig:
         with patch("urllib.request.urlopen", side_effect=fake_urlopen), patch(
             "time.sleep"
         ):
-            client.get_grading_config("cfg-42")
+            client.get_grading_config(42)
 
         assert len(captured_req) == 1
-        assert captured_req[0].full_url == "https://cloud.example.com/api/v1/configs/id/cfg-42"
+        assert captured_req[0].full_url == "https://cloud.example.com/api/v1/configs/id/42"
 
     def test_returns_parsed_json(self):
         """Asserts the response body is parsed as JSON and returned."""

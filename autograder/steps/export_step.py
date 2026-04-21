@@ -30,9 +30,11 @@ class ExporterStep(Step):
             PipelineExecution with an added StepResult indicating success or failure of the export operation
         """
         external_user_id = pipeline_exec.submission.user_id
-        score = pipeline_exec.get_grade_step_result().final_score
-
-        logger.info("Exporting result: external_user_id=%s, score=%.2f", external_user_id, score)
+        try:
+            score = pipeline_exec.get_grade_step_result().final_score
+            logger.info("Exporting result: external_user_id=%s, score=%.2f", external_user_id, score)
+        except (ValueError, AttributeError):
+            logger.info("Exporting result: external_user_id=%s (score unavailable)", external_user_id)
         self._exporter_service.export_with_context(pipeline_exec)
         logger.info("Result exported successfully: external_user_id=%s", external_user_id)
 

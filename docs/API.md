@@ -906,11 +906,11 @@ Content-Type: application/json
   "execution_time_ms": 3200,
   "error_message": null,
   "submission_metadata": {
-    "github_repository": "org/repo",
-    "github_sha": "abc123",
-    "github_run_id": "999",
-    "github_actor": "student1",
-    "github_ref": "refs/heads/main"
+    "repository": "org/repo",
+    "commit_sha": "abc123",
+    "run_id": "999",
+    "actor": "student1",
+    "ref": "refs/heads/main"
   }
 }
 ```

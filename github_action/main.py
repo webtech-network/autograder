@@ -237,6 +237,12 @@ def __parser_values():
             raise ValueError(
                 "grading-config-id is required when execution-mode is 'external'."
             )
+        try:
+            args.grading_config_id = int(args.grading_config_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "grading-config-id must be an integer when execution-mode is 'external'."
+            ) from exc
         if not args.autograder_cloud_url:
             raise ValueError(
                 "autograder-cloud-url is required when execution-mode is 'external'."

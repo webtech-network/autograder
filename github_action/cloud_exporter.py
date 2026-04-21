@@ -11,7 +11,7 @@ from autograder.models.abstract.exporter import Exporter
 from github_action.cloud_client import CloudClient
 
 if TYPE_CHECKING:
-    from autograder.models.pipeline_execution import PipelineExecution, PipelineStatus
+    from autograder.models.pipeline_execution import PipelineExecution
 
 logger = logging.getLogger(__name__)
 

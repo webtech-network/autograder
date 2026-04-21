@@ -527,7 +527,7 @@ class TestAutograderPipelineFromCloud:
             mock_build.return_value = mock_pipeline
 
             result = service.autograder_pipeline_from_cloud(
-                grading_config_id="cfg-7",
+                grading_config_id="7",
                 cloud_url="https://cloud.example.com",
                 cloud_token="tok",
                 feedback_mode="default",
@@ -546,7 +546,7 @@ class TestAutograderPipelineFromCloud:
         """Asserts CloudClient.get_grading_config is called with the provided config ID."""
         service = _make_service()
         _, client, *_ = self._call(service)
-        client.get_grading_config.assert_called_once_with("cfg-7")
+        client.get_grading_config.assert_called_once_with("7")
 
     def test_cloud_exporter_receives_int_config_id(self):
         """Asserts CloudExporter is constructed with the integer DB ID from the config response."""
@@ -600,7 +600,7 @@ class TestAutograderPipelineFromCloud:
 
             with pytest.raises(ValueError, match="not supported"):
                 service.autograder_pipeline_from_cloud(
-                    grading_config_id="cfg-7",
+                    grading_config_id="7",
                     cloud_url="https://cloud.example.com",
                     cloud_token="tok",
                     feedback_mode="default",
@@ -621,7 +621,7 @@ class TestAutograderPipelineFromCloud:
 
             with pytest.raises(ValueError, match="no languages"):
                 service.autograder_pipeline_from_cloud(
-                    grading_config_id="cfg-7",
+                    grading_config_id="7",
                     cloud_url="https://cloud.example.com",
                     cloud_token="tok",
                     feedback_mode="default",
