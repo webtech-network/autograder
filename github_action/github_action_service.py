@@ -6,6 +6,7 @@ from typing import Optional
 from autograder.autograder import build_pipeline, AutograderPipeline
 from autograder.models.dataclass.submission import Submission
 from github_action.cloud_client import CloudClient
+from sandbox_manager.models.sandbox_models import Language
 from github_action.cloud_exporter import CloudExporter
 from github_action.github_classroom_exporter import GithubClassroomExporter
 from github import Github
@@ -37,6 +38,7 @@ class GithubActionService:
         self.app_token = app_token
         self.repo = self.get_repository(app_token)
         self._cloud_exporter: Optional[CloudExporter] = None
+        self._submission_language: Optional[Language] = None
 
     def run_autograder(
         self, pipeline: AutograderPipeline, user_name: str, submission_files: dict
@@ -57,6 +59,7 @@ class GithubActionService:
                 user_id=self.github_token,
                 assignment_id=self.app_token,
                 submission_files=submission_files,
+                language=self._submission_language,
             )
 
             return pipeline.run(submission)
@@ -295,6 +298,7 @@ class GithubActionService:
 
         exporter = CloudExporter(client, config_db_id, language, student_name)
         self._cloud_exporter = exporter
+        self._submission_language = Language(language)
 
         return build_pipeline(
             template_name=config.get("template_name"),
@@ -327,7 +331,7 @@ class GithubActionService:
             return
         try:
             self._cloud_exporter.submit_failure(error_message, execution_time_ms)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001  # pylint: disable=broad-exception-caught
             logger.warning("Failed to submit failure payload to cloud: %s", exc)
 
     def __read_path(self, configuration_path: str, file_name: str, optional=True):
