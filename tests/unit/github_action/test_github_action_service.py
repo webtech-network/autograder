@@ -100,6 +100,8 @@ class TestRunAutograder:
             user_id="gh-tok",
             assignment_id="app-tok",
             submission_files=submission_files,
+            language=None,
+            locale="en",
         )
 
     def test_wraps_exception_on_pipeline_failure(self):

@@ -694,6 +694,7 @@ class TestExternalModeRouting:
             "default",  # feedback_type
             "bob",      # student_name
             None,       # submission_language (not provided)
+            "en",       # locale (default)
         )
 
     def test_external_mode_runs_autograder_after_cloud_pipeline(self):
