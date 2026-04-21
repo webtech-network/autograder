@@ -244,6 +244,7 @@ class GithubActionService:
         feedback_mode: str,
         student_name: str,
         submission_language: Optional[str] = None,
+        locale: str = "en",
     ) -> AutograderPipeline:
         """
         Build the autograder pipeline using configuration fetched from the Autograder Cloud.
@@ -309,6 +310,7 @@ class GithubActionService:
             feedback_mode=feedback_mode,
             export_results=True,
             exporter=exporter,
+            locale=locale,
         )
 
     def submit_failure_to_cloud(self, error_message: str, execution_time_ms: int = 0) -> None:

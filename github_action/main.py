@@ -89,6 +89,13 @@ parser.add_argument(
         "Defaults to the first language in the config when omitted."
     ),
 )
+parser.add_argument(
+    "--locale",
+    type=str,
+    required=False,
+    default="en",
+    help="Locale for feedback messages (e.g. 'en', 'pt-br'). Defaults to 'en'.",
+)
 
 
 async def main():
@@ -157,6 +164,7 @@ def __run_external_mode(args, service: GithubActionService):
         args.feedback_type,
         args.student_name,
         args.submission_language,
+        args.locale,
     )
     try:
         __retrieve_grading_score(args, service, pipeline)

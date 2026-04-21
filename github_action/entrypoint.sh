@@ -92,6 +92,10 @@ if [[ -n "$SUBMISSION_LANGUAGE" ]]; then
     args+=("--submission-language" "$SUBMISSION_LANGUAGE")
 fi
 
+if [[ -n "$LOCALE" ]]; then
+    args+=("--locale" "$LOCALE")
+fi
+
 
 # --- 3. Execute the Python Script ---
 echo "Executing python entrypoint with configured arguments..."

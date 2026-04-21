@@ -44,6 +44,10 @@ inputs:
   submission-language:
     description: "Programming language of the student submission (e.g. 'python', 'java'). Validated against the grading config's supported languages. Defaults to the first language in the config when omitted. Only used in external mode."
     required: false
+  locale:
+    description: "Locale for feedback messages (e.g. 'en', 'pt-br'). Defaults to 'en'."
+    required: false
+    default: "en"
 
 # Defines the output variable of the action.
 outputs:
@@ -68,3 +72,4 @@ runs:
     AUTOGRADER_CLOUD_URL: ${{ inputs.autograder-cloud-url }}
     AUTOGRADER_CLOUD_TOKEN: ${{ inputs.autograder-cloud-token }}
     SUBMISSION_LANGUAGE: ${{ inputs.submission-language }}
+    LOCALE: ${{ inputs.locale }}
