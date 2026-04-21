@@ -1,115 +1,154 @@
-# API Testing Template (`api`)
+# API Testing Template
 
-The API Testing template validates student-built web APIs by making HTTP requests to a running server inside a sandbox container and checking the responses.
+**Registry key:** `api` · **Sandbox:** Required · **Languages:** Python, Java, Node.js, C++
 
-> **Template name for configs:** `api`  
-> **Requires sandbox:** Yes  
-> **Communication:** HTTP requests to the containerized application via `SandboxContainer.make_request()`
+The API testing template tests REST APIs running inside a sandbox container. The student's server is started via setup commands, and tests make HTTP requests to verify endpoints.
+
+!!! info "How it works"
+    The autograder starts the student's server inside a Docker container, waits for it to be ready, then sends HTTP requests to test endpoints. Tests communicate with the server via `localhost` inside the sandbox.
+
+## Available Tests
+
+| Test Name | Purpose |
+|-----------|---------|
+| [`health_check`](#health_check) | Verify an endpoint returns HTTP 200 |
+| [`check_response_json`](#check_response_json) | Verify a JSON response contains a specific key-value pair |
 
 ---
 
-## Test Functions
+## health_check
 
-### `health_check`
+Sends a GET request to the specified endpoint and checks that the server responds with HTTP status 200.
 
-Sends a GET request to an endpoint and verifies it returns HTTP status 200.
+### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `endpoint` | string | ✓ | The endpoint to test (e.g., `"/health"`, `"/api/status"`) |
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `endpoint` | string | Yes | `""` | API endpoint path (e.g., `"/health"`, `"/api/status"`) |
 
-**Scoring:** 100 if status code is 200, 0 otherwise.
+### Scoring
 
-**Example:**
+- **100** if the response status code is 200
+- **0** if the status code is anything else, or if the request fails
+
+### Example
+
 ```json
 {
   "name": "health_check",
-  "parameters": { "endpoint": "/health" },
-  "weight": 100
+  "parameters": [
+    { "name": "endpoint", "value": "/health" }
+  ]
 }
 ```
 
 ---
 
-### `check_response_json`
+## check_response_json
 
-Sends a GET request to an endpoint and verifies the JSON response contains a specific key-value pair.
+Sends a GET request to the specified endpoint and checks that the JSON response contains a specific key with a specific value.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `endpoint` | string | ✓ | The API endpoint to test |
-| `expected_key` | string | ✓ | JSON key to check in the response |
-| `expected_value` | any | ✓ | Expected value for that key |
+### Parameters
 
-**Scoring:** 100 if the response is valid JSON and contains the expected key-value pair, 0 otherwise.
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `endpoint` | string | Yes | `""` | API endpoint path |
+| `expected_key` | string | Yes | `""` | JSON key to look for in the response |
+| `expected_value` | any | No | `None` | Expected value for the key. If `None`, only checks that the key exists. |
 
-**Example:**
+### Scoring
+
+- **100** if the response is HTTP 200, the body is valid JSON, and `response[expected_key] == expected_value`
+- **0** if the status code is not 200, the body is not valid JSON, the key is missing, or the value doesn't match
+
+### Example
+
 ```json
 {
   "name": "check_response_json",
-  "parameters": {
-    "endpoint": "/api/info",
-    "expected_key": "version",
-    "expected_value": "1.0"
-  },
-  "weight": 100
+  "parameters": [
+    { "name": "endpoint", "value": "/api/users/1" },
+    { "name": "expected_key", "value": "name" },
+    { "name": "expected_value", "value": "Alice" }
+  ]
 }
 ```
 
 ---
 
-## Usage Example
+## Setup Requirements
+
+API testing requires a `setup_config` to start the student's server before tests run. The setup commands are executed inside the sandbox container.
 
 ```json
 {
   "external_assignment_id": "rest-api-assignment",
   "template_name": "api",
-  "languages": ["python", "node"],
+  "languages": ["python"],
   "setup_config": {
-    "required_files": ["app.py"],
-    "setup_commands": [
-      { "name": "Install dependencies", "command": "pip install flask" },
-      { "name": "Start server", "command": "python app.py &" }
-    ]
-  },
-  "criteria_config": {
-    "base": {
-      "weight": 100,
-      "subjects": [
-        {
-          "subject_name": "API Endpoints",
-          "weight": 100,
-          "tests": [
-            {
-              "name": "health_check",
-              "parameters": { "endpoint": "/health" },
-              "weight": 30
-            },
-            {
-              "name": "check_response_json",
-              "parameters": {
-                "endpoint": "/api/data",
-                "expected_key": "status",
-                "expected_value": "ok"
-              },
-              "weight": 70
-            }
-          ]
-        }
+    "python": {
+      "required_files": ["app.py", "requirements.txt"],
+      "setup_commands": [
+        "pip install -r requirements.txt",
+        "python3 app.py &"
       ]
     }
-  }
+  },
+  "criteria_config": { ... }
 }
 ```
 
-## How It Works
+!!! warning "Server startup"
+    Make sure the last setup command starts the server in the background (with `&`). The server must be listening before tests begin.
 
-Unlike the Input/Output and Web Dev templates, the API Testing template communicates with student code over HTTP:
+---
 
-1. The sandbox starts the student's web server (via setup commands or the program itself)
-2. The sandbox container exposes a port
-3. Test functions send HTTP requests to `http://localhost:{port}{endpoint}`
-4. Responses are validated against expected values
+## Complete Configuration Example
 
-This means the student's submission must be a runnable web server that listens on the expected port.
+A REST API assignment testing health and user endpoints:
 
+```json
+{
+  "base": {
+    "weight": 100,
+    "subjects": [
+      {
+        "subject_name": "Server Health",
+        "weight": 20,
+        "tests": [
+          {
+            "name": "health_check",
+            "parameters": [
+              { "name": "endpoint", "value": "/health" }
+            ]
+          }
+        ]
+      },
+      {
+        "subject_name": "User Endpoints",
+        "weight": 80,
+        "tests": [
+          {
+            "name": "check_response_json",
+            "parameters": [
+              { "name": "endpoint", "value": "/api/users/1" },
+              { "name": "expected_key", "value": "id" },
+              { "name": "expected_value", "value": 1 }
+            ],
+            "weight": 50
+          },
+          {
+            "name": "check_response_json",
+            "parameters": [
+              { "name": "endpoint", "value": "/api/users/1" },
+              { "name": "expected_key", "value": "name" },
+              { "name": "expected_value", "value": "Alice" }
+            ],
+            "weight": 50
+          }
+        ]
+      }
+    ]
+  }
+}
+```

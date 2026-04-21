@@ -69,10 +69,12 @@ nav:
       - Pipeline Execution Tracking: architecture/pipeline_execution_tracking.md
       - Sandbox Manager Internals: architecture/sandbox_manager.md
       - Web Module: architecture/web_module.md
-  - Templates:
-      - Input Output Template: template-library/input_output.md
+  - Template Configuration Guide:
+      - Overview: template-library/index.md
+      - Input/Output Template: template-library/input_output.md
       - API Testing Template: template-library/api_testing.md
       - Web Development Template: template-library/web_dev.md
+      - Complete Examples: template-library/examples.md
   - Features:
       - Grading Engine: features/grading_engine.md
       - Focus Feature: features/focus_feature.md
