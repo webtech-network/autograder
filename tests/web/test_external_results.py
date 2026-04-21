@@ -13,7 +13,6 @@ from web.database import session
 
 TEST_TOKEN = "test-external-results-token"
 
-
 @pytest.fixture(scope="module", autouse=True)
 def mock_external_services():
     """Mock external services for all tests."""
@@ -33,9 +32,7 @@ def mock_external_services():
         mock_template.get_instance.return_value = mock_service
         yield
 
-
 from web.main import app
-
 
 @pytest.fixture(autouse=True)
 def _set_integration_token():
@@ -46,10 +43,8 @@ def _set_integration_token():
     yield
     auth_module.integration_auth_config = cfg
 
-
 def _auth_header() -> dict:
     return {"Authorization": f"Bearer {TEST_TOKEN}"}
-
 
 @pytest.fixture
 async def test_db():
@@ -76,7 +71,6 @@ async def test_db():
         session.engine = old_engine
     await engine.dispose()
 
-
 @pytest.fixture
 async def client(test_db):
     """Create test client."""
@@ -85,7 +79,6 @@ async def client(test_db):
         base_url="http://test"
     ) as ac:
         yield ac
-
 
 async def _create_config(client, external_id="ext-assign-1"):
     """Helper to create a grading config and return its internal ID."""
@@ -102,9 +95,9 @@ async def _create_config(client, external_id="ext-assign-1"):
     assert resp.status_code == 200
     return resp.json()
 
-
-# ── GET /api/v1/configs/id/{config_id} ─────────────────────────
-
+# ---------------------------------------------------------------------------
+# GET /api/v1/configs/id/{config_id}
+# ---------------------------------------------------------------------------
 
 class TestGetConfigById:
     """Tests for fetching grading config by internal ID."""
@@ -153,9 +146,9 @@ class TestGetConfigById:
         for key in required_keys:
             assert key in data, f"Missing key: {key}"
 
-
-# ── POST /api/v1/submissions/external-results ──────────────────
-
+# ---------------------------------------------------------------------------
+# POST /api/v1/submissions/external-results
+# ---------------------------------------------------------------------------
 
 class TestExternalResultIngestion:
     """Tests for external grading result ingestion."""

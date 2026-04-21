@@ -7,6 +7,7 @@ with the autograder workflow to process student submissions and generate feedbac
 
 import logging
 import os
+import time
 from dotenv import load_dotenv
 from argparse import ArgumentParser
 from .github_action_service import GithubActionService
@@ -52,6 +53,49 @@ parser.add_argument(
     required=False,
     help="Whether to include/generate feedback (true/false).",
 )
+parser.add_argument(
+    "--execution-mode",
+    type=str,
+    default="repo",
+    choices=["repo", "external"],
+    help="Execution mode: 'repo' (default) uses repository config; 'external' loads config from the Autograder Cloud.",
+)
+parser.add_argument(
+    "--grading-config-id",
+    type=str,
+    required=False,
+    help="Grading configuration ID from the Autograder Cloud. Required when execution-mode is 'external'.",
+)
+parser.add_argument(
+    "--autograder-cloud-url",
+    type=str,
+    required=False,
+    help="Base URL of the Autograder Cloud instance. Required when execution-mode is 'external'.",
+)
+parser.add_argument(
+    "--autograder-cloud-token",
+    type=str,
+    required=False,
+    help="Authentication token for the Autograder Cloud API. Required when execution-mode is 'external'.",
+)
+parser.add_argument(
+    "--submission-language",
+    type=str,
+    required=False,
+    default=None,
+    help=(
+        "Programming language of the student submission (e.g. 'python', 'java'). "
+        "Validated against the grading config's supported languages. "
+        "Defaults to the first language in the config when omitted."
+    ),
+)
+parser.add_argument(
+    "--locale",
+    type=str,
+    required=False,
+    default="en",
+    help="Locale for feedback messages (e.g. 'en', 'pt-br'). Defaults to 'en'.",
+)
 
 
 async def main():
@@ -76,8 +120,12 @@ async def main():
             os.environ["OPENAI_API_KEY"] = args.openai_key
 
         service = GithubActionService(args.github_token, args.app_token)
-        pipeline = __build_pipeline(args, include_feedback, service)
-        __retrieve_grading_score(args, service, pipeline)
+
+        if args.execution_mode == "external":
+            __run_external_mode(args, service)
+        else:
+            pipeline = __build_pipeline(args, include_feedback, service)
+            __retrieve_grading_score(args, service, pipeline)
 
         success_execution = True
     except ValueError as e:
@@ -89,6 +137,42 @@ async def main():
     finally:
         if not success_execution:
             raise SystemExit(1)
+
+
+def __run_external_mode(args, service: GithubActionService):
+    """
+    Execute the grading pipeline using configuration fetched from the Autograder Cloud.
+
+    If grading fails after the pipeline is built, a failure payload is submitted
+    to the cloud before re-raising the exception so the cloud records a terminal
+    state for the submission.
+
+    Args:
+        args: Parsed command-line arguments containing cloud connection parameters.
+        service (GithubActionService): The GitHub Action service instance.
+    """
+    logger.info(
+        "Running in external mode with config ID '%s' from '%s'.",
+        args.grading_config_id,
+        args.autograder_cloud_url,
+    )
+    start_time = time.time()
+    pipeline = service.autograder_pipeline_from_cloud(
+        args.grading_config_id,
+        args.autograder_cloud_url,
+        args.autograder_cloud_token,
+        args.feedback_type,
+        args.student_name,
+        args.submission_language,
+        args.locale,
+    )
+    try:
+        __retrieve_grading_score(args, service, pipeline)
+    except Exception as exc:
+        execution_time_ms = int((time.time() - start_time) * 1000)
+        logger.error("Grading failed in external mode; submitting failure payload: %s", exc)
+        service.submit_failure_to_cloud(str(exc), execution_time_ms)
+        raise
 
 
 def __retrieve_grading_score(
@@ -155,6 +239,26 @@ def __parser_values():
         raise ValueError(
             "OpenAI API key is required for AI feedback mode in GitHub Actions. Please configure OPENAI_API_KEY as a secret."
         )
+
+    if args.execution_mode == "external":
+        if not args.grading_config_id:
+            raise ValueError(
+                "grading-config-id is required when execution-mode is 'external'."
+            )
+        try:
+            args.grading_config_id = int(args.grading_config_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "grading-config-id must be an integer when execution-mode is 'external'."
+            ) from exc
+        if not args.autograder_cloud_url:
+            raise ValueError(
+                "autograder-cloud-url is required when execution-mode is 'external'."
+            )
+        if not args.autograder_cloud_token:
+            raise ValueError(
+                "autograder-cloud-token is required when execution-mode is 'external'."
+            )
 
     return args
 

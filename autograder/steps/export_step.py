@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from autograder.models.abstract.exporter import Exporter
 from autograder.models.abstract.step import Step
@@ -30,13 +29,13 @@ class ExporterStep(Step):
         Returns:
             PipelineExecution with an added StepResult indicating success or failure of the export operation
         """
-        # Extract external_user_id, score and optional feedback
         external_user_id = pipeline_exec.submission.user_id
-        score = pipeline_exec.get_grade_step_result().final_score
-        feedback: Optional[str] = pipeline_exec.get_feedback()
-
-        logger.info("Exporting result: external_user_id=%s, score=%.2f", external_user_id, score)
-        self._exporter_service.export(external_user_id, score, feedback)
+        try:
+            score = pipeline_exec.get_grade_step_result().final_score
+            logger.info("Exporting result: external_user_id=%s, score=%.2f", external_user_id, score)
+        except (ValueError, AttributeError):
+            logger.info("Exporting result: external_user_id=%s (score unavailable)", external_user_id)
+        self._exporter_service.export_with_context(pipeline_exec)
         logger.info("Result exported successfully: external_user_id=%s", external_user_id)
 
         # Return success result

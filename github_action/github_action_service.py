@@ -1,14 +1,21 @@
 import json
+import logging
 import os
+from typing import Optional
 
 from autograder.autograder import build_pipeline, AutograderPipeline
 from autograder.models.dataclass.submission import Submission
+from github_action.cloud_client import CloudClient
+from sandbox_manager.models.sandbox_models import Language
+from github_action.cloud_exporter import CloudExporter
 from github_action.github_classroom_exporter import GithubClassroomExporter
 from github import Github
 from github.GithubException import UnknownObjectException
 from github.Repository import Repository
 from github.WorkflowRun import WorkflowRun
 from github.CheckRun import CheckRun
+
+logger = logging.getLogger(__name__)
 
 
 class GithubActionService:
@@ -30,6 +37,9 @@ class GithubActionService:
         self.github_token = github_token
         self.app_token = app_token
         self.repo = self.get_repository(app_token)
+        self._cloud_exporter: Optional[CloudExporter] = None
+        self._submission_language: Optional[Language] = None
+        self._locale: str = "en"
 
     def run_autograder(
         self, pipeline: AutograderPipeline, user_name: str, submission_files: dict
@@ -50,6 +60,8 @@ class GithubActionService:
                 user_id=self.github_token,
                 assignment_id=self.app_token,
                 submission_files=submission_files,
+                language=self._submission_language,
+                locale=self._locale,
             )
 
             return pipeline.run(submission)
@@ -225,6 +237,107 @@ class GithubActionService:
             export_results=True,
             exporter=exporter,
         )
+
+    def autograder_pipeline_from_cloud(
+        self,
+        grading_config_id: str,
+        cloud_url: str,
+        cloud_token: str,
+        feedback_mode: str,
+        student_name: str,
+        submission_language: Optional[str] = None,
+        locale: str = "en",
+    ) -> AutograderPipeline:
+        """
+        Build the autograder pipeline using configuration fetched from the Autograder Cloud.
+
+        Fetches the grading configuration via :class:`~github_action.cloud_client.CloudClient`
+        and registers a :class:`~github_action.cloud_exporter.CloudExporter` so that the
+        pipeline submits results back to the cloud instead of to GitHub Classroom.
+
+        The ``include_feedback`` setting is taken directly from the fetched configuration.
+        The submission language is validated against the config's ``languages`` list; if
+        ``submission_language`` is ``None`` the first language in the list is used.
+
+        Args:
+            grading_config_id: Internal grading configuration ID from the cloud.
+            cloud_url: Base URL of the Autograder Cloud instance.
+            cloud_token: Authentication token for the cloud API.
+            feedback_mode: The feedback mode to use (e.g. ``"default"`` or ``"ai"``).
+            student_name: GitHub username of the submitting student.
+            submission_language: Programming language of the submission.  If
+                ``None``, defaults to the first language listed in the config.
+
+        Returns:
+            AutograderPipeline: The constructed autograder pipeline.
+
+        Raises:
+            ValueError: ``submission_language`` is provided but not listed in the
+                grading configuration's ``languages`` field.
+            ~github_action.cloud_client.CloudClientError: Cloud returned a 4xx response.
+            ~github_action.cloud_client.CloudConnectionError: Cloud unreachable or 5xx.
+        """
+        client = CloudClient(cloud_url, cloud_token)
+        config = client.get_grading_config(grading_config_id)
+
+        # Resolve language: validate explicit declaration or default to first in config.
+        supported_languages: list[str] = config.get("languages", [])
+        if submission_language:
+            normalised = submission_language.lower()
+            if normalised not in supported_languages:
+                raise ValueError(
+                    f"Language '{submission_language}' is not supported by this grading "
+                    f"configuration. Supported: {', '.join(supported_languages)}"
+                )
+            language = normalised
+        else:
+            if not supported_languages:
+                raise ValueError("Grading configuration has no languages defined.")
+            language = supported_languages[0]
+
+        # Use the integer DB ID from the config response for the result payload.
+        config_db_id: int = config["id"]
+        include_feedback: bool = config.get("include_feedback", True)
+
+        exporter = CloudExporter(client, config_db_id, language, student_name)
+        self._cloud_exporter = exporter
+        self._submission_language = Language(language)
+        self._locale = locale
+
+        return build_pipeline(
+            template_name=config.get("template_name"),
+            grading_criteria=config.get("criteria_config"),
+            feedback_config=config.get("feedback_config") or {},
+            setup_config=config.get("setup_config") or {},
+            include_feedback=include_feedback,
+            feedback_mode=feedback_mode,
+            export_results=True,
+            exporter=exporter,
+            locale=locale,
+        )
+
+    def submit_failure_to_cloud(self, error_message: str, execution_time_ms: int = 0) -> None:
+        """
+        Attempt to submit a failure payload to the Autograder Cloud.
+
+        Should be called when grading fails *after* the pipeline was built (i.e.
+        the :class:`~autograder.steps.export_step.ExporterStep` did not run).
+        If no cloud exporter is available (e.g. config fetch itself failed) this
+        method is a safe no-op.
+
+        Args:
+            error_message: Human-readable description of the failure.
+            execution_time_ms: Elapsed time in milliseconds up to the failure.
+        """
+        if self._cloud_exporter is None:
+            logger.warning(
+                "submit_failure_to_cloud called but no cloud exporter is available; skipping."
+            )
+            return
+        try:
+            self._cloud_exporter.submit_failure(error_message, execution_time_ms)
+        except Exception as exc:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+            logger.warning("Failed to submit failure payload to cloud: %s", exc)
 
     def __read_path(self, configuration_path: str, file_name: str, optional=True):
         """

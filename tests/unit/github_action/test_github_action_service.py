@@ -9,11 +9,9 @@ from github.GithubException import UnknownObjectException
 
 from github_action.github_action_service import GithubActionService
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
 
 def _make_service(github_token="gh-token", app_token="app-token", repo="owner/repo"):
     """Create a GithubActionService with get_repository mocked out."""
@@ -23,7 +21,6 @@ def _make_service(github_token="gh-token", app_token="app-token", repo="owner/re
         mock_github.return_value.get_repo.return_value = MagicMock()
         service = GithubActionService(github_token, app_token)
     return service
-
 
 class TestGetRepository:
     """
@@ -68,7 +65,6 @@ class TestGetRepository:
         assert service.github_token == "my-gh-token"
         assert service.app_token == "my-app-token"
 
-
 class TestRunAutograder:
     """
     run_autograder()
@@ -104,6 +100,8 @@ class TestRunAutograder:
             user_id="gh-tok",
             assignment_id="app-tok",
             submission_files=submission_files,
+            language=None,
+            locale="en",
         )
 
     def test_wraps_exception_on_pipeline_failure(self):
@@ -114,7 +112,6 @@ class TestRunAutograder:
 
         with pytest.raises(Exception, match="Error running autograder"):
             service.run_autograder(mock_pipeline, "student1", {})
-
 
 class TestExportResults:
     """
@@ -174,7 +171,6 @@ class TestExportResults:
 
         mock_commit.assert_not_called()
         mock_notify.assert_called_once_with(0.0)
-
 
 class TestNotifyClassroom:
     """
@@ -283,7 +279,6 @@ class TestNotifyClassroom:
 
         mock_check_run.edit.assert_called_once()
 
-
 class TestFindCheckSuite:
     """
     __find_check_suite
@@ -347,7 +342,6 @@ class TestFindCheckSuite:
         with pytest.raises(Exception, match="Check run not found"):
             self._call_find(service, mock_repo, workflow_run)
 
-
 class TestCommitFeedback:
     """
     __commit_feedback()
@@ -408,7 +402,6 @@ class TestCommitFeedback:
             content="feedback content",
             sha="sha-first",
         )
-
 
 class TestAutograderPipeline:
     """
@@ -497,3 +490,191 @@ class TestAutograderPipeline:
         ), patch("builtins.open", mock_open(read_data="{}")):
             with pytest.raises(FileNotFoundError, match="setup.json"):
                 service.autograder_pipeline("python", False, "default")
+
+# ---------------------------------------------------------------------------
+# Cloud pipeline / external mode
+# ---------------------------------------------------------------------------
+
+_CLOUD_CONFIG = {
+    "id": 7,
+    "template_name": "input_output",
+    "criteria_config": {"base": {"tests": ["test_a"]}},
+    "languages": ["python", "java"],
+    "setup_config": {"required_files": ["main.py"]},
+    "feedback_config": {"show_score": True},
+    "include_feedback": True,
+}
+
+class TestAutograderPipelineFromCloud:
+    """
+    autograder_pipeline_from_cloud()
+    """
+
+    def _call(self, service, *, config=None, language=None):
+        with patch(
+            "github_action.github_action_service.CloudClient"
+        ) as mock_client_cls, patch(
+            "github_action.github_action_service.CloudExporter"
+        ) as mock_exporter_cls, patch(
+            "github_action.github_action_service.build_pipeline"
+        ) as mock_build:
+            mock_client = MagicMock()
+            mock_client.get_grading_config.return_value = config or _CLOUD_CONFIG
+            mock_client_cls.return_value = mock_client
+
+            mock_exporter = MagicMock()
+            mock_exporter_cls.return_value = mock_exporter
+
+            mock_pipeline = MagicMock()
+            mock_build.return_value = mock_pipeline
+
+            result = service.autograder_pipeline_from_cloud(
+                grading_config_id="7",
+                cloud_url="https://cloud.example.com",
+                cloud_token="tok",
+                feedback_mode="default",
+                student_name="alice",
+                submission_language=language,
+            )
+            return result, mock_client, mock_exporter_cls, mock_build
+
+    def test_returns_pipeline(self):
+        """Asserts a pipeline object is returned."""
+        service = _make_service()
+        pipeline, *_ = self._call(service)
+        assert pipeline is not None
+
+    def test_calls_get_grading_config_with_correct_id(self):
+        """Asserts CloudClient.get_grading_config is called with the provided config ID."""
+        service = _make_service()
+        _, client, *_ = self._call(service)
+        client.get_grading_config.assert_called_once_with("7")
+
+    def test_cloud_exporter_receives_int_config_id(self):
+        """Asserts CloudExporter is constructed with the integer DB ID from the config response."""
+        service = _make_service()
+        _, _, exporter_cls, _ = self._call(service)
+        assert exporter_cls.call_args[0][1] == 7  # config["id"]
+
+    def test_cloud_exporter_receives_language(self):
+        """Asserts CloudExporter is constructed with the resolved language."""
+        service = _make_service()
+        _, _, exporter_cls, _ = self._call(service, language="java")
+        assert exporter_cls.call_args[0][2] == "java"
+
+    def test_cloud_exporter_receives_student_name(self):
+        """Asserts CloudExporter is constructed with the student name."""
+        service = _make_service()
+        _, _, exporter_cls, _ = self._call(service)
+        assert exporter_cls.call_args[0][3] == "alice"
+
+    def test_language_defaults_to_first_in_config(self):
+        """Asserts the first config language is used when submission_language is None."""
+        service = _make_service()
+        _, _, exporter_cls, _ = self._call(service, language=None)
+        # _CLOUD_CONFIG["languages"][0] == "python"
+        assert exporter_cls.call_args[0][2] == "python"
+
+    def test_include_feedback_from_config(self):
+        """Asserts include_feedback is taken from the fetched config, not the args."""
+        service = _make_service()
+        config_no_feedback = {**_CLOUD_CONFIG, "include_feedback": False}
+        _, _, _, build = self._call(service, config=config_no_feedback)
+        kwargs = build.call_args[1]
+        assert kwargs["include_feedback"] is False
+
+    def test_criteria_config_key_used(self):
+        """Asserts build_pipeline receives grading_criteria from criteria_config key."""
+        service = _make_service()
+        _, _, _, build = self._call(service)
+        kwargs = build.call_args[1]
+        assert kwargs["grading_criteria"] == _CLOUD_CONFIG["criteria_config"]
+
+    def test_invalid_language_raises_value_error(self):
+        """Asserts ValueError is raised when submission_language is not in config languages."""
+        service = _make_service()
+        with patch(
+            "github_action.github_action_service.CloudClient"
+        ) as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.get_grading_config.return_value = _CLOUD_CONFIG
+            mock_client_cls.return_value = mock_client
+
+            with pytest.raises(ValueError, match="not supported"):
+                service.autograder_pipeline_from_cloud(
+                    grading_config_id="7",
+                    cloud_url="https://cloud.example.com",
+                    cloud_token="tok",
+                    feedback_mode="default",
+                    student_name="alice",
+                    submission_language="ruby",  # not in ["python", "java"]
+                )
+
+    def test_empty_languages_list_raises_value_error(self):
+        """Asserts ValueError is raised when config has no languages and none is specified."""
+        service = _make_service()
+        config_empty_langs = {**_CLOUD_CONFIG, "languages": []}
+        with patch(
+            "github_action.github_action_service.CloudClient"
+        ) as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.get_grading_config.return_value = config_empty_langs
+            mock_client_cls.return_value = mock_client
+
+            with pytest.raises(ValueError, match="no languages"):
+                service.autograder_pipeline_from_cloud(
+                    grading_config_id="7",
+                    cloud_url="https://cloud.example.com",
+                    cloud_token="tok",
+                    feedback_mode="default",
+                    student_name="alice",
+                    submission_language=None,
+                )
+
+    def test_cloud_exporter_stored_on_service(self):
+        """Asserts _cloud_exporter is set on the service after a successful call."""
+        service = _make_service()
+        self._call(service)
+        assert service._cloud_exporter is not None
+
+class TestSubmitFailureToCloud:
+    """
+    submit_failure_to_cloud()
+    """
+
+    def test_calls_submit_failure_on_exporter(self):
+        """Asserts submit_failure is called on the cloud exporter."""
+        service = _make_service()
+        mock_exporter = MagicMock()
+        service._cloud_exporter = mock_exporter
+
+        service.submit_failure_to_cloud("pipeline crashed", 3000)
+
+        mock_exporter.submit_failure.assert_called_once_with("pipeline crashed", 3000)
+
+    def test_noop_when_no_cloud_exporter(self):
+        """Asserts submit_failure_to_cloud is a safe no-op when no cloud exporter is set."""
+        service = _make_service()
+        assert service._cloud_exporter is None
+        # must not raise
+        service.submit_failure_to_cloud("ignored error")
+
+    def test_swallows_exception_from_submit_failure(self):
+        """Asserts exceptions raised by submit_failure are swallowed (not re-raised)."""
+        service = _make_service()
+        mock_exporter = MagicMock()
+        mock_exporter.submit_failure.side_effect = RuntimeError("network down")
+        service._cloud_exporter = mock_exporter
+
+        # must not raise
+        service.submit_failure_to_cloud("error", 100)
+
+    def test_default_execution_time_zero(self):
+        """Asserts execution_time_ms defaults to 0."""
+        service = _make_service()
+        mock_exporter = MagicMock()
+        service._cloud_exporter = mock_exporter
+
+        service.submit_failure_to_cloud("error")
+
+        mock_exporter.submit_failure.assert_called_once_with("error", 0)
