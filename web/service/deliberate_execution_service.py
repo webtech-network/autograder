@@ -187,14 +187,16 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error("Execution failed: %s", e, exc_info=True)
+        num_results = len(request.test_cases) if request.test_cases else 1
         return DeliberateCodeExecutionResponse(
             results=[
                 DeliberateCodeExecutionResult(
                     output="",
                     category=ResponseCategory.SYSTEM_ERROR,
-                    error_message=f"Execution failed: {str(e)}",
+                    error_message="An unexpected error occurred. Please try again later.",
                     execution_time=0.0
                 )
+                for _ in range(num_results)
             ]
         )
 
