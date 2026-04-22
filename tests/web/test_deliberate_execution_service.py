@@ -191,9 +191,39 @@ async def test_execute_code_execution_error():
 
     assert len(response.results) == 1
     assert response.results[0].category == ResponseCategory.SYSTEM_ERROR
-    assert "container crashed" in response.results[0].error_message
+    assert response.results[0].error_message == "An unexpected error occurred. Please try again later."
+    assert "container crashed" not in response.results[0].error_message
     assert response.results[0].output == ""
     # Sandbox must still be released in the finally block
+    mock_manager.release_sandbox.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# execute_code – execution error with multiple test cases
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_execute_code_execution_error_multiple_test_cases():
+    """On exception, SYSTEM_ERROR count matches the number of requested test cases."""
+    mock_sandbox = Mock()
+    mock_sandbox.prepare_workdir = Mock()
+
+    mock_manager = Mock()
+    mock_manager.get_sandbox = Mock(return_value=mock_sandbox)
+    mock_manager.release_sandbox = Mock()
+
+    request = _make_request(test_cases=[["1"], ["2"], ["3"]])
+
+    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=mock_manager), \
+         patch("asyncio.to_thread", new=AsyncMock(side_effect=RuntimeError("container crashed"))):
+
+        response = await execute_code(request)
+
+    assert len(response.results) == 3
+    for result in response.results:
+        assert result.category == ResponseCategory.SYSTEM_ERROR
+        assert result.error_message == "An unexpected error occurred. Please try again later."
+        assert result.output == ""
     mock_manager.release_sandbox.assert_called_once()
 
 
