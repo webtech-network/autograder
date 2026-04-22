@@ -100,6 +100,9 @@ Once the API is running, visit:
 | `DATABASE_POOL_RECYCLE` | Connection recycle time in seconds | `3600` |
 | `SANDBOX_POOL_SIZE` | Sandbox containers per language | `2` |
 | `JSON_LOGS` | Use JSON logging format | `false` |
+| `LOG_LEVEL` | Application log level | `INFO` |
+| `SERVICE_NAME` | Service name added to structured logs | `autograder-api` |
+| `APP_ENV` | Environment tag added to structured logs | `local` |
 | `OPENAI_API_KEY` | OpenAI API key for AI feedback | - |
 
 ### Database Configuration
