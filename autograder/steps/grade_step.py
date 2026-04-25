@@ -56,6 +56,8 @@ class GradeStep(Step):
         if pipeline_exec.has_step_result(StepName.AI_BATCH):
             pre_computed_results = pipeline_exec.get_step_result(StepName.AI_BATCH).data
 
+        structural_analysis = pipeline_exec.get_structural_analysis_result()
+
         result_tree = self._grader_service.grade_from_tree(
             criteria_tree=criteria_tree,
             submission_files=pipeline_exec.submission.submission_files,
@@ -63,6 +65,7 @@ class GradeStep(Step):
             submission_language=pipeline_exec.submission.language,
             locale=pipeline_exec.locale,
             pre_computed_results=pre_computed_results,
+            structural_analysis=structural_analysis,
         )
 
         # Create grading result

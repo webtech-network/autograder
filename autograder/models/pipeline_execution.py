@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from autograder.models.criteria_tree import CriteriaTree
     from autograder.models.dataclass.focus import Focus
     from autograder.models.dataclass.grade_step_result import GradeStepResult
+    from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
     from autograder.models.result_tree import ResultTree
     from sandbox_manager.sandbox_container import SandboxContainer
 
@@ -114,6 +115,18 @@ class PipelineExecution:
         return cast(
             "CriteriaTree",
             self._require_step_data(StepName.BUILD_TREE, "criteria tree"),
+        )
+
+    def get_structural_analysis_result(self) -> Optional["StructuralAnalysisResult"]:
+        """
+        Retrieves the StructuralAnalysisResult object if it was produced during the pipeline.
+        """
+        if not self.has_step_result(StepName.STRUCTURAL_ANALYSIS):
+            return None
+        from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
+        return cast(
+            StructuralAnalysisResult,
+            self._require_step_data(StepName.STRUCTURAL_ANALYSIS, "structural analysis result"),
         )
 
     def get_sandbox(self) -> Optional["SandboxContainer"]:

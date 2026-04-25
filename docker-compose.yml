@@ -34,6 +34,7 @@ services:
       
       # Sandbox Configuration
       SANDBOX_POOL_SIZE: 2
+      DOCKER_HOST: unix:///var/run/docker.sock
       
       # API Configuration
       API_HOST: 0.0.0.0
@@ -54,7 +55,7 @@ services:
       - "8000:8000"
     volumes:
       # Mount Docker socket for sandbox management
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /run/user/1000/docker.sock:/var/run/docker.sock
       # Mount code for development (optional, remove for production)
       # - .:/app
     depends_on:
@@ -72,7 +73,7 @@ services:
   ministack:
     # Pin to a specific Ministack version for reproducible local/dev environments.
     # Upgrade this tag intentionally after validating compatibility.
-    image: ministackorg/ministack:1.0.0
+    image: ministackorg/ministack:latest
     container_name: autograder-ministack
     ports:
       - "4566:4566"

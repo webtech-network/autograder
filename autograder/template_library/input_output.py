@@ -1,12 +1,15 @@
 import logging
 import re
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Type
+
+from pydantic import BaseModel, Field
 
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
 from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
@@ -528,6 +531,170 @@ class ForbiddenImportTest(TestFunction):
         )
 
 
+# ===============================================================
+# TestFunction for Forbidden Keyword/Construct Detection
+# ===============================================================
+
+class ForbiddenKeywordConfig(BaseModel):
+    """Configuration schema for ForbiddenKeywordTest."""
+    forbidden_keywords: List[str] = Field(default_factory=list)
+    custom_ast_grep_rules: List[Dict[str, Any]] = Field(default_factory=list)
+
+class ForbiddenKeywordTest(TestFunction):
+    """
+    Tests that a submission does NOT use any of the specified forbidden
+    keywords or language constructs.
+
+    Uses ast-grep for structural analysis, which accurately detects
+    constructs even when they are not at the start of a line and
+    correctly ignores comments and string literals.
+    """
+
+    # Mapping of high-level keywords to language-specific ast-grep rules.
+    PREDEFINED_RULES: Dict[Language, Dict[str, Dict[str, Any]]] = {
+        Language.PYTHON: {
+            "for_loop": {"kind": "for_statement"},
+            "while_loop": {"kind": "while_statement"},
+            "eval_call": {"pattern": "eval($$$)"},
+            "exec_call": {"pattern": "exec($$$)"},
+        },
+        Language.JAVA: {
+            "for_loop": {"kind": "for_statement"},
+            "while_loop": {"kind": "while_statement"},
+        },
+        Language.NODE: {
+            "for_loop": {"kind": "for_statement"},
+            "while_loop": {"kind": "while_statement"},
+            "eval_call": {"pattern": "eval($$$)"},
+        },
+        Language.CPP: {
+            "for_loop": {"kind": "for_statement"},
+            "while_loop": {"kind": "while_statement"},
+            "do_while_loop": {"kind": "do_statement"},
+        },
+        Language.C: {
+            "for_loop": {"kind": "for_statement"},
+            "while_loop": {"kind": "while_statement"},
+            "do_while_loop": {"kind": "do_statement"},
+        },
+    }
+
+    @property
+    def name(self):
+        return "forbidden_keyword"
+
+    @property
+    def description(self):
+        return t("io.forbidden_keyword.description")
+
+    @property
+    def parameter_description(self):
+        return [
+            ParamDescription("forbidden_keywords", t("io.forbidden_keyword.params.keywords"), "list of strings"),
+            ParamDescription("custom_ast_grep_rules", t("io.forbidden_keyword.params.custom_rules"), "list of dicts"),
+        ]
+
+    @property
+    def config_schema(self) -> Type[BaseModel]:
+        """Optional Pydantic model to validate test parameters during tree building."""
+        return ForbiddenKeywordConfig
+
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer],
+                *args, forbidden_keywords: List[str] = None,
+                custom_ast_grep_rules: List[Dict[str, Any]] = None,
+                structural_analysis: Optional[StructuralAnalysisResult] = None,
+                submission_language: Optional[Language] = None,
+                **kwargs) -> TestResult:
+        """
+        Scan target files for forbidden keywords or structural patterns.
+        """
+        locale = kwargs.get("locale")
+        forbidden_keywords = forbidden_keywords or []
+        custom_ast_grep_rules = custom_ast_grep_rules or []
+
+        if not forbidden_keywords and not custom_ast_grep_rules:
+            return TestResult(
+                test_name=self.name,
+                score=100.0,
+                report=t("io.forbidden_keyword.report.no_rules", locale=locale)
+            )
+
+        if structural_analysis is None:
+            # Fallback if structural analysis was not executed or failed
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=t("io.forbidden_keyword.report.no_analysis", locale=locale)
+            )
+
+        if submission_language is None:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=t("io.forbidden_keyword.report.no_lang", locale=locale)
+            )
+
+        # Consolidate rules to run
+        active_rules: List[Dict[str, Any]] = list(custom_ast_grep_rules)
+        lang_predefined = self.PREDEFINED_RULES.get(submission_language, {})
+        
+        for kw in forbidden_keywords:
+            if kw in lang_predefined:
+                active_rules.append(lang_predefined[kw])
+            else:
+                # If a keyword is not predefined for this language, we skip it
+                # but might want to log it or report it as an internal warning.
+                pass
+
+        if not active_rules:
+            return TestResult(
+                test_name=self.name,
+                score=100.0,
+                report=t("io.forbidden_keyword.report.success", locale=locale)
+            )
+
+        all_violations: List[str] = []
+        
+        # Only check files passed to this test
+        if not files:
+            return TestResult(
+                test_name=self.name,
+                score=100.0,
+                report=t("io.forbidden_keyword.report.no_files", locale=locale)
+            )
+
+        for sub_file in files:
+            root = structural_analysis.roots.get(sub_file.filename)
+            if root is None:
+                continue
+
+            for rule in active_rules:
+                matches = root.root().find_all(**rule)
+                if matches:
+                    # Provide some feedback about what was found
+                    rule_desc = rule.get("kind") or rule.get("pattern") or str(rule)
+                    all_violations.append(
+                        t("io.forbidden_keyword.report.violation", 
+                          locale=locale, 
+                          rule=rule_desc, 
+                          file=sub_file.filename)
+                    )
+
+        if all_violations:
+            details = "\n".join(all_violations)
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=t("io.forbidden_keyword.report.failure", locale=locale, details=details)
+            )
+
+        return TestResult(
+            test_name=self.name,
+            score=100.0,
+            report=t("io.forbidden_keyword.report.success", locale=locale)
+        )
+
+
 class InputOutputTemplate(Template):
     """
     A template for command-line I/O assignments. It uses the SandboxExecutor
@@ -542,6 +709,7 @@ class InputOutputTemplate(Template):
             "dont_fail": DontFailTest(),
             "expect_file_artifact": ExpectFileArtifactTest(),
             "forbidden_import": ForbiddenImportTest(),
+            "forbidden_keyword": ForbiddenKeywordTest(),
         }
 
     @property
