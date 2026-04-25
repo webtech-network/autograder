@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Type
+
+from pydantic import BaseModel
 
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
@@ -11,6 +13,11 @@ class TestFunction(ABC):
     """
     An abstract base class for a single, executable test function.
     """
+
+    @property
+    def config_schema(self) -> Optional[Type[BaseModel]]:
+        """Optional Pydantic model to validate test parameters during tree building."""
+        return None
 
     @property
     @abstractmethod

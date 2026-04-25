@@ -34,6 +34,7 @@ class GraderService:
         submission_language=None,
         locale: str = "en",
         pre_computed_results: Optional[Dict[str, TestResult]] = None,
+        structural_analysis=None,
     ) -> ResultTree:
         """Traverse the generic built criteria tree to resolve inputs, grades and report to ResultTree."""
         base_result = self.process_category(
@@ -43,6 +44,7 @@ class GraderService:
             submission_language=submission_language,
             locale=locale,
             pre_computed_results=pre_computed_results,
+            structural_analysis=structural_analysis,
         )
         root = RootResultNode(name="root", base=base_result)
 
@@ -54,6 +56,7 @@ class GraderService:
                 submission_language=submission_language,
                 locale=locale,
                 pre_computed_results=pre_computed_results,
+                structural_analysis=structural_analysis,
             )
             root.bonus = bonus_result
 
@@ -65,6 +68,7 @@ class GraderService:
                 submission_language=submission_language,
                 locale=locale,
                 pre_computed_results=pre_computed_results,
+                structural_analysis=structural_analysis,
             )
             root.penalty = penalty_result
 
@@ -104,6 +108,7 @@ class GraderService:
         submission_language=None,
         locale: str = "en",
         pre_computed_results: Optional[Dict[str, TestResult]] = None,
+        structural_analysis=None,
     ) -> CategoryResultNode | SubjectResultNode:
         """Process a category or subject node and create corresponding result node."""
 
@@ -128,6 +133,7 @@ class GraderService:
                     submission_language=submission_language,
                     locale=locale,
                     pre_computed_results=pre_computed_results,
+                    structural_analysis=structural_analysis,
                 )
                 for inner_subject in holder.subjects
             ]
@@ -144,6 +150,7 @@ class GraderService:
                     submission_language=submission_language,
                     locale=locale,
                     pre_computed_results=pre_computed_results,
+                    structural_analysis=structural_analysis,
                 )
                 for test in holder.tests
             ]
@@ -174,6 +181,7 @@ class GraderService:
         submission_language=None,
         locale: str = "en",
         pre_computed_results: Optional[Dict[str, TestResult]] = None,
+        structural_analysis=None,
     ) -> SubjectResultNode:
         """Process a subject node from criteria tree and create result node."""
         return self.__process_holder(
@@ -183,6 +191,7 @@ class GraderService:
             submission_language=submission_language,
             locale=locale,
             pre_computed_results=pre_computed_results,
+            structural_analysis=structural_analysis,
         )
 
     def process_test(
@@ -193,6 +202,7 @@ class GraderService:
         submission_language=None,
         locale: str = "en",
         pre_computed_results: Optional[Dict[str, TestResult]] = None,
+        structural_analysis=None,
     ) -> TestResultNode:
         """Execute a test and create a test result node.
 
@@ -230,6 +240,8 @@ class GraderService:
             sandbox=sandbox,
             locale=locale,
             pre_computed_results=pre_computed_results,
+            structural_analysis=structural_analysis,
+            submission_language=submission_language,
             **test_params,
         )
         return TestResultNode(
@@ -274,6 +286,7 @@ class GraderService:
         submission_language=None,
         locale: str = "en",
         pre_computed_results: Optional[Dict[str, TestResult]] = None,
+        structural_analysis=None,
     ) -> CategoryResultNode:
         """Process a category node from criteria tree and create result node."""
         return self.__process_holder(
@@ -283,4 +296,5 @@ class GraderService:
             submission_language=submission_language,
             locale=locale,
             pre_computed_results=pre_computed_results,
+            structural_analysis=structural_analysis,
         )

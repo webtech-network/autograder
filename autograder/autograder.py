@@ -169,6 +169,7 @@ def build_pipeline(
         StepName.SANDBOX,
         StepName.PRE_FLIGHT,
         StepName.AI_BATCH,
+        StepName.STRUCTURAL_ANALYSIS,
         StepName.GRADE,
         StepName.FOCUS,
         StepName.FEEDBACK,

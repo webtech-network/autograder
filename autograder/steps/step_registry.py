@@ -10,6 +10,7 @@ from autograder.steps.build_tree_step import BuildTreeStep
 from autograder.steps.pre_flight_step import PreFlightStep
 from autograder.steps.sandbox_step import SandboxStep
 from autograder.steps.ai_batch_step import AiBatchStep
+from autograder.steps.structural_analysis_step import StructuralAnalysisStep
 from autograder.steps.grade_step import GradeStep
 from autograder.steps.focus_step import FocusStep
 from autograder.steps.feedback_step import FeedbackStep
@@ -37,6 +38,7 @@ class StepRegistry:
             StepName.PRE_FLIGHT: self._build_pre_flight,
             StepName.SANDBOX: self._build_sandbox,
             StepName.AI_BATCH: self._build_ai_batch,
+            StepName.STRUCTURAL_ANALYSIS: self._build_structural_analysis,
             StepName.GRADE: self._build_grade,
             StepName.FOCUS: self._build_focus,
             StepName.FEEDBACK: self._build_feedback,
@@ -64,6 +66,9 @@ class StepRegistry:
 
     def _build_ai_batch(self) -> Optional[Step]:
         return AiBatchStep()
+
+    def _build_structural_analysis(self) -> Optional[Step]:
+        return StructuralAnalysisStep()
 
     def _build_grade(self) -> Optional[Step]:
         return GradeStep()
