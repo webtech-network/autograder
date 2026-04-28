@@ -1,6 +1,8 @@
 import logging
 from typing import List, Optional
 
+from pydantic import ValidationError
+
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.config.category import CategoryConfig
@@ -99,16 +101,25 @@ class CriteriaTreeService:
             raise ValueError(f"Couldn't find test function '{function_name}'")
 
         file_target = [config.file] if config.file else None
+        test_params = config.get_kwargs_dict() or {}
+
+        # Perform early validation if the test function provides a schema.
+        if test_function.config_schema:
+            try:
+                # We use model_validate to leverage Pydantic's validation logic.
+                test_function.config_schema(**test_params)
+            except ValidationError as e:
+                raise ValueError(
+                    f"Invalid parameters for test '{config.name}' ({function_name}): {e}"
+                ) from e
 
         test = TestNode(
             config.name,
             test_function,
-            config.get_kwargs_dict() or {},
+            test_params,
             file_target,
             config.weight if config.weight is not None else 100.0,
         )
-
-
 
         return test
 

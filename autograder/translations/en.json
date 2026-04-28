@@ -487,6 +487,22 @@
         "invalid_match_mode": "CONFIGURATION ERROR: Invalid match_mode '{mode}'. Must be 'exact', 'contains', or 'regex'.",
         "invalid_regex": "CONFIGURATION ERROR: Invalid regex pattern.\nDetails: {error}"
       }
+    },
+    "forbidden_keyword": {
+      "description": "Statically analyzes submission files using structural analysis to detect forbidden language constructs (like loops or eval calls).",
+      "params": {
+        "keywords": "List of predefined constructs to forbid (e.g., 'for_loop', 'while_loop', 'eval_call').",
+        "custom_rules": "List of custom ast-grep rules to apply."
+      },
+      "report": {
+        "no_rules": "No forbidden constructs or rules specified — nothing to check.",
+        "no_analysis": "FAILURE: Structural analysis data is missing. Cannot check for forbidden constructs.",
+        "no_lang": "FAILURE: Submission language is not defined. Cannot check for forbidden constructs.",
+        "no_files": "No submission files to analyze.",
+        "violation": "  - Forbidden construct '{rule}' found in '{file}'",
+        "failure": "FAILURE: Forbidden language constructs detected:\n{details}",
+        "success": "No forbidden language constructs found."
+      }
     }
   },
   "api_testing": {

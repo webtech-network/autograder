@@ -487,6 +487,22 @@
         "invalid_match_mode": "ERRO DE CONFIGURAÇÃO: match_mode '{mode}' inválido. Deve ser 'exact', 'contains' ou 'regex'.",
         "invalid_regex": "ERRO DE CONFIGURAÇÃO: Padrão regex inválido.\nDetalhes: {error}"
       }
+    },
+    "forbidden_keyword": {
+      "description": "Analisa estaticamente os arquivos de submissão usando análise estrutural para detectar construções de linguagem proibidas (como loops ou chamadas eval).",
+      "params": {
+        "keywords": "Lista de construções predefinidas a proibir (ex: 'for_loop', 'while_loop', 'eval_call').",
+        "custom_rules": "Lista de regras ast-grep personalizadas para aplicar."
+      },
+      "report": {
+        "no_rules": "Nenhuma construção ou regra proibida especificada — nada para verificar.",
+        "no_analysis": "FALHA: Dados de análise estrutural ausentes. Não é possível verificar construções proibidas.",
+        "no_lang": "FALHA: A linguagem da submissão não foi definida. Não é possível verificar construções proibidas.",
+        "no_files": "Nenhum arquivo de submissão para analisar.",
+        "violation": "  - Construção proibida '{rule}' encontrada em '{file}'",
+        "failure": "FALHA: Construções de linguagem proibidas detectadas:\n{details}",
+        "success": "Nenhuma construção de linguagem proibida encontrada."
+      }
     }
   },
   "api_testing": {

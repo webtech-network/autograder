@@ -81,6 +81,39 @@ Executes a program with a specific input and verifies it completes **without cra
 
 ---
 
+### `forbidden_keyword`
+
+Tests that a submission does **not** use specific forbidden keywords or language constructs. This test performs structural analysis using `ast-grep`, which is more reliable than regex because it correctly ignores matches inside comments or string literals.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `forbidden_keywords` | list[string] | ✗ | List of high-level keywords to forbid (e.g., `"for_loop"`, `"while_loop"`) |
+| `custom_ast_grep_rules` | list[dict] | ✗ | Custom `ast-grep` rules for advanced structural matching |
+
+**Supported Keywords for Predefined Rules:**
+
+| Language | Supported Keywords |
+|----------|--------------------|
+| **Python** | `for_loop`, `while_loop`, `eval_call`, `exec_call` |
+| **Java** | `for_loop`, `while_loop` |
+| **Node.js** | `for_loop`, `while_loop`, `eval_call` |
+| **C++ / C** | `for_loop`, `while_loop`, `do_while_loop` |
+
+**Scoring:** 100 if no forbidden constructs are found, 0 otherwise.
+
+**Example:**
+```json
+{
+  "name": "forbidden_keyword",
+  "parameters": {
+    "forbidden_keywords": ["for_loop", "eval_call"]
+  },
+  "weight": 100
+}
+```
+
+---
+
 ## Usage Example
 
 ```json
