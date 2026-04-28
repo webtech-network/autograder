@@ -86,11 +86,11 @@ When a student submits code, it enters an execution pipeline managed by the Auto
 
 1. **Language Association:** The API or Web layer identifies the submitted language and sets it in the overarching `PipelineExecution`.
 2. **Configuration Load:** The pipeline loads the standard criteria (e.g., weight, number of tests, configurations like `setup_config` to compile `.java` or `.cpp`).
-3. **Execution Routing in `GraderService`:** When evaluating an individual test node, `GraderService` discovers that `program_command` isn't an exact literal. It hands over the raw value (Dict or `"CMD"`) alongside the current `SubmissionLanguage` to the `CommandResolver`.
+3. **Execution Routing in `SubmissionGrader`:** When evaluating an individual test node, `SubmissionGrader` discovers that `program_command` isn't an exact literal. It hands over the raw value (Dict or `"CMD"`) alongside the current `SubmissionLanguage` to the `CommandResolver`.
 4. **Processing by `CommandResolver`:**
    - If the value is a dictionary, it looks up the specific key (e.g., `java`) and returns its explicit command string (`java Calculator`).
    - If the value is `"CMD"`, it assesses the submitted files or fallback defaults to return the right execution instruction.
-5. **Sandbox Hand-off:** After finding the appropriate string, the `GraderService` forwards it into the configured Docker container (the sandbox). Since the sandbox matches the submission language context, it spins up and correctly evaluates `java Calculator`, oblivious to the fact that the assignment originally supported Python or Node submissions.
+5. **Sandbox Hand-off:** After finding the appropriate string, the `SubmissionGrader` forwards it into the configured Docker container (the sandbox). Since the sandbox matches the submission language context, it spins up and correctly evaluates `java Calculator`, oblivious to the fact that the assignment originally supported Python or Node submissions.
 
 ---
 

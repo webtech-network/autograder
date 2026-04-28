@@ -60,7 +60,7 @@ autograder/
 │   │   ├── result_tree.py
 │   │   └── pipeline_execution.py
 │   ├── services/           # Business logic
-│   │   ├── grader_service.py       # Main grading engine
+│   │   ├── grader/                 # Grading engine\n│   │   │   ├── grader_service.py   # Coordinator\n│   │   │   └── criteria_grader.py  # Stateful processor
 │   │   ├── focus_service.py        # Focus-based feedback
 │   │   ├── criteria_tree_service.py # Tree construction
 │   │   └── template_library_service.py

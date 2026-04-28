@@ -210,7 +210,7 @@ The `ResultTree` also provides utility methods:
 
 | File | Contents |
 |------|----------|
-| `autograder/services/grader_service.py` | `GraderService` — tree traversal, test execution, weight balancing |
+| `autograder/services/grader/grader_service.py` | `GraderService` — coordinator for the grading process |\n| `autograder/services/grader/criteria_grader.py` | `SubmissionGrader` — stateful tree traversal, test execution, weight balancing |
 | `autograder/models/result_tree.py` | `ResultTree`, `RootResultNode`, `CategoryResultNode`, `SubjectResultNode`, `TestResultNode` |
 | `autograder/models/criteria_tree.py` | `CriteriaTree`, `CategoryNode`, `SubjectNode`, `TestNode` |
 | `autograder/models/dataclass/grade_step_result.py` | `GradeStepResult` — wrapper for final score + result tree |
