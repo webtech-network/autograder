@@ -1,0 +1,197 @@
+{
+  "test_metadata": {
+    "test_name": "Stress Test",
+    "test_start_time": "2026-04-22T11:02:22.323937",
+    "test_end_time": "2026-04-22T11:02:22.365663",
+    "assignment_id": "calc-multi-lang",
+    "num_submissions": 10
+  },
+  "summary": {
+    "total_submissions": 10,
+    "successful": 0,
+    "failed": 10,
+    "success_rate": 0.0,
+    "total_time_seconds": 0.011843204498291016,
+    "throughput_per_second": 844.3660667552442,
+    "avg_response_time_ms": 5.425071716308594,
+    "min_response_time_ms": 4.650115966796875,
+    "max_response_time_ms": 11.109352111816406,
+    "graded_count": 0,
+    "perfect_scores": 0,
+    "avg_score": 0,
+    "avg_max_score": 0,
+    "avg_score_percentage": 0
+  },
+  "language_breakdown": {
+    "python": {
+      "total": 3,
+      "successful": 0,
+      "failed": 3,
+      "success_rate": 0.0,
+      "avg_response_time_ms": 6.874402364095052
+    },
+    "java": {
+      "total": 3,
+      "successful": 0,
+      "failed": 3,
+      "success_rate": 0.0,
+      "avg_response_time_ms": 4.792531331380208
+    },
+    "node": {
+      "total": 2,
+      "successful": 0,
+      "failed": 2,
+      "success_rate": 0.0,
+      "avg_response_time_ms": 4.837989807128906
+    },
+    "cpp": {
+      "total": 2,
+      "successful": 0,
+      "failed": 2,
+      "success_rate": 0.0,
+      "avg_response_time_ms": 4.786968231201172
+    }
+  },
+  "submissions": [
+    {
+      "index": 0,
+      "user_id": "stress-0",
+      "username": "user0",
+      "language": "python",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 11.109352111816406,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    },
+    {
+      "index": 1,
+      "user_id": "stress-1",
+      "username": "user1",
+      "language": "java",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 5.038976669311523,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    },
+    {
+      "index": 2,
+      "user_id": "stress-2",
+      "username": "user2",
+      "language": "node",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 4.863977432250977,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    },
+    {
+      "index": 3,
+      "user_id": "stress-3",
+      "username": "user3",
+      "language": "cpp",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 4.800558090209961,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    },
+    {
+      "index": 4,
+      "user_id": "stress-4",
+      "username": "user4",
+      "language": "python",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 4.742145538330078,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    },
+    {
+      "index": 5,
+      "user_id": "stress-5",
+      "username": "user5",
+      "language": "java",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 4.688501358032227,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    },
+    {
+      "index": 6,
+      "user_id": "stress-6",
+      "username": "user6",
+      "language": "node",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 4.812002182006836,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    },
+    {
+      "index": 7,
+      "user_id": "stress-7",
+      "username": "user7",
+      "language": "cpp",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 4.773378372192383,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    },
+    {
+      "index": 8,
+      "user_id": "stress-8",
+      "username": "user8",
+      "language": "python",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 4.771709442138672,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    },
+    {
+      "index": 9,
+      "user_id": "stress-9",
+      "username": "user9",
+      "language": "java",
+      "success": false,
+      "submission_id": null,
+      "response_time_ms": 4.650115966796875,
+      "status": "unknown",
+      "score": null,
+      "max_score": null,
+      "grading_completed": false,
+      "error": "All connection attempts failed"
+    }
+  ]
+}

@@ -11,9 +11,7 @@ from web.config.auth import IntegrationAuthConfig
 from web.database.base import Base
 from web.database import session
 
-
 TEST_TOKEN = "test-integration-secret-token-abc123"
-
 
 @pytest.fixture(scope="module", autouse=True)
 def mock_external_services():
@@ -34,9 +32,7 @@ def mock_external_services():
         mock_template.get_instance.return_value = mock_service
         yield
 
-
 from web.main import app
-
 
 @pytest.fixture(autouse=True)
 def _set_integration_token():
@@ -47,7 +43,6 @@ def _set_integration_token():
     auth_module.integration_auth_config = cfg
     yield
     auth_module.integration_auth_config = old_integration_auth_config
-
 
 @pytest.fixture
 async def test_db():
@@ -74,7 +69,6 @@ async def test_db():
         session.engine = old_engine
     await engine.dispose()
 
-
 @pytest.fixture
 async def client(test_db):
     """Create test client."""
@@ -84,10 +78,8 @@ async def client(test_db):
     ) as ac:
         yield ac
 
-
 def _auth_header(token: str = TEST_TOKEN) -> dict:
     return {"Authorization": f"Bearer {token}"}
-
 
 async def _create_config(client):
     """Helper — config creation is public, no auth needed."""
@@ -102,9 +94,9 @@ async def _create_config(client):
     assert resp.status_code == 200
     return resp.json()
 
-
-# ── Missing token → 401 ────────────────────────────────────────
-
+# ---------------------------------------------------------------------------
+# Missing token → 401
+# ---------------------------------------------------------------------------
 
 class TestAuthMissingToken:
     """Requests without a token get 401."""
@@ -129,9 +121,9 @@ class TestAuthMissingToken:
         resp = await client.post("/api/v1/submissions/external-results", json=payload)
         assert resp.status_code == 401
 
-
-# ── Wrong token → 401 ──────────────────────────────────────────
-
+# ---------------------------------------------------------------------------
+# Wrong token → 401
+# ---------------------------------------------------------------------------
 
 class TestAuthInvalidToken:
     """Requests with a wrong token get 401."""
@@ -163,9 +155,9 @@ class TestAuthInvalidToken:
         )
         assert resp.status_code == 401
 
-
-# ── Valid token → success ───────────────────────────────────────
-
+# ---------------------------------------------------------------------------
+# Valid token → success
+# ---------------------------------------------------------------------------
 
 class TestAuthValidToken:
     """Valid token grants access to protected endpoints."""
@@ -209,9 +201,9 @@ class TestAuthValidToken:
         )
         assert resp.status_code == 404
 
-
-# ── Public endpoints stay public ────────────────────────────────
-
+# ---------------------------------------------------------------------------
+# Public endpoints stay public
+# ---------------------------------------------------------------------------
 
 class TestPublicEndpointsUnaffected:
     """Token auth must not affect public endpoints."""

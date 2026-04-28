@@ -1,5 +1,5 @@
 from typing import List, Optional, Any
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class AssetConfig(BaseModel):
@@ -50,6 +50,17 @@ class SetupConfig(BaseModel):
 
     # Allow extra fields for other languages
     model_config = {"extra": "allow"}
+
+    @model_validator(mode='before')
+    @classmethod
+    def handle_global_key(cls, data: Any) -> Any:
+        """Handle the 'global' key sent by the backend and map it to 'assets'."""
+        if isinstance(data, dict) and "global" in data:
+            global_data = data["global"]
+            if isinstance(global_data, dict) and "assets" in global_data:
+                # If we have global.assets, use them
+                data["assets"] = global_data["assets"]
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> "SetupConfig":

@@ -18,11 +18,13 @@ class Settings:
 
     # Logging Configuration
     JSON_LOGS: bool = os.getenv("JSON_LOGS", "false").lower() == "true"
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    SERVICE_NAME: str = os.getenv("SERVICE_NAME", "autograder-api")
+    APP_ENV: str = os.getenv("APP_ENV", "local")
 
     # Sandbox Configuration
     SANDBOX_CONFIG_FILE: str = os.getenv("SANDBOX_CONFIG_FILE", "sandbox_config.yml")
 
 
 settings = Settings()
-
 
