@@ -47,18 +47,19 @@ class SubmissionGrader(CriteriaTreeProcesser):
         nodes: Sequence[CategoryResultNode | SubjectResultNode | TestResultNode],
         factor: float,
     ) -> None:
-        """Balance the weights of sibling nodes to sum to 100, scaled by factor."""
+        """Balance the weights of sibling nodes to sum to a target total (100 * factor)."""
         if len(nodes) == 0:
             return
 
-        total_weight = sum(node.weight for node in nodes) * factor
+        target_total = 100.0 * factor
+        current_sum = sum(node.weight for node in nodes)
 
-        if total_weight == 0:
-            equal_weight = 100.0 / len(nodes)
+        if current_sum == 0:
+            equal_weight = target_total / len(nodes)
             for node in nodes:
                 node.weight = equal_weight
-        elif total_weight != 100:
-            scale_factor = 100.0 / total_weight
+        else:
+            scale_factor = target_total / current_sum
             for node in nodes:
                 node.weight *= scale_factor
 
