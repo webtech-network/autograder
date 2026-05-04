@@ -47,4 +47,3 @@ This documentation is organized to be both practical for first-time users and de
 | Pipeline steps | [pipeline/README.md](pipeline/README.md) |
 | Features | [features/grading_engine.md](features/grading_engine.md) |
 | Development setup | [guides/development.md](guides/development.md) |
-| Documentation roadmap | [roadmaps/MKDOCS_DOCUMENTATION_ROADMAP.md](roadmaps/MKDOCS_DOCUMENTATION_ROADMAP.md) |

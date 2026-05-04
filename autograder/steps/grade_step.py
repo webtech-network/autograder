@@ -4,7 +4,7 @@ from autograder.models.dataclass.grade_step_result import GradeStepResult
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 from autograder.models.abstract.step import Step
-from autograder.services.grader_service import GraderService
+from autograder.services.grader.grader_service import GraderService
 
 logger = logging.getLogger(__name__)
 

@@ -79,7 +79,7 @@ These items address structural problems where components are tightly coupled, re
 
 #### Item 6: Decouple `GraderService` from Mutable State
 
-- **File:** `autograder/services/grader_service.py`
+- **File:** `autograder/services/grader/grader_service.py`
 - **Problem:** `GraderService` is instantiated once per `GradeStep` but accumulates mutable state through setter methods: `set_sandbox()`, `set_submission_language()`, and internal `__submission_files`. This makes the service stateful and order-dependent — callers must remember to call setters before `grade_from_tree()`. It also means the service cannot be safely reused across concurrent submissions.
 - **Impact:** The setter pattern (`set_sandbox`, `set_submission_language`) is a code smell that indicates these values should be parameters, not instance state. It also creates a hidden coupling: `GradeStep.execute()` must know the exact sequence of setter calls before invoking grading.
 - **Action:**
@@ -89,7 +89,7 @@ These items address structural problems where components are tightly coupled, re
 
 #### Item 7: Extract Language Resolution from Test Execution
 
-- **Files:** `autograder/services/grader_service.py`, `autograder/template_library/input_output.py`, `autograder/services/command_resolver.py`
+- **Files:** `autograder/services/grader/grader_service.py`, `autograder/template_library/input_output.py`, `autograder/services/command_resolver.py`
 - **Problem:** The `GraderService.process_test()` method injects `__submission_language__` as a hidden parameter into every test's kwargs dict. The `ExpectOutputTest` and `DontFailTest` in `input_output.py` then extract this hidden parameter to resolve the `program_command` via `CommandResolver`. This creates an implicit contract: tests must know to look for a magic key in their kwargs, and the grader must know to inject it.
 - **Impact:** The `__submission_language__` convention is undocumented, fragile, and invisible to anyone reading the `TestFunction.execute()` signature. It also means command resolution logic is scattered: `CommandResolver` lives in `services/`, but it's invoked inside individual test functions rather than at the pipeline level.
 - **Action:**
@@ -259,7 +259,7 @@ These items prepare the codebase for future growth by establishing patterns and 
 
 #### Item 21: Decouple the `AiExecutor` Batch Pattern from Test Execution
 
-- **Files:** `autograder/utils/executors/ai_executor.py`, `autograder/services/grader_service.py`
+- **Files:** `autograder/utils/executors/ai_executor.py`, `autograder/services/grader/grader_service.py`
 - **Problem:** The `AiExecutor` implements a batch-send pattern where individual tests call `executor.add_test()` during tree traversal, and then `GraderService.grade_from_tree()` calls `executor.stop()` after all tests are processed to send a single batch request to OpenAI. This means:
   1. `GraderService` must know about `AiExecutor` and check for it after grading (`if hasattr(test_func, "executor") and test_func.executor`).
   2. Test functions that use AI don't actually execute during `execute()` — they register themselves and return an empty `TestResult` that gets populated later via `mapback()`.

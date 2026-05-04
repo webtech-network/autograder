@@ -75,7 +75,7 @@ Once the results are in, the pipeline proceeds to **[Step 6: Focus](06-focus.md)
 
 `autograder/steps/grade_step.py` → `GradeStep`
 
-`autograder/services/grader_service.py` → `GraderService`
+`autograder/services/grader/grader_service.py` → `GraderService`
 
 `autograder/models/result_tree.py` → `ResultTree`, `RootResultNode`, `CategoryResultNode`, `SubjectResultNode`, `TestResultNode`
 

@@ -27,7 +27,7 @@ from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.result_tree import CategoryResultNode, ResultTree, RootResultNode
-from autograder.services.grader_service import GraderService
+from autograder.services.grader.grader_service import GraderService
 from autograder.steps.ai_batch_step import AiBatchStep
 from autograder.steps.grade_step import GradeStep
 from autograder.utils.executors.ai_executor import AiExecutor, TestInput, TestOutput

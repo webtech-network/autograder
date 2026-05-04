@@ -70,23 +70,25 @@ Weights determine how much each node contributes to its parent's score. The engi
 
 ### Sibling Balancing
 
-The `__balance_nodes()` method normalizes weights:
+The `__balance_nodes()` method normalizes weights to a target total based on a factor:
 
 ```python
 def __balance_nodes(self, nodes, factor):
-    total_weight = sum(node.weight for node in nodes) * factor
-    if total_weight == 0:
-        equal_weight = 100.0 / len(nodes)
+    target_total = 100.0 * factor
+    current_sum = sum(node.weight for node in nodes)
+    
+    if current_sum == 0:
+        equal_weight = target_total / len(nodes)
         for node in nodes:
             node.weight = equal_weight
-    elif total_weight != 100:
-        scale_factor = 100.0 / total_weight
+    else:
+        scale_factor = target_total / current_sum
         for node in nodes:
             node.weight *= scale_factor
 ```
 
-- If all weights are zero, they're distributed equally.
-- If they don't sum to 100 (after applying the factor), they're scaled proportionally.
+- If all weights are zero, they're distributed equally to sum to `100 * factor`.
+- If they don't sum to the target total, they're scaled proportionally.
 
 ### Subject/Test Split
 
@@ -210,7 +212,7 @@ The `ResultTree` also provides utility methods:
 
 | File | Contents |
 |------|----------|
-| `autograder/services/grader_service.py` | `GraderService` — tree traversal, test execution, weight balancing |
+| `autograder/services/grader/grader_service.py` | `GraderService` — coordinator for the grading process |\n| `autograder/services/grader/criteria_grader.py` | `SubmissionGrader` — stateful tree traversal, test execution, weight balancing |
 | `autograder/models/result_tree.py` | `ResultTree`, `RootResultNode`, `CategoryResultNode`, `SubjectResultNode`, `TestResultNode` |
 | `autograder/models/criteria_tree.py` | `CriteriaTree`, `CategoryNode`, `SubjectNode`, `TestNode` |
 | `autograder/models/dataclass/grade_step_result.py` | `GradeStepResult` — wrapper for final score + result tree |

@@ -1,5 +1,6 @@
 site_name: Autograder Documentation
-site_description: Educational-standards-driven autograding platform documentation
+site_description:
+  Educational-standards-driven autograding platform documentation
 site_url: https://webtech-network.github.io/autograder/
 repo_url: https://github.com/webtech-network/autograder
 repo_name: webtech-network/autograder
@@ -86,6 +87,5 @@ nav:
       - Criteria Configuration Examples: guides/criteria_configuration_examples.md
       - GitHub Module (legacy): guides/github_module.md
   - Roadmaps:
-      - MkDocs Documentation Roadmap: roadmaps/MKDOCS_DOCUMENTATION_ROADMAP.md
       - Feature Roadmap: roadmaps/FEATURE_ROADMAP.md
       - Technical Debt Roadmap: roadmaps/TECHNICAL_DEBT_ROADMAP.md
