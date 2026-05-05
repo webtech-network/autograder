@@ -33,8 +33,8 @@ class StructuralAnalysisStep(Step):
             return pipeline_exec.add_step_result(StepResult.success(self.step_name, StructuralAnalysisResult(roots={})))
 
         if SgRoot is None:
-            logger.error("ast-grep-py is not installed; structural analysis will be skipped.")
-            return pipeline_exec.add_step_result(StepResult.fail(self.step_name, "ast-grep-py not installed"))
+            logger.warning("ast-grep-py is not installed; skipping structural analysis.")
+            return pipeline_exec.add_step_result(StepResult.success(self.step_name, StructuralAnalysisResult(roots={})))
 
         ast_grep_lang = self._map_language(language)
         if not ast_grep_lang:

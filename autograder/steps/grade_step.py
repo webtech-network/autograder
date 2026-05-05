@@ -41,13 +41,14 @@ class GradeStep(Step):
         logger.info("Grading submission (external_user_id=%s)", pipeline_exec.submission.user_id)
 
         # If submission is sandboxed, feed grading template with container ref
-        template = pipeline_exec.get_loaded_template()
+        templates = pipeline_exec.get_loaded_templates()
+        requires_sandbox = any(t.requires_sandbox for t in templates)
 
         # Check if PRE_FLIGHT step was executed (only if setup_config was provided)
         sandbox = pipeline_exec.get_sandbox()
 
-        if not sandbox and template.requires_sandbox:
-            raise RuntimeError("Grading template requires a sandbox environment, but no sandbox was created")
+        if not sandbox and requires_sandbox:
+            raise RuntimeError("One or more grading templates require a sandbox environment, but no sandbox was created")
 
         criteria_tree = pipeline_exec.get_built_criteria_tree()
 

@@ -71,7 +71,7 @@ class TestCriteriaTreeServiceValidation:
         }
         config = CriteriaConfig.from_dict(criteria_dict)
         # Should NOT raise ValueError
-        tree = self.service.build_tree(config, self.template)
+        tree = self.service.build_tree(config, [self.template])
         assert tree is not None
         assert tree.base.tests[0].parameters["required_str"] == "hello"
 
@@ -93,7 +93,7 @@ class TestCriteriaTreeServiceValidation:
         }
         config = CriteriaConfig.from_dict(criteria_dict)
         with pytest.raises(ValueError) as excinfo:
-            self.service.build_tree(config, self.template)
+            self.service.build_tree(config, [self.template])
         
         assert "Invalid parameters" in str(excinfo.value)
         assert "required_str" in str(excinfo.value)
@@ -117,7 +117,7 @@ class TestCriteriaTreeServiceValidation:
         }
         config = CriteriaConfig.from_dict(criteria_dict)
         with pytest.raises(ValueError) as excinfo:
-            self.service.build_tree(config, self.template)
+            self.service.build_tree(config, [self.template])
         
         assert "Invalid parameters" in str(excinfo.value)
         assert "optional_int" in str(excinfo.value)

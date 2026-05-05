@@ -1,6 +1,6 @@
 """Tests for ForbiddenImportTest."""
 
-from autograder.template_library.input_output import ForbiddenImportTest, InputOutputTemplate
+from autograder.template_library.static_analysis import ForbiddenImportTest, StaticAnalysisTemplate
 from autograder.models.dataclass.submission import SubmissionFile
 from sandbox_manager.models.sandbox_models import Language
 
@@ -9,8 +9,8 @@ class TestForbiddenImportRegistration:
     """Test that ForbiddenImportTest is properly registered in the template."""
 
     def test_forbidden_import_registered_in_template(self):
-        """Test that the forbidden_import test is available in InputOutputTemplate."""
-        template = InputOutputTemplate()
+        """Test that the forbidden_import test is available in StaticAnalysisTemplate."""
+        template = StaticAnalysisTemplate()
         test = template.get_test("forbidden_import")
         assert test is not None
         assert test.name == "forbidden_import"

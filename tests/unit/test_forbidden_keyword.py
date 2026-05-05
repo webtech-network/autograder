@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
-from autograder.template_library.input_output import ForbiddenKeywordTest, InputOutputTemplate, ForbiddenKeywordConfig
+from autograder.template_library.static_analysis import ForbiddenKeywordTest, StaticAnalysisTemplate, ForbiddenKeywordConfig
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
 from sandbox_manager.models.sandbox_models import Language
@@ -14,8 +14,8 @@ class TestForbiddenKeywordRegistration:
     """Test that ForbiddenKeywordTest is properly registered in the template."""
 
     def test_forbidden_keyword_registered_in_template(self):
-        """Test that the forbidden_keyword test is available in InputOutputTemplate."""
-        template = InputOutputTemplate()
+        """Test that the forbidden_keyword test is available in StaticAnalysisTemplate."""
+        template = StaticAnalysisTemplate()
         test = template.get_test("forbidden_keyword")
         assert test is not None
         assert test.name == "forbidden_keyword"

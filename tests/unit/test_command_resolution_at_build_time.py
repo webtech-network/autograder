@@ -13,7 +13,7 @@ from autograder.models.criteria_tree import TestNode
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
-from autograder.template_library.input_output import ForbiddenImportTest
+from autograder.template_library.static_analysis import ForbiddenImportTest
 from autograder.models.dataclass.submission import SubmissionFile
 from sandbox_manager.models.sandbox_models import Language
 
