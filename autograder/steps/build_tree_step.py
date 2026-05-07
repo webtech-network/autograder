@@ -43,11 +43,11 @@ class BuildTreeStep(Step):
         logger.info("Building criteria tree (external_user_id=%s)", pipeline_exec.submission.user_id)
         # Validate criteria configuration
         criteria_config = CriteriaConfig.from_dict(self._criteria_json)
-        template = pipeline_exec.get_loaded_template()
-        # Build the criteria tree with embedded test functions
+        templates = pipeline_exec.get_loaded_templates()
+        # Build the criteria tree with embedded test functions from multiple templates
         criteria_tree = self._criteria_tree_service.build_tree(
             criteria_config,
-            template
+            templates
         )
         logger.info(
             "Criteria tree built successfully (external_user_id=%s)",

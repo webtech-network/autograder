@@ -37,6 +37,7 @@ def test_structural_analysis_step_execution_success(mock_sg_root, mock_pipeline_
     # Verify StepResult
     step_result = result_exec.get_step_result(StepName.STRUCTURAL_ANALYSIS)
     assert step_result.status == StepStatus.SUCCESS
+    assert step_result.data.available is True
     assert "main.py" in step_result.data.roots
     assert "data.txt" not in step_result.data.roots # Heuristic should skip .txt
     assert step_result.data.roots["main.py"] == mock_root_instance
@@ -55,6 +56,7 @@ def test_structural_analysis_step_parsing_failure(mock_sg_root, mock_pipeline_ex
     # Verify StepResult is still SUCCESS (graceful handling)
     step_result = result_exec.get_step_result(StepName.STRUCTURAL_ANALYSIS)
     assert step_result.status == StepStatus.SUCCESS
+    assert step_result.data.available is True
     assert "main.py" in step_result.data.roots
     assert step_result.data.roots["main.py"] is None # Failed parsing results in None
 
@@ -66,3 +68,15 @@ def test_structural_analysis_step_no_language(mock_pipeline_exec):
     step_result = result_exec.get_step_result(StepName.STRUCTURAL_ANALYSIS)
     assert step_result.status == StepStatus.SUCCESS
     assert step_result.data.roots == {}
+    assert step_result.data.available is False
+    assert step_result.data.reason == "missing_submission_language"
+
+@patch("autograder.steps.structural_analysis_step.SgRoot", None)
+def test_structural_analysis_step_unavailable_ast_grep(mock_pipeline_exec):
+    step = StructuralAnalysisStep()
+    result_exec = step.execute(mock_pipeline_exec)
+
+    step_result = result_exec.get_step_result(StepName.STRUCTURAL_ANALYSIS)
+    assert step_result.status == StepStatus.SUCCESS
+    assert step_result.data.available is False
+    assert step_result.data.reason == "ast_grep_unavailable"

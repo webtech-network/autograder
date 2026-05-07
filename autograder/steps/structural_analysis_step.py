@@ -27,19 +27,46 @@ class StructuralAnalysisStep(Step):
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         submission = pipeline_exec.submission
         language = submission.language
-        
+
         if not language:
             logger.warning("No language specified for submission; skipping structural analysis.")
-            return pipeline_exec.add_step_result(StepResult.success(self.step_name, StructuralAnalysisResult(roots={})))
+            return pipeline_exec.add_step_result(
+                StepResult.success(
+                    self.step_name,
+                    StructuralAnalysisResult(
+                        roots={},
+                        available=False,
+                        reason="missing_submission_language",
+                    ),
+                )
+            )
 
         if SgRoot is None:
-            logger.error("ast-grep-py is not installed; structural analysis will be skipped.")
-            return pipeline_exec.add_step_result(StepResult.fail(self.step_name, "ast-grep-py not installed"))
+            logger.warning("ast-grep-py is not installed; skipping structural analysis.")
+            return pipeline_exec.add_step_result(
+                StepResult.success(
+                    self.step_name,
+                    StructuralAnalysisResult(
+                        roots={},
+                        available=False,
+                        reason="ast_grep_unavailable",
+                    ),
+                )
+            )
 
         ast_grep_lang = self._map_language(language)
         if not ast_grep_lang:
             logger.warning(f"Language {language.value} is not supported by ast-grep; skipping.")
-            return pipeline_exec.add_step_result(StepResult.success(self.step_name, StructuralAnalysisResult(roots={})))
+            return pipeline_exec.add_step_result(
+                StepResult.success(
+                    self.step_name,
+                    StructuralAnalysisResult(
+                        roots={},
+                        available=False,
+                        reason=f"unsupported_language:{language.value}",
+                    ),
+                )
+            )
 
         roots: Dict[str, Optional[SgRoot]] = {}
         for filename, sub_file in submission.submission_files.items():
@@ -53,7 +80,7 @@ class StructuralAnalysisStep(Step):
                 logger.warning(f"Failed to parse {filename} with ast-grep: {e}")
                 roots[filename] = None
 
-        result = StructuralAnalysisResult(roots=roots)
+        result = StructuralAnalysisResult(roots=roots, available=True)
         return pipeline_exec.add_step_result(StepResult.success(self.step_name, result))
 
     def _map_language(self, language: Language) -> Optional[str]:

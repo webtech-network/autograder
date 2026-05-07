@@ -99,14 +99,24 @@ class PipelineExecution:
             )
         return step_result.data
 
+    def get_loaded_templates(self) -> List["Template"]:
+        """
+        Retrieves the Grading Template objects loaded for this execution.
+        """
+        data = self._require_step_data(StepName.LOAD_TEMPLATE, "templates")
+        if isinstance(data, list):
+            return cast(List["Template"], data)
+        return [cast("Template", data)]
+
     def get_loaded_template(self) -> "Template":
         """
-        Retrieves the Grading Template object loaded for this execution.
+        Retrieves the first Grading Template object loaded for this execution.
+        (Maintained for backward compatibility)
         """
-        return cast(
-            "Template",
-            self._require_step_data(StepName.LOAD_TEMPLATE, "template"),
-        )
+        templates = self.get_loaded_templates()
+        if not templates:
+            raise ValueError("No templates loaded in the pipeline.")
+        return templates[0]
 
     def get_built_criteria_tree(self) -> "CriteriaTree":
         """

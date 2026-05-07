@@ -1,6 +1,6 @@
 """Tests for ForbiddenImportTest."""
 
-from autograder.template_library.input_output import ForbiddenImportTest, InputOutputTemplate
+from autograder.template_library.static_analysis import ForbiddenImportTest, StaticAnalysisTemplate
 from autograder.models.dataclass.submission import SubmissionFile
 from sandbox_manager.models.sandbox_models import Language
 
@@ -9,8 +9,8 @@ class TestForbiddenImportRegistration:
     """Test that ForbiddenImportTest is properly registered in the template."""
 
     def test_forbidden_import_registered_in_template(self):
-        """Test that the forbidden_import test is available in InputOutputTemplate."""
-        template = InputOutputTemplate()
+        """Test that the forbidden_import test is available in StaticAnalysisTemplate."""
+        template = StaticAnalysisTemplate()
         test = template.get_test("forbidden_import")
         assert test is not None
         assert test.name == "forbidden_import"
@@ -472,6 +472,19 @@ class TestForbiddenImportNode:
             submission_language=self.lang,
         )
         assert result.score == 100.0
+
+    def test_special_regex_chars_in_module_names(self):
+        """Forbidden module names containing regex chars should still be matched literally."""
+        files = [SubmissionFile("index.js", "require('foo.bar');\nrequire('a+b');\n")]
+        result = self.test_fn.execute(
+            files,
+            None,
+            forbidden_imports=["foo.bar", "a+b"],
+            submission_language=self.lang,
+        )
+        assert result.score == 0.0
+        assert "foo.bar" in result.report
+        assert "a+b" in result.report
 
     def test_commented_require_still_detected(self):
         """Test that a commented require is still detected (known limitation).

@@ -449,25 +449,6 @@
         "success": "Success: Program executed without errors."
       }
     },
-    "forbidden_import": {
-      "description": "Statically analyzes submission files to check if any forbidden libraries were imported. Penalizes the submission if any forbidden imports are found.",
-      "params": {
-        "libraries": "List of library/module names whose import is forbidden.",
-        "language": "Submission language (e.g., 'python', 'java'). Required to identify correct import patterns."
-      },
-      "report": {
-        "no_imports": "No forbidden imports specified — nothing to check.",
-        "no_lang": "FAILURE: Submission language is not defined. Cannot check for forbidden imports.",
-        "no_files": "No submission files to analyze.",
-        "violation": "  - '{lib}' found in '{file}'",
-        "failure": "FAILURE: Forbidden imports detected:\n{details}",
-        "success": "No forbidden imports found."
-      }
-    },
-    "template": {
-      "name": "Input/Output",
-      "description": "A template for evaluating assignments based on command-line input and output."
-    },
     "expect_file_artifact": {
       "description": "Executes the student program, then extracts a generated file from the sandbox and validates its content against expected values.",
       "params": {
@@ -488,6 +469,27 @@
         "invalid_regex": "CONFIGURATION ERROR: Invalid regex pattern.\nDetails: {error}"
       }
     },
+    "template": {
+      "name": "Input/Output",
+      "description": "A template for evaluating assignments based on command-line input and output."
+    }
+  },
+  "static_analysis": {
+    "forbidden_import": {
+      "description": "Statically analyzes submission files to check if any forbidden libraries were imported. Penalizes the submission if any forbidden imports are found.",
+      "params": {
+        "libraries": "List of library/module names whose import is forbidden.",
+        "language": "Submission language (e.g., 'python', 'java'). Required to identify correct import patterns."
+      },
+      "report": {
+        "no_imports": "No forbidden imports specified — nothing to check.",
+        "no_lang": "FAILURE: Submission language is not defined. Cannot check for forbidden imports.",
+        "no_files": "No submission files to analyze.",
+        "violation": "  - '{lib}' found in '{file}'",
+        "failure": "FAILURE: Forbidden imports detected:\n{details}",
+        "success": "No forbidden imports found."
+      }
+    },
     "forbidden_keyword": {
       "description": "Statically analyzes submission files using structural analysis to detect forbidden language constructs (like loops or eval calls).",
       "params": {
@@ -503,6 +505,10 @@
         "failure": "FAILURE: Forbidden language constructs detected:\n{details}",
         "success": "No forbidden language constructs found."
       }
+    },
+    "template": {
+      "name": "Static Analysis",
+      "description": "A template for evaluating assignments through static and structural code analysis."
     }
   },
   "api_testing": {

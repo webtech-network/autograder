@@ -444,29 +444,10 @@
       }
     },
     "dont_fail": {
-      "description": "Executes the student program with specific input and verifies it doesn't fail (no crash, no timeout).",
+      "description": "Executa o programa do aluno com entrada específica e verifica se não falha (sem crash, sem timeout).",
       "report": {
         "success": "Sucesso: O programa foi executado sem erros."
       }
-    },
-    "forbidden_import": {
-      "description": "Analisa estaticamente os arquivos de submissão para verificar se alguma biblioteca proibida foi importada. Penaliza a submissão caso alguma importação proibida seja encontrada.",
-      "params": {
-        "libraries": "Lista de nomes de bibliotecas/módulos cuja importação é proibida.",
-        "language": "Linguagem da submissão (ex: 'python', 'java'). Necessária para identificar padrões de importação corretos."
-      },
-      "report": {
-        "no_imports": "Nenhuma importação proibida especificada â€” nada para verificar.",
-        "no_lang": "FALHA: A linguagem da submissão não foi definida. Não é possível verificar importações proibidas.",
-        "no_files": "Nenhum arquivo de submissão para analisar.",
-        "violation": "  - '{lib}' encontrado em '{file}'",
-        "failure": "FALHA: Importações proibidas detectadas:\n{details}",
-        "success": "Nenhuma importação proibida encontrada."
-      }
-    },
-    "template": {
-      "name": "Entrada/Saída (I/O)",
-      "description": "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."
     },
     "expect_file_artifact": {
       "description": "Executa o programa do aluno, extrai um arquivo gerado do sandbox e valida seu conteúdo contra os valores esperados.",
@@ -488,6 +469,27 @@
         "invalid_regex": "ERRO DE CONFIGURAÇÃO: Padrão regex inválido.\nDetalhes: {error}"
       }
     },
+    "template": {
+      "name": "Entrada/Saída (I/O)",
+      "description": "Um modelo para avaliar trabalhos com base na entrada e saída de linha de comando."
+    }
+  },
+  "static_analysis": {
+    "forbidden_import": {
+      "description": "Analisa estaticamente os arquivos de submissão para verificar se alguma biblioteca proibida foi importada. Penaliza a submissão caso alguma importação proibida seja encontrada.",
+      "params": {
+        "libraries": "Lista de nomes de bibliotecas/módulos cuja importação é proibida.",
+        "language": "Linguagem da submissão (ex: 'python', 'java'). Necessária para identificar padrões de importação corretos."
+      },
+      "report": {
+        "no_imports": "Nenhuma importação proibida especificada — nada para verificar.",
+        "no_lang": "FALHA: A linguagem da submissão não foi definida. Não é possível verificar importações proibidas.",
+        "no_files": "Nenhum arquivo de submissão para analisar.",
+        "violation": "  - '{lib}' encontrado em '{file}'",
+        "failure": "FALHA: Importações proibidas detectadas:\n{details}",
+        "success": "Nenhuma importação proibida encontrada."
+      }
+    },
     "forbidden_keyword": {
       "description": "Analisa estaticamente os arquivos de submissão usando análise estrutural para detectar construções de linguagem proibidas (como loops ou chamadas eval).",
       "params": {
@@ -503,6 +505,10 @@
         "failure": "FALHA: Construções de linguagem proibidas detectadas:\n{details}",
         "success": "Nenhuma construção de linguagem proibida encontrada."
       }
+    },
+    "template": {
+      "name": "Análise Estática",
+      "description": "Um modelo para avaliar tarefas através de análise estática e estrutural de código."
     }
   },
   "api_testing": {

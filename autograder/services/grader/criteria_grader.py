@@ -139,10 +139,14 @@ class SubmissionGrader(CriteriaTreeProcesser):
             )
             test_params['program_command'] = resolved
 
-        # Inject the actual submission language so tests like forbidden_import
-        # always operate on the real language rather than a config-time guess.
-        if self.submission_language and 'submission_language' in test_params:
-            test_params['submission_language'] = self.submission_language
+        # Ensure submission_language is passed only once.
+        # Runtime language always takes precedence over config-specified language.
+        config_submission_language = test_params.pop('submission_language', None)
+        effective_submission_language = (
+            self.submission_language
+            if self.submission_language is not None
+            else config_submission_language
+        )
 
         test_result = test.test_function.execute(
             files=file_target,
@@ -150,7 +154,7 @@ class SubmissionGrader(CriteriaTreeProcesser):
             locale=self.locale,
             pre_computed_results=self.pre_computed_results,
             structural_analysis=self.structural_analysis,
-            submission_language=self.submission_language,
+            submission_language=effective_submission_language,
             **test_params,
         )
         return TestResultNode(

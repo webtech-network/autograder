@@ -137,7 +137,7 @@ def build_pipeline(
     Build the AutograderPipeline object based on configuration.
 
     Args:
-        template_name: Name of the template to use
+        template_name: Name of the template to use (string or list of strings)
         include_feedback: Whether to include feedback generation
         grading_criteria: Criteria configuration dictionary
         feedback_config: Configuration for feedback generation

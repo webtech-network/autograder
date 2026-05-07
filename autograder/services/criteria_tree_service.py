@@ -27,26 +27,26 @@ class CriteriaTreeService:
 
     def __init__(self):
         self.logger = logging.getLogger("CriteriaTreeService")
-        self.__template = None
+        self.__templates: List[Template] = []
 
     def build_tree(
-        self, criteria_config: CriteriaConfig, template: Template
+        self, criteria_config: CriteriaConfig, templates: List[Template]
     ) -> CriteriaTree:
         """
         Build a complete criteria tree from validated configuration.
 
         Args:
             criteria_config: Validated criteria configuration
-            template: Template containing test functions
+            templates: List of templates containing test functions
 
         Returns:
             Complete CriteriaTree with embedded test functions
 
         Raises:
-            ValueError: If test function not found in template
+            ValueError: If test function not found in any template
         """
 
-        self.__template = template
+        self.__templates = templates
 
         base_category = self.__parse_category("base", criteria_config.base)
         tree = CriteriaTree(base_category)
@@ -88,10 +88,12 @@ class CriteriaTreeService:
         return [self.__parse_test(test_item) for test_item in test_configs]
 
     def __find_test_function(self, name: str) -> Optional[TestFunction]:
-        try:
-            return self.__template.get_test(name)
-        except (AttributeError, KeyError):
-            return None
+        for template in self.__templates:
+            try:
+                return template.get_test(name)
+            except (AttributeError, KeyError):
+                continue
+        return None
 
     def __parse_test(self, config: TestConfig) -> TestNode:
         # Use technical 'type' for function lookup, falling back to 'name' for legacy support
