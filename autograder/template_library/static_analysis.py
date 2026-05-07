@@ -83,8 +83,9 @@ class ForbiddenImportTest(TestFunction):
     def _build_patterns(self, library: str, language: Language) -> List[re.Pattern]:
         templates = self.IMPORT_PATTERNS.get(language, [])
         compiled: List[re.Pattern] = []
+        escaped_library = re.escape(library)
         for tmpl in templates:
-            raw = tmpl.replace('{{lib}}', library).replace('{lib}', re.escape(library))
+            raw = tmpl.replace('{{lib}}', escaped_library).replace('{lib}', escaped_library)
             compiled.append(re.compile(raw, re.MULTILINE))
         return compiled
 
@@ -241,7 +242,7 @@ class ForbiddenKeywordTest(TestFunction):
                 report=t("static_analysis.forbidden_keyword.report.no_rules", locale=locale)
             )
 
-        if structural_analysis is None:
+        if structural_analysis is None or not structural_analysis.available:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
@@ -276,6 +277,26 @@ class ForbiddenKeywordTest(TestFunction):
                 test_name=self.name,
                 score=100.0,
                 report=t("static_analysis.forbidden_keyword.report.no_files", locale=locale)
+            )
+
+        if not structural_analysis.roots:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=t("static_analysis.forbidden_keyword.report.no_analysis", locale=locale)
+            )
+
+        missing_roots = [
+            sub_file.filename
+            for sub_file in files
+            if sub_file.filename not in structural_analysis.roots
+            or structural_analysis.roots[sub_file.filename] is None
+        ]
+        if missing_roots:
+            return TestResult(
+                test_name=self.name,
+                score=0.0,
+                report=t("static_analysis.forbidden_keyword.report.no_analysis", locale=locale)
             )
 
         for sub_file in files:

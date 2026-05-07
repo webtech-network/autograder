@@ -1,5 +1,5 @@
 import logging
-from typing import Union, List, Optional
+from typing import List, Union
 
 from autograder.models.dataclass.step_result import StepResult, StepName, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
@@ -14,16 +14,40 @@ class TemplateLoaderStep(Step):
     Step that loads one or more grading templates, which contain test functions 
     and helper code used for grading.
     """
-    def __init__(self, template_name: Union[str, List[str]], custom_template = None):
+    def __init__(self, template_name: Union[str, List[str], None], custom_template=None):
         """
         Initialize the template loader step.
         """
-        if isinstance(template_name, str):
-            self._template_names = [name.strip() for name in template_name.split(",")]
-        else:
-            self._template_names = template_name
+        self._template_names = self._normalize_template_names(template_name)
         self._custom_template = custom_template
         self._template_service = TemplateLibraryService.get_instance()
+        if not self._custom_template and not self._template_names:
+            raise ValueError(
+                "template_name must contain at least one non-empty template identifier."
+            )
+
+    @staticmethod
+    def _normalize_template_names(template_name: Union[str, List[str], None]) -> List[str]:
+        if template_name is None:
+            return []
+
+        if isinstance(template_name, str):
+            raw_names = template_name.split(",")
+        elif isinstance(template_name, list):
+            raw_names = template_name
+        else:
+            raise ValueError(
+                "template_name must be a comma-separated string or a list of strings."
+            )
+
+        normalized: List[str] = []
+        for name in raw_names:
+            if not isinstance(name, str):
+                raise ValueError("template_name entries must be strings.")
+            stripped = name.strip()
+            if stripped:
+                normalized.append(stripped)
+        return normalized
 
     @property
     def step_name(self) -> StepName:

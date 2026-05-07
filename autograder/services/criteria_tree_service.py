@@ -27,7 +27,7 @@ class CriteriaTreeService:
 
     def __init__(self):
         self.logger = logging.getLogger("CriteriaTreeService")
-        self.__templates = []
+        self.__templates: List[Template] = []
 
     def build_tree(
         self, criteria_config: CriteriaConfig, templates: List[Template]

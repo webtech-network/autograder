@@ -85,6 +85,23 @@ class TestForbiddenKeywordExecution:
         assert result.score == 0.0
         assert "analysis" in result.report.lower()
 
+    def test_unavailable_analysis_gives_0(self):
+        """Unavailable structural analysis should fail explicitly."""
+        sa_result = StructuralAnalysisResult(
+            roots={},
+            available=False,
+            reason="ast_grep_unavailable",
+        )
+        result = self.test_fn.execute(
+            [SubmissionFile("main.py", "for i in range(10): pass")],
+            None,
+            forbidden_keywords=["for_loop"],
+            structural_analysis=sa_result,
+            submission_language=Language.PYTHON,
+        )
+        assert result.score == 0.0
+        assert "analysis" in result.report.lower()
+
     def test_no_language_gives_0(self):
         """Test that missing language returns score 0."""
         sa_result = StructuralAnalysisResult(roots={})
@@ -153,3 +170,17 @@ class TestForbiddenKeywordExecution:
                                      submission_language=Language.PYTHON)
         
         assert result.score == 100.0
+
+    def test_missing_roots_for_target_file_gives_0(self):
+        """If target files have no parsed roots, the test should fail as no-analysis."""
+        sa_result = StructuralAnalysisResult(roots={})
+        files = [SubmissionFile("main.py", "for i in range(10): pass")]
+        result = self.test_fn.execute(
+            files,
+            None,
+            forbidden_keywords=["for_loop"],
+            structural_analysis=sa_result,
+            submission_language=Language.PYTHON,
+        )
+        assert result.score == 0.0
+        assert "analysis" in result.report.lower()

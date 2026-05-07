@@ -12,5 +12,9 @@ class StructuralAnalysisResult:
     Attributes:
         roots: A dictionary mapping filenames to their corresponding ast-grep root nodes.
                If a file could not be parsed, the value is None.
+        available: Whether structural analysis infrastructure was available and attempted.
+        reason: Optional reason explaining why analysis was unavailable/skipped.
     """
     roots: Dict[str, Optional['SgRoot']]
+    available: bool = True
+    reason: Optional[str] = None

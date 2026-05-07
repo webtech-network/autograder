@@ -7,13 +7,17 @@ These are pure-unit tests — no sandbox or real submission required.
 
 from typing import List
 
+from autograder.models.abstract.template import Template
 from autograder.services.grader.criteria_grader import SubmissionGrader
 from autograder.services.command_resolver import CommandResolver
+from autograder.services.criteria_tree_service import CriteriaTreeService
+from autograder.services.grader.grader_service import GraderService
+from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import TestNode
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
-from autograder.template_library.static_analysis import ForbiddenImportTest
+from autograder.template_library.static_analysis import ForbiddenImportTest, StaticAnalysisTemplate
 from autograder.models.dataclass.submission import SubmissionFile
 from sandbox_manager.models.sandbox_models import Language
 
@@ -43,6 +47,25 @@ class RecordingTestFunction(TestFunction):
     def execute(self, files, sandbox, *args, **kwargs):
         self.recorded_kwargs = dict(kwargs)
         return TestResult(test_name=self.name, score=100.0, report="ok")
+
+
+class EmptyTemplate(Template):
+    """Template that never resolves tests, used to exercise multi-template lookup."""
+
+    @property
+    def template_name(self):
+        return "empty"
+
+    @property
+    def template_description(self):
+        return "No tests"
+
+    @property
+    def requires_sandbox(self):
+        return False
+
+    def get_test(self, name):
+        raise KeyError(name)
 
 
 def _make_grader(language=None) -> SubmissionGrader:
@@ -303,3 +326,56 @@ class TestForbiddenImportDeclaredParam:
         )
         # Language will be None → score 0 because it can't determine scan patterns
         assert result.score == 0.0
+
+
+class TestSubmissionLanguageCollisionRegression:
+    """Regression coverage for duplicate submission_language kwargs."""
+
+    def test_runtime_submission_language_overrides_config_value(self):
+        svc = _make_grader(Language.PYTHON)
+        fn = RecordingTestFunction()
+        node = _make_test_node({"submission_language": "java"}, fn)
+
+        svc.process_test(node)
+
+        assert fn.recorded_kwargs["submission_language"] == Language.PYTHON
+
+    def test_config_submission_language_used_when_runtime_missing(self):
+        svc = _make_grader()
+        fn = RecordingTestFunction()
+        node = _make_test_node({"submission_language": "java"}, fn)
+
+        svc.process_test(node)
+
+        assert fn.recorded_kwargs["submission_language"] == "java"
+
+    def test_multi_template_grading_path_with_submission_language_param(self):
+        criteria_dict = {
+            "base": {
+                "weight": 100,
+                "tests": [
+                    {
+                        "name": "No forbidden imports",
+                        "type": "forbidden_import",
+                        "file": "main.py",
+                        "parameters": [
+                            {"name": "forbidden_imports", "value": ["os"]},
+                            {"name": "submission_language", "value": "java"},
+                        ],
+                    }
+                ],
+            }
+        }
+        criteria_config = CriteriaConfig.from_dict(criteria_dict)
+        criteria_tree = CriteriaTreeService().build_tree(
+            criteria_config,
+            [EmptyTemplate(), StaticAnalysisTemplate()],
+        )
+
+        result_tree = GraderService().grade_from_tree(
+            criteria_tree=criteria_tree,
+            submission_files={"main.py": SubmissionFile("main.py", "import os\n")},
+            submission_language=Language.PYTHON,
+        )
+
+        assert result_tree.calculate_final_score() == 0.0

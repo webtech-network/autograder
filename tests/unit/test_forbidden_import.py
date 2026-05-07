@@ -473,6 +473,19 @@ class TestForbiddenImportNode:
         )
         assert result.score == 100.0
 
+    def test_special_regex_chars_in_module_names(self):
+        """Forbidden module names containing regex chars should still be matched literally."""
+        files = [SubmissionFile("index.js", "require('foo.bar');\nrequire('a+b');\n")]
+        result = self.test_fn.execute(
+            files,
+            None,
+            forbidden_imports=["foo.bar", "a+b"],
+            submission_language=self.lang,
+        )
+        assert result.score == 0.0
+        assert "foo.bar" in result.report
+        assert "a+b" in result.report
+
     def test_commented_require_still_detected(self):
         """Test that a commented require is still detected (known limitation).
 
