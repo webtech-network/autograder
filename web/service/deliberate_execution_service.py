@@ -143,7 +143,7 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
     # Acquire sandbox
     sandbox = None
     try:
-        sandbox = sandbox_manager.get_sandbox(language)
+        sandbox = await asyncio.to_thread(sandbox_manager.get_sandbox, language)
         logger.info("Acquired sandbox for %s", language.value)
 
         # Convert submission files to the format expected by sandbox
@@ -156,7 +156,7 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
         }
 
         # Prepare workdir with submission files
-        sandbox.prepare_workdir(files_dict)
+        await asyncio.to_thread(sandbox.prepare_workdir, files_dict)
         logger.info("Prepared workdir with %d file(s)", len(files_dict))
 
         # Resolve and inject assets if provided
@@ -203,5 +203,5 @@ async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCod
     finally:
         # Always release sandbox back to pool
         if sandbox and sandbox_manager:
-            sandbox_manager.release_sandbox(language, sandbox)
+            await asyncio.to_thread(sandbox_manager.release_sandbox, language, sandbox)
             logger.info("Released sandbox for %s", language.value)

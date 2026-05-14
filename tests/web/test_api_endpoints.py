@@ -14,6 +14,8 @@ from sqlalchemy.pool import StaticPool
 
 from web.database.base import Base
 from web.database import session
+from web.schemas.execution import DeliberateCodeExecutionResponse, DeliberateCodeExecutionResult
+from sandbox_manager.models.sandbox_models import ResponseCategory
 
 
 # Mock external dependencies before importing app
@@ -103,6 +105,47 @@ async def test_readiness_check(client):
     data = response.json()
     assert "ready" in data
     assert "timestamp" in data
+
+
+@pytest.mark.asyncio
+async def test_execute_endpoint_contract_and_value_error_mapping(client):
+    """Test /api/v1/execute response contract and ValueError mapping."""
+    execute_request = {
+        "language": "python",
+        "submission_files": [{"filename": "main.py", "content": "print('ok')"}],
+        "program_command": "python main.py",
+    }
+
+    service_response = DeliberateCodeExecutionResponse(
+        results=[
+            DeliberateCodeExecutionResult(
+                output="ok\n",
+                category=ResponseCategory.SUCCESS,
+                error_message=None,
+                execution_time=0.12,
+            )
+        ]
+    )
+
+    with patch("web.api.v1.execution.execute_code", new=AsyncMock(return_value=service_response)):
+        response = await client.post("/api/v1/execute", json=execute_request)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "results" in body
+    assert len(body["results"]) == 1
+    result = body["results"][0]
+    assert set(result.keys()) == {"output", "category", "error_message", "execution_time"}
+    assert result["output"] == "ok\n"
+    assert result["category"] == "success"
+    assert result["error_message"] is None
+    assert isinstance(result["execution_time"], float)
+
+    with patch("web.api.v1.execution.execute_code", new=AsyncMock(side_effect=ValueError("invalid request"))):
+        error_response = await client.post("/api/v1/execute", json=execute_request)
+
+    assert error_response.status_code == 400
+    assert error_response.json()["detail"] == "invalid request"
 
 
 @pytest.mark.asyncio
