@@ -5,7 +5,7 @@ from unittest.mock import Mock, AsyncMock, patch
 
 from web.service.deliberate_execution_service import execute_code, _get_error_message
 from web.schemas.execution import DeliberateCodeExecutionRequest, DeliberateCodeExecutionResponse
-from sandbox_manager.models.sandbox_models import ResponseCategory, CommandResponse
+from sandbox_manager.models.sandbox_models import ResponseCategory, CommandResponse, Language
 
 
 def _make_request(language="python", files=None, command="python main.py", test_cases=None):
@@ -29,6 +29,11 @@ def _make_command_response(stdout="hello\n", stderr="", exit_code=0,
         execution_time=execution_time,
         category=category,
     )
+
+
+async def _execute_in_thread(fn, *args, **kwargs):
+    """Run a mocked asyncio.to_thread call by invoking the function directly."""
+    return fn(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +131,8 @@ async def test_execute_code_success_no_inputs():
     request = _make_request(test_cases=None)
 
     with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=mock_manager), \
-         patch("asyncio.to_thread", new=AsyncMock(return_value=cmd_response)):
+         patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+        mock_to_thread.side_effect = _execute_in_thread
 
         response = await execute_code(request)
 
@@ -136,6 +142,10 @@ async def test_execute_code_success_no_inputs():
     assert response.results[0].output == "hello\n"
     assert response.results[0].error_message is None
     mock_manager.release_sandbox.assert_called_once()
+    mock_to_thread.assert_any_await(mock_manager.get_sandbox, Language.PYTHON)
+    mock_to_thread.assert_any_await(mock_sandbox.prepare_workdir, mock_sandbox.prepare_workdir.call_args[0][0])
+    mock_to_thread.assert_any_await(mock_sandbox.run_command, request.program_command, timeout=30, workdir="/app")
+    mock_to_thread.assert_any_await(mock_manager.release_sandbox, Language.PYTHON, mock_sandbox)
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +168,8 @@ async def test_execute_code_success_with_inputs():
     request = _make_request(test_cases=[["5", "7"]])
 
     with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=mock_manager), \
-         patch("asyncio.to_thread", new=AsyncMock(return_value=cmd_response)):
+         patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+        mock_to_thread.side_effect = _execute_in_thread
 
         response = await execute_code(request)
 
@@ -166,6 +177,16 @@ async def test_execute_code_success_with_inputs():
     assert response.results[0].category == ResponseCategory.SUCCESS
     assert response.results[0].output == "42\n"
     mock_manager.release_sandbox.assert_called_once()
+    mock_to_thread.assert_any_await(mock_manager.get_sandbox, Language.PYTHON)
+    mock_to_thread.assert_any_await(mock_sandbox.prepare_workdir, mock_sandbox.prepare_workdir.call_args[0][0])
+    mock_to_thread.assert_any_await(
+        mock_sandbox.run_commands,
+        ["5", "7"],
+        request.program_command,
+        timeout=30,
+        workdir="/app"
+    )
+    mock_to_thread.assert_any_await(mock_manager.release_sandbox, Language.PYTHON, mock_sandbox)
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +198,7 @@ async def test_execute_code_execution_error():
     """execute_code returns a SYSTEM_ERROR response when an exception is raised."""
     mock_sandbox = Mock()
     mock_sandbox.prepare_workdir = Mock()
+    mock_sandbox.run_command = Mock(side_effect=RuntimeError("container crashed"))
 
     mock_manager = Mock()
     mock_manager.get_sandbox = Mock(return_value=mock_sandbox)
@@ -185,7 +207,8 @@ async def test_execute_code_execution_error():
     request = _make_request()
 
     with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=mock_manager), \
-         patch("asyncio.to_thread", new=AsyncMock(side_effect=RuntimeError("container crashed"))):
+         patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+        mock_to_thread.side_effect = _execute_in_thread
 
         response = await execute_code(request)
 
@@ -196,6 +219,9 @@ async def test_execute_code_execution_error():
     assert response.results[0].output == ""
     # Sandbox must still be released in the finally block
     mock_manager.release_sandbox.assert_called_once()
+    mock_to_thread.assert_any_await(mock_manager.get_sandbox, Language.PYTHON)
+    mock_to_thread.assert_any_await(mock_sandbox.prepare_workdir, mock_sandbox.prepare_workdir.call_args[0][0])
+    mock_to_thread.assert_any_await(mock_manager.release_sandbox, Language.PYTHON, mock_sandbox)
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +233,7 @@ async def test_execute_code_execution_error_multiple_test_cases():
     """On exception, SYSTEM_ERROR count matches the number of requested test cases."""
     mock_sandbox = Mock()
     mock_sandbox.prepare_workdir = Mock()
+    mock_sandbox.run_commands = Mock(side_effect=RuntimeError("container crashed"))
 
     mock_manager = Mock()
     mock_manager.get_sandbox = Mock(return_value=mock_sandbox)
@@ -215,7 +242,8 @@ async def test_execute_code_execution_error_multiple_test_cases():
     request = _make_request(test_cases=[["1"], ["2"], ["3"]])
 
     with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=mock_manager), \
-         patch("asyncio.to_thread", new=AsyncMock(side_effect=RuntimeError("container crashed"))):
+         patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+        mock_to_thread.side_effect = _execute_in_thread
 
         response = await execute_code(request)
 
@@ -225,6 +253,9 @@ async def test_execute_code_execution_error_multiple_test_cases():
         assert result.error_message == "An unexpected error occurred. Please try again later."
         assert result.output == ""
     mock_manager.release_sandbox.assert_called_once()
+    mock_to_thread.assert_any_await(mock_manager.get_sandbox, Language.PYTHON)
+    mock_to_thread.assert_any_await(mock_sandbox.prepare_workdir, mock_sandbox.prepare_workdir.call_args[0][0])
+    mock_to_thread.assert_any_await(mock_manager.release_sandbox, Language.PYTHON, mock_sandbox)
 
 
 # ---------------------------------------------------------------------------
@@ -243,6 +274,7 @@ async def test_execute_code_runtime_error_response():
 
     mock_sandbox = Mock()
     mock_sandbox.prepare_workdir = Mock()
+    mock_sandbox.run_command = Mock(return_value=cmd_response)
 
     mock_manager = Mock()
     mock_manager.get_sandbox = Mock(return_value=mock_sandbox)
@@ -251,7 +283,8 @@ async def test_execute_code_runtime_error_response():
     request = _make_request()
 
     with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=mock_manager), \
-         patch("asyncio.to_thread", new=AsyncMock(return_value=cmd_response)):
+         patch("asyncio.to_thread", new_callable=AsyncMock) as mock_to_thread:
+        mock_to_thread.side_effect = _execute_in_thread
 
         response = await execute_code(request)
 
@@ -259,3 +292,6 @@ async def test_execute_code_runtime_error_response():
     assert response.results[0].category == ResponseCategory.RUNTIME_ERROR
     assert "Runtime error occurred" in response.results[0].error_message
     assert "ZeroDivisionError" in response.results[0].error_message
+    mock_to_thread.assert_any_await(mock_manager.get_sandbox, Language.PYTHON)
+    mock_to_thread.assert_any_await(mock_sandbox.prepare_workdir, mock_sandbox.prepare_workdir.call_args[0][0])
+    mock_to_thread.assert_any_await(mock_manager.release_sandbox, Language.PYTHON, mock_sandbox)
