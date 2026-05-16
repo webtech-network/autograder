@@ -1,8 +1,6 @@
 import base64
-import base64
-import io
 import os
-import tarfile
+import shlex
 import threading
 import time
 from datetime import datetime
@@ -45,6 +43,27 @@ class SandboxContainer:
         self.state = SandboxState.IDLE
         self.last_updated = datetime.now()
 
+    @staticmethod
+    def _normalize_relative_path(path: str) -> str:
+        """Normalize user-provided relative paths and prevent traversal/absolute paths."""
+        if not path:
+            raise ValueError("Path cannot be empty")
+
+        normalized = os.path.normpath(path).replace("\\", "/")
+        if normalized in ("", ".", ".."):
+            raise ValueError(f"Invalid path: {path}")
+        if normalized.startswith("/") or normalized.startswith("../") or "/../" in f"/{normalized}":
+            raise ValueError(f"Path must stay within working directory: {path}")
+        return normalized
+
+    @staticmethod
+    def _normalize_tmp_path(path: str) -> str:
+        """Normalize absolute asset paths and keep them constrained under /tmp."""
+        normalized = os.path.normpath(path).replace("\\", "/")
+        if not normalized.startswith("/tmp/"):
+            raise ValueError(f"Asset target must be under /tmp: {path}")
+        return normalized
+
     def prepare_workdir(self, submission_files: Dict[str, 'SubmissionFile']) -> None:
         """
         Copy submission files into the container's /app directory with smart directory structure.
@@ -64,7 +83,7 @@ class SandboxContainer:
 
         try:
             for submission_file in submission_files.values():
-                file_path = submission_file.filename
+                file_path = self._normalize_relative_path(submission_file.filename)
                 file_content = submission_file.content
 
                 # Get the directory path
@@ -74,23 +93,20 @@ class SandboxContainer:
                 if dir_path:
                     full_dir_path = f"/app/{dir_path}"
                     result = self.container_ref.exec_run(
-                        cmd=f"mkdir -p {full_dir_path}",
+                        cmd=["mkdir", "-p", full_dir_path],
                         user="sandbox"
                     )
                     if result.exit_code != 0:
                         raise RuntimeError(f"Failed to create directory {full_dir_path}")
 
-                # Encode content as base64 to safely pass through shell
-                content_b64 = base64.b64encode(file_content.encode('utf-8')).decode('ascii')
-
-                # Create the file using base64 decode
                 full_file_path = f"/app/{file_path}"
-                cmd = f"echo '{content_b64}' | base64 -d > {full_file_path}"
+                safe_file_path = shlex.quote(full_file_path)
+                content_b64 = base64.b64encode(file_content.encode('utf-8')).decode('ascii')
+                cmd = f"echo '{content_b64}' | base64 -d > {safe_file_path}"
                 result = self.container_ref.exec_run(
                     cmd=["/bin/sh", "-c", cmd],
                     user="sandbox"
                 )
-
                 if result.exit_code != 0:
                     raise RuntimeError(f"Failed to create file {full_file_path}: {result.output}")
 
@@ -112,40 +128,41 @@ class SandboxContainer:
         if not resolved_assets:
             return
 
-        import base64
-
         for asset in resolved_assets:
             # Ensure target path starts with /tmp/
             target_path = asset.target
             if not target_path.startswith('/tmp/'):
                 target_path = os.path.join('/tmp', target_path.lstrip('/'))
+            target_path = self._normalize_tmp_path(target_path)
             
             content = asset.content
             
             # Ensure parent directory exists in container and has correct permissions
             parent_dir = os.path.dirname(target_path)
             if parent_dir and parent_dir != '/':
-                self.container_ref.exec_run(
-                    cmd=f"mkdir -p {parent_dir}",
+                mkdir_result = self.container_ref.exec_run(
+                    cmd=["mkdir", "-p", parent_dir],
                     user="root"
                 )
+                if mkdir_result.exit_code != 0:
+                    output = mkdir_result.output.decode() if mkdir_result.output else "No output"
+                    raise RuntimeError(f"Failed to create asset directory {parent_dir}: {output}")
                 # Ensure world-readable so sandbox user can read injected assets
-                self.container_ref.exec_run(
-                    cmd=f"chmod 755 {parent_dir}",
+                chmod_dir_result = self.container_ref.exec_run(
+                    cmd=["chmod", "755", parent_dir],
                     user="root"
                 )
-            
-            # Encode content as base64 to safely pass through shell
-            content_b64 = base64.b64encode(content).decode('ascii')
+                if chmod_dir_result.exit_code != 0:
+                    output = chmod_dir_result.output.decode() if chmod_dir_result.output else "No output"
+                    raise RuntimeError(f"Failed to set permissions on {parent_dir}: {output}")
 
-            # Create the file using base64 decode
-            # Using /bin/sh -c to support redirection and pipes
-            cmd = f"echo '{content_b64}' | base64 -d > {target_path}"
+            safe_target_path = shlex.quote(target_path)
+            content_b64 = base64.b64encode(content).decode('ascii')
+            cmd = f"echo '{content_b64}' | base64 -d > {safe_target_path}"
             result = self.container_ref.exec_run(
                 cmd=["/bin/sh", "-c", cmd],
                 user="root"
             )
-
             if result.exit_code != 0:
                 output = result.output.decode() if result.output else "No output"
                 raise RuntimeError(f"Failed to create asset file {target_path}: {output}")
@@ -153,7 +170,7 @@ class SandboxContainer:
             # Set file permissions (read-only if requested)
             mode = "444" if asset.read_only else "644"
             self.container_ref.exec_run(
-                cmd=f"chmod {mode} {target_path}",
+                cmd=["chmod", mode, target_path],
                 user="root"
             )
 
@@ -292,9 +309,13 @@ class SandboxContainer:
             ValueError: If the file exceeds max_bytes.
             RuntimeError: If the extraction command fails.
         """
+        if not path.startswith("/"):
+            raise ValueError(f"Path must be absolute inside container: {path}")
+        safe_path = shlex.quote(path)
+
         # Check file exists and get its size
         check = self.container_ref.exec_run(
-            cmd=["/bin/sh", "-c", f"test -f {path} && stat -c %s {path} 2>/dev/null || stat -f %z {path} 2>/dev/null"],
+            cmd=["/bin/sh", "-c", f"test -f {safe_path} && stat -c %s {safe_path} 2>/dev/null || stat -f %z {safe_path} 2>/dev/null"],
             user="sandbox",
         )
         if check.exit_code != 0:
@@ -311,7 +332,7 @@ class SandboxContainer:
 
         # Read file content via base64 to safely transport binary data
         result = self.container_ref.exec_run(
-            cmd=["/bin/sh", "-c", f"base64 {path}"],
+            cmd=["/bin/sh", "-c", f"base64 {safe_path}"],
             user="sandbox",
         )
         if result.exit_code != 0:

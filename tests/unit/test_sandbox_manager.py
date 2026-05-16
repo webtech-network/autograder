@@ -114,7 +114,7 @@ class TestSandboxContainer(unittest.TestCase):
         self.sandbox.prepare_workdir(submission_files)
 
         self.assertTrue(self.sandbox._workdir_prepared)
-        # Verify exec_run was called for each file (2 times)
+        # Verify file creation command was called for each file.
         self.assertEqual(self.mock_container.exec_run.call_count, 2)
 
     def test_prepare_workdir_with_nested_structure(self):
@@ -295,4 +295,3 @@ class TestLanguagePoolNaming(unittest.TestCase):
         assert name2.endswith("-0002")
         # Same pool prefix
         assert name1[:-5] == name2[:-5]
-

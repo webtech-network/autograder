@@ -131,7 +131,7 @@ sandbox.prepare_workdir(submission_files)
 ```
 
 ### `inject_assets(resolved_assets)`
-Injects static assets (datasets, fixtures) into the container's `/tmp` directory. Uses a secure Base64-encoded `exec_run` method compatible with gVisor.
+Injects static assets (datasets, fixtures) into the container's `/tmp` directory using a shell-escaped Base64 `exec_run` write path compatible with gVisor.
 
 ```python
 sandbox.inject_assets(resolved_assets)
@@ -303,4 +303,3 @@ The monitor thread logs load warnings automatically:
 - **≥90% utilization:** 🚨 `HIGH LOAD` warning
 - **≥70% utilization:** ⚠️ `MODERATE LOAD` warning
 - **Otherwise:** 📊 periodic stats
-

@@ -12,8 +12,9 @@ Tests cover:
 """
 
 import base64
+import shlex
 import unittest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ExtractedFile
@@ -117,6 +118,24 @@ class TestExtractFile(unittest.TestCase):
 
         with self.assertRaises(Exception):
             self.sandbox.extract_file("/app/file.txt")
+
+    def test_rejects_relative_path(self):
+        """Reject non-absolute extraction paths before running container commands."""
+        with self.assertRaises(ValueError):
+            self.sandbox.extract_file("relative.txt")
+
+        self.mock_container.exec_run.assert_not_called()
+
+    def test_shell_escapes_path(self):
+        """Use shell-escaped path to avoid command injection."""
+        malicious = "/app/file.txt; id > /tmp/pwned #"
+        self.mock_container.exec_run.return_value = _exec_run_result(1, b"")
+
+        with self.assertRaises(FileNotFoundError):
+            self.sandbox.extract_file(malicious)
+
+        first_cmd = self.mock_container.exec_run.call_args_list[0].kwargs["cmd"][2]
+        assert shlex.quote(malicious) in first_cmd
 
 
 if __name__ == "__main__":
