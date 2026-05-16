@@ -1,32 +1,18 @@
 name: Bug report
-description: Report a reproducible defect affecting Autograder behavior.
+description: Report a reproducible defect with minimal required information.
 title: "[Bug] "
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting this issue.
-        Please include concrete reproduction details so maintainers can triage quickly.
+        Thanks for reporting this bug. Keep it short and focused.
 
   - type: textarea
     id: summary
     attributes:
       label: Summary
-      description: A short description of the bug.
-      placeholder: What is broken?
-    validations:
-      required: true
-
-  - type: textarea
-    id: environment
-    attributes:
-      label: Environment
-      description: Runtime details where the issue happens.
-      placeholder: |
-        - Environment: local / staging / production
-        - Branch or commit:
-        - Language/template involved:
-        - API/Web client version:
+      description: What is broken?
+      placeholder: One short paragraph describing the problem.
     validations:
       required: true
 
@@ -34,62 +20,37 @@ body:
     id: steps
     attributes:
       label: Steps to reproduce
-      description: Numbered steps to trigger the issue.
+      description: Optional, but helpful for reliable reproduction.
       placeholder: |
         1. Go to ...
         2. Configure ...
         3. Run/submit ...
         4. Observe ...
-    validations:
-      required: true
 
   - type: textarea
     id: observed
     attributes:
       label: Observed behavior
       description: What actually happened?
-    validations:
-      required: true
 
   - type: textarea
     id: expected
     attributes:
       label: Expected behavior
       description: What should have happened?
-    validations:
-      required: true
 
   - type: textarea
-    id: suspected_root_cause
+    id: environment
     attributes:
-      label: Suspected root cause (optional)
-      description: If you already have a hypothesis, add it here.
-
-  - type: textarea
-    id: impact
-    attributes:
-      label: Impact
-      description: Why this matters (who is affected, severity, blocked flows).
-      placeholder: e.g. Teachers cannot publish assignments with `dont_fail` tests.
-    validations:
-      required: true
+      label: Environment (optional)
+      description: Version, branch, runtime, or deployment context if relevant.
+      placeholder: |
+        - Branch/commit:
+        - Runtime:
+        - Local/CI/Prod:
 
   - type: textarea
     id: references
     attributes:
       label: References (optional)
       description: Related issues/PRs/logs/screenshots.
-      placeholder: |
-        - Related: #123
-        - API issue: webtech-network/api-grader-prisma#456
-
-  - type: checkboxes
-    id: checks
-    attributes:
-      label: Checklist
-      options:
-        - label: I searched for existing issues before opening this one.
-          required: true
-        - label: I added enough details for someone else to reproduce this bug.
-          required: true
-

@@ -61,7 +61,7 @@ class TestAssetInjection:
         mock_s3_provider.get_asset.assert_called_once_with("src", "/tmp/dst", True)
 
     def test_sandbox_inject_assets(self):
-        """Test SandboxContainer.inject_assets refactored Base64 injection."""
+        """Test SandboxContainer.inject_assets with shell-escaped Base64 injection."""
         container_ref = MagicMock()
         # Mock success response
         mock_res = MagicMock()
@@ -78,17 +78,16 @@ class TestAssetInjection:
         
         # Check if mkdir -p was called for parent dir
         container_ref.exec_run.assert_any_call(
-            cmd="mkdir -p /tmp",
+            cmd=["mkdir", "-p", "/tmp"],
             user="root"
         )
-        
-        # Check if Base64 injection was called
-        # The command contains the base64 encoded string
-        # b"rawcontent" encoded is "cmF3Y29udGVudA=="
+
+        # Check if Base64 write command was called
         call_args = container_ref.exec_run.call_args_list
         found_b64_call = False
         for call in call_args:
-            if "cmF3Y29udGVudA==" in str(call):
+            cmd = call.kwargs.get("cmd")
+            if isinstance(cmd, list) and len(cmd) == 3 and "cmF3Y29udGVudA==" in cmd[2]:
                 found_b64_call = True
                 break
-        assert found_b64_call, "Base64 injection call not found in exec_run calls"
+        assert found_b64_call, "Base64 write call not found in exec_run calls"

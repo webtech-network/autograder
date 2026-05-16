@@ -13,7 +13,7 @@ This step performs three main functions:
 
 The step execution follows these logic gates:
 
-1. **Asset Injection**: If the `setup_config` contains an `assets` list, the `PreFlightService` resolves each asset via the `AssetSourceResolver`. Assets are fetched from S3 and injected into the container's `/tmp` directory using a secure Base64-encoded `exec_run` method (fully compatible with gVisor).
+1. **Asset Injection**: If the `setup_config` contains an `assets` list, the `PreFlightService` resolves each asset via the `AssetSourceResolver`. Assets are fetched from S3 and injected into the container's `/tmp` directory using a shell-escaped Base64 `exec_run` write flow.
 
 2. **Required Files Check**: It compares the files in the submission against the list provided in the `required_files` section of the `setup_config` for the submission's language.
 

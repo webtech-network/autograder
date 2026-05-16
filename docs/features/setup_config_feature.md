@@ -55,7 +55,7 @@ The root-level `assets` field allows injecting grader-owned files (e.g., dataset
 
 ### Secure Injection Method
 
-Assets are resolved and injected **before** language-specific setup commands run. The autograder uses a secure **Base64-encoded `exec_run`** method to inject files, which provides several benefits:
+Assets are resolved and injected **before** language-specific setup commands run. The autograder uses a **shell-escaped Base64 `exec_run`** method to inject files safely, which provides several benefits:
 - **gVisor Compatibility**: Works seamlessly with high-isolation runtimes like gVisor (`runsc`).
 - **Security**: Allows maintaining the `noexec` flag on `/tmp` while still supporting dynamic file injection.
 - **Root-to-Sandbox Handover**: Files are created as `root` to ensure correct placement, then `chmod`ed to be readable by the non-privileged `sandbox` user.
@@ -346,4 +346,3 @@ Benefits:
 - [Command Resolver & Multi-Language Support](command_resolver.md) — How command resolution works across languages
 - [Configuration Examples](../guides/criteria_configuration_examples.md) — Full grading configuration examples
 - [Pipeline Execution Tracking](../architecture/pipeline_execution_tracking.md) — How preflight results appear in pipeline summaries
-
