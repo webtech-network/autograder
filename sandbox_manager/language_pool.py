@@ -94,13 +94,7 @@ class LanguagePool:
 
                 # Always destroy on release to ensure strict isolation between users
                 # Performance is secondary to security and isolation in an autograder.
-                try:
-                    self._destroy_sandbox(sandbox)
-                    logger.info("[%s] RELEASE - destroyed sandbox_id: %s",
-                                self.language, sandbox_id)
-                except Exception as e:
-                    logger.exception("[%s] Error destroying sandbox during release: %s",
-                                 self.language, e)
+                self._destroy_sandbox(sandbox)
             else:
                 raise ValueError("Sandbox not found in active sandboxes")
 
@@ -347,12 +341,16 @@ class LanguagePool:
         self.replenish()
 
     def _destroy_sandbox(self, sandbox: SandboxContainer):
+        import docker
         sandbox_id = sandbox.container_ref.id[:12]
         logger.info("[%s] DESTROY SANDBOX - container_id: %s", self.language, sandbox_id)
         try:
             sandbox.container_ref.stop(timeout=1)
             sandbox.container_ref.remove()
             logger.info("[%s] SANDBOX DESTROYED - container_id: %s", self.language, sandbox_id)
+        except (docker.errors.NotFound, docker.errors.APIError):
+            # Container already gone or communication error - ignore silently to avoid noisy logs
+            pass
         except Exception as e:
             logger.exception("[%s] Error destroying sandbox %s: %s", self.language, sandbox_id, e)
 
@@ -375,10 +373,7 @@ class LanguagePool:
         # Destroy all containers
         destroyed_count = 0
         for sandbox in active_snapshot + idle_snapshot:
-            try:
-                self._destroy_sandbox(sandbox)
-                destroyed_count += 1
-            except Exception as e:
-                logger.exception("[%s] Error destroying sandbox during shutdown: %s", self.language, e)
+            self._destroy_sandbox(sandbox)
+            destroyed_count += 1
 
         logger.info("[%s] Pool shutdown complete. Destroyed %s containers.", self.language, destroyed_count)
