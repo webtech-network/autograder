@@ -198,8 +198,17 @@ class SandboxContainer:
         Execute a single command in the sandbox container.
         """
         def execute():
+            # Use shlex.split to safely parse the command and bypass the shell.
+            # This prevents shell injection vulnerabilities while still allowing
+            # arguments to be passed to the program.
+            try:
+                cmd_parts = shlex.split(command)
+            except ValueError:
+                # Fallback for malformed commands
+                cmd_parts = ["/bin/sh", "-c", command]
+
             return self.container_ref.exec_run(
-                cmd=["/bin/sh", "-c", command],
+                cmd=cmd_parts,
                 workdir=workdir,
                 user="sandbox",
                 demux=True,
@@ -246,12 +255,24 @@ class SandboxContainer:
         def execute():
             stdin_input = '\n'.join(commands)
             if program_command:
-                escaped_input = stdin_input.replace("'", "'\\''")
-                cmd = f"echo '{escaped_input}' | ( {program_command} )"
+                # Safely escape the input for the shell
+                quoted_input = shlex.quote(stdin_input)
+                
+                # Split the program command into parts and quote each part
+                # This ensures the program_command remains a single command with its arguments
+                # and cannot "break out" of its intended role using shell metacharacters.
+                try:
+                    cmd_parts = shlex.split(program_command)
+                    quoted_program_command = ' '.join(shlex.quote(part) for part in cmd_parts)
+                except ValueError:
+                    # Fallback for malformed commands
+                    quoted_program_command = shlex.quote(program_command)
+                
+                cmd = f"echo {quoted_input} | {quoted_program_command}"
                 shell_cmd = ["/bin/sh", "-c", cmd]
             else:
-                escaped_input = stdin_input.replace("'", "'\\''")
-                shell_cmd = ["/bin/sh", "-c", f"echo '{escaped_input}'"]
+                quoted_input = shlex.quote(stdin_input)
+                shell_cmd = ["/bin/sh", "-c", f"echo {quoted_input}"]
 
             return self.container_ref.exec_run(
                 cmd=shell_cmd, workdir=workdir, user="sandbox",
