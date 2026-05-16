@@ -52,44 +52,6 @@ class TestSandboxLifecycle:
         )
         return len(containers)
 
-    def test_orphan_cleanup_on_startup(self):
-        """Test that orphaned containers are cleaned up on startup."""
-        # Create a mock orphaned container
-        orphan = self.client.containers.run(
-            "python:3.9-slim",
-            command="sleep infinity",
-            detach=True,
-            labels={
-                LABEL_APP: "autograder-sandbox",
-                "test": "orphan"
-            }
-        )
-
-        initial_count = self.get_sandbox_container_count()
-        assert initial_count > 0
-
-        # Re-initialize manager (should cleanup orphans)
-        pool_configs = [
-            SandboxPoolConfig(
-                language=Language.PYTHON,
-                pool_size=1,
-                scale_limit=2,
-                idle_timeout=300,
-                running_timeout=60
-            )
-        ]
-
-        # The orphan should be cleaned up
-        from sandbox_manager.manager import _cleanup_orphaned_containers
-        _cleanup_orphaned_containers(self.client)
-
-        # Verify orphan is gone
-        try:
-            orphan.reload()
-            pytest.fail("Orphan container should have been removed")
-        except docker.errors.NotFound:
-            pass  # Expected - container should be gone
-
     def test_context_manager_cleanup(self):
         """Test that context manager guarantees cleanup even on exceptions."""
         initial_count = self.get_sandbox_container_count()

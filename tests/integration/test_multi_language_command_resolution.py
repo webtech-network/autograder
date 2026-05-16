@@ -10,7 +10,7 @@ from sandbox_manager.models.sandbox_models import Language
 class TestMultiLanguageCommandResolution:
     """Test that the pipeline correctly resolves commands based on submission language."""
 
-    @patch('autograder.services.pre_flight_service.get_sandbox_manager')
+    @patch('sandbox_manager.manager.get_sandbox_manager')
     def test_pipeline_resolves_python_command(self, mock_get_manager):
         """Test that Python submissions get Python command."""
         # Mock sandbox
@@ -82,7 +82,7 @@ class TestMultiLanguageCommandResolution:
         call_args = mock_sandbox.run_commands.call_args
         assert call_args[1]['program_command'] == "python3 calculator.py"
 
-    @patch('autograder.services.pre_flight_service.get_sandbox_manager')
+    @patch('sandbox_manager.manager.get_sandbox_manager')
     def test_pipeline_resolves_java_command(self, mock_get_manager):
         """Test that Java submissions get Java command."""
         # Mock sandbox
@@ -154,7 +154,7 @@ class TestMultiLanguageCommandResolution:
         call_args = mock_sandbox.run_commands.call_args
         assert call_args[1]['program_command'] == "java Calculator"
 
-    @patch('autograder.services.pre_flight_service.get_sandbox_manager')
+    @patch('sandbox_manager.manager.get_sandbox_manager')
     def test_pipeline_resolves_cmd_placeholder(self, mock_get_manager):
         """Test that CMD placeholder auto-resolves based on language."""
         # Mock sandbox
@@ -219,7 +219,7 @@ class TestMultiLanguageCommandResolution:
         # CMD should auto-resolve to default Node command
         assert "node" in call_args[1]['program_command']
 
-    @patch('autograder.services.pre_flight_service.get_sandbox_manager')
+    @patch('sandbox_manager.manager.get_sandbox_manager')
     def test_pipeline_grading_with_multi_language_commands(self, mock_get_manager):
         """Test full grading flow with multi-language commands."""
         # Mock sandbox

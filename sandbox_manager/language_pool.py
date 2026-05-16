@@ -92,25 +92,15 @@ class LanguagePool:
                 sandbox_id = sandbox.container_ref.id[:12]
                 self.active_sandboxes.remove(sandbox)
 
-                # Check if we should reuse or destroy
-                current_total = len(self.active_sandboxes) + len(self.idle_sandboxes)
-
-                # Reuse if below scale_limit, otherwise destroy to scale down
-                if current_total <= self.config.scale_limit:
-                    # Return to idle pool for reuse
-                    sandbox.last_updated = datetime.now()  # Reset timestamp
-                    self.idle_sandboxes.append(sandbox)
-                    logger.info("[%s] RELEASE - sandbox_id: %s returned to idle pool",
+                # Always destroy on release to ensure strict isolation between users
+                # Performance is secondary to security and isolation in an autograder.
+                try:
+                    self._destroy_sandbox(sandbox)
+                    logger.info("[%s] RELEASE - destroyed sandbox_id: %s",
                                 self.language, sandbox_id)
-                else:
-                    # Above scale_limit, destroy to scale down
-                    try:
-                        self._destroy_sandbox(sandbox)
-                        logger.info("[%s] SCALE-DOWN - destroyed sandbox_id: %s",
-                                    self.language, sandbox_id)
-                    except Exception as e:
-                        logger.exception("[%s] Error destroying sandbox during scale-down: %s",
-                                     self.language, e)
+                except Exception as e:
+                    logger.exception("[%s] Error destroying sandbox during release: %s",
+                                 self.language, e)
             else:
                 raise ValueError("Sandbox not found in active sandboxes")
 
