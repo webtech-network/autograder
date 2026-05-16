@@ -10,7 +10,7 @@ logger = logging.getLogger("AssetSourceResolver")
 
 class AssetSourceResolver:
     def __init__(self):
-        in_memory_limit = int(os.getenv("CRITERIA_ASSETS_IN_MEMORY_CACHE_LIMIT", "100"))
+        in_memory_limit = int(os.getenv("EXTERNAL_ASSETS_IN_MEMORY_CACHE_LIMIT", "100"))
         self.cache_manager = AssetCacheManager(in_memory_limit=in_memory_limit)
         self.provider = S3AssetProvider(self.cache_manager)
         
