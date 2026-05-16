@@ -11,6 +11,7 @@ from sandbox_manager.sandbox_container import SandboxContainer
 
 _manager_instance: Optional['SandboxManager'] = None
 _client = docker.from_env()
+_shutdown_registered = False
 
 def initialize_sandbox_manager(pool_configs: List[SandboxPoolConfig]) -> 'SandboxManager':
     """
@@ -18,6 +19,14 @@ def initialize_sandbox_manager(pool_configs: List[SandboxPoolConfig]) -> 'Sandbo
     Cleans up orphaned containers from previous runs and initializes pools.
     """
     global _manager_instance
+
+    # If already initialized, shut down the previous one first
+    if _manager_instance is not None:
+        print("[SandboxManager] Already initialized. Shutting down previous instance...")
+        try:
+            _manager_instance.shutdown()
+        except:
+            pass
 
     for config in pool_configs:
         if config.language not in Language:
@@ -73,16 +82,23 @@ def _register_shutdown_handlers(manager: 'SandboxManager'):
     Register signal handlers and atexit cleanup to ensure containers are destroyed
     even on unexpected termination.
     """
+    global _shutdown_registered
+
     def shutdown_handler(signum=None, frame=None):
-        print(f"\n[SandboxManager] Received shutdown signal, cleaning up...")
-        manager.shutdown()
+        # Always use the current instance from global scope
+        current_manager = _manager_instance
+        if current_manager:
+            print(f"\n[SandboxManager] Received shutdown signal, cleaning up...")
+            current_manager.shutdown()
 
-    # Register for common termination signals
-    signal.signal(signal.SIGTERM, shutdown_handler)
-    signal.signal(signal.SIGINT, shutdown_handler)
+    if not _shutdown_registered:
+        # Register for common termination signals
+        signal.signal(signal.SIGTERM, shutdown_handler)
+        signal.signal(signal.SIGINT, shutdown_handler)
 
-    # Register atexit handler as last resort
-    atexit.register(shutdown_handler)
+        # Register atexit handler as last resort
+        atexit.register(shutdown_handler)
+        _shutdown_registered = True
 
 class SandboxManager:
     def __init__(self, language_pools: Dict[Language, LanguagePool]):
@@ -184,10 +200,3 @@ class SandboxManager:
                 except Exception as e:
                     print(f"Error monitoring pool for language {pool.language}: {e}")
             time.sleep(1)
-
-
-
-
-
-
-

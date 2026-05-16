@@ -84,12 +84,14 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
         }
 
         setup_config = {
-            "required_files": ["calculator.py"]
+            "python": {
+                "required_files": ["calculator.py"]
+            }
         }
 
         # Build pipeline
         pipeline = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,
@@ -208,7 +210,7 @@ else:
         )
 
         pipeline = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,
@@ -248,7 +250,9 @@ else:
         }
 
         setup_config = {
-            "required_files": ["main.py", "helper.py"]  # Require 2 files
+            "python": {
+                "required_files": ["main.py", "helper.py"]  # Require 2 files
+            }
         }
 
         submission = Submission(
@@ -263,7 +267,7 @@ else:
         )
 
         pipeline = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,
@@ -309,10 +313,12 @@ else:
         }
 
         setup_config = {
-            "required_files": ["use_lib.py"],
-            "setup_commands": [
-                "echo 'def lib_function(): return \"Library works!\"' > lib.py"
-            ]
+            "python": {
+                "required_files": ["use_lib.py"],
+                "setup_commands": [
+                    "sh -c \"echo 'def lib_function(): return \\\"Library works!\\\"' > lib.py\""
+                ]
+            }
         }
 
         student_code = """
@@ -331,7 +337,7 @@ print(lib_function())
         )
 
         pipeline = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,
@@ -386,7 +392,7 @@ print(lib_function())
         pipelines = []
         for _ in range(3):
             pipeline = build_pipeline(
-                template_name="IO",
+                template_name="input_output",
                 include_feedback=False,
                 grading_criteria=grading_criteria,
                 feedback_config=None,
@@ -420,8 +426,9 @@ print(lib_function())
                             {
                                 "name": "expect_output",
                                 "parameters": [
-                                    {"name": "inputs", "value": ["javac HelloWorld.java && java HelloWorld"]},
-                                    {"name": "expected_output", "value": "Hello, Java!"}
+                                    {"name": "inputs", "value": []},
+                                    {"name": "expected_output", "value": "Hello, Java!"},
+                                    {"name": "program_command", "value": "sh -c \"javac HelloWorld.java && java HelloWorld\""}
                                 ]
                             }
                         ]
@@ -449,11 +456,13 @@ public class HelloWorld {
         )
 
         setup_config = {
-            "required_files": ["HelloWorld.java"]
+            "java": {
+                "required_files": ["HelloWorld.java"]
+            }
         }
 
         pipeline = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,
@@ -521,11 +530,13 @@ def calculate(a, b):
         )
 
         setup_config = {
-            "required_files": ["main.py", "utils/calculator.py"]
+            "python": {
+                "required_files": ["main.py", "utils/calculator.py"]
+            }
         }
 
         pipeline = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,
@@ -579,7 +590,7 @@ raise Exception("Intentional error!")
         )
 
         pipeline = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,
@@ -646,7 +657,7 @@ raise Exception("Intentional error!")
             )
 
             pipeline = build_pipeline(
-                template_name="IO",
+                template_name="input_output",
                 include_feedback=False,
                 grading_criteria=grading_criteria,
                 feedback_config=None,
@@ -698,7 +709,7 @@ print('Created')
         )
 
         pipeline1 = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria={
                 "base": {
@@ -748,7 +759,7 @@ else:
         )
 
         pipeline2 = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,
@@ -810,7 +821,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
         )
 
         pipeline = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,
@@ -872,7 +883,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
         )
 
         pipeline = build_pipeline(
-            template_name="IO",
+            template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
             feedback_config=None,

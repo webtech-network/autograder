@@ -127,10 +127,17 @@ sandbox-clean:
 	-docker rmi sandbox-cpp:latest
 	@echo "✅ Sandbox images removed"
 
-sandbox-test:
-	@echo "Running sandbox integration tests..."
-	python tests/playroom/sandbox_examples.py
+# Testing
+test:
+	pytest tests/unit/
 
+test-integration: sandbox-build-all
+	pytest tests/integration/
+
+test-cov:
+	pytest --cov=autograder --cov-report=term-missing tests/unit/
+
+sandbox-test: test-integration
 sandbox-list:
 	@echo "Sandbox images:"
 	@docker images | grep sandbox- || echo "No sandbox images found"

@@ -1,6 +1,9 @@
 name: Pytest
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -24,6 +27,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Execute unit tests with pytest
+      - name: Setup environment
         run: |
-          pytest tests/unit/
+          echo "PYTHONPATH=." >> $GITHUB_ENV
+
+      - name: Build sandbox images
+        run: |
+          make sandbox-build-all
+
+      - name: Execute unit tests
+        run: |
+          make test
+
+      - name: Execute integration tests
+        run: |
+          make test-integration
