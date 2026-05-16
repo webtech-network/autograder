@@ -65,7 +65,7 @@ Assets are resolved and injected **before** language-specific setup commands run
 For asset injection to work, the autograder API must be configured with S3 credentials. In a development environment using the provided `docker-compose.yml`, this is handled by the `ministack` service.
 
 Required environment variables:
-- `CRITERIA_ASSETS_BUCKET_NAME`: The name of the S3 bucket.
+- `EXTERNAL_ASSETS_BUCKET_NAME`: The name of the S3 bucket.
 - `S3_ENDPOINT_URL`: The URL of the S3 service (e.g., `http://ministack:4566`).
 - `AWS_ACCESS_ID` & `AWS_SECRET_ACCESS_KEY`: Credentials for the S3 provider.
 
