@@ -1,45 +1,33 @@
 name: Feature proposal
-description: Propose a new feature with scope, rationale, and acceptance criteria.
+description: Propose a new feature with lightweight structure.
 title: "[Feature] "
 body:
   - type: markdown
     attributes:
       value: |
         Use this template for new features and product capabilities.
-        Keep details concise; add only what helps implementation.
+        Keep details concise.
 
   - type: textarea
     id: summary
     attributes:
       label: Feature overview
-      description: What is the feature?
+      description: What should be added or changed?
       placeholder: Describe the feature in a few lines.
     validations:
       required: true
 
   - type: textarea
-    id: problem
+    id: motivation
     attributes:
-      label: Problem this solves (optional)
-      description: What pain point or opportunity does this address?
+      label: Motivation (optional)
+      description: Why is this feature needed?
 
   - type: textarea
-    id: scope
+    id: proposal
     attributes:
-      label: Scope (optional)
-      description: Boundaries or phases if already known.
-      placeholder: |
-        Phase 1:
-        - ...
-
-        Phase 2:
-        - ...
-
-  - type: textarea
-    id: architecture
-    attributes:
-      label: Implementation notes (optional)
-      description: Expected implementation direction, data model, or integration notes.
+      label: Proposed solution (optional)
+      description: Suggested implementation direction.
 
   - type: textarea
     id: acceptance_criteria
@@ -56,7 +44,3 @@ body:
     attributes:
       label: References (optional)
       description: Related issues/PRs/docs/specs.
-      placeholder: |
-        - Parent issue:
-        - Depends on:
-        - Spec doc:

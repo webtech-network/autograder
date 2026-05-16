@@ -1,5 +1,5 @@
 name: Umbrella initiative
-description: Coordinate a multi-issue initiative with phased strategy and child tasks.
+description: Coordinate multi-issue initiatives with a lightweight structure.
 title: "Umbrella: "
 body:
   - type: markdown
@@ -18,7 +18,7 @@ body:
   - type: textarea
     id: strategy
     attributes:
-      label: Implementation strategy (optional)
+      label: Plan / milestones (optional)
       description: Ordered phases and major milestones.
       placeholder: |
         1. Phase one
@@ -29,7 +29,7 @@ body:
     id: child_issues
     attributes:
       label: Child issues (optional)
-      description: Add a checklist of linked issues.
+      description: Add linked implementation issues when available.
       placeholder: |
         - [ ] #123 Child issue title
         - [ ] #124 Child issue title
@@ -42,4 +42,3 @@ body:
       placeholder: |
         - [ ] Outcome 1
         - [ ] Outcome 2
-        - [ ] Outcome 3

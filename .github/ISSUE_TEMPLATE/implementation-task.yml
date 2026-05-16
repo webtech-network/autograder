@@ -1,5 +1,5 @@
 name: Implementation task
-description: Track a concrete execution task (performance, security, refactor, docs, etc.).
+description: Track a focused execution task with clear objective and done criteria.
 title: "[Task] "
 body:
   - type: markdown
@@ -18,24 +18,25 @@ body:
   - type: textarea
     id: proposal
     attributes:
-      label: Proposal (optional)
+      label: Proposed approach (optional)
       description: Proposed implementation approach.
 
   - type: textarea
-    id: acceptance_criteria
+    id: scope
     attributes:
-      label: Acceptance criteria (optional)
+      label: Scope (optional)
+      description: What's in and out of this task.
+
+  - type: textarea
+    id: done_criteria
+    attributes:
+      label: Definition of done (optional)
       placeholder: |
-        - [ ] Criterion 1
-        - [ ] Criterion 2
-        - [ ] Criterion 3
+        - [ ] Expected outcome 1
+        - [ ] Expected outcome 2
 
   - type: textarea
     id: references
     attributes:
       label: References and dependencies (optional)
       description: Parent issues, related PRs, or linked backend/frontend tasks.
-      placeholder: |
-        - Parent umbrella:
-        - Related issue:
-        - Dependency:

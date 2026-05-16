@@ -1,5 +1,5 @@
 name: Hypothesis / RFC
-description: Capture exploratory proposals and open design questions.
+description: Capture exploratory proposals with minimal process overhead.
 title: "[Hypothesis] "
 body:
   - type: markdown
@@ -16,10 +16,10 @@ body:
       required: true
 
   - type: textarea
-    id: context
+    id: value
     attributes:
-      label: Context (optional)
-      description: What scenario motivated this idea?
+      label: Expected value (optional)
+      description: What outcome do we expect if this works?
 
   - type: textarea
     id: open_questions

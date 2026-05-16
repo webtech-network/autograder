@@ -1,19 +1,18 @@
 name: Bug report
-description: Report a reproducible defect affecting Autograder behavior.
+description: Report a reproducible defect with minimal required information.
 title: "[Bug] "
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting this bug.
-        Keep it short: the goal is to make triage fast.
+        Thanks for reporting this bug. Keep it short and focused.
 
   - type: textarea
     id: summary
     attributes:
       label: Summary
-      description: A short description of the bug.
-      placeholder: What is broken?
+      description: What is broken?
+      placeholder: One short paragraph describing the problem.
     validations:
       required: true
 
@@ -21,7 +20,7 @@ body:
     id: steps
     attributes:
       label: Steps to reproduce
-      description: Numbered steps to trigger the issue.
+      description: Optional, but helpful for reliable reproduction.
       placeholder: |
         1. Go to ...
         2. Configure ...
@@ -41,10 +40,17 @@ body:
       description: What should have happened?
 
   - type: textarea
+    id: environment
+    attributes:
+      label: Environment (optional)
+      description: Version, branch, runtime, or deployment context if relevant.
+      placeholder: |
+        - Branch/commit:
+        - Runtime:
+        - Local/CI/Prod:
+
+  - type: textarea
     id: references
     attributes:
       label: References (optional)
       description: Related issues/PRs/logs/screenshots.
-      placeholder: |
-        - Related: #123
-        - API issue: webtech-network/api-grader-prisma#456
