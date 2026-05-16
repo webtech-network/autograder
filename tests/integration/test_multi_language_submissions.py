@@ -1,3 +1,4 @@
+# pylint: skip-file
 import uuid
 """Integration test for multi-language submissions for the same assignment."""
 

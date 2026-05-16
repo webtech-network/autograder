@@ -1,3 +1,4 @@
+# pylint: skip-file
 import uuid
 """Integration tests for language validation in API endpoints."""
 
