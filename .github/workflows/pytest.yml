@@ -27,6 +27,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Setup environment
+        run: |
+          echo "DATABASE_URL=sqlite+aiosqlite:///./test.db" >> $GITHUB_ENV
+          echo "PYTHONPATH=." >> $GITHUB_ENV
+
       - name: Build sandbox images
         run: |
           make sandbox-build-all
