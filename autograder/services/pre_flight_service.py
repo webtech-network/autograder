@@ -42,6 +42,10 @@ class PreFlightService:
         """
         Resolve language-specific setup config.
         """
+        if submission_language is None:
+            self.logger.info("No submission language specified, using empty setup config")
+            return LanguageSetupConfig()
+
         lang_key = submission_language.value
         # Using getattr since language keys are fields or extra attributes in SetupConfig
         config = getattr(setup_config, lang_key, None)
