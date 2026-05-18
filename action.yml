@@ -53,6 +53,8 @@ inputs:
 outputs:
   result:
     description: "Base64-encoded JSON containing the results of the grading."
+  total_score:
+    description: "Final numeric score (0-100) from the grading pipeline."
 
 # Configures how the action is executed.
 runs:
