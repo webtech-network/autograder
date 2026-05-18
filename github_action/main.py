@@ -187,6 +187,11 @@ def __retrieve_grading_score(
         raise RuntimeError("Failed to get grading result: autograder returned None")
     logger.info("Final Score for %s: %s", args.student_name, grading_result.final_score)
 
+    github_output = os.getenv("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a", encoding="utf-8") as fh:
+            fh.write(f"total_score={grading_result.final_score}\n")
+
     return grading_result
 
 
