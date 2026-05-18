@@ -1,71 +1,44 @@
-# External mode
+# External Mode
 
-External mode lets the GitHub Action load grading configuration from a central **Autograder Cloud** instance instead of reading JSON files from the student repository. Results are posted back to the same instance, making every submission visible through the Cloud's submission endpoints.
-
----
-
-## Overview
-
-In **repo mode** (the default), configuration travels with the student repository:
-
-```
-student repo  →  criteria.json / feedback.json / setup.json  →  pipeline  →  check run + relatorio.md
-```
-
-In **external mode**, configuration is owned by the instructor and hosted on the Cloud:
-
-```
-Autograder Cloud  →  grading config  →  pipeline  →  Autograder Cloud (result)
-```
-
-The student repository only needs to contain the source code under `submission/`. No config files are required.
+External mode lets the GitHub Action load grading configuration from a central **Autograder Cloud** instance instead of reading JSON files from the student repository. Results are posted back to the Cloud, making every submission visible through its API.
 
 ---
 
-## Call sequence
+## When to use external mode
+
+- You manage a multi-repository classroom and want a **single place** to configure grading criteria.
+- You want grading results stored centrally rather than scattered across individual check runs.
+- You need to change grading criteria without pushing commits to every student repo.
+
+---
+
+## How it works
 
 ```
 GitHub Action
     │
-    ├─── GET /api/v1/configs/id/{grading_config_id}   ─────► Autograder Cloud
-    │         (auth: AUTOGRADER_CLOUD_TOKEN)                       │
-    │◄────────────────────────────────────────────────────── config JSON
+    ├── GET /api/v1/configs/id/{grading_config_id}  ──────► Autograder Cloud
+    │       (auth: Bearer AUTOGRADER_CLOUD_TOKEN)                │
+    │◄──────────────────────────────────────────────────── config JSON
     │
-    ├─── build_pipeline(criteria_config, template, …)
+    ├── build_pipeline(criteria_config, template, …)
     │
-    ├─── run_autograder(pipeline, student_name, files)
-    │         (grading runs locally inside the Action container)
+    ├── run_autograder(pipeline, student_name, files)
+    │       (grading runs locally inside the Action container)
     │
-    └─── POST /api/v1/submissions/external-results    ─────► Autograder Cloud
-              (auth: AUTOGRADER_CLOUD_TOKEN)
+    └── POST /api/v1/submissions/external-results   ──────► Autograder Cloud
+            (auth: Bearer AUTOGRADER_CLOUD_TOKEN)
 ```
 
-### Failure path
+### Failure handling
 
-If grading raises an exception after the config is fetched, a failure payload (`status: "failed"`, `final_score: 0`) is submitted to the Cloud **before** the Action exits non-zero. This guarantees the Cloud always records a terminal state for every run.
+If grading raises an exception **after** the config is fetched, a failure payload is submitted before the Action exits:
 
 ```
-run_autograder() raises
-    │
-    ├─── POST /api/v1/submissions/external-results  (status: "failed")
-    │
-    └─── SystemExit(1)
+run_autograder() raises  ──► POST external-results (status: "failed", score: 0)  ──► exit 1
 ```
 
-If the config fetch itself fails (network error, 404, invalid token), no result is posted and the Action exits non-zero immediately.
-
----
-
-## Required secrets
-
-Configure these as **repository secrets** (or organization secrets shared across classroom repos):
-
-| Secret | Description |
-|--------|-------------|
-| `AUTOGRADER_CLOUD_URL` | Base URL of your Autograder Cloud instance, e.g. `https://autograder.myschool.edu` |
-| `AUTOGRADER_CLOUD_TOKEN` | Integration token (`AUTOGRADER_INTEGRATION_TOKEN` value set on the server) |
-
-> Generate a strong token: `openssl rand -hex 32`
+If the config fetch itself fails (network, 404, bad token), no result is posted and the Action exits non-zero immediately.
 
 ---
 
@@ -97,24 +70,33 @@ jobs:
           autograder-cloud-token: ${{ secrets.AUTOGRADER_CLOUD_TOKEN }}
           submission-language: "python"
           feedback-type: "default"
-          template-preset: "input_output"    # required by the parser; value unused in external mode
+          template-preset: "input_output"
+          locale: "pt-br"
 ```
 
-### `submission-language`
-
-- Optional. When omitted, the first language in the cloud config's `languages` list is used.
-- When provided, it is validated against the `languages` list. An unsupported value causes the Action to exit non-zero **without posting a result**.
+!!! note
+    `template-preset` is required by the argument parser but its value is **ignored** in external mode — the template comes from the cloud config.
 
 ---
 
-## Step-by-step setup
+## Required inputs
 
-1. **Deploy the Autograder Cloud** and confirm the API is reachable.
-2. **Generate an integration token** and set `AUTOGRADER_INTEGRATION_TOKEN` on the server.
-3. **Create a grading configuration** via `POST /api/v1/configs` and note the returned `id`.
-4. **Add secrets** `AUTOGRADER_CLOUD_URL` and `AUTOGRADER_CLOUD_TOKEN` to the repository (or organisation).
-5. **Add the workflow file** above to `.github/workflows/autograder.yml` in each student repository.
-6. **Push a submission** and verify a result appears under `GET /api/v1/submissions/config/{id}`.
+| Input | Description |
+|-------|-------------|
+| `execution-mode` | Must be `"external"` |
+| `grading-config-id` | Integer ID of the grading config on the Cloud |
+| `autograder-cloud-url` | Base URL of the Autograder Cloud (e.g. `https://autograder.myschool.edu`) |
+| `autograder-cloud-token` | Bearer token matching the server's `AUTOGRADER_INTEGRATION_TOKEN` |
+| `template-preset` | Any valid value (required by parser, not used) |
+| `feedback-type` | `"default"` or `"ai"` |
+
+### Optional inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `submission-language` | First language in config | Validated against the cloud config's `languages` list |
+| `locale` | `"en"` | Locale for feedback messages (`"en"`, `"pt-br"`) |
+| `openai-key` | — | Required only when `feedback-type: "ai"` |
 
 ---
 
@@ -123,35 +105,230 @@ jobs:
 | Behaviour | Repo mode | External mode |
 |-----------|-----------|---------------|
 | Config source | `submission/.github/autograder/*.json` | Autograder Cloud API |
-| `include_feedback` | From `include-feedback` action input | From cloud config |
+| `include_feedback` | From `include-feedback` action input | From cloud config field |
 | Result export | GitHub check run + `relatorio.md` | Autograder Cloud API |
-| Repository write permissions needed | Yes (`write-all`) | No |
-| Failure reporting | GitHub check run status | `POST /api/v1/submissions/external-results` with `status: "failed"` |
+| Repository write permissions | Required (`write-all`) | Not required |
+| Failure reporting | Check run status | `POST external-results` with `status: "failed"` |
+| Student repo needs config files | Yes | No |
+
+---
+
+## Cloud config structure
+
+When fetched from `GET /api/v1/configs/id/{id}`, the config contains:
+
+```json
+{
+  "id": 42,
+  "template_name": "input_output",
+  "languages": ["python", "java"],
+  "include_feedback": true,
+  "criteria_config": { "...": "criteria tree JSON" },
+  "feedback_config": { "...": "feedback settings" },
+  "setup_config": { "...": "setup options" }
+}
+```
+
+| Field | Corresponds to (repo mode) |
+|-------|---------------------------|
+| `criteria_config` | `criteria.json` |
+| `feedback_config` | `feedback.json` |
+| `setup_config` | `setup.json` |
+| `template_name` | `template-preset` action input |
+| `include_feedback` | `include-feedback` action input |
+| `languages` | Available submission languages |
+
+---
+
+## Result payload
+
+The Action submits this payload to `POST /api/v1/submissions/external-results`:
+
+```json
+{
+  "grading_config_id": 42,
+  "external_user_id": "student-github-username",
+  "username": "student-github-username",
+  "language": "python",
+  "status": "completed",
+  "final_score": 85.5,
+  "feedback": "## Grading Report\n...",
+  "result_tree": { "...": "full result tree" },
+  "focus": { "...": "focus analysis" },
+  "execution_time_ms": 3421,
+  "error_message": null,
+  "submission_metadata": {
+    "repository": "org/student-repo",
+    "commit_sha": "abc123...",
+    "run_id": "12345678",
+    "actor": "student-username",
+    "ref": "refs/heads/main"
+  }
+}
+```
+
+On failure, `status` is `"failed"`, `final_score` is `0.0`, and `error_message` contains the exception description.
+
+---
+
+## Setup guide
+
+### Step 1: Deploy the Autograder Cloud
+
+Ensure the API is running and reachable from GitHub Actions runners:
+
+```bash
+curl https://your-cloud-url/api/v1/health
+```
+
+### Step 2: Generate an integration token
+
+```bash
+openssl rand -hex 32
+```
+
+Set this as `AUTOGRADER_INTEGRATION_TOKEN` on the server before starting the API.
+
+### Step 3: Create a grading configuration
+
+Use `POST /api/v1/configs` to create a config. Note the returned `id`.
+
+```bash
+curl -X POST https://your-cloud-url/api/v1/configs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template_name": "input_output",
+    "languages": ["python"],
+    "include_feedback": true,
+    "criteria_config": { "...": "your criteria" },
+    "feedback_config": {},
+    "setup_config": {}
+  }'
+```
+
+### Step 4: Add repository secrets
+
+Add to the repository (or organisation level for all classroom repos):
+
+| Secret | Value |
+|--------|-------|
+| `AUTOGRADER_CLOUD_URL` | `https://your-cloud-url` |
+| `AUTOGRADER_CLOUD_TOKEN` | The token from Step 2 |
+
+### Step 5: Add the workflow
+
+Create `.github/workflows/autograder.yml` in each student repository with the workflow example above.
+
+### Step 6: Verify
+
+Push a submission and check:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://your-cloud-url/api/v1/submissions/config/42
+```
+
+---
+
+## Migrating from repo mode
+
+Existing repo-mode workflows **continue to work without changes**. External mode is opt-in.
+
+### Migration strategy
+
+1. Leave existing repo-mode workflows untouched.
+2. For new assignments, use external mode with a Cloud config.
+3. For existing assignments, migrate one at a time:
+    - Create the equivalent Cloud config
+    - Update the workflow to external mode
+    - Remove `.github/autograder/` from the student repo template
+
+### Config field mapping
+
+| Repo-mode source | Cloud config field |
+|------------------|--------------------|
+| `criteria.json` | `criteria_config` |
+| `feedback.json` | `feedback_config` |
+| `setup.json` | `setup_config` |
+| `template-preset` action input | `template_name` |
+| `include-feedback` action input | `include_feedback` |
+
+---
+
+## Operational checklist
+
+### Server side
+
+- [ ] `AUTOGRADER_INTEGRATION_TOKEN` is set and non-empty
+- [ ] API is reachable from GitHub Actions runners (`/api/v1/health` returns 200)
+- [ ] Grading config created via `POST /api/v1/configs` — note the `id`
+- [ ] Config includes at least one entry in `languages`
+
+### Workflow side
+
+- [ ] `AUTOGRADER_CLOUD_URL` secret set on repository/org
+- [ ] `AUTOGRADER_CLOUD_TOKEN` secret set on repository/org
+- [ ] `execution-mode: "external"` in the workflow
+- [ ] `grading-config-id` matches the server config `id`
+- [ ] `template-preset` set to any valid value (parser requirement)
+- [ ] `permissions: write-all` removed (not needed)
+
+---
+
+## Smoke test
+
+### 1. Verify Cloud connectivity
+
+```bash
+# Health check
+curl https://your-cloud-url/api/v1/health
+
+# Verify config exists and token works
+curl -H "Authorization: Bearer $TOKEN" \
+  https://your-cloud-url/api/v1/configs/id/42
+```
+
+### 2. Trigger a test run
+
+Push a known-good submission. Verify:
+
+- Action completes successfully
+- Result appears: `GET /api/v1/submissions/config/42`
+
+### 3. Verify failure recording
+
+Push a broken submission. Verify:
+
+- Action exits with code 1
+- A `status: "failed"` record exists on the Cloud
 
 ---
 
 ## Troubleshooting
 
-### `CloudClientError: 401`
-The `AUTOGRADER_CLOUD_TOKEN` does not match the server's `AUTOGRADER_INTEGRATION_TOKEN`.  Regenerate and update both.
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `CloudClientError: HTTP 401` | Wrong token | Regenerate and sync `AUTOGRADER_INTEGRATION_TOKEN` ↔ `AUTOGRADER_CLOUD_TOKEN` |
+| `CloudClientError: HTTP 404` | Wrong config ID | Verify with `GET /api/v1/configs` |
+| `ValueError: Language 'X' not supported` | Language not in config's `languages` list | Add to cloud config or fix `submission-language` |
+| `ValueError: Config has no languages defined` | Empty `languages` in cloud config | Add at least one language |
+| Action exits 1 but no result on Cloud | Config fetch failed | Check logs for network/auth error |
+| Server returns 503 | `AUTOGRADER_INTEGRATION_TOKEN` not set | Set env var and restart API |
+| `CloudConnectionError` after retries | Server unreachable or persistent 5xx | Check server health and network |
 
-### `CloudClientError: 404`
-The `grading-config-id` does not exist on the server.  Verify the id with `GET /api/v1/configs`.
+### Retry behaviour
 
-### `ValueError: Language 'X' not supported`
-The `submission-language` value is not in the config's `languages` list.  Update the cloud config or correct the workflow input.
+The Cloud client uses exponential backoff for transient errors:
 
-### `ValueError: Config has no languages defined`
-The cloud config's `languages` list is empty.  Update the config to include at least one language.
-
-### Action exits non-zero but no result on Cloud
-Config fetch failed before any result could be posted.  Check the Action log for the specific error (network, auth, or missing arguments).
+- **4xx responses** → immediate failure (no retry)
+- **5xx / network errors** → up to 3 retries with delays of 1s, 2s, 4s
+- Timeouts: 10s connect, 30s read
 
 ---
 
 ## See also
 
-- [configuration.md](configuration.md) — full inputs reference
-- [README.md](README.md) — module architecture
-- [API documentation](../API.md) — Cloud API endpoints
-- [Rollout guide](../guides/external-mode-rollout.md) — migration and operational checklist
+- [Configuration Reference](configuration.md) — all inputs and validation rules
+- [Overview](README.md) — general architecture
+- [API Documentation](../API.md) — Cloud API endpoints

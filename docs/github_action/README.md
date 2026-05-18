@@ -1,52 +1,54 @@
-# GitHub Action module
+# GitHub Action — Overview
 
-This module packages the Autograder as a Docker-based GitHub Action so repositories can grade submissions automatically in CI.
+The Prisma Autograder ships as a Docker-based GitHub Action that grades student submissions automatically inside CI workflows. It is designed for **GitHub Classroom** but works with any repository that follows the expected directory layout.
 
-It is primarily designed for GitHub Classroom style workflows, but can be used by any repository that follows the expected directory contract.
+---
+
+## How it works
+
+```
+Student pushes code  →  GitHub Action triggers  →  Autograder grades  →  Results exported
+```
+
+The Action:
+
+1. Reads student files from the `submission/` directory.
+2. Loads grading configuration (from repo files **or** from the Autograder Cloud).
+3. Builds and executes the full grading pipeline (criteria tree → sandbox → grading → feedback).
+4. Exports the result (to GitHub Classroom check run **or** to the Autograder Cloud API).
+
+---
 
 ## Execution modes
 
-| Mode | How config is loaded | When to use |
-|------|---------------------|-------------|
-| `repo` (default) | From config files checked out inside `submission/.github/autograder/` | Repository-based setups where grading config lives in the student repo |
-| `external` | Fetched from the Autograder Cloud API at runtime | Centralised setups where a single Autograder Cloud instance manages all assignments |
+The Action supports two mutually exclusive modes:
 
-## What it does (repo mode)
+| Mode | Config source | Result destination | Use case |
+|------|--------------|-------------------|----------|
+| **`repo`** (default) | JSON files in `submission/.github/autograder/` | GitHub check run + `relatorio.md` | Config lives in the student repo |
+| **`external`** | Autograder Cloud API | Autograder Cloud API | Centralised config managed by the instructor |
 
-When a workflow runs in `repo` mode:
+### Repo mode flow
 
-1. Reads student files from `submission/`.
-2. Reads grading config from `submission/.github/autograder/`.
-3. Builds and executes the Autograder pipeline.
-4. Updates the GitHub check run with the final score.
-5. Optionally commits `relatorio.md` with feedback.
+```
+submission/.github/autograder/criteria.json  ──┐
+submission/.github/autograder/feedback.json  ──┤──► build_pipeline()  ──► run  ──► GitHub Check Run
+submission/.github/autograder/setup.json     ──┘                                    └► relatorio.md
+```
 
-## What it does (external mode)
+### External mode flow
 
-When a workflow runs in `external` mode:
+```
+Autograder Cloud  ──GET /api/v1/configs/id/{id}──► build_pipeline()  ──► run  ──► POST /api/v1/submissions/external-results
+```
 
-1. Fetches the grading configuration from the Autograder Cloud (`GET /api/v1/configs/id/{id}`).
-2. Reads student files from `submission/`.
-3. Builds and executes the Autograder pipeline.
-4. Posts the grading result back to the Autograder Cloud (`POST /api/v1/submissions/external-results`).
-5. If grading fails for any reason, posts a `failed` status payload before exiting non-zero.
+If grading fails in external mode, a `status: "failed"` payload is submitted before the Action exits non-zero.
 
-## Internal architecture
+---
 
-| Component | Responsibility |
-|---|---|
-| [`action.yml`](https://github.com/webtech-network/autograder/blob/main/action.yml) | Declares Action inputs/outputs and maps inputs to container env vars. |
-| [`Dockerfile.actions`](https://github.com/webtech-network/autograder/blob/main/Dockerfile.actions) | Builds runtime image used by the Action. |
-| [`github_action/entrypoint.sh`](https://github.com/webtech-network/autograder/blob/main/github_action/entrypoint.sh) | Validates required env vars and executes Python entrypoint with flags. |
-| [`github_action/main.py`](https://github.com/webtech-network/autograder/blob/main/github_action/main.py) | Parses arguments, validates runtime options, reads submission files, and starts grading. |
-| [`github_action/github_action_service.py`](https://github.com/webtech-network/autograder/blob/main/github_action/github_action_service.py) | Builds pipeline from JSON configs and handles GitHub export operations. |
-| [`github_action/github_classroom_exporter.py`](https://github.com/webtech-network/autograder/blob/main/github_action/github_classroom_exporter.py) | Export adapter that reports score and feedback through `GithubActionService`. |
-| [`github_action/cloud_client.py`](https://github.com/webtech-network/autograder/blob/main/github_action/cloud_client.py) | HTTP client for the Autograder Cloud API (config fetch + result submission). Uses exponential back-off on 5xx/network errors; raises `CloudClientError` on 4xx. |
-| [`github_action/cloud_exporter.py`](https://github.com/webtech-network/autograder/blob/main/github_action/cloud_exporter.py) | Export adapter for external mode. Builds the `ExternalResultCreate` payload and calls `CloudClient`. Provides `submit_failure()` for the failure path. |
+## Repository contract
 
-## Repository contract required by the Action
-
-Your workflow should checkout repository content into a folder named `submission`:
+Your workflow **must** checkout the repository into a directory named `submission`:
 
 ```yaml
 - uses: actions/checkout@v4
@@ -54,27 +56,111 @@ Your workflow should checkout repository content into a folder named `submission
     path: submission
 ```
 
-Inside that checkout, the Action expects:
+### Repo mode file requirements
 
-- `submission/.github/autograder/criteria.json` (required)
-- `submission/.github/autograder/feedback.json` (optional, empty object allowed)
-- `submission/.github/autograder/setup.json` (optional, empty object allowed)
+```
+submission/
+├── .github/
+│   └── autograder/
+│       ├── criteria.json    # Required — grading rubric
+│       ├── feedback.json    # Optional (can be {})
+│       └── setup.json       # Optional (can be {})
+├── index.html               # Student files (read recursively)
+├── styles.css
+└── app.js
+```
 
-## Important runtime notes
+### External mode file requirements
 
-- `template-preset: custom` is currently rejected by the Action entrypoint.
-- `feedback-type: ai` requires `openai-key`.
-- The current notification logic looks for a check run named `grading`.
-- `include-feedback: "true"` enables feedback generation and may update `relatorio.md`.
-- In `external` mode, `include_feedback` is taken from the cloud config, **not** from the `include-feedback` action input.
-- In `external` mode, `submission-language` is validated against the `languages` list in the cloud config. Omitting it defaults to the first language in that list.
+Only the student source files are needed. No `.github/autograder/` directory required — config comes from the cloud.
 
-## Reference repository
+```
+submission/
+├── main.py                  # Student files (read recursively)
+└── utils.py
+```
 
-Use **[`webtech-network/demo-autograder`](https://github.com/webtech-network/demo-autograder)** as the baseline implementation. It demonstrates a working workflow, config files, and expected repository layout.
+!!! note
+    The Action skips `.git/` and `.github/` directories when collecting student files.
 
-## Next
+---
 
-- Configuration details: [configuration.md](configuration.md)
-- External mode deep-dive: [external-mode.md](external-mode.md)
-- Demo walkthrough: [demo-autograder.md](demo-autograder.md)
+## Internal architecture
+
+| Component | Responsibility |
+|-----------|---------------|
+| `action.yml` | Declares Action inputs/outputs; maps inputs to container environment variables |
+| `Dockerfile.actions` | Builds the runtime Docker image (Python 3.10 + Node.js 20) |
+| `github_action/entrypoint.sh` | Validates required env vars; executes Python entrypoint with CLI flags |
+| `github_action/main.py` | Parses arguments, validates options, reads submission files, starts grading |
+| `github_action/github_action_service.py` | Builds pipeline from config; handles GitHub/Cloud export |
+| `github_action/cloud_client.py` | HTTP client for Cloud API with retry + exponential backoff |
+| `github_action/cloud_exporter.py` | Builds result payload and submits to Cloud API |
+| `github_action/github_classroom_exporter.py` | Reports score to GitHub Classroom check run |
+
+### Docker image
+
+The Action runs inside a Docker container built from `Dockerfile.actions`:
+
+- **Base:** `python:3.10-slim`
+- **Includes:** Node.js 20 (for JavaScript template grading), `tree`, `curl`
+- **Entry:** `/app/github_action/entrypoint.sh`
+
+---
+
+## Supported template presets
+
+| Preset | Language | Description |
+|--------|----------|-------------|
+| `webdev` | HTML/CSS/JS | Web development assignments (DOM, CSS, structure) |
+| `input_output` | Python, Java, C++ | Standard I/O programs with test cases |
+| `api` | Any | REST API endpoint testing |
+
+!!! warning
+    `template-preset: custom` is currently **not supported** by the Action and will cause an immediate exit.
+
+---
+
+## Feedback modes
+
+| Mode | Requires | Description |
+|------|----------|-------------|
+| `default` | Nothing extra | Rule-based feedback from the grading pipeline |
+| `ai` | `openai-key` | AI-generated feedback using OpenAI API |
+
+When `include-feedback: "true"` (repo mode), the Action commits feedback as `relatorio.md` to the repository.
+
+---
+
+## Quick reference
+
+Minimal repo-mode workflow:
+
+```yaml
+- uses: webtech-network/autograder@main
+  with:
+    template-preset: "webdev"
+    feedback-type: "default"
+    include-feedback: "true"
+```
+
+Minimal external-mode workflow:
+
+```yaml
+- uses: webtech-network/autograder@main
+  with:
+    execution-mode: "external"
+    grading-config-id: "42"
+    autograder-cloud-url: ${{ secrets.AUTOGRADER_CLOUD_URL }}
+    autograder-cloud-token: ${{ secrets.AUTOGRADER_CLOUD_TOKEN }}
+    feedback-type: "default"
+    template-preset: "input_output"
+```
+
+---
+
+## Next steps
+
+- [Configuration Reference](configuration.md) — all inputs, outputs, secrets, and permissions
+- [Quick Start Guide](quick-start.md) — step-by-step setup for both modes
+- [External Mode](external-mode.md) — deep dive into cloud-based grading

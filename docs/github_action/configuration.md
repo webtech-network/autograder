@@ -1,166 +1,226 @@
-# GitHub Action configuration reference
+# Configuration Reference
 
-This page describes how to configure `webtech-network/autograder@main` in your workflow and what each input affects at runtime.
+Complete reference for all inputs, outputs, secrets, and permissions required by `webtech-network/autograder@main`.
 
-## Recommended workflow skeleton
-
-### Repo mode (default)
-
-```yaml
-name: Autograder
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-
-jobs:
-  grading:
-    permissions: write-all
-    runs-on: ubuntu-latest
-    if: github.actor != 'github-classroom[bot]'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          path: submission
-
-      - name: Run Autograder
-        uses: webtech-network/autograder@main
-        with:
-          template-preset: "webdev"
-          feedback-type: "default"
-          include-feedback: "true"
-          openai-key: ${{ secrets.ENGINE }}
-```
-
-### External mode
-
-```yaml
-name: Autograder (External)
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
-jobs:
-  grading:
-    runs-on: ubuntu-latest
-    if: github.actor != 'github-classroom[bot]'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          path: submission
-
-      - name: Run Autograder
-        uses: webtech-network/autograder@main
-        with:
-          execution-mode: "external"
-          grading-config-id: "42"                              # internal DB id
-          autograder-cloud-url: ${{ secrets.AUTOGRADER_CLOUD_URL }}
-          autograder-cloud-token: ${{ secrets.AUTOGRADER_CLOUD_TOKEN }}
-          submission-language: "python"                        # optional
-          feedback-type: "default"
-          template-preset: "input_output"                      # required by the parser; value is ignored in external mode
-```
+---
 
 ## Inputs
 
-From [`action.yml`](https://github.com/webtech-network/autograder/blob/main/action.yml):
+All inputs are defined in [`action.yml`](https://github.com/webtech-network/autograder/blob/main/action.yml).
 
-| Input | Required | Default | Notes |
-|---|---:|---|---|
-| `github-token` | no | `${{ github.token }}` | Used for GitHub API operations (repo/check run access). |
-| `template-preset` | yes | - | Template key used by the grading pipeline. Built-ins include `webdev`, `api`, and `input_output`. In external mode the pipeline reads the template from the cloud config, but this field is still required by the parser. |
-| `feedback-type` | yes | - | `default` or `ai`. |
-| `custom-template` | no | - | Currently not usable because `template-preset: custom` is rejected by `github_action/main.py`. |
-| `openai-key` | no | - | Required only when `feedback-type` is `ai`. |
-| `app-token` | no | - | Optional token for repository access; if omitted, runtime falls back to `github-token`. |
-| `include-feedback` | no | `"false"` | Must be `"true"` or `"false"` string. Ignored in external mode (value is taken from the cloud config). |
-| `execution-mode` | no | `"repo"` | `"repo"` or `"external"`. Determines where grading configuration is loaded from. |
-| `grading-config-id` | no | - | Internal DB id of the grading config on the Autograder Cloud. Required when `execution-mode` is `external`. |
-| `autograder-cloud-url` | no | - | Base URL of the Autograder Cloud instance (e.g. `https://cloud.example.com`). Required when `execution-mode` is `external`. |
-| `autograder-cloud-token` | no | - | Integration token for the Autograder Cloud API. Required when `execution-mode` is `external`. Should be stored as a repository secret. |
-| `submission-language` | no | - | Language of the student submission (e.g. `python`, `java`). Validated against the cloud config's `languages` list. Defaults to the first language in the list when omitted. Only used in `external` mode. |
+### Core inputs
+
+| Input | Required | Default | Description |
+|-------|:--------:|---------|-------------|
+| `template-preset` | **yes** | — | Template key for the grading pipeline. Built-in values: `webdev`, `api`, `input_output`. In external mode the value is ignored (template comes from the cloud config), but the field is still **required by the parser**. |
+| `feedback-type` | **yes** | — | Feedback generation strategy: `"default"` (rule-based) or `"ai"` (OpenAI-powered). |
+| `github-token` | no | `${{ github.token }}` | GitHub token for API operations (check run updates, repo access). |
+| `openai-key` | no | — | OpenAI API key. **Required** when `feedback-type` is `"ai"`. |
+| `app-token` | no | — | Separate token for repository access. Falls back to `github-token` if omitted. |
+| `include-feedback` | no | `"false"` | `"true"` or `"false"`. When true, generates feedback and commits `relatorio.md`. **Ignored in external mode** (value is taken from the cloud config). |
+| `locale` | no | `"en"` | Locale for feedback messages. Supported: `"en"`, `"pt-br"`. |
+
+### External mode inputs
+
+These inputs are required **only** when `execution-mode` is `"external"`:
+
+| Input | Required | Default | Description |
+|-------|:--------:|---------|-------------|
+| `execution-mode` | no | `"repo"` | `"repo"` or `"external"`. Determines where grading config is loaded from. |
+| `grading-config-id` | conditional | — | Internal database ID of the grading config on the Autograder Cloud. Must be an integer. |
+| `autograder-cloud-url` | conditional | — | Base URL of the Autograder Cloud instance (e.g. `https://autograder.myschool.edu`). Trailing slashes are stripped automatically. |
+| `autograder-cloud-token` | conditional | — | Bearer token for the Cloud API. Must match `AUTOGRADER_INTEGRATION_TOKEN` on the server. |
+| `submission-language` | no | — | Language of the student submission (e.g. `"python"`, `"java"`, `"javascript"`). Validated against the cloud config's `languages` list. Defaults to the first language in the list when omitted. |
+
+### Unsupported inputs
+
+| Input | Status | Notes |
+|-------|--------|-------|
+| `custom-template` | ❌ Not usable | `template-preset: custom` is rejected by the entrypoint. Reserved for future use. |
+
+---
 
 ## Outputs
 
-`action.yml` declares:
-
 | Output | Description |
-|---|---|
-| `result` | Base64-encoded JSON with grading results. |
+|--------|-------------|
+| `result` | Base64-encoded JSON containing grading results. |
 
-## Required repository structure
+---
 
-The Action loads config from the checkout rooted at `submission/`:
+## Configuration files (repo mode)
 
-```text
-submission/
-  .github/
-    autograder/
-      criteria.json   # required
-      feedback.json   # optional (can be {})
-      setup.json      # optional (can be {})
+When running in repo mode, the Action reads configuration from `submission/.github/autograder/`:
+
+### `criteria.json` (required)
+
+Defines the grading rubric — the hierarchical criteria tree with weighted subjects and tests.
+
+```json
+{
+  "test_library": "web_dev",
+  "base": {
+    "weight": 100,
+    "subjects": [
+      {
+        "subject_name": "content_and_style",
+        "weight": 50,
+        "subjects": [...]
+      }
+    ]
+  }
+}
 ```
 
-It also reads student files recursively from `submission/`, excluding `.git` and `.github` directories.
+Key fields:
 
-## Secrets and permissions
+- `test_library` — which template library to use (`web_dev`, `input_output`, `api_testing`)
+- `base.subjects` — hierarchical tree of subjects, each with `weight` and either `subjects` (children) or `tests`
+- Each test specifies `file`, `name` (test function), and optional `parameters`
 
-### Repo mode secrets
+### `feedback.json` (optional)
 
-- `ENGINE` (or another secret mapped to `openai-key`) when using AI feedback.
-- Optional token secret mapped to `app-token` if you need separate credentials.
+Controls feedback generation behavior. Can be an empty object `{}`.
 
-### External mode secrets
+```json
+{
+  "general": {
+    "show_score": true,
+    "show_passed_tests": false,
+    "add_report_summary": true
+  },
+  "default": {}
+}
+```
+
+### `setup.json` (optional)
+
+Provides setup configuration for the grading environment. Can be an empty object `{}`.
+
+```json
+{}
+```
+
+---
+
+## Secrets
+
+### Repo mode
+
+| Secret | Maps to input | When needed |
+|--------|:-------------:|-------------|
+| `ENGINE` (or custom name) | `openai-key` | When using `feedback-type: "ai"` |
+| Custom token secret | `app-token` | When separate credentials are needed for repo access |
+
+### External mode
 
 | Secret | Maps to input | Description |
-|--------|--------------|-------------|
-| `AUTOGRADER_CLOUD_URL` | `autograder-cloud-url` | Base URL of the Autograder Cloud instance |
-| `AUTOGRADER_CLOUD_TOKEN` | `autograder-cloud-token` | Integration token (set `AUTOGRADER_INTEGRATION_TOKEN` on the server) |
+|--------|:-------------:|-------------|
+| `AUTOGRADER_CLOUD_URL` | `autograder-cloud-url` | Base URL of the Autograder Cloud |
+| `AUTOGRADER_CLOUD_TOKEN` | `autograder-cloud-token` | Integration token matching server's `AUTOGRADER_INTEGRATION_TOKEN` |
 
-> Generate a strong token on the server: `openssl rand -hex 32`
+!!! tip "Generating a secure token"
+    ```bash
+    openssl rand -hex 32
+    ```
+    Set this as `AUTOGRADER_INTEGRATION_TOKEN` on the server and as `AUTOGRADER_CLOUD_TOKEN` in your repository/org secrets.
 
-### Permissions
+---
 
-`permissions: write-all` is required in **repo mode** because the Action may:
+## Permissions
 
-- update the workflow check run with score summary;
-- commit `relatorio.md` when feedback is enabled.
+### Repo mode
 
-In **external mode**, no GitHub repository write operations are performed, so elevated permissions are not required.
+```yaml
+permissions: write-all
+```
+
+Required because the Action may:
+
+- Update the workflow check run with the score summary
+- Commit `relatorio.md` when feedback is enabled
+- The check run export looks for a check run named **`grading`** — keep your job name aligned
+
+### External mode
+
+No elevated permissions required. The Action only communicates with the Autograder Cloud API and does not write to the repository.
+
+---
+
+## Environment variables (internal)
+
+The `action.yml` maps inputs to container environment variables consumed by `entrypoint.sh`:
+
+| Input | Environment variable |
+|-------|---------------------|
+| `github-token` | `GITHUB_TOKEN` |
+| `template-preset` | `TEMPLATE_PRESET` |
+| `feedback-type` | `FEEDBACK_TYPE` |
+| `custom-template` | `CUSTOM_TEMPLATE` |
+| `openai-key` | `OPENAI_KEY` |
+| `app-token` | `APP_TOKEN` |
+| `include-feedback` | `INCLUDE_FEEDBACK` |
+| `execution-mode` | `EXECUTION_MODE` |
+| `grading-config-id` | `GRADING_CONFIG_ID` |
+| `autograder-cloud-url` | `AUTOGRADER_CLOUD_URL` |
+| `autograder-cloud-token` | `AUTOGRADER_CLOUD_TOKEN` |
+| `submission-language` | `SUBMISSION_LANGUAGE` |
+| `locale` | `LOCALE` |
+
+Additionally, the Action uses these GitHub-provided variables:
+
+| Variable | Usage |
+|----------|-------|
+| `GITHUB_WORKSPACE` | Root path for file operations |
+| `GITHUB_ACTOR` | Student username (passed as `--student-name`) |
+| `GITHUB_REPOSITORY` | Repository identifier for API calls |
+| `GITHUB_RUN_ID` | Workflow run ID for check run updates |
+| `GITHUB_SHA` | Commit SHA included in result metadata |
+| `GITHUB_REF` | Branch ref included in result metadata |
+
+---
+
+## Validation rules
+
+The entrypoint enforces these rules before starting the pipeline:
+
+| Condition | Error |
+|-----------|-------|
+| `feedback-type: "ai"` without `openai-key` | `ValueError: OpenAI API key is required for AI feedback mode` |
+| `execution-mode: "external"` without `grading-config-id` | `ValueError: grading-config-id is required` |
+| `execution-mode: "external"` without `autograder-cloud-url` | `ValueError: autograder-cloud-url is required` |
+| `execution-mode: "external"` without `autograder-cloud-token` | `ValueError: autograder-cloud-token is required` |
+| `grading-config-id` not parseable as integer | `ValueError: grading-config-id must be an integer` |
+| `include-feedback` not `"true"` or `"false"` | `ValueError: Invalid value for --include-feedback` |
+| `template-preset: "custom"` | `SystemExit: Currently, this system does not accept custom templates` |
+
+---
 
 ## Troubleshooting
 
 ### `FileNotFoundError: criteria.json file not found`
 
-- Ensure your workflow checks out repository to `path: submission`.
-- Ensure config is at `submission/.github/autograder/criteria.json`.
-- This error only occurs in **repo mode**; in external mode, config is fetched from the cloud.
+- Ensure your workflow checks out to `path: submission`
+- Verify the config is at `submission/.github/autograder/criteria.json`
+- This error only occurs in repo mode
 
-### `grading-config-id`, `autograder-cloud-url`, or `autograder-cloud-token` missing
+### Check run not updated with score
 
-- All three are required when `execution-mode` is `external`.
-- The entrypoint validates these before starting the pipeline and exits non-zero if any are absent.
-
-### `OpenAI API key is required for AI feedback mode`
-
-- Provide `openai-key` when `feedback-type: ai`.
+- The export logic searches for a check run named **`grading`**
+- Ensure your job name matches: `jobs: grading:`
 
 ### `Invalid value for --include-feedback`
 
-- Use exact strings: `"true"` or `"false"`.
+- Use exact strings: `"true"` or `"false"` (not booleans)
 
-### Check run not updated
+### `OpenAI API key is required for AI feedback mode`
 
-- Current implementation searches for a check run named `grading`.
-- Keep your job id/name aligned with that expectation.
+- Provide `openai-key` input when `feedback-type: "ai"`
+
+---
 
 ## See also
 
-- Module internals: [README.md](README.md)
-- External mode deep-dive: [external-mode.md](external-mode.md)
-- Demo repository walkthrough: [demo-autograder.md](demo-autograder.md)
+- [Overview](README.md) — how the Action works
+- [Quick Start Guide](quick-start.md) — complete setup walkthrough
+- [External Mode](external-mode.md) — cloud-based grading details
