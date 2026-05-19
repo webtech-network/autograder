@@ -36,7 +36,7 @@ This documentation is organized to be both practical for first-time users and de
 
 - [GitHub Action module overview](github_action/README.md)
 - [GitHub Action configuration reference](github_action/configuration.md)
-- [Demo repository walkthrough](github_action/demo-autograder.md)
+- [Demo repository walkthrough](github_action/quick-start.md)
 
 ## Quick Access
 

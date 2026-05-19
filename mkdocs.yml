@@ -52,8 +52,9 @@ nav:
       - REST API Reference: API.md
   - GitHub Action:
       - Overview: github_action/README.md
-      - Configuration: github_action/configuration.md
-      - Demo Repository Walkthrough: github_action/demo-autograder.md
+      - Quick Start Guide: github_action/quick-start.md
+      - Configuration Reference: github_action/configuration.md
+      - External Mode: github_action/external-mode.md
   - Pipeline Deep Dive:
       - Overview: pipeline/README.md
       - 01 Load Template: pipeline/01-load-template.md

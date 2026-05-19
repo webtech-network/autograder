@@ -356,7 +356,7 @@ jobs:
 - **Module overview and internals:** [docs/github_action/README.md](docs/github_action/README.md)
 - **Configuration reference and troubleshooting:** [docs/github_action/configuration.md](docs/github_action/configuration.md)
 - **Reference implementation:** [webtech-network/demo-autograder](https://github.com/webtech-network/demo-autograder)
-- **How to adapt the demo to your course:** [docs/github_action/demo-autograder.md](docs/github_action/demo-autograder.md)
+- **How to adapt the demo to your course:** [docs/github_action/quick-start.md](docs/github_action/quick-start.md)
 
 ---
 
