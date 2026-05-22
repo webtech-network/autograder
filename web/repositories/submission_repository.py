@@ -40,6 +40,8 @@ class SubmissionRepository(BaseRepository[Submission]):
         )
 
         self.session.add(db_submission)
+        await self.session.flush()
+        await self.session.refresh(db_submission)
         return db_submission
 
     async def get_by_id_with_result(self, id: int) -> Optional[Submission]:
