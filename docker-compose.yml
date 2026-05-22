@@ -34,6 +34,8 @@ services:
 
       # Sandbox Configuration
       SANDBOX_POOL_SIZE: 2
+      SANDBOX_MODE: remote
+      SANDBOX_API_URL: http://sandbox-manager:8001
 
       # API Configuration
       API_HOST: 0.0.0.0
@@ -52,14 +54,11 @@ services:
       # UPSTASH_REDIS_TOKEN: ${UPSTASH_REDIS_TOKEN}
     ports:
       - '8000:8000'
-    volumes:
-      # Mount Docker socket for sandbox management
-      - /var/run/docker.sock:/var/run/docker.sock
-      # Mount code for development (optional, remove for production)
-      # - .:/app
     depends_on:
       postgres:
         condition: service_healthy
+      sandbox-manager:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8000/api/v1/health']
@@ -67,6 +66,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Sandbox Manager API
+  sandbox-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox
+    container_name: autograder-sandbox-manager
+    environment:
+      SANDBOX_PORT: 8001
+      SANDBOX_HOST: 0.0.0.0
+    ports:
+      - '8001:8001'
+    volumes:
+      # Mount Docker socket for sandbox management
+      - /var/run/docker.sock:/var/run/docker.sock
+
 
   # Ministack for S3 emulation (AWS-compatible services)
   ministack:
