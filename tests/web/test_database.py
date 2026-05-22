@@ -54,13 +54,13 @@ async def test_create_grading_config(db_session):
         external_assignment_id="test-assignment-1",
         template_name="webdev",
         criteria_config={"tests": ["test1", "test2"]},
-        language="python",
+        languages=["python"],
     )
     
     assert config.id is not None
     assert config.external_assignment_id == "test-assignment-1"
     assert config.template_name == "webdev"
-    assert config.language == "python"
+    assert config.languages == ["python"]
     assert config.is_active is True
 
 
@@ -74,7 +74,7 @@ async def test_get_config_by_external_id(db_session):
         external_assignment_id="test-assignment-2",
         template_name="api",
         criteria_config={"tests": ["test1"]},
-        language="javascript",
+        languages=["javascript"],
     )
     
     # Retrieve it
@@ -95,13 +95,13 @@ async def test_get_active_configs(db_session):
         external_assignment_id="assignment-1",
         template_name="webdev",
         criteria_config={},
-        language="python",
+        languages=["python"],
     )
     await repo.create(
         external_assignment_id="assignment-2",
         template_name="api",
         criteria_config={},
-        language="java",
+        languages=["java"],
     )
     
     # Get all active
@@ -120,7 +120,7 @@ async def test_create_submission(db_session):
         external_assignment_id="test-assignment-3",
         template_name="webdev",
         criteria_config={},
-        language="python",
+        languages=["python"],
     )
     
     # Create submission
@@ -149,7 +149,7 @@ async def test_get_submissions_by_user(db_session):
         external_assignment_id="test-assignment-4",
         template_name="webdev",
         criteria_config={},
-        language="python",
+        languages=["python"],
     )
     
     # Create multiple submissions for same user
@@ -186,7 +186,7 @@ async def test_update_submission_status(db_session):
         external_assignment_id="test-assignment-5",
         template_name="webdev",
         criteria_config={},
-        language="python",
+        languages=["python"],
     )
     
     submission_repo = SubmissionRepository(db_session)
@@ -217,7 +217,7 @@ async def test_create_submission_result(db_session):
         external_assignment_id="test-assignment-6",
         template_name="webdev",
         criteria_config={},
-        language="python",
+        languages=["python"],
     )
     
     submission_repo = SubmissionRepository(db_session)
@@ -256,7 +256,7 @@ async def test_get_result_by_submission_id(db_session):
         external_assignment_id="test-assignment-7",
         template_name="webdev",
         criteria_config={},
-        language="python",
+        languages=["python"],
     )
     
     submission_repo = SubmissionRepository(db_session)
