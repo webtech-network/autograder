@@ -31,7 +31,7 @@ class PreFlightStep(Step):
     def __init__(self, setup_config):
         self._setup_config = SetupConfig.from_dict(setup_config)
         self._pre_flight_service = None
-        self._asset_resolver = AssetSourceResolver()
+        self._asset_resolver = AssetSourceResolver() if self._setup_config.assets else None
 
     @property
     def step_name(self) -> StepName:

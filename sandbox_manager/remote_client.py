@@ -1,10 +1,11 @@
 import base64
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
 import requests
 from contextlib import contextmanager
 
-from autograder.models.dataclass.asset import ResolvedAsset
-from autograder.models.dataclass.submission import SubmissionFile
+if TYPE_CHECKING:
+    from autograder.models.dataclass.asset import ResolvedAsset
+    from autograder.models.dataclass.submission import SubmissionFile
 from sandbox_manager.models.sandbox_models import (
     Language,
     CommandResponse,
@@ -25,6 +26,10 @@ class RemoteSandboxContainer:
         self.api_url = api_url.rstrip('/')
         self._session = requests.Session()
 
+    def close(self):
+        """Closes the HTTP session to prevent connection leaks."""
+        self._session.close()
+
     def prepare_workdir(self, submission_files: Dict[str, 'SubmissionFile']) -> None:
         """Uploads submission files to the remote sandbox."""
         url = f"{self.api_url}/sandboxes/{self.sandbox_id}/prepare"
@@ -34,7 +39,7 @@ class RemoteSandboxContainer:
                 "content": sf.content
             } for name, sf in submission_files.items()
         }
-        response = self._session.post(url, json={"submission_files": files_data})
+        response = self._session.post(url, json={"submission_files": files_data}, timeout=30)
         response.raise_for_status()
 
     def inject_assets(self, resolved_assets: List['ResolvedAsset']) -> None:
@@ -47,7 +52,7 @@ class RemoteSandboxContainer:
                 "read_only": asset.read_only
             } for asset in resolved_assets
         ]
-        response = self._session.post(url, json={"resolved_assets": assets_data})
+        response = self._session.post(url, json={"resolved_assets": assets_data}, timeout=30)
         response.raise_for_status()
 
     def run_command(self, command: str, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
@@ -58,7 +63,7 @@ class RemoteSandboxContainer:
             "timeout": timeout,
             "workdir": workdir
         }
-        response = self._session.post(url, json=payload)
+        response = self._session.post(url, json=payload, timeout=timeout + 5)
         response.raise_for_status()
         data = response.json()
         return CommandResponse(
@@ -78,7 +83,7 @@ class RemoteSandboxContainer:
             "timeout": timeout,
             "workdir": workdir
         }
-        response = self._session.post(url, json=payload)
+        response = self._session.post(url, json=payload, timeout=timeout + 5)
         response.raise_for_status()
         data = response.json()
         return CommandResponse(
@@ -92,7 +97,7 @@ class RemoteSandboxContainer:
     def extract_file(self, path: str, max_bytes: int = 1_048_576) -> ExtractedFile:
         """Extracts a file from the remote sandbox."""
         url = f"{self.api_url}/sandboxes/{self.sandbox_id}/files"
-        response = self._session.get(url, params={"path": path, "max_bytes": max_bytes})
+        response = self._session.get(url, params={"path": path, "max_bytes": max_bytes}, timeout=30)
         if response.status_code == 404:
             raise FileNotFoundError(f"File not found in container: {path}")
         response.raise_for_status()
@@ -116,7 +121,10 @@ class RemoteSandboxContainer:
             "endpoint": endpoint,
             "kwargs": kwargs
         }
-        response = self._session.post(url, json=payload)
+        timeout = kwargs.get("timeout", 30)
+        if timeout is None:
+            timeout = 30
+        response = self._session.post(url, json=payload, timeout=timeout + 5)
         response.raise_for_status()
         data = response.json()
         
@@ -142,7 +150,7 @@ class RemoteSandboxManager:
     def get_sandbox(self, lang: Language) -> RemoteSandboxContainer:
         """Acquires a sandbox from the remote pool."""
         url = f"{self.api_url}/sandboxes/{lang.value}"
-        response = self._session.post(url)
+        response = self._session.post(url, timeout=30)
         response.raise_for_status()
         data = response.json()
         return RemoteSandboxContainer(
@@ -155,15 +163,17 @@ class RemoteSandboxManager:
         """Releases the remote sandbox."""
         _ = lang  # unused but part of the interface
         url = f"{self.api_url}/sandboxes/{sandbox.sandbox_id}"
-        response = self._session.delete(url)
+        response = self._session.delete(url, timeout=15)
         response.raise_for_status()
+        sandbox.close()
 
     def destroy_sandbox(self, lang: Language, sandbox: RemoteSandboxContainer):
         """Destroys the remote sandbox immediately."""
         _ = lang  # unused but part of the interface
         url = f"{self.api_url}/sandboxes/{sandbox.sandbox_id}/destroy"
-        response = self._session.delete(url)
+        response = self._session.delete(url, timeout=15)
         response.raise_for_status()
+        sandbox.close()
 
     @contextmanager
     def acquire_sandbox(self, lang: Language):
@@ -181,7 +191,7 @@ class RemoteSandboxManager:
     def get_pool_stats(self) -> dict:
         """Gets pool statistics from the remote API."""
         url = f"{self.api_url}/stats"
-        response = self._session.get(url)
+        response = self._session.get(url, timeout=10)
         response.raise_for_status()
         return response.json()
 

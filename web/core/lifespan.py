@@ -18,18 +18,18 @@ from web.database import init_db
 logger = get_logger(__name__)
 
 # Global state
-TEMPLATE_SERVICE: Optional[TemplateLibraryService] = None
-GRADING_TASKS: set = set()  # Track active grading tasks to prevent garbage collection
+template_service: Optional[TemplateLibraryService] = None
+grading_tasks: set = set()  # Track active grading tasks to prevent garbage collection
 
 
 def get_template_service() -> Optional[TemplateLibraryService]:
     """Get the template service instance."""
-    return TEMPLATE_SERVICE
+    return template_service
 
 
 def get_grading_tasks() -> set:
     """Get the set of active grading tasks."""
-    return GRADING_TASKS
+    return grading_tasks
 
 
 @asynccontextmanager
@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
 
     load_dotenv()  # Load environment variables first from .env file
 
-    global TEMPLATE_SERVICE, GRADING_TASKS
+    global template_service, grading_tasks
 
     # Startup
     logger.info("Starting Autograder Web API...")
@@ -62,16 +62,20 @@ async def lifespan(app: FastAPI):
     # Initialize sandbox manager
     logger.info("Initializing sandbox manager...")
 
-    config_file = settings.SANDBOX_CONFIG_FILE
-    try:
-        pool_configs = SandboxPoolConfig.load_from_yaml(config_file)
-        logger.info("Loaded sandbox configurations from %s", config_file)
-    except FileNotFoundError as e:
-        logger.error("Sandbox configuration file not found: %s", e)
-        raise
-    except Exception as e:
-        logger.error("Error loading sandbox configuration: %s", e)
-        raise
+    if settings.SANDBOX_MODE == "remote":
+        pool_configs = []
+        logger.info("Sandbox configured for remote mode, skipping local pool configuration")
+    else:
+        config_file = settings.SANDBOX_CONFIG_FILE
+        try:
+            pool_configs = SandboxPoolConfig.load_from_yaml(config_file)
+            logger.info("Loaded sandbox configurations from %s", config_file)
+        except FileNotFoundError as e:
+            logger.error("Sandbox configuration file not found: %s", e)
+            raise
+        except Exception as e:
+            logger.error("Error loading sandbox configuration: %s", e)
+            raise
 
     initialize_sandbox_manager(
         pool_configs=pool_configs,
@@ -82,7 +86,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize template library
     logger.info("Loading template library...")
-    TEMPLATE_SERVICE = TemplateLibraryService.get_instance()
+    template_service = TemplateLibraryService.get_instance()
     logger.info("Template library loaded successfully")
 
     logger.info("Autograder Web API ready!")
@@ -93,17 +97,17 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down Autograder Web API...")
 
     # Cancel pending grading tasks
-    if GRADING_TASKS:
-        logger.info("Cancelling %s pending grading tasks...", len(GRADING_TASKS))
-        for task in GRADING_TASKS:
+    if grading_tasks:
+        logger.info("Cancelling %s pending grading tasks...", len(grading_tasks))
+        for task in grading_tasks:
             if not task.done():
                 task.cancel()
         # Wait for tasks to complete cancellation
-        if GRADING_TASKS:
-            await asyncio.gather(*GRADING_TASKS, return_exceptions=True)
+        if grading_tasks:
+            await asyncio.gather(*grading_tasks, return_exceptions=True)
         logger.info("All pending grading tasks cancelled")
 
-    # Explicitly shutdown sandbox manager to clean up all containers
+    # Explicitly shutdown sandbox manager to clean up resources (containers or HTTP sessions)
     try:
         manager = get_sandbox_manager()
         logger.info("Shutting down sandbox manager...")

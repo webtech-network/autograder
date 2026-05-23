@@ -58,7 +58,7 @@ services:
       postgres:
         condition: service_healthy
       sandbox-manager:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8000/api/v1/health']
@@ -81,7 +81,12 @@ services:
     volumes:
       # Mount Docker socket for sandbox management
       - /var/run/docker.sock:/var/run/docker.sock
-
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8001/stats']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # Ministack for S3 emulation (AWS-compatible services)
   ministack:
