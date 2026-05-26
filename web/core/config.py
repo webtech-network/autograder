@@ -24,6 +24,8 @@ class Settings:
 
     # Sandbox Configuration
     SANDBOX_CONFIG_FILE: str = os.getenv("SANDBOX_CONFIG_FILE", "sandbox_config.yml")
+    SANDBOX_MODE: str = os.getenv("SANDBOX_MODE", "local")  # "local" or "remote"
+    SANDBOX_API_URL: str = os.getenv("SANDBOX_API_URL", "http://localhost:8001")
 
 
 settings = Settings()

@@ -1,7 +1,6 @@
 """Application lifespan management."""
 
 import asyncio
-import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -46,6 +45,7 @@ async def lifespan(app: FastAPI):
     Shutdown:
     - Clean up resources
     """
+    _ = app # unused argument
 
     load_dotenv()  # Load environment variables first from .env file
 
@@ -62,20 +62,27 @@ async def lifespan(app: FastAPI):
     # Initialize sandbox manager
     logger.info("Initializing sandbox manager...")
 
-    # Load pool configurations from YAML file
-    config_file = settings.SANDBOX_CONFIG_FILE
-    try:
-        pool_configs = SandboxPoolConfig.load_from_yaml(config_file)
-        logger.info(f"Loaded sandbox configurations from {config_file}")
-    except FileNotFoundError as e:
-        logger.error(f"Sandbox configuration file not found: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Error loading sandbox configuration: {e}")
-        raise
+    if settings.SANDBOX_MODE == "remote":
+        pool_configs = []
+        logger.info("Sandbox configured for remote mode, skipping local pool configuration")
+    else:
+        config_file = settings.SANDBOX_CONFIG_FILE
+        try:
+            pool_configs = SandboxPoolConfig.load_from_yaml(config_file)
+            logger.info("Loaded sandbox configurations from %s", config_file)
+        except FileNotFoundError as e:
+            logger.error("Sandbox configuration file not found: %s", e)
+            raise
+        except Exception as e:
+            logger.error("Error loading sandbox configuration: %s", e)
+            raise
 
-    initialize_sandbox_manager(pool_configs)
-    logger.info(f"Sandbox manager initialized with {len(pool_configs)} language pools")
+    initialize_sandbox_manager(
+        pool_configs=pool_configs,
+        mode=settings.SANDBOX_MODE,
+        api_url=settings.SANDBOX_API_URL
+    )
+    logger.info("Sandbox manager initialized in %s mode", settings.SANDBOX_MODE)
 
     # Initialize template library
     logger.info("Loading template library...")
@@ -91,7 +98,7 @@ async def lifespan(app: FastAPI):
 
     # Cancel pending grading tasks
     if grading_tasks:
-        logger.info(f"Cancelling {len(grading_tasks)} pending grading tasks...")
+        logger.info("Cancelling %s pending grading tasks...", len(grading_tasks))
         for task in grading_tasks:
             if not task.done():
                 task.cancel()
@@ -100,14 +107,14 @@ async def lifespan(app: FastAPI):
             await asyncio.gather(*grading_tasks, return_exceptions=True)
         logger.info("All pending grading tasks cancelled")
 
-    # Explicitly shutdown sandbox manager to clean up all containers
+    # Explicitly shutdown sandbox manager to clean up resources (containers or HTTP sessions)
     try:
         manager = get_sandbox_manager()
         logger.info("Shutting down sandbox manager...")
         manager.shutdown()
         logger.info("Sandbox manager shutdown complete")
     except Exception as e:
-        logger.error(f"Error during sandbox manager shutdown: {e}")
+        logger.error("Error during sandbox manager shutdown: %s", e)
 
     logger.info("Shutdown complete")
 
