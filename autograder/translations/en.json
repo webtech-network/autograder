@@ -506,6 +506,24 @@
         "success": "No forbidden language constructs found."
       }
     },
+    "ai_sorting_algorithm": {
+      "description": "Uses AI to verify that the submission implements the requested sorting algorithm rather than a library shortcut.",
+      "params": {
+        "algorithm_name": "Name of the sorting algorithm to verify (e.g., 'Quick Sort')."
+      }
+    },
+    "ai_search_algorithm": {
+      "description": "Uses AI to verify that the submission implements the requested search algorithm rather than a library shortcut.",
+      "params": {
+        "algorithm_name": "Name of the search algorithm to verify (e.g., 'Binary Search')."
+      }
+    },
+    "ai_graph_algorithm": {
+      "description": "Uses AI to verify that the submission implements the requested graph algorithm rather than a library shortcut.",
+      "params": {
+        "algorithm_name": "Name of the graph algorithm to verify (e.g., 'Dijkstra')."
+      }
+    },
     "template": {
       "name": "Static Analysis",
       "description": "A template for evaluating assignments through static and structural code analysis."
