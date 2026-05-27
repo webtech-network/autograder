@@ -20,13 +20,23 @@ class StepStatus(Enum):
     INTERRUPTED = "interrupted"
 
 
+class StepCategory(Enum):
+    """Enumeration of pipeline step categories."""
+    SETUP = "SETUP"
+    GRADING = "GRADING"
+    REPORTING = "REPORTING"
+
+
 class StepName(Enum):
     """Enumeration of all available pipeline steps."""
     BOOTSTRAP = "BootstrapStep"
     LOAD_TEMPLATE = "LoadTemplateStep"
     BUILD_TREE = "BuildTreeStep"
-    PRE_FLIGHT = "PreFlightStep"
+    FILE_CHECK = "FileCheckStep"
     SANDBOX = "SandboxStep"
+    ASSET_INJECTION = "AssetInjectionStep"
+    SETUP_COMMANDS = "SetupCommandsStep"
+    PRE_FLIGHT = "PreFlightStep"  # Deprecated
     AI_BATCH = "AiBatchStep"
     STRUCTURAL_ANALYSIS = "StructuralAnalysisStep"
     GRADE = "GradeStep"

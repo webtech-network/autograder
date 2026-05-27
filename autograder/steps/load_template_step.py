@@ -1,7 +1,7 @@
 import logging
 from typing import List, Union
 
-from autograder.models.dataclass.step_result import StepResult, StepName, StepStatus
+from autograder.models.dataclass.step_result import StepResult, StepName, StepCategory, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.template_library_service import TemplateLibraryService
 from autograder.models.abstract.step import Step
@@ -52,6 +52,10 @@ class TemplateLoaderStep(Step):
     @property
     def step_name(self) -> StepName:
         return StepName.LOAD_TEMPLATE
+
+    @property
+    def step_category(self) -> StepCategory:
+        return StepCategory.SETUP
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """

@@ -75,8 +75,8 @@ class PipelineExecutionSerializer:
             return "Template loaded successfully"
         elif step.step == StepName.BUILD_TREE:
             return "Criteria tree built successfully"
-        elif step.step == StepName.PRE_FLIGHT:
-            return "All preflight checks passed"
+        elif step.step in [StepName.PRE_FLIGHT, StepName.FILE_CHECK, StepName.ASSET_INJECTION, StepName.SETUP_COMMANDS]:
+            return f"{step.step.value} checks passed"
         elif step.step == StepName.GRADE:
             if execution.result and execution.result.final_score is not None:
                 return f"Grading completed: {execution.result.final_score}/100"
@@ -95,7 +95,7 @@ class PipelineExecutionSerializer:
         """
         error_details = {}
 
-        if step.step == StepName.PRE_FLIGHT and step.error_data:
+        if step.step in [StepName.PRE_FLIGHT, StepName.FILE_CHECK, StepName.ASSET_INJECTION, StepName.SETUP_COMMANDS] and step.error_data:
             # error_data is a list of PreflightError objects. 
             # We map properties from the first critical error for legacy backward compatibility.
             if isinstance(step.error_data, list) and len(step.error_data) > 0:

@@ -2,7 +2,7 @@ import logging
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.models.dataclass.step_result import StepResult, StepName
+from autograder.models.dataclass.step_result import StepResult, StepName, StepCategory
 from autograder.services.sandbox_service import SandboxService
 from autograder.translations import t
 
@@ -25,6 +25,10 @@ class SandboxStep(Step):
     @property
     def step_name(self) -> StepName:
         return StepName.SANDBOX
+
+    @property
+    def step_category(self) -> StepCategory:
+        return StepCategory.SETUP
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """

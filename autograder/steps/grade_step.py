@@ -2,7 +2,7 @@ import logging
 
 from autograder.models.dataclass.grade_step_result import GradeStepResult
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
+from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName, StepCategory
 from autograder.models.abstract.step import Step
 from autograder.services.grader.grader_service import GraderService
 
@@ -27,6 +27,10 @@ class GradeStep(Step):
     @property
     def step_name(self) -> StepName:
         return StepName.GRADE
+
+    @property
+    def step_category(self) -> StepCategory:
+        return StepCategory.GRADING
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """

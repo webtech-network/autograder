@@ -4,7 +4,7 @@ from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.criteria_tree_service import CriteriaTreeService
 from autograder.models.abstract.step import Step
 from autograder.models.config.criteria import CriteriaConfig
-from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
+from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName, StepCategory
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,10 @@ class BuildTreeStep(Step):
     @property
     def step_name(self) -> StepName:
         return StepName.BUILD_TREE
+
+    @property
+    def step_category(self) -> StepCategory:
+        return StepCategory.SETUP
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """

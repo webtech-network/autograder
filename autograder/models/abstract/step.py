@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from autograder.translations import t
 
-from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
+from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName, StepCategory
 from autograder.models.pipeline_execution import PipelineExecution
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,12 @@ class Step(ABC):
     @abstractmethod
     def step_name(self) -> StepName:
         """Return the name of the step (e.g. StepName.GRADE)."""
+        pass
+
+    @property
+    @abstractmethod
+    def step_category(self) -> StepCategory:
+        """Return the category of the step (e.g. StepCategory.SETUP)."""
         pass
 
     def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:

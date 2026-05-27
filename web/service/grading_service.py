@@ -164,7 +164,7 @@ async def _persist_failure(result_repo, submission_repo, request: GradingRequest
 
     feedback = None
     failed_step_name = pipeline_summary.get("failed_at_step")
-    if failed_step_name == "PreFlightStep":
+    if failed_step_name in ["PreFlightStep", "FileCheckStep", "AssetInjectionStep", "SetupCommandsStep"]:
         feedback = generate_preflight_feedback(pipeline_summary, locale=request.locale)
 
     await result_repo.create(

@@ -1,7 +1,7 @@
 import logging
 
 from autograder.models.abstract.step import Step
-from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
+from autograder.models.dataclass.step_result import StepName, StepResult, StepCategory, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.focus_service import FocusService
 
@@ -19,6 +19,10 @@ class FocusStep(Step):
     @property
     def step_name(self) -> StepName:
         return StepName.FOCUS
+
+    @property
+    def step_category(self) -> StepCategory:
+        return StepCategory.REPORTING
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """

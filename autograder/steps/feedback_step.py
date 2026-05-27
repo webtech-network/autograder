@@ -2,7 +2,7 @@ import logging
 
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.focus import Focus 
-from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
+from autograder.models.dataclass.step_result import StepName, StepResult, StepCategory, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.report.reporter_service import ReporterService
 
@@ -24,6 +24,10 @@ class FeedbackStep(Step):
     @property
     def step_name(self) -> StepName:
         return StepName.FEEDBACK
+
+    @property
+    def step_category(self) -> StepCategory:
+        return StepCategory.REPORTING
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """Adds feedback to the grading result using the reporter service."""

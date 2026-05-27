@@ -11,7 +11,7 @@ from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 from autograder.models.config.setup import SetupConfig, LanguageSetupConfig
 
 class PreFlightService:
-    def __init__(self, setup_config: Optional[Union[SetupConfig, dict]], submission_language: Language, locale: str = "en"):
+    def __init__(self, setup_config: Optional[Union[SetupConfig, dict]], submission_language: Language, locale: str = "en", template_required_files: Optional[List[str]] = None, template_setup_commands: Optional[List[str]] = None):
         """
         Initialize PreFlightService with language-specific setup configuration.
 
@@ -19,6 +19,8 @@ class PreFlightService:
             setup_config: SetupConfig model or dict containing assets and language-specific configs
             submission_language: Language of the submission (required)
             locale: User's locale for error messages (default: 'en')
+            template_required_files: Required files defined by the template
+            template_setup_commands: Setup commands defined by the template
         """
         self.submission_language = submission_language
         self.locale = locale
@@ -35,8 +37,8 @@ class PreFlightService:
         # Resolve language-specific config
         resolved_config = self._resolve_setup_config(self.setup_config, submission_language)
 
-        self.required_files = resolved_config.required_files
-        self.setup_commands = resolved_config.setup_commands
+        self.required_files = list(set(resolved_config.required_files + (template_required_files or [])))
+        self.setup_commands = list(set(resolved_config.setup_commands + (template_setup_commands or [])))
 
     def _resolve_setup_config(self, setup_config: SetupConfig, submission_language: Language) -> LanguageSetupConfig:
         """

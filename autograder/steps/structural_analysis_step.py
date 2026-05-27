@@ -3,7 +3,7 @@ from typing import Dict, Optional
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.models.dataclass.step_result import StepResult, StepName
+from autograder.models.dataclass.step_result import StepResult, StepName, StepCategory
 from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
 from sandbox_manager.models.sandbox_models import Language
 
@@ -23,6 +23,10 @@ class StructuralAnalysisStep(Step):
     @property
     def step_name(self) -> StepName:
         return StepName.STRUCTURAL_ANALYSIS
+
+    @property
+    def step_category(self) -> StepCategory:
+        return StepCategory.GRADING
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         submission = pipeline_exec.submission

@@ -22,7 +22,7 @@ def test_serialize_legacy_file_missing_error():
     ]
     
     step_result = StepResult.fail(
-        step=StepName.PRE_FLIGHT,
+        step=StepName.FILE_CHECK,
         error="Arquivo ou diretório obrigatório não encontrado: `\'Main.java\'`",
         error_data=mock_error_data
     )
@@ -34,10 +34,10 @@ def test_serialize_legacy_file_missing_error():
     
     # Assert
     assert summary["status"] == "failed"
-    assert summary["failed_at_step"] == "PreFlightStep"
+    assert summary["failed_at_step"] == "FileCheckStep"
     
     preflight_step = summary["steps"][0]
-    assert preflight_step["name"] == "PreFlightStep"
+    assert preflight_step["name"] == "FileCheckStep"
     assert preflight_step["status"] == "fail"
     assert preflight_step["error_details"] == {
         "error_type": "required_file_missing",
@@ -68,7 +68,7 @@ def test_serialize_setup_command_failed():
     ]
     
     step_result = StepResult.fail(
-        step=StepName.PRE_FLIGHT,
+        step=StepName.FILE_CHECK,
         error="Setup command \'Compile\' failed...",
         error_data=mock_error_data
     )
@@ -80,10 +80,10 @@ def test_serialize_setup_command_failed():
     
     # Assert
     assert summary["status"] == "failed"
-    assert summary["failed_at_step"] == "PreFlightStep"
+    assert summary["failed_at_step"] == "FileCheckStep"
     
     preflight_step = summary["steps"][0]
-    assert preflight_step["name"] == "PreFlightStep"
+    assert preflight_step["name"] == "FileCheckStep"
     assert preflight_step["status"] == "fail"
     assert preflight_step["error_details"] == {
         "error_type": "setup_command_failed",

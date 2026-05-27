@@ -25,6 +25,16 @@ class Template(ABC):
         """Declare whether template tests require sandbox execution."""
         raise NotImplementedError
 
+    @property
+    def required_files(self) -> list[str]:
+        """Declare required files for this template."""
+        return []
+
+    @property
+    def setup_commands(self) -> list[str]:
+        """Declare setup commands for this template."""
+        return []
+
     @abstractmethod
     def get_test(self, name: str) -> TestFunction:
         """Return a test function instance by its registry name."""

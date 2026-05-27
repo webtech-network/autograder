@@ -5,6 +5,9 @@ from autograder.models.dataclass.step_result import StepName
 from autograder.models.abstract.step import Step
 
 # Imports of all steps
+from autograder.steps.file_check_step import FileCheckStep
+from autograder.steps.asset_injection_step import AssetInjectionStep
+from autograder.steps.setup_commands_step import SetupCommandsStep
 from autograder.steps.load_template_step import TemplateLoaderStep
 from autograder.steps.build_tree_step import BuildTreeStep
 from autograder.steps.pre_flight_step import PreFlightStep
@@ -36,6 +39,9 @@ class StepRegistry:
             StepName.LOAD_TEMPLATE: self._build_load_template,
             StepName.BUILD_TREE: self._build_build_tree,
             StepName.PRE_FLIGHT: self._build_pre_flight,
+            StepName.FILE_CHECK: self._build_file_check,
+            StepName.ASSET_INJECTION: self._build_asset_injection,
+            StepName.SETUP_COMMANDS: self._build_setup_commands,
             StepName.SANDBOX: self._build_sandbox,
             StepName.AI_BATCH: self._build_ai_batch,
             StepName.STRUCTURAL_ANALYSIS: self._build_structural_analysis,
@@ -54,10 +60,18 @@ class StepRegistry:
         return BuildTreeStep(self.config.get("grading_criteria"))
 
     def _build_pre_flight(self) -> Optional[Step]:
-        # Always return PreFlightStep; it handles file checks and setup commands.
-        # It will gracefully handle cases where no setup_config is provided.
+        # Deprecated
         setup_config = self.config.get("setup_config")
         return PreFlightStep(setup_config)
+
+    def _build_file_check(self) -> Optional[Step]:
+        return FileCheckStep(self.config.get("setup_config"))
+
+    def _build_asset_injection(self) -> Optional[Step]:
+        return AssetInjectionStep(self.config.get("setup_config"))
+
+    def _build_setup_commands(self) -> Optional[Step]:
+        return SetupCommandsStep(self.config.get("setup_config"))
 
     def _build_sandbox(self) -> Optional[Step]:
         # Always return SandboxStep; it will skip itself if the template doesn't require it.
