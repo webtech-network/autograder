@@ -95,7 +95,7 @@ async def test_grade_submission_pipeline_failure():
     
     mock_failed_step = Mock()
     mock_failed_step.status = StepStatus.FAIL
-    mock_failed_step.step = StepName.PRE_FLIGHT
+    mock_failed_step.step = StepName.FILE_CHECK
     mock_failed_step.error = "Syntax error"
     mock_failed_step.error_data = []
     
@@ -103,7 +103,7 @@ async def test_grade_submission_pipeline_failure():
     mock_execution.get_previous_step = Mock(return_value=mock_failed_step)
     mock_execution.get_pipeline_execution_summary = Mock(return_value={
         "status": "failed",
-        "failed_at_step": "PreFlightStep"
+        "failed_at_step": "FileCheckStep"
     })
 
     mock_pipeline.run = Mock(return_value=mock_execution)
@@ -145,7 +145,7 @@ async def test_grade_submission_pipeline_failure():
             create_call = mock_result_repo.create.call_args[1]
             assert create_call["final_score"] == 0.0
             assert create_call["pipeline_status"] == PipelineStatus.FAILED
-            assert create_call["failed_at_step"] == "PreFlightStep"
+            assert create_call["failed_at_step"] == "FileCheckStep"
 
 
 def test_node_to_dict():

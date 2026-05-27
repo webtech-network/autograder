@@ -168,7 +168,7 @@ def build_pipeline(  # pylint: disable=too-many-arguments,too-many-locals
         "include_feedback": include_feedback,
         "grading_criteria": grading_criteria,
         "feedback_config": feedback_config,
-        "setup_config": setup_config,
+        "setup_config": _merge_setup_config(setup_config, templates),
         "custom_template": custom_template,
         "feedback_mode": feedback_mode,
         "export_results": export_results,
@@ -180,8 +180,10 @@ def build_pipeline(  # pylint: disable=too-many-arguments,too-many-locals
     execution_order = [
         StepName.LOAD_TEMPLATE,
         StepName.BUILD_TREE,
+        StepName.FILE_CHECK,
         StepName.SANDBOX,
-        StepName.PRE_FLIGHT,
+        StepName.ASSET_INJECTION,
+        StepName.SETUP_COMMANDS,
         StepName.AI_BATCH,
         StepName.STRUCTURAL_ANALYSIS,
         StepName.GRADE,
@@ -195,6 +197,49 @@ def build_pipeline(  # pylint: disable=too-many-arguments,too-many-locals
         if step_instance is not None:
             pipeline.add_step(step_name, step_instance)
 
-    
-    
     return pipeline
+
+
+def _merge_setup_config(assignment_config, templates) -> dict:
+    """
+    Merge template-level setup requirements into the assignment setup config.
+    Assignment config values take precedence for shared structure.
+    """
+    import copy
+    
+    if assignment_config is None:
+        merged = {}
+    elif isinstance(assignment_config, dict):
+        merged = copy.deepcopy(assignment_config)
+    else:
+        # Handle SetupConfig object if passed
+        merged = assignment_config.model_dump(exclude_none=True)
+
+    for template in templates:
+        # Merge required_files
+        for lang, files in template.required_files.items():
+            if not files:
+                continue
+            if lang not in merged:
+                merged[lang] = {}
+            if "required_files" not in merged[lang]:
+                merged[lang]["required_files"] = []
+            
+            for f in files:
+                if f not in merged[lang]["required_files"]:
+                    merged[lang]["required_files"].append(f)
+        
+        # Merge setup_commands
+        for lang, commands in template.setup_commands.items():
+            if not commands:
+                continue
+            if lang not in merged:
+                merged[lang] = {}
+            if "setup_commands" not in merged[lang]:
+                merged[lang]["setup_commands"] = []
+            
+            for cmd in commands:
+                if cmd not in merged[lang]["setup_commands"]:
+                    merged[lang]["setup_commands"].append(cmd)
+    
+    return merged

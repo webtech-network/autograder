@@ -56,7 +56,9 @@ class PipelineExecutionSerializer:
             steps.append(step_info)
 
         # Count planned vs completed steps
-        total_planned = 7  # BOOTSTRAP, LOAD_TEMPLATE, BUILD_TREE, PRE_FLIGHT, GRADE, FEEDBACK, EXPORT
+        # If the execution context has a planned steps count, use it.
+        # Otherwise fall back to a reasonable estimate.
+        total_planned = getattr(execution, "total_steps_planned", 7)
         completed = len([s for s in execution.step_results if s.step != StepName.BOOTSTRAP])
 
         return {
@@ -75,6 +77,14 @@ class PipelineExecutionSerializer:
             return "Template loaded successfully"
         elif step.step == StepName.BUILD_TREE:
             return "Criteria tree built successfully"
+        elif step.step == StepName.FILE_CHECK:
+            return "All required files are present"
+        elif step.step == StepName.SANDBOX:
+            return "Sandbox environment allocated"
+        elif step.step == StepName.ASSET_INJECTION:
+            return "Assets injected successfully"
+        elif step.step == StepName.SETUP_COMMANDS:
+            return "Setup commands executed successfully"
         elif step.step == StepName.PRE_FLIGHT:
             return "All preflight checks passed"
         elif step.step == StepName.GRADE:
@@ -95,9 +105,8 @@ class PipelineExecutionSerializer:
         """
         error_details = {}
 
-        if step.step == StepName.PRE_FLIGHT and step.error_data:
-            # error_data is a list of PreflightError objects. 
-            # We map properties from the first critical error for legacy backward compatibility.
+        if step.step in [StepName.FILE_CHECK, StepName.ASSET_INJECTION, StepName.SETUP_COMMANDS, StepName.PRE_FLIGHT] and step.error_data:
+            # error_data is a list of PreflightError objects or similar. 
             if isinstance(step.error_data, list) and len(step.error_data) > 0:
                 first_error = step.error_data[0]
                 
@@ -105,13 +114,13 @@ class PipelineExecutionSerializer:
                 err_type = first_error.type if hasattr(first_error, 'type') else first_error.get('type')
                 err_details = first_error.details if hasattr(first_error, 'details') else first_error.get('details', {})
 
-                if err_type == PreflightCheckType.FILE_CHECK:
+                if err_type == PreflightCheckType.FILE_CHECK or step.step == StepName.FILE_CHECK:
                     error_details["error_type"] = "required_file_missing"
                     error_details["phase"] = "required_files"
                     if err_details and "missing_file" in err_details:
                         error_details["missing_file"] = err_details["missing_file"]
                         
-                elif err_type == PreflightCheckType.SETUP_COMMAND:
+                elif err_type == PreflightCheckType.SETUP_COMMAND or step.step == StepName.SETUP_COMMANDS:
                     error_details["error_type"] = "setup_command_failed"
                     error_details["phase"] = "setup_commands"
                     if err_details:
@@ -131,5 +140,10 @@ class PipelineExecutionSerializer:
                         # Preserve legacy nested structure
                         if failed_command:
                             error_details["failed_command"] = failed_command
+                
+                elif step.step == StepName.ASSET_INJECTION:
+                    error_details["error_type"] = "asset_injection_failed"
+                    error_details["phase"] = "asset_injection"
+                    error_details["message"] = step.error
 
         return error_details

@@ -10,7 +10,7 @@ The pipeline is:
 - **Fail-fast**: If any step fails, the pipeline stops immediately and reports the failure point.
 
 ```
-Submission ──▶ [LOAD_TEMPLATE] ──▶ [BUILD_TREE] ──▶ [SANDBOX] ──▶ [PRE_FLIGHT] ──▶ [AI_BATCH] ──▶ [STRUCTURAL_ANALYSIS] ──▶ [GRADE] ──▶ [FOCUS] ──▶ [FEEDBACK] ──▶ [EXPORT]
+Submission ──▶ [LOAD_TEMPLATE] ──▶ [BUILD_TREE] ──▶ [FILE_CHECK] ──▶ [SANDBOX] ──▶ [ASSET_INJECTION] ──▶ [SETUP_COMMANDS] ──▶ [AI_BATCH] ──▶ [STRUCTURAL_ANALYSIS] ──▶ [GRADE] ──▶ [FOCUS] ──▶ [FEEDBACK] ──▶ [EXPORT]
                                                                                                                              │
                                                                                                                      PipelineExecution
                                                                                                                      (with GradingResult)
@@ -94,8 +94,10 @@ The `data` field is polymorphic — each step stores a different type:
 | BOOTSTRAP | `Submission` |
 | LOAD_TEMPLATE | `Template` |
 | BUILD_TREE | `CriteriaTree` |
-| PRE_FLIGHT | `None` |
+| FILE_CHECK | `None` |
 | SANDBOX | `SandboxContainer | None` |
+| ASSET_INJECTION | `None` |
+| SETUP_COMMANDS | `None` |
 | STRUCTURAL_ANALYSIS | `StructuralAnalysisResult` |
 | GRADE | `GradeStepResult` |
 | FOCUS | `Focus` |
@@ -108,6 +110,18 @@ All steps implement the `Step` abstract class:
 
 ```python
 class Step(ABC):
+    @property
+    @abstractmethod
+    def step_name(self) -> StepName:
+        """Return the name of the step."""
+        pass
+
+    @property
+    @abstractmethod
+    def category(self) -> StepCategory:
+        """Return the category of the step."""
+        pass
+
     @abstractmethod
     def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """Execute the step on the pipeline execution context."""
@@ -125,8 +139,10 @@ Steps read data from previous steps via `pipeline_exec.get_step_result(StepName.
 |------|----------|
 | **Load Template** | — (no dependencies) |
 | **Build Tree** | Load Template (needs the `Template` to match test functions) |
+| **File Check** | Load Template (checks for template-required files) |
 | **Sandbox** | Load Template (checks if template requires sandbox) |
-| **Pre-Flight** | Load Template, Sandbox (requires sandbox to run setup commands) |
+| **Asset Injection** | Sandbox (requires container to inject assets) |
+| **Setup Commands** | Sandbox (requires container to run commands) |
 | **Structural Analysis** | — (needs `Submission` from context) |
 | **Grade** | Load Template, Build Tree, Sandbox*, Structural Analysis* |
 | **Focus** | Grade (needs the `ResultTree` from grading) |
@@ -156,7 +172,7 @@ pipeline = build_pipeline(
 **Assembly rules:**
 
 The `StepRegistry` applies the specific conditionality parameters natively for step constructions:
-1. **Load Template**, **Build Tree**, **Sandbox**, and **Pre-Flight** are unconditionally instantiated. 
+1. **Load Template**, **Build Tree**, **File Check**, **Sandbox**, **Asset Injection**, and **Setup Commands** are instantiated based on configuration and template requirements.
 3. **Grade** and **Focus** always evaluate into their respective steps.
 4. **Feedback** strictly resolves if `include_feedback=True`, consuming the `ReporterService` using the designated `feedback_mode`.
 5. **Export** compiles optionally through `export_results=True`.
@@ -164,7 +180,7 @@ The `StepRegistry` applies the specific conditionality parameters natively for s
 These instantiated elements are natively pushed into the `AutograderPipeline` linearly along their static `execution_order` mapping:
 
 ```
-LOAD_TEMPLATE → BUILD_TREE → SANDBOX → PRE_FLIGHT → STRUCTURAL_ANALYSIS → GRADE → FOCUS → FEEDBACK → EXPORT
+LOAD_TEMPLATE → BUILD_TREE → FILE_CHECK → SANDBOX → ASSET_INJECTION → SETUP_COMMANDS → AI_BATCH → STRUCTURAL_ANALYSIS → GRADE → FOCUS → FEEDBACK → EXPORTER
 ```
 
 ---
@@ -175,8 +191,10 @@ LOAD_TEMPLATE → BUILD_TREE → SANDBOX → PRE_FLIGHT → STRUCTURAL_ANALYSIS 
 |------|------|-------------|----------------|
 | [Load Template](01-load-template.md) | `load_template_step.py` | Loads the grading template (built-in or custom) containing test functions | None |
 | [Build Tree](02-build-tree.md) | `build_tree_step.py` | Constructs the `CriteriaTree` from JSON config, matching test functions from the template | Load Template |
+| [File Check](04-file-check.md) | `file_check_step.py` | Validates that required files (from config or template) exist in submission | None |
 | [Sandbox](03-sandbox.md) | `sandbox_step.py` | Creates the sandbox environment and prepares the workspace | Load Template |
-| [Pre-Flight](04-pre-flight.md) | `pre_flight_step.py` | Validates required files and executes setup commands (compilation, etc.) | Sandbox |
+| [Asset Injection](04.1-asset-injection.md) | `asset_injection_step.py` | Injects static assets into the sandbox workspace | Sandbox |
+| [Setup Commands](04.2-setup-commands.md) | `setup_commands_step.py` | Executes setup commands (compilation, etc.) in the sandbox | Sandbox |
 | [Structural Analysis](04.8-structural-analysis.md) | `structural_analysis_step.py` | Parses submission files into ast-grep SgRoot objects | None |
 | [Grade](05-grade.md) | `grade_step.py` | Executes all tests against the submission and produces the scored `ResultTree` | Load Template, Build Tree, Sandbox* |
 | [Focus](06-focus.md) | `focus_step.py` | Ranks all tests by their impact on the final score | Grade |

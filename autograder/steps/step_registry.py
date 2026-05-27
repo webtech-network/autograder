@@ -7,7 +7,9 @@ from autograder.models.abstract.step import Step
 # Imports of all steps
 from autograder.steps.load_template_step import TemplateLoaderStep
 from autograder.steps.build_tree_step import BuildTreeStep
-from autograder.steps.pre_flight_step import PreFlightStep
+from autograder.steps.file_check_step import FileCheckStep
+from autograder.steps.asset_injection_step import AssetInjectionStep
+from autograder.steps.setup_commands_step import SetupCommandsStep
 from autograder.steps.sandbox_step import SandboxStep
 from autograder.steps.ai_batch_step import AiBatchStep
 from autograder.steps.structural_analysis_step import StructuralAnalysisStep
@@ -36,7 +38,9 @@ class StepRegistry:
         self._builders: Dict[StepName, Callable[[], Optional[Step]]] = {
             StepName.LOAD_TEMPLATE: self._build_load_template,
             StepName.BUILD_TREE: self._build_build_tree,
-            StepName.PRE_FLIGHT: self._build_pre_flight,
+            StepName.FILE_CHECK: self._build_file_check,
+            StepName.ASSET_INJECTION: self._build_asset_injection,
+            StepName.SETUP_COMMANDS: self._build_setup_commands,
             StepName.SANDBOX: self._build_sandbox,
             StepName.AI_BATCH: self._build_ai_batch,
             StepName.STRUCTURAL_ANALYSIS: self._build_structural_analysis,
@@ -54,18 +58,42 @@ class StepRegistry:
     def _build_build_tree(self) -> Optional[Step]:
         return BuildTreeStep(self.config.get("grading_criteria"))
 
-    def _build_pre_flight(self) -> Optional[Step]:
-        # Only return PreFlightStep if there is a setup_config to process.
+    def _build_file_check(self) -> Optional[Step]:
         setup_config = self.config.get("setup_config")
         if not setup_config:
             return None
-        return PreFlightStep(setup_config)
+        return FileCheckStep(setup_config)
+
+    def _build_asset_injection(self) -> Optional[Step]:
+        setup_config = self.config.get("setup_config")
+        if not setup_config:
+            return None
+        return AssetInjectionStep(setup_config)
+
+    def _build_setup_commands(self) -> Optional[Step]:
+        setup_config = self.config.get("setup_config")
+        if not setup_config:
+            return None
+        return SetupCommandsStep(setup_config)
 
     def _build_sandbox(self) -> Optional[Step]:
-        # Only return SandboxStep if at least one template requires it.
-        if not any(t.requires_sandbox for t in self.templates):
-            return None
-        return SandboxStep()
+        # Only return SandboxStep if at least one template requires it
+        # OR if there are assets or setup commands in the merged setup_config.
+        if any(t.requires_sandbox for t in self.templates):
+            return SandboxStep()
+        
+        setup_config = self.config.get("setup_config")
+        if setup_config and isinstance(setup_config, dict):
+            # Check for assets
+            if setup_config.get("assets"):
+                return SandboxStep()
+            
+            # Check for setup commands in any language block
+            for key, value in setup_config.items():
+                if isinstance(value, dict) and value.get("setup_commands"):
+                    return SandboxStep()
+
+        return None
 
     def _build_ai_batch(self) -> Optional[Step]:
         # Check if any of the loaded templates have AI test functions, or if the criteria tree

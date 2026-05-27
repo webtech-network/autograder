@@ -14,7 +14,7 @@ from autograder.models.abstract.step import Step
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
-from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
+from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus, StepCategory
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.pipeline_execution import PipelineExecution
@@ -80,6 +80,14 @@ class MockTemplate(Template):
         """Mock templates don't require sandboxes."""
         return False
 
+    @property
+    def required_files(self):
+        return {}
+
+    @property
+    def setup_commands(self):
+        return {}
+
     def stop(self):
         """No cleanup needed for mock templates."""
 
@@ -102,6 +110,11 @@ class MockTemplateLoaderStep(Step):
     def step_name(self) -> StepName:
         """Return the step name."""
         return StepName.LOAD_TEMPLATE
+
+    @property
+    def category(self) -> StepCategory:
+        """Return the step category."""
+        return StepCategory.SETUP
 
     def _execute(self, pipeline_exec: PipelineExecution, locale=None):
         """Inject the template into the pipeline execution."""
