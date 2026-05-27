@@ -141,7 +141,7 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `external_assignment_id` | string | ✓ | External assignment ID from your LMS/platform |
-| `template_name` | string | ✓ | Template to use (`input_output`, `web_dev`, `api_testing`) |
+| `template_name` | string | ✓ | Template to use (`input_output`, `web_dev`, `api_testing`, `static_analysis`) |
 | `criteria_config` | object | ✓ | Grading criteria tree configuration |
 | `languages` | list[string] | ✓ | Supported languages: `python`, `java`, `node`, `cpp` |
 | `setup_config` | object | ✗ | Setup configuration for preflight checks |
@@ -789,6 +789,11 @@ GET /api/v1/templates
     },
     {
       "name": "web_dev",
+      "description": "...",
+      "test_functions": [ ... ]
+    },
+    {
+      "name": "static_analysis",
       "description": "...",
       "test_functions": [ ... ]
     }

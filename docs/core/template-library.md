@@ -19,6 +19,7 @@ Current registry keys:
 - `input_output`
 - `api`
 - `webdev`
+- `static_analysis`
 
 Each key resolves to a template class with:
 
@@ -26,6 +27,20 @@ Each key resolves to a template class with:
 - `template_description`
 - `requires_sandbox`
 - `tests` map of available `TestFunction` objects
+
+## Static Analysis Template (`static_analysis`)
+
+Static analysis runs on submission files without executing code (no sandbox required). It includes both rule-based checks and AI-assisted algorithm validation.
+
+Available tests:
+
+- `forbidden_import` — Parameters: `forbidden_imports` (list of strings), `submission_language` (string or Language enum).
+- `forbidden_keyword` — Parameters: `forbidden_keywords` (list of strings), `custom_ast_grep_rules` (list of rule dicts).
+- `ai_sorting_algorithm` — Parameters: `algorithm_name` (string).
+- `ai_search_algorithm` — Parameters: `algorithm_name` (string).
+- `ai_graph_algorithm` — Parameters: `algorithm_name` (string).
+
+AI algorithm tests require a valid `OPENAI_API_KEY` to be configured in the API environment.
 
 ## How it integrates with the pipeline
 
@@ -59,3 +74,4 @@ To add a new template:
 - [Input/Output Template](../template-library/input_output.md)
 - [API Testing Template](../template-library/api_testing.md)
 - [Web Development Template](../template-library/web_dev.md)
+- [Static Analysis Template](#static-analysis-template)

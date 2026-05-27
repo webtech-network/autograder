@@ -31,6 +31,7 @@ This documentation is organized to be both practical for first-time users and de
 - [Input/Output Template](template-library/input_output.md)
 - [API Testing Template](template-library/api_testing.md)
 - [Web Development Template](template-library/web_dev.md)
+- [Static Analysis Template](core/template-library.md#static-analysis-template)
 
 ### GitHub Classroom / CI integrator
 
