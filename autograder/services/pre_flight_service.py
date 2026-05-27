@@ -37,8 +37,8 @@ class PreFlightService:
         # Resolve language-specific config
         resolved_config = self._resolve_setup_config(self.setup_config, submission_language)
 
-        self.required_files = list(set(resolved_config.required_files + (template_required_files or [])))
-        self.setup_commands = list(set(resolved_config.setup_commands + (template_setup_commands or [])))
+        self.required_files = sorted(list(set(resolved_config.required_files + (template_required_files or []))))
+        self.setup_commands = sorted(list(set(resolved_config.setup_commands + (template_setup_commands or []))))
 
     def _resolve_setup_config(self, setup_config: SetupConfig, submission_language: Language) -> LanguageSetupConfig:
         """

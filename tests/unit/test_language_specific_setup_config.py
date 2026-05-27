@@ -73,7 +73,7 @@ class TestLanguageSpecificSetupConfig:
 
         service = PreFlightService(setup_config, submission_language=Language.NODE)
 
-        assert service.required_files == ["package.json", "index.js"]
+        assert sorted(service.required_files) == sorted(["package.json", "index.js"])
         assert service.setup_commands == ["npm install"]
 
     def test_language_not_in_config(self):
