@@ -36,14 +36,6 @@ class SandboxStep(Step):
         Returns:
             PipelineExecution with updated sandbox and step result.
         """
-        grading_templates = pipeline_exec.get_loaded_templates()
-        
-        requires_sandbox = any(t.requires_sandbox for t in grading_templates)
-
-        if not requires_sandbox:
-            logger.info("None of the templates require a sandbox. Skipping SandboxStep.")
-            return pipeline_exec.add_step_result(StepResult.success(self.step_name, None))
-
         logger.info("Creating sandbox for submission (external_user_id=%s)", pipeline_exec.submission.user_id)
         sandbox = self._sandbox_service.create_sandbox(pipeline_exec.submission)
         

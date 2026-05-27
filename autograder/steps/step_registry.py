@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Callable, Any, Optional
+from typing import Dict, Callable, Any, Optional, List
 
 from autograder.models.dataclass.step_result import StepName
 from autograder.models.abstract.step import Step
@@ -26,11 +26,12 @@ class StepRegistry:
     Factory pattern for creating pipeline steps based on a specific configuration.
     It encapsulates conditional logic for optional steps.
     """
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], templates: Optional[List[Any]] = None):
         """
         Initialize the step registry with a pipeline configuration dict.
         """
         self.config = config
+        self.templates = templates or []
         
         self._builders: Dict[StepName, Callable[[], Optional[Step]]] = {
             StepName.LOAD_TEMPLATE: self._build_load_template,
@@ -48,23 +49,39 @@ class StepRegistry:
     def _build_load_template(self) -> Optional[Step]:
         template_name = self.config.get("template_name")
         custom_template = self.config.get("custom_template")
-        return TemplateLoaderStep(template_name, custom_template)
+        return TemplateLoaderStep(template_name, custom_template, templates=self.templates)
 
     def _build_build_tree(self) -> Optional[Step]:
         return BuildTreeStep(self.config.get("grading_criteria"))
 
     def _build_pre_flight(self) -> Optional[Step]:
-        # Always return PreFlightStep; it handles file checks and setup commands.
-        # It will gracefully handle cases where no setup_config is provided.
+        # Only return PreFlightStep if there is a setup_config to process.
         setup_config = self.config.get("setup_config")
+        if not setup_config:
+            return None
         return PreFlightStep(setup_config)
 
     def _build_sandbox(self) -> Optional[Step]:
-        # Always return SandboxStep; it will skip itself if the template doesn't require it.
-        # This allows for assignments that require a sandbox but have no setup commands.
+        # Only return SandboxStep if at least one template requires it.
+        if not any(t.requires_sandbox for t in self.templates):
+            return None
         return SandboxStep()
 
     def _build_ai_batch(self) -> Optional[Step]:
+        # Check if any of the loaded templates have AI test functions, or if the criteria tree
+        # (not yet built, but we can look at the config) suggests AI tests.
+        # For simplicity and correctness, we check the templates first.
+        from autograder.models.abstract.ai_test_function import AiTestFunction
+        
+        has_ai_tests = False
+        for template in self.templates:
+            if any(isinstance(tf, AiTestFunction) for tf in template.get_tests().values()):
+                has_ai_tests = True
+                break
+        
+        if not has_ai_tests:
+            return None
+
         return AiBatchStep()
 
     def _build_structural_analysis(self) -> Optional[Step]:

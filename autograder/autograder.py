@@ -5,6 +5,7 @@ from autograder.models.dataclass.step_result import StepName
 from autograder.models.pipeline_execution import PipelineExecution, PipelineStatus
 from autograder.steps.step_registry import StepRegistry
 from autograder.models.dataclass.submission import Submission
+from autograder.services.template_library_service import TemplateLibraryService
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +150,20 @@ def build_pipeline(
     """
     pipeline = AutograderPipeline()
 
+    # Pre-load templates to allow StepRegistry to make informed decisions about
+    # which steps are actually required for this assignment.
+    template_service = TemplateLibraryService.get_instance()
+    templates = []
+
+    if custom_template:
+        templates.append(template_service.load_custom_template(custom_template))
+    elif template_name:
+        # Normalize template names (can be string, comma-separated string, or list)
+        from autograder.steps.load_template_step import TemplateLoaderStep
+        names = TemplateLoaderStep._normalize_template_names(template_name)
+        for name in names:
+            templates.append(template_service.load_builtin_template(name))
+
     config = {
         "template_name": template_name,
         "include_feedback": include_feedback,
@@ -161,7 +176,7 @@ def build_pipeline(
         "exporter": exporter,
         "locale": locale,
     }
-    registry = StepRegistry(config)
+    registry = StepRegistry(config, templates=templates)
 
     execution_order = [
         StepName.LOAD_TEMPLATE,
