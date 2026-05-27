@@ -8,7 +8,7 @@ The Load Template step is the entry point of the pipeline. It loads the grading 
 
 The step uses the `TemplateLibraryService` singleton to load a template by name. There are two paths:
 
-1. **Built-in template** — Loaded from the template registry by identifier (e.g., `"input_output"`, `"web_dev"`, `"api_testing"`).
+1. **Built-in template** — Loaded from the template registry by identifier (e.g., `"input_output"`, `"web_dev"`, `"api_testing"`, `"static_analysis"`).
 2. **Custom template** — User-provided template object. This path is planned but not yet implemented; it will require sandboxed loading for security.
 
 The loaded `Template` object is stored in the step result's `data` field, making it available to all subsequent steps.
@@ -47,6 +47,7 @@ Available built-in templates:
 | `input_output` | Input/Output Testing | Yes | Command-line programs with stdin/stdout |
 | `web_dev` | Web Development | No | HTML/CSS/JS file validation |
 | `api_testing` | API Testing | Yes | HTTP endpoint validation |
+| `static_analysis` | Static Analysis | No | Code-quality checks and AI algorithm validation |
 
 ## Failure Scenarios
 

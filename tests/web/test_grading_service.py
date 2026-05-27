@@ -1,6 +1,7 @@
 """Unit tests for the grading service."""
 
 import pytest
+import time
 from unittest.mock import Mock, AsyncMock, patch
 
 from web.service.grading_service import grade_submission, _node_to_dict
@@ -22,17 +23,20 @@ async def test_grade_submission_success():
     mock_result.focus = Mock()
     mock_result.focus.to_dict = Mock(return_value={"areas": ["testing"]})
 
+    from autograder.models.pipeline_execution import PipelineStatus as AutograderPipelineStatus
     mock_execution = Mock()
     mock_execution.result = mock_result
+    mock_execution.start_time = time.time()
+    mock_execution.status = AutograderPipelineStatus.SUCCESS
+    mock_execution.step_results = []
     mock_execution.get_pipeline_execution_summary = Mock(return_value={
         "status": "success",
         "steps": ["pre_flight", "build_tree", "grade"]
     })
-
     mock_pipeline.run = Mock(return_value=mock_execution)
 
-    with patch("web.services.grading_service.build_pipeline", return_value=mock_pipeline), \
-         patch("web.services.grading_service.get_session") as mock_session, \
+    with patch("web.service.grading_service.build_pipeline", return_value=mock_pipeline), \
+         patch("web.service.grading_service.get_session") as mock_session, \
          patch("asyncio.to_thread", return_value=mock_execution):
 
         # Mock session and repositories
@@ -46,20 +50,24 @@ async def test_grade_submission_success():
         mock_result_repo.create = AsyncMock()
         mock_session_instance.commit = AsyncMock()
 
-        with patch("web.services.grading_service.SubmissionRepository", return_value=mock_submission_repo), \
-             patch("web.services.grading_service.ResultRepository", return_value=mock_result_repo):
+        with patch("web.service.grading_service.SubmissionRepository", return_value=mock_submission_repo), \
+             patch("web.service.grading_service.ResultRepository", return_value=mock_result_repo):
 
-            await grade_submission(
+            from web.service.grading_service import GradingRequest
+            request = GradingRequest(
                 submission_id=1,
                 grading_config_id=1,
                 template_name="input_output",
                 criteria_config={"tests": []},
                 setup_config={},
+                feedback_config={},
+                include_feedback=True,
                 language="python",
                 username="student1",
                 external_user_id="user_001",
                 submission_files={"main.py": {"filename": "main.py", "content": "print('hello')"}}
             )
+            await grade_submission(request)
 
             # Verify status updates
             assert mock_submission_repo.update_status.call_count == 1
@@ -77,10 +85,22 @@ async def test_grade_submission_success():
 async def test_grade_submission_pipeline_failure():
     """Test grading when pipeline fails."""
     mock_pipeline = Mock()
+    from autograder.models.pipeline_execution import PipelineStatus as AutograderPipelineStatus
+    from autograder.models.dataclass.step_result import StepStatus, StepName
+    
     mock_execution = Mock()
     mock_execution.result = None  # Pipeline failed
-    mock_execution.step_results = [Mock()]
-    mock_execution.get_previous_step = Mock(return_value=Mock(error="Syntax error"))
+    mock_execution.start_time = time.time()
+    mock_execution.status = AutograderPipelineStatus.FAILED
+    
+    mock_failed_step = Mock()
+    mock_failed_step.status = StepStatus.FAIL
+    mock_failed_step.step = StepName.PRE_FLIGHT
+    mock_failed_step.error = "Syntax error"
+    mock_failed_step.error_data = []
+    
+    mock_execution.step_results = [mock_failed_step]
+    mock_execution.get_previous_step = Mock(return_value=mock_failed_step)
     mock_execution.get_pipeline_execution_summary = Mock(return_value={
         "status": "failed",
         "failed_at_step": "PreFlightStep"
@@ -88,9 +108,9 @@ async def test_grade_submission_pipeline_failure():
 
     mock_pipeline.run = Mock(return_value=mock_execution)
 
-    with patch("web.services.grading_service.build_pipeline", return_value=mock_pipeline), \
-         patch("web.services.grading_service.get_session") as mock_session, \
-         patch("web.services.grading_service.generate_preflight_feedback", return_value="Fix syntax errors"), \
+    with patch("web.service.grading_service.build_pipeline", return_value=mock_pipeline), \
+         patch("web.service.grading_service.get_session") as mock_session, \
+         patch("web.service.grading_service.generate_preflight_feedback", return_value="Fix syntax errors"), \
          patch("asyncio.to_thread", return_value=mock_execution):
 
         mock_session_instance = AsyncMock()
@@ -102,20 +122,24 @@ async def test_grade_submission_pipeline_failure():
         mock_result_repo.create = AsyncMock()
         mock_session_instance.commit = AsyncMock()
 
-        with patch("web.services.grading_service.SubmissionRepository", return_value=mock_submission_repo), \
-             patch("web.services.grading_service.ResultRepository", return_value=mock_result_repo):
+        with patch("web.service.grading_service.SubmissionRepository", return_value=mock_submission_repo), \
+             patch("web.service.grading_service.ResultRepository", return_value=mock_result_repo):
 
-            await grade_submission(
+            from web.service.grading_service import GradingRequest
+            request = GradingRequest(
                 submission_id=2,
                 grading_config_id=1,
                 template_name="input_output",
                 criteria_config={"tests": []},
                 setup_config={},
+                feedback_config={},
+                include_feedback=True,
                 language="python",
                 username="student2",
                 external_user_id="user_002",
                 submission_files={"main.py": {"filename": "main.py", "content": "invalid code"}}
             )
+            await grade_submission(request)
 
             # Verify failure was recorded
             create_call = mock_result_repo.create.call_args[1]

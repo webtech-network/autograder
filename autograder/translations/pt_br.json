@@ -506,6 +506,24 @@
         "success": "Nenhuma construção de linguagem proibida encontrada."
       }
     },
+    "ai_sorting_algorithm": {
+      "description": "Usa IA para verificar se a submissão implementa o algoritmo de ordenação solicitado, sem atalhos de biblioteca.",
+      "params": {
+        "algorithm_name": "Nome do algoritmo de ordenação a verificar (ex: 'Quick Sort')."
+      }
+    },
+    "ai_search_algorithm": {
+      "description": "Usa IA para verificar se a submissão implementa o algoritmo de busca solicitado, sem atalhos de biblioteca.",
+      "params": {
+        "algorithm_name": "Nome do algoritmo de busca a verificar (ex: 'Binary Search')."
+      }
+    },
+    "ai_graph_algorithm": {
+      "description": "Usa IA para verificar se a submissão implementa o algoritmo de grafos solicitado, sem atalhos de biblioteca.",
+      "params": {
+        "algorithm_name": "Nome do algoritmo de grafos a verificar (ex: 'Dijkstra')."
+      }
+    },
     "template": {
       "name": "Análise Estática",
       "description": "Um modelo para avaliar tarefas através de análise estática e estrutural de código."

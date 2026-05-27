@@ -1,8 +1,9 @@
-import logging
+import logging 
 from typing import List, Optional, Dict, Any, Type
 from pydantic import BaseModel, Field
 
 from autograder.models.abstract.template import Template
+from autograder.models.abstract.ai_test_function import AiTestFunction
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
@@ -330,6 +331,89 @@ class ForbiddenKeywordTest(TestFunction):
         )
 
 
+class AiAlgorithmConfig(BaseModel):
+    algorithm_name: str = Field(..., min_length=1)
+
+
+class AiAlgorithmTestBase(AiTestFunction):
+    algorithm_family: str = ""
+    test_name: str = ""
+
+    @property
+    def name(self) -> str:
+        return self.test_name
+
+    @property
+    def description(self) -> str:
+        return t(f"static_analysis.{self.name}.description")
+
+    @property
+    def parameter_description(self) -> List[ParamDescription]:
+        return [
+            ParamDescription(
+                "algorithm_name",
+                t(f"static_analysis.{self.name}.params.algorithm_name"),
+                "string",
+            )
+        ]
+
+    @property
+    def config_schema(self) -> Type[BaseModel]:
+        return AiAlgorithmConfig
+
+    def build_prompt(
+        self,
+        files: Optional[List[SubmissionFile]],
+        **kwargs,
+    ) -> str:
+        algorithm_name = (kwargs.get("algorithm_name") or "").strip()
+        file_names = ", ".join(f.filename for f in files) if files else ""
+
+        if file_names:
+            file_scope = f"Focus only on these files: {file_names}."
+        else:
+            file_scope = "No submission files were provided for this test."
+
+        algo_label = algorithm_name or "Unknown algorithm"
+
+        return (
+            f"You are verifying a {self.algorithm_family} algorithm implementation.\n"
+            f"Requested algorithm: {algo_label}.\n"
+            f"{file_scope}\n\n"
+            "Analyze the provided code and determine whether it is a correct and faithful "
+            "implementation of the requested algorithm.\n"
+            "Be strict: only accept if the algorithm is clearly implemented as specified.\n\n"
+            "Criteria:\n"
+            "1. The implementation must follow the specific logic and complexity "
+            "characteristics of the requested algorithm.\n"
+            "2. It must NOT be a wrapper around a built-in library function or standard "
+            "library implementation.\n"
+            "3. If it implements a different algorithm, it is incorrect.\n\n"
+            "Scoring rules:\n"
+            "- Score 100 only if the implementation is correct and faithful.\n"
+            "- Otherwise score 0.\n\n"
+            "In your feedback, briefly justify the decision and cite relevant code "
+            "evidence. If the required algorithm is missing or there is no relevant "
+            "code, score 0.\n"
+            f"Use subject '{algo_label}'."
+        )
+
+
+class AiSortingAlgorithmTest(AiAlgorithmTestBase):
+    algorithm_family = "sorting"
+    test_name = "ai_sorting_algorithm"
+
+
+class AiSearchAlgorithmTest(AiAlgorithmTestBase):
+    algorithm_family = "search"
+    test_name = "ai_search_algorithm"
+
+
+class AiGraphAlgorithmTest(AiAlgorithmTestBase):
+    algorithm_family = "graph"
+    test_name = "ai_graph_algorithm"
+
+
 class StaticAnalysisTemplate(Template):
     """
     A template for static analysis of code submissions.
@@ -341,6 +425,9 @@ class StaticAnalysisTemplate(Template):
         self.tests = {
             "forbidden_import": ForbiddenImportTest(),
             "forbidden_keyword": ForbiddenKeywordTest(),
+            "ai_sorting_algorithm": AiSortingAlgorithmTest(),
+            "ai_search_algorithm": AiSearchAlgorithmTest(),
+            "ai_graph_algorithm": AiGraphAlgorithmTest(),
         }
 
     @property

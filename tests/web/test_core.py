@@ -89,17 +89,18 @@ async def test_lifespan_with_pending_tasks():
         mock_task2 = Mock()
         mock_task2.done = Mock(return_value=True)
 
-        # Initially use real set, then replace with tasks during shutdown
-        import web.core.lifespan as lifespan_module
-
         mock_sandbox_mgr = Mock()
         mock_sandbox_mgr.shutdown = Mock()
         mock_get_sandbox.return_value = mock_sandbox_mgr
 
         async with lifespan(mock_app):
             # Add tasks to the grading_tasks set
-            lifespan_module.grading_tasks.add(mock_task1)
-            lifespan_module.grading_tasks.add(mock_task2)
+            mock_tasks.add(mock_task1)
+            mock_tasks.add(mock_task2)
+
+            # Also make the mock iterable so the loop in lifespan works
+            mock_tasks.__iter__.return_value = [mock_task1, mock_task2]
+            mock_tasks.__bool__.return_value = True
 
         # Verify only non-done tasks were cancelled
         mock_task1.cancel.assert_called_once()
