@@ -1,5 +1,5 @@
 import logging
-from typing import List, Union
+from typing import List, Union, Any, Optional
 
 from autograder.models.dataclass.step_result import StepResult, StepName, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution
@@ -14,13 +14,15 @@ class TemplateLoaderStep(Step):
     Step that loads one or more grading templates, which contain test functions 
     and helper code used for grading.
     """
-    def __init__(self, template_name: Union[str, List[str], None], custom_template=None):
+    def __init__(self, template_name: Union[str, List[str], None], custom_template=None, templates: Optional[List[Any]] = None):
         """
         Initialize the template loader step.
         """
         self._template_names = self._normalize_template_names(template_name)
         self._custom_template = custom_template
         self._template_service = TemplateLibraryService.get_instance()
+        self._templates = templates
+        
         if not self._custom_template and not self._template_names:
             raise ValueError(
                 "template_name must contain at least one non-empty template identifier."
@@ -57,21 +59,24 @@ class TemplateLoaderStep(Step):
         """
         Load the grading templates and return them as part of the step result.
         """
-        templates = []
-        
-        if self._custom_template:
-            logger.info("Loading custom template (external_user_id=%s)", pipeline_exec.submission.user_id)
-            template = self._template_service.load_custom_template(self._custom_template)
-            templates.append(template)
+        if self._templates:
+            templates = self._templates
         else:
-            for name in self._template_names:
-                logger.info(
-                    "Loading built-in template: template=%s (external_user_id=%s)",
-                    name,
-                    pipeline_exec.submission.user_id,
-                )
-                template = self._template_service.load_builtin_template(name)
+            templates = []
+            
+            if self._custom_template:
+                logger.info("Loading custom template (external_user_id=%s)", pipeline_exec.submission.user_id)
+                template = self._template_service.load_custom_template(self._custom_template)
                 templates.append(template)
+            else:
+                for name in self._template_names:
+                    logger.info(
+                        "Loading built-in template: template=%s (external_user_id=%s)",
+                        name,
+                        pipeline_exec.submission.user_id,
+                    )
+                    template = self._template_service.load_builtin_template(name)
+                    templates.append(template)
         
         logger.info(
             "Templates loaded successfully: count=%d (external_user_id=%s)",
