@@ -30,10 +30,15 @@ class FileCheckStep(Step):
         submission_language = pipeline_exec.submission.language
         
         template_result = pipeline_exec.get_step_result(StepName.LOAD_TEMPLATE)
-        template = template_result.data if template_result and template_result.is_successful else None
+        templates = template_result.data if template_result and template_result.is_successful else []
+        if not isinstance(templates, list):
+            templates = [templates]
         
-        template_required_files = template.required_files if template else None
-        template_setup_commands = template.setup_commands if template else None
+        template_required_files = []
+        template_setup_commands = []
+        for template in templates:
+            template_required_files.extend(template.required_files)
+            template_setup_commands.extend(template.setup_commands)
 
         pre_flight_service = PreFlightService(
             self._setup_config, 
