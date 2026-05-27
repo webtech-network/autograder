@@ -10,7 +10,6 @@ from autograder.steps.asset_injection_step import AssetInjectionStep
 from autograder.steps.setup_commands_step import SetupCommandsStep
 from autograder.steps.load_template_step import TemplateLoaderStep
 from autograder.steps.build_tree_step import BuildTreeStep
-from autograder.steps.pre_flight_step import PreFlightStep
 from autograder.steps.sandbox_step import SandboxStep
 from autograder.steps.ai_batch_step import AiBatchStep
 from autograder.steps.structural_analysis_step import StructuralAnalysisStep
@@ -38,7 +37,6 @@ class StepRegistry:
         self._builders: Dict[StepName, Callable[[], Optional[Step]]] = {
             StepName.LOAD_TEMPLATE: self._build_load_template,
             StepName.BUILD_TREE: self._build_build_tree,
-            StepName.PRE_FLIGHT: self._build_pre_flight,
             StepName.FILE_CHECK: self._build_file_check,
             StepName.ASSET_INJECTION: self._build_asset_injection,
             StepName.SETUP_COMMANDS: self._build_setup_commands,
@@ -58,11 +56,6 @@ class StepRegistry:
 
     def _build_build_tree(self) -> Optional[Step]:
         return BuildTreeStep(self.config.get("grading_criteria"))
-
-    def _build_pre_flight(self) -> Optional[Step]:
-        # Deprecated
-        setup_config = self.config.get("setup_config")
-        return PreFlightStep(setup_config)
 
     def _build_file_check(self) -> Optional[Step]:
         return FileCheckStep(self.config.get("setup_config"))

@@ -16,7 +16,7 @@ class SandboxStep(Step):
         - Preparing the workdir with submission files.
         - Attaching the sandbox to the PipelineExecution for use by downstream steps.
         
-    Note: Setup commands are now executed in the PreFlightStep to keep validations centralized.
+    Note: Setup commands are now executed in the SetupCommandsStep to keep validations centralized.
     """
 
     def __init__(self):
