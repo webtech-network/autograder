@@ -36,6 +36,7 @@ services:
       SANDBOX_POOL_SIZE: 2
       SANDBOX_MODE: remote
       SANDBOX_API_URL: http://sandbox-manager:8001
+      AUTOGRADER_INTEGRATION_TOKEN: e2e-test-token
 
       # API Configuration
       API_HOST: 0.0.0.0

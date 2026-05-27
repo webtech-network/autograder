@@ -11,8 +11,14 @@ from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.remote_client import RemoteSandboxManager
 
 _MANAGER_INSTANCE: Optional[Union['SandboxManager', RemoteSandboxManager]] = None
-_CLIENT = docker.from_env()
+_CLIENT: Optional[docker.DockerClient] = None
 _SHUTDOWN_REGISTERED = False
+
+def _get_client() -> docker.DockerClient:
+    global _CLIENT
+    if _CLIENT is None:
+        _CLIENT = docker.from_env()
+    return _CLIENT
 
 def initialize_sandbox_manager(
     pool_configs: Optional[List[SandboxPoolConfig]] = None,
@@ -47,9 +53,10 @@ def initialize_sandbox_manager(
 
     # Clean up orphaned containers before initializing new pools
     print("[SandboxManager] Cleaning up orphaned containers from previous runs...")
-    _cleanup_orphaned_containers(_CLIENT)
+    client = _get_client()
+    _cleanup_orphaned_containers(client)
 
-    language_pools = {config.language: LanguagePool(config.language, config, _CLIENT) for config in pool_configs}
+    language_pools = {config.language: LanguagePool(config.language, config, client) for config in pool_configs}
     _MANAGER_INSTANCE = SandboxManager(language_pools)
 
     # Register cleanup handlers
