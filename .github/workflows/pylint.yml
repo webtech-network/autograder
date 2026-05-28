@@ -32,4 +32,4 @@ jobs:
       - name: Analysing the code with pylint
         if: steps.changed-files.outputs.files != ''
         run: |
-          pylint ${{ steps.changed-files.outputs.files }}
+          PYTHONPATH=. pylint ${{ steps.changed-files.outputs.files }}
