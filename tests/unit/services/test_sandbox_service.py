@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from autograder.services.sandbox_service import SandboxService
 from autograder.models.dataclass.submission import Submission
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
@@ -9,10 +9,11 @@ def sandbox_service():
     return SandboxService()
 
 @pytest.fixture
-def mock_sandbox_manager(mocker):
-    manager_mock = MagicMock()
-    mocker.patch("sandbox_manager.manager.get_sandbox_manager", return_value=manager_mock)
-    return manager_mock
+def mock_sandbox_manager():
+    with patch("sandbox_manager.manager.get_sandbox_manager") as mock_get:
+        manager_mock = MagicMock()
+        mock_get.return_value = manager_mock
+        yield manager_mock
 
 def test_create_sandbox_no_language(sandbox_service):
     submission = Submission(username="test", user_id="1", assignment_id="1", language=None, submission_files={"main.py": "..."})
