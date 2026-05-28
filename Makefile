@@ -134,6 +134,9 @@ test:
 test-integration: sandbox-build-all
 	pytest tests/integration/
 
+test-e2e:
+	./scripts/run_e2e_tests.sh
+
 test-cov:
 	pytest --cov=autograder --cov-report=term-missing tests/unit/
 
