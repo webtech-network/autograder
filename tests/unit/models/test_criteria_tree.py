@@ -1,14 +1,15 @@
-import pytest
 from unittest.mock import MagicMock
 from autograder.models.criteria_tree import TestNode, SubjectNode, CategoryNode, CriteriaTree
 from autograder.models.abstract.test_function import TestFunction
 
 def create_mock_test_function():
+    """Helper to create a mock test function."""
     tf = MagicMock(spec=TestFunction)
     tf.name = "mock_test"
     return tf
 
 def test_test_node_repr():
+    """Test TestNode representation."""
     tf = create_mock_test_function()
     node = TestNode(name="my_test", test_function=tf)
     assert repr(node) == "TestNode(my_test)"
@@ -23,6 +24,7 @@ def test_test_node_repr():
     assert repr(node_with_both) == "TestNode(my_test, params={'p': 1}, file=['test.py'])"
 
 def test_subject_node_repr():
+    """Test SubjectNode representation."""
     tf = create_mock_test_function()
     test_node = TestNode(name="test", test_function=tf)
     subject_with_tests = SubjectNode(name="subject1", weight=50.0, tests=[test_node])
@@ -32,6 +34,7 @@ def test_subject_node_repr():
     assert repr(subject_with_subjects) == "SubjectNode(subject2, weight=100.0, subjects=1)"
 
 def test_category_node_repr():
+    """Test CategoryNode representation."""
     tf = create_mock_test_function()
     test_node = TestNode(name="test", test_function=tf)
     category_with_tests = CategoryNode(name="cat1", weight=100.0, tests=[test_node])
@@ -42,6 +45,7 @@ def test_category_node_repr():
     assert repr(category_with_subjects) == "CategoryNode(cat2, weight=100.0, subjects=1)"
 
 def test_criteria_tree_repr():
+    """Test CriteriaTree representation."""
     base = CategoryNode(name="base", weight=100.0)
     bonus = CategoryNode(name="bonus", weight=10.0)
     penalty = CategoryNode(name="penalty", weight=10.0)
@@ -57,6 +61,7 @@ def test_criteria_tree_repr():
     assert repr(tree_full) == "CriteriaTree(categories=['base', 'bonus', 'penalty'])"
 
 def test_subject_get_all_tests_recursive():
+    """Test SubjectNode.get_all_tests recursively."""
     tf = create_mock_test_function()
     
     t1 = TestNode(name="t1", test_function=tf)
@@ -79,6 +84,7 @@ def test_subject_get_all_tests_recursive():
     assert tests[2].name == "t3"
 
 def test_category_get_all_tests_recursive():
+    """Test CategoryNode.get_all_tests recursively."""
     tf = create_mock_test_function()
     
     t1 = TestNode(name="t1", test_function=tf)
@@ -98,5 +104,6 @@ def test_category_get_all_tests_recursive():
     assert names == ["t1", "t2", "t3", "t4"]
 
 def test_category_get_all_tests_no_tests():
+    """Test CategoryNode.get_all_tests with no tests."""
     cat = CategoryNode(name="empty", weight=100.0)
-    assert cat.get_all_tests() == []
+    assert not cat.get_all_tests()
