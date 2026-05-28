@@ -7,7 +7,19 @@ import signal
 
 @pytest.fixture(scope="session", autouse=True)
 def docker_environment():
-    """Start the docker environment for E2E tests."""
+    """Start the docker environment for E2E tests if not already running."""
+    api_url = "http://localhost:8000/api/v1/health"
+    
+    # Check if already healthy
+    try:
+        response = requests.get(api_url, timeout=2)
+        if response.status_code == 200:
+            print("\nAPI is already healthy, skipping Docker startup.")
+            yield
+            return
+    except requests.exceptions.RequestException:
+        pass
+
     print("\nStarting Docker environment...")
     
     # Build sandboxes first if needed (though start-autograder might do it)

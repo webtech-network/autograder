@@ -42,3 +42,7 @@ jobs:
       - name: Execute integration tests
         run: |
           make test-integration
+
+      - name: Execute E2E tests
+        run: |
+          make test-e2e
