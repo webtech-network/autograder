@@ -551,8 +551,8 @@
       },
       "report": {
         "request_failed": "Request failed with status code {code}.",
-        "success": "Success! Response from '{endpoint}' contained the expected key-value pair ('{key}': '{value}').",
-        "failure": "JSON response from '{endpoint}' did not contain the expected value. Expected '{expected}' for key '{key}', but got '{actual}'.",
+        "success": "Success! Response from '{endpoint}' contained the expected key-value pair ('{field_key}': '{value}').",
+        "failure": "JSON response from '{endpoint}' did not contain the expected value. Expected '{expected}' for key '{field_key}', but got '{actual}'.",
         "invalid_json": "Response from '{endpoint}' was not valid JSON."
       }
     },

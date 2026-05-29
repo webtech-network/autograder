@@ -109,9 +109,9 @@ class CheckResponseJsonTest(TestFunction):
                 data = response.json()
                 if data.get(expected_key) == expected_value:
                     score = 100
-                    report = t("api_testing.check_response_json.report.success", locale=locale, endpoint=endpoint, key=expected_key, value=expected_value)
+                    report = t("api_testing.check_response_json.report.success", locale=locale, endpoint=endpoint, field_key=expected_key, value=expected_value)
                 else:
-                    report = t("api_testing.check_response_json.report.failure", locale=locale, endpoint=endpoint, key=expected_key, expected=expected_value, actual=data.get(expected_key))
+                    report = t("api_testing.check_response_json.report.failure", locale=locale, endpoint=endpoint, field_key=expected_key, expected=expected_value, actual=data.get(expected_key))
             except json.JSONDecodeError:
                 report = t("api_testing.check_response_json.report.invalid_json", locale=locale, endpoint=endpoint)
 

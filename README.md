@@ -227,6 +227,7 @@ Validates data science assignments including ML model metrics, JSON/CSV outputs,
 
 | Test Name | Description | Key Parameters |
 |-----------|-------------|----------------|
+| `expect_stdout_value` | Extract a value from stdout and compare to an expected value | `extraction_pattern`, `expected_value`, `tolerance` |
 | `expect_metric` | Extract metric from stdout and validate vs threshold | `metric_pattern`, `condition`, `threshold` |
 | `expect_csv_output` | Validate generated CSV file contents | `artifact_path`, `expected_columns`, `expected_shape`, `expected_values` |
 | `expect_json_output` | Validate generated JSON structure and keys | `artifact_path`, `required_keys`, `expected_values` |

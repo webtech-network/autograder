@@ -13,6 +13,23 @@ from autograder.template_library.execution_base import BaseExecutionTest
 from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 
+def validate_artifact_path(artifact_path: str) -> Optional[str]:
+    """Return an error message if the path is unsafe, else None."""
+    if not artifact_path:
+        return "artifact_path is required"
+    if artifact_path.startswith("/") or ".." in artifact_path.split("/"):
+        return f"Invalid artifact_path (absolute or traversal): {artifact_path}"
+    return None
+
+def values_match(actual, expected, tolerance: float) -> bool:
+    """Compare two values with numeric tolerance if both are numbers."""
+    try:
+        actual_num = float(actual)
+        expected_num = float(expected)
+        return abs(actual_num - expected_num) <= tolerance
+    except (ValueError, TypeError):
+        return str(actual).strip() == str(expected).strip()
+
 
 class ExpectStdoutValueTest(BaseExecutionTest):
     """
@@ -271,14 +288,6 @@ class ExpectCsvOutputTest(BaseExecutionTest):
             ParamDescription("expected_values", t("data_science.expect_csv_output.params.expected_values"), "list of lists"),
         ]
 
-    @staticmethod
-    def _validate_artifact_path(artifact_path: str) -> Optional[str]:
-        """Return an error message if the path is unsafe, else None."""
-        if not artifact_path:
-            return "artifact_path is required"
-        if artifact_path.startswith("/") or ".." in artifact_path.split("/"):
-            return f"Invalid artifact_path (absolute or traversal): {artifact_path}"
-        return None
 
     @staticmethod
     def _parse_csv(content: str) -> tuple:
@@ -291,15 +300,6 @@ class ExpectCsvOutputTest(BaseExecutionTest):
         data_rows = rows[1:]
         return headers, data_rows
 
-    @staticmethod
-    def _values_match(actual: str, expected, tolerance: float) -> bool:
-        """Compare two values with numeric tolerance if both are numbers."""
-        try:
-            actual_num = float(actual)
-            expected_num = float(expected)
-            return abs(actual_num - expected_num) <= tolerance
-        except (ValueError, TypeError):
-            return str(actual).strip() == str(expected).strip()
 
     # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches,too-many-statements
     def execute(self, files, sandbox: SandboxContainer, *args, **kwargs) -> TestResult:
@@ -312,7 +312,7 @@ class ExpectCsvOutputTest(BaseExecutionTest):
         locale = kwargs.get("locale")
 
         # Validate artifact path
-        path_error = self._validate_artifact_path(artifact_path)
+        path_error = validate_artifact_path(artifact_path)
         if path_error:
             return TestResult(
                 test_name=self.name, score=0.0,
@@ -404,7 +404,7 @@ class ExpectCsvOutputTest(BaseExecutionTest):
                 for col_idx, expected_val in enumerate(expected_row):
                     total_cells += 1
                     if col_idx < len(actual_row):
-                        if self._values_match(actual_row[col_idx], expected_val, tolerance):
+                        if values_match(actual_row[col_idx], expected_val, tolerance):
                             matching_cells += 1
 
             if total_cells > 0:
@@ -478,14 +478,6 @@ class ExpectJsonOutputTest(BaseExecutionTest):
             ParamDescription("tolerance", t("data_science.expect_json_output.params.tolerance"), "number"),
         ]
 
-    @staticmethod
-    def _validate_artifact_path(artifact_path: str) -> Optional[str]:
-        """Return an error message if the path is unsafe, else None."""
-        if not artifact_path:
-            return "artifact_path is required"
-        if artifact_path.startswith("/") or ".." in artifact_path.split("/"):
-            return f"Invalid artifact_path (absolute or traversal): {artifact_path}"
-        return None
 
     @staticmethod
     def _get_nested_value(data: dict, dotted_key: str):
@@ -522,7 +514,7 @@ class ExpectJsonOutputTest(BaseExecutionTest):
         locale = kwargs.get("locale")
 
         # Validate artifact path
-        path_error = self._validate_artifact_path(artifact_path)
+        path_error = validate_artifact_path(artifact_path)
         if path_error:
             return TestResult(
                 test_name=self.name, score=0.0,
@@ -596,7 +588,7 @@ class ExpectJsonOutputTest(BaseExecutionTest):
                     checks.append(False)
                     details.append(t("data_science.expect_json_output.report.value_key_missing",
                                      locale=locale, field_key=key))
-                elif self._values_match(actual_val, expected_val, tolerance):
+                elif values_match(actual_val, expected_val, tolerance):
                     checks.append(True)
                     details.append(t("data_science.expect_json_output.report.value_match",
                                      locale=locale, field_key=key, expected=expected_val, actual=actual_val))
@@ -656,14 +648,6 @@ class ExpectModelArtifactTest(BaseExecutionTest):
             ParamDescription("min_size_bytes", t("data_science.expect_model_artifact.params.min_size_bytes"), "integer"),
         ]
 
-    @staticmethod
-    def _validate_artifact_path(artifact_path: str) -> Optional[str]:
-        """Return an error message if the path is unsafe, else None."""
-        if not artifact_path:
-            return "artifact_path is required"
-        if artifact_path.startswith("/") or ".." in artifact_path.split("/"):
-            return f"Invalid artifact_path (absolute or traversal): {artifact_path}"
-        return None
 
     # pylint: disable=too-many-return-statements
     def execute(self, files, sandbox: SandboxContainer, *args, **kwargs) -> TestResult:
@@ -673,7 +657,7 @@ class ExpectModelArtifactTest(BaseExecutionTest):
         locale = kwargs.get("locale")
 
         # Validate artifact path
-        path_error = self._validate_artifact_path(artifact_path)
+        path_error = validate_artifact_path(artifact_path)
         if path_error:
             return TestResult(
                 test_name=self.name, score=0.0,

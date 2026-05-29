@@ -551,8 +551,8 @@
       },
       "report": {
         "request_failed": "A requisição falhou com status code {code}.",
-        "success": "Sucesso! A resposta de '{endpoint}' continha o par chave-valor esperado ('{key}': '{value}').",
-        "failure": "A resposta JSON de '{endpoint}' não continha o valor esperado. Esperado '{expected}' para a chave '{key}', mas obteve '{actual}'.",
+        "success": "Sucesso! A resposta de '{endpoint}' continha o par chave-valor esperado ('{field_key}': '{value}').",
+        "failure": "A resposta JSON de '{endpoint}' não continha o valor esperado. Esperado '{expected}' para a chave '{field_key}', mas obteve '{actual}'.",
         "invalid_json": "A resposta de '{endpoint}' não é um JSON válido."
       }
     },
