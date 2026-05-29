@@ -221,7 +221,20 @@ Validates HTML, CSS, and JavaScript files.
 | `check_css_property` | Validate CSS rules | `selector`, `property`, `expected_value` |
 
 And much more! Check the [WebDev Template Documentation](docs/templates/web_dev.md) for the full list of tests.
-#### 4. Custom Templates
+
+#### 4. Data Science Template
+Validates data science assignments including ML model metrics, JSON/CSV outputs, and generated artifacts. Requires Python DS sandbox.
+
+| Test Name | Description | Key Parameters |
+|-----------|-------------|----------------|
+| `expect_metric` | Extract metric from stdout and validate vs threshold | `metric_pattern`, `condition`, `threshold` |
+| `expect_csv_output` | Validate generated CSV file contents | `artifact_path`, `expected_columns`, `expected_shape`, `expected_values` |
+| `expect_json_output` | Validate generated JSON structure and keys | `artifact_path`, `required_keys`, `expected_values` |
+| `expect_model_artifact` | Verify a model file was produced | `artifact_path`, `min_size_bytes` |
+
+Check the [Data Science Template Documentation](docs/template-library/data_science.md) for full details.
+
+#### 5. Custom Templates
 Upload your own test functions for specialized grading contexts:
 
 ```python

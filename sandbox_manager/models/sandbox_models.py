@@ -7,6 +7,7 @@ import requests
 class Language(Enum):
     """Supported programming languages in the sandbox."""
     PYTHON = ("python", "sandbox-py:latest")
+    PYTHON_DS = ("python_ds", "sandbox-pyds:latest")
     JAVA = ("java", "sandbox-java:latest")
     NODE = ("node", "sandbox-node:latest")
     CPP = ("cpp", "sandbox-cpp:latest")
