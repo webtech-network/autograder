@@ -7,7 +7,7 @@ RUN groupadd -r sandbox && useradd -r -g sandbox sandbox
 RUN pip install --no-cache-dir \
     numpy==1.26.4 \
     pandas==2.2.1 \
-    scikit-learn==1.4.1 \
+    scikit-learn==1.4.1.post1 \
     matplotlib==3.8.3 \
     seaborn==0.13.2
 
