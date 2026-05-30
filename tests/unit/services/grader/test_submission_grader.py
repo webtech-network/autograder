@@ -22,39 +22,37 @@ class MockTestFunction(TestFunction):
 @pytest.fixture
 def grader():
     command_resolver = MagicMock()
+    # Mock command_resolver.resolve_command just in case tests have program_command
+    command_resolver.resolve_command.side_effect = lambda c, lang: c
     return SubmissionGrader(
         submission_files={},
         command_resolver=command_resolver
     )
 
 def test_balance_nodes_only_subjects(grader):
-    # If only subjects, they should sum to 100
-    s1 = SubjectNode(name="S1", weight=30)
-    s2 = SubjectNode(name="S2", weight=30)
+    # Need tests inside subjects to have real scores
+    tf = MockTestFunction()
+    t1 = TestNode(name="T1", test_function=tf, weight=100)
+    t2 = TestNode(name="T2", test_function=tf, weight=100)
+    
+    s1 = SubjectNode(name="S1", weight=30, tests=[t1])
+    s2 = SubjectNode(name="S2", weight=30, tests=[t2])
     cat = CategoryNode(name="base", weight=100, subjects=[s1, s2])
-    
-    # We need to mock process_subject because it calls process_category/process_subject recursively
-    # Actually SubmissionGrader.process_category calls __process_holder which calls process_subject
-    
-    # Let's mock process_test and process_subject to avoid deep recursion for this test
-    grader.process_subject = MagicMock(side_effect=lambda s: MagicMock(weight=s.weight, score=100.0))
     
     result = grader.process_category(cat)
     
     # Weights should be balanced to 50/50 because original sum was 60
     assert result.subjects[0].weight == 50.0
     assert result.subjects[1].weight == 50.0
+    assert result.calculate_score() == 100.0
 
 def test_balance_nodes_with_subjects_weight(grader):
     # Scenario: subjects_weight = 80
-    # 1 subject, 1 test
     tf = MockTestFunction()
-    s1 = SubjectNode(name="S1", weight=100)
+    t_sub = TestNode(name="T_Sub", test_function=tf, weight=100)
+    s1 = SubjectNode(name="S1", weight=100, tests=[t_sub])
     t1 = TestNode(name="T1", test_function=tf, weight=100)
     cat = CategoryNode(name="base", weight=100, subjects=[s1], tests=[t1], subjects_weight=80)
-    
-    grader.process_subject = MagicMock(side_effect=lambda s: MagicMock(weight=s.weight, score=100.0))
-    # process_test is not mocked, it will execute the test
     
     result = grader.process_category(cat)
     
@@ -69,13 +67,10 @@ def test_balance_nodes_with_subjects_weight_and_scores(grader):
     # Scenario: subjects_weight = 80
     # Subject score = 100, Test score = 0
     tf = MockTestFunction()
-    s1 = SubjectNode(name="S1", weight=100)
+    t_sub = TestNode(name="T_Sub", test_function=tf, weight=100, parameters={'score': 100.0})
+    s1 = SubjectNode(name="S1", weight=100, tests=[t_sub])
     t1 = TestNode(name="T1", test_function=tf, weight=100, parameters={'score': 0.0})
     cat = CategoryNode(name="base", weight=100, subjects=[s1], tests=[t1], subjects_weight=80)
-    
-    # Mock process_subject to return a result node with score 100
-    from autograder.models.result_tree import SubjectResultNode
-    grader.process_subject = MagicMock(return_value=SubjectResultNode(name="S1", weight=100, subjects_weight=None, score=100.0))
     
     result = grader.process_category(cat)
     
@@ -87,13 +82,84 @@ def test_balance_nodes_with_subjects_weight_and_scores(grader):
 
 def test_balance_nodes_zero_weights(grader):
     # If all weights are zero, they should be equal and sum to 100 * factor
-    s1 = SubjectNode(name="S1", weight=0)
-    s2 = SubjectNode(name="S2", weight=0)
-    cat = CategoryNode(name="base", weight=100, subjects=[s1, s2])
+    tf = MockTestFunction()
+    t1 = TestNode(name="T1", test_function=tf, weight=100)
+    t2 = TestNode(name="T2", test_function=tf, weight=100)
     
-    grader.process_subject = MagicMock(side_effect=lambda s: MagicMock(weight=s.weight, score=100.0))
+    s1 = SubjectNode(name="S1", weight=0, tests=[t1])
+    s2 = SubjectNode(name="S2", weight=0, tests=[t2])
+    cat = CategoryNode(name="base", weight=100, subjects=[s1, s2])
     
     result = grader.process_category(cat)
     
     assert result.subjects[0].weight == 50.0
     assert result.subjects[1].weight == 50.0
+    assert result.calculate_score() == 100.0
+
+from autograder.models.dataclass.submission import SubmissionFile
+
+def test_balance_nodes_subjects_and_tests_missing_subjects_weight(grader):
+    tf = MockTestFunction()
+    s1 = SubjectNode(name="S1", weight=100, tests=[TestNode(name="T1", test_function=tf)])
+    t2 = TestNode(name="T2", test_function=tf)
+    
+    cat = CategoryNode(name="base", weight=100, subjects=[s1], tests=[t2], subjects_weight=None)
+    with pytest.raises(ValueError, match="missing 'subjects_weight' for base"):
+        grader.process_category(cat)
+
+def test_balance_nodes_empty(grader):
+    # Should not break if there are no subjects/tests
+    cat = CategoryNode(name="base", weight=100)
+    result = grader.process_category(cat)
+    assert result.score == 0.0
+
+def test_process_test_program_command_resolution():
+    command_resolver = MagicMock()
+    command_resolver.resolve_command.return_value = "python3 main.py"
+    
+    grader = SubmissionGrader(
+        submission_files={},
+        command_resolver=command_resolver,
+        submission_language="python"
+    )
+    
+    tf = MockTestFunction()
+    t1 = TestNode(name="T1", test_function=tf, weight=100, parameters={'program_command': 'python {main}'})
+    
+    cat = CategoryNode(name="base", weight=100, tests=[t1])
+    grader.process_category(cat)
+    
+    command_resolver.resolve_command.assert_called_once_with('python {main}', 'python')
+
+def test_get_file_target_all():
+    file1 = SubmissionFile(filename="file1.py", content="")
+    file2 = SubmissionFile(filename="file2.py", content="")
+    grader = SubmissionGrader(
+        submission_files={"file1.py": file1, "file2.py": file2},
+        command_resolver=MagicMock()
+    )
+    
+    tf = MockTestFunction()
+    t1 = TestNode(name="T1", test_function=tf, weight=100, file_target=["all"])
+    
+    cat = CategoryNode(name="base", weight=100, tests=[t1])
+    grader.process_category(cat)
+    # The MockTestFunction would need to record what files it received to assert it, 
+    # but process_test will just call it. Let's just assert get_file_target directly.
+    target_files = grader.get_file_target(t1)
+    assert len(target_files) == 2
+
+def test_get_file_target_specific():
+    file1 = SubmissionFile(filename="file1.py", content="")
+    file2 = SubmissionFile(filename="file2.py", content="")
+    grader = SubmissionGrader(
+        submission_files={"file1.py": file1, "file2.py": file2},
+        command_resolver=MagicMock()
+    )
+    
+    tf = MockTestFunction()
+    t1 = TestNode(name="T1", test_function=tf, weight=100, file_target=["file1.py"])
+    
+    target_files = grader.get_file_target(t1)
+    assert len(target_files) == 1
+    assert target_files[0] is file1

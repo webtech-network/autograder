@@ -6,13 +6,13 @@ import time
 from autograder.models.dataclass.grading_result import GradingResult
 from autograder.models.dataclass.step_result import StepResult, StepName, StepStatus
 from autograder.models.dataclass.submission import Submission
+from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
 
 if TYPE_CHECKING:
     from autograder.models.abstract.template import Template
     from autograder.models.criteria_tree import CriteriaTree
     from autograder.models.dataclass.focus import Focus
     from autograder.models.dataclass.grade_step_result import GradeStepResult
-    from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
     from autograder.models.result_tree import ResultTree
     from sandbox_manager.sandbox_container import SandboxContainer
 
@@ -133,7 +133,6 @@ class PipelineExecution:
         """
         if not self.has_step_result(StepName.STRUCTURAL_ANALYSIS):
             return None
-        from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
         return cast(
             StructuralAnalysisResult,
             self._require_step_data(StepName.STRUCTURAL_ANALYSIS, "structural analysis result"),

@@ -40,7 +40,7 @@ class SubmissionResult(Base):
     )
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     failed_at_step: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)  # pylint: disable=not-callable
     
     # Relationships
     submission: Mapped["Submission"] = relationship("Submission", back_populates="result")

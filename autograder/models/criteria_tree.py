@@ -58,6 +58,7 @@ class SubjectNode:
         )
 
     def get_all_tests(self) -> List[TestNode]:
+        """Recursively collect all test nodes under this subject."""
         tests = [*self.tests]
         for subject in self.subjects:
             tests.extend(subject.get_all_tests())
@@ -88,6 +89,7 @@ class CategoryNode:
         )
 
     def add_subjects(self, subjects: List[SubjectNode]) -> None:
+        """Add a list of subjects to this category."""
         self.subjects.extend(subjects)
 
     def get_all_tests(self) -> List[TestNode]:

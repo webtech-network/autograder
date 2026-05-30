@@ -1,7 +1,6 @@
 import logging
 from typing import List, Optional, Union
 from autograder.models.dataclass.preflight_error import PreflightError, PreflightCheckType
-from autograder.models.dataclass.submission import Submission
 from autograder.translations import t
 from autograder.services.sandbox_service import SandboxService
 from sandbox_manager.sandbox_container import SandboxContainer
@@ -10,7 +9,10 @@ from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
 from autograder.models.config.setup import SetupConfig, LanguageSetupConfig
 
-class PreFlightService:
+class PreFlightService:  # pylint: disable=too-many-instance-attributes
+    """
+    Service responsible for executing pre-flight checks (required files, setup commands).
+    """
     def __init__(self, setup_config: Optional[Union[SetupConfig, dict]], submission_language: Language, locale: str = "en"):
         """
         Initialize PreFlightService with language-specific setup configuration.
@@ -59,7 +61,7 @@ class PreFlightService:
             raw_extra = setup_config.model_extra[lang_key]
             if isinstance(raw_extra, dict):
                 return LanguageSetupConfig(**raw_extra)
-            elif isinstance(raw_extra, LanguageSetupConfig):
+            if isinstance(raw_extra, LanguageSetupConfig):
                 return raw_extra
 
         self.logger.warning("No setup config found for language %s, using empty config", lang_key)

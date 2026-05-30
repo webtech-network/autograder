@@ -9,6 +9,9 @@ from autograder.services.assets.cache_manager import AssetCacheManager
 logger = logging.getLogger("S3AssetProvider")
 
 class S3AssetProvider(AssetProvider):
+    """
+    Asset provider that fetches files from Amazon S3.
+    """
     def __init__(self, cache_manager: AssetCacheManager):
         self.cache_manager = cache_manager
         
@@ -53,6 +56,6 @@ class S3AssetProvider(AssetProvider):
             self.cache_manager.put(cache_key, raw_content)
             
             return raw_content
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to fetch asset from S3 (%s): %s", source, str(e))
             return None

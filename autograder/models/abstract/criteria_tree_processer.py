@@ -6,14 +6,17 @@ if TYPE_CHECKING:
 
 
 class CriteriaTreeProcesser(ABC):
+    """
+    Abstract base class for processing the criteria tree structure.
+    """
     @abstractmethod
     def process_subject(self, subject: "SubjectNode") -> Any:
-        pass
+        """Process a subject node in the criteria tree."""
 
     @abstractmethod
     def process_test(self, test: "TestNode") -> Any:
-        pass
+        """Process a test node in the criteria tree."""
 
     @abstractmethod
     def process_category(self, category: "CategoryNode") -> Any:
-        pass
+        """Process a category node in the criteria tree."""

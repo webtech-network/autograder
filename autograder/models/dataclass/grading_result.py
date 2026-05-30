@@ -6,6 +6,7 @@ from autograder.models.dataclass.focus import Focus
 
 @dataclass
 class GradingResult:
+    """Holds the final results of a grading execution."""
     final_score: float
     #status: str I'll evaluate if we keep this attribute or not
     feedback: Optional[str] = None

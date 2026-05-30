@@ -6,7 +6,7 @@ from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.result_tree import CategoryResultNode, ResultTree, RootResultNode
 from autograder.template_library.input_output import InputOutputTemplate
-
+import pytest
 
 def _build_pipeline_execution() -> PipelineExecution:
     submission = Submission(
@@ -42,6 +42,12 @@ def test_typed_accessors_return_expected_artifacts():
     assert pipeline_exec.get_focus() is focus
     assert pipeline_exec.get_feedback() == "ok"
     assert pipeline_exec.get_sandbox() is None
+    assert pipeline_exec.get_ai_batch_results() is None
+
+def test_ai_batch_results_accessor():
+    pipeline_exec = _build_pipeline_execution()
+    pipeline_exec.add_step_result(StepResult(step=StepName.AI_BATCH, data={"some": "data"}, status=StepStatus.SUCCESS))
+    assert pipeline_exec.get_ai_batch_results() == {"some": "data"}
 
 
 def test_typed_accessors_raise_on_missing_required_artifacts():
@@ -62,8 +68,33 @@ def test_typed_accessors_raise_on_missing_required_artifacts():
     except ValueError as exc:
         assert "required" in str(exc).lower()
 
+    # Empty list of templates
+    pipeline_exec.step_results[-1].data = []
+    with pytest.raises(ValueError, match="No templates loaded"):
+        pipeline_exec.get_loaded_template()
+
     try:
         pipeline_exec.get_focus()
         assert False, "Expected ValueError for missing focus step"
     except ValueError as exc:
         assert "not executed" in str(exc).lower()
+
+def test_finish_execution_failed_status():
+    pipeline_exec = _build_pipeline_execution()
+    pipeline_exec.set_failure()
+    pipeline_exec.finish_execution()
+    assert pipeline_exec.result is None
+
+def test_finish_execution_missing_feedback_content():
+    pipeline_exec = _build_pipeline_execution()
+    
+    result_tree = ResultTree(root=RootResultNode(base=CategoryResultNode(name="base", weight=100)))
+    grade = GradeStepResult(final_score=100.0, result_tree=result_tree)
+    focus = Focus(base=[], penalty=[], bonus=[])
+    
+    pipeline_exec.add_step_result(StepResult(step=StepName.GRADE, data=grade, status=StepStatus.SUCCESS))
+    pipeline_exec.add_step_result(StepResult(step=StepName.FOCUS, data=focus, status=StepStatus.SUCCESS))
+    pipeline_exec.add_step_result(StepResult(step=StepName.FEEDBACK, data=None, status=StepStatus.FAIL))
+    
+    with pytest.raises(ValueError, match="Feedback step exists but produced no feedback content"):
+        pipeline_exec.finish_execution()

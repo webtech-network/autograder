@@ -7,6 +7,9 @@ import collections
 logger = logging.getLogger("AssetCacheManager")
 
 class AssetCacheManager:
+    """
+    Manages caching of assets in memory and on disk.
+    """
     def __init__(self, in_memory_limit: int = 0, disk_cache_dir: str = "/tmp/autograder_assets_cache"):
         """
         Initialize the asset cache manager.
@@ -48,7 +51,7 @@ class AssetCacheManager:
                     self._add_to_memory_cache(asset_key, content)
                     
                 return content
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("Failed to read asset from disk cache: %s", str(e))
                 
         return None
@@ -63,7 +66,7 @@ class AssetCacheManager:
             with open(disk_path, "wb") as f:
                 f.write(content)
             logger.debug("Stored asset %s in disk cache", asset_key)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to write asset to disk cache: %s", str(e))
             
         # Save to memory if enabled

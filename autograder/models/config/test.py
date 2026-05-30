@@ -39,7 +39,7 @@ class TestConfig(BaseModel):
     def get_kwargs_dict(self) -> Dict[str, Any]:
         """Convert named parameters to keyword arguments dictionary."""
         kwargs = {}
-        if self.parameters:
+        if self.parameters is not None:
             kwargs.update({param.name: param.value for param in self.parameters})
 
         if self.model_extra:

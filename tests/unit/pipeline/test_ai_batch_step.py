@@ -127,7 +127,7 @@ class TestAiTestFunctionPreComputedPath:
         )
 
         with patch(
-            "autograder.utils.executors.ai_executor.AiExecutor"
+            "autograder.models.abstract.ai_test_function.AiExecutor"
         ) as mock_executor:
             mock_executor.return_value.run.return_value = {"ai_code_review": fallback_result}
             result = func.execute(files=[], sandbox=None)
@@ -139,7 +139,7 @@ class TestAiTestFunctionPreComputedPath:
         func = _ConcreteAiTest()
 
         with patch(
-            "autograder.utils.executors.ai_executor.AiExecutor"
+            "autograder.models.abstract.ai_test_function.AiExecutor"
         ) as mock_executor:
             mock_executor.return_value.run.return_value = {}
             result = func.execute(files=None, sandbox=None)
