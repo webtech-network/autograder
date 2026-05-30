@@ -6,6 +6,7 @@ from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
 from autograder.template_library.api_testing import ApiTestingTemplate
 from autograder.template_library.input_output import InputOutputTemplate
+from autograder.template_library.data_science import DataScienceTemplate
 from autograder.template_library.web_dev.template import WebDevTemplate
 
 
@@ -44,7 +45,7 @@ class InvalidTemplate(Template):
 
 
 def test_builtin_templates_validate_contract():
-    for template in [WebDevTemplate(), InputOutputTemplate(), ApiTestingTemplate()]:
+    for template in [WebDevTemplate(), InputOutputTemplate(), ApiTestingTemplate(), DataScienceTemplate()]:
         template.validate_contract()
         assert isinstance(template.get_tests(), dict)
 

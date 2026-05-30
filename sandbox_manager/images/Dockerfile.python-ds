@@ -1,0 +1,29 @@
+FROM python:3.11-slim
+
+# 1. Create a non-root user
+RUN groupadd -r sandbox && useradd -r -g sandbox sandbox
+
+# 2. Install scientific Python packages for data science assignments
+RUN pip install --no-cache-dir \
+    numpy==1.26.4 \
+    pandas==2.2.1 \
+    scikit-learn==1.4.1.post1 \
+    matplotlib==3.8.3 \
+    seaborn==0.13.2
+
+# 3. Security Hardening: Remove network tools and dangerous binaries
+RUN rm -f /usr/bin/wget /usr/bin/curl
+RUN find / -perm /6000 -type f -exec chmod a-s {} \; || true
+
+# 4. Setup Workspace
+WORKDIR /app
+RUN chown sandbox:sandbox /app
+
+# 5. Make /app a volume so it's writable even when container is read-only
+VOLUME ["/app"]
+
+# 6. Switch to user
+USER sandbox
+
+# 7. Default entrypoint
+CMD ["python3"]

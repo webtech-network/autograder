@@ -551,8 +551,8 @@
       },
       "report": {
         "request_failed": "A requisição falhou com status code {code}.",
-        "success": "Sucesso! A resposta de '{endpoint}' continha o par chave-valor esperado ('{key}': '{value}').",
-        "failure": "A resposta JSON de '{endpoint}' não continha o valor esperado. Esperado '{expected}' para a chave '{key}', mas obteve '{actual}'.",
+        "success": "Sucesso! A resposta de '{endpoint}' continha o par chave-valor esperado ('{field_key}': '{value}').",
+        "failure": "A resposta JSON de '{endpoint}' não continha o valor esperado. Esperado '{expected}' para a chave '{field_key}', mas obteve '{actual}'.",
         "invalid_json": "A resposta de '{endpoint}' não é um JSON válido."
       }
     },
@@ -564,6 +564,108 @@
   "system": {
     "error": {
       "step_interrupted": "Ocorreu um erro inesperado durante a execução da etapa: {error}"
+    }
+  },
+  "data_science": {
+    "template": {
+      "name": "Ciência de Dados",
+      "description": "Um modelo para avaliar trabalhos de ciência de dados envolvendo manipulação de dados, treinamento de modelos e validação de métricas."
+    },
+    "expect_stdout_value": {
+      "description": "Extrai um valor numérico da saída padrão do programa usando um padrão regex e compara com um valor esperado com tolerância opcional.",
+      "params": {
+        "program_command": "Comando para executar o programa do aluno.",
+        "extraction_pattern": "Padrão regex com um grupo nomeado 'value' para extrair o valor numérico (ex: 'total_rows:\\\\s*(?P<value>\\\\d+)').",
+        "expected_value": "O valor numérico esperado.",
+        "tolerance": "Diferença absoluta aceitável entre os valores real e esperado (padrão: 0)."
+      },
+      "report": {
+        "success": "Sucesso: Valor extraído {actual} corresponde ao esperado {expected} (tolerância: {tolerance}).",
+        "failure": "FALHA: Valor extraído {actual} não corresponde ao esperado {expected} (tolerância: {tolerance}).",
+        "no_match": "FALHA: O padrão '{pattern}' não encontrou nenhum valor na saída.\nSaída:\n{stdout}",
+        "not_numeric": "FALHA: O valor extraído '{value}' não é um número válido.",
+        "internal_error": "ERRO DE SISTEMA: Falha interna do autograder: {error}"
+      }
+    },
+    "expect_metric": {
+      "description": "Extrai uma métrica numérica da saída padrão do programa e valida contra um limiar usando um operador de comparação (>=, <=, >, <, ==).",
+      "params": {
+        "program_command": "Comando para executar o programa do aluno.",
+        "metric_pattern": "Padrão regex com um grupo nomeado 'value' para extrair a métrica (ex: 'accuracy:\\\\s*(?P<value>[\\\\d.]+)').",
+        "condition": "Operador de comparação: '>=', '<=', '>', '<' ou '=='.",
+        "threshold": "O valor limiar para comparação."
+      },
+      "report": {
+        "success": "Sucesso: Métrica {metric} satisfaz a condição {condition} {threshold}.",
+        "failure": "FALHA: Métrica {metric} não satisfaz a condição {condition} {threshold}.",
+        "no_match": "FALHA: O padrão '{pattern}' não encontrou nenhuma métrica na saída.\nSaída:\n{stdout}",
+        "not_numeric": "FALHA: A métrica extraída '{value}' não é um número válido.",
+        "invalid_condition": "ERRO DE CONFIGURAÇÃO: Condição inválida '{condition}'. Condições válidas: {valid}.",
+        "internal_error": "ERRO DE SISTEMA: Falha interna do autograder: {error}"
+      }
+    },
+    "expect_csv_output": {
+      "description": "Valida um arquivo CSV gerado pelo programa do aluno, verificando colunas, dimensões e valores das células com tolerância.",
+      "params": {
+        "program_command": "Comando para executar o programa do aluno.",
+        "artifact_path": "Caminho relativo (sob /app) do arquivo CSV a ser validado.",
+        "expected_columns": "Lista de nomes de colunas esperados em ordem.",
+        "expected_shape": "Dimensão esperada como [linhas, colunas] (excluindo cabeçalho).",
+        "tolerance": "Diferença absoluta aceitável para comparações de valores numéricos (padrão: 0).",
+        "expected_values": "Lista de listas contendo valores esperados das células para comparação."
+      },
+      "report": {
+        "success": "Sucesso: O artefato CSV '{path}' passou em todas as verificações.",
+        "columns_ok": "✓ Colunas correspondem à ordem e nomes esperados.",
+        "columns_mismatch": "✗ Colunas divergentes. Esperado: {expected}, Obtido: {actual}",
+        "shape_ok": "✓ Dimensão correta: {rows} linhas × {cols} colunas.",
+        "shape_mismatch": "✗ Dimensão divergente. Esperado: {expected_rows}×{expected_cols}, Obtido: {actual_rows}×{actual_cols}",
+        "values_check": "Valores: {matching}/{total} células correspondem ({ratio}).",
+        "file_not_found": "FALHA: O artefato CSV '{path}' não foi encontrado. Verifique se o seu programa cria este arquivo.",
+        "extraction_error": "FALHA: Não foi possível ler o artefato do sandbox.\nDetalhes: {error}",
+        "parse_error": "FALHA: Não foi possível analisar o arquivo CSV.\nDetalhes: {error}",
+        "invalid_path": "ERRO DE CONFIGURAÇÃO: Caminho de artefato inválido.\nDetalhes: {error}",
+        "internal_error": "ERRO DE SISTEMA: Falha interna do autograder: {error}"
+      }
+    },
+    "expect_json_output": {
+      "description": "Valida um arquivo JSON gerado pelo programa do aluno, verificando chaves obrigatórias e valores com tolerância.",
+      "params": {
+        "program_command": "Comando para executar o programa do aluno.",
+        "artifact_path": "Caminho relativo (sob /app) do arquivo JSON a ser validado.",
+        "required_keys": "Lista de chaves que devem existir (suporta notação de ponto para chaves aninhadas).",
+        "expected_values": "Dicionário de pares chave-valor para validar (suporta notação de ponto).",
+        "tolerance": "Diferença absoluta aceitável para comparações de valores numéricos (padrão: 0)."
+      },
+      "report": {
+        "success": "Sucesso: O artefato JSON '{path}' passou em todas as verificações.",
+        "key_found": "✓ Chave '{field_key}' encontrada.",
+        "key_missing": "✗ Chave obrigatória '{field_key}' não encontrada.",
+        "value_match": "✓ Chave '{field_key}': esperado {expected}, obtido {actual}.",
+        "value_mismatch": "✗ Chave '{field_key}': esperado {expected}, obtido {actual}.",
+        "value_key_missing": "✗ Chave '{field_key}' não encontrada (não foi possível verificar o valor).",
+        "file_not_found": "FALHA: O artefato JSON '{path}' não foi encontrado. Verifique se o seu programa cria este arquivo.",
+        "extraction_error": "FALHA: Não foi possível ler o artefato do sandbox.\nDetalhes: {error}",
+        "parse_error": "FALHA: Não foi possível analisar o arquivo JSON.\nDetalhes: {error}",
+        "invalid_path": "ERRO DE CONFIGURAÇÃO: Caminho de artefato inválido.\nDetalhes: {error}",
+        "internal_error": "ERRO DE SISTEMA: Falha interna do autograder: {error}"
+      }
+    },
+    "expect_model_artifact": {
+      "description": "Valida que um arquivo de modelo treinado foi produzido pelo programa do aluno com um tamanho mínimo de arquivo.",
+      "params": {
+        "program_command": "Comando para executar o programa do aluno.",
+        "artifact_path": "Caminho relativo (sob /app) do arquivo de modelo a ser validado (ex: 'model.pkl').",
+        "min_size_bytes": "Tamanho mínimo esperado do arquivo em bytes (para detectar arquivos vazios/corrompidos)."
+      },
+      "report": {
+        "success": "Sucesso: O artefato de modelo '{path}' existe ({size} bytes).",
+        "file_not_found": "FALHA: O artefato de modelo '{path}' não foi encontrado. Verifique se o seu programa salva o modelo treinado.",
+        "too_small": "FALHA: O artefato de modelo '{path}' é muito pequeno ({actual_size} bytes, mínimo: {min_size} bytes). O modelo pode não ter sido treinado corretamente.",
+        "extraction_error": "FALHA: Não foi possível ler o artefato do sandbox.\nDetalhes: {error}",
+        "invalid_path": "ERRO DE CONFIGURAÇÃO: Caminho de artefato inválido.\nDetalhes: {error}",
+        "internal_error": "ERRO DE SISTEMA: Falha interna do autograder: {error}"
+      }
     }
   }
 }

@@ -15,6 +15,7 @@ class CommandResolver:
     # Default command patterns for each language
     DEFAULT_COMMANDS = {
         Language.PYTHON: "python3 {filename}",
+        Language.PYTHON_DS: "python3 {filename}",
         Language.JAVA: "java {classname}",
         Language.NODE: "node {filename}",
         Language.CPP: "./{executable}",
@@ -105,7 +106,7 @@ class CommandResolver:
         This is used when program_command is "CMD" placeholder.
         """
         command = None
-        if language == Language.PYTHON:
+        if language in (Language.PYTHON, Language.PYTHON_DS):
             command = f"python3 {fallback_filename}" if fallback_filename else "python3 main.py"
         elif language == Language.JAVA:
             # Java requires class name without .java extension

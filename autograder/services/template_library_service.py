@@ -14,6 +14,7 @@ from autograder.template_library.web_dev.template import WebDevTemplate
 from autograder.template_library.api_testing import ApiTestingTemplate
 from autograder.template_library.input_output import InputOutputTemplate
 from autograder.template_library.static_analysis import StaticAnalysisTemplate
+from autograder.template_library.data_science import DataScienceTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class TemplateLibraryService:
         "api": ApiTestingTemplate,
         "input_output": InputOutputTemplate,
         "static_analysis": StaticAnalysisTemplate,
+        "data_science": DataScienceTemplate,
     }
 
     def __new__(cls):

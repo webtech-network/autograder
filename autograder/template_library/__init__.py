@@ -3,9 +3,12 @@
 from autograder.template_library.web_dev.template import WebDevTemplate
 from autograder.template_library.api_testing import ApiTestingTemplate
 from autograder.template_library.input_output import InputOutputTemplate
+from autograder.template_library.data_science import DataScienceTemplate
 
 __all__ = [
     "WebDevTemplate",
     "ApiTestingTemplate",
     "InputOutputTemplate",
+    "DataScienceTemplate",
 ]
+

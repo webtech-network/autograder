@@ -100,12 +100,16 @@ start-autograder:
 
 
 # Sandbox Management
-sandbox-build-all: sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp
+sandbox-build-all: sandbox-build-python sandbox-build-pyds sandbox-build-java sandbox-build-node sandbox-build-cpp
 	@echo "✅ All sandbox images built successfully!"
 
 sandbox-build-python:
 	@echo "Building Python sandbox image..."
 	docker build -t sandbox-py:latest -f sandbox_manager/images/Dockerfile.python sandbox_manager/images/
+
+sandbox-build-pyds:
+	@echo "Building Python Data Science sandbox image..."
+	docker build -t sandbox-pyds:latest -f sandbox_manager/images/Dockerfile.python-ds sandbox_manager/images/
 
 sandbox-build-java:
 	@echo "Building Java sandbox image..."
