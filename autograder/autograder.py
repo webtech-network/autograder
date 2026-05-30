@@ -1,13 +1,11 @@
 import logging
 
-from sandbox_manager.manager import get_sandbox_manager
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.step_result import StepName
 from autograder.models.pipeline_execution import PipelineExecution, PipelineStatus
 from autograder.steps.step_registry import StepRegistry
 from autograder.models.dataclass.submission import Submission
 from autograder.services.template_library_service import TemplateLibraryService
-from autograder.steps.load_template_step import TemplateLoaderStep
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +102,7 @@ class AutograderPipeline:
         try:
             sandbox = pipeline_execution.sandbox
             if sandbox:
+                from sandbox_manager.manager import get_sandbox_manager
                 manager = get_sandbox_manager()
                 language = pipeline_execution.submission.language
                 manager.destroy_sandbox(language, sandbox)
@@ -159,6 +158,7 @@ def build_pipeline(  # pylint: disable=too-many-arguments,too-many-locals
         templates.append(template_service.load_custom_template(custom_template))
     elif template_name:
         # Normalize template names (can be string, comma-separated string, or list)
+        from autograder.steps.load_template_step import TemplateLoaderStep
         names = TemplateLoaderStep.normalize_template_names(template_name)
         for name in names:
             templates.append(template_service.load_builtin_template(name))

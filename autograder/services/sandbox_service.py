@@ -1,6 +1,5 @@
 import logging
 from typing import Optional, Any
-from sandbox_manager.manager import get_sandbox_manager
 from autograder.models.dataclass.submission import Submission
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory, CommandResponse
@@ -28,6 +27,7 @@ class SandboxService:
             raise ValueError("Submission language is required for sandbox creation")
             
         try:
+            from sandbox_manager.manager import get_sandbox_manager
             sandbox_manager = get_sandbox_manager()
             sandbox = sandbox_manager.get_sandbox(submission.language)
             self.logger.debug("Sandbox created for language %s", submission.language)
@@ -53,6 +53,7 @@ class SandboxService:
         Releases a sandbox back to the manager pool.
         """
         try:
+            from sandbox_manager.manager import get_sandbox_manager
             sandbox_manager = get_sandbox_manager()
             sandbox_manager.release_sandbox(language, sandbox)
             self.logger.info("Sandbox released for language %s", language)
