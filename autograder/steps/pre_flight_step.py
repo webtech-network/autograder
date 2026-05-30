@@ -1,17 +1,15 @@
 import logging
-from typing import List
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.dataclass.step_result import StepResult, StepName
 from autograder.services.pre_flight_service import PreFlightService
 from autograder.translations import t
+from autograder.models.config.setup import SetupConfig
+from autograder.services.assets.resolver import AssetSourceResolver
 
 logger = logging.getLogger(__name__)
 
-
-from autograder.models.config.setup import SetupConfig
-from autograder.services.assets.resolver import AssetSourceResolver
 
 class PreFlightStep(Step):
     """
@@ -78,7 +76,7 @@ class PreFlightStep(Step):
             try:
                 resolved_assets = self._asset_resolver.resolve_assets(self._setup_config.assets)
                 sandbox.inject_assets(resolved_assets)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 error_msg = f"Failed to inject assets: {str(e)}"
                 logger.error("Asset injection failed (external_user_id=%s): %s", pipeline_exec.submission.user_id, error_msg)
                 return pipeline_exec.add_step_result(StepResult.fail(

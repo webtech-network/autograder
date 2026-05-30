@@ -56,7 +56,7 @@ class StructuralAnalysisStep(Step):
 
         ast_grep_lang = self._map_language(language)
         if not ast_grep_lang:
-            logger.warning(f"Language {language.value} is not supported by ast-grep; skipping.")
+            logger.warning("Language %s is not supported by ast-grep; skipping.", language.value)
             return pipeline_exec.add_step_result(
                 StepResult.success(
                     self.step_name,
@@ -76,8 +76,8 @@ class StructuralAnalysisStep(Step):
 
             try:
                 roots[filename] = SgRoot(sub_file.content, ast_grep_lang)
-            except Exception as e:
-                logger.warning(f"Failed to parse {filename} with ast-grep: {e}")
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.warning("Failed to parse %s with ast-grep: %s", filename, str(e))
                 roots[filename] = None
 
         result = StructuralAnalysisResult(roots=roots, available=True)

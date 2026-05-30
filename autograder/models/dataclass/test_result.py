@@ -17,6 +17,7 @@ class TestResult:
         return [self]
 
     def to_dict(self) -> dict:
+        """Convert TestResult to dictionary for JSON serialization."""
         return {
             "test_name": self.test_name,
             "score": self.score,

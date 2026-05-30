@@ -1,11 +1,13 @@
 import logging
 
+from sandbox_manager.manager import get_sandbox_manager
 from autograder.models.abstract.step import Step
 from autograder.models.dataclass.step_result import StepName
 from autograder.models.pipeline_execution import PipelineExecution, PipelineStatus
 from autograder.steps.step_registry import StepRegistry
 from autograder.models.dataclass.submission import Submission
 from autograder.services.template_library_service import TemplateLibraryService
+from autograder.steps.load_template_step import TemplateLoaderStep
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +76,7 @@ class AutograderPipeline:
                     )
                     break
                 logger.info("Step %s completed successfully (external_user_id=%s)", step_name, submission.user_id)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 pipeline_execution.status = PipelineStatus.INTERRUPTED
                 logger.error(
                     "Unhandled exception in step %s (external_user_id=%s): %s",
@@ -84,7 +86,6 @@ class AutograderPipeline:
                     exc_info=True,
                 )
                 break
-
         pipeline_execution.finish_execution() # Generates GradingResult object in pipeline execution
 
         # Cleanup: Destroy sandbox if it was created
@@ -103,7 +104,6 @@ class AutograderPipeline:
         try:
             sandbox = pipeline_execution.sandbox
             if sandbox:
-                from sandbox_manager.manager import get_sandbox_manager
                 manager = get_sandbox_manager()
                 language = pipeline_execution.submission.language
                 manager.destroy_sandbox(language, sandbox)
@@ -113,7 +113,7 @@ class AutograderPipeline:
                     pipeline_execution.submission.user_id,
                     language.value if language else "none",
                 )
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             # Log error but don't fail the pipeline
             logger.warning(
                 "Failed to cleanup sandbox (external_user_id=%s): %s",
@@ -122,7 +122,7 @@ class AutograderPipeline:
             )
 
 
-def build_pipeline(
+def build_pipeline(  # pylint: disable=too-many-arguments,too-many-locals
     template_name,
     include_feedback,
     grading_criteria,
@@ -159,8 +159,7 @@ def build_pipeline(
         templates.append(template_service.load_custom_template(custom_template))
     elif template_name:
         # Normalize template names (can be string, comma-separated string, or list)
-        from autograder.steps.load_template_step import TemplateLoaderStep
-        names = TemplateLoaderStep._normalize_template_names(template_name)
+        names = TemplateLoaderStep.normalize_template_names(template_name)
         for name in names:
             templates.append(template_service.load_builtin_template(name))
 

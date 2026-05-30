@@ -9,6 +9,9 @@ from autograder.models.dataclass.asset import ResolvedAsset
 logger = logging.getLogger("AssetSourceResolver")
 
 class AssetSourceResolver:
+    """
+    Resolves asset configurations into actual asset content using providers and caches.
+    """
     def __init__(self):
         in_memory_limit = int(os.getenv("EXTERNAL_ASSETS_IN_MEMORY_CACHE_LIMIT", "100"))
         self.cache_manager = AssetCacheManager(in_memory_limit=in_memory_limit)

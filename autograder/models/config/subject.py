@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class SubjectConfig(BaseModel):
+    """Configuration for a subject within a grading category."""
     subject_name: str = Field(..., description="Name of the subject")
     weight: float = Field(
         ..., ge=0, le=100, description="Weight of this subject (0-100)"

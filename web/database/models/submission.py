@@ -39,7 +39,7 @@ class Submission(Base):
         nullable=False,
         index=True
     )
-    submitted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False, index=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False, index=True)  # pylint: disable=not-callable
     graded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     submission_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     

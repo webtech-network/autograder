@@ -18,7 +18,7 @@ class TemplateLoaderStep(Step):
         """
         Initialize the template loader step.
         """
-        self._template_names = self._normalize_template_names(template_name)
+        self._template_names = self.normalize_template_names(template_name)
         self._custom_template = custom_template
         self._template_service = TemplateLibraryService.get_instance()
         self._templates = templates
@@ -29,7 +29,11 @@ class TemplateLoaderStep(Step):
             )
 
     @staticmethod
-    def _normalize_template_names(template_name: Union[str, List[str], None]) -> List[str]:
+    def normalize_template_names(template_name: Union[str, List[str], None]) -> List[str]:
+        """
+        Normalize template names into a list of strings.
+        Input can be a single string, a comma-separated string, or a list of strings.
+        """
         if template_name is None:
             return []
 

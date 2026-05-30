@@ -9,11 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 class Step(ABC):
+    """
+    Abstract base class for all pipeline steps.
+    """
     @property
     @abstractmethod
     def step_name(self) -> StepName:
         """Return the name of the step (e.g. StepName.GRADE)."""
-        pass
 
     def execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """
@@ -24,7 +26,7 @@ class Step(ABC):
         locale = pipeline_exec.locale
         try:
             return self._execute(pipeline_exec)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.exception("Step %s was interrupted: %s", self.step_name.value, str(e))
             
             error_msg = t("system.error.step_interrupted", locale=locale, error=str(e))
@@ -42,5 +44,4 @@ class Step(ABC):
     @abstractmethod
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """Internal execution logic to be implemented by subclasses."""
-        pass
 

@@ -11,6 +11,7 @@ class AssetConfig(BaseModel):
     @field_validator('source')
     @classmethod
     def validate_source(cls, v: str) -> str:
+        """Validate the source path of the asset."""
         if not v:
             raise ValueError("source must not be empty")
         if v.startswith('/'):
@@ -22,6 +23,7 @@ class AssetConfig(BaseModel):
     @field_validator('target')
     @classmethod
     def validate_target(cls, v: str) -> str:
+        """Validate the target path of the asset."""
         if not v:
             raise ValueError("target must not be empty")
         if not v.startswith('/'):

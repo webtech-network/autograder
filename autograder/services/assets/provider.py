@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 class AssetProvider(ABC):
+    """
+    Abstract base class for asset providers.
+    """
     @abstractmethod
     def get_asset(self, source: str, target: str, read_only: bool = True) -> Optional[bytes]:
         """
@@ -15,4 +18,3 @@ class AssetProvider(ABC):
         Returns:
             Raw content as bytes, or None if not found or on error.
         """
-        ...

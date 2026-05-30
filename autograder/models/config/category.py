@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class CategoryConfig(BaseModel):
+    """Configuration for a grading category (base, bonus, or penalty)."""
     weight: float = Field(
         ..., ge=0, le=100, description="Weight of this category (0-100)"
     )

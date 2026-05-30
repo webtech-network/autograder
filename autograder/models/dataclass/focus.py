@@ -6,6 +6,7 @@ from autograder.models.result_tree import TestResultNode
 
 @dataclass
 class FocusedTest:
+    """Represents a test result that has been prioritized for feedback."""
     test_result: TestResultNode
     diff_score: float
 
@@ -19,6 +20,7 @@ class FocusedTest:
 
 @dataclass
 class Focus:
+    """Organizes prioritized tests by category (base, penalty, bonus)."""
     base: List[FocusedTest]
     penalty: Optional[List[FocusedTest]]
     bonus: Optional[List[FocusedTest]]
@@ -30,4 +32,3 @@ class Focus:
             "penalty": [test.to_dict() for test in self.penalty] if self.penalty else None,
             "bonus": [test.to_dict() for test in self.bonus] if self.bonus else None
         }
-

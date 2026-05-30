@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from autograder.utils.executors.ai_executor import AiExecutor, TestInput
 from sandbox_manager.sandbox_container import SandboxContainer
 
 
@@ -35,6 +36,7 @@ class AiTestFunction(TestFunction):
         self,
         files: Optional[List[SubmissionFile]],
         sandbox: Optional[SandboxContainer],
+        *args,
         **kwargs,
     ) -> TestResult:
         """
@@ -45,15 +47,18 @@ class AiTestFunction(TestFunction):
         test name in that dict and returns the result directly. If the dict is
         absent (standalone usage), it falls back to ``_run_single()``.
         """
+        # args is not used in AI tests as parameters are in kwargs
+        _ = args
         pre_computed: Optional[Dict[str, TestResult]] = kwargs.get("pre_computed_results")
         if pre_computed is not None and self.name in pre_computed:
             return pre_computed[self.name]
 
-        return self._run_single(files, **kwargs)
+        return self._run_single(files, *args, **kwargs)
 
     def _run_single(
         self,
         files: Optional[List[SubmissionFile]],
+        *args,
         **kwargs,
     ) -> TestResult:
         """
@@ -62,9 +67,7 @@ class AiTestFunction(TestFunction):
         Used when ``pre_computed_results`` is not available (e.g. unit tests,
         standalone runners, or pipelines that do not include ``AiBatchStep``).
         """
-        # Local import to avoid circular dependencies.
-        from autograder.utils.executors.ai_executor import AiExecutor, TestInput
-
+        _ = args
         locale: str = kwargs.get("locale", "en")
         prompt = self.build_prompt(files, **kwargs)
         submission_files = {f.filename: f.content for f in files} if files else {}

@@ -1,5 +1,6 @@
 import logging
-from typing import List, Optional, Any
+from typing import Optional, Any
+from sandbox_manager.manager import get_sandbox_manager
 from autograder.models.dataclass.submission import Submission
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory, CommandResponse
@@ -27,7 +28,6 @@ class SandboxService:
             raise ValueError("Submission language is required for sandbox creation")
             
         try:
-            from sandbox_manager.manager import get_sandbox_manager
             sandbox_manager = get_sandbox_manager()
             sandbox = sandbox_manager.get_sandbox(submission.language)
             self.logger.debug("Sandbox created for language %s", submission.language)
@@ -37,14 +37,14 @@ class SandboxService:
                 try:
                     sandbox.prepare_workdir(submission.submission_files)
                     self.logger.debug("Workdir prepared with %s files", len(submission.submission_files))
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error("Failed to prepare workdir in sandbox: %s", str(e))
                     # Release the sandbox back to pool since it's unusable
                     sandbox_manager.release_sandbox(submission.language, sandbox)
                     return None
 
             return sandbox
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.error("Failed to create sandbox for language %s: %s", submission.language, str(e))
             return None
 
@@ -53,11 +53,10 @@ class SandboxService:
         Releases a sandbox back to the manager pool.
         """
         try:
-            from sandbox_manager.manager import get_sandbox_manager
             sandbox_manager = get_sandbox_manager()
             sandbox_manager.release_sandbox(language, sandbox)
             self.logger.info("Sandbox released for language %s", language)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.logger.warning("Failed to release sandbox: %s", str(e))
 
     def run_setup_command(self, sandbox: SandboxContainer, command_spec: Any, idx: int = 0, locale: Optional[str] = None) -> CommandResponse:
@@ -118,7 +117,7 @@ class SandboxService:
         self.logger.debug("Executing setup command '%s': %s", command_name, command)
         try:
             return sandbox.run_command(command)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             error_msg = t("preflight.error.setup_command_failed_execution", locale=locale, command_name=command_name, error=str(e), command=command)
             self.logger.error(error_msg)
             return CommandResponse(

@@ -9,6 +9,9 @@ from autograder.models.result_tree import (
 
 
 class FocusService:
+    """
+    Service responsible for identifying the most impactful tests for student feedback.
+    """
     def __calculate_impact(
         self, test: TestResultNode, cumulative_multiplier: float
     ) -> float:
@@ -25,7 +28,7 @@ class FocusService:
     def __process_subject(
         self, subject: SubjectResultNode, parent_multiplier: float
     ) -> List[FocusedTest]:
-        focused_tests = list()
+        focused_tests = []
 
         # Determine the multiplier for children of this subject
         # If this subject has sub-subjects and tests, we might need to split the weight
@@ -98,6 +101,9 @@ class FocusService:
         return focused_tests
 
     def find(self, result_tree: ResultTree) -> Focus:
+        """
+        Find and prioritize impactful tests from the result tree.
+        """
         return Focus(
             base=self.__process_category(result_tree.root.base),
             penalty=self.__process_category(result_tree.root.penalty)

@@ -301,7 +301,7 @@ class GithubActionService:
 
         exporter = CloudExporter(client, config_db_id, language, student_name)
         self._cloud_exporter = exporter
-        self._submission_language = Language(language)
+        self._submission_language = Language(language)  # pylint: disable=no-value-for-parameter
         self._locale = locale
 
         return build_pipeline(
