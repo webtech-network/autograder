@@ -19,8 +19,21 @@ Executes a program with a series of stdin inputs and compares the program's stdo
 | `inputs` | list[string] | ✓ | List of strings sent to stdin, each on a new line |
 | `expected_output` | string | ✓ | Exact string the program should print to stdout |
 | `program_command` | string | ✗ | Command to execute. Can be a plain string (e.g., `"python main.py"`), a dict for multi-language support, or `"CMD"` for auto-resolution based on submission language. |
+| `normalization` | boolean | ✗ | Normalize line endings and trim trailing whitespace (default: `true`) |
 
-**Scoring:** 100 if output matches exactly (after trimming whitespace), 0 otherwise.
+**Normalization (default: `true`):**
+When enabled, the comparison process:
+1. Converts all line endings (`\r\n`, `\r`, `\n`) to Unix-style `\n`
+2. Removes trailing whitespace from each line
+3. Removes leading and trailing whitespace from the entire output
+4. Then compares the normalized strings
+
+This makes tests robust to:
+- Accidental trailing spaces in `print()` statements
+- Different line ending formats (Windows vs. Unix/Linux)
+- Mixed whitespace from copy-pasted expected outputs
+
+**Scoring:** 100 if output matches (after normalization), 0 otherwise.
 
 **Error handling:** Automatically detects and reports:
 - Timeouts (infinite loops)

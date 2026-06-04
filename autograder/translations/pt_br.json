@@ -435,7 +435,9 @@
       "params": {
         "inputs": "Lista de strings a serem enviadas para o programa, cada uma em uma nova linha.",
         "expected": "A única string que o programa deve imprimir na saída padrão.",
-        "program_command": "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve)."
+        "program_command": "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).",
+        "normalization": "Normalizar espaços em branco (padrão: true)",
+        "normalization_desc": "Remove espaços em branco no final de cada linha e normaliza quebras de linha"
       },
       "report": {
         "success": "Sucesso: A saída corresponde aos valores esperados.",

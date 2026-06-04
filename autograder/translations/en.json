@@ -435,7 +435,9 @@
       "params": {
         "inputs": "List of strings to be sent to the program, each on a new line.",
         "expected": "The single string the program must print to standard output.",
-        "program_command": "(Optional) Command to run the program. Can be string (legacy), dict (multi-lang), or 'CMD' (auto-resolve)."
+        "program_command": "(Optional) Command to run the program. Can be string (legacy), dict (multi-lang), or 'CMD' (auto-resolve).",
+        "normalization": "Normalize whitespace (default: true)",
+        "normalization_desc": "Strip trailing whitespace from each line and normalize line endings"
       },
       "report": {
         "success": "Success: Output matches expected values.",
