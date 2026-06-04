@@ -1,18 +1,14 @@
 import logging
 import re
-from typing import List, Optional, Dict, Any, Type
-
-from pydantic import BaseModel, Field
+from typing import Optional
 
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
-from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
-from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
 from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
-from sandbox_manager.models.sandbox_models import Language, ResponseCategory
+from sandbox_manager.models.sandbox_models import ResponseCategory
 
 
 # ===============================================================
@@ -77,6 +73,17 @@ class BaseExecutionTest(TestFunction):
 
         return None
 
+    @staticmethod
+    def _normalize(text: str) -> str:
+        """
+        Normalize text for output comparison by:
+        1. Converting all line endings to \n
+        2. Removing trailing whitespace from each line
+        3. Removing leading and trailing whitespace from the entire output
+        """
+        lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        return "\n".join(line.rstrip() for line in lines).strip()
+
 # ===============================================================
 # TestFunction for Input/Output Validation
 # ===============================================================
@@ -107,7 +114,8 @@ class ExpectOutputTest(BaseExecutionTest):
         return [
             ParamDescription("inputs", t("io.expect_output.params.inputs"), "list of strings"),
             ParamDescription("expected_output", t("io.expect_output.params.expected"), "string"),
-            ParamDescription("program_command", t("io.expect_output.params.program_command"), "string or dict")
+            ParamDescription("program_command", t("io.expect_output.params.program_command"), "string or dict"),
+            ParamDescription("normalization", t("io.expect_output.params.normalization"), "boolean")
         ]
 
     def execute(self, files, sandbox: SandboxContainer, *args, **kwargs) -> TestResult:
@@ -117,6 +125,7 @@ class ExpectOutputTest(BaseExecutionTest):
         inputs = kwargs.get("inputs")
         expected_output = kwargs.get("expected_output", "")
         program_command = kwargs.get("program_command")
+        normalization = kwargs.get("normalization", True)
         locale = kwargs.get("locale")
 
         try:
@@ -132,8 +141,12 @@ class ExpectOutputTest(BaseExecutionTest):
                 return error_result
 
             # Standard I/O Comparison if execution succeeded
-            actual_output = output.stdout.strip()
-            expected = expected_output.strip()
+            actual_output = output.stdout
+            expected = expected_output
+
+            if normalization:
+                actual_output = self._normalize(actual_output)
+                expected = self._normalize(expected)
 
             if actual_output == expected:
                 return TestResult(
@@ -267,12 +280,6 @@ class ExpectFileArtifactTest(BaseExecutionTest):
         if artifact_path.startswith("/") or ".." in artifact_path.split("/"):
             return f"Invalid artifact_path (absolute or traversal): {artifact_path}"
         return None
-
-    @staticmethod
-    def _normalize(text: str) -> str:
-        """Normalize line endings and strip trailing whitespace per line."""
-        lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-        return "\n".join(line.rstrip() for line in lines).strip()
 
     @staticmethod
     def _match(actual: str, expected: str, mode: str) -> bool:
