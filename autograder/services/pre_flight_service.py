@@ -94,7 +94,7 @@ class PreFlightService:  # pylint: disable=too-many-instance-attributes
         for file in self.required_files:
             if file not in submission_files:
                 error_msg = t("preflight.error.required_file_missing", locale=self.locale, file=file)
-                self.logger.error(error_msg)
+                self.logger.warning(error_msg)
                 self.fatal_errors.append(PreflightError(
                     type=PreflightCheckType.FILE_CHECK,
                     message=error_msg,
@@ -142,7 +142,7 @@ class PreFlightService:  # pylint: disable=too-many-instance-attributes
                     command = command_spec
 
                 error_msg = self._format_command_error(command_name, command, response)
-                self.logger.error(error_msg)
+                self.logger.warning(error_msg)
                 self.fatal_errors.append(PreflightError(
                     type=PreflightCheckType.SETUP_COMMAND,
                     message=error_msg,
