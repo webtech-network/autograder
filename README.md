@@ -1,7 +1,7 @@
 # Autograder
 
 <div align="center">
-<img width="330" height="300" alt="image" src="https://github.com/user-attachments/assets/6e897346-9e0d-4311-a961-b460f920f87d" /> 
+<img width="330" height="300" alt="image" src="https://github.com/user-attachments/assets/6e897346-9e0d-4311-a961-b460f920f87d" />
 
 
 **An educational-standards-driven autograding tool that transforms assignment grading into an engaging learning experience.**
