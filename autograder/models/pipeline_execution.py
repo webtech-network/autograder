@@ -11,6 +11,7 @@ from autograder.models.dataclass.structural_analysis_result import StructuralAna
 if TYPE_CHECKING:
     from autograder.models.abstract.template import Template
     from autograder.models.criteria_tree import CriteriaTree
+    from autograder.models.dataclass.submission import EvaluationScope
     from autograder.models.dataclass.focus import Focus
     from autograder.models.dataclass.grade_step_result import GradeStepResult
     from autograder.models.result_tree import ResultTree
@@ -49,6 +50,11 @@ class PipelineExecution:
     def locale(self) -> str:
         """Returns the locale for this pipeline execution, sourced from the submission."""
         return self.submission.locale
+
+    @property
+    def evaluation_scope(self) -> Optional["EvaluationScope"]:
+        """Return the optional evaluation scope supplied with the submission."""
+        return self.submission.evaluation_scope
 
     def add_step_result(self, step_result: StepResult) -> 'PipelineExecution':
         """

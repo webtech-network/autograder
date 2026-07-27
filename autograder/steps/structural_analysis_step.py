@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Set
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
@@ -69,7 +69,17 @@ class StructuralAnalysisStep(Step):
             )
 
         roots: Dict[str, Optional[SgRoot]] = {}
+        changed_lines: Dict[str, Set[int]] = {}
+        scoped_files = (
+            set(pipeline_exec.evaluation_scope.scoped_files)
+            if pipeline_exec.evaluation_scope is not None
+            else None
+        )
+
         for filename, sub_file in submission.submission_files.items():
+            if scoped_files is not None and filename not in scoped_files:
+                continue
+
             # Only parse files that likely contain code
             if not self._is_code_file(filename):
                 continue
@@ -80,7 +90,14 @@ class StructuralAnalysisStep(Step):
                 logger.warning("Failed to parse %s with ast-grep: %s", filename, str(e))
                 roots[filename] = None
 
-        result = StructuralAnalysisResult(roots=roots, available=True)
+            if sub_file.changed_lines is not None:
+                changed_lines[filename] = set(sub_file.changed_lines)
+
+        result = StructuralAnalysisResult(
+            roots=roots,
+            changed_lines=changed_lines,
+            available=True,
+        )
         return pipeline_exec.add_step_result(StepResult.success(self.step_name, result))
 
     def _map_language(self, language: Language) -> Optional[str]:
