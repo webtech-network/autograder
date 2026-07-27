@@ -126,6 +126,7 @@ async def _persist_success(result_repo, submission_repo, request: GradingRequest
 
     focus_dict = result.focus.to_dict() if result.focus else None
     pipeline_summary = PipelineExecutionSerializer.serialize(pipeline_execution)
+    score_vector = result.result_tree.to_score_vector() if result.result_tree else None
 
     await result_repo.create(
         submission_id=request.submission_id,
@@ -133,6 +134,7 @@ async def _persist_success(result_repo, submission_repo, request: GradingRequest
         result_tree=result_tree_dict,
         feedback=result.feedback,
         focus=focus_dict,
+        score_vector=score_vector,
         pipeline_execution=pipeline_summary,
         execution_time_ms=execution_time_ms,
         pipeline_status=PipelineStatus.SUCCESS,

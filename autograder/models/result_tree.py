@@ -21,7 +21,7 @@ The final score flows up from test results through subjects and categories to th
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
+from typing import Dict, Iterator, List, Optional, Any, Tuple
 
 from autograder.models.criteria_tree import TestNode
 
@@ -356,6 +356,53 @@ class ResultTree:
     def get_passed_tests(self) -> List[TestResultNode]:
         """Get all test nodes with score of 100."""
         return [test for test in self.get_all_test_results() if test.score >= 100]
+
+    def iter_test_results(self) -> Iterator[Tuple[str, TestResultNode]]:
+        """
+        Yield (path, node) for every test in the tree.
+
+        Path format: "category/subject/.../test_name"
+        Stable across executions of the same criteria config version.
+        Used by to_score_vector() and ResultComparator.
+
+        Yields:
+            Tuples of (path_string, TestResultNode) for every leaf test
+            in the result tree, ordered by category → subject → test.
+        """
+
+        def _iter_subject(
+            subject: SubjectResultNode, prefix: str
+        ) -> Iterator[Tuple[str, TestResultNode]]:
+            """Recursively walk a subject node, yielding tests with paths."""
+            current_prefix = f"{prefix}/{subject.name}"
+            for child_subject in subject.subjects:
+                yield from _iter_subject(child_subject, current_prefix)
+            for test in subject.tests:
+                yield (f"{current_prefix}/{test.name}", test)
+
+        def _iter_category(
+            category: CategoryResultNode,
+        ) -> Iterator[Tuple[str, TestResultNode]]:
+            """Walk a category node, yielding tests with paths."""
+            for subject in category.subjects:
+                yield from _iter_subject(subject, category.name)
+            for test in category.tests:
+                yield (f"{category.name}/{test.name}", test)
+
+        for category in self.root.get_all_categories():
+            yield from _iter_category(category)
+
+    def to_score_vector(self) -> Dict[str, float]:
+        """
+        Flatten the result tree into a path-keyed score map.
+
+        Keys are stable across executions of the same criteria config version.
+        Suitable for storage, diffing, and longitudinal SQL queries.
+
+        Returns:
+            Dict mapping path strings to raw test scores (0-100).
+        """
+        return {path: node.score for path, node in self.iter_test_results()}
 
     def to_dict(self) -> dict:
         """Convert entire result tree to dictionary."""

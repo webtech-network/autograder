@@ -187,6 +187,7 @@ async def get_submission(
         "feedback": None,
         "result_tree": None,
         "focus": None,
+        "score_vector": None,
         "pipeline_execution": None,
     }
 
@@ -197,6 +198,7 @@ async def get_submission(
             "feedback": submission.result.feedback,
             "result_tree": submission.result.result_tree,
             "focus": submission.result.focus,
+            "score_vector": submission.result.score_vector,
             "pipeline_execution": submission.result.pipeline_execution,
         })
 
@@ -316,6 +318,7 @@ async def ingest_external_result(
         result_tree=payload.result_tree,
         feedback=payload.feedback,
         focus=payload.focus,
+        score_vector=payload.score_vector,
         pipeline_execution=payload.pipeline_execution,
         execution_time_ms=payload.execution_time_ms,
         pipeline_status=pipeline_status,

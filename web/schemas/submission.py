@@ -72,6 +72,7 @@ class SubmissionResponse(BaseModel):
     feedback: Optional[str] = None
     result_tree: Optional[Dict[str, Any]] = None
     focus: Optional[Dict[str, Any]] = None
+    score_vector: Optional[Dict[str, float]] = None
 
 
 class SubmissionDetailResponse(SubmissionResponse):
@@ -99,6 +100,7 @@ class ExternalResultCreate(BaseModel):
     result_tree: Optional[Dict[str, Any]] = Field(None, description="Scored result tree")
     focus: Optional[Dict[str, Any]] = Field(None, description="Sorted failed tests by impact")
     pipeline_execution: Optional[Dict[str, Any]] = Field(None, description="Pipeline step execution details")
+    score_vector: Optional[Dict[str, float]] = Field(None, description="Flat path-keyed score map for longitudinal queries")
     execution_time_ms: int = Field(..., description="Total execution time in milliseconds", ge=0)
     error_message: Optional[str] = Field(None, description="Error message for failed runs")
     submission_metadata: Optional[Dict[str, Any]] = Field(None, description="Repository/run metadata")

@@ -93,6 +93,7 @@ Each step is designed to maintain educational standards while providing maximum 
 - **Actionable Feedback**: Get specific guidance on what to improve
 - **Iterative Learning**: Use feedback to improve and resubmit
 - **Transparent Grading**: See the breakdown of scores across all criteria
+- **Progress Tracking**: Score vector provides a flat, queryable map of every test score for trend analysis across submissions
 
 ### For Developers
 
