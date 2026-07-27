@@ -56,8 +56,9 @@ class PipelineExecutionSerializer:
             steps.append(step_info)
 
         # Count planned vs completed steps
-        total_planned = 7  # BOOTSTRAP, LOAD_TEMPLATE, BUILD_TREE, PRE_FLIGHT, GRADE, FEEDBACK, EXPORT
-        completed = len([s for s in execution.step_results if s.step != StepName.BOOTSTRAP])
+        # Exclude BOOTSTRAP — it is an internal init record, not a user-visible step
+        total_planned = len([s for s in execution.step_results if s.step != StepName.BOOTSTRAP])
+        completed = total_planned
 
         return {
             "status": execution.status.value if execution.status != PipelineStatus.EMPTY else "unknown",
