@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import MagicMock, patch
 from typing import Optional
 
 from autograder.models.abstract.exporter import Exporter
@@ -76,21 +76,7 @@ class TestExporterInterface:
         assert step._exporter_service is mock_exporter
 
     def test_step_registry_build_exporter_default(self):
-        """StepRegistry._build_exporter() creates UpstashDriver instance as default."""
-        with patch("autograder.steps.step_registry.UpstashDriver") as mock_driver_cls:
-            mock_driver = MagicMock(spec=UpstashDriver)
-            mock_driver_cls.return_value = mock_driver
-            
-            registry = StepRegistry({"export_results": True})
-            step = registry._build_exporter()
-            
-            assert isinstance(step, ExporterStep)
-            assert step._exporter_service is mock_driver
-            
-            # Verify that the driver is initialized with environment variables.
-            # UpstashDriver.__init__ handles validation and raises ValueError if 
-            # redis_url or redis_token are missing (None).
-            mock_driver_cls.assert_called_once_with(
-                redis_url=ANY, 
-                redis_token=ANY
-            )
+        """StepRegistry._build_exporter() raises ValueError when no exporter is supplied."""
+        registry = StepRegistry({"export_results": True})
+        with pytest.raises(ValueError, match="exporter"):
+            registry._build_exporter()

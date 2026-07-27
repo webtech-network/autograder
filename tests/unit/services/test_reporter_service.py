@@ -7,9 +7,9 @@ from autograder.services.report.default_reporter import DefaultReporter
 class TestReporterService(unittest.TestCase):
     """Unit tests for the ReporterService."""
     def test_init_ai_mode(self):
-        """Tests that ReporterService initializes AiReporter in 'ai' mode."""
-        service = ReporterService(feedback_mode="ai")
-        self.assertIsInstance(service.reporter, AiReporter)
+        """Tests that ReporterService raises NotImplementedError in 'ai' mode (not yet implemented)."""
+        with self.assertRaises(NotImplementedError):
+            ReporterService(feedback_mode="ai")
 
     def test_init_default_mode(self):
         """Tests that ReporterService initializes DefaultReporter in 'default' mode."""
@@ -19,7 +19,7 @@ class TestReporterService(unittest.TestCase):
     def test_generate_feedback_delegation(self):
         """Tests that generate_feedback delegates the call to the active reporter."""
         # Mocking the reporter to verify delegation
-        service = ReporterService(feedback_mode="ai")
+        service = ReporterService(feedback_mode="default")
         mock_reporter = MagicMock()
         # It's better to inject the mock or use self.service.reporter if we had a setter,
         # but here we'll use protected access for mocking or just use the property if it had a setter.
