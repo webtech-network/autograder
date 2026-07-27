@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 from autograder.models.abstract.step import Step
 from autograder.models.criteria_tree import CriteriaTree, TestNode
-from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
+from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus, StepCategory
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.pipeline_execution import PipelineExecution
@@ -35,6 +35,10 @@ class AiBatchStep(Step):
     @property
     def step_name(self) -> StepName:
         return StepName.AI_BATCH
+
+    @property
+    def category(self) -> StepCategory:
+        return StepCategory.GRADING
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """

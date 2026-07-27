@@ -42,6 +42,10 @@ class MockTemplate(Template):
     def template_description(self): return "Mock"
     @property
     def requires_sandbox(self): return False
+    @property
+    def required_files(self): return {}
+    @property
+    def setup_commands(self): return {}
     def get_test(self, name): return self.tests.get(name)
 
 

@@ -396,6 +396,14 @@ class TestGradeStepPassesAiBatchResults:
             def requires_sandbox(self):
                 return False
 
+            @property
+            def required_files(self):
+                return {}
+
+            @property
+            def setup_commands(self):
+                return {}
+
             def get_test(self, name):
                 return None
 
@@ -440,6 +448,14 @@ class TestGradeStepPassesAiBatchResults:
             @property
             def requires_sandbox(self):
                 return False
+
+            @property
+            def required_files(self):
+                return {}
+
+            @property
+            def setup_commands(self):
+                return {}
 
             def get_test(self, name):
                 return None

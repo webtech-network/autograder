@@ -15,17 +15,18 @@ def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any], loca
     Returns:
         Markdown-formatted feedback string
     """
-    # Find the failed preflight step
-    preflight_step = None
+    # Find the failed preflight/setup step
+    setup_steps = ["FileCheckStep", "AssetInjectionStep", "SetupCommandsStep", "PreFlightStep"]
+    failed_step = None
     for step in pipeline_execution_summary.get("steps", []):
-        if step["name"] == "PreFlightStep" and step["status"] == "fail":
-            preflight_step = step
+        if step["name"] in setup_steps and step["status"] == "fail":
+            failed_step = step
             break
 
-    if not preflight_step:
+    if not failed_step:
         return t("feedback.preflight.failed_title", locale=locale) + "\n\n" + t("feedback.preflight.failed_subtitle", locale=locale)
 
-    error_details = preflight_step.get("error_details", {})
+    error_details = failed_step.get("error_details", {})
     error_type = error_details.get("error_type", "unknown")
 
     feedback = t("feedback.preflight.failed_title", locale=locale) + "\n\n"
@@ -84,6 +85,13 @@ def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any], loca
             feedback += f"{t('feedback.preflight.review_error_instruction', locale=locale)}\n"
             feedback += f"{t('feedback.preflight.generic_fix_instruction', locale=locale)}\n"
             feedback += f"{t('feedback.preflight.generic_resubmit_instruction', locale=locale)}\n"
+            
+    elif error_type == "asset_injection_failed":
+        feedback += f"Asset injection failed.\n\n"
+        if error_details.get("message"):
+            feedback += f"**Details:** {error_details['message']}\n\n"
+        feedback += f"This is likely a system configuration issue. Please contact your instructor.\n"
+        
     else:
         feedback += f"{t('feedback.preflight.what_to_do', locale=locale)}\n"
         feedback += f"{t('feedback.preflight.generic_error_instruction', locale=locale)}\n"
@@ -91,4 +99,3 @@ def generate_preflight_feedback(pipeline_execution_summary: Dict[str, Any], loca
         feedback += f"{t('feedback.preflight.generic_resubmit_instruction', locale=locale)}\n"
 
     return feedback
-

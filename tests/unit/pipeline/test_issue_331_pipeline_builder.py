@@ -19,6 +19,8 @@ class TestIssue331PipelineBuilder(unittest.TestCase):
         mock_service = mock_template_service_class.get_instance.return_value
         mock_template = MagicMock(spec=Template)
         mock_template.requires_sandbox = False
+        mock_template.required_files = {}
+        mock_template.setup_commands = {}
         mock_template.get_tests.return_value = {} # No AI tests
         mock_service.load_builtin_template.return_value = mock_template
         
@@ -34,13 +36,15 @@ class TestIssue331PipelineBuilder(unittest.TestCase):
         # Check steps
         step_names = list(pipeline._steps.keys())
         
-        # Should NOT include SANDBOX, PRE_FLIGHT, AI_BATCH
+        # Should NOT include SANDBOX, FILE_CHECK, ASSET_INJECTION, SETUP_COMMANDS, AI_BATCH
         self.assertIn(StepName.LOAD_TEMPLATE, step_names)
         self.assertIn(StepName.BUILD_TREE, step_names)
         self.assertIn(StepName.GRADE, step_names)
         
         self.assertNotIn(StepName.SANDBOX, step_names)
-        self.assertNotIn(StepName.PRE_FLIGHT, step_names)
+        self.assertNotIn(StepName.FILE_CHECK, step_names)
+        self.assertNotIn(StepName.ASSET_INJECTION, step_names)
+        self.assertNotIn(StepName.SETUP_COMMANDS, step_names)
         self.assertNotIn(StepName.AI_BATCH, step_names)
 
     @patch("autograder.autograder.TemplateLibraryService")
@@ -49,6 +53,8 @@ class TestIssue331PipelineBuilder(unittest.TestCase):
         mock_service = mock_template_service_class.get_instance.return_value
         mock_template = MagicMock(spec=Template)
         mock_template.requires_sandbox = True
+        mock_template.required_files = {}
+        mock_template.setup_commands = {}
         mock_template.get_tests.return_value = {}
         mock_service.load_builtin_template.return_value = mock_template
         
@@ -61,16 +67,17 @@ class TestIssue331PipelineBuilder(unittest.TestCase):
         
         step_names = list(pipeline._steps.keys())
         self.assertIn(StepName.SANDBOX, step_names)
-        # PRE_FLIGHT is still not included if no setup_config
-        self.assertNotIn(StepName.PRE_FLIGHT, step_names)
+        # FILE_CHECK is still not included if no setup_config
+        self.assertNotIn(StepName.FILE_CHECK, step_names)
 
     @patch("autograder.autograder.TemplateLibraryService")
     def test_build_pipeline_with_setup_config(self, mock_template_service_class):
-        # Mock Template NOT requiring sandbox (but setup_config might require it, 
-        # actually PreFlightStep requires sandbox if it has assets or commands)
+        # Mock Template NOT requiring sandbox
         mock_service = mock_template_service_class.get_instance.return_value
         mock_template = MagicMock(spec=Template)
         mock_template.requires_sandbox = False
+        mock_template.required_files = {}
+        mock_template.setup_commands = {}
         mock_template.get_tests.return_value = {}
         mock_service.load_builtin_template.return_value = mock_template
         
@@ -79,11 +86,12 @@ class TestIssue331PipelineBuilder(unittest.TestCase):
             include_feedback=False,
             grading_criteria={"base": []},
             feedback_config={},
-            setup_config={"required_files": ["main.py"]}
+            setup_config={"python": {"required_files": ["main.py"]}}
         )
         
         step_names = list(pipeline._steps.keys())
-        self.assertIn(StepName.PRE_FLIGHT, step_names)
+        self.assertIn(StepName.FILE_CHECK, step_names)
+        self.assertNotIn(StepName.PRE_FLIGHT, step_names)
 
     @patch("autograder.autograder.TemplateLibraryService")
     def test_build_pipeline_with_ai(self, mock_template_service_class):

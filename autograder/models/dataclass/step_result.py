@@ -20,11 +20,21 @@ class StepStatus(Enum):
     INTERRUPTED = "interrupted"
 
 
+class StepCategory(Enum):
+    """Enumeration of pipeline step categories."""
+    SETUP = "setup"
+    GRADING = "grading"
+    REPORTING = "reporting"
+
+
 class StepName(Enum):
     """Enumeration of all available pipeline steps."""
     BOOTSTRAP = "BootstrapStep"
     LOAD_TEMPLATE = "LoadTemplateStep"
     BUILD_TREE = "BuildTreeStep"
+    FILE_CHECK = "FileCheckStep"
+    ASSET_INJECTION = "AssetInjectionStep"
+    SETUP_COMMANDS = "SetupCommandsStep"
     PRE_FLIGHT = "PreFlightStep"
     SANDBOX = "SandboxStep"
     AI_BATCH = "AiBatchStep"

@@ -2,7 +2,7 @@ import logging
 
 from autograder.models.abstract.step import Step
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.models.dataclass.step_result import StepResult, StepName
+from autograder.models.dataclass.step_result import StepResult, StepName, StepCategory
 from autograder.services.pre_flight_service import PreFlightService
 from autograder.translations import t
 from autograder.models.config.setup import SetupConfig
@@ -34,6 +34,10 @@ class PreFlightStep(Step):
     @property
     def step_name(self) -> StepName:
         return StepName.PRE_FLIGHT
+
+    @property
+    def category(self) -> StepCategory:
+        return StepCategory.SETUP
 
     def _execute(self, pipeline_exec: PipelineExecution) -> PipelineExecution:
         """

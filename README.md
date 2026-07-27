@@ -7,11 +7,9 @@
 **An educational-standards-driven autograding tool that transforms assignment grading into an engaging learning experience.**
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED.svg)](https://www.docker.com/)
 [![Tests](https://github.com/webtech-network/autograder/actions/workflows/pytest.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/pytest.yml)
 [![Lint](https://github.com/webtech-network/autograder/actions/workflows/pylint.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/pylint.yml)
-[![Docs](https://github.com/webtech-network/autograder/actions/workflows/validate-docs.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/validate-docs.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 [Features](#features) • [Architecture](#architecture) • [Quick Start](#quick-start) • [Templates](#grading-templates) • [Pipeline](#pipeline-workflow) • [API](#rest-api) • [GitHub Action](#github-action) • [Docs](https://webtech-network.github.io/autograder/) • [Community](#community-standards)

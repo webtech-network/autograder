@@ -1,4 +1,5 @@
 import pytest
+from typing import Dict, Any
 
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
@@ -38,6 +39,14 @@ class InvalidTemplate(Template):
     @property
     def requires_sandbox(self) -> bool:
         return False
+
+    @property
+    def required_files(self) -> Dict[str, list]:
+        return {}
+
+    @property
+    def setup_commands(self) -> Dict[str, list]:
+        return {}
 
     def get_test(self, name: str):
         return DummyTest()

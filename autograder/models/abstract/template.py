@@ -25,6 +25,16 @@ class Template(ABC):
         """Declare whether template tests require sandbox execution."""
         raise NotImplementedError
 
+    @property
+    def required_files(self) -> Dict[str, list]:
+        """Return a dictionary of required files per language."""
+        return {}
+
+    @property
+    def setup_commands(self) -> Dict[str, list]:
+        """Return a dictionary of setup commands per language."""
+        return {}
+
     @abstractmethod
     def get_test(self, name: str) -> TestFunction:
         """Return a test function instance by its registry name."""

@@ -64,6 +64,14 @@ class EmptyTemplate(Template):
     def requires_sandbox(self):
         return False
 
+    @property
+    def required_files(self):
+        return {}
+
+    @property
+    def setup_commands(self):
+        return {}
+
     def get_test(self, name):
         raise KeyError(name)
 

@@ -14,10 +14,17 @@ _MANAGER_INSTANCE: Optional[Union['SandboxManager', RemoteSandboxManager]] = Non
 _CLIENT: Optional[docker.DockerClient] = None
 _SHUTDOWN_REGISTERED = False
 
-def _get_client() -> docker.DockerClient:
+
+def _get_docker_client() -> docker.DockerClient:
     global _CLIENT
     if _CLIENT is None:
-        _CLIENT = docker.from_env()
+        try:
+            _CLIENT = docker.from_env()
+        except Exception as e:
+            raise RuntimeError(
+                "Failed to initialize Docker client. Make sure Docker is running "
+                "and the socket is accessible."
+            ) from e
     return _CLIENT
 
 def initialize_sandbox_manager(
@@ -53,7 +60,7 @@ def initialize_sandbox_manager(
 
     # Clean up orphaned containers before initializing new pools
     print("[SandboxManager] Cleaning up orphaned containers from previous runs...")
-    client = _get_client()
+    client = _get_docker_client()
     _cleanup_orphaned_containers(client)
 
     language_pools = {config.language: LanguagePool(config.language, config, client) for config in pool_configs}
