@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 from autograder.models.result_tree import ResultTree
 from autograder.models.dataclass.focus import Focus
+from autograder.models.dataclass.comparison_result import ComparisonResult
 
 
 @dataclass
@@ -12,6 +13,7 @@ class GradingResult:
     feedback: Optional[str] = None
     result_tree: Optional['ResultTree'] = None
     focus: Optional['Focus'] = None  # Focus object organizing tests by impact
+    comparison: Optional['ComparisonResult'] = None  # Structured comparison against a baseline
 
     # In case of error
     error: Optional[str] = None

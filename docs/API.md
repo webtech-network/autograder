@@ -398,6 +398,7 @@ Content-Type: application/json
 | `files` | list[object] | ✓ | List of files with `filename` and `content` |
 | `language` | string | ✗ | Language override (defaults to first language in config) |
 | `metadata` | object | ✗ | Optional metadata to attach to the submission |
+| `baseline_result_tree` | object | ✗ | Serialised `result_tree` from a previous submission response to calculate a `ComparisonResult` |
 
 **Response (200 OK):**
 ```json
@@ -567,6 +568,7 @@ GET /api/v1/submissions/{submission_id}
 | `result_tree` | object\|null | Detailed grading results (null if grading didn't run) |
 | `focus` | object\|null | Focus analysis grouping failed tests by impact |
 | `score_vector` | object\|null | Flat path-keyed score map (e.g. `{"base/subject/test": 85.0}`) for longitudinal queries. `null` for failed/interrupted executions |
+| `comparison` | object\|null | Baseline comparison result (`score_delta`, `improved`, `test_deltas`) if `baseline_result_tree` was provided |
 | `submission_files` | object | Submitted files as `{filename: content}` map |
 | `submission_metadata` | object\|null | Optional metadata attached at submission time |
 | `pipeline_execution` | object\|null | Pipeline execution details with step-by-step status |

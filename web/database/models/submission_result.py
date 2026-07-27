@@ -33,6 +33,7 @@ class SubmissionResult(Base):
     feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     focus: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Focus object with test impacts
     score_vector: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Flat path-keyed score map
+    comparison: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Baseline comparison output
     pipeline_execution: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # NEW: Pipeline step details
     execution_time_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     pipeline_status: Mapped[PipelineStatus] = mapped_column(

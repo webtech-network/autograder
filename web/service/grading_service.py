@@ -4,9 +4,12 @@ import asyncio
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Optional
 
 from autograder.autograder import build_pipeline
 from autograder.models.dataclass.submission import Submission as AutograderSubmission, SubmissionFile
+from autograder.models.result_tree import ResultTree
+from autograder.services.result_comparator import ResultComparator
 from autograder.utils.feedback_generator import generate_preflight_feedback
 from sandbox_manager.models.sandbox_models import Language
 from web.config.logging import get_logger
@@ -35,6 +38,7 @@ class GradingRequest:
     external_user_id: str
     submission_files: dict
     locale: str = "en"
+    baseline_result_tree: Optional[dict] = None
 
 
 async def grade_submission(request: GradingRequest) -> None:
@@ -62,6 +66,20 @@ async def grade_submission(request: GradingRequest) -> None:
             execution_time_ms = int((time.time() - start_time) * 1000)
 
             if pipeline_execution.result:
+                if request.baseline_result_tree and pipeline_execution.result.result_tree:
+                    try:
+                        baseline_tree = ResultTree.from_dict(request.baseline_result_tree)
+                        head_tree = pipeline_execution.result.result_tree
+                        pipeline_execution.result.comparison = ResultComparator.compare(
+                            baseline=baseline_tree,
+                            head=head_tree,
+                        )
+                    except Exception as exc:  # pylint: disable=broad-exception-caught
+                        logger.warning(
+                            "Failed to perform baseline comparison for submission %d: %s",
+                            request.submission_id, str(exc)
+                        )
+
                 await _persist_success(result_repo, submission_repo, request, pipeline_execution, execution_time_ms)
             else:
                 await _persist_failure(result_repo, submission_repo, request, pipeline_execution, execution_time_ms)
@@ -125,6 +143,7 @@ async def _persist_success(result_repo, submission_repo, request: GradingRequest
         }
 
     focus_dict = result.focus.to_dict() if result.focus else None
+    comparison_dict = result.comparison.to_dict() if result.comparison else None
     pipeline_summary = PipelineExecutionSerializer.serialize(pipeline_execution)
     score_vector = result.result_tree.to_score_vector() if result.result_tree else None
 
@@ -135,6 +154,7 @@ async def _persist_success(result_repo, submission_repo, request: GradingRequest
         feedback=result.feedback,
         focus=focus_dict,
         score_vector=score_vector,
+        comparison=comparison_dict,
         pipeline_execution=pipeline_summary,
         execution_time_ms=execution_time_ms,
         pipeline_status=PipelineStatus.SUCCESS,

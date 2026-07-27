@@ -45,9 +45,9 @@ class TestResultNode:
     """
 
     name: str
-    test_node: TestNode
     score: float
     report: str
+    test_node: Optional[TestNode] = None
     weight: float = 100.0
     parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -64,10 +64,23 @@ class TestResultNode:
             "score": round(self.score, 2),
             "weight": self.weight,
             "report": self.report,
-            "file_target": self.test_node.file_target,
+            "file_target": self.test_node.file_target if self.test_node else None,
             "parameters": self.parameters,
             "metadata": self.metadata,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "TestResultNode":
+        """Reconstruct a TestResultNode from a dictionary representation."""
+        return cls(
+            name=data.get("name", ""),
+            score=float(data.get("score", 0.0)),
+            report=data.get("report", ""),
+            test_node=None,
+            weight=float(data.get("weight", 100.0)),
+            parameters=data.get("parameters") or {},
+            metadata=data.get("metadata") or {},
+        )
 
 
 @dataclass
@@ -88,8 +101,8 @@ class SubjectResultNode:
     """
 
     name: str
-    weight: float
-    subjects_weight: Optional[float]
+    weight: float = 100.0
+    subjects_weight: Optional[float] = None
     score: float = 0.0
     subjects: List["SubjectResultNode"] = field(default_factory=list)
     tests: List[TestResultNode] = field(default_factory=list)
@@ -135,6 +148,27 @@ class SubjectResultNode:
             "tests": [test.to_dict() for test in self.tests],
             "metadata": self.metadata,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SubjectResultNode":
+        """Reconstruct a SubjectResultNode from a dictionary representation."""
+        subjects = [
+            SubjectResultNode.from_dict(s)
+            for s in data.get("subjects") or []
+        ]
+        tests = [
+            TestResultNode.from_dict(t)
+            for t in data.get("tests") or []
+        ]
+        return cls(
+            name=data.get("name", ""),
+            weight=float(data.get("weight", 100.0)),
+            score=float(data.get("score", 0.0)),
+            subjects_weight=data.get("subjects_weight"),
+            subjects=subjects,
+            tests=tests,
+            metadata=data.get("metadata") or {},
+        )
 
     def get_all_test_results(self) -> List[TestResultNode]:
         """Recursively collect all test results under this subject."""
@@ -235,6 +269,27 @@ class CategoryResultNode:
             "tests": [test.to_dict() for test in self.tests],
             "metadata": self.metadata,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CategoryResultNode":
+        """Reconstruct a CategoryResultNode from a dictionary representation."""
+        subjects = [
+            SubjectResultNode.from_dict(s)
+            for s in data.get("subjects") or []
+        ]
+        tests = [
+            TestResultNode.from_dict(t)
+            for t in data.get("tests") or []
+        ]
+        return cls(
+            name=data.get("name", ""),
+            weight=float(data.get("weight", 100.0)),
+            score=float(data.get("score", 0.0)),
+            subjects_weight=data.get("subjects_weight"),
+            subjects=subjects,
+            tests=tests,
+            metadata=data.get("metadata") or {},
+        )
 
     def get_all_test_results(self) -> List[TestResultNode]:
         """Recursively collect all test results under this category."""
@@ -343,6 +398,34 @@ class RootResultNode:
 
         return result
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "RootResultNode":
+        """Reconstruct a RootResultNode from a dictionary representation."""
+        base_data = data.get("base")
+        if not base_data:
+            raise ValueError("Root node dictionary must contain a 'base' category.")
+
+        base_cat = CategoryResultNode.from_dict(base_data)
+        bonus_cat = (
+            CategoryResultNode.from_dict(data["bonus"])
+            if data.get("bonus")
+            else None
+        )
+        penalty_cat = (
+            CategoryResultNode.from_dict(data["penalty"])
+            if data.get("penalty")
+            else None
+        )
+
+        return cls(
+            name=data.get("name", "root"),
+            score=float(data.get("score", 0.0)),
+            base=base_cat,
+            bonus=bonus_cat,
+            penalty=penalty_cat,
+            metadata=data.get("metadata") or {},
+        )
+
     def get_all_categories(self) -> List[CategoryResultNode]:
         """Get all category nodes."""
         categories = []
@@ -445,11 +528,43 @@ class ResultTree:
         return {
             "template_name": self.template_name,
             "final_score": round(self.root.score, 2),
-            "tree": self.root.to_dict(),
-            "metadata": self.metadata,
             "summary": {
                 "total_tests": len(all_tests),
                 "passed_tests": len(passed_tests),
                 "failed_tests": len(failed_tests),
             },
+            "tree": self.root.to_dict(),
+            "root": self.root.to_dict(),
+            "metadata": self.metadata,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ResultTree":
+        """
+        Reconstruct a ResultTree from a dictionary representation.
+
+        Supports:
+        - ResultTree.to_dict() format (with 'root' or 'tree' key)
+        - DB stored format (with 'children' key)
+        - Raw RootResultNode dict (with 'base' key directly)
+        """
+        if not data:
+            raise ValueError("Cannot deserialize empty dictionary into ResultTree")
+
+        root_dict = data
+        if "root" in data and isinstance(data["root"], dict):
+            root_dict = data["root"]
+        elif "tree" in data and isinstance(data["tree"], dict):
+            root_dict = data["tree"]
+        elif "children" in data and isinstance(data["children"], dict):
+            root_dict = data["children"]
+
+        root = RootResultNode.from_dict(root_dict)
+        if "final_score" in data:
+            root.score = float(data["final_score"])
+
+        return cls(
+            root=root,
+            template_name=data.get("template_name"),
+            metadata=data.get("metadata") or {},
+        )
