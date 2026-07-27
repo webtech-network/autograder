@@ -398,6 +398,7 @@ Content-Type: application/json
 | `files` | list[object] | ✓ | List of files with `filename` and `content` |
 | `language` | string | ✗ | Language override (defaults to first language in config) |
 | `metadata` | object | ✗ | Optional metadata to attach to the submission |
+| `baseline_result_tree` | object | ✗ | Serialised `result_tree` from a previous submission response to calculate a `ComparisonResult` |
 
 **Response (200 OK):**
 ```json
@@ -412,7 +413,8 @@ Content-Type: application/json
   "final_score": null,
   "feedback": null,
   "result_tree": null,
-  "focus": null
+  "focus": null,
+  "score_vector": null
 }
 ```
 
@@ -452,6 +454,13 @@ GET /api/v1/submissions/{submission_id}
     "high_impact": [ ... ],
     "medium_impact": [ ... ],
     "low_impact": [ ... ]
+  },
+  "score_vector": {
+    "base/functionality/correct_output": 100.0,
+    "base/functionality/edge_cases": 71.0,
+    "base/code_quality/proper_syntax": 100.0,
+    "base/code_quality/good_practices": 85.0,
+    "bonus/extra_features": 100.0
   },
   "submission_files": {
     "main.py": "print('Hello World')"
@@ -513,6 +522,7 @@ GET /api/v1/submissions/{submission_id}
   "feedback": "## Preflight Check Failed\n\n### Setup Command Failed: Compile Calculator.java\n...",
   "result_tree": null,
   "focus": null,
+  "score_vector": null,
   "submission_files": { ... },
   "submission_metadata": null,
   "pipeline_execution": {
@@ -557,6 +567,8 @@ GET /api/v1/submissions/{submission_id}
 | `feedback` | string\|null | Human-readable feedback report |
 | `result_tree` | object\|null | Detailed grading results (null if grading didn't run) |
 | `focus` | object\|null | Focus analysis grouping failed tests by impact |
+| `score_vector` | object\|null | Flat path-keyed score map (e.g. `{"base/subject/test": 85.0}`) for longitudinal queries. `null` for failed/interrupted executions |
+| `comparison` | object\|null | Baseline comparison result (`score_delta`, `improved`, `test_deltas`) if `baseline_result_tree` was provided |
 | `submission_files` | object | Submitted files as `{filename: content}` map |
 | `submission_metadata` | object\|null | Optional metadata attached at submission time |
 | `pipeline_execution` | object\|null | Pipeline execution details with step-by-step status |
@@ -590,7 +602,11 @@ GET /api/v1/submissions/user/{external_user_id}?limit=100&offset=0
     "final_score": 85.5,
     "feedback": "...",
     "result_tree": { ... },
-    "focus": null
+    "focus": null,
+    "score_vector": {
+      "base/functionality/correct_output": 100.0,
+      "base/functionality/edge_cases": 71.0
+    }
   }
 ]
 ```
@@ -619,6 +635,7 @@ Persist grading results computed outside the cloud instance (e.g. GitHub Action 
   "feedback": "## Grade: 85.5/100\n...",
   "result_tree": { ... },
   "focus": { ... },
+  "score_vector": { "base/subject/test": 85.0 },
   "pipeline_execution": { ... },
   "execution_time_ms": 4521,
   "error_message": null,
@@ -642,6 +659,7 @@ Persist grading results computed outside the cloud instance (e.g. GitHub Action 
 | `feedback` | string | ✗ | Generated feedback text |
 | `result_tree` | object | ✗ | Scored result tree |
 | `focus` | object | ✗ | Failed tests sorted by impact |
+| `score_vector` | object | ✗ | Flat path-keyed score map for longitudinal queries |
 | `pipeline_execution` | object | ✗ | Pipeline step execution details |
 | `execution_time_ms` | int | ✓ | Total execution time in milliseconds (≥ 0) |
 | `error_message` | string | ✗ | Error message for failed runs |

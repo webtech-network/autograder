@@ -125,6 +125,7 @@ async def create_submission(
         external_user_id=db_submission.external_user_id,
         submission_files=db_submission.submission_files,
         locale=submission.locale,
+        baseline_result_tree=submission.baseline_result_tree,
     )
     task = asyncio.create_task(grade_submission(grading_request))
 
@@ -187,6 +188,8 @@ async def get_submission(
         "feedback": None,
         "result_tree": None,
         "focus": None,
+        "score_vector": None,
+        "comparison": None,
         "pipeline_execution": None,
     }
 
@@ -197,6 +200,8 @@ async def get_submission(
             "feedback": submission.result.feedback,
             "result_tree": submission.result.result_tree,
             "focus": submission.result.focus,
+            "score_vector": submission.result.score_vector,
+            "comparison": submission.result.comparison,
             "pipeline_execution": submission.result.pipeline_execution,
         })
 
@@ -316,6 +321,8 @@ async def ingest_external_result(
         result_tree=payload.result_tree,
         feedback=payload.feedback,
         focus=payload.focus,
+        score_vector=payload.score_vector,
+        comparison=payload.comparison,
         pipeline_execution=payload.pipeline_execution,
         execution_time_ms=payload.execution_time_ms,
         pipeline_status=pipeline_status,
