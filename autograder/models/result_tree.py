@@ -143,6 +143,32 @@ class SubjectResultNode:
             results.extend(subject.get_all_test_results())
         return results
 
+    def iter_test_results(
+        self, prefix: str, parent_multiplier: float = 1.0
+    ) -> Iterator[Tuple[str, TestResultNode, float]]:
+        """
+        Recursively yield (path, node, multiplier) for tests under this subject.
+        """
+        current_prefix = f"{prefix}/{self.name}"
+        current_subject_multiplier = parent_multiplier
+        current_test_multiplier = parent_multiplier
+
+        if self.subjects_weight is not None:
+            subj_group_w = self.subjects_weight / 100.0
+            test_group_w = (100.0 - self.subjects_weight) / 100.0
+            current_subject_multiplier *= subj_group_w
+            current_test_multiplier *= test_group_w
+
+        for child_subject in self.subjects:
+            child_weight_factor = child_subject.weight / 100.0
+            yield from child_subject.iter_test_results(
+                prefix=current_prefix,
+                parent_multiplier=current_subject_multiplier * child_weight_factor,
+            )
+
+        for test in self.tests:
+            yield (f"{current_prefix}/{test.name}", test, current_test_multiplier)
+
 
 @dataclass
 class CategoryResultNode:
@@ -216,6 +242,31 @@ class CategoryResultNode:
         for subject in self.subjects:
             results.extend(subject.get_all_test_results())
         return results
+
+    def iter_test_results(
+        self, prefix: Optional[str] = None, parent_multiplier: float = 1.0
+    ) -> Iterator[Tuple[str, TestResultNode, float]]:
+        """
+        Yield (path, node, multiplier) for tests under this category.
+        """
+        cat_prefix = prefix or self.name
+        initial_mult = parent_multiplier * (self.weight / 100.0)
+        subj_mult = initial_mult
+        test_mult = initial_mult
+
+        if self.subjects_weight is not None:
+            subj_mult *= self.subjects_weight / 100.0
+            test_mult *= (100.0 - self.subjects_weight) / 100.0
+
+        for subject in self.subjects:
+            child_weight_factor = subject.weight / 100.0
+            yield from subject.iter_test_results(
+                prefix=cat_prefix,
+                parent_multiplier=subj_mult * child_weight_factor,
+            )
+
+        for test in self.tests:
+            yield (f"{cat_prefix}/{test.name}", test, test_mult)
 
 
 @dataclass
@@ -369,28 +420,9 @@ class ResultTree:
             Tuples of (path_string, TestResultNode) for every leaf test
             in the result tree, ordered by category → subject → test.
         """
-
-        def _iter_subject(
-            subject: SubjectResultNode, prefix: str
-        ) -> Iterator[Tuple[str, TestResultNode]]:
-            """Recursively walk a subject node, yielding tests with paths."""
-            current_prefix = f"{prefix}/{subject.name}"
-            for child_subject in subject.subjects:
-                yield from _iter_subject(child_subject, current_prefix)
-            for test in subject.tests:
-                yield (f"{current_prefix}/{test.name}", test)
-
-        def _iter_category(
-            category: CategoryResultNode,
-        ) -> Iterator[Tuple[str, TestResultNode]]:
-            """Walk a category node, yielding tests with paths."""
-            for subject in category.subjects:
-                yield from _iter_subject(subject, category.name)
-            for test in category.tests:
-                yield (f"{category.name}/{test.name}", test)
-
         for category in self.root.get_all_categories():
-            yield from _iter_category(category)
+            for path, test_node, _multiplier in category.iter_test_results():
+                yield (path, test_node)
 
     def to_score_vector(self) -> Dict[str, float]:
         """
