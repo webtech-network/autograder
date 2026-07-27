@@ -37,11 +37,16 @@ class SandboxStep(Step):
             PipelineExecution with updated sandbox and step result.
         """
         grading_templates = pipeline_exec.get_loaded_templates()
-        
-        requires_sandbox = any(t.requires_sandbox for t in grading_templates)
 
-        if not requires_sandbox:
-            logger.info("None of the templates require a sandbox. Skipping SandboxStep.")
+        # StepRegistry only adds SandboxStep when at least one template requires_sandbox.
+        # If somehow this step runs without any template requiring a sandbox, that indicates
+        # a StepRegistry misconfiguration — log a warning and return success with no sandbox.
+        if not any(t.requires_sandbox for t in grading_templates):
+            logger.warning(
+                "SandboxStep reached but no template requires a sandbox — "
+                "this indicates a StepRegistry misconfiguration (external_user_id=%s)",
+                pipeline_exec.submission.user_id,
+            )
             return pipeline_exec.add_step_result(StepResult.success(self.step_name, None))
 
         logger.info("Creating sandbox for submission (external_user_id=%s)", pipeline_exec.submission.user_id)

@@ -1,4 +1,4 @@
-import os
+import logging
 from typing import Dict, Callable, Any, Optional, List
 
 from autograder.models.dataclass.step_result import StepName
@@ -18,7 +18,6 @@ from autograder.steps.export_step import ExporterStep
 
 from autograder.services.focus_service import FocusService
 from autograder.services.report.reporter_service import ReporterService
-from autograder.services.upstash_driver import UpstashDriver
 
 
 class StepRegistry:
@@ -102,11 +101,12 @@ class StepRegistry:
 
     def _build_exporter(self) -> Optional[Step]:
         if self.config.get("export_results"):
-            # Update the fallback to include the required credentials
-            exporter = self.config.get("exporter") or UpstashDriver(
-                redis_url=os.getenv("UPSTASH_REDIS_URL"),
-                redis_token=os.getenv("UPSTASH_REDIS_TOKEN")
-            )
+            exporter = self.config.get("exporter")
+            if exporter is None:
+                raise ValueError(
+                    "export_results=True requires an 'exporter' to be provided to build_pipeline(). "
+                    "Pass an Exporter instance (e.g. UpstashDriver, CloudExporter) via the exporter= argument."
+                )
             return ExporterStep(exporter)
         return None
 
