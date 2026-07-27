@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from autograder.services.grader.criteria_grader import SubmissionGrader
 from autograder.models.criteria_tree import CategoryNode, SubjectNode, TestNode
 from autograder.models.abstract.test_function import TestFunction
+from autograder.models.dataclass.submission import EvaluationScope, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 
 class MockTestFunction(TestFunction):
@@ -18,6 +19,19 @@ class MockTestFunction(TestFunction):
         return []
     def execute(self, files=None, sandbox=None, **kwargs):
         return TestResult(test_name="mock_test", score=kwargs.get('score', 100.0), report="OK")
+
+
+class CapturingTestFunction(MockTestFunction):
+    """Test function that records the pipeline context passed to execute."""
+
+    def __init__(self):
+        self.files = None
+        self.kwargs = {}
+
+    def execute(self, files=None, sandbox=None, **kwargs):
+        self.files = files
+        self.kwargs = kwargs
+        return super().execute(files=files, sandbox=sandbox, **kwargs)
 
 @pytest.fixture
 def grader():
@@ -96,8 +110,6 @@ def test_balance_nodes_zero_weights(grader):
     assert result.subjects[1].weight == 50.0
     assert result.calculate_score() == 100.0
 
-from autograder.models.dataclass.submission import SubmissionFile
-
 def test_balance_nodes_subjects_and_tests_missing_subjects_weight(grader):
     tf = MockTestFunction()
     s1 = SubjectNode(name="S1", weight=100, tests=[TestNode(name="T1", test_function=tf)])
@@ -163,3 +175,36 @@ def test_get_file_target_specific():
     target_files = grader.get_file_target(t1)
     assert len(target_files) == 1
     assert target_files[0] is file1
+
+
+def test_process_test_passes_scope_and_target_file_metadata():
+    scope = EvaluationScope(scoped_files=["file1.py"])
+    file1 = SubmissionFile(
+        filename="file1.py",
+        content="",
+        metadata={"change_status": "modified"},
+    )
+    file2 = SubmissionFile(
+        filename="file2.py",
+        content="",
+        metadata={"change_status": "added"},
+    )
+    grader = SubmissionGrader(
+        submission_files={"file1.py": file1, "file2.py": file2},
+        command_resolver=MagicMock(),
+        evaluation_scope=scope,
+    )
+    test_function = CapturingTestFunction()
+    test_node = TestNode(
+        name="T1",
+        test_function=test_function,
+        file_target=["file1.py"],
+    )
+
+    grader.process_test(test_node)
+
+    assert test_function.files == [file1]
+    assert test_function.kwargs["evaluation_scope"] is scope
+    assert test_function.kwargs["file_metadata"] == {
+        "file1.py": {"change_status": "modified"},
+    }

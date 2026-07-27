@@ -4,7 +4,11 @@ import pytest
 from pydantic import ValidationError
 
 from web.schemas.assignment import GradingConfigCreate, GradingConfigUpdate
-from web.schemas.submission import SubmissionCreate, SubmissionFileData
+from web.schemas.submission import (
+    EvaluationScopeData,
+    SubmissionCreate,
+    SubmissionFileData,
+)
 
 
 class TestLanguageValidation:
@@ -140,3 +144,23 @@ class TestLanguageValidation:
             )
             assert submission.language == "python"
 
+    def test_submission_create_accepts_evaluation_context(self):
+        """Submission schemas accept typed scope and per-file context."""
+        submission = SubmissionCreate(
+            external_assignment_id="test-001",
+            external_user_id="user-001",
+            username="testuser",
+            files=[
+                SubmissionFileData(
+                    filename="test.py",
+                    content="print('hello')",
+                    changed_lines=[1],
+                    file_metadata={"change_status": "modified"},
+                )
+            ],
+            evaluation_scope=EvaluationScopeData(scoped_files=["test.py"]),
+        )
+
+        assert submission.files[0].changed_lines == [1]
+        assert submission.files[0].file_metadata == {"change_status": "modified"}
+        assert submission.evaluation_scope.scoped_files == ["test.py"]
