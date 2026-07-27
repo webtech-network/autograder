@@ -33,7 +33,7 @@ class DefaultReporter:
 
         # 5. Online Resources
         if preferences and preferences.general.online_content:
-            failed_names = {t.name for t in result_tree.get_failed_tests()} if result_tree else set()
+            failed_names = {test_node.name for test_node in result_tree.get_failed_tests()} if result_tree else set()
             lines.extend(self._add_online_resources(preferences.general.online_content, failed_names, locale=locale))
 
         return "\n".join(lines)
@@ -68,7 +68,7 @@ class DefaultReporter:
             if not tests:
                 continue
 
-            filtered_tests = [t for t in tests if show_passed or t.test_result.score < 100]
+            filtered_tests = [focused for focused in tests if show_passed or focused.test_result.score < 100]
 
             if filtered_tests:
                 lines.append("")
@@ -110,4 +110,4 @@ class DefaultReporter:
         for resource in visible:
             lines.append(f"- 📘 [{resource.description}]({resource.url})")
         return lines if len(lines) > 4 else []  # skip section if nothing to show
-
+
