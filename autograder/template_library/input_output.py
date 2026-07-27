@@ -132,7 +132,7 @@ class ExpectOutputTest(BaseExecutionTest):
             output = self.run_sandbox_execution(
                 sandbox=sandbox,
                 inputs=inputs,
-                program_command="tem que quebrar",
+                program_command=program_command,
             )
 
             # Check for generic execution failures
