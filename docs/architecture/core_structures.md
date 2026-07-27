@@ -371,17 +371,53 @@ class Submission:
     username: str                                   # Student identifier
     user_id: int                                    # Student ID
     assignment_id: int                              # Assignment identifier
-    submission_files: Dict[str, SubmissionFile]      # Uploaded files keyed by filename
+    submission_files: Dict[str, SubmissionFile]     # Uploaded files keyed by filename
     language: Optional[Language] = None             # Programming language
+    locale: str = "en"                              # Feedback locale
+    evaluation_scope: Optional[EvaluationScope] = None
 ```
 
 ### Submission File
 
 ```python
 class SubmissionFile:
-    filename: str      # Name of file
-    content: str       # File contents (text)
+    filename: str                              # Name of file
+    content: str                               # Full file contents (text)
+    changed_lines: Optional[Set[int]] = None   # One-indexed added/modified lines
+    metadata: Optional[Dict[str, Any]] = None  # Opaque per-file context
 ```
+
+`SubmissionFile.is_contribution_aware` is `True` when `changed_lines` was
+provided, including when the caller explicitly provides an empty set.
+
+### Evaluation Scope
+
+```python
+class EvaluationScope:
+    scoped_files: List[str]  # Files that are the primary evaluation subject
+```
+
+When a scope is present, scope-aware pipeline steps restrict their work to the
+listed filenames. Currently, structural analysis uses the scope to avoid
+parsing unrelated files. Omitting the scope preserves snapshot behavior and
+analyzes all eligible submission files.
+
+### Metadata Ownership
+
+Evaluation context is deliberately split by responsibility:
+
+| Field | Pipeline behavior | Intended use |
+|-------|-------------------|--------------|
+| `EvaluationScope.scoped_files` | Read by scope-aware steps | Select files that analysis should focus on |
+| `SubmissionFile.changed_lines` | Read by structural analysis and available to tests | Identify added or modified lines |
+| `SubmissionFile.metadata` | Never interpreted; forwarded to test functions | Carry arbitrary per-file context |
+| API `metadata` / database `submission_metadata` | Never read by the core pipeline | Preserve submission-level provenance and audit context |
+
+Platform- or domain-specific data belongs in the open-ended metadata fields,
+not in new typed core model fields. Test functions receive `evaluation_scope`
+and a filename-keyed `file_metadata` mapping through `execute(**kwargs)`. They
+also receive the original `SubmissionFile` objects, including `changed_lines`
+and `metadata`, through the `files` argument.
 
 ## Template
 
@@ -412,4 +448,3 @@ class TestFunction:
         """Execute the test and return result"""
         pass
 ```
-
