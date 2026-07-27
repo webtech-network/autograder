@@ -78,6 +78,7 @@ nav:
   - Features:
       - Grading Engine: features/grading_engine.md
       - Focus Feature: features/focus_feature.md
+      - Score Vector: features/score_vector.md
       - Deliberate Code Execution: features/deliberate_code_execution.md
       - Setup Config: features/setup_config_feature.md
       - Command Resolver: features/command_resolver.md

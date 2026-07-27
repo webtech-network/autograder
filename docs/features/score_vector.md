@@ -1,7 +1,7 @@
 # Score Vector
 
 **Status:** Implemented  
-**Related:** [Focus Feature](focus_feature.md), [Result Tree](../architecture/result_tree.md)
+**Related:** [Focus Feature](focus_feature.md), [Core Structures](../architecture/core_structures.md)
 
 ---
 
