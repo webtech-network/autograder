@@ -23,6 +23,22 @@ class SubmissionFileData(BaseModel):
     content: str = Field(..., description="Content of the file")
 
 
+class TestDeltaResponse(BaseModel):
+    """Schema for a single test delta in a baseline comparison."""
+    path: str = Field(..., description="Stable test path string (category/subject/.../test_name)")
+    status: str = Field(..., description="Status transition: improved, regressed, unchanged, introduced, or removed")
+    baseline_score: Optional[float] = Field(None, description="Score in baseline run")
+    head_score: Optional[float] = Field(None, description="Score in head run")
+    delta: Optional[float] = Field(None, description="Score change (head - baseline)")
+
+
+class ComparisonResultResponse(BaseModel):
+    """Schema for baseline comparison results."""
+    score_delta: float = Field(..., description="Overall final score change")
+    improved: bool = Field(..., description="True if score_delta > 0")
+    test_deltas: List[TestDeltaResponse] = Field(default_factory=list, description="Per-test deltas")
+
+
 class SubmissionCreate(BaseModel):
     """Schema for creating a new submission."""
     external_assignment_id: str = Field(..., description="External assignment ID")
@@ -32,6 +48,14 @@ class SubmissionCreate(BaseModel):
     language: Optional[str] = Field(None, description="Optional language override")
     locale: Optional[str] = Field("en", description="Optional locale for feedback (e.g., 'en', 'pt_br')")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Optional submission metadata")
+    baseline_result_tree: Optional[Dict[str, Any]] = Field(
+        None,
+        description=(
+            "Serialised result_tree from a previous submission response. "
+            "When provided, the autograder computes a ComparisonResult and "
+            "attaches it to the grading result."
+        ),
+    )
 
     @field_validator('language')
     @classmethod
@@ -72,6 +96,8 @@ class SubmissionResponse(BaseModel):
     feedback: Optional[str] = None
     result_tree: Optional[Dict[str, Any]] = None
     focus: Optional[Dict[str, Any]] = None
+    score_vector: Optional[Dict[str, float]] = None
+    comparison: Optional[ComparisonResultResponse] = None
 
 
 class SubmissionDetailResponse(SubmissionResponse):
@@ -99,6 +125,8 @@ class ExternalResultCreate(BaseModel):
     result_tree: Optional[Dict[str, Any]] = Field(None, description="Scored result tree")
     focus: Optional[Dict[str, Any]] = Field(None, description="Sorted failed tests by impact")
     pipeline_execution: Optional[Dict[str, Any]] = Field(None, description="Pipeline step execution details")
+    score_vector: Optional[Dict[str, float]] = Field(None, description="Flat path-keyed score map for longitudinal queries")
+    comparison: Optional[Dict[str, Any]] = Field(None, description="Baseline comparison output")
     execution_time_ms: int = Field(..., description="Total execution time in milliseconds", ge=0)
     error_message: Optional[str] = Field(None, description="Error message for failed runs")
     submission_metadata: Optional[Dict[str, Any]] = Field(None, description="Repository/run metadata")
