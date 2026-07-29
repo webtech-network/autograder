@@ -295,6 +295,54 @@ class TestSubmissionEndpoints:
             assert data["username"] == "student1"
             assert data["status"] == "pending"
 
+    @pytest.mark.asyncio
+    async def test_create_submission_persists_evaluation_context(self, client):
+        """Scope, changed lines, and file metadata reach the grading request."""
+        config_data = {
+            "external_assignment_id": "submit-scope-test",
+            "template_name": "input_output",
+            "languages": ["python"],
+            "criteria_config": {"base": {}},
+        }
+        await client.post("/api/v1/configs", json=config_data)
+
+        mock_grading_tasks = set()
+        with patch(
+            "web.api.v1.submissions.grade_submission",
+            new_callable=AsyncMock,
+        ) as mock_grade, patch(
+            "web.api.v1.submissions.get_grading_tasks",
+            return_value=mock_grading_tasks,
+        ):
+            response = await client.post(
+                "/api/v1/submissions",
+                json={
+                    "external_assignment_id": "submit-scope-test",
+                    "external_user_id": "user_scope",
+                    "username": "student_scope",
+                    "files": [
+                        {
+                            "filename": "main.py",
+                            "content": "print('hello')",
+                            "changed_lines": [1],
+                            "file_metadata": {"change_status": "modified"},
+                        }
+                    ],
+                    "evaluation_scope": {"scoped_files": ["main.py"]},
+                },
+            )
+
+            assert response.status_code == 200
+            mock_grade.assert_called_once()
+            grading_request = mock_grade.call_args.args[0]
+            assert grading_request.submission_files["main.py"]["changed_lines"] == [1]
+            assert grading_request.submission_files["main.py"]["file_metadata"] == {
+                "change_status": "modified",
+            }
+            assert grading_request.evaluation_scope == {
+                "scoped_files": ["main.py"],
+            }
+
 
     @pytest.mark.asyncio
     async def test_create_submission_with_language(self, client):
@@ -421,4 +469,3 @@ class TestSubmissionEndpoints:
             assert isinstance(data, list)
             assert len(data) >= 3
             assert all(s["external_user_id"] == "user_multi" for s in data)
-

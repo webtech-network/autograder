@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from autograder.steps.structural_analysis_step import StructuralAnalysisStep
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.models.dataclass.submission import Submission, SubmissionFile
+from autograder.models.dataclass.submission import EvaluationScope, Submission, SubmissionFile
 from autograder.models.dataclass.step_result import StepName, StepStatus
 from sandbox_manager.models.sandbox_models import Language
 
@@ -41,9 +41,53 @@ def test_structural_analysis_step_execution_success(mock_sg_root, mock_pipeline_
     assert "main.py" in step_result.data.roots
     assert "data.txt" not in step_result.data.roots # Heuristic should skip .txt
     assert step_result.data.roots["main.py"] == mock_root_instance
+    assert step_result.data.changed_lines == {}
     
     # Verify SgRoot called correctly
     mock_sg_root.assert_called_once_with("print('hello')", "python")
+
+
+@patch("autograder.steps.structural_analysis_step.SgRoot")
+def test_structural_analysis_restricts_parsing_to_evaluation_scope(
+    mock_sg_root,
+    mock_pipeline_exec,
+):
+    mock_pipeline_exec.submission.submission_files["helper.py"] = SubmissionFile(
+        filename="helper.py",
+        content="def helper(): return True",
+        changed_lines={1},
+    )
+    mock_pipeline_exec.submission.submission_files["main.py"].changed_lines = {1, 3}
+    mock_pipeline_exec.submission.evaluation_scope = EvaluationScope(
+        scoped_files=["helper.py"],
+    )
+
+    result_exec = StructuralAnalysisStep().execute(mock_pipeline_exec)
+    analysis = result_exec.get_step_result(StepName.STRUCTURAL_ANALYSIS).data
+
+    assert set(analysis.roots) == {"helper.py"}
+    assert analysis.changed_lines == {"helper.py": {1}}
+    mock_sg_root.assert_called_once_with("def helper(): return True", "python")
+
+
+@patch("autograder.steps.structural_analysis_step.SgRoot")
+def test_structural_analysis_parses_all_code_files_without_scope(
+    mock_sg_root,
+    mock_pipeline_exec,
+):
+    mock_pipeline_exec.submission.submission_files["helper.py"] = SubmissionFile(
+        filename="helper.py",
+        content="def helper(): return True",
+        changed_lines={1},
+    )
+    mock_pipeline_exec.submission.submission_files["main.py"].changed_lines = {1}
+
+    result_exec = StructuralAnalysisStep().execute(mock_pipeline_exec)
+    analysis = result_exec.get_step_result(StepName.STRUCTURAL_ANALYSIS).data
+
+    assert set(analysis.roots) == {"main.py", "helper.py"}
+    assert analysis.changed_lines == {"main.py": {1}, "helper.py": {1}}
+    assert mock_sg_root.call_count == 2
 
 @patch("autograder.steps.structural_analysis_step.SgRoot")
 def test_structural_analysis_step_parsing_failure(mock_sg_root, mock_pipeline_exec):

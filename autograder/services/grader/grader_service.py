@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Optional
 
 from autograder.models.criteria_tree import CriteriaTree
-from autograder.models.dataclass.submission import SubmissionFile
+from autograder.models.dataclass.submission import EvaluationScope, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.result_tree import (
     ResultTree,
@@ -28,6 +28,7 @@ class GraderService:
         locale: str = "en",
         pre_computed_results: Optional[Dict[str, TestResult]] = None,
         structural_analysis=None,
+        evaluation_scope: Optional[EvaluationScope] = None,
     ) -> ResultTree:
         """Traverse the generic built criteria tree to resolve inputs, grades and report to ResultTree."""
         grader = SubmissionGrader(
@@ -38,6 +39,7 @@ class GraderService:
             locale=locale,
             pre_computed_results=pre_computed_results,
             structural_analysis=structural_analysis,
+            evaluation_scope=evaluation_scope,
         )
 
         base_result = grader.process_category(criteria_tree.base)
