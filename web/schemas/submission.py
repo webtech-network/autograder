@@ -21,6 +21,23 @@ class SubmissionFileData(BaseModel):
     """Schema for a submission file."""
     filename: str = Field(..., description="Name of the file")
     content: str = Field(..., description="Content of the file")
+    changed_lines: Optional[List[int]] = Field(
+        None,
+        description="One-indexed line numbers added or modified in this file",
+    )
+    file_metadata: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Optional opaque metadata for this file",
+    )
+
+
+class EvaluationScopeData(BaseModel):
+    """Schema defining the files that are the primary evaluation subject."""
+
+    scoped_files: List[str] = Field(
+        ...,
+        description="Filenames to include in scope-aware pipeline analysis",
+    )
 
 
 class TestDeltaResponse(BaseModel):
@@ -48,6 +65,10 @@ class SubmissionCreate(BaseModel):
     language: Optional[str] = Field(None, description="Optional language override")
     locale: Optional[str] = Field("en", description="Optional locale for feedback (e.g., 'en', 'pt_br')")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Optional submission metadata")
+    evaluation_scope: Optional[EvaluationScopeData] = Field(
+        None,
+        description="Optional file scope for pipeline analysis",
+    )
     baseline_result_tree: Optional[Dict[str, Any]] = Field(
         None,
         description=(

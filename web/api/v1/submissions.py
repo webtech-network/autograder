@@ -90,7 +90,12 @@ async def create_submission(
     # Convert list of SubmissionFileData to dict format for storage and quick access
     # This indexing by filename allows O(1) file lookups during grading
     submission_files_dict = {
-        file_data.filename: {"filename": file_data.filename, "content": file_data.content}
+        file_data.filename: {
+            "filename": file_data.filename,
+            "content": file_data.content,
+            "changed_lines": file_data.changed_lines,
+            "file_metadata": file_data.file_metadata,
+        }
         for file_data in submission.files
     }
 
@@ -126,6 +131,11 @@ async def create_submission(
         submission_files=db_submission.submission_files,
         locale=submission.locale,
         baseline_result_tree=submission.baseline_result_tree,
+        evaluation_scope=(
+            submission.evaluation_scope.model_dump()
+            if submission.evaluation_scope is not None
+            else None
+        ),
     )
     task = asyncio.create_task(grade_submission(grading_request))
 

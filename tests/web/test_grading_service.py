@@ -4,7 +4,12 @@ import pytest
 import time
 from unittest.mock import Mock, AsyncMock, patch
 
-from web.service.grading_service import grade_submission, _node_to_dict
+from web.service.grading_service import (
+    GradingRequest,
+    _node_to_dict,
+    _run_pipeline,
+    grade_submission,
+)
 from web.database.models.submission import SubmissionStatus
 from web.database.models.submission_result import PipelineStatus
 
@@ -169,3 +174,44 @@ def test_node_to_dict():
     result = _node_to_dict(mock_nodes)
     assert result == [{"id": 1}, {"id": 2}]
 
+
+@pytest.mark.asyncio
+async def test_run_pipeline_hydrates_evaluation_context():
+    """Stored API data is reconstructed as typed core evaluation context."""
+    mock_pipeline = Mock()
+    mock_pipeline.run.return_value = Mock()
+    request = GradingRequest(
+        submission_id=3,
+        grading_config_id=5,
+        template_name="static_analysis",
+        criteria_config={"base": {}},
+        setup_config={},
+        feedback_config={},
+        include_feedback=False,
+        language="python",
+        username="student",
+        external_user_id="user-003",
+        submission_files={
+            "main.py": {
+                "filename": "main.py",
+                "content": "print('hello')",
+                "changed_lines": [1, 3],
+                "file_metadata": {"change_status": "modified"},
+            }
+        },
+        evaluation_scope={"scoped_files": ["main.py"]},
+    )
+
+    with patch(
+        "web.service.grading_service.build_pipeline",
+        return_value=mock_pipeline,
+    ):
+        result = await _run_pipeline(request)
+
+    assert result is mock_pipeline.run.return_value
+    core_submission = mock_pipeline.run.call_args.args[0]
+    assert core_submission.evaluation_scope.scoped_files == ["main.py"]
+    assert core_submission.submission_files["main.py"].changed_lines == {1, 3}
+    assert core_submission.submission_files["main.py"].metadata == {
+        "change_status": "modified",
+    }

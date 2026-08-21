@@ -2,7 +2,7 @@ from autograder.models.criteria_tree import CategoryNode, CriteriaTree
 from autograder.models.dataclass.focus import Focus
 from autograder.models.dataclass.grade_step_result import GradeStepResult
 from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
-from autograder.models.dataclass.submission import Submission, SubmissionFile
+from autograder.models.dataclass.submission import EvaluationScope, Submission, SubmissionFile
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.result_tree import CategoryResultNode, ResultTree, RootResultNode
 from autograder.template_library.input_output import InputOutputTemplate
@@ -48,6 +48,14 @@ def test_ai_batch_results_accessor():
     pipeline_exec = _build_pipeline_execution()
     pipeline_exec.add_step_result(StepResult(step=StepName.AI_BATCH, data={"some": "data"}, status=StepStatus.SUCCESS))
     assert pipeline_exec.get_ai_batch_results() == {"some": "data"}
+
+
+def test_evaluation_scope_accessor():
+    scope = EvaluationScope(scoped_files=["main.py"])
+    pipeline_exec = _build_pipeline_execution()
+    pipeline_exec.submission.evaluation_scope = scope
+
+    assert pipeline_exec.evaluation_scope is scope
 
 
 def test_typed_accessors_raise_on_missing_required_artifacts():

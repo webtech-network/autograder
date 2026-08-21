@@ -7,7 +7,7 @@ from autograder.models.criteria_tree import (
     SubjectNode,
     TestNode,
 )
-from autograder.models.dataclass.submission import SubmissionFile
+from autograder.models.dataclass.submission import EvaluationScope, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.result_tree import (
     CategoryResultNode,
@@ -32,6 +32,7 @@ class SubmissionGrader(CriteriaTreeProcesser):
         locale: str = "en",
         pre_computed_results: Optional[Dict[str, TestResult]] = None,
         structural_analysis=None,
+        evaluation_scope: Optional[EvaluationScope] = None,
     ):
         self.logger = logging.getLogger("SubmissionGrader")
         self.submission_files = submission_files
@@ -41,6 +42,7 @@ class SubmissionGrader(CriteriaTreeProcesser):
         self.locale = locale
         self.pre_computed_results = pre_computed_results
         self.structural_analysis = structural_analysis
+        self.evaluation_scope = evaluation_scope
 
     def __balance_nodes(
         self,
@@ -147,6 +149,13 @@ class SubmissionGrader(CriteriaTreeProcesser):
             if self.submission_language is not None
             else config_submission_language
         )
+        test_params.pop("evaluation_scope", None)
+        test_params.pop("file_metadata", None)
+
+        file_metadata = {
+            sub_file.filename: sub_file.metadata
+            for sub_file in file_target or []
+        }
 
         test_result = test.test_function.execute(
             files=file_target,
@@ -155,6 +164,8 @@ class SubmissionGrader(CriteriaTreeProcesser):
             pre_computed_results=self.pre_computed_results,
             structural_analysis=self.structural_analysis,
             submission_language=effective_submission_language,
+            evaluation_scope=self.evaluation_scope,
+            file_metadata=file_metadata,
             **test_params,
         )
         return TestResultNode(

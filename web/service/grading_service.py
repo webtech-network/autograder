@@ -7,7 +7,11 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from autograder.autograder import build_pipeline
-from autograder.models.dataclass.submission import Submission as AutograderSubmission, SubmissionFile
+from autograder.models.dataclass.submission import (
+    EvaluationScope,
+    Submission as AutograderSubmission,
+    SubmissionFile,
+)
 from autograder.models.result_tree import ResultTree
 from autograder.services.result_comparator import ResultComparator
 from autograder.utils.feedback_generator import generate_preflight_feedback
@@ -39,6 +43,7 @@ class GradingRequest:
     submission_files: dict
     locale: str = "en"
     baseline_result_tree: Optional[dict] = None
+    evaluation_scope: Optional[dict] = None
 
 
 async def grade_submission(request: GradingRequest) -> None:
@@ -116,9 +121,23 @@ async def _run_pipeline(request: GradingRequest):
     )
 
     files_to_grade = {
-        name: SubmissionFile(filename=f["filename"], content=f["content"])
+        name: SubmissionFile(
+            filename=f["filename"],
+            content=f["content"],
+            changed_lines=(
+                set(f["changed_lines"])
+                if f.get("changed_lines") is not None
+                else None
+            ),
+            metadata=f.get("file_metadata"),
+        )
         for name, f in request.submission_files.items()
     }
+    evaluation_scope = (
+        EvaluationScope(**request.evaluation_scope)
+        if request.evaluation_scope is not None
+        else None
+    )
 
     autograder_submission = AutograderSubmission(
         username=request.username,
@@ -127,6 +146,7 @@ async def _run_pipeline(request: GradingRequest):
         submission_files=files_to_grade,
         language=Language[request.language.upper()] if request.language else None,
         locale=request.locale,
+        evaluation_scope=evaluation_scope,
     )
 
     return await asyncio.to_thread(pipeline.run, autograder_submission)

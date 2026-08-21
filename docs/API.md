@@ -378,12 +378,20 @@ Content-Type: application/json
   "files": [
     {
       "filename": "main.py",
-      "content": "print('Hello World')"
+      "content": "print('Hello World')",
+      "changed_lines": [1],
+      "file_metadata": {
+        "change_status": "modified"
+      }
     }
   ],
+  "evaluation_scope": {
+    "scoped_files": ["main.py"]
+  },
   "language": "python",
   "metadata": {
-    "attempt": 1
+    "attempt": 1,
+    "source_revision": "example-revision"
   }
 }
 ```
@@ -395,10 +403,20 @@ Content-Type: application/json
 | `external_assignment_id` | string | ✓ | External assignment ID (must match an existing grading config) |
 | `external_user_id` | string | ✓ | External user ID from your platform |
 | `username` | string | ✓ | Username of the submitter |
-| `files` | list[object] | ✓ | List of files with `filename` and `content` |
+| `files` | list[object] | ✓ | Files with `filename`, full `content`, and optional evaluation context |
+| `files[].changed_lines` | list[integer] | ✗ | One-indexed line numbers added or modified in the file |
+| `files[].file_metadata` | object | ✗ | Opaque per-file context passed through to test functions |
+| `evaluation_scope` | object | ✗ | Optional file scope for pipeline analysis |
+| `evaluation_scope.scoped_files` | list[string] | ✓ when scope is present | Filenames that are the primary evaluation subject |
 | `language` | string | ✗ | Language override (defaults to first language in config) |
-| `metadata` | object | ✗ | Optional metadata to attach to the submission |
+| `metadata` | object | ✗ | Passive submission-level provenance stored for audit/correlation; the pipeline never reads it |
 | `baseline_result_tree` | object | ✗ | Serialised `result_tree` from a previous submission response to calculate a `ComparisonResult` |
+
+`evaluation_scope` and `changed_lines` are typed pipeline inputs.
+`file_metadata` is stored as `SubmissionFile.metadata` and remains opaque to
+the pipeline, while top-level `metadata` is stored as `submission_metadata`
+and is not passed into core grading. If `evaluation_scope` is omitted,
+structural analysis continues to consider all eligible submitted files.
 
 **Response (200 OK):**
 ```json

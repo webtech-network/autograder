@@ -23,7 +23,11 @@ from autograder.models.criteria_tree import (
 )
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
-from autograder.models.dataclass.submission import Submission, SubmissionFile
+from autograder.models.dataclass.submission import (
+    EvaluationScope,
+    Submission,
+    SubmissionFile,
+)
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.models.result_tree import CategoryResultNode, ResultTree, RootResultNode
@@ -408,6 +412,8 @@ class TestGradeStepPassesAiBatchResults:
         """GradeStep forwards AI_BATCH pre_computed_results to GraderService.grade_from_tree."""
         pre_computed = {"ai_code_review": TestResult("ai_code_review", 77, "good", "")}
         pipeline_exec = self._make_pipeline_with_tree_and_ai_batch(pre_computed)
+        scope = EvaluationScope(scoped_files=["main.py"])
+        pipeline_exec.submission.evaluation_scope = scope
 
         captured = {}
 
@@ -422,6 +428,7 @@ class TestGradeStepPassesAiBatchResults:
             GradeStep().execute(pipeline_exec)
 
         assert captured.get("pre_computed_results") is pre_computed
+        assert captured.get("evaluation_scope") is scope
 
     def test_pre_computed_results_is_none_when_no_ai_batch_step(self):
         """When AI_BATCH step was not in the pipeline, None must be passed."""

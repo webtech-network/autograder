@@ -67,6 +67,7 @@ class GradeStep(Step):
             locale=pipeline_exec.locale,
             pre_computed_results=pre_computed_results,
             structural_analysis=structural_analysis,
+            evaluation_scope=pipeline_exec.evaluation_scope,
         )
 
         # Create grading result
