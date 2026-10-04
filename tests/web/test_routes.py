@@ -1,44 +1,45 @@
+from tests.web.test_contracts_v1 import definition
+
 """Integration tests for the refactored API routes structure.
 
 Tests verify that the new route organization works correctly with proper
 endpoints, HTTP methods, and response formats.
 """
-
 import pytest
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import Mock, patch, AsyncMock
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import StaticPool
-
 from web.database.base import Base
 from web.database import session
 
 
-# Mock external dependencies before importing
 @pytest.fixture(scope="module", autouse=True)
 def mock_external_services():
     """Mock external services for all tests."""
-    with patch("web.core.lifespan.initialize_sandbox_manager"), \
-         patch("web.core.lifespan.TemplateLibraryService") as mock_template, \
-         patch("web.core.lifespan.SandboxPoolConfig.load_from_yaml", return_value=[]):
-
-        # Setup template service mock
+    with patch("web.core.lifespan.initialize_sandbox_manager"), patch(
+        "web.core.lifespan.TemplateLibraryService"
+    ) as mock_template, patch(
+        "web.core.lifespan.SandboxPoolConfig.load_from_yaml", return_value=[]
+    ):
         mock_service = Mock()
-        mock_service.get_all_templates_info = Mock(return_value=[
-            {"name": "webdev", "description": "Web development grading"},
-            {"name": "input_output", "description": "Input/output testing"}
-        ])
-        mock_service.get_template_info = Mock(return_value={
-            "name": "webdev",
-            "description": "Web development grading",
-            "supported_languages": ["python", "javascript"]
-        })
+        mock_service.get_all_templates_info = Mock(
+            return_value=[
+                {"name": "webdev", "description": "Web development grading"},
+                {"name": "input_output", "description": "Input/output testing"},
+            ]
+        )
+        mock_service.get_template_info = Mock(
+            return_value={
+                "name": "webdev",
+                "description": "Web development grading",
+                "supported_languages": ["python", "javascript"],
+            }
+        )
         mock_template.get_instance.return_value = mock_service
-
         yield
 
 
-# Import app after mocking
 from web.main import app
 
 
@@ -50,18 +51,14 @@ async def test_db():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
     old_session_maker = session.AsyncSessionLocal
     session.AsyncSessionLocal = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )
     session.engine = engine
-
     yield engine
-
     session.AsyncSessionLocal = old_session_maker
     await engine.dispose()
 
@@ -70,8 +67,7 @@ async def test_db():
 async def client(test_db):
     """Create test client."""
     async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         yield ac
 
@@ -107,12 +103,13 @@ class TestTemplateEndpoints:
         """Test GET /api/v1/templates."""
         with patch("web.api.v1.templates.get_template_service") as mock_get:
             mock_service = Mock()
-            mock_service.get_all_templates_info = Mock(return_value=[
-                {"name": "webdev", "description": "Web dev"},
-                {"name": "api_testing", "description": "API testing"}
-            ])
+            mock_service.get_all_templates_info = Mock(
+                return_value=[
+                    {"name": "webdev", "description": "Web dev"},
+                    {"name": "api_testing", "description": "API testing"},
+                ]
+            )
             mock_get.return_value = mock_service
-
             response = await client.get("/api/v1/templates")
             assert response.status_code == 200
             data = response.json()
@@ -124,13 +121,14 @@ class TestTemplateEndpoints:
         """Test GET /api/v1/templates/{name}."""
         with patch("web.api.v1.templates.get_template_service") as mock_get:
             mock_service = Mock()
-            mock_service.get_template_info = Mock(return_value={
-                "name": "webdev",
-                "description": "Web development",
-                "supported_languages": ["python", "javascript"]
-            })
+            mock_service.get_template_info = Mock(
+                return_value={
+                    "name": "webdev",
+                    "description": "Web development",
+                    "supported_languages": ["python", "javascript"],
+                }
+            )
             mock_get.return_value = mock_service
-
             response = await client.get("/api/v1/templates/webdev")
             assert response.status_code == 200
             data = response.json()
@@ -142,9 +140,10 @@ class TestTemplateEndpoints:
         """Test GET /api/v1/templates/{name} with invalid template."""
         with patch("web.api.v1.templates.get_template_service") as mock_get:
             mock_service = Mock()
-            mock_service.get_template_info = Mock(side_effect=KeyError("Template not found"))
+            mock_service.get_template_info = Mock(
+                side_effect=KeyError("Template not found")
+            )
             mock_get.return_value = mock_service
-
             response = await client.get("/api/v1/templates/nonexistent")
             assert response.status_code == 404
 
@@ -157,18 +156,13 @@ class TestGradingConfigEndpoints:
         """Test POST /api/v1/configs."""
         config_data = {
             "external_assignment_id": "assign-001",
-            "template_name": "webdev",
-            "languages": ["python"],
-            "criteria_config": {
-                "base": {"tests": ["test_homepage"]}
-            }
+            "definition": definition(),
         }
-
         response = await client.post("/api/v1/configs", json=config_data)
         assert response.status_code == 200
         data = response.json()
         assert data["external_assignment_id"] == "assign-001"
-        assert data["template_name"] == "webdev"
+        assert data["definition"]["templates"] == ["input_output"]
         assert data["id"] is not None
 
     @pytest.mark.asyncio
@@ -176,38 +170,27 @@ class TestGradingConfigEndpoints:
         """Test creating duplicate config returns 400."""
         config_data = {
             "external_assignment_id": "assign-002",
-            "template_name": "webdev",
-            "languages": ["python"],
-            "criteria_config": {"base": {}}
+            "definition": definition(),
         }
-
-        # Create first config
         response1 = await client.post("/api/v1/configs", json=config_data)
         assert response1.status_code == 200
-
-        # Try to create duplicate
         response2 = await client.post("/api/v1/configs", json=config_data)
-        assert response2.status_code == 400
+        assert response2.status_code == 409
         assert "already exists" in response2.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_get_config_by_external_id(self, client):
         """Test GET /api/v1/configs/{external_assignment_id}."""
-        # First create a config
         config_data = {
             "external_assignment_id": "assign-003",
-            "template_name": "input_output",
-            "languages": ["java"],
-            "criteria_config": {"base": {}}
+            "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-
-        # Get it back
         response = await client.get("/api/v1/configs/assign-003")
         assert response.status_code == 200
         data = response.json()
         assert data["external_assignment_id"] == "assign-003"
-        assert data["template_name"] == "input_output"
+        assert data["definition"]["templates"] == ["input_output"]
 
     @pytest.mark.asyncio
     async def test_get_nonexistent_config(self, client):
@@ -218,16 +201,12 @@ class TestGradingConfigEndpoints:
     @pytest.mark.asyncio
     async def test_list_configs(self, client):
         """Test GET /api/v1/configs."""
-        # Create multiple configs
         for i in range(3):
             config_data = {
                 "external_assignment_id": f"list-test-{i}",
-                "template_name": "webdev",
-                "languages": ["python"],
-                "criteria_config": {}
+                "definition": definition(),
             }
             await client.post("/api/v1/configs", json=config_data)
-
         response = await client.get("/api/v1/configs")
         assert response.status_code == 200
         data = response.json()
@@ -237,24 +216,22 @@ class TestGradingConfigEndpoints:
     @pytest.mark.asyncio
     async def test_update_config(self, client):
         """Test PUT /api/v1/configs/{id}."""
-        # Create config
         config_data = {
             "external_assignment_id": "assign-update",
-            "template_name": "webdev",
-            "languages": ["python"],
-            "criteria_config": {"base": {}}
+            "definition": definition(),
         }
         create_response = await client.post("/api/v1/configs", json=config_data)
         config_id = create_response.json()["id"]
-
-        # Update it
-        update_data = {
-            "criteria_config": {"base": {"updated": True}}
-        }
-        response = await client.put(f"/api/v1/configs/{config_id}", json=update_data)
+        update_data = {"is_active": False}
+        response = await client.patch(
+            f"/api/v1/configs/{config_id}",
+            json=update_data,
+            headers={"If-Match": '"1"'},
+        )
         assert response.status_code == 200
         data = response.json()
-        assert data["criteria_config"]["base"]["updated"] is True
+        assert data["is_active"] is False
+        assert data["version"] == 2
 
 
 class TestSubmissionEndpoints:
@@ -263,31 +240,23 @@ class TestSubmissionEndpoints:
     @pytest.mark.asyncio
     async def test_create_submission(self, client):
         """Test POST /api/v1/submissions."""
-        # First create a config
         config_data = {
             "external_assignment_id": "submit-test-1",
-            "template_name": "input_output",
-            "languages": ["python"],
-            "criteria_config": {"base": {}}
+            "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-
-        # Mock the grading function and task tracking
         mock_grading_tasks = set()
-
-        with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock) as mock_grade, \
-             patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
-
-            # Create submission
+        with patch(
+            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
+        ) as mock_grade, patch(
+            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
+        ):
             submission_data = {
                 "external_assignment_id": "submit-test-1",
                 "external_user_id": "user_001",
                 "username": "student1",
-                "files": [
-                    {"filename": "main.py", "content": "print('hello')"}
-                ]
+                "files": [{"filename": "main.py", "content": "print('hello')"}],
             }
-
             response = await client.post("/api/v1/submissions", json=submission_data)
             assert response.status_code == 200
             data = response.json()
@@ -300,19 +269,14 @@ class TestSubmissionEndpoints:
         """Scope, changed lines, and file metadata reach the grading request."""
         config_data = {
             "external_assignment_id": "submit-scope-test",
-            "template_name": "input_output",
-            "languages": ["python"],
-            "criteria_config": {"base": {}},
+            "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-
         mock_grading_tasks = set()
         with patch(
-            "web.api.v1.submissions.grade_submission",
-            new_callable=AsyncMock,
+            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
         ) as mock_grade, patch(
-            "web.api.v1.submissions.get_grading_tasks",
-            return_value=mock_grading_tasks,
+            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
         ):
             response = await client.post(
                 "/api/v1/submissions",
@@ -331,71 +295,57 @@ class TestSubmissionEndpoints:
                     "evaluation_scope": {"scoped_files": ["main.py"]},
                 },
             )
-
             assert response.status_code == 200
             mock_grade.assert_called_once()
             grading_request = mock_grade.call_args.args[0]
             assert grading_request.submission_files["main.py"]["changed_lines"] == [1]
             assert grading_request.submission_files["main.py"]["file_metadata"] == {
-                "change_status": "modified",
+                "change_status": "modified"
             }
-            assert grading_request.evaluation_scope == {
-                "scoped_files": ["main.py"],
-            }
-
+            assert grading_request.evaluation_scope == {"scoped_files": ["main.py"]}
 
     @pytest.mark.asyncio
     async def test_create_submission_with_language(self, client):
         """Test creating submission with explicit language."""
         config_data = {
             "external_assignment_id": "submit-lang-test",
-            "template_name": "input_output",
-            "languages": ["python", "java"],
-            "criteria_config": {}
+            "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-
         mock_grading_tasks = set()
-
-        with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock), \
-             patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
-
+        with patch(
+            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
+        ), patch(
+            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
+        ):
             submission_data = {
                 "external_assignment_id": "submit-lang-test",
                 "external_user_id": "user_002",
                 "username": "student2",
-                "language": "java",
-                "files": [
-                    {"filename": "Main.java", "content": "public class Main {}"}
-                ]
+                "language": "python",
+                "files": [{"filename": "Main.java", "content": "public class Main {}"}],
             }
-
             response = await client.post("/api/v1/submissions", json=submission_data)
             assert response.status_code == 200
             data = response.json()
-            assert data["language"] == "java"
+            assert data["language"] == "python"
 
     @pytest.mark.asyncio
     async def test_create_submission_invalid_language(self, client):
         """Test creating submission with unsupported language."""
         config_data = {
             "external_assignment_id": "submit-invalid-lang",
-            "template_name": "input_output",
-            "languages": ["python"],
-            "criteria_config": {}
+            "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-
         submission_data = {
             "external_assignment_id": "submit-invalid-lang",
             "external_user_id": "user_003",
             "username": "student3",
-            "language": "ruby",  # Not supported
-            "files": [{"filename": "main.rb", "content": "puts 'hello'"}]
+            "language": "ruby",
+            "files": [{"filename": "main.rb", "content": "puts 'hello'"}],
         }
-
         response = await client.post("/api/v1/submissions", json=submission_data)
-        # 422 is returned because language validation happens at the pydantic schema level
         assert response.status_code == 422
         data = response.json()
         assert "detail" in data
@@ -403,69 +353,59 @@ class TestSubmissionEndpoints:
     @pytest.mark.asyncio
     async def test_get_submission(self, client):
         """Test GET /api/v1/submissions/{id}."""
-        # Create config and submission
         config_data = {
             "external_assignment_id": "get-submit-test",
-            "template_name": "input_output",
-            "languages": ["python"],
-            "criteria_config": {}
+            "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-
         mock_grading_tasks = set()
-
-        with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock), \
-             patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
-
+        with patch(
+            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
+        ), patch(
+            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
+        ):
             submission_data = {
                 "external_assignment_id": "get-submit-test",
                 "external_user_id": "user_004",
                 "username": "student4",
-                "files": [{"filename": "main.py", "content": "print('test')"}]
+                "files": [{"filename": "main.py", "content": "print('test')"}],
             }
-
-            create_response = await client.post("/api/v1/submissions", json=submission_data)
+            create_response = await client.post(
+                "/api/v1/submissions", json=submission_data
+            )
             submission_id = create_response.json()["id"]
-
-            # Get submission
             response = await client.get(f"/api/v1/submissions/{submission_id}")
             assert response.status_code == 200
             data = response.json()
             assert data["id"] == submission_id
             assert data["username"] == "student4"
-            assert "submission_files" in data
+            assert "submission_files" not in data
 
     @pytest.mark.asyncio
     async def test_get_user_submissions(self, client):
         """Test GET /api/v1/submissions/user/{external_user_id}."""
-        # Create config
         config_data = {
             "external_assignment_id": "user-submits-test",
-            "template_name": "input_output",
-            "languages": ["python"],
-            "criteria_config": {}
+            "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-
         mock_grading_tasks = set()
-
-        with patch("web.api.v1.submissions.grade_submission", new_callable=AsyncMock), \
-             patch("web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks):
-
-            # Create multiple submissions for same user
+        with patch(
+            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
+        ), patch(
+            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
+        ):
             for i in range(3):
                 submission_data = {
                     "external_assignment_id": "user-submits-test",
                     "external_user_id": "user_multi",
                     "username": "student_multi",
-                    "files": [{"filename": "main.py", "content": f"print({i})"}]
+                    "files": [{"filename": "main.py", "content": f"print({i})"}],
                 }
                 await client.post("/api/v1/submissions", json=submission_data)
-
-            # Get all submissions for user
             response = await client.get("/api/v1/submissions/user/user_multi")
             assert response.status_code == 200
             data = response.json()
             assert isinstance(data, list)
             assert len(data) >= 3
-            assert all(s["external_user_id"] == "user_multi" for s in data)
+            assert all((s["external_user_id"] == "user_multi" for s in data))

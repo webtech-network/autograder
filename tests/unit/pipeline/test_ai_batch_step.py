@@ -8,6 +8,8 @@ Covers:
 - GradeStep: picks up AI_BATCH results and passes them through
 """
 
+import pytest
+from autograder.models.evaluation_error import EvaluationError
 from typing import Dict, List, Optional
 import autograder.utils.executors.ai_executor as ai_executor_mod
 from unittest.mock import MagicMock, patch
@@ -102,26 +104,16 @@ class TestAiTestFunctionPreComputedPath:
         )
         pre_computed = {"ai_code_review": expected}
 
-        result = func.execute(files=[], sandbox=None, pre_computed_results=pre_computed)
+        result = func.execute(files=[], sandbox=None, criterion_id="ai_code_review", pre_computed_results=pre_computed)
 
         assert result is expected
 
-    def test_ignores_precomputed_for_other_tests(self):
-        """If the dict has results for other tests, this test's fallback is invoked."""
+    def test_missing_precomputed_result_does_not_retry(self):
         func = _ConcreteAiTest()
-        pre_computed = {"some_other_test": TestResult("x", 100, "", "")}
-
-        # The fallback (_run_single) makes an API call; we patch AiExecutor.run
-        # to return an empty dict, which triggers the "no result" guard.
-        with patch(
-            "autograder.utils.executors.ai_executor.AiExecutor"
-        ) as mock_executor:
-            mock_executor.return_value.run.return_value = {}
-            result = func.execute(files=[], sandbox=None, pre_computed_results=pre_computed)
-
-        assert result.test_name == "ai_code_review"
-        assert result.score == 0
-        assert "no result" in result.report.lower()
+        with patch("autograder.models.abstract.ai_test_function.AiExecutor") as executor:
+            with pytest.raises(EvaluationError, match="required AI assessment"):
+                func.execute(files=[], sandbox=None, criterion_id="ai_code_review", pre_computed_results={"other": TestResult("x", 100, "")})
+        executor.assert_not_called()
 
     def test_fallback_called_when_no_precomputed(self):
         """Fallback path is invoked when no pre_computed_results are provided."""
@@ -134,22 +126,15 @@ class TestAiTestFunctionPreComputedPath:
             "autograder.models.abstract.ai_test_function.AiExecutor"
         ) as mock_executor:
             mock_executor.return_value.run.return_value = {"ai_code_review": fallback_result}
-            result = func.execute(files=[], sandbox=None)
+            result = func.execute(files=[], sandbox=None, criterion_id="ai_code_review")
 
         assert result is fallback_result
 
-    def test_fallback_returns_zero_result_on_empty_api_response(self):
-        """Empty API response yields a zero-score TestResult for this function's name."""
-        func = _ConcreteAiTest()
-
-        with patch(
-            "autograder.models.abstract.ai_test_function.AiExecutor"
-        ) as mock_executor:
-            mock_executor.return_value.run.return_value = {}
-            result = func.execute(files=None, sandbox=None)
-
-        assert result.score == 0
-        assert result.test_name == "ai_code_review"
+    def test_standalone_missing_result_fails_without_numeric_grade(self):
+        with patch("autograder.models.abstract.ai_test_function.AiExecutor") as executor:
+            executor.return_value.run.return_value = {}
+            with pytest.raises(EvaluationError):
+                _ConcreteAiTest().execute(files=None, sandbox=None, criterion_id="ai_code_review")
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +144,7 @@ class TestAiTestFunctionPreComputedPath:
 def _build_criteria_tree_with_ai_test(ai_test_func: AiTestFunction, test_name="ai_test_1") -> CriteriaTree:
     test_node = TestNode(
         name=test_name,
+        criterion_id=ai_test_func.name,
         test_function=ai_test_func,
         parameters={},
     )
@@ -277,8 +263,8 @@ class TestAiBatchStep:
             def build_prompt(self, files, **kwargs):
                 return "Second prompt."
 
-        t1 = TestNode(name="ai_1", test_function=_ConcreteAiTest())
-        t2 = TestNode(name="ai_2", test_function=_AiTest2())
+        t1 = TestNode(name="ai_1", criterion_id="first", test_function=_ConcreteAiTest())
+        t2 = TestNode(name="ai_2", criterion_id="second", test_function=_AiTest2())
         base = CategoryNode(name="base", weight=100, tests=[t1, t2])
         tree = CriteriaTree(base=base)
 
@@ -292,8 +278,8 @@ class TestAiBatchStep:
         call_args = mock_executor.return_value.run.call_args
         test_inputs = call_args[0][0]  # first positional arg is List[TestInput]
         names = [ti.test_name for ti in test_inputs]
-        assert "ai_code_review" in names
-        assert "ai_test_2" in names
+        assert "first" in names
+        assert "second" in names
 
 
 # ---------------------------------------------------------------------------
@@ -507,14 +493,13 @@ class TestAiExecutorStateless:
         assert "t2" in mapping
         assert mapping["t2"].score == 60.0
 
-    def test_outputs_to_results_skips_unknown_titles(self):
-        """Output entries whose title does not match any input are silently dropped."""
+    def test_outputs_to_results_rejects_unknown_titles(self):
         inputs = [TestInput(test_name="t1", prompt="p")]
-        outputs = [
-            TestOutput(title="unknown_test", feedback="fb", subject="s", score=50.0)
-        ]
+        outputs = [TestOutput(title="unknown_test", feedback="fb", subject="s", score=50)]
+        with pytest.raises(EvaluationError):
+            AiExecutor._outputs_to_results(inputs, outputs)
 
-        mapping = AiExecutor._outputs_to_results(inputs, outputs)  # pylint: disable=protected-access
-
-        assert "unknown_test" not in mapping
-        assert not mapping
+    @pytest.mark.parametrize("outputs", [[], [TestOutput(title="t1", feedback="", subject="", score=50)] * 2])
+    def test_outputs_reject_missing_and_duplicate_assessments(self, outputs):
+        with pytest.raises(EvaluationError):
+            AiExecutor._outputs_to_results([TestInput(test_name="t1", prompt="p")], outputs)

@@ -2,9 +2,9 @@
 
 from unittest.mock import Mock, patch
 
-from autograder.autograder import build_pipeline
+from tests.integration.definition_fixtures import build_migrated_fixture_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from sandbox_manager.models.sandbox_models import Language
+from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 
 
 class TestMultiLanguageCommandResolution:
@@ -24,11 +24,13 @@ class TestMultiLanguageCommandResolution:
         mock_output = Mock()
         mock_output.stdout = "8"
         mock_output.stderr = ""
+        mock_output.category = ResponseCategory.SUCCESS
         mock_sandbox.run_commands.return_value = mock_output
 
         # Create pipeline
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
+            languages=["python", "java", "node", "cpp"],
             include_feedback=False,
             grading_criteria={
                 "test_library": "input_output",
@@ -96,11 +98,13 @@ class TestMultiLanguageCommandResolution:
         mock_output = Mock()
         mock_output.stdout = "8"
         mock_output.stderr = ""
+        mock_output.category = ResponseCategory.SUCCESS
         mock_sandbox.run_commands.return_value = mock_output
 
         # Create pipeline
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
+            languages=["python", "java", "node", "cpp"],
             include_feedback=False,
             grading_criteria={
                 "test_library": "input_output",
@@ -168,11 +172,13 @@ class TestMultiLanguageCommandResolution:
         mock_output = Mock()
         mock_output.stdout = "8"
         mock_output.stderr = ""
+        mock_output.category = ResponseCategory.SUCCESS
         mock_sandbox.run_commands.return_value = mock_output
 
         # Create pipeline with CMD placeholder
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
+            languages=["python", "java", "node", "cpp"],
             include_feedback=False,
             grading_criteria={
                 "test_library": "input_output",
@@ -233,16 +239,19 @@ class TestMultiLanguageCommandResolution:
         mock_output1 = Mock()
         mock_output1.stdout = "8"
         mock_output1.stderr = ""
+        mock_output1.category = ResponseCategory.SUCCESS
 
         mock_output2 = Mock()
         mock_output2.stdout = "14"
         mock_output2.stderr = ""
+        mock_output2.category = ResponseCategory.SUCCESS
 
         mock_sandbox.run_commands.side_effect = [mock_output1, mock_output2]
 
         # Create pipeline with multiple tests
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
+            languages=["python", "java", "node", "cpp"],
             include_feedback=False,
             grading_criteria={
                 "test_library": "input_output",

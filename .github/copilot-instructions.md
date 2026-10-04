@@ -9,7 +9,7 @@ This document provides AI agents with the architectural context needed to naviga
 The Autograder is a **pipeline-based grading system**. Submissions flow through ordered steps, each receiving a `PipelineExecution` object:
 
 ```
-Load Template → Build Tree → Pre-Flight → Grade → Focus → Feedback → Export
+Load Template → Build Tree → Pre-Flight → Grade → Focus → Feedback
 ```
 
 ### Module Layout
@@ -19,7 +19,7 @@ Load Template → Build Tree → Pre-Flight → Grade → Focus → Feedback →
 | `autograder/` | Core grading engine (pipeline, steps, services, models, templates) |
 | `web/` | FastAPI REST API layer (routes, schemas, database, repositories) |
 | `sandbox_manager/` | Docker container pool management for code execution |
-| `github_action/` | GitHub Classroom integration adapter |
+| `github_action/` | Single-submission Actions adapter |
 | `examples/` | Demo app and example configurations |
 | `tests/` | Unit, integration, web, and performance tests |
 
@@ -99,7 +99,7 @@ Submission
   → GradeStep             → StepResult.data = GradeStepResult (final_score + ResultTree)
   → FocusStep             → StepResult.data = Focus (sorted failed tests by impact)
   → FeedbackStep          → StepResult.data = feedback string
-  → ExporterStep          → StepResult.data = None (side effect: external write)
+  → Finalize terminal outcome; adapters own publication after cleanup
 ```
 
 Steps access previous results via: `pipeline_exec.get_step_result(StepName.X).data`

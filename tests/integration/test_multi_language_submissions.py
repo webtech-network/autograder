@@ -1,99 +1,77 @@
-# pylint: skip-file
-import uuid
-"""Integration test for multi-language submissions for the same assignment."""
+"""Acceptance selects the requested language while retaining one exact definition."""
 
+import asyncio
+from unittest.mock import AsyncMock, patch
 import pytest
-from httpx import AsyncClient, ASGITransport
-
-from web.main import app
+from tests.web.conftest import db_engine, test_client
+from tests.web.test_contracts_v1 import definition
 
 
 @pytest.mark.asyncio
-class TestMultiLanguageSubmissions:
-    @classmethod
-    def setup_class(cls):
-        from sandbox_manager.manager import initialize_sandbox_manager
-        from sandbox_manager.models.pool_config import SandboxPoolConfig
-        from sandbox_manager.models.sandbox_models import Language
-        import asyncio
-        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-        from sqlalchemy.pool import StaticPool
-        from web.database.base import Base
-        from web.database import session
+async def test_multiple_languages_require_selection_and_bind_same_snapshot(test_client):
+    config = definition()
+    config["languages"] = ["python", "java", "node", "cpp"]
+    config["criteria"]["base"]["tests"][0]["parameters"]["program_command"] = {
+        "python": "python main.py",
+        "java": "java Main",
+        "node": "node main.js",
+        "cpp": "./main",
+    }
+    response = await test_client.post(
+        "/api/v1/configs",
+        json={"external_assignment_id": "multi", "definition": config},
+    )
+    assert response.status_code == 200, response.text
+    resource = response.json()
+    request = {
+        "external_assignment_id": "multi",
+        "external_user_id": "student",
+        "username": "Student",
+        "files": [{"filename": "main.py", "content": "print('Hello')"}],
+    }
+    with patch(
+        "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
+    ) as grade:
+        missing = await test_client.post("/api/v1/submissions", json=request)
+        assert missing.status_code == 422
+        assert missing.json()["detail"][0]["code"] == "LANGUAGE_REQUIRED"
+        for language in config["languages"]:
+            accepted = await test_client.post(
+                "/api/v1/submissions", json={**request, "language": language}
+            )
+            assert accepted.status_code == 200, accepted.text
+            assert accepted.json()["language"] == language
+            await asyncio.sleep(0)
+            bound = grade.call_args.args[0]
+            assert bound.language == language
+            assert bound.definition == resource["definition"]
+            assert bound.definition_hash == resource["definition_hash"]
+            assert bound.configuration_version == resource["version"]
+        assert grade.await_count == 4
 
-        # 1. Initialize sandbox manager
-        pool_configs = [
-            SandboxPoolConfig(language=Language.PYTHON, pool_size=1, scale_limit=2, idle_timeout=300, running_timeout=60),
-            SandboxPoolConfig(language=Language.JAVA, pool_size=1, scale_limit=2, idle_timeout=300, running_timeout=60),
-        ]
-        initialize_sandbox_manager(pool_configs)
 
-        # 2. Setup in-memory SQLite for testing
-        cls.engine = create_async_engine(
-            "sqlite+aiosqlite:///:memory:",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
+@pytest.mark.asyncio
+async def test_case_insensitive_override_normalizes_before_binding(test_client):
+    config = definition()
+    config["languages"] = ["python", "java"]
+    response = await test_client.post(
+        "/api/v1/configs", json={"external_assignment_id": "case", "definition": config}
+    )
+    assert response.status_code == 200
+    with patch(
+        "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
+    ) as grade:
+        accepted = await test_client.post(
+            "/api/v1/submissions",
+            json={
+                "external_assignment_id": "case",
+                "external_user_id": "student",
+                "username": "Student",
+                "files": [{"filename": "Main.java", "content": "class Main {}"}],
+                "language": "JAVA",
+            },
         )
-
-        # 3. Apply monkeypatch to the global session
-        cls.original_session_maker = session.AsyncSessionLocal
-        session.AsyncSessionLocal = async_sessionmaker(
-            cls.engine,
-            class_=AsyncSession,
-            expire_on_commit=False
-        )
-
-        # 4. Create all tables
-        async def init_test_db():
-            async with cls.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-        
-        asyncio.run(init_test_db())
-
-    @classmethod
-    def teardown_class(cls):
-        from sandbox_manager.manager import get_sandbox_manager
-        from web.database import session
-        try: get_sandbox_manager().shutdown()
-        except: pass
-        
-        # Restore session
-        session.AsyncSessionLocal = cls.original_session_maker
-
-    async def test_create_config_and_submit_multiple_languages(self):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            assignment_id = "multi-lang-" + str(uuid.uuid4())[:8]
-            config_response = await client.post(
-                "/api/v1/configs",
-                json={
-                    "external_assignment_id": assignment_id,
-                    "template_name": "input_output",
-                    "criteria_config": {"test_library": "input_output", "base": {"weight": 100, "tests": []}},
-                    "languages": ["python", "java", "node", "cpp"]
-                }
-            )
-            assert config_response.status_code == 200
-
-    async def test_case_insensitive_language_override(self):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            assignment_id = "case-lang-" + str(uuid.uuid4())[:8]
-            await client.post(
-                "/api/v1/configs",
-                json={
-                    "external_assignment_id": assignment_id,
-                    "template_name": "input_output",
-                    "criteria_config": {"test_library": "input_output", "base": {"weight": 100, "tests": []}},
-                    "languages": ["python", "java"]
-                }
-            )
-            response = await client.post(
-                "/api/v1/submissions",
-                json={
-                    "external_assignment_id": assignment_id,
-                    "external_user_id": "user-" + str(uuid.uuid4())[:8],
-                    "username": "testuser",
-                    "files": [{"filename": "Test.java", "content": "public class Test { }"}],
-                    "language": "JAVA"
-                }
-            )
-            assert response.status_code == 200
+        assert accepted.status_code == 200, accepted.text
+        assert accepted.json()["language"] == "java"
+        await asyncio.sleep(0)
+        assert grade.call_args.args[0].language == "java"

@@ -61,10 +61,8 @@ class TestCriteriaTreeServiceValidation:
                     {
                         "name": "Test 1",
                         "type": "validated_test",
-                        "parameters": [
-                            {"name": "required_str", "value": "hello"},
-                            {"name": "optional_int", "value": 100}
-                        ]
+                        "id": "validated-test",
+                        "parameters": {'required_str': 'hello', 'optional_int': 100}
                     }
                 ]
             }
@@ -84,9 +82,8 @@ class TestCriteriaTreeServiceValidation:
                     {
                         "name": "Test Fail",
                         "type": "validated_test",
-                        "parameters": [
-                            {"name": "optional_int", "value": 10}
-                        ]
+                        "id": "validated-test",
+                        "parameters": {'optional_int': 10}
                     }
                 ]
             }
@@ -107,10 +104,8 @@ class TestCriteriaTreeServiceValidation:
                     {
                         "name": "Test Fail Type",
                         "type": "validated_test",
-                        "parameters": [
-                            {"name": "required_str", "value": "hello"},
-                            {"name": "optional_int", "value": "not-an-int"}
-                        ]
+                        "id": "validated-test",
+                        "parameters": {'required_str': 'hello', 'optional_int': 'not-an-int'}
                     }
                 ]
             }

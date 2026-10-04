@@ -14,84 +14,29 @@ from web.schemas.submission import (
 class TestLanguageValidation:
     """Test language validation in configuration and submission schemas."""
 
-    def test_grading_config_create_valid_languages(self):
-        """Test that valid languages are accepted in GradingConfigCreate."""
-        valid_languages = ["python", "java", "node", "cpp", "c", "PYTHON", "Java", "NODE", "Cpp", "C"]
+    @pytest.mark.parametrize("language", ["python","java","node","cpp","c"])
+    def test_grading_config_create_valid_languages(self,language):
+        definition={"schema_version":"1.0","templates":["static_analysis"],"languages":[language],
+            "criteria":{"base":{"weight":100,"tests":[{"id":"imports","type":"forbidden_import",
+                "name":"Imports","parameters":{"forbidden_imports":[]}}]}}}
+        config=GradingConfigCreate(external_assignment_id="test-001",definition=definition)
+        assert config.definition.languages==[language]
 
-        for lang in valid_languages:
-            config = GradingConfigCreate(
-                external_assignment_id="test-001",
-                template_name="input_output",
-                criteria_config={"test_library": "input_output"},
-                languages=[lang]
-            )
-            # Should normalize to lowercase
-            assert config.languages[0] in ["python", "java", "node", "cpp", "c"]
+    @pytest.mark.parametrize("language", ["Python","javascript","ruby","","go"])
+    def test_grading_config_rejects_noncanonical_languages(self,language):
+        definition={"schema_version":"1.0","templates":["static_analysis"],"languages":[language],
+            "criteria":{"base":{"weight":100,"tests":[{"id":"imports","type":"forbidden_import",
+                "name":"Imports","parameters":{}}]}}}
+        with pytest.raises(ValidationError) as failure:
+            GradingConfigCreate(external_assignment_id="test-001",definition=definition)
+        assert any(error['loc']==('definition','languages',0) for error in failure.value.errors())
 
-    def test_grading_config_create_invalid_language(self):
-        """Test that invalid languages are rejected in GradingConfigCreate."""
-        with pytest.raises(ValidationError) as exc_info:
-            GradingConfigCreate(
-                external_assignment_id="test-001",
-                template_name="input_output",
-                criteria_config={"test_library": "input_output"},
-                languages=["javascript"]  # Should be "node"
-            )
-
-        error = exc_info.value.errors()[0]
-        assert "languages" in error["loc"]
-        assert "Unsupported language" in error["msg"]
-        assert "javascript" in error["msg"]
-
-    def test_grading_config_create_empty_language(self):
-        """Test that empty language is rejected in GradingConfigCreate."""
-        with pytest.raises(ValidationError) as exc_info:
-            GradingConfigCreate(
-                external_assignment_id="test-001",
-                template_name="input_output",
-                criteria_config={"test_library": "input_output"},
-                languages=[""]
-            )
-
-        error = exc_info.value.errors()[0]
-        assert "languages" in error["loc"]
-        assert "cannot be empty" in error["msg"].lower()
-
-    def test_grading_config_create_unsupported_languages(self):
-        """Test that various unsupported languages are rejected."""
-        unsupported = ["ruby", "go", "rust", "csharp", "php", "perl"]
-
-        for lang in unsupported:
-            with pytest.raises(ValidationError) as exc_info:
-                GradingConfigCreate(
-                    external_assignment_id="test-001",
-                    template_name="input_output",
-                    criteria_config={"test_library": "input_output"},
-                    languages=[lang]
-                )
-
-            error = exc_info.value.errors()[0]
-            assert "languages" in error["loc"]
-            assert "Unsupported language" in error["msg"]
-
-    def test_grading_config_update_valid_language(self):
-        """Test that valid language is accepted in GradingConfigUpdate."""
-        update = GradingConfigUpdate(languages=["python"])
-        assert update.languages == ["python"]
-
-    def test_grading_config_update_invalid_language(self):
-        """Test that invalid language is rejected in GradingConfigUpdate."""
-        with pytest.raises(ValidationError) as exc_info:
-            GradingConfigUpdate(languages=["javascript"])
-
-        error = exc_info.value.errors()[0]
-        assert "languages" in error["loc"]
-        assert "Unsupported language" in error["msg"]
-
-    def test_grading_config_update_none_language(self):
-        """Test that None language is accepted in GradingConfigUpdate."""
-        update = GradingConfigUpdate(languages=None)
-        assert update.languages is None
+    def test_partial_update_omits_definition_but_rejects_explicit_null(self):
+        assert GradingConfigUpdate(is_active=False).model_fields_set=={'is_active'}
+        with pytest.raises(ValidationError):
+            GradingConfigUpdate(definition=None)
+        with pytest.raises(ValidationError):
+            GradingConfigUpdate(languages=['python'])
 
     def test_submission_create_valid_language(self):
         """Test that valid language is accepted in SubmissionCreate."""

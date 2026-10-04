@@ -104,16 +104,11 @@ class TestPipelineLanguageHandling:
         mock_sandbox.prepare_workdir.return_value = None
 
         # Create pipeline with preflight step (which uses sandbox)
-        pipeline = build_pipeline(
-            template_name="input_output",
-            include_feedback=False,
-            grading_criteria={
-                "test_library": "input_output",
-                "base": {"weight": 100, "tests": []}
-            },
-            feedback_config=None,
-            setup_config={}  # Empty config to enable preflight
-        )
+        pipeline = build_pipeline(definition={
+            "schema_version": "1.0", "templates": ["input_output"], "languages": ["java"],
+            "criteria": {"base": {"weight": 100, "tests": [{"id": "run", "type": "dont_fail", "name": "Runs",
+                          "parameters": {"program_command": "java Test"}}]}}
+        })
 
         # Create submission with Java language
         files = {
@@ -137,8 +132,7 @@ class TestPipelineLanguageHandling:
 
         # Verify sandbox was requested with Java language
         # This will be called during SandboxStep
-        if mock_manager.get_sandbox.called:
-            mock_manager.get_sandbox.assert_called_with(Language.JAVA)
+        mock_manager.get_sandbox.assert_called_once_with(Language.JAVA)
 
 
 class TestLanguageEnumValues:

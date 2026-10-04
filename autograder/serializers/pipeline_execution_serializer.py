@@ -20,12 +20,14 @@ class PipelineExecutionSerializer:
         Returns:
             Dictionary containing execution status, steps, and error details
         """
-        execution_time_ms = int((time.time() - execution.start_time) * 1000) if execution.start_time else 0
+        end_time = execution.end_time if isinstance(execution.end_time, (int, float)) else None
+        execution_time_ms = (execution.duration_ms if end_time is not None else
+                             int((time.time() - execution.start_time) * 1000) if execution.start_time else 0)
 
         # Determine failed step if any
         failed_step = None
         for step in execution.step_results:
-            if step.status == StepStatus.FAIL:
+            if not step.is_successful:
                 failed_step = step.step.value
                 break
 
@@ -49,7 +51,7 @@ class PipelineExecutionSerializer:
                 step_info["message"] = cls._get_success_message(step, execution)
 
             # Add error details for failed steps
-            elif step.status == StepStatus.FAIL and step.error:
+            elif not step.is_successful and step.error:
                 step_info["message"] = step.error.split('\n')[0]  # First line of error
                 step_info["error_details"] = cls._extract_error_details(step)
 
@@ -57,8 +59,9 @@ class PipelineExecutionSerializer:
 
         # Count planned vs completed steps
         # Exclude BOOTSTRAP — it is an internal init record, not a user-visible step
-        total_planned = len([s for s in execution.step_results if s.step != StepName.BOOTSTRAP])
-        completed = total_planned
+        visible = [s for s in execution.step_results if s.step != StepName.BOOTSTRAP]
+        total_planned = len(execution.planned_steps) if isinstance(execution.planned_steps, list) else len(visible)
+        completed = sum(s.is_successful for s in visible)
 
         return {
             "status": execution.status.value if execution.status != PipelineStatus.EMPTY else "unknown",
@@ -84,8 +87,6 @@ class PipelineExecutionSerializer:
             return "Grading completed"
         elif step.step == StepName.FEEDBACK:
             return "Feedback generated"
-        elif step.step == StepName.EXPORTER:
-            return "Results exported"
         return ""
 
     @classmethod

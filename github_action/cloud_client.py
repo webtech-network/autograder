@@ -110,7 +110,7 @@ class CloudClient:
 
         Args:
             payload: Serialisable dict containing score, feedback, tree, and
-                GitHub context metadata.  See :class:`CloudExporter` for the
+                GitHub context metadata.  See :class:`CloudPublisher` for the
                 canonical schema.
 
         Returns:
@@ -145,7 +145,7 @@ class CloudClient:
             method="POST",
             headers={**self._auth_headers(), "Content-Type": "application/json"},
         )
-        return self._request_with_retry(req, context_label=context_label)
+        return self._request_with_retry(req, context_label=context_label, max_retries=0)
 
     def _auth_headers(self) -> dict[str, str]:
         return {
@@ -153,7 +153,7 @@ class CloudClient:
             "Accept": "application/json",
         }
 
-    def _request_with_retry(self, req: urllib.request.Request, *, context_label: str) -> dict:
+    def _request_with_retry(self, req: urllib.request.Request, *, context_label: str, max_retries: int | None = None) -> dict:
         """
         Execute *req* with retry logic for transient failures.
 
@@ -173,16 +173,17 @@ class CloudClient:
             CloudClientError: Non-retryable 4xx response.
             CloudConnectionError: Retries exhausted or persistent server error.
         """
+        retries = self.max_retries if max_retries is None else max_retries
         last_error: Exception | None = None
 
-        for attempt in range(self.max_retries + 1):
+        for attempt in range(retries + 1):
             if attempt > 0:
                 delay = _RETRY_BASE_DELAY * (2 ** (attempt - 1))
                 logger.warning(
                     "Retrying %s (attempt %d/%d) after %.1fs back-off…",
                     context_label,
                     attempt,
-                    self.max_retries,
+                    retries,
                     delay,
                 )
                 time.sleep(delay)
@@ -207,7 +208,7 @@ class CloudClient:
                     exc.code,
                     context_label,
                     attempt + 1,
-                    self.max_retries + 1,
+                    retries + 1,
                 )
                 last_error = exc
 
@@ -216,13 +217,13 @@ class CloudClient:
                     "Network error reaching Autograder Cloud for %s (attempt %d/%d): %s",
                     context_label,
                     attempt + 1,
-                    self.max_retries + 1,
+                    retries + 1,
                     exc.reason,
                 )
                 last_error = exc
 
         raise CloudConnectionError(
-            f"Could not complete {context_label} after {self.max_retries + 1} attempt(s). "
+            f"Could not complete {context_label} after {retries + 1} attempt(s). "
             "Check that autograder-cloud-url is reachable and the service is healthy."
         ) from last_error
 

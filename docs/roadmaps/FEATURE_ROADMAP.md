@@ -164,7 +164,7 @@ This feature introduces an alternate execution mode (`external`/`private`) for t
 3. Action builds the pipeline locally and grades the checked-out submission files.
 4. Action exports grading results back to the cloud instance so the platform can persist submissions, averages, and analytics.
 
-The existing repository-config mode remains available for GitHub Classroom workflows that depend on in-repo config files.
+Repository configuration remains available through the versioned definition file; workflow migration is required under #367/#371/#372.
 
 #### Motivation
 
@@ -181,7 +181,7 @@ The existing repository-config mode remains available for GitHub Classroom workf
   - `autograder_cloud_url`
   - `autograder_cloud_token` (or equivalent secure credential)
 - Add a cloud config client in `github_action` to fetch config by ID.
-- Add a cloud exporter path to persist grading outcomes to the cloud API.
+- Publish finished outcomes from the Actions adapter after writing local artifacts (#370).
 - Keep pipeline construction and grading semantics consistent across modes.
 
 #### Open Challenges
@@ -189,4 +189,4 @@ The existing repository-config mode remains available for GitHub Classroom workf
 - **API contracts:** Define stable fetch/export endpoints and payload versioning between action and cloud.
 - **Auth/security:** Ensure secure token handling and least-privilege access.
 - **Failure semantics:** Decide how network or export failures should affect Action status and retries.
-- **Backwards compatibility:** Keep current GitHub Classroom mode behavior intact with zero migration required.
+- **Migration:** Classroom reporting and automatic feedback commits are retired (#372); ordinary Actions uses summary and result artifacts.

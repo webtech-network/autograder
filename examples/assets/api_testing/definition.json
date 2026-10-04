@@ -1,0 +1,93 @@
+{
+  "schema_version": "1.0",
+  "templates": [
+    "api"
+  ],
+  "languages": [
+    "node"
+  ],
+  "criteria": {
+    "base": {
+      "weight": 100.0,
+      "tests": [
+        {
+          "id": "health",
+          "type": "health_check",
+          "name": "Health endpoint",
+          "parameters": {
+            "endpoint": "/health"
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        },
+        {
+          "id": "user-id",
+          "type": "check_response_json",
+          "name": "First user ID",
+          "parameters": {
+            "endpoint": "/api/user/1",
+            "expected_key": "id",
+            "expected_value": 1
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        },
+        {
+          "id": "user-name",
+          "type": "check_response_json",
+          "name": "First user name",
+          "parameters": {
+            "endpoint": "/api/user/1",
+            "expected_key": "name",
+            "expected_value": "John Doe"
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "bonus": null,
+    "penalty": null,
+    "metadata": {}
+  },
+  "preparation": {
+    "languages": {
+      "node": {
+        "required_files": [
+          "server.js",
+          "package.json"
+        ],
+        "setup_commands": [
+          {
+            "name": "Start supplied service",
+            "command": "sh -c 'node server.js > /tmp/server.log 2>&1 &'"
+          }
+        ]
+      }
+    },
+    "fixtures": []
+  },
+  "feedback": {
+    "enabled": true,
+    "mode": "default",
+    "preferences": {
+      "general": {
+        "report_title": "API feedback",
+        "show_score": true,
+        "show_passed_tests": false,
+        "add_report_summary": true,
+        "online_content": []
+      },
+      "default": {
+        "category_headers": {}
+      }
+    }
+  },
+  "metadata": {}
+}

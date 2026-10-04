@@ -78,11 +78,11 @@ class CriteriaTreeService:
         return subject
 
     def __balance_subject_weights(self, subjects: List[SubjectNode]) -> None:
-        total_weight = sum(s.weight for s in subjects)
-        if total_weight > 0 and total_weight != 100:
-            scaling_factor = 100 / total_weight
+        maximum = max((subject.weight for subject in subjects), default=0)
+        if maximum > 0:
+            scaled_total = sum(subject.weight / maximum for subject in subjects)
             for subject in subjects:
-                subject.weight = subject.weight * scaling_factor
+                subject.weight = (subject.weight / maximum) / scaled_total * 100
 
     def __parse_tests(self, test_configs: List[TestConfig]) -> List[TestNode]:
         return [self.__parse_test(test_item) for test_item in test_configs]
@@ -96,20 +96,20 @@ class CriteriaTreeService:
         return None
 
     def __parse_test(self, config: TestConfig) -> TestNode:
-        # Use technical 'type' for function lookup, falling back to 'name' for legacy support
-        function_name = config.type or config.name
+        # Evaluator identity is explicit; display names never participate in lookup.
+        function_name = config.type
         test_function = self.__find_test_function(function_name)
         if not test_function:
             raise ValueError(f"Couldn't find test function '{function_name}'")
 
         file_target = [config.file] if config.file else None
-        test_params = config.get_kwargs_dict() or {}
+        test_params = dict(config.parameters)
 
         # Perform early validation if the test function provides a schema.
         if test_function.config_schema:
             try:
                 # We use model_validate to leverage Pydantic's validation logic.
-                test_function.config_schema(**test_params)
+                test_params = test_function.config_schema.model_validate(test_params).model_dump(mode="json")
             except ValidationError as e:
                 raise ValueError(
                     f"Invalid parameters for test '{config.name}' ({function_name}): {e}"
@@ -120,7 +120,8 @@ class CriteriaTreeService:
             test_function,
             test_params,
             file_target,
-            config.weight if config.weight is not None else 100.0,
+            config.weight,
+            criterion_id=config.id,
         )
 
         return test

@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "templates": [
+    "webdev"
+  ],
+  "languages": [
+    "node"
+  ],
+  "criteria": {
+    "base": {
+      "weight": 100.0,
+      "tests": [
+        {
+          "id": "base-tests-0",
+          "type": "has_tag",
+          "name": "Heading",
+          "parameters": {
+            "tag": "h1",
+            "required_count": 1
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "bonus": null,
+    "penalty": null,
+    "metadata": {}
+  },
+  "preparation": {
+    "languages": {
+      "node": {
+        "required_files": [
+          "index.html"
+        ],
+        "setup_commands": []
+      }
+    },
+    "fixtures": []
+  },
+  "feedback": {
+    "enabled": true,
+    "mode": "default",
+    "preferences": {
+      "general": {
+        "report_title": null,
+        "show_score": true,
+        "show_passed_tests": false,
+        "add_report_summary": true,
+        "online_content": []
+      },
+      "default": {
+        "category_headers": {}
+      }
+    }
+  },
+  "metadata": {}
+}

@@ -1,0 +1,2112 @@
+{
+  "$defs": {
+    "CategoryConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for a grading category (base, bonus, or penalty).",
+      "properties": {
+        "weight": {
+          "description": "Weight of this category (0-100)",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Weight",
+          "type": "number"
+        },
+        "tests": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TestConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tests under this subject",
+          "title": "Tests"
+        },
+        "subjects": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SubjectConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nested subjects",
+          "title": "Subjects"
+        },
+        "subjects_weight": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Weight of the subject when it is a heterogeneous tree",
+          "title": "Subjects Weight"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "weight"
+      ],
+      "title": "CategoryConfig",
+      "type": "object"
+    },
+    "CriteriaConfig": {
+      "additionalProperties": false,
+      "description": "Root configuration for grading criteria.",
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/CategoryConfig",
+          "description": "Base grading criteria (required)"
+        },
+        "bonus": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CategoryConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bonus points criteria"
+        },
+        "penalty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CategoryConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Penalty criteria"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "base"
+      ],
+      "title": "CriteriaConfig",
+      "type": "object"
+    },
+    "DefaultPreferences": {
+      "additionalProperties": false,
+      "properties": {
+        "category_headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "enum": [
+              "base",
+              "bonus",
+              "penalty"
+            ]
+          },
+          "title": "Category Headers",
+          "type": "object"
+        }
+      },
+      "title": "DefaultPreferences",
+      "type": "object"
+    },
+    "Feedback": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "mode": {
+          "const": "default",
+          "default": "default",
+          "title": "Mode",
+          "type": "string"
+        },
+        "preferences": {
+          "$ref": "#/$defs/FeedbackPreferences"
+        }
+      },
+      "title": "Feedback",
+      "type": "object"
+    },
+    "FeedbackPreferences": {
+      "additionalProperties": false,
+      "properties": {
+        "general": {
+          "$ref": "#/$defs/GeneralPreferences"
+        },
+        "default": {
+          "$ref": "#/$defs/DefaultPreferences"
+        }
+      },
+      "title": "FeedbackPreferences",
+      "type": "object"
+    },
+    "Fixture": {
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "minLength": 1,
+          "title": "Reference",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "read_only": {
+          "default": true,
+          "title": "Read Only",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reference",
+        "path"
+      ],
+      "title": "Fixture",
+      "type": "object"
+    },
+    "GeneralPreferences": {
+      "additionalProperties": false,
+      "properties": {
+        "report_title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Report Title"
+        },
+        "show_score": {
+          "default": true,
+          "title": "Show Score",
+          "type": "boolean"
+        },
+        "show_passed_tests": {
+          "default": false,
+          "title": "Show Passed Tests",
+          "type": "boolean"
+        },
+        "add_report_summary": {
+          "default": true,
+          "title": "Add Report Summary",
+          "type": "boolean"
+        },
+        "online_content": {
+          "items": {
+            "$ref": "#/$defs/LearningResource"
+          },
+          "title": "Online Content",
+          "type": "array"
+        }
+      },
+      "title": "GeneralPreferences",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LanguagePreparation": {
+      "additionalProperties": false,
+      "properties": {
+        "required_files": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Files",
+          "type": "array"
+        },
+        "setup_commands": {
+          "items": {
+            "$ref": "#/$defs/SetupCommand"
+          },
+          "title": "Setup Commands",
+          "type": "array"
+        }
+      },
+      "title": "LanguagePreparation",
+      "type": "object"
+    },
+    "LearningResource": {
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "linked_tests": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Linked Tests",
+          "type": "array"
+        }
+      },
+      "required": [
+        "url",
+        "description"
+      ],
+      "title": "LearningResource",
+      "type": "object"
+    },
+    "Preparation": {
+      "additionalProperties": false,
+      "properties": {
+        "languages": {
+          "additionalProperties": {
+            "$ref": "#/$defs/LanguagePreparation"
+          },
+          "propertyNames": {
+            "enum": [
+              "python",
+              "java",
+              "node",
+              "cpp",
+              "c"
+            ]
+          },
+          "title": "Languages",
+          "type": "object"
+        },
+        "fixtures": {
+          "items": {
+            "$ref": "#/$defs/Fixture"
+          },
+          "title": "Fixtures",
+          "type": "array"
+        }
+      },
+      "title": "Preparation",
+      "type": "object"
+    },
+    "SetupCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "command": {
+          "minLength": 1,
+          "title": "Command",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "command"
+      ],
+      "title": "SetupCommand",
+      "type": "object"
+    },
+    "SubjectConfig": {
+      "additionalProperties": false,
+      "description": "Configuration for a subject within a grading category.",
+      "properties": {
+        "subject_name": {
+          "description": "Name of the subject",
+          "minLength": 1,
+          "title": "Subject Name",
+          "type": "string"
+        },
+        "weight": {
+          "description": "Weight of this subject (0-100)",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Weight",
+          "type": "number"
+        },
+        "tests": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TestConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tests under this subject",
+          "title": "Tests"
+        },
+        "subjects": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SubjectConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nested subjects",
+          "title": "Subjects"
+        },
+        "subjects_weight": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Weight of the subject when it is a heterogeneous tree",
+          "title": "Subjects Weight"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "subject_name",
+        "weight"
+      ],
+      "title": "SubjectConfig",
+      "type": "object"
+    },
+    "TestConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_.:-]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "minLength": 1,
+          "title": "Type",
+          "type": "string",
+          "enum": [
+            "ai_graph_algorithm",
+            "ai_search_algorithm",
+            "ai_sorting_algorithm",
+            "check_all_images_have_alt",
+            "check_attribute_and_value",
+            "check_bootstrap_linked",
+            "check_bootstrap_usage",
+            "check_css_linked",
+            "check_dir_exists",
+            "check_flexbox_usage",
+            "check_head_details",
+            "check_headings_sequential",
+            "check_html_direct_children",
+            "check_id_selector_over_usage",
+            "check_internal_links",
+            "check_internal_links_to_article",
+            "check_media_queries",
+            "check_no_inline_styles",
+            "check_no_unclosed_tags",
+            "check_project_structure",
+            "check_response_json",
+            "check_tag_not_inside",
+            "count_global_vars",
+            "count_over_usage",
+            "count_unused_css_classes",
+            "css_uses_property",
+            "dont_fail",
+            "expect_file_artifact",
+            "expect_output",
+            "forbidden_import",
+            "forbidden_keyword",
+            "has_attribute",
+            "has_class",
+            "has_forbidden_tag",
+            "has_no_js_framework",
+            "has_style",
+            "has_tag",
+            "health_check",
+            "js_has_json_array_with_id",
+            "js_uses_dom_manipulation",
+            "js_uses_feature",
+            "js_uses_query_string_parsing",
+            "link_points_to_page_with_query_param",
+            "uses_forbidden_method",
+            "uses_relative_units",
+            "uses_semantic_tags"
+          ]
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        },
+        "weight": {
+          "default": 100.0,
+          "minimum": 0,
+          "title": "Weight",
+          "type": "number"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "name",
+        "parameters"
+      ],
+      "title": "TestConfig",
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "has_class"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "class_names": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Class Names",
+                    "type": "array"
+                  },
+                  "required_count": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Required Count",
+                    "type": "integer"
+                  }
+                },
+                "title": "HasClassParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_bootstrap_linked"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckBootstrapLinkedParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_internal_links"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "required_count": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Required Count",
+                    "type": "integer"
+                  }
+                },
+                "title": "CheckInternalLinksParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "has_tag"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "tag": {
+                    "minLength": 1,
+                    "title": "Tag",
+                    "type": "string"
+                  },
+                  "required_count": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Required Count",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "tag"
+                ],
+                "title": "HasTagParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "has_forbidden_tag"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "tag": {
+                    "minLength": 1,
+                    "title": "Tag",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tag"
+                ],
+                "title": "HasForbiddenTagParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "has_attribute"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "attribute": {
+                    "minLength": 1,
+                    "title": "Attribute",
+                    "type": "string"
+                  },
+                  "required_count": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Required Count",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "attribute"
+                ],
+                "title": "HasAttributeParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_no_unclosed_tags"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckNoUnclosedTagsParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_no_inline_styles"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckNoInlineStylesParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "uses_semantic_tags"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "UsesSemanticTagsParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_css_linked"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckCssLinkedParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "css_uses_property"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "prop": {
+                    "minLength": 1,
+                    "title": "Prop",
+                    "type": "string"
+                  },
+                  "value": {
+                    "minLength": 1,
+                    "title": "Value",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "prop",
+                  "value"
+                ],
+                "title": "CssUsesPropertyParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "count_over_usage"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "minLength": 1,
+                    "title": "Text",
+                    "type": "string"
+                  },
+                  "max_allowed": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Max Allowed",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "title": "CountOverUsageParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "js_uses_feature"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "feature": {
+                    "minLength": 1,
+                    "title": "Feature",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "feature"
+                ],
+                "title": "JsUsesFeatureParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "uses_forbidden_method"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "method": {
+                    "minLength": 1,
+                    "title": "Method",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "method"
+                ],
+                "title": "UsesForbiddenMethodParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "count_global_vars"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "max_allowed": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Max Allowed",
+                    "type": "integer"
+                  }
+                },
+                "title": "CountGlobalVarsParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_headings_sequential"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckHeadingsSequentialParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_all_images_have_alt"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckAllImagesHaveAltParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_html_direct_children"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckHtmlDirectChildrenParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_tag_not_inside"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "child_tag": {
+                    "minLength": 1,
+                    "title": "Child Tag",
+                    "type": "string"
+                  },
+                  "parent_tag": {
+                    "minLength": 1,
+                    "title": "Parent Tag",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "child_tag",
+                  "parent_tag"
+                ],
+                "title": "CheckTagNotInsideParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_internal_links_to_article"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "required_count": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Required Count",
+                    "type": "integer"
+                  }
+                },
+                "title": "CheckInternalLinksToArticleParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "has_style"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "style": {
+                    "minLength": 1,
+                    "title": "Style",
+                    "type": "string"
+                  },
+                  "count": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Count",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "style"
+                ],
+                "title": "HasStyleParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_head_details"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "detail_tag": {
+                    "minLength": 1,
+                    "title": "Detail Tag",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "detail_tag"
+                ],
+                "title": "CheckHeadDetailsParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_attribute_and_value"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "tag": {
+                    "minLength": 1,
+                    "title": "Tag",
+                    "type": "string"
+                  },
+                  "attribute": {
+                    "minLength": 1,
+                    "title": "Attribute",
+                    "type": "string"
+                  },
+                  "value": {
+                    "minLength": 1,
+                    "title": "Value",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tag",
+                  "attribute",
+                  "value"
+                ],
+                "title": "CheckAttributeAndValueParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_dir_exists"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "dir_path": {
+                    "minLength": 1,
+                    "title": "Dir Path",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "dir_path"
+                ],
+                "title": "CheckDirExistsParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_project_structure"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "expected_structure": {
+                    "minLength": 1,
+                    "title": "Expected Structure",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "expected_structure"
+                ],
+                "title": "CheckProjectStructureParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_id_selector_over_usage"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "max_allowed": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Max Allowed",
+                    "type": "integer"
+                  }
+                },
+                "title": "CheckIdSelectorOverUsageParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "uses_relative_units"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "UsesRelativeUnitsParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_media_queries"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckMediaQueriesParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_flexbox_usage"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckFlexboxUsageParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_bootstrap_usage"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "CheckBootstrapUsageParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "link_points_to_page_with_query_param"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "target_page": {
+                    "minLength": 1,
+                    "title": "Target Page",
+                    "type": "string"
+                  },
+                  "query_param": {
+                    "minLength": 1,
+                    "title": "Query Param",
+                    "type": "string"
+                  },
+                  "required_count": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Required Count",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "target_page",
+                  "query_param"
+                ],
+                "title": "LinkPointsToPageWithQueryParamParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "js_uses_query_string_parsing"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {},
+                "title": "JsUsesQueryStringParsingParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "js_has_json_array_with_id"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "required_key": {
+                    "minLength": 1,
+                    "title": "Required Key",
+                    "type": "string"
+                  },
+                  "min_items": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Min Items",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "required_key"
+                ],
+                "title": "JsHasJsonArrayWithIdParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "js_uses_dom_manipulation"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "methods": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Methods",
+                    "type": "array"
+                  },
+                  "required_count": {
+                    "default": 0,
+                    "minimum": 0,
+                    "title": "Required Count",
+                    "type": "integer"
+                  }
+                },
+                "title": "JsUsesDomManipulationParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "has_no_js_framework"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "html_file": {
+                    "minLength": 1,
+                    "title": "Html File",
+                    "type": "string"
+                  },
+                  "js_file": {
+                    "minLength": 1,
+                    "title": "Js File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "html_file",
+                  "js_file"
+                ],
+                "title": "HasNoJsFrameworkParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "count_unused_css_classes"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "html_file": {
+                    "minLength": 1,
+                    "title": "Html File",
+                    "type": "string"
+                  },
+                  "css_file": {
+                    "minLength": 1,
+                    "title": "Css File",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "html_file",
+                  "css_file"
+                ],
+                "title": "CountUnusedCssClassesParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "health_check"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "endpoint": {
+                    "minLength": 1,
+                    "title": "Endpoint",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "endpoint"
+                ],
+                "title": "HealthCheckTestParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "check_response_json"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "endpoint": {
+                    "minLength": 1,
+                    "title": "Endpoint",
+                    "type": "string"
+                  },
+                  "expected_key": {
+                    "minLength": 1,
+                    "title": "Expected Key",
+                    "type": "string"
+                  },
+                  "expected_value": {
+                    "default": null,
+                    "title": "Expected Value"
+                  }
+                },
+                "required": [
+                  "endpoint",
+                  "expected_key"
+                ],
+                "title": "CheckResponseJsonTestParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "expect_output"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "inputs": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Inputs",
+                    "type": "array"
+                  },
+                  "expected_output": {
+                    "title": "Expected Output",
+                    "type": "string"
+                  },
+                  "program_command": {
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "additionalProperties": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "propertyNames": {
+                          "enum": [
+                            "python",
+                            "java",
+                            "node",
+                            "cpp",
+                            "c"
+                          ]
+                        },
+                        "type": "object"
+                      }
+                    ],
+                    "title": "Program Command"
+                  },
+                  "normalization": {
+                    "default": true,
+                    "title": "Normalization",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "expected_output",
+                  "program_command"
+                ],
+                "title": "ExpectOutputParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "dont_fail"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "user_input": {
+                    "default": "",
+                    "title": "User Input",
+                    "type": "string"
+                  },
+                  "program_command": {
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "additionalProperties": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "propertyNames": {
+                          "enum": [
+                            "python",
+                            "java",
+                            "node",
+                            "cpp",
+                            "c"
+                          ]
+                        },
+                        "type": "object"
+                      }
+                    ],
+                    "title": "Program Command"
+                  }
+                },
+                "required": [
+                  "program_command"
+                ],
+                "title": "DontFailParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "expect_file_artifact"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "inputs": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Inputs",
+                    "type": "array"
+                  },
+                  "program_command": {
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "additionalProperties": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "propertyNames": {
+                          "enum": [
+                            "python",
+                            "java",
+                            "node",
+                            "cpp",
+                            "c"
+                          ]
+                        },
+                        "type": "object"
+                      }
+                    ],
+                    "title": "Program Command"
+                  },
+                  "artifact_path": {
+                    "minLength": 1,
+                    "title": "Artifact Path",
+                    "type": "string"
+                  },
+                  "expected_content": {
+                    "title": "Expected Content",
+                    "type": "string"
+                  },
+                  "match_mode": {
+                    "default": "exact",
+                    "enum": [
+                      "exact",
+                      "contains",
+                      "regex"
+                    ],
+                    "title": "Match Mode",
+                    "type": "string"
+                  },
+                  "normalization": {
+                    "default": true,
+                    "title": "Normalization",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "program_command",
+                  "artifact_path",
+                  "expected_content"
+                ],
+                "title": "ArtifactParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "forbidden_import"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "forbidden_imports": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Forbidden Imports",
+                    "type": "array"
+                  }
+                },
+                "title": "ForbiddenImportTestParameters",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "forbidden_keyword"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "forbidden_keywords": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Forbidden Keywords",
+                    "type": "array"
+                  },
+                  "custom_ast_grep_rules": {
+                    "items": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    "title": "Custom Ast Grep Rules",
+                    "type": "array"
+                  }
+                },
+                "title": "ForbiddenKeywordConfig",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ai_sorting_algorithm"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "algorithm_name": {
+                    "minLength": 1,
+                    "title": "Algorithm Name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "algorithm_name"
+                ],
+                "title": "AiAlgorithmConfig",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ai_search_algorithm"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "algorithm_name": {
+                    "minLength": 1,
+                    "title": "Algorithm Name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "algorithm_name"
+                ],
+                "title": "AiAlgorithmConfig",
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "ai_graph_algorithm"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "additionalProperties": false,
+                "properties": {
+                  "algorithm_name": {
+                    "minLength": 1,
+                    "title": "Algorithm Name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "algorithm_name"
+                ],
+                "title": "AiAlgorithmConfig",
+                "type": "object"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "templates": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Templates",
+      "type": "array"
+    },
+    "languages": {
+      "items": {
+        "enum": [
+          "python",
+          "java",
+          "node",
+          "cpp",
+          "c"
+        ],
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Languages",
+      "type": "array"
+    },
+    "criteria": {
+      "$ref": "#/$defs/CriteriaConfig"
+    },
+    "preparation": {
+      "$ref": "#/$defs/Preparation"
+    },
+    "feedback": {
+      "$ref": "#/$defs/Feedback"
+    },
+    "metadata": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Metadata",
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "templates",
+    "languages",
+    "criteria"
+  ],
+  "title": "GradingDefinition",
+  "type": "object",
+  "$id": "https://webtech.network/autograder/contracts/grading-definition/1.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

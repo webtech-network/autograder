@@ -17,7 +17,8 @@ class TestFunction(ABC):
     @property
     def config_schema(self) -> Optional[Type[BaseModel]]:
         """Optional Pydantic model to validate test parameters during tree building."""
-        return None
+        from autograder.models.contracts.parameter_contract import signature_contract
+        return signature_contract(self)
 
     @property
     @abstractmethod

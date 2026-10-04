@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "templates": [
+    "api"
+  ],
+  "languages": [
+    "python"
+  ],
+  "criteria": {
+    "base": {
+      "weight": 100.0,
+      "tests": [
+        {
+          "id": "base-tests-0",
+          "type": "health_check",
+          "name": "Health",
+          "parameters": {
+            "endpoint": "/health"
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "bonus": null,
+    "penalty": null,
+    "metadata": {}
+  },
+  "preparation": {
+    "languages": {
+      "python": {
+        "required_files": [
+          "server.py"
+        ],
+        "setup_commands": [
+          {
+            "name": "Setup command 1",
+            "command": "sh -c 'python3 server.py > /tmp/server.log 2>&1 &'"
+          }
+        ]
+      }
+    },
+    "fixtures": []
+  },
+  "feedback": {
+    "enabled": true,
+    "mode": "default",
+    "preferences": {
+      "general": {
+        "report_title": null,
+        "show_score": true,
+        "show_passed_tests": false,
+        "add_report_summary": true,
+        "online_content": []
+      },
+      "default": {
+        "category_headers": {}
+      }
+    }
+  },
+  "metadata": {}
+}

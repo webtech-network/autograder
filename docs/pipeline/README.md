@@ -100,7 +100,6 @@ The `data` field is polymorphic — each step stores a different type:
 | GRADE | `GradeStepResult` |
 | FOCUS | `Focus` |
 | FEEDBACK | `str` (Markdown feedback) |
-| EXPORTER | `None` |
 
 ### Step Interface
 
@@ -131,7 +130,6 @@ Steps read data from previous steps via `pipeline_exec.get_step_result(StepName.
 | **Grade** | Load Template, Build Tree, Sandbox*, Structural Analysis* |
 | **Focus** | Grade (needs the `ResultTree` from grading) |
 | **Feedback** | Grade, Focus (needs the `ResultTree` and `Focus` objects) |
-| **Export** | Grade (needs the final score) |
 
 The pipeline enforces ordering through insertion order, not through explicit dependency declarations. Steps are always added in the correct sequence by `build_pipeline()`.
 
@@ -142,29 +140,20 @@ The pipeline enforces ordering through insertion order, not through explicit dep
 The `build_pipeline()` function (`autograder/autograder.py`) leverages the `StepRegistry` factory to construct pipelines declaratively from configuration parameters:
 
 ```python
-pipeline = build_pipeline(
-    template_name="input_output",
-    include_feedback=True,
-    grading_criteria=criteria_config,
-    feedback_config=feedback_settings,
-    setup_config={"python": {"required_files": ["main.py"]}},
-    feedback_mode="ai",
-    export_results=False,
-)
+pipeline = build_pipeline(definition=definition)
+execution = pipeline.run(submission)
+outcome = execution.outcome  # one finalized terminal snapshot
 ```
 
-**Assembly rules:**
-
-The `StepRegistry` applies the specific conditionality parameters natively for step constructions:
-1. **Load Template**, **Build Tree**, **Sandbox**, and **Pre-Flight** are unconditionally instantiated. 
-3. **Grade** and **Focus** always evaluate into their respective steps.
-4. **Feedback** strictly resolves if `include_feedback=True`, consuming the `ReporterService` using the designated `feedback_mode`.
-5. **Export** compiles optionally through `export_results=True`.
-
-These instantiated elements are natively pushed into the `AutograderPipeline` linearly along their static `execution_order` mapping:
+Definition compilation validates and resolves evaluator parameters before step
+construction. The registry provisions a sandbox only for selected executable
+evaluators or sandbox preparation; AI batching similarly follows selected AI
+evaluators. Feedback is optional under the definition policy. Finalization and
+cleanup run before the adapter receives an outcome. Publication belongs to that
+adapter and never runs as a grading step.
 
 ```
-LOAD_TEMPLATE → BUILD_TREE → SANDBOX → PRE_FLIGHT → STRUCTURAL_ANALYSIS → GRADE → FOCUS → FEEDBACK → EXPORT
+LOAD_TEMPLATE → BUILD_TREE → SANDBOX* → PRE_FLIGHT* → AI_BATCH* → STRUCTURAL_ANALYSIS → GRADE → FOCUS → FEEDBACK*
 ```
 
 ---
@@ -180,8 +169,8 @@ LOAD_TEMPLATE → BUILD_TREE → SANDBOX → PRE_FLIGHT → STRUCTURAL_ANALYSIS 
 | [Structural Analysis](04.8-structural-analysis.md) | `structural_analysis_step.py` | Parses submission files into ast-grep SgRoot objects | None |
 | [Grade](05-grade.md) | `grade_step.py` | Executes all tests against the submission and produces the scored `ResultTree` | Load Template, Build Tree, Sandbox* |
 | [Focus](06-focus.md) | `focus_step.py` | Ranks all tests by their impact on the final score | Grade |
-| [Feedback](07-feedback.md) | `feedback_step.py` | Generates student-facing feedback reports (default or AI-powered) | Focus |
-| [Export](08-export.md) | `export_step.py` | Sends the final score to an external system (e.g., Upstash/Redis) | Grade |
+| [Feedback](07-feedback.md) | `feedback_step.py` | Generates student-facing feedback reports (default reporter) | Focus |
+| [Publication](08-export.md) | adapter-owned | Publishes the finalized outcome after cleanup | Terminal outcome |
 
 \* Sandbox is only required if the template requires sandbox execution.
 

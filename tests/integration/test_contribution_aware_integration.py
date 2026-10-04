@@ -26,7 +26,8 @@ from autograder.models.dataclass.submission import (
 )
 from autograder.models.dataclass.test_result import TestResult
 from autograder.services.grader.grader_service import GraderService
-from web.service.grading_service import GradingRequest, grade_submission
+from web.service.grading_service import GradingRequest, _run_pipeline
+from autograder.models.contracts.definition import compile_definition
 
 
 # ---------------------------------------------------------------------------
@@ -57,10 +58,10 @@ def _static_analysis_criteria(forbidden_imports: list) -> dict:
             "weight": 100.0,
             "tests": [
                 {
+                    "id": f"no_{imp}",
                     "name": f"no_{imp}",
                     "type": "forbidden_import",
-                    "forbidden_imports": [imp],
-                    "submission_language": "python",
+                    "parameters": {"forbidden_imports": [imp]},
                 }
                 for imp in forbidden_imports
             ],
@@ -128,10 +129,8 @@ class TestEvaluationScopeIntegration:
         )
 
         pipeline = build_pipeline(
-            template_name="static_analysis",
-            include_feedback=False,
-            grading_criteria=criteria,
-            feedback_config={},
+            definition={"schema_version": "1.0", "templates": ["static_analysis"],
+                        "languages": ["python"], "criteria": criteria},
         )
         execution = pipeline.run(submission)
 
@@ -197,10 +196,8 @@ class TestEvaluationScopeIntegration:
         )
 
         pipeline = build_pipeline(
-            template_name="static_analysis",
-            include_feedback=False,
-            grading_criteria=criteria,
-            feedback_config={},
+            definition={"schema_version": "1.0", "templates": ["static_analysis"],
+                        "languages": ["python"], "criteria": criteria},
         )
         execution = pipeline.run(submission)
 
@@ -270,10 +267,8 @@ class TestChangedLinesIntegration:
         )
 
         pipeline = build_pipeline(
-            template_name="static_analysis",
-            include_feedback=False,
-            grading_criteria=criteria,
-            feedback_config={},
+            definition={"schema_version": "1.0", "templates": ["static_analysis"],
+                        "languages": ["python"], "criteria": criteria},
         )
         execution = pipeline.run(submission)
 
@@ -305,10 +300,8 @@ class TestChangedLinesIntegration:
         )
 
         pipeline = build_pipeline(
-            template_name="static_analysis",
-            include_feedback=False,
-            grading_criteria=criteria,
-            feedback_config={},
+            definition={"schema_version": "1.0", "templates": ["static_analysis"],
+                        "languages": ["python"], "criteria": criteria},
         )
         execution = pipeline.run(submission)
 
@@ -446,280 +439,39 @@ class TestFileMetadataIntegration:
 
 
 class TestGradingServiceContributionAware:
-    """Verify the grading service correctly hydrates contribution-aware fields."""
+    """Hydration remains correct at the adapter-to-engine boundary."""
+
+    async def _capture(self, file_values, evaluation_scope=None):
+        definition = compile_definition({"schema_version": "1.0", "templates": ["static_analysis"],
+            "languages": ["python"], "criteria": _static_analysis_criteria(["os"])})
+        request = GradingRequest(submission_id=1, grading_config_id=1,
+            definition=definition.definition.model_dump(mode="json"), configuration_version=1,
+            definition_hash=definition.definition_hash, language="python", username="student",
+            external_user_id="u1", submission_files={"main.py": file_values},
+            evaluation_scope=evaluation_scope)
+        with patch("web.service.grading_service.build_pipeline") as build:
+            await _run_pipeline(request)
+        return build.return_value.run.call_args.args[0]
 
     @pytest.mark.asyncio
     async def test_grading_service_hydrates_evaluation_scope(self):
-        """GradingRequest with evaluation_scope dict → AutograderSubmission has EvaluationScope object."""
-        mock_result = Mock()
-        mock_result.final_score = 100.0
-        mock_result.feedback = None
-        mock_result.result_tree = None
-        mock_result.focus = Mock()
-        mock_result.focus.to_dict = Mock(return_value={"base": []})
-        mock_result.comparison = None
-
-        mock_execution = Mock()
-        mock_execution.result = mock_result
-        mock_execution.start_time = time.time()
-        mock_execution.step_results = []
-
-        mock_submission_repo = Mock()
-        mock_submission_repo.update_status = AsyncMock()
-        mock_submission_repo.update = AsyncMock()
-
-        mock_result_repo = Mock()
-        mock_result_repo.create = AsyncMock()
-
-        mock_session = AsyncMock()
-        mock_session.commit = AsyncMock()
-
-        captured_submission = {}
-
-        def capture_pipeline_run(submission):
-            captured_submission["obj"] = submission
-            return mock_execution
-
-        with patch("web.service.grading_service.build_pipeline") as mock_build, \
-             patch("web.service.grading_service.get_session") as mock_get_session, \
-             patch("asyncio.to_thread", side_effect=lambda fn, sub: capture_pipeline_run(sub)), \
-             patch("web.service.grading_service.SubmissionRepository", return_value=mock_submission_repo), \
-             patch("web.service.grading_service.ResultRepository", return_value=mock_result_repo), \
-             patch("web.service.grading_service.PipelineExecutionSerializer") as mock_serializer:
-
-            mock_get_session.return_value.__aenter__.return_value = mock_session
-            mock_serializer.serialize.return_value = {"status": "success"}
-
-            request = GradingRequest(
-                submission_id=1,
-                grading_config_id=1,
-                template_name="static_analysis",
-                criteria_config={},
-                setup_config={},
-                feedback_config={},
-                include_feedback=False,
-                language="python",
-                username="student",
-                external_user_id="u1",
-                submission_files={
-                    "main.py": {
-                        "filename": "main.py",
-                        "content": "x = 1",
-                        "changed_lines": None,
-                        "file_metadata": None,
-                    }
-                },
-                evaluation_scope={"scoped_files": ["main.py"]},
-            )
-            await grade_submission(request)
-
-            sub = captured_submission["obj"]
-            assert sub.evaluation_scope is not None
-            assert sub.evaluation_scope.scoped_files == ["main.py"]
+        submission = await self._capture({"filename": "main.py", "content": "x = 1"},
+                                         {"scoped_files": ["main.py"]})
+        assert submission.evaluation_scope.scoped_files == ["main.py"]
 
     @pytest.mark.asyncio
     async def test_grading_service_hydrates_changed_lines(self):
-        """GradingRequest with changed_lines in files → SubmissionFile has set(changed_lines)."""
-        mock_result = Mock()
-        mock_result.final_score = 100.0
-        mock_result.feedback = None
-        mock_result.result_tree = None
-        mock_result.focus = Mock()
-        mock_result.focus.to_dict = Mock(return_value={"base": []})
-        mock_result.comparison = None
-
-        mock_execution = Mock()
-        mock_execution.result = mock_result
-        mock_execution.start_time = time.time()
-        mock_execution.step_results = []
-
-        mock_submission_repo = Mock()
-        mock_submission_repo.update_status = AsyncMock()
-        mock_submission_repo.update = AsyncMock()
-
-        mock_result_repo = Mock()
-        mock_result_repo.create = AsyncMock()
-
-        mock_session = AsyncMock()
-        mock_session.commit = AsyncMock()
-
-        captured_submission = {}
-
-        def capture_pipeline_run(submission):
-            captured_submission["obj"] = submission
-            return mock_execution
-
-        with patch("web.service.grading_service.build_pipeline") as mock_build, \
-             patch("web.service.grading_service.get_session") as mock_get_session, \
-             patch("asyncio.to_thread", side_effect=lambda fn, sub: capture_pipeline_run(sub)), \
-             patch("web.service.grading_service.SubmissionRepository", return_value=mock_submission_repo), \
-             patch("web.service.grading_service.ResultRepository", return_value=mock_result_repo), \
-             patch("web.service.grading_service.PipelineExecutionSerializer") as mock_serializer:
-
-            mock_get_session.return_value.__aenter__.return_value = mock_session
-            mock_serializer.serialize.return_value = {"status": "success"}
-
-            request = GradingRequest(
-                submission_id=2,
-                grading_config_id=1,
-                template_name="static_analysis",
-                criteria_config={},
-                setup_config={},
-                feedback_config={},
-                include_feedback=False,
-                language="python",
-                username="student",
-                external_user_id="u2",
-                submission_files={
-                    "main.py": {
-                        "filename": "main.py",
-                        "content": "x = 1",
-                        "changed_lines": [1, 3, 5],
-                        "file_metadata": {"change_status": "modified"},
-                    }
-                },
-            )
-            await grade_submission(request)
-
-            sub = captured_submission["obj"]
-            main_file = sub.submission_files["main.py"]
-            assert main_file.changed_lines == {1, 3, 5}
-            assert main_file.metadata == {"change_status": "modified"}
-            assert main_file.is_contribution_aware is True
+        submission = await self._capture({"filename": "main.py", "content": "x = 1",
+                                         "changed_lines": [1, 3], "file_metadata": {"source": "contribution"}})
+        assert submission.submission_files["main.py"].changed_lines == {1, 3}
+        assert submission.submission_files["main.py"].metadata == {"source": "contribution"}
 
     @pytest.mark.asyncio
-    async def test_grading_service_evaluation_scope_none_when_absent(self):
-        """GradingRequest without evaluation_scope → submission.evaluation_scope is None."""
-        mock_result = Mock()
-        mock_result.final_score = 100.0
-        mock_result.feedback = None
-        mock_result.result_tree = None
-        mock_result.focus = Mock()
-        mock_result.focus.to_dict = Mock(return_value={"base": []})
-        mock_result.comparison = None
-
-        mock_execution = Mock()
-        mock_execution.result = mock_result
-        mock_execution.start_time = time.time()
-        mock_execution.step_results = []
-
-        mock_submission_repo = Mock()
-        mock_submission_repo.update_status = AsyncMock()
-        mock_submission_repo.update = AsyncMock()
-
-        mock_result_repo = Mock()
-        mock_result_repo.create = AsyncMock()
-
-        mock_session = AsyncMock()
-        mock_session.commit = AsyncMock()
-
-        captured_submission = {}
-
-        def capture_pipeline_run(submission):
-            captured_submission["obj"] = submission
-            return mock_execution
-
-        with patch("web.service.grading_service.build_pipeline") as mock_build, \
-             patch("web.service.grading_service.get_session") as mock_get_session, \
-             patch("asyncio.to_thread", side_effect=lambda fn, sub: capture_pipeline_run(sub)), \
-             patch("web.service.grading_service.SubmissionRepository", return_value=mock_submission_repo), \
-             patch("web.service.grading_service.ResultRepository", return_value=mock_result_repo), \
-             patch("web.service.grading_service.PipelineExecutionSerializer") as mock_serializer:
-
-            mock_get_session.return_value.__aenter__.return_value = mock_session
-            mock_serializer.serialize.return_value = {"status": "success"}
-
-            request = GradingRequest(
-                submission_id=3,
-                grading_config_id=1,
-                template_name="static_analysis",
-                criteria_config={},
-                setup_config={},
-                feedback_config={},
-                include_feedback=False,
-                language="python",
-                username="student",
-                external_user_id="u3",
-                submission_files={
-                    "main.py": {
-                        "filename": "main.py",
-                        "content": "x = 1",
-                    }
-                },
-                evaluation_scope=None,
-            )
-            await grade_submission(request)
-
-            sub = captured_submission["obj"]
-            assert sub.evaluation_scope is None
-            main_file = sub.submission_files["main.py"]
-            assert main_file.changed_lines is None
-            assert main_file.is_contribution_aware is False
+    async def test_grading_service_without_scope(self):
+        submission = await self._capture({"filename": "main.py", "content": "x = 1"})
+        assert submission.evaluation_scope is None
 
     @pytest.mark.asyncio
-    async def test_grading_service_changed_lines_none_when_absent(self):
-        """GradingRequest with file missing changed_lines key → SubmissionFile.changed_lines is None."""
-        mock_result = Mock()
-        mock_result.final_score = 100.0
-        mock_result.feedback = None
-        mock_result.result_tree = None
-        mock_result.focus = Mock()
-        mock_result.focus.to_dict = Mock(return_value={"base": []})
-        mock_result.comparison = None
-
-        mock_execution = Mock()
-        mock_execution.result = mock_result
-        mock_execution.start_time = time.time()
-        mock_execution.step_results = []
-
-        mock_submission_repo = Mock()
-        mock_submission_repo.update_status = AsyncMock()
-        mock_submission_repo.update = AsyncMock()
-
-        mock_result_repo = Mock()
-        mock_result_repo.create = AsyncMock()
-
-        mock_session = AsyncMock()
-        mock_session.commit = AsyncMock()
-
-        captured_submission = {}
-
-        def capture_pipeline_run(submission):
-            captured_submission["obj"] = submission
-            return mock_execution
-
-        with patch("web.service.grading_service.build_pipeline") as mock_build, \
-             patch("web.service.grading_service.get_session") as mock_get_session, \
-             patch("asyncio.to_thread", side_effect=lambda fn, sub: capture_pipeline_run(sub)), \
-             patch("web.service.grading_service.SubmissionRepository", return_value=mock_submission_repo), \
-             patch("web.service.grading_service.ResultRepository", return_value=mock_result_repo), \
-             patch("web.service.grading_service.PipelineExecutionSerializer") as mock_serializer:
-
-            mock_get_session.return_value.__aenter__.return_value = mock_session
-            mock_serializer.serialize.return_value = {"status": "success"}
-
-            # Simulate the minimal storage format (no changed_lines or file_metadata keys)
-            request = GradingRequest(
-                submission_id=4,
-                grading_config_id=1,
-                template_name="static_analysis",
-                criteria_config={},
-                setup_config={},
-                feedback_config={},
-                include_feedback=False,
-                language="python",
-                username="student",
-                external_user_id="u4",
-                submission_files={
-                    "main.py": {
-                        "filename": "main.py",
-                        "content": "x = 1",
-                    }
-                },
-            )
-            await grade_submission(request)
-
-            sub = captured_submission["obj"]
-            main_file = sub.submission_files["main.py"]
-            assert main_file.changed_lines is None
-            assert main_file.metadata is None
+    async def test_grading_service_without_changed_lines(self):
+        submission = await self._capture({"filename": "main.py", "content": "x = 1"})
+        assert submission.submission_files["main.py"].changed_lines is None

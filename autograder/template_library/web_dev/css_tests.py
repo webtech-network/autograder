@@ -24,7 +24,6 @@ class CountUnusedCssClasses(TestFunction):
     @property
     def parameter_description(self):
         return [
-            ParamDescription("submission_files", t("web_dev.css.count_unused_css_classes.param.submission_files"), "dictionary"),
             ParamDescription("html_file", t("web_dev.css.count_unused_css_classes.param.html_file"), "string"),
             ParamDescription("css_file", t("web_dev.css.count_unused_css_classes.param.css_file"), "string")
         ]
@@ -66,9 +65,9 @@ class CountUnusedCssClasses(TestFunction):
                     used_classes.add(cls)
         return used_classes
 
-    def execute(self, files, sandbox, *args, submission_files=None, html_file: str = "", css_file: str = "", **kwargs) -> TestResult:
+    def execute(self, files, sandbox, *args, html_file: str = "", css_file: str = "", **kwargs) -> TestResult:
         """Executes the unused CSS class verification."""
-        submission_files = submission_files or {}
+        submission_files = {file.filename: file.content for file in files or []}
         html_content = submission_files.get(html_file, "")
         css_content = submission_files.get(css_file, "")
         
@@ -224,7 +223,7 @@ class CheckIdSelectorOverUsage(TestFunction):
     """Counts ID selectors in the CSS to avoid over usage."""
     @property
     def name(self):
-        return "Check ID Selector Over Usage"
+        return "check_id_selector_over_usage"
     @property
     def description(self):
         return t("web_dev.css.check_id_selector_over_usage.description")

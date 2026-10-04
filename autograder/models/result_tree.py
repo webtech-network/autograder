@@ -51,6 +51,8 @@ class TestResultNode:
     weight: float = 100.0
     parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    criterion_id: Optional[str] = None
+    evaluator: Optional[str] = None
 
     def calculate_score(self) -> float:
         """Test nodes return their own score (leaf nodes)."""
@@ -59,6 +61,8 @@ class TestResultNode:
     def to_dict(self) -> dict:
         """Convert test result to dictionary representation."""
         return {
+            "id": self.criterion_id or (self.test_node.criterion_id if self.test_node else None),
+            "evaluator": self.evaluator or (self.test_node.test_function.name if self.test_node else None),
             "name": self.name,
             "type": "test",
             "score": round(self.score, 2),
@@ -73,6 +77,8 @@ class TestResultNode:
     def from_dict(cls, data: dict) -> "TestResultNode":
         """Reconstruct a TestResultNode from a dictionary representation."""
         return cls(
+            criterion_id=data.get("id"),
+            evaluator=data.get("evaluator"),
             name=data.get("name", ""),
             score=float(data.get("score", 0.0)),
             report=data.get("report", ""),
@@ -493,29 +499,33 @@ class ResultTree:
 
     def iter_test_results(self) -> Iterator[Tuple[str, TestResultNode]]:
         """
-        Yield (path, node) for every test in the tree.
+        Yield (criterion_id, node) for every test in the tree.
 
-        Path format: "category/subject/.../test_name"
-        Stable across executions of the same criteria config version.
+        Identity is independent of display names and subject grouping.
         Used by to_score_vector() and ResultComparator.
 
         Yields:
-            Tuples of (path_string, TestResultNode) for every leaf test
+            Tuples of (criterion_id, TestResultNode) for every leaf test
             in the result tree, ordered by category → subject → test.
         """
+        seen = set()
         for category in self.root.get_all_categories():
             for path, test_node, _multiplier in category.iter_test_results():
-                yield (path, test_node)
+                criterion_id = test_node.criterion_id or (test_node.test_node.criterion_id if test_node.test_node else None)
+                if not criterion_id:
+                    raise ValueError("Result tree test lacks a criterion ID")
+                if criterion_id in seen:
+                    raise ValueError(f"Duplicate result criterion ID: {criterion_id}")
+                seen.add(criterion_id)
+                yield (criterion_id, test_node)
 
     def to_score_vector(self) -> Dict[str, float]:
         """
-        Flatten the result tree into a path-keyed score map.
-
-        Keys are stable across executions of the same criteria config version.
+        Flatten the result tree into a criterion-ID-keyed score map.
         Suitable for storage, diffing, and longitudinal SQL queries.
 
         Returns:
-            Dict mapping path strings to raw test scores (0-100).
+            Dict mapping criterion IDs to raw test scores (0-100).
         """
         return {path: node.score for path, node in self.iter_test_results()}
 
@@ -534,7 +544,6 @@ class ResultTree:
                 "failed_tests": len(failed_tests),
             },
             "tree": self.root.to_dict(),
-            "root": self.root.to_dict(),
             "metadata": self.metadata,
         }
 
@@ -543,21 +552,15 @@ class ResultTree:
         """
         Reconstruct a ResultTree from a dictionary representation.
 
-        Supports:
-        - ResultTree.to_dict() format (with 'root' or 'tree' key)
-        - DB stored format (with 'children' key)
-        - Raw RootResultNode dict (with 'base' key directly)
+        Accepts this class's single-tree dictionary or the canonical raw root.
+        Historical root/children aliases require an explicit offline migration.
         """
         if not data:
             raise ValueError("Cannot deserialize empty dictionary into ResultTree")
 
         root_dict = data
-        if "root" in data and isinstance(data["root"], dict):
-            root_dict = data["root"]
-        elif "tree" in data and isinstance(data["tree"], dict):
+        if "tree" in data and isinstance(data["tree"], dict):
             root_dict = data["tree"]
-        elif "children" in data and isinstance(data["children"], dict):
-            root_dict = data["children"]
 
         root = RootResultNode.from_dict(root_dict)
         if "final_score" in data:

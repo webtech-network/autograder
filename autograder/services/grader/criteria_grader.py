@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Dict, Optional, Sequence, List, overload
 
 from autograder.models.abstract.criteria_tree_processer import CriteriaTreeProcesser
@@ -15,6 +16,7 @@ from autograder.models.result_tree import (
     TestResultNode,
 )
 from autograder.services.command_resolver import CommandResolver
+from autograder.models.evaluation_error import EvaluationError
 
 
 class SubmissionGrader(CriteriaTreeProcesser):
@@ -54,16 +56,15 @@ class SubmissionGrader(CriteriaTreeProcesser):
             return
 
         target_total = 100.0 * factor
-        current_sum = sum(node.weight for node in nodes)
-
-        if current_sum == 0:
+        maximum_weight = max(node.weight for node in nodes)
+        if maximum_weight == 0:
             equal_weight = target_total / len(nodes)
             for node in nodes:
                 node.weight = equal_weight
         else:
-            scale_factor = target_total / current_sum
+            relative_sum = math.fsum(node.weight / maximum_weight for node in nodes)
             for node in nodes:
-                node.weight *= scale_factor
+                node.weight = target_total * (node.weight / maximum_weight) / relative_sum
 
     @overload
     def __process_holder(self, holder: CategoryNode) -> CategoryResultNode: ...
@@ -79,7 +80,7 @@ class SubmissionGrader(CriteriaTreeProcesser):
 
         # Determine subjects and tests weight factors
         if holder.subjects and holder.tests:
-            if not holder.subjects_weight:
+            if holder.subjects_weight is None:
                 raise ValueError(f"missing 'subjects_weight' for {holder.name}")
             subjects_factor = holder.subjects_weight / 100.0
             tests_factor = 1 - subjects_factor
@@ -151,6 +152,7 @@ class SubmissionGrader(CriteriaTreeProcesser):
         )
         test_params.pop("evaluation_scope", None)
         test_params.pop("file_metadata", None)
+        test_params.pop("criterion_id", None)
 
         file_metadata = {
             sub_file.filename: sub_file.metadata
@@ -166,14 +168,21 @@ class SubmissionGrader(CriteriaTreeProcesser):
             submission_language=effective_submission_language,
             evaluation_scope=self.evaluation_scope,
             file_metadata=file_metadata,
+            criterion_id=test.criterion_id,
             **test_params,
         )
+        if (not isinstance(test_result, TestResult) or isinstance(test_result.score, bool)
+                or not isinstance(test_result.score, (int, float))
+                or not math.isfinite(test_result.score) or not 0 <= test_result.score <= 100):
+            raise EvaluationError("INVALID_EVALUATOR_RESULT", "An evaluator returned an invalid assessment.")
         return TestResultNode(
+            criterion_id=test.criterion_id,
+            evaluator=test.test_function.name,
             name=test.name,
             test_node=test,
             score=test_result.score,
             report=test_result.report,
-            parameters=test_result.parameters,
+            parameters=dict(test.parameters or {}),
             weight=test.weight,
         )
 
@@ -182,7 +191,7 @@ class SubmissionGrader(CriteriaTreeProcesser):
         if not self.submission_files:
             return None
 
-        if not test_node.file_target or test_node.file_target == ["all"]:
+        if not test_node.file_target:
             return list(self.submission_files.values())
 
         target_files = []

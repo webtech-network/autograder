@@ -4,13 +4,18 @@ from time import perf_counter
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from web.api import api_router
 from web.config.logging import get_logger, setup_logging
-from web.config.request_context import REQUEST_ID_HEADER, clear_request_id, set_request_id
+from web.config.request_context import (
+    REQUEST_ID_HEADER,
+    clear_request_id,
+    set_request_id,
+)
 from web.core import settings, lifespan
-
 
 # Setup logging
 setup_logging(
@@ -28,6 +33,26 @@ app = FastAPI(
     version=settings.API_VERSION,
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def safe_validation_error(request: Request, exc: RequestValidationError):
+    # Inputs can contain source code, credentials, or nonfinite numbers. Return paths,
+    # stable error types and explanations without echoing the rejected payload.
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": [
+                {
+                    "path": list(error["loc"]),
+                    "code": error["type"],
+                    "message": error["msg"],
+                }
+                for error in exc.errors()
+            ]
+        },
+    )
+
 
 # Add CORS middleware to allow frontend connections
 app.add_middleware(
@@ -82,4 +107,5 @@ app.include_router(api_router)
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

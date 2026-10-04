@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock
 import pytest
+from autograder.models.evaluation_error import EvaluationError
 from pydantic import ValidationError
 
 from autograder.template_library.static_analysis import ForbiddenKeywordTest, StaticAnalysisTemplate, ForbiddenKeywordConfig
@@ -81,9 +82,8 @@ class TestForbiddenKeywordExecution:
 
     def test_no_analysis_gives_0(self):
         """Test that missing structural analysis returns score 0."""
-        result = self.test_fn.execute([], None, forbidden_keywords=["for_loop"])
-        assert result.score == 0.0
-        assert "analysis" in result.report.lower()
+        with pytest.raises(EvaluationError):
+            self.test_fn.execute([], None, forbidden_keywords=["for_loop"])
 
     def test_unavailable_analysis_gives_0(self):
         """Unavailable structural analysis should fail explicitly."""
@@ -92,24 +92,22 @@ class TestForbiddenKeywordExecution:
             available=False,
             reason="ast_grep_unavailable",
         )
-        result = self.test_fn.execute(
-            [SubmissionFile("main.py", "for i in range(10): pass")],
-            None,
-            forbidden_keywords=["for_loop"],
-            structural_analysis=sa_result,
-            submission_language=Language.PYTHON,
-        )
-        assert result.score == 0.0
-        assert "analysis" in result.report.lower()
+        with pytest.raises(EvaluationError):
+            self.test_fn.execute(
+                [SubmissionFile("main.py", "for i in range(10): pass")],
+                None,
+                forbidden_keywords=["for_loop"],
+                structural_analysis=sa_result,
+                submission_language=Language.PYTHON,
+            )
 
     def test_no_language_gives_0(self):
         """Test that missing language returns score 0."""
         sa_result = StructuralAnalysisResult(roots={})
-        result = self.test_fn.execute([], None, 
-                                     forbidden_keywords=["for_loop"],
-                                     structural_analysis=sa_result)
-        assert result.score == 0.0
-        assert "language" in result.report.lower()
+        with pytest.raises(EvaluationError):
+            self.test_fn.execute([], None,
+                                         forbidden_keywords=["for_loop"],
+                                         structural_analysis=sa_result)
 
     def test_no_files_gives_100(self):
         """Test that empty file list returns full score."""
@@ -175,12 +173,11 @@ class TestForbiddenKeywordExecution:
         """If target files have no parsed roots, the test should fail as no-analysis."""
         sa_result = StructuralAnalysisResult(roots={})
         files = [SubmissionFile("main.py", "for i in range(10): pass")]
-        result = self.test_fn.execute(
-            files,
-            None,
-            forbidden_keywords=["for_loop"],
-            structural_analysis=sa_result,
-            submission_language=Language.PYTHON,
-        )
-        assert result.score == 0.0
-        assert "analysis" in result.report.lower()
+        with pytest.raises(EvaluationError):
+            self.test_fn.execute(
+                files,
+                None,
+                forbidden_keywords=["for_loop"],
+                structural_analysis=sa_result,
+                submission_language=Language.PYTHON,
+            )

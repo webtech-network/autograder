@@ -9,7 +9,7 @@ class TestDelta:
     between a baseline and a head grading execution.
 
     Attributes:
-        path: Stable path string in "category/subject/.../test_name" format.
+        path: Criterion ID, independent of display names and grouping.
         status: One of "improved", "regressed", "unchanged", "introduced", "removed".
         baseline_score: Score in the baseline run, or None if introduced.
         head_score: Score in the head run, or None if removed.

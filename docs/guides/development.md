@@ -114,9 +114,6 @@ DATABASE_URL=postgresql://user:password@localhost:5432/autograder
 # OpenAI (for AI feedback mode)
 OPENAI_API_KEY=your_openai_key_here
 
-# Upstash Redis (optional, for distributed caching)
-UPSTASH_REDIS_URL=your_redis_url
-UPSTASH_REDIS_TOKEN=your_redis_token
 
 # Sandbox Configuration
 SANDBOX_TIMEOUT=120

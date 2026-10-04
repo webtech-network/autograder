@@ -16,6 +16,7 @@ Tests cover:
 """
 
 import unittest
+from autograder.models.evaluation_error import EvaluationError
 from unittest.mock import MagicMock
 
 from autograder.template_library.input_output import ExpectFileArtifactTest, InputOutputTemplate
@@ -232,15 +233,15 @@ class TestExpectFileArtifactErrors(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.extract_file.side_effect = RuntimeError("tar stream corrupt")
 
-        result = self.test.execute(
-            files=None, sandbox=sandbox,
-            program_command="python3 main.py",
-            artifact_path="output.txt",
-            expected_content="anything",
-        )
-
-        self.assertEqual(result.score, 0.0)
-        self.assertIn("tar stream corrupt", result.report)
+        with self.assertRaises(EvaluationError) as error:
+            self.test.execute(
+                files=None, sandbox=sandbox,
+                program_command="python3 main.py",
+                artifact_path="output.txt",
+                expected_content="anything",
+            )
+        self.assertEqual(error.exception.category, "capability")
+        self.assertNotIn("tar stream corrupt", error.exception.message)
 
     def test_absolute_path_rejected(self):
         """Test that absolute artifact paths are rejected."""

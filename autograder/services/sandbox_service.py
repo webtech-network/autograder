@@ -39,8 +39,8 @@ class SandboxService:
                     self.logger.debug("Workdir prepared with %s files", len(submission.submission_files))
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     self.logger.error("Failed to prepare workdir in sandbox: %s", str(e))
-                    # Release the sandbox back to pool since it's unusable
-                    sandbox_manager.release_sandbox(submission.language, sandbox)
+                    # A partially prepared sandbox must never return to the pool.
+                    sandbox_manager.destroy_sandbox(submission.language, sandbox)
                     return None
 
             return sandbox

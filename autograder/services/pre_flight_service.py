@@ -5,6 +5,7 @@ from autograder.translations import t
 from autograder.services.sandbox_service import SandboxService
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
+from autograder.models.evaluation_error import EvaluationError
 
 
 from autograder.models.config.setup import SetupConfig, LanguageSetupConfig
@@ -130,6 +131,8 @@ class PreFlightService:  # pylint: disable=too-many-instance-attributes
         for idx, command_spec in enumerate(self.setup_commands):
             # Call SandboxService to execute one command at a time
             response = self._sandbox_service.run_setup_command(sandbox, command_spec, idx, locale=self.locale)
+            if response.category == ResponseCategory.SYSTEM_ERROR:
+                raise EvaluationError("SANDBOX_ERROR", "The execution environment could not prepare the submission.", "capability", True)
 
             # Check if response indicates an error
             if response.category != ResponseCategory.SUCCESS:

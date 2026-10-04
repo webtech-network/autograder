@@ -1,48 +1,14 @@
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
-
-
-class ParameterConfig(BaseModel):
-    """Named parameter for a test function."""
-
-    name: str = Field(..., description="Parameter name")
-    value: Any = Field(..., description="Parameter value")
-
-    model_config = {"extra": "allow"}
+"""One explicitly identified evaluator invocation; no legacy argument encodings."""
+from typing import Any
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 
 class TestConfig(BaseModel):
-    """Configuration for a single test execution."""
-
-    name: str = Field(..., description="Display name of the test")
-    type: Optional[str] = Field(
-        None, description="Technical type of the test (e.g., expect_output)"
-    )
-    file: Optional[str] = Field(
-        None, description="Target file for the test (if applicable)"
-    )
-    parameters: Optional[List[ParameterConfig]] = Field(
-        None, description="Named parameters for the test function"
-    )
-    weight: Optional[float] = Field(100.0, ge=0, description="Weight of this test")
-
-
-    model_config = {"extra": "allow"}
-
-
-    def get_args_list(self) -> List[Any]:
-        """Convert named parameters to positional arguments list."""
-        if not self.parameters:
-            return []
-        return [param.value for param in self.parameters]
-
-    def get_kwargs_dict(self) -> Dict[str, Any]:
-        """Convert named parameters to keyword arguments dictionary."""
-        kwargs = {}
-        if self.parameters is not None:
-            kwargs.update({param.name: param.value for param in self.parameters})
-
-        if self.model_extra:
-            kwargs.update(self.model_extra)
-
-        return kwargs
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_.:-]+$")
+    type: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    parameters: dict[str, JsonValue]
+    file: str | None = Field(default=None, min_length=1)
+    weight: float = Field(default=100.0, ge=0, strict=True)
+    metadata: dict[str, JsonValue] = Field(default_factory=dict)

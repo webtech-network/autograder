@@ -5,6 +5,7 @@ and that no hidden __submission_language__ kwarg ever reaches a test's execute()
 These are pure-unit tests — no sandbox or real submission required.
 """
 
+import pytest
 from typing import List
 
 from autograder.models.abstract.template import Template
@@ -349,33 +350,11 @@ class TestSubmissionLanguageCollisionRegression:
 
         assert fn.recorded_kwargs["submission_language"] == "java"
 
-    def test_multi_template_grading_path_with_submission_language_param(self):
-        criteria_dict = {
-            "base": {
-                "weight": 100,
-                "tests": [
-                    {
-                        "name": "No forbidden imports",
-                        "type": "forbidden_import",
-                        "file": "main.py",
-                        "parameters": [
-                            {"name": "forbidden_imports", "value": ["os"]},
-                            {"name": "submission_language", "value": "java"},
-                        ],
-                    }
-                ],
-            }
-        }
-        criteria_config = CriteriaConfig.from_dict(criteria_dict)
-        criteria_tree = CriteriaTreeService().build_tree(
-            criteria_config,
-            [EmptyTemplate(), StaticAnalysisTemplate()],
-        )
-
-        result_tree = GraderService().grade_from_tree(
-            criteria_tree=criteria_tree,
-            submission_files={"main.py": SubmissionFile("main.py", "import os\n")},
-            submission_language=Language.PYTHON,
-        )
-
-        assert result_tree.calculate_final_score() == 0.0
+    def test_multi_template_grading_path_rejects_runtime_language_parameter(self):
+        from autograder.models.contracts.definition import compile_definition, DefinitionValidationError
+        value = {"schema_version":"1.0", "templates":["static_analysis"],"languages":["python"],
+                 "criteria":{"base":{"weight":100,"tests":[{"id":"imports","name":"Imports",
+                    "type":"forbidden_import","parameters":{"forbidden_imports":["os"],"submission_language":"java"}}]}}}
+        with pytest.raises(DefinitionValidationError) as failure:
+            compile_definition(value)
+        assert failure.value.errors()[0]["code"] == "RESERVED_PARAMETER"

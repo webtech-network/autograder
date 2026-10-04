@@ -9,6 +9,7 @@ from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import ResponseCategory
+from autograder.models.evaluation_error import EvaluationError
 
 
 # ===============================================================
@@ -65,11 +66,7 @@ class BaseExecutionTest(TestFunction):
             )
 
         if output.category == ResponseCategory.SYSTEM_ERROR:
-            return TestResult(
-                test_name=self.name,
-                score=0.0,
-                report=t("io.execution.system_error", locale=kwargs.get("locale"), error=output.stderr)
-            )
+            raise EvaluationError("SANDBOX_ERROR", "The execution environment could not complete evaluation.", "capability", True)
 
         return None
 
@@ -95,6 +92,11 @@ class ExpectOutputTest(BaseExecutionTest):
 
     Supports multi-language submissions through dynamic command resolution.
     """
+
+    @property
+    def config_schema(self):
+        from autograder.models.contracts.parameters import ExpectOutputParameters
+        return ExpectOutputParameters
 
     @property
     def name(self):
@@ -161,11 +163,7 @@ class ExpectOutputTest(BaseExecutionTest):
             )
 
         except (ValueError, TimeoutError, RuntimeError) as e:
-            return TestResult(
-                test_name=self.name,
-                score=0.0,
-                report=t("io.expect_output.report.internal_error", locale=locale, error=str(e))
-            )
+            raise EvaluationError("SANDBOX_ERROR", "The execution environment could not complete evaluation.", "capability", True) from e
 
 class DontFailTest(BaseExecutionTest):
     """
@@ -176,6 +174,11 @@ class DontFailTest(BaseExecutionTest):
     error, or timeout. Useful for validating error handling (e.g., sending a
     string when the program expects a number).
     """
+
+    @property
+    def config_schema(self):
+        from autograder.models.contracts.parameters import DontFailParameters
+        return DontFailParameters
 
     @property
     def name(self):
@@ -228,11 +231,7 @@ class DontFailTest(BaseExecutionTest):
             )
 
         except (ValueError, TimeoutError, RuntimeError) as e:
-            return TestResult(
-                test_name=self.name,
-                score=0.0,
-                report=t("io.expect_output.report.internal_error", locale=locale, error=str(e))
-            )
+            raise EvaluationError("SANDBOX_ERROR", "The execution environment could not complete evaluation.", "capability", True) from e
 
 
 
@@ -247,6 +246,11 @@ class ExpectFileArtifactTest(BaseExecutionTest):
 
     Supports exact, contains, and regex matching modes.
     """
+
+    @property
+    def config_schema(self):
+        from autograder.models.contracts.parameters import ArtifactParameters
+        return ArtifactParameters
 
     @property
     def name(self):
@@ -313,8 +317,7 @@ class ExpectFileArtifactTest(BaseExecutionTest):
             if error_result:
                 return error_result
         except (ValueError, TimeoutError, RuntimeError) as e:
-            return TestResult(test_name=self.name, score=0.0,
-                              report=t("io.expect_output.report.internal_error", locale=locale, error=str(e)))
+            raise EvaluationError("SANDBOX_ERROR", "The execution environment could not complete evaluation.", "capability", True) from e
 
         # 3. Extraction and Comparison
         return self._extract_and_compare(sandbox, artifact_path, expected_content, match_mode, normalization, locale)
@@ -347,8 +350,7 @@ class ExpectFileArtifactTest(BaseExecutionTest):
             return TestResult(test_name=self.name, score=0.0,
                               report=t("io.expect_file_artifact.report.file_not_found", locale=locale, path=path))
         except (ValueError, RuntimeError) as e:
-            return TestResult(test_name=self.name, score=0.0,
-                              report=t("io.expect_file_artifact.report.extraction_error", locale=locale, error=str(e)))
+            raise EvaluationError("SANDBOX_ERROR", "The execution environment could not retrieve the assessed artifact.", "capability", True) from e
 
         actual = extracted.content_text
         if normalization:

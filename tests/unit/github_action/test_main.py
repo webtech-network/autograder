@@ -1,760 +1,241 @@
-import asyncio
-import sys
+"""Actions contract regressions exercise retained artifacts before publication."""
+import json
 import os
+from pathlib import Path
+import subprocess
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, mock_open, patch
-
-import github_action.main as main_module
-
-
-def run(coro):
-    """Run a coroutine synchronously in tests."""
-    return asyncio.run(coro)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _make_argv(
-    *,
-    github_token="gh-token",
-    template_preset="python",
-    student_name="student1",
-    feedback_type="default",
-    app_token="app-token",
-    openai_key=None,
-    include_feedback=None,
-):
-    """Build a sys.argv list for the arg parser."""
-    argv = [
-        "entrypoint",
-        "--github-token",
-        github_token,
-        "--template-preset",
-        template_preset,
-        "--student-name",
-        student_name,
-        "--feedback-type",
-        feedback_type,
-        "--app-token",
-        app_token,
-    ]
-    if openai_key:
-        argv += ["--openai-key", openai_key]
-    if include_feedback is not None:
-        argv += ["--include-feedback", include_feedback]
-    return argv
-
-
-def _make_grading_result(final_score=85.0, feedback="Well done!"):
-    result = MagicMock()
-    result.final_score = final_score
-    result.feedback = feedback
-    return result
-
-
-def _make_pipeline_execution(final_score=85.0, feedback="Well done!"):
-    execution = MagicMock()
-    execution.result = _make_grading_result(final_score, feedback)
-    return execution
-
-
-class TestMain:
-    """
-    main() – async entry point
-    """
-
-    def test_returns_early_when_template_preset_is_custom(self):
-        """Asserts main() exits with SystemExit(1) without initialising GithubActionService when template_preset is 'custom'."""
-        with patch.object(sys, "argv", _make_argv(template_preset="custom")), patch(
-            "github_action.main.GithubActionService"
-        ) as mock_service_cls:
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-
-        assert exc_info.value.code == 1
-        mock_service_cls.assert_not_called()
-
-    def test_successful_run_without_feedback(self):
-        """Asserts main() runs successfully when feedback is disabled. Export happens inside the pipeline."""
-        execution = _make_pipeline_execution(final_score=90.0, feedback="")
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(sys, "argv", _make_argv(include_feedback="false")), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            run(main_module.main())
-
-        mock_service.run_autograder.assert_called_once()
-
-    def test_successful_run_with_feedback(self):
-        """Asserts main() runs successfully when feedback is enabled. Export happens inside the pipeline."""
-        execution = _make_pipeline_execution(final_score=75.0, feedback="Good work!")
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(
-            sys, "argv", _make_argv(include_feedback="true", openai_key=None)
-        ), patch("github_action.main.GithubActionService", return_value=mock_service):
-            run(main_module.main())
-
-        mock_service.run_autograder.assert_called_once()
-
-    def test_raises_when_grading_result_is_none(self):
-        """main() raises SystemExit(1) when run_autograder returns None result."""
-        execution = MagicMock()
-        execution.result = None
-
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(sys, "argv", _make_argv()), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-
-        assert exc_info.value.code == 1
-        mock_service.run_autograder.assert_called_once()
-
-    def test_sets_openai_api_key_env_when_provided(self):
-        """Asserts OPENAI_API_KEY is set in the environment before autograder_pipeline is called when openai_key is provided."""
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        captured_env = {}
-
-        def capture_pipeline(
-            template, include_feedback, feedback_mode
-        ):  # pylint: disable=unused-argument
-            # At the point autograder_pipeline is called, the env var must already be set
-            captured_env["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY")
-            return MagicMock()
-
-        mock_service.autograder_pipeline.side_effect = capture_pipeline
-
-        with patch.object(
-            sys, "argv", _make_argv(openai_key="sk-test-key", include_feedback="true")
-        ), patch("github_action.main.GithubActionService", return_value=mock_service):
-            run(main_module.main())
-
-        assert captured_env.get("OPENAI_API_KEY") == "sk-test-key"
-
-    def test_autograder_pipeline_called_with_correct_args(self):
-        """Asserts autograder_pipeline is called with the correct template_preset, include_feedback, and feedback_type."""
-        execution = _make_pipeline_execution()
-        mock_pipeline = MagicMock()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = mock_pipeline
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(
-            sys,
-            "argv",
-            _make_argv(
-                template_preset="api",
-                feedback_type="default",
-                include_feedback="true",
-            ),
-        ), patch("github_action.main.GithubActionService", return_value=mock_service):
-            run(main_module.main())
-
-        mock_service.autograder_pipeline.assert_called_once_with("api", True, "default")
-
-    def test_service_initialized_with_correct_tokens(self):
-        """Asserts GithubActionService is instantiated with the correct github_token and app_token parsed from CLI arguments."""
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(
-            sys, "argv", _make_argv(github_token="gh-tok", app_token="app-tok")
-        ), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ) as mock_cls:
-            run(main_module.main())
-
-        mock_cls.assert_called_once_with("gh-tok", "app-tok")
-
-
-class TestParserValues:
-    """
-    __parser_values (module-level private function)
-    """
-
-    def test_app_token_defaults_to_github_token_when_absent(self):
-        """Asserts app_token defaults to the github_token value when --app-token is not provided on the CLI."""
-        argv = [
-            "entrypoint",
-            "--github-token",
-            "my-token",
-            "--template-preset",
-            "python",
-            "--student-name",
-            "alice",
-        ]
-        with patch.object(sys, "argv", argv):
-            parsed = main_module.parser.parse_args(argv[1:])
-            parsed.app_token = parsed.app_token or parsed.github_token
-
-        assert parsed.app_token == "my-token"
-
-    def test_raises_value_error_for_ai_feedback_without_openai_key(self):
-        """Asserts a ValueError or SystemExit is raised when feedback_type='ai' is used without providing an openai_key."""
-        argv = _make_argv(feedback_type="ai")  # no openai_key
-        with patch.object(sys, "argv", argv):
-            with pytest.raises((ValueError, SystemExit)):
-                # Simulate parsing + validation done in __parser_values
-                parsed = main_module.parser.parse_args(argv[1:])
-                if parsed.feedback_type == "ai" and not parsed.openai_key:
-                    raise ValueError("OpenAI API key is required")
-
-
-class TestHasFeedback:
-    """
-    __has_feedback (module-level helper)
-
-    Access the module-level __has_feedback function.
-    Module-level double-underscore names are not name-mangled, so the
-    function is exposed on the module as "__has_feedback". Historically, the
-    implementation also used a class-mangled name ("_GithubActionMain__has_feedback"),
-    so the tests are written to support both spellings when looking it up.
-    """
-
-    def _get_has_feedback(self):
-        """Retrieve the __has_feedback function from the module's global scope."""
-        # Look up both the legacy class-mangled name and the current
-        # module-level "__has_feedback" name in the module globals.
-        return main_module.__dict__.get(
-            "_GithubActionMain__has_feedback",
-            main_module.__dict__.get(
-                "__has_feedback",
-                None,
-            ),
-        )
-
-    def _invoke(self, value):
-        """Call __has_feedback through main() by inspecting the autograder_pipeline call."""
-        # Drive it through the include_feedback argv path
-        # and observe what autograder_pipeline receives.
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-        captured = {}
-
-        def capture_pipeline(
-            template, include_feedback, feedback_mode
-        ):  # pylint: disable=unused-argument
-            captured["include_feedback"] = include_feedback
-            return MagicMock()
-
-        mock_service.autograder_pipeline.side_effect = capture_pipeline
-
-        argv = _make_argv(include_feedback=value) if value is not None else _make_argv()
-        with patch.object(sys, "argv", argv), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            run(main_module.main())
-
-        return captured.get("include_feedback")
-
-    def test_none_returns_false(self):
-        """Asserts include_feedback defaults to False when --include-feedback is not passed on the command line."""
-        # No --include-feedback arg → defaults to False
-        result = self._invoke(None)
-        assert result is False
-
-    def test_true_string_returns_true(self):
-        """Asserts the lowercase string 'true' is correctly converted to the boolean True."""
-        result = self._invoke("true")
-        assert result is True
-
-    def test_false_string_returns_false(self):
-        """Asserts the lowercase string 'false' is correctly converted to the boolean False."""
-        result = self._invoke("false")
-        assert result is False
-
-    def test_uppercase_true_returns_true(self):
-        """Asserts the capitalised string 'True' is correctly converted to the boolean True."""
-        result = self._invoke("True")
-        assert result is True
-
-    def test_uppercase_false_returns_false(self):
-        """Asserts the capitalised string 'False' is correctly converted to the boolean False."""
-        result = self._invoke("False")
-        assert result is False
-
-    def test_invalid_value_raises_value_error(self):
-        """main() raises SystemExit(1) on invalid include_feedback value."""
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(sys, "argv", _make_argv(include_feedback="yes")), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-
-        assert exc_info.value.code == 1
-
-    def test_invalid_value_raises_for_numeric_string(self):
-        """main() raises SystemExit(1) on numeric include_feedback value."""
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(sys, "argv", _make_argv(include_feedback="1")), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-
-        assert exc_info.value.code == 1
-
-
-class TestGetSubmissionFiles:
-    """
-    __get_submission_files (module-level private function)
-
-    Tests for the module-level __get_submission_files function in main.py.
-    Accessed via main_module.__dict__ because Python restricts direct
-    attribute lookup for double-underscore names at module level.
-    """
-
-    def _call(self):
-        fn = main_module.__dict__["__get_submission_files"]
-        return fn()
-
-    def test_collects_regular_files(self):
-        """Asserts regular files are collected recursively with their correct relative paths and contents."""
-        submission_path = "/workspace/submission"
-        walk_data = [
-            (submission_path, ["src"], ["readme.txt"]),
-            (os.path.join(submission_path, "src"), [], ["main.py"]),
-        ]
-        file_contents = {
-            os.path.join(submission_path, "readme.txt"): "readme content",
-            os.path.join(submission_path, "src", "main.py"): "print('hello')",
-        }
-
-        def fake_open(path, *args, **kwargs):  # pylint: disable=unused-argument
-            return mock_open(read_data=file_contents.get(path, ""))()
-
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", return_value=walk_data
-        ), patch("builtins.open", side_effect=fake_open):
-            result = self._call()
-
-        assert "readme.txt" in result
-        assert os.path.join("src", "main.py") in result
-        assert result["readme.txt"].content == "readme content"
-        assert result[os.path.join("src", "main.py")].content == "print('hello')"
-
-    def test_skips_git_directory(self):
-        """Asserts the .git directory is removed from the subdirectory list and is not traversed during the walk."""
-        submission_path = "/workspace/submission"
-        captured_dirs = []
-
-        def fake_walk(_path):
-            dirs = [".git", "src"]
-            captured_dirs.append(dirs)
-            yield submission_path, dirs, ["file.py"]
-
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", side_effect=fake_walk
-        ), patch("builtins.open", mock_open(read_data="content")):
-            self._call()
-
-        assert ".git" not in captured_dirs[0]
-
-    def test_skips_github_directory(self):
-        """Asserts the .github directory is removed from the subdirectory list and is not traversed during the walk."""
-        submission_path = "/workspace/submission"
-        captured_dirs = []
-
-        def fake_walk(_path):
-            dirs = [".github", "src"]
-            captured_dirs.append(dirs)
-            yield submission_path, dirs, ["file.py"]
-
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", side_effect=fake_walk
-        ), patch("builtins.open", mock_open(read_data="content")):
-            self._call()
-
-        assert ".github" not in captured_dirs[0]
-
-    def test_continues_on_unreadable_file(self):
-        """Asserts that unreadable files (OSError) are skipped and the remaining submission files are processed normally."""
-        submission_path = "/workspace/submission"
-        walk_data = [(submission_path, [], ["bad.py", "good.py"])]
-
-        def fake_open(path, *args, **kwargs):  # pylint: disable=unused-argument
-            if "bad.py" in path:
-                raise OSError("Permission denied")
-            return mock_open(read_data="good content")()
-
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", return_value=walk_data
-        ), patch("builtins.open", side_effect=fake_open):
-            result = self._call()
-
-        assert "good.py" in result
-        assert "bad.py" not in result
-
-    def test_returns_empty_dict_when_no_files(self):
-        """Asserts an empty dict is returned when os.walk finds no files in the submission directory."""
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", return_value=[]
-        ):
-            result = self._call()
-
-        assert not result
-
-    def test_uses_dot_as_base_when_workspace_not_set(self):
-        """Asserts '.' is used as the base directory for the submission when GITHUB_WORKSPACE is not set in the environment."""
-        env = {k: v for k, v in os.environ.items() if k != "GITHUB_WORKSPACE"}
-
-        with patch.dict(os.environ, env, clear=True), patch(
-            "os.walk", return_value=[]
-        ) as mock_walk:
-            self._call()
-
-        expected_path = os.path.join(".", "submission")
-        mock_walk.assert_called_once_with(expected_path)
-
-    def test_skips_both_git_and_github_simultaneously(self):
-        """Asserts .git and .github are both skipped simultaneously while src and other directories remain in the walk."""
-        submission_path = "/workspace/submission"
-        captured_dirs = []
-
-        def fake_walk(_path):
-            dirs = [".git", ".github", "src"]
-            captured_dirs.append(dirs)
-            yield submission_path, dirs, []
-
-        with patch.dict(os.environ, {"GITHUB_WORKSPACE": "/workspace"}), patch(
-            "os.walk", side_effect=fake_walk
-        ):
-            self._call()
-
-        assert ".git" not in captured_dirs[0]
-        assert ".github" not in captured_dirs[0]
-        assert "src" in captured_dirs[0]
-
-
-# ---------------------------------------------------------------------------
-# Helpers for external-mode tests
-# ---------------------------------------------------------------------------
-
-
-def _make_argv_external(
-    *,
-    github_token="gh-token",
-    template_preset="python",
-    student_name="student1",
-    feedback_type="default",
-    app_token="app-token",
-    grading_config_id="123",
-    autograder_cloud_url="https://cloud.example.com",
-    autograder_cloud_token="cloud-tok",
-    include_feedback=None,
-):
-    """Build a sys.argv list for external execution mode."""
-    argv = [
-        "entrypoint",
-        "--github-token", github_token,
-        "--template-preset", template_preset,
-        "--student-name", student_name,
-        "--feedback-type", feedback_type,
-        "--app-token", app_token,
-        "--execution-mode", "external",
-        "--grading-config-id", grading_config_id,
-        "--autograder-cloud-url", autograder_cloud_url,
-        "--autograder-cloud-token", autograder_cloud_token,
-    ]
-    if include_feedback is not None:
-        argv += ["--include-feedback", include_feedback]
-    return argv
-
-
-class TestExecutionModeArgParsing:
-    """
-    Argument parsing for --execution-mode and related external-mode flags.
-    """
-
-    def test_default_execution_mode_is_repo(self):
-        """Asserts --execution-mode defaults to 'repo' when not supplied."""
-        argv = _make_argv()
-        with patch.object(sys, "argv", argv):
-            parsed = main_module.parser.parse_args(argv[1:])
-        assert parsed.execution_mode == "repo"
-
-    def test_external_mode_parsed_correctly(self):
-        """Asserts --execution-mode external is accepted and stored."""
-        argv = _make_argv_external()
-        with patch.object(sys, "argv", argv):
-            parsed = main_module.parser.parse_args(argv[1:])
-        assert parsed.execution_mode == "external"
-
-    def test_invalid_mode_causes_system_exit(self):
-        """Asserts an invalid --execution-mode value causes argparse to raise SystemExit."""
-        argv = _make_argv() + ["--execution-mode", "invalid"]
-        with patch.object(sys, "argv", argv):
-            with pytest.raises(SystemExit):
-                main_module.parser.parse_args(argv[1:])
-
-    def test_external_mode_args_stored(self):
-        """Asserts grading-config-id, autograder-cloud-url and autograder-cloud-token are parsed."""
-        argv = _make_argv_external(
-            grading_config_id="cfg-42",
-            autograder_cloud_url="https://cloud.example.com",
-            autograder_cloud_token="secret",
-        )
-        with patch.object(sys, "argv", argv):
-            parsed = main_module.parser.parse_args(argv[1:])
-        assert parsed.grading_config_id == "cfg-42"
-        assert parsed.autograder_cloud_url == "https://cloud.example.com"
-        assert parsed.autograder_cloud_token == "secret"
-
-
-class TestExternalModeValidation:
-    """
-    __parser_values validation rules for external mode (fail-fast checks).
-    """
-
-    def test_missing_grading_config_id_raises_system_exit(self):
-        """Asserts SystemExit(1) is raised when external mode is used without grading-config-id."""
-        argv = _make_argv_external(grading_config_id="")
-        # Replace the empty string element pairs
-        argv = [
-            "entrypoint",
-            "--github-token", "gh-token",
-            "--template-preset", "python",
-            "--student-name", "student1",
-            "--execution-mode", "external",
-            "--autograder-cloud-url", "https://cloud.example.com",
-            "--autograder-cloud-token", "tok",
-        ]
-        mock_service = MagicMock()
-        with patch.object(sys, "argv", argv), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-        assert exc_info.value.code == 1
-        mock_service.autograder_pipeline_from_cloud.assert_not_called()
-
-    def test_missing_cloud_url_raises_system_exit(self):
-        """Asserts SystemExit(1) is raised when external mode is used without autograder-cloud-url."""
-        argv = [
-            "entrypoint",
-            "--github-token", "gh-token",
-            "--template-preset", "python",
-            "--student-name", "student1",
-            "--execution-mode", "external",
-            "--grading-config-id", "cfg-123",
-            "--autograder-cloud-token", "tok",
-        ]
-        mock_service = MagicMock()
-        with patch.object(sys, "argv", argv), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-        assert exc_info.value.code == 1
-        mock_service.autograder_pipeline_from_cloud.assert_not_called()
-
-    def test_missing_cloud_token_raises_system_exit(self):
-        """Asserts SystemExit(1) is raised when external mode is used without autograder-cloud-token."""
-        argv = [
-            "entrypoint",
-            "--github-token", "gh-token",
-            "--template-preset", "python",
-            "--student-name", "student1",
-            "--execution-mode", "external",
-            "--grading-config-id", "cfg-123",
-            "--autograder-cloud-url", "https://cloud.example.com",
-        ]
-        mock_service = MagicMock()
-        with patch.object(sys, "argv", argv), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-        assert exc_info.value.code == 1
-        mock_service.autograder_pipeline_from_cloud.assert_not_called()
-
-
-class TestSubmissionLanguageArgParsing:
-    """Tests for --submission-language argument."""
-
-    def test_submission_language_defaults_to_none(self):
-        """Asserts --submission-language defaults to None when not supplied."""
-        argv = _make_argv_external()
-        with patch.object(sys, "argv", argv):
-            parsed = main_module.parser.parse_args(argv[1:])
-        assert parsed.submission_language is None
-
-    def test_submission_language_parsed_correctly(self):
-        """Asserts --submission-language value is stored."""
-        argv = _make_argv_external() + ["--submission-language", "python"]
-        with patch.object(sys, "argv", argv):
-            parsed = main_module.parser.parse_args(argv[1:])
-        assert parsed.submission_language == "python"
-
-    def test_submission_language_forwarded_to_service(self):
-        """Asserts --submission-language is forwarded to autograder_pipeline_from_cloud."""
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        argv = _make_argv_external(grading_config_id="1") + ["--submission-language", "java"]
-        with patch.object(sys, "argv", argv), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            run(main_module.main())
-
-        call_kwargs = mock_service.autograder_pipeline_from_cloud.call_args
-        assert call_kwargs[0][5] == "java"  # submission_language positional arg
-
-
-class TestExternalModeRouting:
-    """
-    main() routes to the correct service method based on --execution-mode.
-    """
-
-    def test_repo_mode_calls_autograder_pipeline(self):
-        """Asserts autograder_pipeline is called (not autograder_pipeline_from_cloud) in repo mode."""
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(sys, "argv", _make_argv()), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            run(main_module.main())
-
-        mock_service.autograder_pipeline.assert_called_once()
-        mock_service.autograder_pipeline_from_cloud.assert_not_called()
-
-    def test_external_mode_calls_autograder_pipeline_from_cloud(self):
-        """Asserts autograder_pipeline_from_cloud is called (not autograder_pipeline) in external mode."""
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(sys, "argv", _make_argv_external()), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            run(main_module.main())
-
-        mock_service.autograder_pipeline_from_cloud.assert_called_once()
-        mock_service.autograder_pipeline.assert_not_called()
-
-    def test_external_mode_passes_cloud_params_to_service(self):
-        """Asserts cloud URL, token, config ID, feedback mode, and student name are forwarded."""
-        execution = _make_pipeline_execution()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(
-            sys,
-            "argv",
-            _make_argv_external(
-                grading_config_id="99",
-                autograder_cloud_url="https://mycloud.io",
-                autograder_cloud_token="super-secret",
-                student_name="bob",
-            ),
-        ), patch("github_action.main.GithubActionService", return_value=mock_service):
-            run(main_module.main())
-
-        mock_service.autograder_pipeline_from_cloud.assert_called_once_with(
-            99,
-            "https://mycloud.io",
-            "super-secret",
-            "default",  # feedback_type
-            "bob",      # student_name
-            None,       # submission_language (not provided)
-            "en",       # locale (default)
-        )
-
-    def test_external_mode_runs_autograder_after_cloud_pipeline(self):
-        """Asserts run_autograder is still called after building the pipeline from cloud config."""
-        execution = _make_pipeline_execution(final_score=72.0)
-        mock_pipeline = MagicMock()
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline_from_cloud.return_value = mock_pipeline
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(sys, "argv", _make_argv_external()), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            run(main_module.main())
-
-        mock_service.run_autograder.assert_called_once()
-
-    def test_external_mode_none_grading_result_raises_system_exit(self):
-        """Asserts SystemExit(1) is raised when external mode pipeline returns None result."""
-        execution = MagicMock()
-        execution.result = None
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
-        mock_service.run_autograder.return_value = execution
-
-        with patch.object(sys, "argv", _make_argv_external()), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-
-        assert exc_info.value.code == 1
-
-    def test_external_mode_failure_calls_submit_failure_to_cloud(self):
-        """Asserts submit_failure_to_cloud is called when grading raises an exception."""
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline_from_cloud.return_value = MagicMock()
-        mock_service.run_autograder.side_effect = RuntimeError("sandbox crash")
-
-        with patch.object(sys, "argv", _make_argv_external()), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-
-        assert exc_info.value.code == 1
-        mock_service.submit_failure_to_cloud.assert_called_once()
-        call_args = mock_service.submit_failure_to_cloud.call_args
-        assert "sandbox crash" in call_args[0][0]
-
-    def test_external_mode_failure_not_called_when_config_fetch_fails(self):
-        """Asserts submit_failure_to_cloud is NOT called when pipeline build itself raises."""
-        mock_service = MagicMock()
-        mock_service.autograder_pipeline_from_cloud.side_effect = RuntimeError("cloud unreachable")
-
-        with patch.object(sys, "argv", _make_argv_external()), patch(
-            "github_action.main.GithubActionService", return_value=mock_service
-        ):
-            with pytest.raises(SystemExit) as exc_info:
-                run(main_module.main())
-
-        assert exc_info.value.code == 1
-        mock_service.submit_failure_to_cloud.assert_not_called()
+import yaml
+
+from github_action import main
+
+
+def completed():
+    return {"schema_version": "1.0", "status": "completed", "score": 100.0,
+            "execution_id": "action-test", "language": "node",
+            "provenance": {"definition_hash": "a" * 64},
+            "started_at": "2026-10-04T10:00:00Z", "finished_at": "2026-10-04T10:00:01Z",
+            "duration_ms": 1000, "tree": {"score": 100, "base": {"name": "base", "weight": 100,
+                "score": 100, "tests": [{"id": "entry", "evaluator": "check_project_structure",
+                    "name": "HTML entry", "weight": 100, "score": 100}]}},
+            "feedback": {"status": "completed", "content": "Feedback"}}
+
+
+@pytest.fixture
+def workspace(tmp_path, monkeypatch):
+    (tmp_path / "index.html").write_text("<header>ok</header>")
+    monkeypatch.setenv("GITHUB_WORKSPACE", str(tmp_path))
+    monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "outputs"))
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(tmp_path / "summary"))
+    return tmp_path
+
+
+def test_delivery_failure_retains_grade_and_never_uploads_failure(workspace):
+    service = MagicMock()
+    service.run_autograder.return_value.model_dump.return_value = completed()
+    service.delivery_payload.return_value = {"outcome": completed()}
+    service.publish.side_effect = RuntimeError("network unavailable")
+    args = main.parser.parse_args(["--execution-mode", "external", "--grading-config-id", "7",
+                                  "--autograder-cloud-url", "https://cloud.invalid",
+                                  "--autograder-cloud-token", "secret", "--upload-to-cloud", "true"])
+    with patch.object(main, "GithubActionService", return_value=service):
+        with pytest.raises(RuntimeError, match="delivery failed"):
+            main.run(args)
+    assert json.loads((workspace / ".autograder/outcome.json").read_text())["score"] == 100
+    assert (workspace / ".autograder/delivery.json").is_file()
+    assert (workspace / ".autograder/feedback.md").read_text() == "Feedback"
+    assert "status=completed" in (workspace / "outputs").read_text()
+    assert "score=100.0" in (workspace / "outputs").read_text()
+    service.run_autograder.assert_called_once()
+    service.publish.assert_called_once()
+    service.submit_failure_to_cloud.assert_not_called()
+
+
+def test_retry_publishes_saved_attestation_without_evaluation(workspace):
+    payload = {"outcome": completed(), "grading_config_id": 7}
+    (workspace / "saved.json").write_text(json.dumps(payload))
+    args = main.parser.parse_args(["--retry-delivery-path", "saved.json", "--autograder-cloud-url",
+                                  "https://cloud.invalid", "--autograder-cloud-token", "secret"])
+    with patch.object(main, "GithubActionService") as service, patch.object(main, "CloudClient") as client:
+        client.return_value.submit_external_result.return_value = {"submission_id": 23}
+        assert main.run(args)
+    service.assert_not_called()
+    client.return_value.submit_external_result.assert_called_once_with(payload)
+    assert "submission-id=23" in (workspace / "outputs").read_text()
+
+
+def test_failed_grading_has_null_score_and_retained_artifact(workspace):
+    service = MagicMock()
+    failed = completed()
+    failed.update(status="failed", score=None, tree=None, feedback={"status": "disabled"},
+                  error={"code": "SANDBOX_UNAVAILABLE", "message": "Sandbox unavailable.",
+                         "category": "capability", "retryable": True, "correlation_id": "action-test"})
+    service.run_autograder.return_value.model_dump.return_value = failed
+    service.delivery_payload.return_value = None
+    with patch.object(main, "GithubActionService", return_value=service):
+        assert not main.run(main.parser.parse_args([]))
+    assert "status=failed" in (workspace / "outputs").read_text()
+    assert "score=" not in (workspace / "outputs").read_text()
+    assert (workspace / ".autograder/outcome.json").is_file()
+
+
+def test_collection_ordinary_checkout_skips_action_artifacts_and_metadata(workspace):
+    for folder in [".git", ".github", ".autograder"]:
+        (workspace / folder).mkdir()
+        (workspace / folder / "secret.txt").write_text("do not grade")
+    assert list(main.collect_files(workspace)) == ["index.html"]
+
+
+def test_invalid_root_and_non_text_file_fail_clearly(workspace):
+    with pytest.raises(ValueError, match="existing readable directory"):
+        main.collect_files(workspace / "missing")
+    (workspace / "binary").write_bytes(b"\xff")
+    with pytest.raises(ValueError, match="readable UTF-8 text: binary"):
+        main.collect_files(workspace)
+
+
+def test_metadata_inputs_are_forwarded_by_real_shell(tmp_path):
+    repo = Path(__file__).resolve().parents[3]
+    metadata = yaml.safe_load((repo / "action.yml").read_text())
+    capture = tmp_path / "captured.json"
+    fake = tmp_path / "python"
+    fake.write_text("#!/usr/bin/env python3\nimport json,os,sys\nopen(os.environ['CAPTURE'], 'w').write(json.dumps(sys.argv[1:]))\n")
+    fake.chmod(0o755)
+    values = {"execution-mode": "external", "definition-path": "config with spaces.json",
+              "submission-root": "source with spaces", "grading-config-id": "7",
+              "autograder-cloud-url": "https://cloud.invalid", "autograder-cloud-token": "secret",
+              "upload-to-cloud": "true", "retry-delivery-path": "saved.json",
+              "submission-language": "python", "locale": "pt-br"}
+    env = dict(os.environ, PATH=str(tmp_path) + os.pathsep + os.environ["PATH"], CAPTURE=str(capture), GITHUB_ACTOR="alice")
+    for variable, expression in metadata["runs"]["env"].items():
+        name = expression.removeprefix("${{ inputs.").removesuffix(" }}")
+        assert name in metadata["inputs"]
+        env[variable] = values[name]
+    subprocess.run(["bash", str(repo / "github_action/entrypoint.sh")], env=env, check=True)
+    argv = json.loads(capture.read_text())
+    assert argv[:2] == ["-m", "github_action.main"]
+    parsed = vars(main.parser.parse_args(argv[2:]))
+    for name, value in values.items():
+        assert str(parsed[name.replace("-", "_")]) == value
+    assert parsed["student_name"] == "alice"
+
+
+def test_real_shell_grades_ordinary_checkout_and_retains_canonical_outcome(workspace):
+    import sys
+    from autograder.models.contracts.outcome import validate_outcome
+    from tests.unit.github_action.test_github_action_service import definition
+    repo = Path(__file__).resolve().parents[3]
+    path = workspace / ".github/autograder/definition.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(definition()))
+    env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+               GITHUB_ACTOR="alice", LOCALE="pt-br", EXECUTION_MODE="repo",
+               DEFINITION_PATH=".github/autograder/definition.json", SUBMISSION_ROOT=".",
+               UPLOAD_TO_CLOUD="false")
+    # Output/summary fixtures belong outside the submission under assessment.
+    env["GITHUB_OUTPUT"] = str(workspace.parent / "real-output")
+    env["GITHUB_STEP_SUMMARY"] = str(workspace.parent / "real-summary")
+    result = subprocess.run(["bash", str(repo / "github_action/entrypoint.sh")], env=env,
+                            capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    outcome = validate_outcome(json.loads((workspace / ".autograder/outcome.json").read_text()))
+    assert outcome.status == "completed"
+    assert outcome.score == 100
+    assert outcome.language == "node"
+    assert outcome.provenance.definition_hash
+    assert "result-path=.autograder/outcome.json" in Path(env["GITHUB_OUTPUT"]).read_text()
+
+
+@pytest.mark.parametrize("delivery_fails", [False, True])
+def test_external_metadata_shell_cli_real_wire_outcome(workspace, delivery_fails):
+    """Start from action metadata and run the real CLI against a local cloud seam."""
+    import sys
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from autograder.models.contracts.definition import compile_definition
+    from autograder.models.contracts.outcome import validate_outcome
+    from tests.unit.github_action.test_github_action_service import definition
+    from web.schemas.submission import ExternalResultCreate
+    repo = Path(__file__).resolve().parents[3]
+    metadata = yaml.safe_load((repo / "action.yml").read_text())
+    value = definition()
+    value["feedback"] = {"enabled": True}
+    compiled = compile_definition(value)
+    config = {"id": 7, "version": 3, "definition": compiled.definition.model_dump(mode="json"),
+              "definition_hash": compiled.definition_hash}
+    requests_seen, uploaded, errors = [], [], []
+
+    class Cloud(BaseHTTPRequestHandler):
+        def respond(self, status, payload):
+            data = json.dumps(payload).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self):
+            requests_seen.append(("GET", self.path))
+            if self.path != "/api/v1/configs/id/7" or self.headers.get("Authorization") != "Bearer cloud-secret":
+                errors.append("Wrong configuration request/authentication")
+                self.respond(400, {})
+                return
+            self.respond(200, config)
+
+        def do_POST(self):
+            requests_seen.append(("POST", self.path))
+            try:
+                assert self.path == "/api/v1/submissions/external-results"
+                assert self.headers.get("Authorization") == "Bearer cloud-secret"
+                payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                ExternalResultCreate.model_validate(payload)
+                saved = json.loads((workspace / ".autograder/outcome.json").read_text())
+                assert payload["outcome"] == saved  # artifact precedes network delivery
+                assert json.loads((workspace / ".autograder/delivery.json").read_text()) == payload
+                assert payload["definition_snapshot"] == config["definition"]
+                assert payload["outcome"]["provenance"] == {
+                    "schema_version": "1.0", "definition_hash": compiled.definition_hash,
+                    "reference": "7", "revision": 3}
+                assert payload["external_user_id"] == "alice"
+                assert payload["language"] == "node"
+                assert "Relatório de Avaliação" in payload["outcome"]["feedback"]["content"]
+                uploaded.append(payload)
+            except Exception as exc:
+                errors.append(str(exc))
+                self.respond(400, {})
+                return
+            self.respond(503 if delivery_fails else 200, {} if delivery_fails else {"submission_id": 42})
+
+        def log_message(self, *args):
+            pass
+
+    source = workspace / "source"
+    source.mkdir()
+    (source / "index.html").write_text("<header>ok</header>")
+    with ThreadingHTTPServer(("127.0.0.1", 0), Cloud) as cloud:
+        thread = threading.Thread(target=cloud.serve_forever, daemon=True)
+        thread.start()
+        values = {name: item.get("default", "") for name, item in metadata["inputs"].items()}
+        values.update({"execution-mode": "external", "submission-root": "source", "grading-config-id": "7",
+            "autograder-cloud-url": f"http://127.0.0.1:{cloud.server_address[1]}",
+            "autograder-cloud-token": "cloud-secret", "upload-to-cloud": "true",
+            "submission-language": "node", "locale": "pt-br"})
+        env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"], GITHUB_ACTOR="alice")
+        for variable, expression in metadata["runs"]["env"].items():
+            name = expression.removeprefix("${{ inputs.").removesuffix(" }}")
+            env[variable] = values[name]
+        result = subprocess.run(["bash", str(repo / "github_action/entrypoint.sh")], env=env,
+                                capture_output=True, text=True, timeout=30)
+        cloud.shutdown()
+        thread.join(timeout=5)
+    assert not errors, errors
+    assert result.returncode == (1 if delivery_fails else 0), result.stderr
+    assert requests_seen == [("GET", "/api/v1/configs/id/7"), ("POST", "/api/v1/submissions/external-results")]
+    assert len(uploaded) == 1
+    assert validate_outcome(uploaded[0]["outcome"]).score == 100
+    outputs = (workspace / "outputs").read_text()
+    assert "status=completed" in outputs and "score=100.0" in outputs
+    assert ("submission-id=42" in outputs) is not delivery_fails
+    if delivery_fails:
+        assert "Result delivery failed" in result.stderr

@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0",
+  "templates": [
+    "input_output",
+    "static_analysis"
+  ],
+  "languages": [
+    "python",
+    "java",
+    "node",
+    "cpp",
+    "c"
+  ],
+  "criteria": {
+    "base": {
+      "weight": 100.0,
+      "tests": [
+        {
+          "id": "base-tests-0",
+          "type": "expect_output",
+          "name": "Sum",
+          "parameters": {
+            "inputs": [
+              "10",
+              "20"
+            ],
+            "expected_output": "30",
+            "program_command": {
+              "python": "python3 main.py",
+              "java": "java Main",
+              "node": "node main.js",
+              "cpp": "./main",
+              "c": "./main"
+            },
+            "normalization": true
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "bonus": {
+      "weight": 5.0,
+      "tests": [
+        {
+          "id": "bonus-tests-0",
+          "type": "dont_fail",
+          "name": "Invalid input does not crash",
+          "parameters": {
+            "user_input": "abc",
+            "program_command": {
+              "python": "python3 main.py",
+              "java": "java Main",
+              "node": "node main.js",
+              "cpp": "./main",
+              "c": "./main"
+            }
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "penalty": {
+      "weight": 15.0,
+      "tests": [
+        {
+          "id": "penalty-tests-0",
+          "type": "forbidden_import",
+          "name": "No math imports",
+          "parameters": {
+            "forbidden_imports": [
+              "math"
+            ]
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "metadata": {}
+  },
+  "preparation": {
+    "languages": {
+      "python": {
+        "required_files": [
+          "main.py"
+        ],
+        "setup_commands": []
+      },
+      "java": {
+        "required_files": [
+          "Main.java"
+        ],
+        "setup_commands": [
+          {
+            "name": "Setup command 1",
+            "command": "javac Main.java"
+          }
+        ]
+      },
+      "node": {
+        "required_files": [
+          "main.js"
+        ],
+        "setup_commands": []
+      },
+      "cpp": {
+        "required_files": [
+          "main.cpp"
+        ],
+        "setup_commands": [
+          {
+            "name": "Setup command 1",
+            "command": "g++ main.cpp -o main"
+          }
+        ]
+      },
+      "c": {
+        "required_files": [
+          "main.c"
+        ],
+        "setup_commands": [
+          {
+            "name": "Setup command 1",
+            "command": "gcc main.c -o main"
+          }
+        ]
+      }
+    },
+    "fixtures": []
+  },
+  "feedback": {
+    "enabled": true,
+    "mode": "default",
+    "preferences": {
+      "general": {
+        "report_title": null,
+        "show_score": true,
+        "show_passed_tests": false,
+        "add_report_summary": true,
+        "online_content": []
+      },
+      "default": {
+        "category_headers": {}
+      }
+    }
+  },
+  "metadata": {}
+}

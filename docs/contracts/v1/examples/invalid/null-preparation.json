@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "templates": [
+    "input_output"
+  ],
+  "languages": [
+    "python"
+  ],
+  "criteria": {
+    "base": {
+      "weight": 100.0,
+      "tests": [
+        {
+          "id": "base-tests-0",
+          "type": "expect_output",
+          "name": "Sum",
+          "parameters": {
+            "inputs": [
+              "10",
+              "20"
+            ],
+            "expected_output": "30",
+            "program_command": "python3 main.py",
+            "normalization": true
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "bonus": null,
+    "penalty": null,
+    "metadata": {}
+  },
+  "preparation": null,
+  "feedback": {
+    "enabled": true,
+    "mode": "default",
+    "preferences": {
+      "general": {
+        "report_title": null,
+        "show_score": true,
+        "show_passed_tests": false,
+        "add_report_summary": true,
+        "online_content": []
+      },
+      "default": {
+        "category_headers": {}
+      }
+    }
+  },
+  "metadata": {}
+}

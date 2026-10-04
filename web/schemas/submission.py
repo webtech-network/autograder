@@ -1,6 +1,9 @@
 """Submission schemas for API requests and responses."""
 
 from datetime import datetime
+from autograder.models.contracts.definition import GradingDefinition
+from autograder.models.contracts.outcome import TerminalOutcome, OutcomeError
+from autograder.models.contracts.provenance import DefinitionProvenance
 from typing import Dict, List, Optional, Any
 from enum import Enum
 
@@ -11,6 +14,7 @@ from sandbox_manager.models.sandbox_models import Language
 
 class SubmissionStatus(str, Enum):
     """Status of a submission."""
+
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -19,6 +23,7 @@ class SubmissionStatus(str, Enum):
 
 class SubmissionFileData(BaseModel):
     """Schema for a submission file."""
+
     filename: str = Field(..., description="Name of the file")
     content: str = Field(..., description="Content of the file")
     changed_lines: Optional[List[int]] = Field(
@@ -42,8 +47,14 @@ class EvaluationScopeData(BaseModel):
 
 class TestDeltaResponse(BaseModel):
     """Schema for a single test delta in a baseline comparison."""
-    path: str = Field(..., description="Stable test path string (category/subject/.../test_name)")
-    status: str = Field(..., description="Status transition: improved, regressed, unchanged, introduced, or removed")
+
+    path: str = Field(
+        ..., description="Stable test path string (category/subject/.../test_name)"
+    )
+    status: str = Field(
+        ...,
+        description="Status transition: improved, regressed, unchanged, introduced, or removed",
+    )
     baseline_score: Optional[float] = Field(None, description="Score in baseline run")
     head_score: Optional[float] = Field(None, description="Score in head run")
     delta: Optional[float] = Field(None, description="Score change (head - baseline)")
@@ -51,34 +62,34 @@ class TestDeltaResponse(BaseModel):
 
 class ComparisonResultResponse(BaseModel):
     """Schema for baseline comparison results."""
+
     score_delta: float = Field(..., description="Overall final score change")
     improved: bool = Field(..., description="True if score_delta > 0")
-    test_deltas: List[TestDeltaResponse] = Field(default_factory=list, description="Per-test deltas")
+    test_deltas: List[TestDeltaResponse] = Field(
+        default_factory=list, description="Per-test deltas"
+    )
 
 
 class SubmissionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     """Schema for creating a new submission."""
     external_assignment_id: str = Field(..., description="External assignment ID")
     external_user_id: str = Field(..., description="External user ID")
     username: str = Field(..., description="Username of the submitter")
     files: List[SubmissionFileData] = Field(..., description="List of files to submit")
     language: Optional[str] = Field(None, description="Optional language override")
-    locale: Optional[str] = Field("en", description="Optional locale for feedback (e.g., 'en', 'pt_br')")
-    metadata: Optional[Dict[str, Any]] = Field(None, description="Optional submission metadata")
+    locale: Optional[str] = Field(
+        "en", description="Optional locale for feedback (e.g., 'en', 'pt_br')"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        None, description="Optional submission metadata"
+    )
     evaluation_scope: Optional[EvaluationScopeData] = Field(
         None,
         description="Optional file scope for pipeline analysis",
     )
-    baseline_result_tree: Optional[Dict[str, Any]] = Field(
-        None,
-        description=(
-            "Serialised result_tree from a previous submission response. "
-            "When provided, the autograder computes a ComparisonResult and "
-            "attaches it to the grading result."
-        ),
-    )
 
-    @field_validator('language')
+    @field_validator("language")
     @classmethod
     def validate_language(cls, v: Optional[str]) -> Optional[str]:
         """Validate that the language is supported."""
@@ -102,80 +113,61 @@ class SubmissionCreate(BaseModel):
 
 
 class SubmissionResponse(BaseModel):
-    """Schema for submission response."""
-    model_config = ConfigDict(from_attributes=True)
-    
+    """Compact status/history projection; source files and tree require details."""
+
     id: int
     grading_config_id: int
     external_user_id: str
     username: str
-    language: Optional[str] = None
+    language: str | None
     status: SubmissionStatus
     submitted_at: datetime
-    graded_at: Optional[datetime] = None
-    final_score: Optional[float] = None
-    feedback: Optional[str] = None
-    result_tree: Optional[Dict[str, Any]] = None
-    focus: Optional[Dict[str, Any]] = None
-    score_vector: Optional[Dict[str, float]] = None
-    comparison: Optional[ComparisonResultResponse] = None
+    graded_at: datetime | None = None
+    final_score: float | None = None
+    execution_time_ms: int | None = None
+    provenance: DefinitionProvenance | None = None
+    provenance_status: str
+    error: OutcomeError | None = None
+    feedback_status: str | None = None
+    comparison_status: str | None = None
 
 
 class SubmissionDetailResponse(SubmissionResponse):
-    """Detailed submission response including files."""
     submission_files: Dict[str, str]
-    submission_metadata: Optional[Dict[str, Any]] = None
-    pipeline_execution: Optional[Dict[str, Any]] = None  # NEW: Detailed pipeline execution info
-
-
-class ExternalResultStatus(str, Enum):
-    """Status of an externally graded submission."""
-    COMPLETED = "completed"
-    FAILED = "failed"
+    submission_metadata: dict | None = None
+    definition_snapshot: GradingDefinition | None = None
+    outcome: TerminalOutcome | None = None
+    diagnostics: dict | None = None
 
 
 class ExternalResultCreate(BaseModel):
-    """Schema for ingesting externally computed grading results."""
-    grading_config_id: int = Field(..., description="Internal grading configuration ID")
-    external_user_id: str = Field(..., description="External user ID from LMS/platform")
-    username: str = Field(..., description="Username of the submitter")
-    language: str = Field(..., description="Language the submission was graded in")
-    status: ExternalResultStatus = Field(..., description="Grading outcome: completed or failed")
-    final_score: float = Field(..., description="Final grading score", ge=0.0)
-    feedback: Optional[str] = Field(None, description="Generated feedback text")
-    result_tree: Optional[Dict[str, Any]] = Field(None, description="Scored result tree")
-    focus: Optional[Dict[str, Any]] = Field(None, description="Sorted failed tests by impact")
-    pipeline_execution: Optional[Dict[str, Any]] = Field(None, description="Pipeline step execution details")
-    score_vector: Optional[Dict[str, float]] = Field(None, description="Flat path-keyed score map for longitudinal queries")
-    comparison: Optional[Dict[str, Any]] = Field(None, description="Baseline comparison output")
-    execution_time_ms: int = Field(..., description="Total execution time in milliseconds", ge=0)
-    error_message: Optional[str] = Field(None, description="Error message for failed runs")
-    submission_metadata: Optional[Dict[str, Any]] = Field(None, description="Repository/run metadata")
+    """Authenticated host attestation using the shared outcome and exact definition."""
 
-    @field_validator('language')
+    model_config = ConfigDict(extra="forbid")
+    grading_config_id: int = Field(gt=0, strict=True)
+    external_user_id: str = Field(min_length=1, max_length=255)
+    username: str = Field(min_length=1, max_length=255)
+    language: str
+    definition_snapshot: GradingDefinition
+    outcome: TerminalOutcome
+    submission_metadata: dict | None = None
+
+    @field_validator("language")
     @classmethod
-    def validate_language(cls, v: str) -> str:
-        """Validate that the language is supported."""
-        language_upper = v.upper()
-        valid_languages = [lang.name for lang in Language]
-        if language_upper not in valid_languages:
-            valid_languages_lower = [lang.value for lang in Language]
+    def validate_language(cls, value):
+        if value not in {language.value for language in Language}:
             raise ValueError(
-                f"Unsupported language '{v}'. "
-                f"Supported languages are: {', '.join(valid_languages_lower)}"
+                "Language must be a canonical supported language identifier"
             )
-        return Language[language_upper].value
+        return value
 
 
 class ExternalResultResponse(BaseModel):
-    """Response after ingesting an external grading result."""
-    model_config = ConfigDict(from_attributes=True)
-
     submission_id: int
     grading_config_id: int
-    external_user_id: str
-    username: str
     status: SubmissionStatus
-    final_score: float
+    final_score: float | None
+    language: str
+    provenance: DefinitionProvenance
     graded_at: datetime
     execution_time_ms: int

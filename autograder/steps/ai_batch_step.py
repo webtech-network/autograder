@@ -8,6 +8,7 @@ from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.utils.executors.ai_executor import AiExecutor, TestInput
+from autograder.models.evaluation_error import EvaluationError
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class AiBatchStep(Step):
     each test's prompt via ``build_prompt()``, and sends one batched request to
     the AI model through :class:`~autograder.utils.executors.ai_executor.AiExecutor`.
 
-    The results are stored as ``Dict[test_name, TestResult]`` in this step's
+    The results are stored as ``Dict[criterion_id, TestResult]`` in this step's
     ``StepResult.data``.  ``GradeStep`` retrieves them and passes them to
     ``GraderService`` as ``pre_computed_results`` so that each ``AiTestFunction``
     can return them directly from its ``execute()`` method — no further AI calls,
@@ -62,9 +63,11 @@ class AiBatchStep(Step):
         test_inputs: List[TestInput] = []
         all_files: Dict[str, str] = {}
 
-        for test_func, files, params in ai_test_entries:
+        for test_func, files, params, criterion_id in ai_test_entries:
             prompt = test_func.build_prompt(files, locale=locale, **params)
-            test_inputs.append(TestInput(test_name=test_func.name, prompt=prompt))
+            if not criterion_id:
+                raise EvaluationError("INVALID_DEFINITION", "An AI criterion has no identity.", "definition")
+            test_inputs.append(TestInput(test_name=criterion_id, prompt=prompt))
             for f in files or []:
                 all_files[f.filename] = f.content
 
@@ -75,6 +78,8 @@ class AiBatchStep(Step):
         )
 
         results: Dict[str, TestResult] = AiExecutor().run(test_inputs, all_files, locale)
+        if set(results) != {entry.test_name for entry in test_inputs}:
+            raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
 
         logger.info(
             "AI batch completed: %d/%d tests returned results.",
@@ -119,7 +124,7 @@ class AiBatchStep(Step):
         if isinstance(node, TestNode):
             if isinstance(node.test_function, AiTestFunction):
                 files = self._resolve_files(node, submission_files)
-                entries.append((node.test_function, files, dict(node.parameters or {})))
+                entries.append((node.test_function, files, dict(node.parameters or {}), node.criterion_id))
             return
 
         for test in getattr(node, "tests", []):

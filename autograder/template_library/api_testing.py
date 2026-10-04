@@ -9,6 +9,7 @@ from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
+from autograder.models.evaluation_error import EvaluationError
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -56,9 +57,9 @@ class HealthCheckTest(TestFunction):
             else:
                 report = t("api_testing.health_check.report.failure", locale=locale, endpoint=endpoint, code=response.status_code)
         except requests.RequestException as e:
-            report = t("api_testing.health_check.report.request_failed", locale=locale, error=str(e))
+            raise EvaluationError("SANDBOX_ERROR", "The execution environment could not reach the assessed API.", "capability", True) from e
         except Exception as e:
-            report = t("api_testing.health_check.report.unexpected_error", locale=locale, error=str(e))
+            raise EvaluationError("SANDBOX_ERROR", "The execution environment could not assess the API.", "capability", True) from e
 
         return TestResult(
             test_name=self.name,
@@ -107,6 +108,8 @@ class CheckResponseJsonTest(TestFunction):
 
             try:
                 data = response.json()
+                if not isinstance(data, dict):
+                    return TestResult(self.name, 0, t("api_testing.check_response_json.report.invalid_json", locale=locale, endpoint=endpoint))
                 if data.get(expected_key) == expected_value:
                     score = 100
                     report = t("api_testing.check_response_json.report.success", locale=locale, endpoint=endpoint, key=expected_key, value=expected_value)
@@ -116,9 +119,9 @@ class CheckResponseJsonTest(TestFunction):
                 report = t("api_testing.check_response_json.report.invalid_json", locale=locale, endpoint=endpoint)
 
         except requests.RequestException as e:
-            report = t("api_testing.health_check.report.request_failed", locale=locale, error=str(e))
+            raise EvaluationError("SANDBOX_ERROR", "The execution environment could not reach the assessed API.", "capability", True) from e
         except Exception as e:
-            report = t("api_testing.health_check.report.unexpected_error", locale=locale, error=str(e))
+            raise EvaluationError("SANDBOX_ERROR", "The execution environment could not assess the API.", "capability", True) from e
 
         return TestResult(
             test_name=self.name,

@@ -32,7 +32,6 @@ class StepName(Enum):
     GRADE = "GradeStep"
     FOCUS = "FocusStep"
     FEEDBACK = "FeedbackStep"
-    EXPORTER = "ExporterStep"
 
 
 @dataclass
@@ -44,6 +43,9 @@ class StepResult(Generic[T]):
     error: Optional[str] = None
     error_data: Any = None
     original_input: Any = None
+    error_code: Optional[str] = None
+    error_category: str = "internal"
+    retryable: bool = False
 
     @property
     def is_successful(self) -> bool:

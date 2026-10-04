@@ -1,17 +1,11 @@
-"""Submission endpoints."""
+"""Bind validated definitions once; expose compact reads and exact shared outcomes."""
 
 import asyncio
-from datetime import datetime, timezone
-from typing import List
-
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from datetime import timezone
+from fastapi import APIRouter, Depends, HTTPException, Query
 from web.api.deps import get_db_session, require_integration_token
-from web.config.logging import get_logger
 from web.core.lifespan import get_grading_tasks
 from web.database.models.submission import SubmissionStatus
-from web.database.models.submission_result import PipelineStatus
 from web.repositories import (
     GradingConfigRepository,
     SubmissionRepository,
@@ -24,339 +18,361 @@ from web.schemas import (
     ExternalResultCreate,
     ExternalResultResponse,
 )
-from web.service.grading_service import grade_submission, GradingRequest
+from web.service.grading_service import (
+    GradingRequest,
+    grade_submission,
+    persist_outcome,
+)
+from autograder.models.contracts.definition import (
+    compile_definition,
+    select_language,
+    DefinitionValidationError,
+)
 
-
-logger = get_logger(__name__)
 router = APIRouter(prefix="/submissions", tags=["Submissions"])
+
+
+def _utc(value):
+    return (
+        value.replace(tzinfo=timezone.utc)
+        if value is not None and value.tzinfo is None
+        else value
+    )
+
+
+def project_submission(row, *, details=False):
+    result = row.result
+    outcome = result.outcome if result else None
+    error = outcome.get("error") if outcome else None
+    if result and not outcome and row.status == SubmissionStatus.FAILED:
+        error = {
+            "code": "LEGACY_UNVERIFIED",
+            "message": "This historical execution predates the verified outcome contract.",
+            "category": "internal",
+            "retryable": False,
+            "correlation_id": f"legacy-submission-{row.id}",
+        }
+    # Legacy failures carried a numeric zero. It is never an authoritative grade.
+    score = (
+        outcome["score"]
+        if outcome
+        else (
+            result.final_score
+            if result and row.status == SubmissionStatus.COMPLETED
+            else None
+        )
+    )
+    data = {
+        "id": row.id,
+        "grading_config_id": row.grading_config_id,
+        "external_user_id": row.external_user_id,
+        "username": row.username,
+        "language": row.language,
+        "status": row.status,
+        "submitted_at": _utc(row.submitted_at),
+        "graded_at": _utc(row.graded_at),
+        "final_score": score,
+        "execution_time_ms": (
+            outcome["duration_ms"]
+            if outcome
+            else (result.execution_time_ms if result else None)
+        ),
+        "provenance": (
+            outcome["provenance"]
+            if outcome
+            else (
+                {
+                    "schema_version": "1.0",
+                    "definition_hash": row.definition_hash,
+                    "reference": str(row.grading_config_id),
+                    "revision": row.configuration_version,
+                }
+                if row.definition_hash
+                else None
+            )
+        ),
+        "provenance_status": (
+            "bound_snapshot" if row.definition_hash else "unverified_legacy"
+        ),
+        "error": error,
+        "feedback_status": outcome["feedback"]["status"] if outcome else None,
+        "comparison_status": outcome["comparison"]["status"] if outcome else None,
+    }
+    if details:
+        data.update(
+            submission_files={
+                name: (
+                    value.get("content", "") if isinstance(value, dict) else str(value)
+                )
+                for name, value in row.submission_files.items()
+            },
+            submission_metadata=row.submission_metadata,
+            definition_snapshot=row.definition_snapshot,
+            outcome=outcome,
+            diagnostics=result.diagnostics if result else None,
+        )
+    return data
+
+
+def _compile(value):
+    try:
+        return compile_definition(value)
+    except DefinitionValidationError as exc:
+        raise HTTPException(422, detail=exc.errors()) from exc
 
 
 @router.post("", response_model=SubmissionResponse)
 async def create_submission(
-    submission: SubmissionCreate,
-    session: AsyncSession = Depends(get_db_session)
+    submission: SubmissionCreate, session=Depends(get_db_session)
 ):
-    """Submit code for grading."""
-    logger.info(
-        "Submission request received: user=%s, assignment=%s, language=%s, files=%s",
-        submission.external_user_id,
-        submission.external_assignment_id,
-        submission.language or "auto",
-        [f.filename for f in submission.files],
+    config = await GradingConfigRepository(session).get_by_external_id(
+        submission.external_assignment_id
     )
-
-    # Get grading configuration
-    config_repo = GradingConfigRepository(session)
-    grading_config = await config_repo.get_by_external_id(submission.external_assignment_id)
-
-    if not grading_config:
-        logger.warning(
-            "Submission rejected: grading configuration not found for assignment=%s (user=%s)",
-            submission.external_assignment_id,
-            submission.external_user_id,
-        )
+    if config is None:
+        raise HTTPException(404, "Grading configuration not found")
+    if not config.is_active or config.definition is None:
         raise HTTPException(
-            status_code=404,
-            detail=f"Grading configuration for assignment {submission.external_assignment_id} not found"
+            409, "Grading configuration is inactive or requires migration"
         )
-
-    # Determine submission language (override or first supported language)
-    submission_language = submission.language
-    if submission_language:
-        # Validate that the submission language is supported by this assignment
-        if submission_language not in grading_config.languages:
-            logger.warning(
-                "Submission rejected: unsupported language '%s' for assignment=%s (user=%s, supported=%s)",
-                submission_language,
-                submission.external_assignment_id,
-                submission.external_user_id,
-                grading_config.languages,
-            )
-            raise HTTPException(
-                status_code=400,
-                detail=f"Language '{submission_language}' is not supported for this assignment. "
-                       f"Supported languages: {', '.join(grading_config.languages)}"
-            )
-    else:
-        # No language specified, use the first supported language as default
-        submission_language = grading_config.languages[0]
-        logger.info(
-            "No language specified for submission; defaulting to '%s' (assignment=%s, user=%s)",
-            submission_language,
-            submission.external_assignment_id,
-            submission.external_user_id,
-        )
-
-    # Convert list of SubmissionFileData to dict format for storage and quick access
-    # This indexing by filename allows O(1) file lookups during grading
-    submission_files_dict = {
-        file_data.filename: {
-            "filename": file_data.filename,
-            "content": file_data.content,
-            "changed_lines": file_data.changed_lines,
-            "file_metadata": file_data.file_metadata,
-        }
-        for file_data in submission.files
-    }
-
-    # Create submission record
-    submission_repo = SubmissionRepository(session)
-    db_submission = await submission_repo.create(
-        grading_config_id=grading_config.id,
+    compiled = _compile(config.definition)
+    try:
+        language = select_language(compiled.definition, submission.language)
+    except DefinitionValidationError as exc:
+        raise HTTPException(422, detail=exc.errors()) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            422,
+            detail=[
+                {"code": "INVALID_LANGUAGE", "path": ["language"], "message": str(exc)}
+            ],
+        ) from exc
+    filenames = [file.filename for file in submission.files]
+    if len(set(filenames)) != len(filenames):
+        raise HTTPException(422, "Submission filenames must be unique")
+    files = {file.filename: file.model_dump() for file in submission.files}
+    repo = SubmissionRepository(session)
+    row = await repo.create(
+        grading_config_id=config.id,
         external_user_id=submission.external_user_id,
         username=submission.username,
-        submission_files=submission_files_dict,
-        language=submission_language,
-        status=SubmissionStatus.PENDING,
+        submission_files=files,
+        language=language.value,
         submission_metadata=submission.metadata,
+        definition_snapshot=compiled.definition.model_dump(mode="json"),
+        definition_hash=compiled.definition_hash,
+        configuration_version=config.version,
     )
-
-    # Commit to save submission
     await session.commit()
-
-    # Schedule concurrent grading task using asyncio
-    # This allows multiple submissions to be graded simultaneously,
-    # fully utilizing the sandbox pool's capacity
-    grading_request = GradingRequest(
-        submission_id=db_submission.id,
-        grading_config_id=grading_config.id,
-        template_name=grading_config.template_name,
-        criteria_config=grading_config.criteria_config,
-        setup_config=grading_config.setup_config,
-        feedback_config=grading_config.feedback_config or {},
-        include_feedback=grading_config.include_feedback,
-        language=db_submission.language,
-        username=db_submission.username,
-        external_user_id=db_submission.external_user_id,
-        submission_files=db_submission.submission_files,
-        locale=submission.locale,
-        baseline_result_tree=submission.baseline_result_tree,
+    request = GradingRequest(
+        submission_id=row.id,
+        grading_config_id=config.id,
+        definition=row.definition_snapshot,
+        configuration_version=row.configuration_version,
+        definition_hash=row.definition_hash,
+        language=row.language,
+        username=row.username,
+        external_user_id=row.external_user_id,
+        submission_files=row.submission_files,
+        locale=submission.locale or "en",
         evaluation_scope=(
             submission.evaluation_scope.model_dump()
-            if submission.evaluation_scope is not None
+            if submission.evaluation_scope
             else None
         ),
     )
-    task = asyncio.create_task(grade_submission(grading_request))
-
-    # Track task to prevent garbage collection
-    grading_tasks = get_grading_tasks()
-    grading_tasks.add(task)
-    task.add_done_callback(grading_tasks.discard)
-
-    logger.info(
-        "Submission created and grading task scheduled: submission_id=%d, user=%s, assignment=%s, language=%s",
-        db_submission.id,
-        db_submission.external_user_id,
-        submission.external_assignment_id,
-        db_submission.language,
-    )
-
-    return db_submission
+    task = asyncio.create_task(grade_submission(request))
+    tasks = get_grading_tasks()
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
+    # Newly created row has no loaded result relationship; load explicitly rather than trigger async lazy I/O.
+    row = await repo.get_by_id_with_result(row.id)
+    return project_submission(row)
 
 
-@router.get("/{submission_id}", response_model=SubmissionDetailResponse)
-async def get_submission(
-    submission_id: int,
-    session: AsyncSession = Depends(get_db_session)
+@router.get("", response_model=list[SubmissionResponse])
+async def history(
+    external_user_id: str | None = None,
+    grading_config_id: int | None = Query(None, gt=0),
+    status: SubmissionStatus | None = None,
+    limit: int = Query(100, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session=Depends(get_db_session),
 ):
-    """Get submission by ID with results."""
-    logger.info("Fetching submission: submission_id=%d", submission_id)
-
-    repo = SubmissionRepository(session)
-    submission = await repo.get_by_id_with_result(submission_id)
-
-    if not submission:
-        logger.warning("Submission not found: submission_id=%d", submission_id)
-        raise HTTPException(status_code=404, detail="Submission not found")
-
-    # Convert submission_files from storage format to API response format
-    # Storage: Dict[str, Dict] -> Response: Dict[str, str]
-    formatted_files = {}
-    if submission.submission_files:
-        for name, data in submission.submission_files.items():
-            # Extract content from the stored dict structure
-            if isinstance(data, dict):
-                # New format: {"filename": "...", "content": "..."}
-                formatted_files[name] = data.get("content", "")
-            else:
-                # Legacy format or unexpected type: convert to string
-                formatted_files[name] = str(data)
-
-    # Build response
-    response_data = {
-        "id": submission.id,
-        "grading_config_id": submission.grading_config_id,
-        "external_user_id": submission.external_user_id,
-        "username": submission.username,
-        "status": submission.status,
-        "submitted_at": submission.submitted_at,
-        "graded_at": submission.graded_at,
-        "submission_files": formatted_files,
-        "submission_metadata": submission.submission_metadata,
-        "final_score": None,
-        "feedback": None,
-        "result_tree": None,
-        "focus": None,
-        "score_vector": None,
-        "comparison": None,
-        "pipeline_execution": None,
-    }
-
-    # Add result data if available
-    if submission.result:
-        response_data.update({
-            "final_score": submission.result.final_score,
-            "feedback": submission.result.feedback,
-            "result_tree": submission.result.result_tree,
-            "focus": submission.result.focus,
-            "score_vector": submission.result.score_vector,
-            "comparison": submission.result.comparison,
-            "pipeline_execution": submission.result.pipeline_execution,
-        })
-
-    logger.info(
-        "Submission fetched: submission_id=%d, user=%s, status=%s",
-        submission.id,
-        submission.external_user_id,
-        submission.status,
+    rows = await SubmissionRepository(session).history(
+        external_user_id=external_user_id,
+        grading_config_id=grading_config_id,
+        status=status,
+        limit=limit,
+        offset=offset,
     )
-    return response_data
+    return [project_submission(row) for row in rows]
 
 
-@router.get("/user/{external_user_id}", response_model=List[SubmissionResponse])
+@router.get("/user/{external_user_id}", response_model=list[SubmissionResponse])
 async def get_user_submissions(
     external_user_id: str,
-    limit: int = 100,
-    offset: int = 0,
-    session: AsyncSession = Depends(get_db_session)
+    limit: int = Query(100, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session=Depends(get_db_session),
 ):
-    """Get all submissions by a user."""
-    logger.info(
-        "Fetching submissions for user: user=%s, limit=%d, offset=%d",
-        external_user_id,
-        limit,
-        offset,
+    return await history(
+        external_user_id=external_user_id,
+        grading_config_id=None,
+        status=None,
+        limit=limit,
+        offset=offset,
+        session=session,
     )
-    repo = SubmissionRepository(session)
-    submissions = await repo.get_by_user(external_user_id, limit=limit, offset=offset)
-    logger.info("Found %d submission(s) for user=%s", len(submissions), external_user_id)
-    return submissions
 
 
-@router.post("/external-results", response_model=ExternalResultResponse, dependencies=[Depends(require_integration_token)])
+def _check_attested_tree(outcome, compiled):
+    """Attestation may not change criterion placement or scoring ratios."""
+    from math import isclose
+
+    if outcome["status"] != "completed":
+        return
+
+    def mismatch():
+        raise HTTPException(
+            422,
+            "Result tree structure, identities or scoring weights do not match its definition snapshot",
+        )
+
+    def holder(expected, actual):
+        if actual["name"] != expected.name:
+            mismatch()
+        for key in ("subjects", "tests"):
+            children = getattr(expected, key)
+            actual_children = actual.get(key) or []
+            if len(children) != len(actual_children):
+                mismatch()
+            factor = 100.0
+            if expected.subjects and expected.tests:
+                factor = (
+                    expected.subjects_weight
+                    if key == "subjects"
+                    else 100.0 - expected.subjects_weight
+                )
+            max_weight = max((child.weight for child in children), default=0)
+            scaled_total = (
+                sum(child.weight / max_weight for child in children)
+                if max_weight
+                else 0
+            )
+            for child, result in zip(children, actual_children):
+                normalized_weight = (
+                    child.weight / max_weight / scaled_total * factor
+                    if max_weight
+                    else factor / len(children)
+                )
+                if not isclose(result["weight"], normalized_weight, abs_tol=0.00001):
+                    mismatch()
+                if key == "tests":
+                    if (
+                        result["id"] != child.criterion_id
+                        or result["evaluator"] != child.test_function.name
+                        or result["name"] != child.name
+                        or result.get("file_target") != child.file_target
+                    ):
+                        mismatch()
+                else:
+                    holder(child, result)
+
+    tree = outcome["tree"]
+    for category in ("base", "bonus", "penalty"):
+        expected = getattr(compiled.criteria_tree, category)
+        actual = tree.get(category)
+        if (expected is None) != (actual is None):
+            mismatch()
+        if expected:
+            if not isclose(expected.weight, actual["weight"], abs_tol=0.00001):
+                mismatch()
+            holder(expected, actual)
+
+
+@router.post(
+    "/external-results",
+    response_model=ExternalResultResponse,
+    dependencies=[Depends(require_integration_token)],
+)
 async def ingest_external_result(
-    payload: ExternalResultCreate,
-    session: AsyncSession = Depends(get_db_session)
+    payload: ExternalResultCreate, session=Depends(get_db_session)
 ):
-    """Ingest an externally computed grading result.
-
-    Creates a submission row and a matching submission_result row from
-    results computed outside the cloud instance (e.g. GitHub Action in
-    external/private mode).
-    """
-    logger.info(
-        "External result ingestion: user=%s, config_id=%d, status=%s, score=%.2f",
-        payload.external_user_id,
-        payload.grading_config_id,
-        payload.status.value,
-        payload.final_score,
-    )
-
-    # Validate grading config exists
-    config_repo = GradingConfigRepository(session)
-    grading_config = await config_repo.get_by_id(payload.grading_config_id)
-    if not grading_config:
-        logger.warning(
-            "External result rejected: grading config not found config_id=%d (user=%s)",
-            payload.grading_config_id,
-            payload.external_user_id,
-        )
+    config = await GradingConfigRepository(session).get_by_id(payload.grading_config_id)
+    if config is None:
+        raise HTTPException(404, "Grading configuration not found")
+    compiled = _compile(payload.definition_snapshot)
+    outcome = payload.outcome.model_dump(mode="json")
+    provenance = outcome["provenance"]
+    if provenance["definition_hash"] != compiled.definition_hash or provenance.get(
+        "reference"
+    ) != str(config.id):
         raise HTTPException(
-            status_code=404,
-            detail=f"Grading configuration with id {payload.grading_config_id} not found"
+            422, "Outcome provenance does not match its definition snapshot/resource"
         )
-
-    # Validate language is supported by this config
-    if payload.language not in grading_config.languages:
-        logger.warning(
-            "External result rejected: unsupported language '%s' for config_id=%d (supported=%s)",
-            payload.language,
-            payload.grading_config_id,
-            grading_config.languages,
-        )
+    revision = provenance.get("revision")
+    if revision is None or revision > config.version:
         raise HTTPException(
-            status_code=400,
-            detail=f"Language '{payload.language}' is not supported for this configuration. "
-                   f"Supported languages: {', '.join(grading_config.languages)}"
+            422, "Outcome must attest a known positive configuration revision"
         )
-
-    # Map external status to internal submission status
-    submission_status = (
-        SubmissionStatus.COMPLETED
-        if payload.status.value == "completed"
-        else SubmissionStatus.FAILED
-    )
-
-    # Map to pipeline status
-    pipeline_status = (
-        PipelineStatus.SUCCESS
-        if payload.status.value == "completed"
-        else PipelineStatus.FAILED
-    )
-
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-
-    # Create submission record (no files — externally graded)
-    submission_repo = SubmissionRepository(session)
-    db_submission = await submission_repo.create(
-        grading_config_id=grading_config.id,
+    if (
+        revision == config.version
+        and compiled.definition_hash != config.definition_hash
+    ):
+        raise HTTPException(
+            422, "Current revision attestation must match the stored definition hash"
+        )
+    if (
+        outcome["language"] != payload.language
+        or payload.language not in compiled.definition.languages
+    ):
+        raise HTTPException(
+            422, "Outcome language does not match its definition snapshot"
+        )
+    _check_attested_tree(outcome, compiled)
+    repo = SubmissionRepository(session)
+    row = await repo.create(
+        grading_config_id=config.id,
         external_user_id=payload.external_user_id,
         username=payload.username,
         submission_files={},
         language=payload.language,
-        status=submission_status,
         submission_metadata=payload.submission_metadata,
+        definition_snapshot=compiled.definition.model_dump(mode="json"),
+        definition_hash=compiled.definition_hash,
+        configuration_version=revision,
     )
-    db_submission.graded_at = now
-
-    # Flush to obtain the submission ID before creating the result row
-    await session.flush()
-
-    # Create submission result record
-    result_repo = ResultRepository(session)
-    await result_repo.create(
-        submission_id=db_submission.id,
-        final_score=payload.final_score,
-        result_tree=payload.result_tree,
-        feedback=payload.feedback,
-        focus=payload.focus,
-        score_vector=payload.score_vector,
-        comparison=payload.comparison,
-        pipeline_execution=payload.pipeline_execution,
-        execution_time_ms=payload.execution_time_ms,
-        pipeline_status=pipeline_status,
-        error_message=payload.error_message,
-    )
-
+    await persist_outcome(ResultRepository(session), repo, row.id, outcome)
     await session.commit()
+    return {
+        "submission_id": row.id,
+        "grading_config_id": config.id,
+        "status": row.status,
+        "final_score": outcome["score"],
+        "language": row.language,
+        "provenance": provenance,
+        "graded_at": _utc(row.graded_at),
+        "execution_time_ms": outcome["duration_ms"],
+    }
 
-    logger.info(
-        "External result ingested: submission_id=%d, config_id=%d, user=%s, score=%.2f, status=%s",
-        db_submission.id,
-        grading_config.id,
-        payload.external_user_id,
-        payload.final_score,
-        submission_status.value,
-    )
 
-    return ExternalResultResponse(
-        submission_id=db_submission.id,
-        grading_config_id=grading_config.id,
-        external_user_id=payload.external_user_id,
-        username=payload.username,
-        status=submission_status,
-        final_score=payload.final_score,
-        graded_at=now,
-        execution_time_ms=payload.execution_time_ms,
+@router.get(
+    "/{submission_id}/details",
+    response_model=SubmissionDetailResponse,
+    dependencies=[Depends(require_integration_token)],
+)
+async def get_submission_details(submission_id: int, session=Depends(get_db_session)):
+    row = await SubmissionRepository(session).get_by_id_with_result(submission_id)
+    if row is None:
+        raise HTTPException(404, "Submission not found")
+    return project_submission(row, details=True)
+
+
+@router.get("/{submission_id}", response_model=SubmissionResponse)
+async def get_submission(submission_id: int, session=Depends(get_db_session)):
+    row = await SubmissionRepository(session).get_by_id_with_result(
+        submission_id, include_files=False
     )
+    if row is None:
+        raise HTTPException(404, "Submission not found")
+    return project_submission(row)

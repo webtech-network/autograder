@@ -1,0 +1,728 @@
+{
+  "$defs": {
+    "CategoryOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "enum": [
+            "base",
+            "bonus",
+            "penalty"
+          ],
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "category",
+          "default": "category",
+          "title": "Type",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "weight": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Weight",
+          "type": "number"
+        },
+        "subjects": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SubjectOutcome"
+          },
+          "title": "Subjects",
+          "type": "array"
+        },
+        "tests": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TestOutcome"
+          },
+          "title": "Tests",
+          "type": "array"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "score",
+        "weight"
+      ],
+      "title": "CategoryOutcome",
+      "type": "object"
+    },
+    "ComparisonContent": {
+      "additionalProperties": false,
+      "properties": {
+        "score_delta": {
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Score Delta",
+          "type": "number"
+        },
+        "improved": {
+          "title": "Improved",
+          "type": "boolean"
+        },
+        "test_deltas": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CriterionDelta"
+          },
+          "title": "Test Deltas",
+          "type": "array"
+        }
+      },
+      "required": [
+        "score_delta",
+        "improved"
+      ],
+      "title": "ComparisonContent",
+      "type": "object"
+    },
+    "ComparisonOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "default": "disabled",
+          "enum": [
+            "disabled",
+            "completed",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ComparisonContent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutcomeError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ComparisonOutcome",
+      "type": "object"
+    },
+    "CompletedOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "execution_id": {
+          "minLength": 1,
+          "title": "Execution Id",
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "enum": [
+                "python",
+                "java",
+                "c",
+                "cpp",
+                "node"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "provenance": {
+          "$ref": "#/$defs/DefinitionProvenance"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "finished_at": {
+          "format": "date-time",
+          "title": "Finished At",
+          "type": "string"
+        },
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "feedback": {
+          "$ref": "#/$defs/FeedbackOutcome"
+        },
+        "comparison": {
+          "$ref": "#/$defs/ComparisonOutcome"
+        },
+        "status": {
+          "const": "completed",
+          "title": "Status",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "tree": {
+          "$ref": "#/$defs/ResultOutcomeTree"
+        },
+        "error": {
+          "default": null,
+          "title": "Error",
+          "type": "null"
+        }
+      },
+      "required": [
+        "schema_version",
+        "execution_id",
+        "provenance",
+        "started_at",
+        "finished_at",
+        "duration_ms",
+        "status",
+        "score",
+        "tree"
+      ],
+      "title": "CompletedOutcome",
+      "type": "object"
+    },
+    "CriterionDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Criterion ID, independent of display names",
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "improved",
+            "regressed",
+            "unchanged",
+            "introduced",
+            "removed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "baseline_score": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Baseline Score"
+        },
+        "head_score": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Head Score"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": -100,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta"
+        }
+      },
+      "required": [
+        "path",
+        "status"
+      ],
+      "title": "CriterionDelta",
+      "type": "object"
+    },
+    "DefinitionProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "definition_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Definition Hash",
+          "type": "string"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        }
+      },
+      "required": [
+        "definition_hash"
+      ],
+      "title": "DefinitionProvenance",
+      "type": "object"
+    },
+    "FailedOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "execution_id": {
+          "minLength": 1,
+          "title": "Execution Id",
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "enum": [
+                "python",
+                "java",
+                "c",
+                "cpp",
+                "node"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "provenance": {
+          "$ref": "#/$defs/DefinitionProvenance"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "finished_at": {
+          "format": "date-time",
+          "title": "Finished At",
+          "type": "string"
+        },
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "feedback": {
+          "$ref": "#/$defs/FeedbackOutcome"
+        },
+        "comparison": {
+          "$ref": "#/$defs/ComparisonOutcome"
+        },
+        "status": {
+          "const": "failed",
+          "title": "Status",
+          "type": "string"
+        },
+        "score": {
+          "default": null,
+          "title": "Score",
+          "type": "null"
+        },
+        "tree": {
+          "default": null,
+          "title": "Tree",
+          "type": "null"
+        },
+        "error": {
+          "$ref": "#/$defs/OutcomeError"
+        }
+      },
+      "required": [
+        "schema_version",
+        "execution_id",
+        "provenance",
+        "started_at",
+        "finished_at",
+        "duration_ms",
+        "status",
+        "error"
+      ],
+      "title": "FailedOutcome",
+      "type": "object"
+    },
+    "FeedbackOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "default": "disabled",
+          "enum": [
+            "disabled",
+            "completed",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OutcomeError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "FeedbackOutcome",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "OutcomeError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "definition",
+            "submission",
+            "capability",
+            "provider",
+            "internal"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "correlation_id": {
+          "minLength": 1,
+          "title": "Correlation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "category",
+        "retryable",
+        "correlation_id"
+      ],
+      "title": "OutcomeError",
+      "type": "object"
+    },
+    "ResultOutcomeTree": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "root",
+          "default": "root",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "root",
+          "default": "root",
+          "title": "Type",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "base": {
+          "$ref": "#/$defs/CategoryOutcome"
+        },
+        "bonus": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CategoryOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "penalty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CategoryOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "score",
+        "base"
+      ],
+      "title": "ResultOutcomeTree",
+      "type": "object"
+    },
+    "SubjectOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "subject",
+          "default": "subject",
+          "title": "Type",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "weight": {
+          "minimum": 0,
+          "title": "Weight",
+          "type": "number"
+        },
+        "subjects": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SubjectOutcome"
+          },
+          "title": "Subjects",
+          "type": "array"
+        },
+        "tests": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TestOutcome"
+          },
+          "title": "Tests",
+          "type": "array"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "score",
+        "weight"
+      ],
+      "title": "SubjectOutcome",
+      "type": "object"
+    },
+    "TestOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "evaluator": {
+          "minLength": 1,
+          "title": "Evaluator",
+          "type": "string"
+        },
+        "type": {
+          "const": "test",
+          "default": "test",
+          "title": "Type",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "weight": {
+          "minimum": 0,
+          "title": "Weight",
+          "type": "number"
+        },
+        "report": {
+          "default": "",
+          "title": "Report",
+          "type": "string"
+        },
+        "file_target": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File Target"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "evaluator",
+        "name",
+        "score",
+        "weight"
+      ],
+      "title": "TestOutcome",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "completed": "#/$defs/CompletedOutcome",
+      "failed": "#/$defs/FailedOutcome"
+    },
+    "propertyName": "status"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/CompletedOutcome"
+    },
+    {
+      "$ref": "#/$defs/FailedOutcome"
+    }
+  ],
+  "$id": "https://webtech.network/autograder/contracts/outcome/1.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

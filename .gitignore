@@ -105,3 +105,6 @@ dump.rdb
 .coverage.**.db
 *.sqlite
 *.sqlite3
+
+# Private finalized HTTP outcomes awaiting database publication
+data/unpublished-outcomes/

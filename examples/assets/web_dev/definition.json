@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0",
+  "templates": [
+    "webdev"
+  ],
+  "languages": [
+    "node"
+  ],
+  "criteria": {
+    "base": {
+      "weight": 100.0,
+      "tests": null,
+      "subjects": [
+        {
+          "subject_name": "html_structure",
+          "weight": 40.0,
+          "tests": [
+            {
+              "id": "base-subjects-0-tests-0",
+              "type": "has_tag",
+              "name": "has_tag",
+              "parameters": {
+                "tag": "div",
+                "required_count": 5
+              },
+              "file": "index.html",
+              "weight": 100.0,
+              "metadata": {}
+            },
+            {
+              "id": "base-subjects-0-tests-1",
+              "type": "has_tag",
+              "name": "has_tag",
+              "parameters": {
+                "tag": "h1",
+                "required_count": 2
+              },
+              "file": "index.html",
+              "weight": 100.0,
+              "metadata": {}
+            },
+            {
+              "id": "base-subjects-0-tests-2",
+              "type": "has_tag",
+              "name": "has_tag",
+              "parameters": {
+                "tag": "p",
+                "required_count": 3
+              },
+              "file": "index.html",
+              "weight": 100.0,
+              "metadata": {}
+            },
+            {
+              "id": "base-subjects-0-tests-3",
+              "type": "has_tag",
+              "name": "has_tag",
+              "parameters": {
+                "tag": "a",
+                "required_count": 2
+              },
+              "file": "index.html",
+              "weight": 100.0,
+              "metadata": {}
+            }
+          ],
+          "subjects": null,
+          "subjects_weight": null,
+          "metadata": {}
+        },
+        {
+          "subject_name": "css_styling",
+          "weight": 30.0,
+          "tests": [
+            {
+              "id": "base-subjects-1-tests-0",
+              "type": "has_class",
+              "name": "has_class",
+              "parameters": {
+                "class_names": [
+                  "container",
+                  "row",
+                  "col-*"
+                ],
+                "required_count": 10
+              },
+              "file": "index.html",
+              "weight": 100.0,
+              "metadata": {}
+            }
+          ],
+          "subjects": null,
+          "subjects_weight": null,
+          "metadata": {}
+        }
+      ],
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "bonus": null,
+    "penalty": null,
+    "metadata": {}
+  },
+  "preparation": {
+    "languages": {
+      "node": {
+        "required_files": [
+          "index.html"
+        ],
+        "setup_commands": []
+      }
+    },
+    "fixtures": []
+  },
+  "feedback": {
+    "enabled": true,
+    "mode": "default",
+    "preferences": {
+      "general": {
+        "report_title": "Web development feedback",
+        "show_score": true,
+        "show_passed_tests": false,
+        "add_report_summary": true,
+        "online_content": []
+      },
+      "default": {
+        "category_headers": {}
+      }
+    }
+  },
+  "metadata": {}
+}
