@@ -11,7 +11,7 @@ import sys
 def main():
     # Change to examples directory
     examples_dir = os.path.dirname(os.path.abspath(__file__))
-    os.chdir(examples_dir)
+    os.chdir(os.path.dirname(examples_dir))
 
     # Port configuration
     PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
@@ -24,7 +24,7 @@ def main():
         print(f"🚀 Autograder Interactive Demo Server")
         print(f"=" * 50)
         print(f"")
-        print(f"   Server running at: http://localhost:{PORT}")
+        print(f"   Server running at: http://localhost:{PORT}/demo/")
         print(f"   Directory: {examples_dir}")
         print(f"")
         print(f"   Press Ctrl+C to stop")

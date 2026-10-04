@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, defer
 
 from web.database.models.submission import Submission, SubmissionStatus
 from web.repositories.base_repository import BaseRepository
@@ -17,14 +17,17 @@ class SubmissionRepository(BaseRepository[Submission]):
         super().__init__(Submission, session)
 
     async def create(
-            self,
-            grading_config_id: int,
-            external_user_id: str,
-            username: str,
-            submission_files: dict,  # Receives Dict[str, str] from API
-            language: Optional[str] = None,
-            status: SubmissionStatus = SubmissionStatus.PENDING,
-            submission_metadata: Optional[dict] = None,
+        self,
+        grading_config_id: int,
+        external_user_id: str,
+        username: str,
+        submission_files: dict,  # Receives Dict[str, str] from API
+        language: Optional[str] = None,
+        status: SubmissionStatus = SubmissionStatus.PENDING,
+        submission_metadata: Optional[dict] = None,
+        definition_snapshot: Optional[dict] = None,
+        definition_hash: Optional[str] = None,
+        configuration_version: Optional[int] = None,
     ) -> Submission:
         """Create a new submission."""
 
@@ -37,6 +40,9 @@ class SubmissionRepository(BaseRepository[Submission]):
             language=language,
             status=status,
             submission_metadata=submission_metadata,
+            definition_snapshot=definition_snapshot,
+            definition_hash=definition_hash,
+            configuration_version=configuration_version,
         )
 
         self.session.add(db_submission)
@@ -44,13 +50,21 @@ class SubmissionRepository(BaseRepository[Submission]):
         await self.session.refresh(db_submission)
         return db_submission
 
-    async def get_by_id_with_result(self, id: int) -> Optional[Submission]:
+    async def get_by_id_with_result(
+        self, id: int, *, include_files: bool = True
+    ) -> Optional[Submission]:
         """Get submission by ID with result loaded."""
-        result = await self.session.execute(
+        query = (
             select(Submission)
             .options(joinedload(Submission.result))
             .where(Submission.id == id)
         )
+        if not include_files:
+            query = query.options(
+                defer(Submission.submission_files),
+                defer(Submission.definition_snapshot),
+            )
+        result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
     async def get_by_user(
@@ -60,7 +74,8 @@ class SubmissionRepository(BaseRepository[Submission]):
         result = await self.session.execute(
             select(Submission)
             .where(Submission.external_user_id == external_user_id)
-            .order_by(Submission.submitted_at.desc())
+            .options(joinedload(Submission.result))
+            .order_by(Submission.submitted_at.desc(), Submission.id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -73,7 +88,8 @@ class SubmissionRepository(BaseRepository[Submission]):
         result = await self.session.execute(
             select(Submission)
             .where(Submission.grading_config_id == grading_config_id)
-            .order_by(Submission.submitted_at.desc())
+            .options(joinedload(Submission.result))
+            .order_by(Submission.submitted_at.desc(), Submission.id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -86,12 +102,42 @@ class SubmissionRepository(BaseRepository[Submission]):
         result = await self.session.execute(
             select(Submission)
             .where(Submission.status == status)
-            .order_by(Submission.submitted_at.desc())
+            .options(joinedload(Submission.result))
+            .order_by(Submission.submitted_at.desc(), Submission.id.desc())
             .limit(limit)
             .offset(offset)
         )
         return list(result.scalars().all())
 
-    async def update_status(self, id: int, status: SubmissionStatus) -> Optional[Submission]:
+    async def history(
+        self,
+        *,
+        external_user_id=None,
+        grading_config_id=None,
+        status=None,
+        limit=100,
+        offset=0
+    ):
+        query = select(Submission).options(
+            joinedload(Submission.result),
+            defer(Submission.submission_files),
+            defer(Submission.definition_snapshot),
+        )
+        if external_user_id is not None:
+            query = query.where(Submission.external_user_id == external_user_id)
+        if grading_config_id is not None:
+            query = query.where(Submission.grading_config_id == grading_config_id)
+        if status is not None:
+            query = query.where(Submission.status == status)
+        result = await self.session.execute(
+            query.order_by(Submission.submitted_at.desc(), Submission.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(result.scalars().all())
+
+    async def update_status(
+        self, id: int, status: SubmissionStatus
+    ) -> Optional[Submission]:
         """Update submission status."""
         return await self.update(id, status=status)

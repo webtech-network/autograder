@@ -8,6 +8,7 @@ These tests verify:
 """
 
 from typing import List
+from pydantic import BaseModel, ConfigDict
 
 from autograder.autograder import AutograderPipeline
 from autograder.models.abstract.step import Step
@@ -44,11 +45,19 @@ class MockTestFunction(TestFunction):
     def parameter_description(self) -> List[ParamDescription]:
         return []
 
+    @property
+    def config_schema(self):
+        class Parameters(BaseModel):
+            model_config = ConfigDict(extra="forbid")
+            stdin_input: list[str]
+            expected_output: str
+        return Parameters
+
     def execute(self, *args, **kwargs):
         """Always return a passing result."""
         return TestResult(
             test_name=self._test_name,
-            score=1000,
+            score=100,
             report="Test passed",
             parameters=None
         )
@@ -113,50 +122,13 @@ class MockTemplateLoaderStep(Step):
 
 
 def create_simple_criteria():
-    """Create a simple criteria configuration for testing."""
-    return {
-        "test_library": "input_output",
-        "base": {
-            "weight": 100,
-            "subjects": [
-                {
-                    "subject_name": "Basic Tests",
-                    "weight": 100,
-                    "tests": [
-                        {
-                            "name": "expect_output",
-                            "file": "main.py",
-                            "parameters": [
-                                {"name": "stdin_input", "value": ["hello"]},
-                                {"name": "expected_output", "value": "hello"},
-                            ],
-                        },
-                        {
-                            "name": "expect_output",
-                            "file": "main.py",
-                            "parameters": [
-                                {"name": "stdin_input", "value": ["world"]},
-                                {"name": "expected_output", "value": "world"},
-                            ],
-                        },
-                    ],
-                }
-            ],
-        },
-        "bonus": {
-            "weight": 10,
-            "tests": [
-                {
-                    "name": "expect_output",
-                    "file": "main.py",
-                    "parameters": [
-                        {"name": "stdin_input", "value": ["bonus"]},
-                        {"name": "expected_output", "value": "bonus"},
-                    ],
-                }
-            ],
-        },
-    }
+    """Criteria fixtures use the canonical ID/type/object-parameter encoding."""
+    def test(identity, text):
+        return {"id": identity, "type": "expect_output", "name": "expect_output", "file": "main.py",
+                "parameters": {"stdin_input": [text], "expected_output": text}}
+    return {"base": {"weight": 100, "subjects": [{"subject_name": "Basic Tests", "weight": 100,
+                "tests": [test("hello", "hello"), test("world", "world")]}]},
+            "bonus": {"weight": 10, "tests": [test("bonus", "bonus")]}}
 
 
 def create_mock_submission():

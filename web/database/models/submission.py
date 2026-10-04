@@ -13,6 +13,7 @@ from web.database.base import Base
 
 class SubmissionStatus(str, Enum):
     """Status of a submission in the grading pipeline."""
+
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -22,14 +23,19 @@ class SubmissionStatus(str, Enum):
 class Submission(Base):
     """
     Represents a student's code submission.
-    
+
     Tracks what was submitted, when, and by whom, providing traceability and audit logs.
     """
+
     __tablename__ = "submissions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    grading_config_id: Mapped[int] = mapped_column(Integer, ForeignKey("grading_configurations.id"), nullable=False, index=True)
-    external_user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    grading_config_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("grading_configurations.id"), nullable=False, index=True
+    )
+    external_user_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True
+    )
     username: Mapped[str] = mapped_column(String(255), nullable=False)
     submission_files: Mapped[dict] = mapped_column(JSON, nullable=False)
     language: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -37,15 +43,26 @@ class Submission(Base):
         SQLEnum(SubmissionStatus, values_callable=lambda x: [e.value for e in x]),
         default=SubmissionStatus.PENDING,
         nullable=False,
-        index=True
+        index=True,
     )
-    submitted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False, index=True)  # pylint: disable=not-callable
-    graded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )  # pylint: disable=not-callable
+    graded_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     submission_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    
+    definition_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    definition_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    configuration_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     # Relationships
-    grading_config: Mapped["GradingConfiguration"] = relationship("GradingConfiguration", back_populates="submissions")
-    result: Mapped[Optional["SubmissionResult"]] = relationship("SubmissionResult", back_populates="submission", uselist=False)
+    grading_config: Mapped["GradingConfiguration"] = relationship(
+        "GradingConfiguration", back_populates="submissions"
+    )
+    result: Mapped[Optional["SubmissionResult"]] = relationship(
+        "SubmissionResult", back_populates="submission", uselist=False
+    )
 
     def __repr__(self):
         return f"<Submission(id={self.id}, user={self.username}, status={self.status})>"

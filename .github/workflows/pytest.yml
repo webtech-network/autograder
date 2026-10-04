@@ -39,6 +39,10 @@ jobs:
         run: |
           make test
 
+      - name: Execute web API contract tests
+        run: |
+          pytest tests/web/
+
       - name: Execute integration tests
         run: |
           make test-integration

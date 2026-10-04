@@ -1,0 +1,86 @@
+{
+  "source_captured_at": "2026-10-04T10:59:48.521726+00:00",
+  "source_image_id": "sha256:19379569f8340a71cd9ab186169a1cb51757e00af31053dc14bff86ce23f91f2",
+  "configurations": 50,
+  "converted": 44,
+  "rejected": [
+    {
+      "id": 8,
+      "errors": [
+        {
+          "code": "LEGACY_CONVERSION_REJECTED",
+          "path": [
+            "criteria",
+            "base"
+          ],
+          "message": "Field required"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "errors": [
+        {
+          "code": "LEGACY_CONVERSION_REJECTED",
+          "path": [
+            "criteria",
+            "base"
+          ],
+          "message": "Field required"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "errors": [
+        {
+          "code": "LEGACY_CONVERSION_REJECTED",
+          "path": [
+            "criteria",
+            "base"
+          ],
+          "message": "Field required"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "errors": [
+        {
+          "code": "LEGACY_CONVERSION_REJECTED",
+          "path": [
+            "criteria",
+            "base"
+          ],
+          "message": "Field required"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "errors": [
+        {
+          "code": "LEGACY_CONVERSION_REJECTED",
+          "path": [
+            "criteria",
+            "base"
+          ],
+          "message": "Field required"
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "errors": [
+        {
+          "code": "LEGACY_CONVERSION_REJECTED",
+          "path": [
+            "criteria",
+            "base"
+          ],
+          "message": "Field required"
+        }
+      ]
+    }
+  ]
+}

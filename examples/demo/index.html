@@ -19,6 +19,8 @@
                 <input type="text" id="apiUrl" value="http://localhost:8000">
                 <button onclick="checkConnection()">Check Connection</button>
             </div>
+            <label for="apiToken">Integration token (if required by your API)</label>
+            <input type="password" id="apiToken" autocomplete="off" placeholder="Stored for this browser session">
             <div class="status" id="connectionStatus">
                 <span class="status-indicator" id="statusIndicator"></span>
                 <span id="statusText">Not connected</span>
@@ -86,4 +88,3 @@
     </script>
 </body>
 </html>
-

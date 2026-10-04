@@ -33,7 +33,7 @@ This documentation is organized to be both practical for first-time users and de
 - [Web Development Template](template-library/web_dev.md)
 - [Static Analysis Template](template-library/static_analysis.md)
 
-### GitHub Classroom / CI integrator
+### GitHub Actions / CI integrator
 
 - [GitHub Action module overview](github_action/README.md)
 - [GitHub Action configuration reference](github_action/configuration.md)

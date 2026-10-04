@@ -12,6 +12,7 @@ from autograder.models.dataclass.structural_analysis_result import StructuralAna
 from autograder.translations import t
 from sandbox_manager.sandbox_container import SandboxContainer
 from sandbox_manager.models.sandbox_models import Language
+from autograder.models.evaluation_error import EvaluationError
 import re
 
 # ===============================================================
@@ -170,6 +171,7 @@ class ForbiddenImportTest(TestFunction):
 # ===============================================================
 
 class ForbiddenKeywordConfig(BaseModel):
+    model_config = {"extra": "forbid", "strict": True}
     forbidden_keywords: List[str] = Field(default_factory=list)
     custom_ast_grep_rules: List[Dict[str, Any]] = Field(default_factory=list)
 
@@ -244,18 +246,10 @@ class ForbiddenKeywordTest(TestFunction):
             )
 
         if structural_analysis is None or not structural_analysis.available:
-            return TestResult(
-                test_name=self.name,
-                score=0.0,
-                report=t("static_analysis.forbidden_keyword.report.no_analysis", locale=locale)
-            )
+            raise EvaluationError("CAPABILITY_UNAVAILABLE", "Structural analysis is unavailable for this assessment.", "capability")
 
         if submission_language is None:
-            return TestResult(
-                test_name=self.name,
-                score=0.0,
-                report=t("static_analysis.forbidden_keyword.report.no_lang", locale=locale)
-            )
+            raise EvaluationError("LANGUAGE_REQUIRED", "A language is required for structural assessment.", "submission")
 
         active_rules: List[Dict[str, Any]] = list(custom_ast_grep_rules)
         lang_predefined = self.PREDEFINED_RULES.get(submission_language, {})
@@ -281,11 +275,7 @@ class ForbiddenKeywordTest(TestFunction):
             )
 
         if not structural_analysis.roots:
-            return TestResult(
-                test_name=self.name,
-                score=0.0,
-                report=t("static_analysis.forbidden_keyword.report.no_analysis", locale=locale)
-            )
+            raise EvaluationError("CAPABILITY_UNAVAILABLE", "Structural analysis is unavailable for this assessment.", "capability")
 
         missing_roots = [
             sub_file.filename
@@ -294,11 +284,7 @@ class ForbiddenKeywordTest(TestFunction):
             or structural_analysis.roots[sub_file.filename] is None
         ]
         if missing_roots:
-            return TestResult(
-                test_name=self.name,
-                score=0.0,
-                report=t("static_analysis.forbidden_keyword.report.no_analysis", locale=locale)
-            )
+            raise EvaluationError("CAPABILITY_UNAVAILABLE", "Structural analysis is unavailable for this assessment.", "capability")
 
         for sub_file in files:
             root = structural_analysis.roots.get(sub_file.filename)
@@ -332,6 +318,7 @@ class ForbiddenKeywordTest(TestFunction):
 
 
 class AiAlgorithmConfig(BaseModel):
+    model_config = {"extra": "forbid", "strict": True, "str_strip_whitespace": True}
     algorithm_name: str = Field(..., min_length=1)
 
 

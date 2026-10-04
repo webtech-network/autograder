@@ -41,9 +41,13 @@ class Template(ABC):
         """Validate template registry shape and value types."""
         tests = self.get_tests()
         for test_name, test_function in tests.items():
-            if not isinstance(test_name, str):
-                raise TypeError("Template tests keys must be strings.")
+            if not isinstance(test_name, str) or not test_name:
+                raise TypeError("Template tests keys must be nonempty strings.")
             if not isinstance(test_function, TestFunction):
                 raise TypeError(
                     f"Template test '{test_name}' must be a TestFunction instance."
                 )
+            if test_function.name != test_name:
+                raise ValueError("Evaluator registry key must match its explicit identifier")
+            if test_function.config_schema is None:
+                raise ValueError("Every evaluator requires a parameter contract")

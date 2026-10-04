@@ -1,177 +1,8 @@
 /* Submit Page Logic */
 
-const codeExamples = {
-    python: {
-        simple: `# Simple Calculator - Python Version
-# This calculator adds two numbers from stdin
-
-a = int(input())
-b = int(input())
-print(a + b)`,
-        advanced: `# Advanced Calculator - Python Version
-# Supports multiple operations: add, subtract, multiply, divide
-
-def main():
-    try:
-        a = int(input())
-        b = int(input())
-        print(a + b)
-    except Exception as e:
-        print(f"Error: {str(e)}")
-
-if __name__ == "__main__":
-    main()`,
-        broken: `# Broken Calculator - Python Version
-# This calculator has bugs
-
-a = int(input())
-b = int(input())
-# Bug: subtracts instead of adds
-print(a - b)`
-    },
-    java: {
-        simple: `// Simple Calculator - Java Version
-import java.util.Scanner;
-
-public class Calculator {
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        int a = scanner.nextInt();
-        int b = scanner.nextInt();
-        System.out.println(a + b);
-        scanner.close();
-    }
-}`,
-        advanced: `// Advanced Calculator - Java Version
-import java.util.Scanner;
-
-public class Calculator {
-    public static void main(String[] args) {
-        try {
-            Scanner scanner = new Scanner(System.in);
-            int a = scanner.nextInt();
-            int b = scanner.nextInt();
-            System.out.println(a + b);
-            scanner.close();
-        } catch (Exception e) {
-            System.out.println("Error: Invalid input");
-        }
-    }
-}`,
-        broken: `// Broken Calculator - Java Version
-import java.util.Scanner;
-
-public class Calculator {
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        int a = scanner.nextInt();
-        int b = scanner.nextInt();
-        System.out.println(a - b); // Bug: subtracts instead of adds
-        scanner.close();
-    }
-}`
-    },
-    node: {
-        simple: `// Simple Calculator - JavaScript/Node.js Version
-const readline = require('readline');
-
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false
-});
-
-const lines = [];
-
-rl.on('line', (line) => {
-    lines.push(line.trim());
-    if (lines.length === 2) {
-        const a = parseInt(lines[0]);
-        const b = parseInt(lines[1]);
-        console.log(a + b);
-        rl.close();
-    }
-});`,
-        advanced: `// Advanced Calculator - JavaScript/Node.js Version
-const readline = require('readline');
-
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false
-});
-
-const lines = [];
-
-rl.on('line', (line) => {
-    lines.push(line.trim());
-    if (lines.length === 2) {
-        try {
-            const a = parseInt(lines[0]);
-            const b = parseInt(lines[1]);
-            console.log(a + b);
-        } catch (e) {
-            console.log("Error: Invalid input");
-        }
-        rl.close();
-    }
-});`,
-        broken: `// Broken Calculator - JavaScript/Node.js Version
-const readline = require('readline');
-
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    terminal: false
-});
-
-const lines = [];
-
-rl.on('line', (line) => {
-    lines.push(line.trim());
-    if (lines.length === 2) {
-        const a = parseInt(lines[0]);
-        const b = parseInt(lines[1]);
-        console.log(a - b); // Bug: subtracts instead of adds
-        rl.close();
-    }
-});`
-    },
-    cpp: {
-        simple: `// Simple Calculator - C++ Version
-#include <iostream>
-
-int main() {
-    int a, b;
-    std::cin >> a >> b;
-    std::cout << a + b << std::endl;
-    return 0;
-}`,
-        advanced: `// Advanced Calculator - C++ Version
-#include <iostream>
-
-int main() {
-    try {
-        int a, b;
-        std::cin >> a >> b;
-        std::cout << a + b << std::endl;
-    } catch (...) {
-        std::cout << "Error: Invalid input" << std::endl;
-    }
-    return 0;
-}`,
-        broken: `// Broken Calculator - C++ Version
-#include <iostream>
-
-int main() {
-    int a, b;
-    std::cin >> a >> b;
-    std::cout << a - b << std::endl; // Bug: subtracts instead of adds
-    return 0;
-}`
-    }
-};
-
+const sourceLanguages = {python:'python', java:'java', node:'javascript', cpp:'cpp'};
+const sourceExtensions = {python:'py', java:'java', node:'js', cpp:'cpp'};
+let sourceLoadSequence = 0;
 const filenameMap = {
     python: 'calculator.py',
     java: 'Calculator.java',
@@ -186,20 +17,30 @@ document.addEventListener('DOMContentLoaded', () => {
     updateRequestPreview();
 });
 
-function updateCode() {
+async function updateCode() {
+    const sequence = ++sourceLoadSequence;
     const language = document.getElementById('language').value;
     const example = document.getElementById('codeExample').value;
-
-    document.getElementById('sourceCode').value = codeExamples[language][example];
-    document.getElementById('filename').value = filenameMap[language];
-
-    updateRequestPreview();
+    const chosen = example === 'broken' ? 'simple' : example;
+    const className = chosen === 'advanced' ? 'AdvancedCalculator' : 'SimpleCalculator';
+    const basename = language === 'java' ? className : `${chosen}_calculator`;
+    try {
+        const response = await fetch(`../assets/input_output/code_examples/${sourceLanguages[language]}/${basename}.${sourceExtensions[language]}`);
+        if (!response.ok) throw new Error('Could not load sample source');
+        let source = await response.text();
+        if (sequence !== sourceLoadSequence) return;
+        if (language === 'java') source = source.replaceAll(className, 'Calculator');
+        if (example === 'broken') source = source.replace(/a \+ b/g, 'a - b');
+        document.getElementById('sourceCode').value = source;
+        document.getElementById('filename').value = filenameMap[language];
+        updateRequestPreview();
+    } catch (error) { showMessage('submitResult', error.message, 'error'); }
 }
 
 function updateRequestPreview() {
     const payload = {
-        assignment_id: document.getElementById('assignmentId').value,
-        user_id: document.getElementById('userId').value,
+        external_assignment_id: document.getElementById('assignmentId').value,
+        external_user_id: document.getElementById('userId').value,
         username: document.getElementById('username').value,
         language: document.getElementById('language').value,
         files: [
@@ -264,55 +105,27 @@ async function getResult() {
 
     if (result.ok) {
         updateResultDisplay(result.data);
+        if (['completed', 'failed'].includes(result.data.status)) {
+            stopPolling();
+            const details = await apiCall(`/api/v1/submissions/${submissionId}/details`);
+            if (details.ok) updateResultDisplay(details.data);
+            else showMessage('submitResult', 'Status received; result details could not be loaded.', 'error');
+        }
     } else {
-        showMessage('submitResult', `Error: ${result.data.error || 'Failed to get result'}`, 'error');
+        showMessage('submitResult', 'Failed to retrieve submission status', 'error');
     }
 }
 
 function updateResultDisplay(data) {
-    // Update score
-    const score = data.grade?.final_score !== undefined ? data.grade.final_score : '--';
-    document.getElementById('scoreValue').textContent = score;
-
-    // Update status
+    const outcome = data.outcome;
+    const tree = outcome?.tree;
+    document.getElementById('scoreValue').textContent = data.final_score ?? '--';
     document.getElementById('statusValue').textContent = data.status || '--';
-
-    // Update score breakdown
-    if (data.grade) {
-        document.getElementById('baseValue').textContent = data.grade.base_score || 0;
-        document.getElementById('bonusValue').textContent = data.grade.bonus_score || 0;
-        document.getElementById('penaltyValue').textContent = data.grade.penalty_score || 0;
-    }
-
-    // Update result tree
-    if (data.grade?.result_tree) {
-        document.getElementById('resultTree').textContent = renderResultTree(data.grade.result_tree);
-    } else {
-        document.getElementById('resultTree').textContent = 'No result tree available';
-    }
-}
-
-function renderResultTree(node, prefix = '', isLast = true) {
-    let result = '';
-    const connector = isLast ? '└── ' : '├── ';
-    const extension = isLast ? '    ' : '│   ';
-
-    if (node.name) {
-        result += prefix + connector + node.name;
-        if (node.score !== undefined && node.total_weight !== undefined) {
-            result += ` [${node.score}/${node.total_weight}]`;
-        }
-        result += '\n';
-    }
-
-    if (node.children && node.children.length > 0) {
-        node.children.forEach((child, i) => {
-            const childIsLast = i === node.children.length - 1;
-            result += renderResultTree(child, prefix + (node.name ? extension : ''), childIsLast);
-        });
-    }
-
-    return result;
+    ['base', 'bonus', 'penalty'].forEach(category => {
+        document.getElementById(category + 'Value').textContent = tree?.[category]?.score ?? '--';
+    });
+    document.getElementById('resultTree').textContent = tree ? renderTree(tree)
+        : (outcome?.error?.message || data.error?.message || 'Result details are not available yet');
 }
 
 function togglePolling() {
@@ -326,23 +139,17 @@ function togglePolling() {
 function startPolling() {
     document.getElementById('pollBtn').textContent = 'Stop Polling';
     document.getElementById('pollingStatus').style.display = 'flex';
+    pollingInterval = setTimeout(pollNext, 0);
+}
 
-    // Get result immediately
-    getResult();
-
-    // Then poll every 2 seconds
-    pollingInterval = setInterval(() => {
-        getResult();
-    }, 2000);
+async function pollNext() {
+    await getResult();
+    if (pollingInterval !== null) pollingInterval = setTimeout(pollNext, 2000);
 }
 
 function stopPolling() {
-    if (pollingInterval) {
-        clearInterval(pollingInterval);
-        pollingInterval = null;
-    }
+    if (pollingInterval !== null) clearTimeout(pollingInterval);
+    pollingInterval = null;
     document.getElementById('pollBtn').textContent = 'Start Polling';
     document.getElementById('pollingStatus').style.display = 'none';
 }
-
-

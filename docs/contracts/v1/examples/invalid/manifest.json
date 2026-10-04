@@ -1,0 +1,128 @@
+[
+  {
+    "file": "io-input-alias.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "input"
+        ],
+        "message": "Extra inputs are not permitted"
+      }
+    ]
+  },
+  {
+    "file": "api-invalid-endpoint.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "endpoint"
+        ],
+        "message": "Input should be a valid string"
+      }
+    ]
+  },
+  {
+    "file": "web-parameter-typo.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "tagg"
+        ],
+        "message": "Extra inputs are not permitted"
+      }
+    ]
+  },
+  {
+    "file": "ai-empty-algorithm.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "algorithm_name"
+        ],
+        "message": "String should have at least 1 character"
+      }
+    ]
+  },
+  {
+    "file": "duplicate-criterion-id.json",
+    "errors": [
+      {
+        "code": "DUPLICATE_CRITERION_ID",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          1,
+          "id"
+        ],
+        "message": "Criterion IDs must be unique throughout the definition"
+      }
+    ]
+  },
+  {
+    "file": "unsupported-feedback-mode.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "feedback",
+          "mode"
+        ],
+        "message": "Input should be 'default'"
+      }
+    ]
+  },
+  {
+    "file": "null-preparation.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "preparation"
+        ],
+        "message": "Input should be a valid dictionary or instance of Preparation"
+      }
+    ]
+  },
+  {
+    "file": "missing-command-language.json",
+    "errors": [
+      {
+        "code": "MISSING_LANGUAGE_COMMAND",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "program_command"
+        ],
+        "message": "Command map must cover every allowed language"
+      }
+    ]
+  }
+]

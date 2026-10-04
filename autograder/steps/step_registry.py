@@ -14,7 +14,6 @@ from autograder.steps.structural_analysis_step import StructuralAnalysisStep
 from autograder.steps.grade_step import GradeStep
 from autograder.steps.focus_step import FocusStep
 from autograder.steps.feedback_step import FeedbackStep
-from autograder.steps.export_step import ExporterStep
 
 from autograder.services.focus_service import FocusService
 from autograder.services.report.reporter_service import ReporterService
@@ -42,7 +41,6 @@ class StepRegistry:
             StepName.GRADE: self._build_grade,
             StepName.FOCUS: self._build_focus,
             StepName.FEEDBACK: self._build_feedback,
-            StepName.EXPORTER: self._build_exporter,
         }
 
     def _build_load_template(self) -> Optional[Step]:
@@ -61,27 +59,31 @@ class StepRegistry:
         return PreFlightStep(setup_config)
 
     def _build_sandbox(self) -> Optional[Step]:
-        # Only return SandboxStep if at least one template requires it.
-        if not any(t.requires_sandbox for t in self.templates):
-            return None
-        return SandboxStep()
+        setup = self.config.get("setup_config") or {}
+        needs_preparation = bool(setup.get("assets")) or any(
+            isinstance(value, dict) and value.get("setup_commands")
+            for value in setup.values()
+        )
+        tree = self.config.get("compiled_tree")
+        if tree is not None:
+            selected = {id(test.test_function) for category in (tree.base, tree.bonus, tree.penalty)
+                        if category for test in category.get_all_tests()}
+            needs_execution = any(template.requires_sandbox and
+                                  any(id(function) in selected for function in template.get_tests().values())
+                                  for template in self.templates)
+        else:
+            needs_execution = any(template.requires_sandbox for template in self.templates)
+        return SandboxStep() if needs_execution or needs_preparation else None
 
     def _build_ai_batch(self) -> Optional[Step]:
-        # Check if any of the loaded templates have AI test functions, or if the criteria tree
-        # (not yet built, but we can look at the config) suggests AI tests.
-        # For simplicity and correctness, we check the templates first.
         from autograder.models.abstract.ai_test_function import AiTestFunction
-        
-        has_ai_tests = False
-        for template in self.templates:
-            if any(isinstance(tf, AiTestFunction) for tf in template.get_tests().values()):
-                has_ai_tests = True
-                break
-        
-        if not has_ai_tests:
-            return None
-
-        return AiBatchStep()
+        tree = self.config.get("compiled_tree")
+        if tree is not None:
+            functions = [test.test_function for category in (tree.base, tree.bonus, tree.penalty)
+                         if category for test in category.get_all_tests()]
+        else:
+            functions = [function for template in self.templates for function in template.get_tests().values()]
+        return AiBatchStep() if any(isinstance(function, AiTestFunction) for function in functions) else None
 
     def _build_structural_analysis(self) -> Optional[Step]:
         return StructuralAnalysisStep()
@@ -97,17 +99,6 @@ class StepRegistry:
             feedback_mode = self.config.get("feedback_mode")
             feedback_config = self.config.get("feedback_config")
             return FeedbackStep(ReporterService(feedback_mode=feedback_mode), feedback_config)
-        return None
-
-    def _build_exporter(self) -> Optional[Step]:
-        if self.config.get("export_results"):
-            exporter = self.config.get("exporter")
-            if exporter is None:
-                raise ValueError(
-                    "export_results=True requires an 'exporter' to be provided to build_pipeline(). "
-                    "Pass an Exporter instance (e.g. UpstashDriver, CloudExporter) via the exporter= argument."
-                )
-            return ExporterStep(exporter)
         return None
 
     def build_step(self, step_name: StepName) -> Optional[Step]:

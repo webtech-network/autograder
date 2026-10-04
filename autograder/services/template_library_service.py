@@ -134,7 +134,12 @@ class TemplateLibraryService:
             "name": template.template_name,
             "description": template.template_description,
             "requires_sandbox": template.requires_sandbox,
-            "available_tests": list(template.tests.keys()) if hasattr(template, 'tests') else []
+            "available_tests": list(template.get_tests()),
+            "evaluators": [{"identifier": identifier,
+                            "description": function.description,
+                            "parameters_schema": {**function.config_schema.model_json_schema(), "additionalProperties": False},
+                            "requires_sandbox": template.requires_sandbox}
+                           for identifier, function in template.get_tests().items()]
         }
 
         return info

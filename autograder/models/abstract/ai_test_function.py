@@ -6,6 +6,7 @@ from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.utils.executors.ai_executor import AiExecutor, TestInput
 from sandbox_manager.sandbox_container import SandboxContainer
+from autograder.models.evaluation_error import EvaluationError
 
 
 class AiTestFunction(TestFunction):
@@ -44,14 +45,19 @@ class AiTestFunction(TestFunction):
 
         When ``AiBatchStep`` has already produced results, ``GraderService`` injects
         them as the ``pre_computed_results`` kwarg. This method looks up its own
-        test name in that dict and returns the result directly. If the dict is
+        criterion ID in that dict and returns the result directly. If the dict is
         absent (standalone usage), it falls back to ``_run_single()``.
         """
         # args is not used in AI tests as parameters are in kwargs
         _ = args
         pre_computed: Optional[Dict[str, TestResult]] = kwargs.get("pre_computed_results")
-        if pre_computed is not None and self.name in pre_computed:
-            return pre_computed[self.name]
+        criterion_id = kwargs.get("criterion_id")
+        if not criterion_id:
+            raise EvaluationError("INVALID_DEFINITION", "An AI criterion has no identity.", "definition")
+        if pre_computed is not None:
+            if criterion_id not in pre_computed:
+                raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
+            return pre_computed[criterion_id]
 
         return self._run_single(files, *args, **kwargs)
 
@@ -71,16 +77,10 @@ class AiTestFunction(TestFunction):
         locale: str = kwargs.get("locale", "en")
         prompt = self.build_prompt(files, **kwargs)
         submission_files = {f.filename: f.content for f in files} if files else {}
-        test_inputs = [TestInput(test_name=self.name, prompt=prompt)]
+        criterion_id = kwargs["criterion_id"]
+        test_inputs = [TestInput(test_name=criterion_id, prompt=prompt)]
 
         results = AiExecutor().run(test_inputs, submission_files, locale)
-        return results.get(
-            self.name,
-            TestResult(
-                test_name=self.name,
-                score=0,
-                report="AI evaluation produced no result.",
-                subject_name="",
-                parameters={},
-            ),
-        )
+        if criterion_id not in results:
+            raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
+        return results[criterion_id]

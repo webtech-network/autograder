@@ -1,8 +1,0 @@
-{
-  "runtime_image": "node:18-alpine",
-  "container_port": 8000,
-  "start_command": "node server.js",
-  "commands": {
-    "install_dependencies": "npm install"
-  }
-}

@@ -14,10 +14,10 @@ import sys
 from pathlib import Path
 
 # Add project root to path
-project_root = Path(__file__).parent.parent.parent.parent
+project_root = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(project_root))
 
-from autograder.models.config.criteria import CriteriaConfig
+from autograder import compile_definition
 
 
 def validate_criteria_file(filepath: Path) -> tuple[bool, str]:
@@ -27,7 +27,7 @@ def validate_criteria_file(filepath: Path) -> tuple[bool, str]:
             data = json.load(f)
 
         # Validate using Pydantic model
-        config = CriteriaConfig.from_dict(data)
+        config = compile_definition(data).definition.criteria
 
         # Count tests
         def count_tests(obj):
@@ -52,7 +52,7 @@ def validate_criteria_file(filepath: Path) -> tuple[bool, str]:
 
 
 def main():
-    examples_dir = Path(__file__).parent / "criteria_examples"
+    examples_dir = Path(__file__).resolve().parents[1] / "criteria_examples"
 
     if not examples_dir.exists():
         print("Error: criteria_examples directory not found")

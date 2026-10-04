@@ -1,60 +1,37 @@
-# Pipeline Architecture
+# Grading pipeline
 
-## What it is
-
-The Autograder pipeline is the execution backbone that turns one submission into a complete grading result.
-
-Every run follows a fixed order built by `build_pipeline()`:
+`build_pipeline(definition=...)` compiles and normalizes the versioned definition
+before execution. Compilation resolves evaluator implementations and validates
+all structural/parameter/language requirements without requesting infrastructure
+or providers. The host can pass exact definition provenance and trusted template
+implementations. Invalid definitions never reach evaluation.
 
 ```text
-LOAD_TEMPLATE -> BUILD_TREE -> SANDBOX -> PRE_FLIGHT -> AI_BATCH -> GRADE -> FOCUS -> FEEDBACK? -> EXPORT?
+LOAD_TEMPLATE -> BUILD_TREE -> SANDBOX? -> PRE_FLIGHT? -> AI_BATCH?
+              -> STRUCTURAL_ANALYSIS -> GRADE -> FOCUS -> FEEDBACK?
 ```
 
-`FEEDBACK` and `EXPORT` are optional, based on configuration.
+`AutograderPipeline.run(submission)` selects the definition's language, creates
+an internal `PipelineExecution`, and executes the configured steps. Typed
+accessors expose intermediate resources to later steps. AI batches bind outputs
+to criterion IDs, including repeated uses of the same evaluator.
 
-## Why it matters
+A required step/evaluator failure stops assessment and produces a failed outcome
+with null score/tree. Student compilation/runtime/timeouts reported by an I/O
+evaluator are assessed criterion failures. Focus and feedback are optional
+enrichment: their failure preserves any completed grade and records an
+independent feedback failure.
 
-- It keeps grading deterministic and debuggable.
-- It separates concerns: each step has one responsibility.
-- It makes extension safer: new behaviors can be added as steps, not scattered conditionals.
+Resource cleanup runs in `finally`, then finalization builds the immutable
+versioned `execution.outcome`. The pipeline returns after cleanup, even when
+steps or finalization fail. `execution.result` contains a completed internal
+`GradingResult` or is `None` on failed grading. It is not an integration payload.
 
-## How it works
+The hosting adapter serializes the finalized outcome, persists or publishes it,
+and owns delivery retries. There is no exporter step or publisher argument to
+the engine. Publishing twice never requires grading twice, and publication
+failure cannot turn completed grading into a failed student grade.
 
-1. `AutograderPipeline.run(submission)` creates a `PipelineExecution`.
-2. Each step receives the same `PipelineExecution` and appends one `StepResult`.
-3. If a step fails, execution stops early.
-4. `finish_execution()` assembles `GradingResult` from grade/focus/feedback artifacts.
-5. Sandbox cleanup runs at the end and destroys any sandbox used by the submission.
-
-## Core data contract
-
-`PipelineExecution` is the shared contract between steps:
-
-- Submission data (`submission`)
-- Ordered step outputs (`step_results`)
-- Runtime status (`status`)
-- Final result (`result`)
-
-Typed accessors such as `get_loaded_template()`, `get_built_criteria_tree()`, `get_result_tree()`, and `get_focus()` prevent ad-hoc data access in step implementations.
-
-## Example mental model
-
-Think of the pipeline as a production line:
-
-- **Load Template** chooses the toolset
-- **Build Tree** builds the rubric structure
-- **Sandbox + Pre-Flight** prepares a safe execution environment
-- **Grade** produces raw scoring results
-- **Focus + Feedback** convert scoring into learning guidance
-
-## Common mistakes
-
-- Treating steps as independent services without respecting step order dependencies
-- Generating feedback without focus data
-- Documenting only successful flow and skipping fail-fast behavior
-
-## Continue reading
-
-- [Pipeline Deep Dive](../pipeline/README.md)
-- [Pipeline Execution Tracking](../architecture/pipeline_execution_tracking.md)
-- [Feedback Generation](feedback-generation.md)
+Read the [definition decisions](../contracts/DECISIONS.md),
+[terminal outcome/failure matrix](../contracts/OUTCOMES.md), and
+[internal diagnostics](../architecture/pipeline_execution_tracking.md).

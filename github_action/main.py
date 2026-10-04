@@ -1,285 +1,144 @@
-"""
-GitHub Action Adapter for Autograder.
-
-This module provides the entry point for the GitHub Action adapter that integrates
-with the autograder workflow to process student submissions and generate feedback.
-"""
-
+"""Grade one checkout, retain its outcome, then optionally publish it."""
+import argparse
+import json
 import logging
 import os
-import time
-from dotenv import load_dotenv
-from argparse import ArgumentParser
-from .github_action_service import GithubActionService
-from autograder.autograder import AutograderPipeline
+from pathlib import Path
+
 from autograder.models.dataclass.submission import SubmissionFile
-import asyncio
+from autograder.models.contracts.definition import DefinitionValidationError
+from autograder.models.contracts.outcome import validate_outcome
+from github_action.cloud_client import CloudClient, CloudClientError, CloudConnectionError
+from github_action.github_action_service import GithubActionService
 
 logger = logging.getLogger(__name__)
-
-parser = ArgumentParser(description="GitHub Action Adapter for Autograder")
-parser.add_argument("--github-token", type=str, required=True, help="GitHub Token")
-parser.add_argument(
-    "--template-preset",
-    type=str,
-    required=True,
-    help="The grading preset to use (e.g., api, html, python, etc.)",
-)
-parser.add_argument(
-    "--student-name", type=str, required=True, help="The name of the student"
-)
-parser.add_argument(
-    "--feedback-type",
-    type=str,
-    default="default",
-    help="The type of feedback to provide (default or ai)",
-)
-parser.add_argument(
-    "--custom-template",
-    type=str,
-    required=False,
-    help="Test Files for the submission (in case of custom preset)",
-)
-parser.add_argument("--app-token", type=str, required=False, help="GitHub App Token")
-parser.add_argument(
-    "--openai-key",
-    type=str,
-    required=False,
-    help="OpenAI API key for AI feedback (required only for AI feedback mode)",
-)
-parser.add_argument(
-    "--include-feedback",
-    type=str,
-    required=False,
-    help="Whether to include/generate feedback (true/false).",
-)
-parser.add_argument(
-    "--execution-mode",
-    type=str,
-    default="repo",
-    choices=["repo", "external"],
-    help="Execution mode: 'repo' (default) uses repository config; 'external' loads config from the Autograder Cloud.",
-)
-parser.add_argument(
-    "--grading-config-id",
-    type=str,
-    required=False,
-    help="Grading configuration ID from the Autograder Cloud. Required when execution-mode is 'external'.",
-)
-parser.add_argument(
-    "--autograder-cloud-url",
-    type=str,
-    required=False,
-    help="Base URL of the Autograder Cloud instance. Required when execution-mode is 'external'.",
-)
-parser.add_argument(
-    "--autograder-cloud-token",
-    type=str,
-    required=False,
-    help="Authentication token for the Autograder Cloud API. Required when execution-mode is 'external'.",
-)
-parser.add_argument(
-    "--submission-language",
-    type=str,
-    required=False,
-    default=None,
-    help=(
-        "Programming language of the student submission (e.g. 'python', 'java'). "
-        "Validated against the grading config's supported languages. "
-        "Defaults to the first language in the config when omitted."
-    ),
-)
-parser.add_argument(
-    "--locale",
-    type=str,
-    required=False,
-    default="en",
-    help="Locale for feedback messages (e.g. 'en', 'pt-br'). Defaults to 'en'.",
-)
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--execution-mode", choices=("repo", "external"), default="repo")
+parser.add_argument("--definition-path", default=".github/autograder/definition.json")
+parser.add_argument("--submission-root", default=".")
+parser.add_argument("--student-name", default=os.getenv("GITHUB_ACTOR", "local"))
+parser.add_argument("--submission-language")
+parser.add_argument("--locale", choices=("en", "pt-br"), default="en")
+parser.add_argument("--grading-config-id", type=int)
+parser.add_argument("--autograder-cloud-url")
+parser.add_argument("--autograder-cloud-token")
+parser.add_argument("--upload-to-cloud", choices=("true", "false"), default="false")
+parser.add_argument("--retry-delivery-path")
 
 
-async def main():
-    """
-    This is the entry point for the GitHub Action adapter.
-    This makes the Adapter accessible to the GitHub Action workflow,
-    that runs by entrypoint.sh script with all arguments passed to it.
-    """
-
-    load_dotenv()  # Load environment variables from .env file if present
-
-    success_execution = False
-    try:
-        args = __parser_values()
-
-        if args.template_preset == "custom":
-            raise SystemExit("Currently, this system does not accept custom templates.")
-
-        include_feedback = __has_feedback(args.include_feedback)
-
-        if args.openai_key:
-            os.environ["OPENAI_API_KEY"] = args.openai_key
-
-        service = GithubActionService(args.github_token, args.app_token)
-
-        if args.execution_mode == "external":
-            __run_external_mode(args, service)
-        else:
-            pipeline = __build_pipeline(args, include_feedback, service)
-            __retrieve_grading_score(args, service, pipeline)
-
-        success_execution = True
-    except ValueError as e:
-        logger.error("Invalid value provided: %s", e)
-    except SystemExit as e:
-        logger.critical(e)
-    except Exception as e:
-        logger.error(e, exc_info=True)
-    finally:
-        if not success_execution:
-            raise SystemExit(1)
+def workspace_path(value):
+    path = Path(value)
+    return path if path.is_absolute() else Path(os.getenv("GITHUB_WORKSPACE", ".")) / path
 
 
-def __run_external_mode(args, service: GithubActionService):
-    """
-    Execute the grading pipeline using configuration fetched from the Autograder Cloud.
-
-    If grading fails after the pipeline is built, a failure payload is submitted
-    to the cloud before re-raising the exception so the cloud records a terminal
-    state for the submission.
-
-    Args:
-        args: Parsed command-line arguments containing cloud connection parameters.
-        service (GithubActionService): The GitHub Action service instance.
-    """
-    logger.info(
-        "Running in external mode with config ID '%s' from '%s'.",
-        args.grading_config_id,
-        args.autograder_cloud_url,
-    )
-    start_time = time.time()
-    pipeline = service.autograder_pipeline_from_cloud(
-        args.grading_config_id,
-        args.autograder_cloud_url,
-        args.autograder_cloud_token,
-        args.feedback_type,
-        args.student_name,
-        args.submission_language,
-        args.locale,
-    )
-    try:
-        __retrieve_grading_score(args, service, pipeline)
-    except Exception as exc:
-        execution_time_ms = int((time.time() - start_time) * 1000)
-        logger.error("Grading failed in external mode; submitting failure payload: %s", exc)
-        service.submit_failure_to_cloud(str(exc), execution_time_ms)
-        raise
-
-
-def __retrieve_grading_score(
-    args, service: GithubActionService, pipeline: AutograderPipeline
-):
-    grading_result = service.run_autograder(
-        pipeline,
-        args.student_name,
-        __get_submission_files(),
-    ).result
-    if grading_result is None:
-        raise RuntimeError("Failed to get grading result: autograder returned None")
-    logger.info("Final Score for %s: %s", args.student_name, grading_result.final_score)
-
-    github_output = os.getenv("GITHUB_OUTPUT")
-    if github_output:
-        with open(github_output, "a", encoding="utf-8") as fh:
-            fh.write(f"total_score={grading_result.final_score}\n")
-
-    return grading_result
-
-
-def __get_submission_files():
-    """
-    Collect all files from the submission directory, skipping .git and .github.
-
-    Returns:
-        dict: A dictionary mapping relative file paths to their contents.
-    """
-    base_path = os.getenv("GITHUB_WORKSPACE", ".")
-    submission_path = os.path.join(base_path, "submission")
-    submission_files_dict = {}
-
-    for root, dirs, files in os.walk(submission_path):
-        if ".git" in dirs:
-            dirs.remove(".git")
-        if ".github" in dirs:
-            dirs.remove(".github")
-        for file in files:
-            file_path = os.path.join(root, file)
-            relative_path = os.path.relpath(file_path, submission_path)
-
+def collect_files(root):
+    root = Path(root)
+    if not root.is_dir():
+        raise ValueError("submission-root must be an existing readable directory.")
+    files = {}
+    for directory, directories, filenames in os.walk(root):
+        directories[:] = sorted(d for d in directories if d not in (".git", ".github", ".autograder"))
+        for name in sorted(filenames):
+            path = Path(directory) / name
+            filename = path.relative_to(root).as_posix()
             try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    submission_files_dict[relative_path] = SubmissionFile(
-                        filename=relative_path, content=f.read()
-                    )
-            except OSError as e:
-                logger.warning("Could not read file %s: %s", file_path, e)
-
-    return submission_files_dict
-
-
-def __build_pipeline(args, include_feedback: bool, service: GithubActionService):
-    pipeline = service.autograder_pipeline(
-        args.template_preset, include_feedback, args.feedback_type
-    )
-    logger.info("Assignment config created: %s", pipeline)
-    return pipeline
+                content = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                raise ValueError(f"Submission file is not readable UTF-8 text: {filename}") from exc
+            files[filename] = SubmissionFile(filename=filename, content=content)
+    if not files:
+        raise ValueError("submission-root contains no submission files.")
+    return files
 
 
-def __parser_values():
-    args = parser.parse_args()
+def write_json(path, value):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
 
-    if not args.app_token:
-        args.app_token = args.github_token
 
-    if args.feedback_type == "ai" and not args.openai_key:
-        raise ValueError(
-            "OpenAI API key is required for AI feedback mode in GitHub Actions. Please configure OPENAI_API_KEY as a secret."
-        )
+def output(key, value):
+    if os.getenv("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+            handle.write(f"{key}={value}\n")
 
-    if args.execution_mode == "external":
-        if not args.grading_config_id:
-            raise ValueError(
-                "grading-config-id is required when execution-mode is 'external'."
-            )
+
+def retain_outcome(value):
+    value = validate_outcome(value).model_dump(mode="json")
+    result_path = workspace_path(".autograder/outcome.json")
+    write_json(result_path, value)
+    output("status", value["status"])
+    if value.get("score") is not None:
+        output("score", value["score"])
+    output("result-path", ".autograder/outcome.json")
+    feedback = value.get("feedback", {})
+    if isinstance(feedback, dict) and feedback.get("content"):
+        result_path.with_name("feedback.md").write_text(feedback["content"], encoding="utf-8")
+    if os.getenv("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+            handle.write("## Autograder\n\n")
+            handle.write(f"Status: {value['status']}\n\n")
+            if value.get("score") is not None:
+                handle.write(f"Score: {value['score']}/100\n\n")
+            handle.write("Canonical outcome: `.autograder/outcome.json`.\n")
+    return result_path
+
+
+def run(args):
+    wants_delivery = args.upload_to_cloud == "true" or bool(args.retry_delivery_path)
+    if args.execution_mode == "external" or wants_delivery:
+        if not args.autograder_cloud_url or not args.autograder_cloud_token:
+            raise ValueError("Cloud URL and token are required for cloud configuration or publication.")
+        if not args.retry_delivery_path and (args.grading_config_id is None or args.grading_config_id <= 0):
+            raise ValueError("A positive grading-config-id is required for cloud configuration or publication.")
+    if args.retry_delivery_path:
+        payload = json.loads(workspace_path(args.retry_delivery_path).read_text(encoding="utf-8"))
+        # The server validates the saved attestation. Do not rerun evaluation.
+        retain_outcome(payload["outcome"])
+        client = CloudClient(args.autograder_cloud_url, args.autograder_cloud_token)
         try:
-            args.grading_config_id = int(args.grading_config_id)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                "grading-config-id must be an integer when execution-mode is 'external'."
-            ) from exc
-        if not args.autograder_cloud_url:
-            raise ValueError(
-                "autograder-cloud-url is required when execution-mode is 'external'."
-            )
-        if not args.autograder_cloud_token:
-            raise ValueError(
-                "autograder-cloud-token is required when execution-mode is 'external'."
-            )
+            response = client.submit_external_result(payload)
+        except Exception as exc:
+            raise RuntimeError("Result delivery failed; the grading artifact is retained.") from exc
+        if response.get("submission_id") is not None:
+            output("submission-id", response["submission_id"])
+        return payload["outcome"]["status"] == "completed"
+    service = GithubActionService()
+    pipeline = service.configure(
+        definition_path=workspace_path(args.definition_path), execution_mode=args.execution_mode,
+        grading_config_id=args.grading_config_id, cloud_url=args.autograder_cloud_url,
+        cloud_token=args.autograder_cloud_token, upload_to_cloud=wants_delivery,
+        language=args.submission_language, locale=args.locale,
+    )
+    outcome = service.run_autograder(pipeline, args.student_name, collect_files(workspace_path(args.submission_root)))
+    value = outcome.model_dump(mode="json")
+    result_path = retain_outcome(value)
+    if value["status"] == "failed":
+        logger.error("Grading failed: %s (%s)", value["error"]["message"], value["error"]["code"])
+    payload = service.delivery_payload(outcome, args.student_name)
+    if payload is not None:
+        write_json(result_path.with_name("delivery.json"), payload)
+        try:
+            response = service.publish(payload)
+        except Exception as exc:
+            raise RuntimeError("Result delivery failed; the grading artifact and delivery.json are retained.") from exc
+        if response.get("submission_id") is not None:
+            output("submission-id", response["submission_id"])
+    return value["status"] == "completed"
 
-    return args
 
-
-def __has_feedback(args_feedback: str | None):
-    include_feedback = False
-    if args_feedback is not None:
-        val = str(args_feedback).strip().lower()
-        if val not in ("true", "false"):
-            raise ValueError(
-                "Invalid value for --include-feedback. Allowed values: 'true' or 'false'."
-            )
-        include_feedback = val == "true"
-    return include_feedback
+def main(argv=None):
+    args = parser.parse_args(argv)
+    try:
+        if not run(args):
+            raise SystemExit(1)
+    except DefinitionValidationError as exc:
+        logger.error("Invalid grading definition: %s", json.dumps(exc.errors(), ensure_ascii=False))
+        raise SystemExit(1) from exc
+    except (ValueError, OSError, RuntimeError, KeyError, CloudClientError, CloudConnectionError) as exc:
+        logger.error("%s", exc)
+        raise SystemExit(1) from exc
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    asyncio.run(main())
+    main()

@@ -104,5 +104,6 @@ def test_finish_execution_missing_feedback_content():
     pipeline_exec.add_step_result(StepResult(step=StepName.FOCUS, data=focus, status=StepStatus.SUCCESS))
     pipeline_exec.add_step_result(StepResult(step=StepName.FEEDBACK, data=None, status=StepStatus.FAIL))
     
-    with pytest.raises(ValueError, match="Feedback step exists but produced no feedback content"):
-        pipeline_exec.finish_execution()
+    pipeline_exec.finish_execution()
+    assert pipeline_exec.result.final_score == 100
+    assert pipeline_exec.result.feedback is None

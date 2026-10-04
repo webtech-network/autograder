@@ -90,11 +90,9 @@ async def test_rich_repository_metadata_survives_hydration_and_grader_passthroug
     request = GradingRequest(
         submission_id=10,
         grading_config_id=20,
-        template_name="static_analysis",
-        criteria_config={"base": {}},
-        setup_config={},
-        feedback_config={},
-        include_feedback=False,
+        definition={},  # Pipeline construction is mocked; this test exercises metadata hydration.
+        configuration_version=1,
+        definition_hash="0" * 64,
         language="python",
         username="repository-user",
         external_user_id="external-user",
@@ -132,9 +130,7 @@ async def test_rich_repository_metadata_survives_hydration_and_grader_passthroug
     )
 
     assert stored_submission_files == original_stored_data
-    assert hydrated_submission.evaluation_scope.scoped_files == [
-        "service/payment.py"
-    ]
+    assert hydrated_submission.evaluation_scope.scoped_files == ["service/payment.py"]
 
     target_file = hydrated_submission.submission_files["service/payment.py"]
     assert target_file.changed_lines == {1, 2}
@@ -142,7 +138,10 @@ async def test_rich_repository_metadata_survives_hydration_and_grader_passthroug
     assert target_file.metadata is repository_file_metadata
 
     assert capturing_test.files == [target_file]
-    assert capturing_test.kwargs["evaluation_scope"] is hydrated_submission.evaluation_scope
+    assert (
+        capturing_test.kwargs["evaluation_scope"]
+        is hydrated_submission.evaluation_scope
+    )
     assert capturing_test.kwargs["file_metadata"] == {
         "service/payment.py": repository_file_metadata,
     }

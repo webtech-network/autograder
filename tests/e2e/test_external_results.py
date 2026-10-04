@@ -1,41 +1,45 @@
+"""External attestation preserves the exact schema produced by local grading."""
+from copy import deepcopy
 import requests
-import pytest
 
-def test_external_results_ingestion(api_base_url, auth_headers):
-    config_id = "external-results-test"
-    config_payload = {
-        "external_assignment_id": config_id,
-        "template_name": "input_output",
-        "languages": ["python"],
-        "criteria_config": {
-            "base": {"tests": []}
-        }
-    }
-    response = requests.post(f"{api_base_url}/configs", json=config_payload, headers=auth_headers)
-    assert response.status_code in [200, 201, 400]
-    config_data = response.json()
-    internal_config_id = config_data["id"]
-    
-    external_payload = {
-        "grading_config_id": internal_config_id,
-        "external_user_id": "user-external",
-        "username": "student-external",
-        "language": "python",
-        "status": "completed",
-        "final_score": 85.0,
-        "result_tree": {"manual_check": "passed"},
-        "execution_time_ms": 1200,
-        "submission_metadata": {"source": "github-action"}
-    }
-    
-    response = requests.post(f"{api_base_url}/submissions/external-results", json=external_payload, headers=auth_headers)
-    assert response.status_code in [200, 201]
-    data = response.json()
-    assert data["status"] == "completed"
-    assert data["final_score"] == 85.0
-    
-    # Verify it appears in history
-    response = requests.get(f"{api_base_url}/submissions/user/user-external", headers=auth_headers)
-    assert response.status_code == 200
-    history = response.json()
-    assert any(sub["grading_config_id"] == internal_config_id for sub in history)
+from autograder.autograder import build_pipeline
+from autograder.models.contracts.provenance import DefinitionProvenance
+from autograder.models.dataclass.submission import Submission, SubmissionFile
+from sandbox_manager.models.sandbox_models import Language
+from tests.e2e.contracts import create_config, poll
+
+
+def attestation(config):
+    pipeline = build_pipeline(definition=config["definition"], provenance=DefinitionProvenance(
+        definition_hash=config["definition_hash"], reference=str(config["id"]), revision=config["version"]))
+    execution = pipeline.run(Submission(username="external", user_id="external", assignment_id=config["id"],
+        language=Language.PYTHON, submission_files={"main.py": SubmissionFile("main.py", "pass")}))
+    return {"grading_config_id": config["id"], "definition_snapshot": config["definition"],
+        "external_user_id": "external-user", "username": "external", "language": "python",
+        "outcome": execution.outcome.model_dump(mode="json"), "submission_metadata": {"source": "action"}}
+
+
+def test_external_results_ingestion_preserves_exact_outcome(api_base_url, auth_headers):
+    config = create_config(api_base_url, auth_headers)
+    payload = attestation(config)
+    response = requests.post(api_base_url + "/submissions/external-results", json=payload, headers=auth_headers, timeout=5)
+    assert response.status_code == 200, response.text
+    result = poll(api_base_url, auth_headers, response.json()["submission_id"])
+    assert result["outcome"] == payload["outcome"]
+    assert result["submission_metadata"] == {"source": "action"}
+    history = requests.get(api_base_url + "/submissions", params={"external_user_id": "external-user", "grading_config_id": config["id"]},
+        headers=auth_headers, timeout=5).json()
+    assert history[0]["final_score"] == payload["outcome"]["score"]
+    assert "submission_files" not in history[0] and "outcome" not in history[0]
+
+
+def test_invalid_external_score_and_definition_hash_are_rejected(api_base_url, auth_headers):
+    config = create_config(api_base_url, auth_headers)
+    payload = attestation(config)
+    bad = deepcopy(payload)
+    bad["outcome"]["score"] = 150
+    assert requests.post(api_base_url + "/submissions/external-results", json=bad, headers=auth_headers, timeout=5).status_code == 422
+    bad = deepcopy(payload)
+    bad["outcome"]["provenance"]["definition_hash"] = "0" * 64
+    assert requests.post(api_base_url + "/submissions/external-results", json=bad, headers=auth_headers, timeout=5).status_code == 422
+    assert requests.post(api_base_url + "/submissions/external-results", json=payload, timeout=5).status_code == 401

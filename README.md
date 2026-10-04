@@ -98,12 +98,15 @@ Each step is designed to maintain educational standards while providing maximum 
 ### For Developers
 
 - **REST API**: Modern FastAPI-based web service
-- **GitHub Action**: Seamless integration with GitHub Classroom
+- **GitHub Action**: One-submission CI grading with canonical result artifacts
 - **Extensible Architecture**: Pipeline-based design for easy customization
 - **Multiple Languages**: Python, Java, JavaScript/Node.js, C++ support
-- **Custom Templates**: Upload your own grading logic for specialized contexts
+- **Custom Templates**: Supply trusted Python evaluator implementations
 
 ---
+
+Read the [versioned definition contract](docs/contracts/DEFINITIONS.md) and
+[terminal outcome contract](docs/contracts/OUTCOMES.md) before integrating.
 
 ## Architecture
 
@@ -116,18 +119,12 @@ The Autograder uses a **pipeline architecture** that processes submissions throu
 The system is built around **AutograderPipeline** - a stateless, reusable grading workflow.
 
 ```python
-# Build a pipeline (configuration-driven)
-pipeline = build_pipeline(
-    template_name="input_output",
-    include_feedback=True,
-    grading_criteria=criteria_config,
-    feedback_config=feedback_settings,
-    setup_config={"required_files": ["main.py"]},
-    feedback_mode="ai"
-)
+from autograder import build_pipeline
 
-# Execute pipeline (reusable for any submission)
-result = pipeline.run(submission)
+# One versioned grading definition, compiled before execution.
+pipeline = build_pipeline(definition=definition_json)
+execution = pipeline.run(submission)
+outcome = execution.outcome.model_dump(mode="json")
 ```
 
 #### Criteria Tree
@@ -319,37 +316,26 @@ Includes endpoints for:
 
 ## GitHub Action
 
-The Autograder GitHub Action runs the grading pipeline in GitHub Actions and reports results to GitHub Classroom.
-
-### Quick usage
+The Autograder GitHub Action grades one ordinary checkout and writes a versioned
+outcome artifact and workflow summary. Cloud publication is optional and happens
+after grading completes. Repository write permissions are unnecessary.
 
 ```yaml
-name: Autograder
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-
 jobs:
-  grading:
-    permissions: write-all
+  assess:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
-    if: github.actor != 'github-classroom[bot]'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: webtech-network/autograder@main
         with:
-          path: submission
-
-      - name: Run Autograder
-        uses: webtech-network/autograder@main
+          definition-path: .github/autograder/definition.json
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          template-preset: "webdev"
-          feedback-type: "default"
-          include-feedback: "true"
-          openai-key: ${{ secrets.ENGINE }}
+          name: grading-outcome
+          path: .autograder/
 ```
 
 ### Learn more

@@ -7,6 +7,7 @@ from autograder.services.pre_flight_service import PreFlightService
 from autograder.translations import t
 from autograder.models.config.setup import SetupConfig
 from autograder.services.assets.resolver import AssetSourceResolver
+from autograder.models.evaluation_error import EvaluationError
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class PreFlightStep(Step):
     def __init__(self, setup_config):
         self._setup_config = SetupConfig.from_dict(setup_config)
         self._pre_flight_service = None
-        self._asset_resolver = AssetSourceResolver() if self._setup_config.assets else None
+        self._asset_resolver = None
 
     @property
     def step_name(self) -> StepName:
@@ -66,23 +67,16 @@ class PreFlightStep(Step):
         sandbox = pipeline_exec.sandbox
         if self._setup_config.assets:
             if not sandbox:
-                error_msg = t("preflight.error.setup_command_missing_sandbox", locale=pipeline_exec.locale)
-                return pipeline_exec.add_step_result(StepResult.fail(
-                    step=self.step_name,
-                    error=error_msg
-                ))
+                raise EvaluationError("CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.", "capability", True)
 
             logger.info("Injecting assets into sandbox (external_user_id=%s)", pipeline_exec.submission.user_id)
             try:
+                self._asset_resolver = AssetSourceResolver()
                 resolved_assets = self._asset_resolver.resolve_assets(self._setup_config.assets)
                 sandbox.inject_assets(resolved_assets)
             except Exception as e:  # pylint: disable=broad-exception-caught
-                error_msg = f"Failed to inject assets: {str(e)}"
-                logger.error("Asset injection failed (external_user_id=%s): %s", pipeline_exec.submission.user_id, error_msg)
-                return pipeline_exec.add_step_result(StepResult.fail(
-                    step=self.step_name,
-                    error=error_msg
-                ))
+                logger.exception("Asset preparation failed")
+                raise EvaluationError("PREPARATION_ERROR", "Assignment assets could not be prepared.", "capability", True) from e
 
         # 3. Check setup commands (requires sandbox from a previous step)
 
@@ -92,10 +86,7 @@ class PreFlightStep(Step):
                 # If SandboxStep was skipped but we have commands, we must report an error.
                 error_msg = t("preflight.error.missing_sandbox", locale=pipeline_exec.locale)
                 logger.error("Sandbox required for setup commands but was not found in pipeline execution.")
-                return pipeline_exec.add_step_result(StepResult.fail(
-                    step=self.step_name,
-                    error=error_msg
-                ))
+                raise EvaluationError("CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.", "capability", True)
 
             logger.info("Running setup commands in sandbox (external_user_id=%s)", pipeline_exec.submission.user_id)
             setup_ok = self._pre_flight_service.check_setup_commands(sandbox)

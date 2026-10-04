@@ -173,25 +173,18 @@ These items address inconsistencies, dead code, and patterns that make the codeb
 
 #### Item 14: Clean Up `print()` Statements in Production Code
 
-- **Files:** `autograder/utils/executors/ai_executor.py`, `autograder/services/upstash_driver.py`, `autograder/services/template_library_service.py`
+- **Files:** `autograder/utils/executors/ai_executor.py`, `autograder/services/template_library_service.py`
 - **Problem:** Several files use `print()` for output instead of the logging framework:
   - `AiExecutor`: 8+ `print()` calls for debugging AI responses (`"Sending AI engine batch request..."`, `"Found matching TestResult for AI result:"`, etc.)
-  - `UpstashDriver`: `print(f"User '{username}' created.")`, `print(f"Score '{score}' set...")`
   - `TemplateLibraryService._load_all_templates()`: `print(f"Warning: Failed to load template...")`
 - **Impact:** `print()` output goes to stdout with no level, timestamp, or source information. It can't be filtered, routed, or suppressed in production. It also mixes with structured log output.
 - **Action:**
   - Replace all `print()` calls with appropriate `logger.info()`, `logger.debug()`, or `logger.warning()` calls using the module's logger.
 
-#### Item 15: Decouple `UpstashDriver` from Global Environment Loading
+#### Item 15: Result sink environment loading — retired
 
-- **File:** `autograder/services/upstash_driver.py`
-- **Problem:** The file calls `load_dotenv()` at module import time (line 6), outside any function or class. This means importing the module has the side effect of loading `.env` into the process environment. The TODO comment acknowledges this: "place this in application startup."
-- **Impact:** Module-level side effects make testing unpredictable and can interfere with other modules' environment expectations. It also means the `.env` file is loaded even if `UpstashDriver` is never instantiated.
-- **Action:**
-  - Remove the module-level `load_dotenv()` call.
-  - Ensure environment loading happens once at application startup (in `web/core/lifespan.py` or the GitHub Action's `main.py`).
-  - Consider making `UpstashDriver.__init__()` accept the Redis URL and token as constructor parameters instead of reading from `os.getenv()` directly, enabling dependency injection and testability.
-
+The unused sink and credentials are removed by #370. No relocation or
+replacement service is needed.
 
 #### Item 16: Standardize the `Template` Abstract Class Contract
 
@@ -212,23 +205,18 @@ These items prepare the codebase for future growth by establishing patterns and 
 #### Item 17: Introduce a Step Registry Pattern for Pipeline Construction
 
 - **File:** `autograder/autograder.py`
-- **Problem:** `build_pipeline()` is a 60-line function with conditional logic for each optional step (pre-flight, feedback, export). Adding a new step requires modifying this function, understanding the ordering constraints, and knowing which services to instantiate. The function also hardcodes service instantiation (e.g., `FocusService()`, `ReporterService(feedback_mode)`, `UpstashDriver`).
+- **Problem:** `build_pipeline()` is a 60-line function with conditional logic for each optional step (pre-flight, feedback, export). Adding a new step requires modifying this function, understanding the ordering constraints, and knowing which services to instantiate. The function also hardcodes service instantiation (e.g., `FocusService()`, `ReporterService(feedback_mode)`).
 - **Impact:** Pipeline construction is monolithic. There's no way to compose pipelines from configuration or to add steps without touching the builder function.
 - **Action:**
   - Create a `StepRegistry` that maps `StepName` to a factory function. Each factory receives the relevant config slice and returns a configured `Step` instance.
   - Refactor `build_pipeline()` to iterate over a list of desired step names and use the registry to instantiate them.
   - This makes it possible to define pipeline compositions declaratively (e.g., "this assignment uses steps: LOAD_TEMPLATE, BUILD_TREE, PRE_FLIGHT, GRADE, FOCUS, FEEDBACK") without modifying builder code.
 
-#### Item 18: Formalize the Exporter as a Plugin Interface
+#### Item 18: Result publication boundary — superseded by #370
 
-- **Files:** `autograder/steps/export_step.py`, `autograder/services/upstash_driver.py`, `github_action/github_action_service.py`
-- **Problem:** The `ExporterStep` receives an `exporter_service` but there's no abstract interface defining what an exporter must implement. `UpstashDriver` has `set_score()`, but the GitHub Action's `export_results()` has a completely different signature. The `build_pipeline()` function passes `UpstashDriver` (the class, not an instance) to `ExporterStep`, which means the step would need to instantiate it — but the step just calls `self._exporter_service.set_score()` directly, which would fail on a class reference.
-- **Impact:** There's no way to swap exporters without modifying the step. The GitHub Action has its own export path (`GithubActionService.export_results()`) that bypasses the pipeline's export step entirely.
-- **Action:**
-  - Define an `Exporter` ABC with a `export(user_id, score, feedback)` method.
-  - Make `UpstashDriver` implement this interface.
-  - Create a `GithubClassroomExporter` that wraps the GitHub Action's export logic.
-  - Fix `build_pipeline()` to pass an exporter instance (not a class reference).
+The former grading-step export interface is removed. Hosts receive a finalized
+terminal outcome and independently persist or publish it; delivery errors cannot
+invalidate grading. See [contract decisions](../contracts/DECISIONS.md).
 
 #### Item 19: Separate the `PipelineExecution` Summary Logic from the Model
 
@@ -249,7 +237,6 @@ These items prepare the codebase for future growth by establishing patterns and 
   - `GradeStep`: Catches all exceptions, returns `FAIL`.
   - `FocusStep`: Catches all exceptions, returns `FAIL`.
   - `FeedbackStep`: Catches all exceptions, returns `FAIL`.
-  - `ExporterStep`: Catches all exceptions, returns `FAIL`.
   The `original_input` field is set inconsistently — some steps set it, others don't. The pipeline's `run()` method also catches exceptions separately and sets `INTERRUPTED` status, creating a dual error-handling path.
 - **Impact:** Error handling is duplicated in every step with slight variations. The `original_input` field on `StepResult` is sometimes set and sometimes not, making it unreliable. The dual error path (step-level catch vs pipeline-level catch) means some errors are `FAIL` and others are `INTERRUPTED` with no clear semantic distinction.
 - **Action:**
@@ -291,10 +278,10 @@ These items prepare the codebase for future growth by establishing patterns and 
 | 12 | Remove dead code | 🟢 P3 | ⬜ To Do |
 | 13 | Consolidate required_file naming | 🟢 P3 | ⬜ To Do |
 | 14 | Replace print() with logging | 🟢 P3 | ⬜ To Do |
-| 15 | Decouple UpstashDriver env loading | 🟢 P3 | ⬜ To Do |
+| 15 | Result sink env loading (retired #370) | 🟢 P3 | ✅ Removed |
 | 16 | Standardize Template ABC | 🟢 P3 | ⬜ To Do |
 | 17 | Step registry pattern | 🔵 P4 | ✅ Done |
-| 18 | Formalize exporter plugin | 🔵 P4 | ✅ Done |
+| 18 | Publication boundary (#370) | 🔵 P4 | ✅ Adapter-owned |
 | 19 | Separate summary from model | 🔵 P4 | ✅ Done |
 | 20 | Consistent error handling | 🔵 P4 | ⬜ To Do |
 | 21 | Decouple AiExecutor batch | 🔵 P4 | ⬜ To Do |

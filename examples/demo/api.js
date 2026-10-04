@@ -23,7 +23,7 @@ async function getTemplate() {
         return;
     }
 
-    const result = await apiCall(`/api/v1/templates/${templateName}`);
+    const result = await apiCall(`/api/v1/templates/${encodeURIComponent(templateName)}`);
     displayResponse(result);
 }
 
@@ -40,7 +40,7 @@ async function getConfig() {
         return;
     }
 
-    const result = await apiCall(`/api/v1/configs/${assignmentId}`);
+    const result = await apiCall(`/api/v1/configs/${encodeURIComponent(assignmentId)}`);
     displayResponse(result);
 }
 
@@ -52,27 +52,10 @@ async function updateConfig() {
         return;
     }
 
-    // Example update payload
-    const payload = {
-        criteria: {
-            test_library: "input_output",
-            base: {
-                weight: 100,
-                tests: [
-                    {
-                        name: "expect_output",
-                        parameters: [
-                            { name: "inputs", value: ["5", "3"] },
-                            { name: "expected_output", value: "8" },
-                            { name: "program_command", value: "python calculator.py" }
-                        ]
-                    }
-                ]
-            }
-        }
-    };
-
-    const result = await apiCall(`/api/v1/configs/${configId}`, 'PUT', payload);
+    const current = await apiCall(`/api/v1/configs/id/${encodeURIComponent(configId)}`);
+    if (!current.ok) { displayResponse(current); return; }
+    const result = await apiCall(`/api/v1/configs/${encodeURIComponent(configId)}`, 'PATCH',
+        {is_active: true}, {'If-Match': `"${current.data.version}"`});
     displayResponse(result);
 }
 
@@ -96,7 +79,7 @@ async function getUserSubmissions() {
         return;
     }
 
-    const result = await apiCall(`/api/v1/submissions?user_id=${userId}`);
+    const result = await apiCall(`/api/v1/submissions?external_user_id=${encodeURIComponent(userId)}&limit=100&offset=0`);
     displayResponse(result);
 }
 

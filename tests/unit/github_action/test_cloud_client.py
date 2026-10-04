@@ -372,3 +372,12 @@ class TestJsonParsing:
             result = client.get_grading_config("cfg-1")
 
         assert result == {}
+
+
+def test_external_result_post_is_not_automatically_retried():
+    client = _make_client(max_retries=3)
+    with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("lost response")) as request, patch("time.sleep") as sleep:
+        with pytest.raises(CloudConnectionError, match="1 attempt"):
+            client.submit_external_result({"outcome": {"status": "completed"}})
+    assert request.call_count == 1
+    sleep.assert_not_called()

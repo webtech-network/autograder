@@ -1,14 +1,11 @@
-"""
-Autograder Package Initialization
+"""Small public Python interface for grading definitions and terminal results."""
+from autograder.autograder import build_pipeline
+from autograder.models.contracts.definition import (
+    CompiledDefinition, DefinitionValidationError, GradingDefinition,
+    compile_definition, grading_definition_json_schema, select_language,
+)
+from autograder.models.contracts.outcome import validate_outcome, outcome_json_schema
 
-This module initializes core services at application startup.
-"""
-
-from autograder.services.template_library_service import TemplateLibraryService
-
-# Initialize the singleton TemplateLibraryService at module import
-# This ensures all templates are loaded once at application startup
-_TEMPLATE_SERVICE = TemplateLibraryService.get_instance()
-
-__all__ = ['TemplateLibraryService']
-
+__all__ = ["build_pipeline", "compile_definition", "select_language", "validate_outcome",
+           "grading_definition_json_schema", "outcome_json_schema", "GradingDefinition",
+           "CompiledDefinition", "DefinitionValidationError"]

@@ -4,6 +4,7 @@ from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.criteria_tree_service import CriteriaTreeService
 from autograder.models.abstract.step import Step
 from autograder.models.config.criteria import CriteriaConfig
+from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.dataclass.step_result import StepResult, StepStatus, StepName
 
 logger = logging.getLogger(__name__)
@@ -41,14 +42,11 @@ class BuildTreeStep(Step):
             StepResult containing the built CriteriaTree
         """
         logger.info("Building criteria tree (external_user_id=%s)", pipeline_exec.submission.user_id)
-        # Validate criteria configuration
-        criteria_config = CriteriaConfig.from_dict(self._criteria_json)
-        templates = pipeline_exec.get_loaded_templates()
-        # Build the criteria tree with embedded test functions from multiple templates
-        criteria_tree = self._criteria_tree_service.build_tree(
-            criteria_config,
-            templates
-        )
+        if isinstance(self._criteria_json, CriteriaTree):
+            criteria_tree = self._criteria_json
+        else:
+            criteria_config = CriteriaConfig.from_dict(self._criteria_json)
+            criteria_tree = self._criteria_tree_service.build_tree(criteria_config, pipeline_exec.get_loaded_templates())
         logger.info(
             "Criteria tree built successfully (external_user_id=%s)",
             pipeline_exec.submission.user_id,

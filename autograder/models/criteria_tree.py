@@ -27,6 +27,7 @@ class TestNode:
     parameters: Dict[str, Any] = field(default_factory=dict)
     file_target: Optional[List[str]] = None
     weight: float = 100.0
+    criterion_id: str = ""
 
     def __repr__(self):
         params_str = f", params={self.parameters}" if self.parameters else ""

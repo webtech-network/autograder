@@ -1,77 +1,62 @@
 name: "Prisma Autograder"
 author: "Arthur Carvalho"
-description: "An autograding tool for GitHub Classroom. flexible,extensive,consistent and generates feedback."
-
-# Defines the inputs that the action can receive.
-# These are mapped to the arguments in the `runs` section below.
+description: "Grade one checkout from a versioned definition and retain a canonical outcome."
 inputs:
-  github-token:
-    description: "GitHub token for API access. Defaults to the token provided by GitHub Actions."
-    required: false
-    default: ${{ github.token }}
-  template-preset:
-    description: 'Defines the set of grading rules and point values to apply. To create your own grading preset, use "custom".'
-    required: true
-  feedback-type:
-    description: "The type or style of feedback to provide to the student (e.g., summary, detailed)."
-    required: true
-  custom-template:
-    description: 'Optional custom grading template in JSON format. Required if template-preset is set to "custom".'
-    required: false
-  openai-key:
-    description: "OpenAI API key for AI feedback. REQUIRED for AI feedback mode in GitHub Actions."
-    required: false
-  app-token:
-    description: "The application token for the autograder service."
-    required: false
-  include-feedback:
-    description: 'Whether to include/generate feedback. Use "true" or "false". Defaults to false.'
-    required: false
-    default: "false"
   execution-mode:
-    description: 'Execution mode for the autograder. Use "repo" (default) for repository-config mode or "external" to load config from the Autograder Cloud.'
+    description: "repo loads definition-path; external fetches a cloud definition."
     required: false
     default: "repo"
+  definition-path:
+    description: "Canonical v1 definition JSON path, relative to the workspace or absolute. Used in repo mode."
+    required: false
+    default: ".github/autograder/definition.json"
+  submission-root:
+    description: "Directory of UTF-8 submission files, relative to the workspace or absolute."
+    required: false
+    default: "."
   grading-config-id:
-    description: "The grading configuration ID from the Autograder Cloud. Required when execution-mode is \"external\"."
+    description: "Positive cloud configuration ID. Required for external mode or cloud publication."
     required: false
   autograder-cloud-url:
-    description: "The base URL of the Autograder Cloud instance. Required when execution-mode is \"external\"."
+    description: "Cloud base URL. Required for external mode, cloud publication, or delivery retry."
     required: false
   autograder-cloud-token:
-    description: "Authentication token for the Autograder Cloud API. Required when execution-mode is \"external\"."
+    description: "Cloud authentication secret. Required for external mode, cloud publication, or delivery retry."
+    required: false
+  upload-to-cloud:
+    description: "Explicitly publish the finished outcome to the selected cloud configuration."
+    required: false
+    default: "false"
+  retry-delivery-path:
+    description: "Saved delivery.json attestation to publish without grading again. Requires cloud URL and token."
     required: false
   submission-language:
-    description: "Programming language of the student submission (e.g. 'python', 'java'). Validated against the grading config's supported languages. Defaults to the first language in the config when omitted. Only used in external mode."
+    description: "Allowed language ID. May be omitted only when the definition has one language."
     required: false
   locale:
-    description: "Locale for feedback messages (e.g. 'en', 'pt-br'). Defaults to 'en'."
+    description: "Feedback locale: en or pt-br. Applies in both configuration modes."
     required: false
     default: "en"
-
-# Defines the output variable of the action.
 outputs:
-  result:
-    description: "Base64-encoded JSON containing the results of the grading."
-  total_score:
-    description: "Final numeric score (0-100) from the grading pipeline."
-
-# Configures how the action is executed.
+  status:
+    description: "Terminal grading status: completed or failed. Written before delivery."
+  score:
+    description: "Authoritative score in [0,100], present only for completed grading."
+  result-path:
+    description: "Workspace-relative canonical outcome JSON path, retained even when delivery fails."
+  submission-id:
+    description: "Cloud submission ID, present only after successful publication."
 runs:
   using: docker
   image: "Dockerfile.actions"
-  # Use 'env' to pass named variables to the container
   env:
-    GITHUB_TOKEN: ${{ inputs.github-token }}
-    TEMPLATE_PRESET: ${{ inputs.template-preset }}
-    FEEDBACK_TYPE: ${{ inputs.feedback-type }}
-    CUSTOM_TEMPLATE: ${{ inputs.custom-template }}
-    OPENAI_KEY: ${{ inputs.openai-key }}
-    APP_TOKEN: ${{ inputs.app-token }}
-    INCLUDE_FEEDBACK: ${{ inputs.include-feedback }}
     EXECUTION_MODE: ${{ inputs.execution-mode }}
+    DEFINITION_PATH: ${{ inputs.definition-path }}
+    SUBMISSION_ROOT: ${{ inputs.submission-root }}
     GRADING_CONFIG_ID: ${{ inputs.grading-config-id }}
     AUTOGRADER_CLOUD_URL: ${{ inputs.autograder-cloud-url }}
     AUTOGRADER_CLOUD_TOKEN: ${{ inputs.autograder-cloud-token }}
+    UPLOAD_TO_CLOUD: ${{ inputs.upload-to-cloud }}
+    RETRY_DELIVERY_PATH: ${{ inputs.retry-delivery-path }}
     SUBMISSION_LANGUAGE: ${{ inputs.submission-language }}
     LOCALE: ${{ inputs.locale }}

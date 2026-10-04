@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, JsonValue
 
 from autograder.models.config.category import CategoryConfig
 
@@ -7,14 +7,13 @@ from autograder.models.config.category import CategoryConfig
 class CriteriaConfig(BaseModel):
     """Root configuration for grading criteria."""
 
-    test_library: Optional[str] = Field(
-        None, description="Name of the test library/template to use"
-    )
     base: CategoryConfig = Field(..., description="Base grading criteria (required)")
     bonus: Optional[CategoryConfig] = Field(None, description="Bonus points criteria")
     penalty: Optional[CategoryConfig] = Field(None, description="Penalty criteria")
 
-    model_config = {"extra": "allow"}
+    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+
+    model_config = {"extra": "forbid", "allow_inf_nan": False}
 
     @classmethod
     def from_dict(cls, data: dict) -> "CriteriaConfig":

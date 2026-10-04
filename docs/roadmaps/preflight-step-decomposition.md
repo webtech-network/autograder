@@ -14,7 +14,7 @@ Also add step categorization, allow templates to contribute setup requirements, 
 
 The current flow is:
 
-`LOAD_TEMPLATE -> BUILD_TREE -> SANDBOX -> PRE_FLIGHT -> AI_BATCH -> STRUCTURAL_ANALYSIS -> GRADE -> FOCUS -> FEEDBACK -> EXPORTER`
+`LOAD_TEMPLATE -> BUILD_TREE -> SANDBOX -> PRE_FLIGHT -> AI_BATCH -> STRUCTURAL_ANALYSIS -> GRADE -> FOCUS -> FEEDBACK`
 
 Relevant code paths:
 
@@ -32,7 +32,7 @@ Relevant code paths:
 
 ### Final pipeline order
 
-`LOAD_TEMPLATE -> BUILD_TREE -> FILE_CHECK -> SANDBOX -> ASSET_INJECTION -> SETUP_COMMANDS -> AI_BATCH -> STRUCTURAL_ANALYSIS -> GRADE -> FOCUS -> FEEDBACK -> EXPORTER`
+`LOAD_TEMPLATE -> BUILD_TREE -> FILE_CHECK -> SANDBOX -> ASSET_INJECTION -> SETUP_COMMANDS -> AI_BATCH -> STRUCTURAL_ANALYSIS -> GRADE -> FOCUS -> FEEDBACK`
 
 Step inclusion rules:
 
@@ -51,7 +51,7 @@ Add a `category`/`step_type` attribute to `Step` and expose a shared enum:
 |----------|----------------|
 | `SETUP` | bootstrap, load template, build tree, file check, sandbox, asset injection, setup commands |
 | `GRADING` | AI batch, structural analysis, grade, focus |
-| `REPORTING` | feedback, exporter |
+| `REPORTING` | feedback; publication is adapter-owned (#370) |
 
 The category is primarily metadata, but it should be available on every step and registered centrally so later pipeline tooling can filter by phase.
 

@@ -88,7 +88,7 @@ db-reset:
 
 examples-demo:
 	@echo "🚀 Starting Autograder Interactive Demo..."
-	@echo "   Server: http://localhost:8080"
+	@echo "   Server: http://localhost:8080/demo/"
 	@echo "   Press Ctrl+C to stop"
 	@echo ""
 	cd examples/demo && python serve_demo.py

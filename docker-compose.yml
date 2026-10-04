@@ -51,8 +51,6 @@ services:
 
       # Optional: Add your API keys here
       # OPENAI_API_KEY: ${OPENAI_API_KEY}
-      # UPSTASH_REDIS_URL: ${UPSTASH_REDIS_URL}
-      # UPSTASH_REDIS_TOKEN: ${UPSTASH_REDIS_TOKEN}
     ports:
       - '8000:8000'
     depends_on:

@@ -1,143 +1,205 @@
 {
-  "test_library": "input_output",
-  "base": {
-    "weight": 100,
-    "tests": [
-      {
-        "name": "expect_output",
-        "parameters": [
-          {
-            "name": "inputs",
-            "value": [
+  "schema_version": "1.0",
+  "templates": [
+    "input_output"
+  ],
+  "languages": [
+    "python",
+    "java",
+    "node",
+    "cpp"
+  ],
+  "criteria": {
+    "base": {
+      "weight": 100.0,
+      "tests": [
+        {
+          "id": "base-tests-0",
+          "type": "expect_output",
+          "name": "expect_output",
+          "parameters": {
+            "inputs": [
               "5",
               "3"
-            ]
-          },
-          {
-            "name": "expected_output",
-            "value": "8"
-          },
-          {
-            "name": "program_command",
-            "value": {
+            ],
+            "expected_output": "8",
+            "program_command": {
               "python": "python3 calculator.py",
               "java": "java Calculator",
               "node": "node calculator.js",
               "cpp": "./calculator"
-            }
-          }
-        ]
-      },
-      {
-        "name": "expect_output",
-        "parameters": [
-          {
-            "name": "inputs",
-            "value": [
+            },
+            "normalization": true
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        },
+        {
+          "id": "base-tests-1",
+          "type": "expect_output",
+          "name": "expect_output",
+          "parameters": {
+            "inputs": [
               "10",
               "4"
-            ]
-          },
-          {
-            "name": "expected_output",
-            "value": "14"
-          },
-          {
-            "name": "program_command",
-            "value": {
+            ],
+            "expected_output": "14",
+            "program_command": {
               "python": "python3 calculator.py",
               "java": "java Calculator",
               "node": "node calculator.js",
               "cpp": "./calculator"
-            }
+            },
+            "normalization": true
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        },
+        {
+          "id": "base-tests-2",
+          "type": "expect_output",
+          "name": "expect_output",
+          "parameters": {
+            "inputs": [
+              "0",
+              "0"
+            ],
+            "expected_output": "0",
+            "program_command": {
+              "python": "python3 calculator.py",
+              "java": "java Calculator",
+              "node": "node calculator.js",
+              "cpp": "./calculator"
+            },
+            "normalization": true
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "bonus": {
+      "weight": 15.0,
+      "tests": [
+        {
+          "id": "bonus-tests-0",
+          "type": "expect_output",
+          "name": "expect_output",
+          "parameters": {
+            "inputs": [
+              "-5",
+              "10"
+            ],
+            "expected_output": "5",
+            "program_command": {
+              "python": "python3 calculator.py",
+              "java": "java Calculator",
+              "node": "node calculator.js",
+              "cpp": "./calculator"
+            },
+            "normalization": true
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "penalty": {
+      "weight": 20.0,
+      "tests": [
+        {
+          "id": "penalty-tests-0",
+          "type": "expect_output",
+          "name": "expect_output",
+          "parameters": {
+            "inputs": [
+              "abc",
+              "xyz"
+            ],
+            "expected_output": "Error: Invalid input",
+            "program_command": {
+              "python": "python3 calculator.py",
+              "java": "java Calculator",
+              "node": "node calculator.js",
+              "cpp": "./calculator"
+            },
+            "normalization": true
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "metadata": {}
+  },
+  "preparation": {
+    "languages": {
+      "python": {
+        "required_files": [
+          "calculator.py"
+        ],
+        "setup_commands": []
+      },
+      "java": {
+        "required_files": [
+          "Calculator.java"
+        ],
+        "setup_commands": [
+          {
+            "name": "Compile Java",
+            "command": "javac Calculator.java"
           }
         ]
       },
-      {
-        "name": "expect_output",
-        "parameters": [
+      "node": {
+        "required_files": [
+          "calculator.js"
+        ],
+        "setup_commands": []
+      },
+      "cpp": {
+        "required_files": [
+          "calculator.cpp"
+        ],
+        "setup_commands": [
           {
-            "name": "inputs",
-            "value": [
-              "0",
-              "0"
-            ]
-          },
-          {
-            "name": "expected_output",
-            "value": "0"
-          },
-          {
-            "name": "program_command",
-            "value": {
-              "python": "python3 calculator.py",
-              "java": "java Calculator",
-              "node": "node calculator.js",
-              "cpp": "./calculator"
-            }
+            "name": "Compile C++",
+            "command": "g++ -std=c++17 calculator.cpp -o calculator"
           }
         ]
       }
-    ]
+    },
+    "fixtures": []
   },
-  "bonus": {
-    "weight": 15,
-    "tests": [
-      {
-        "name": "expect_output",
-        "parameters": [
-          {
-            "name": "inputs",
-            "value": [
-              "-5",
-              "10"
-            ]
-          },
-          {
-            "name": "expected_output",
-            "value": "5"
-          },
-          {
-            "name": "program_command",
-            "value": {
-              "python": "python3 calculator.py",
-              "java": "java Calculator",
-              "node": "node calculator.js",
-              "cpp": "./calculator"
-            }
-          }
-        ]
+  "feedback": {
+    "enabled": false,
+    "mode": "default",
+    "preferences": {
+      "general": {
+        "report_title": null,
+        "show_score": true,
+        "show_passed_tests": false,
+        "add_report_summary": true,
+        "online_content": []
+      },
+      "default": {
+        "category_headers": {}
       }
-    ]
+    }
   },
-  "penalty": {
-    "weight": 20,
-    "tests": [
-      {
-        "name": "expect_output",
-        "parameters": [
-          {
-            "name": "inputs",
-            "value": [
-              "abc",
-              "xyz"
-            ]
-          },
-          {
-            "name": "expected_output",
-            "value": "Error: Invalid input"
-          },
-          {
-            "name": "program_command",
-            "value": {
-              "python": "python3 calculator.py",
-              "java": "java Calculator",
-              "node": "node calculator.js",
-              "cpp": "./calculator"
-            }
-          }
-        ]
-      }
-    ]
-  }
+  "metadata": {}
 }

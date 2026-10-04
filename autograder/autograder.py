@@ -1,7 +1,8 @@
 import logging
+from dataclasses import replace
 
 from autograder.models.abstract.step import Step
-from autograder.models.dataclass.step_result import StepName
+from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
 from autograder.models.pipeline_execution import PipelineExecution, PipelineStatus
 from autograder.steps.step_registry import StepRegistry
 from autograder.models.dataclass.submission import Submission
@@ -48,6 +49,22 @@ class AutograderPipeline:
 
         """
         pipeline_execution = PipelineExecution.start_execution(submission)
+        pipeline_execution.definition_provenance = getattr(self, "definition_provenance", None)
+        pipeline_execution.planned_steps = list(self._steps)
+        if hasattr(self, "definition"):
+            from autograder.models.contracts.definition import select_language, DefinitionValidationError
+            try:
+                selected = select_language(self.definition, submission.language)
+                submission = replace(submission, language=selected)
+                pipeline_execution.submission = submission
+            except DefinitionValidationError as exc:
+                error = exc.errors()[0]
+                pipeline_execution.add_step_result(StepResult(
+                    step=StepName.BOOTSTRAP, data=None, status=StepStatus.FAIL,
+                    error="The submission language is not valid for this definition.",
+                    error_code=error["code"], error_category="submission"))
+                pipeline_execution.finish_execution()
+                return pipeline_execution
 
         logger.info(
             "Pipeline started: external_user_id=%s, assignment_id=%s, language=%s, steps=%s",
@@ -57,37 +74,38 @@ class AutograderPipeline:
             list(self._steps.keys()),
         )
 
-        for step_name, step_instance in self._steps.items():
-            logger.info("Executing step: %s (external_user_id=%s)", step_name, submission.user_id)
-
-            try:
-                pipeline_execution = step_instance.execute(pipeline_execution)
-                # Check if the step that just executed failed
+        try:
+            for step_name, step_instance in self._steps.items():
+                logger.info("Executing step: %s (external_user_id=%s)", step_name, submission.user_id)
+                try:
+                    returned = step_instance.execute(pipeline_execution)
+                    if returned is not pipeline_execution:
+                        raise RuntimeError("Steps must return their existing execution context")
+                except Exception:  # A custom step may bypass the standard wrapper.
+                    logger.exception("Unhandled exception in step %s", step_name)
+                    pipeline_execution.add_step_result(StepResult(
+                        step=step_name, data=None, status=StepStatus.INTERRUPTED,
+                        error="The grading execution could not complete.", error_code="EXECUTION_ERROR"))
                 current_step_result = pipeline_execution.get_previous_step()
                 if current_step_result and not current_step_result.is_successful:
                     pipeline_execution.set_failure()
-                    logger.warning(
-                        "Step %s failed: %s (external_user_id=%s)",
-                        step_name,
-                        current_step_result.error,
-                        submission.user_id,
-                    )
+                    # Feedback and focus are optional enrichment; continue only if
+                    # later enrichment can operate independently of the failure.
+                    if step_name == StepName.FEEDBACK:
+                        continue
                     break
-                logger.info("Step %s completed successfully (external_user_id=%s)", step_name, submission.user_id)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                pipeline_execution.status = PipelineStatus.INTERRUPTED
-                logger.error(
-                    "Unhandled exception in step %s (external_user_id=%s): %s",
-                    step_name,
-                    submission.user_id,
-                    str(e),
-                    exc_info=True,
-                )
-                break
-        pipeline_execution.finish_execution() # Generates GradingResult object in pipeline execution
-
-        # Cleanup: Destroy sandbox if it was created
-        self._cleanup_sandbox(pipeline_execution)
+        finally:
+            self._cleanup_sandbox(pipeline_execution)
+        try:
+            pipeline_execution.finish_execution()
+        except Exception:
+            logger.exception("Invalid final grading assessment")
+            pipeline_execution.add_step_result(StepResult(
+                step=StepName.GRADE, data=None, status=StepStatus.INTERRUPTED,
+                error="The grading execution produced an invalid assessment.",
+                error_code="INVALID_EVALUATOR_RESULT"))
+            pipeline_execution.set_failure()
+            pipeline_execution.finish_execution()
 
         logger.info(
             "Pipeline finished: external_user_id=%s, status=%s",
@@ -121,80 +139,37 @@ class AutograderPipeline:
             )
 
 
-def build_pipeline(  # pylint: disable=too-many-arguments,too-many-locals
-    template_name,
-    include_feedback,
-    grading_criteria,
-    feedback_config,
-    setup_config=None,
-    custom_template=None,
-    feedback_mode=None,
-    export_results=False,
-    exporter=None,
-    locale="en",
-) -> AutograderPipeline:
-    """
-    Build the AutograderPipeline object based on configuration.
+def build_pipeline(*, definition, locale="en", provenance=None, templates=None) -> AutograderPipeline:
+    """Compile the single public contract before constructing execution steps.
 
-    Args:
-        template_name: Name of the template to use (string or list of strings)
-        include_feedback: Whether to include feedback generation
-        grading_criteria: Criteria configuration dictionary
-        feedback_config: Configuration for feedback generation
-        setup_config: Pre-flight setup configuration
-        custom_template: Custom template object (if any)
-        feedback_mode: Mode for feedback generation (default or ai)
-    Returns:
-        Configured AutograderPipeline object ready to run with submissions
+    Trusted Python templates may be supplied as an identifier-to-Template map.
+    Publication and provider credentials belong to the caller.
     """
+    from autograder.models.contracts.definition import compile_definition
+    from autograder.models.contracts.provenance import DefinitionProvenance
+    from autograder.steps.build_tree_step import BuildTreeStep
+    compiled = compile_definition(definition, templates=templates)
+    normalized = compiled.definition
     pipeline = AutograderPipeline()
-
-    # Pre-load templates to allow StepRegistry to make informed decisions about
-    # which steps are actually required for this assignment.
-    template_service = TemplateLibraryService.get_instance()
-    templates = []
-
-    if custom_template:
-        templates.append(template_service.load_custom_template(custom_template))
-    elif template_name:
-        # Normalize template names (can be string, comma-separated string, or list)
-        from autograder.steps.load_template_step import TemplateLoaderStep
-        names = TemplateLoaderStep.normalize_template_names(template_name)
-        for name in names:
-            templates.append(template_service.load_builtin_template(name))
-
+    pipeline.definition = normalized
+    pipeline.definition_provenance = provenance or DefinitionProvenance(definition_hash=compiled.definition_hash)
+    if pipeline.definition_provenance.definition_hash != compiled.definition_hash:
+        raise ValueError("Provenance hash must identify the compiled definition")
     config = {
-        "template_name": template_name,
-        "include_feedback": include_feedback,
-        "grading_criteria": grading_criteria,
-        "feedback_config": feedback_config,
-        "setup_config": setup_config,
-        "custom_template": custom_template,
-        "feedback_mode": feedback_mode,
-        "export_results": export_results,
-        "exporter": exporter,
+        "template_name": normalized.templates,
+        "include_feedback": normalized.feedback.enabled,
+        "grading_criteria": normalized.criteria.model_dump(mode="json"),
+        "feedback_config": normalized.feedback.preferences.model_dump(mode="json"),
+        "setup_config": normalized.preparation.runtime_setup() or None,
+        "feedback_mode": normalized.feedback.mode,
         "locale": locale,
+        "compiled_tree": compiled.criteria_tree,
     }
-    registry = StepRegistry(config, templates=templates)
-
-    execution_order = [
-        StepName.LOAD_TEMPLATE,
-        StepName.BUILD_TREE,
-        StepName.SANDBOX,
-        StepName.PRE_FLIGHT,
-        StepName.AI_BATCH,
-        StepName.STRUCTURAL_ANALYSIS,
-        StepName.GRADE,
-        StepName.FOCUS,
-        StepName.FEEDBACK,
-        StepName.EXPORTER,
-    ]
-
-    for step_name in execution_order:
-        step_instance = registry.build_step(step_name)
-        if step_instance is not None:
-            pipeline.add_step(step_name, step_instance)
-
-    
-    
+    registry = StepRegistry(config, templates=compiled.templates)
+    for step_name in [StepName.LOAD_TEMPLATE, StepName.BUILD_TREE, StepName.SANDBOX,
+                      StepName.PRE_FLIGHT, StepName.AI_BATCH, StepName.STRUCTURAL_ANALYSIS,
+                      StepName.GRADE, StepName.FOCUS, StepName.FEEDBACK]:
+        step = BuildTreeStep(compiled.criteria_tree) if step_name == StepName.BUILD_TREE else registry.build_step(step_name)
+        if step is not None:
+            pipeline.add_step(step_name, step)
     return pipeline

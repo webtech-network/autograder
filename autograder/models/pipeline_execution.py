@@ -2,6 +2,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, Any, TYPE_CHECKING, cast
 import time
+from datetime import datetime, timezone
+from uuid import uuid4
+from autograder.models.contracts.provenance import DefinitionProvenance
+from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome, FeedbackOutcome, OutcomeError
 
 from autograder.models.dataclass.grading_result import GradingResult
 from autograder.models.dataclass.step_result import StepResult, StepName, StepStatus
@@ -45,6 +49,13 @@ class PipelineExecution:
     result: Optional[GradingResult] = None
     sandbox: Optional["SandboxContainer"] = field(default=None, init=False)
     start_time: float = field(default_factory=time.time)  # Track execution time
+    end_time: Optional[float] = None
+    started_monotonic: float = field(default_factory=time.monotonic)
+    duration_ms: int = 0
+    execution_id: str = field(default_factory=lambda: str(uuid4()))
+    planned_steps: List[StepName] = field(default_factory=list)
+    definition_provenance: Optional[DefinitionProvenance] = None
+    outcome: Optional[CompletedOutcome | FailedOutcome] = None
 
     @property
     def locale(self) -> str:
@@ -209,20 +220,77 @@ class PipelineExecution:
 
         If pipeline succeeds, sets the result object with the final grading result and feedback (if available) for easy retrieval.
         """
-        grading_result = None
-        if self.status != PipelineStatus.FAILED:
+        if self.outcome is not None:
+            return
+        self.end_time = time.time()
+        self.duration_ms = max(0, int((time.monotonic() - self.started_monotonic) * 1000))
+        failed = next((step for step in self.step_results if not step.is_successful
+                       and step.step not in (StepName.FOCUS, StepName.FEEDBACK)), None)
+        grade = self.get_step_result(StepName.GRADE) if self.has_step_result(StepName.GRADE) else None
+        feedback = FeedbackOutcome()
+        enrichment_failure = next((step for step in self.step_results if not step.is_successful
+                                   and step.step in (StepName.FOCUS, StepName.FEEDBACK)), None)
+        if enrichment_failure:
+            feedback = FeedbackOutcome(status="failed", error=OutcomeError(
+                code="FEEDBACK_ERROR", message="Feedback could not be generated.",
+                category=enrichment_failure.error_category, retryable=enrichment_failure.retryable,
+                correlation_id=self.execution_id,
+            ))
+        elif self.has_step_result(StepName.FEEDBACK):
+            content = self.get_feedback()
+            if content is None:
+                feedback = FeedbackOutcome(status="failed", error=OutcomeError(
+                    code="FEEDBACK_ERROR", message="Feedback could not be generated.",
+                    category="internal", retryable=False, correlation_id=self.execution_id))
+            else:
+                feedback = FeedbackOutcome(status="completed", content=content)
+        self.result = None
+        if failed is None and grade is not None and grade.is_successful and grade.data is not None:
             self.status = PipelineStatus.SUCCESS
-            grade_result = self.get_grade_step_result()
-            feedback = self.get_feedback()
-            if self.has_step_result(StepName.FEEDBACK) and feedback is None:
-                raise ValueError("Feedback step exists but produced no feedback content.")
-            grading_result = GradingResult(
+            grade_result = grade.data
+            self.result = GradingResult(
                 final_score=grade_result.final_score,
-                feedback=feedback,
+                feedback=feedback.content,
                 result_tree=grade_result.result_tree,
-                focus=self.get_focus(),
+                focus=(self.get_focus() if self.has_step_result(StepName.FOCUS)
+                       and self.get_step_result(StepName.FOCUS).is_successful else None),
             )
-        self.result = grading_result
+        else:
+            self.status = PipelineStatus.FAILED
+        if self.definition_provenance is None:
+            # Directly constructed diagnostic executions may have no public identity.
+            # Public builders always bind the normalized definition provenance.
+            return
+        common = dict(
+            schema_version="1.0",
+            execution_id=self.execution_id,
+            language=(self.submission.language.value if hasattr(self.submission.language, "value") else
+                      self.submission.language if self.submission.language in ("python", "java", "c", "cpp", "node") else None),
+            provenance=self.definition_provenance,
+            started_at=datetime.fromtimestamp(self.start_time, timezone.utc),
+            finished_at=datetime.fromtimestamp(self.end_time, timezone.utc),
+            duration_ms=self.duration_ms,
+        )
+        if self.result:
+            self.outcome = CompletedOutcome(**common, status="completed", score=self.result.final_score,
+                                            tree=self.result.result_tree.root.to_dict(), feedback=feedback)
+        else:
+            code, message, category, retryable = "EXECUTION_ERROR", "The grading execution could not complete.", "internal", False
+            if failed:
+                if failed.error_code:
+                    code, message, category, retryable = failed.error_code, failed.error, failed.error_category, failed.retryable
+                elif failed.step == StepName.SANDBOX:
+                    code, message, category, retryable = "CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.", "capability", True
+                elif failed.step == StepName.PRE_FLIGHT:
+                    code, message, category = "PREPARATION_FAILED", "Submission preparation requirements were not met.", "submission"
+                    for item in failed.error_data or []:
+                        from autograder.models.dataclass.preflight_error import PreflightCheckType
+                        if item.type == PreflightCheckType.FILE_CHECK:
+                            code, message = "REQUIRED_FILE_MISSING", "A required submission file is missing."
+                            break
+            self.outcome = FailedOutcome(**common, status="failed", error=OutcomeError(
+                code=code, message=message, category=category, retryable=retryable,
+                correlation_id=self.execution_id))
 
 
     @classmethod

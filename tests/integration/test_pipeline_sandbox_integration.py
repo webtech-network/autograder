@@ -17,7 +17,7 @@ import unittest
 import time
 from typing import Dict
 
-from autograder.autograder import build_pipeline
+from tests.integration.definition_fixtures import build_migrated_fixture_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.pipeline_execution import PipelineStatus
 from sandbox_manager.manager import initialize_sandbox_manager, get_sandbox_manager
@@ -90,7 +90,7 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
         }
 
         # Build pipeline
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -209,7 +209,7 @@ else:
             language=Language.PYTHON
         )
 
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -266,7 +266,7 @@ else:
             language=Language.PYTHON
         )
 
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -336,7 +336,7 @@ print(lib_function())
             language=Language.PYTHON
         )
 
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -391,7 +391,7 @@ print(lib_function())
 
         pipelines = []
         for _ in range(3):
-            pipeline = build_pipeline(
+            pipeline = build_migrated_fixture_pipeline(
                 template_name="input_output",
                 include_feedback=False,
                 grading_criteria=grading_criteria,
@@ -461,7 +461,7 @@ public class HelloWorld {
             }
         }
 
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -535,7 +535,7 @@ def calculate(a, b):
             }
         }
 
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -589,7 +589,7 @@ raise Exception("Intentional error!")
             language=Language.PYTHON
         )
 
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -656,7 +656,7 @@ raise Exception("Intentional error!")
                 language=Language.PYTHON
             )
 
-            pipeline = build_pipeline(
+            pipeline = build_migrated_fixture_pipeline(
                 template_name="input_output",
                 include_feedback=False,
                 grading_criteria=grading_criteria,
@@ -708,7 +708,7 @@ print('Created')
             language=Language.PYTHON
         )
 
-        pipeline1 = build_pipeline(
+        pipeline1 = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria={
@@ -758,7 +758,7 @@ else:
             language=Language.PYTHON
         )
 
-        pipeline2 = build_pipeline(
+        pipeline2 = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -820,7 +820,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
             language=Language.PYTHON
         )
 
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -882,7 +882,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
             language=Language.PYTHON
         )
 
-        pipeline = build_pipeline(
+        pipeline = build_migrated_fixture_pipeline(
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,

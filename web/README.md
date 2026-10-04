@@ -1,398 +1,120 @@
-# Autograder Web API
+# Autograder HTTP adapter
 
-RESTful API for code submission grading using the Autograder system.
+The adapter accepts source files, binds a validated grading definition, runs the
+shared engine, and persists its finalized terminal outcome. Definitions and
+outcomes follow the [v1 decision record](../docs/contracts/DECISIONS.md). This is a
+breaking wire/storage migration; legacy dictionaries are not accepted by live
+endpoints.
 
-> **📚 Main Documentation:**
-> - [API Reference →](../docs/API.md) — All endpoints, schemas, and examples  
-> - [Web Module Architecture →](../docs/architecture/web_module.md) — Architecture, configuration, deployment, and troubleshooting  
-> - [Documentation Index →](../docs/index.md) — All available documentation
+## Operation
 
-## Features
+Configure `DATABASE_URL` and `AUTOGRADER_INTEGRATION_TOKEN`, install the repository
+requirements, and start the server with `uvicorn web.main:app`. The existing
+sandbox/provider deployment settings still apply. The integration token protects
+internal-ID definition fetch, external outcome ingestion, and detailed submission
+retrieval. Full HTTP identity/access control remains a separate work item (#318).
 
-- **Grading Configuration Management**: Create and manage grading criteria for assignments
-- **Submission Processing**: Submit code for grading with background task processing
-- **Template Library**: Access to various grading templates (webdev, API, I/O, etc.)
-- **Database Persistence**: PostgreSQL or SQLite support with Alembic migrations
-- **Sandbox Execution**: Secure code execution in Docker containers
-- **Structured Logging**: JSON or human-readable logging formats
-- **Health Monitoring**: Health check and readiness endpoints
+For an existing installation, back up the database and run the migration before
+starting the new service:
 
-## Quick Start
-
-### Prerequisites
-
-- Python 3.10+
-- Docker (for sandbox execution)
-- PostgreSQL (optional, SQLite works for development)
-
-### Installation
-
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-3. Run database migrations:
-```bash
-# Using make command (recommended)
-make db-upgrade
-
-# Or using alembic directly
+```sh
+cd web
 alembic upgrade head
 ```
 
-4. Build sandbox images (required for code execution):
-```bash
-make sandbox-build-all
+Migration `005` converts unambiguous valid configurations to the canonical
+normalized definition/hash. Invalid configurations become inactive, with their
+old input and validation evidence retained under `migration_error`; instructors
+must provide a valid replacement before reactivation. Old definition columns are
+removed. This migration is irreversible; restore the backup to roll it back.
+Historical submissions are **unverified**, with no manufactured current-version
+snapshot. Historical failed scores become null. The migration does not claim
+that previous scores were recomputed or validated against the new contract.
+
+## Configuration resources
+
+- `POST /api/v1/configs/validate`: canonical definition body; pure validation,
+  normalization and hash response without storage or provider calls.
+- `POST /api/v1/configs`: `{ "external_assignment_id": "assignment", "definition": ... }`.
+- `GET /api/v1/configs/{external_assignment_id}` and authenticated
+  `GET /api/v1/configs/id/{id}` return the same resource, including inactive rows.
+- `GET /api/v1/configs?limit=100&offset=0` lists active resources in ID order.
+- `PATCH /api/v1/configs/{id}` or its `/external/{external_assignment_id}` alias
+  accepts `definition` and/or `is_active`. These aliases share one implementation.
+
+Use the quoted revision ETag returned by fetch/create as the PATCH `If-Match`
+header, for example `If-Match: "1"`. Missing preconditions return 428, malformed
+ones 422, and stale ones 412. Omitted fields retain their values; explicit null
+is rejected. Changes, including activation, advance `version`; identical patches
+are no-ops. The definition hash covers normalized grading semantics only.
+Creating an existing alias, including an inactive one, returns 409. Reactivate
+that resource instead of recreating it.
+
+## Submission acceptance and reads
+
+`POST /api/v1/submissions` accepts external assignment/user identity, username,
+files, optional language/locale/metadata and optional evaluation scope. It binds
+and stores the exact normalized definition, hash, and revision before scheduling
+work. A single definition language is inferred; multiple languages require an
+explicit allowed choice. Inactive/quarantined configurations reject new work;
+already bound work remains tied to its accepted snapshot.
+
+`GET /api/v1/submissions/{id}` is compact polling: identity, status, language,
+UTC timestamps with offsets, authoritative nullable score, duration, provenance,
+safe error and enrichment statuses. It excludes source files and the result tree.
+`GET /api/v1/submissions` provides the same projection with combinable
+`external_user_id`, `grading_config_id`, and `status` filters. History orders by
+submission time descending, then ID descending. `limit` is 1–100; `offset` is
+nonnegative. `/user/{external_user_id}` is the user-filtered alias.
+
+Authenticated `GET /api/v1/submissions/{id}/details` additionally returns source
+files, metadata, the bound definition snapshot, the complete canonical outcome,
+and optional internal diagnostics. A completed zero score is an assessed grade;
+a failed execution has null score/tree and a structured error. Legacy history
+has `provenance_status: "unverified_legacy"`; new accepted/imported snapshots use
+`"bound_snapshot"`, which records binding rather than proof of execution origin.
+The old arbitrary `baseline_result_tree` submission input is removed.
+
+Authenticated `POST /api/v1/submissions/external-results` accepts
+`grading_config_id`, external user identity, username, language,
+`definition_snapshot`, `outcome`, and optional `submission_metadata`. It validates
+shared outcome invariants, hash/reference/revision/language, and complete result
+placement, criterion IDs/evaluators and scoring ratios against the snapshot.
+The current revision must match the stored hash. An older positive revision may
+be attested by the authenticated host even after a configuration edit/deactivation;
+this is trusted historical attestation, not server proof of a past definition.
+
+422 validation errors expose `code`, `path`, and `message` without echoing rejected
+source/payloads. Structural model paths begin with `body`; compilation paths are
+relative to the definition. OpenAPI exposes the shared typed definition and
+status-discriminated outcome models.
+
+## Retaining and replaying finalized outcomes
+
+Before database publication, HTTP writes the exact finalized outcome and its
+submission ID to a private atomic receipt. Set `WEB_OUTCOME_RECEIPT_DIR` to a
+persistent mounted directory; the default is `data/unpublished-outcomes` relative
+to the service working directory. Receipts are mode 0600 and contain private
+result data. The adapter fsyncs the file and directory before publication.
+Successful publication removes the receipt. Database failure logs its path and
+retains the completed/failed engine outcome unchanged; it never converts a
+completed grade into a new failed grade.
+
+After restoring database availability, replay a retained receipt explicitly:
+
+```sh
+python -m web.service.outcome_delivery /persistent/unpublished-outcomes/submission-42-0123456789abcdef.json
 ```
 
-5. Start the API:
-```bash
-uvicorn web.main:app --reload
-```
-
-The API will be available at `http://localhost:8000`.
-
-## API Documentation
-
-Once the API is running, visit:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-### Key Endpoints
-
-#### Health & Monitoring
-- `GET /api/v1/health` - Health check
-- `GET /api/v1/ready` - Readiness check
-
-#### Templates
-- `GET /api/v1/templates` - List all available templates
-- `GET /api/v1/templates/{name}` - Get template details
-
-#### Grading Configurations
-- `POST /api/v1/configs` - Create a grading configuration
-- `GET /api/v1/configs/{external_assignment_id}` - Get configuration
-- `GET /api/v1/configs` - List all configurations
-- `PUT /api/v1/configs/{id}` - Update configuration
-
-#### Submissions
-- `POST /api/v1/submissions` - Submit code for grading
-- `GET /api/v1/submissions/{id}` - Get submission with results
-- `GET /api/v1/submissions/user/{user_id}` - Get user's submissions
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `postgresql+asyncpg://autograder:autograder_password@localhost:5432/autograder` |
-| `DATABASE_ECHO` | Log SQL queries | `False` |
-| `DATABASE_POOL_SIZE` | PostgreSQL connection pool size | `10` |
-| `DATABASE_MAX_OVERFLOW` | PostgreSQL max overflow connections | `20` |
-| `DATABASE_POOL_TIMEOUT` | Connection timeout in seconds | `30` |
-| `DATABASE_POOL_RECYCLE` | Connection recycle time in seconds | `3600` |
-| `SANDBOX_POOL_SIZE` | Sandbox containers per language | `2` |
-| `JSON_LOGS` | Use JSON logging format | `false` |
-| `LOG_LEVEL` | Application log level | `INFO` |
-| `SERVICE_NAME` | Service name added to structured logs | `autograder-api` |
-| `APP_ENV` | Environment tag added to structured logs | `local` |
-| `OPENAI_API_KEY` | OpenAI API key for AI feedback | - |
-
-### Database Configuration
-
-#### PostgreSQL (Recommended)
-```bash
-# Production
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/autograder
-DATABASE_POOL_SIZE=20
-DATABASE_MAX_OVERFLOW=40
-
-# Development
-DATABASE_URL=postgresql+asyncpg://autograder:autograder_password@localhost:5432/autograder
-DATABASE_POOL_SIZE=5
-DATABASE_MAX_OVERFLOW=10
-```
-
-**Connection Pool Best Practices:**
-- Development: `POOL_SIZE=5`, `MAX_OVERFLOW=10`
-- Production (low traffic): `POOL_SIZE=10`, `MAX_OVERFLOW=20`
-- Production (high traffic): `POOL_SIZE=20`, `MAX_OVERFLOW=40`
-- Enable `pool_pre_ping=True` for connection health checks (enabled by default)
-
-#### SQLite (Development Only)
-```bash
-DATABASE_URL=sqlite+aiosqlite:///./autograder.db
-# Note: Pool settings are ignored for SQLite
-```
-
-**Important:** SQLite is not recommended for production use due to:
-- No concurrent write support
-- Limited performance under load
-- No connection pooling
-- Missing PostgreSQL-specific optimizations
-
-## Docker Deployment
-
-### Using Docker Compose
-
-```bash
-docker-compose up -d
-```
-
-This will start:
-- PostgreSQL database
-- Autograder API with sandbox support
-
-### Building the API Image
-
-```bash
-docker build -t autograder-api:latest -f Dockerfile.api .
-```
-
-## Database Migrations
-
-### Using Make Commands (Recommended)
-
-```bash
-# Initialize/upgrade database to latest version
-make db-init
-
-# Apply all pending migrations
-make db-upgrade
-
-# Create a new migration
-make db-migrate MSG="add user profile table"
-
-# Show current migration version
-make db-current
-
-# Show migration history
-make db-history
-
-# Rollback last migration
-make db-downgrade
-
-# Reset database (WARNING: destructive)
-make db-reset
-```
-
-### Using Alembic Directly
-
-#### Create a new migration
-```bash
-alembic revision --autogenerate -m "Description"
-```
-
-#### Apply migrations
-```bash
-alembic upgrade head
-```
-
-#### Rollback migration
-```bash
-alembic downgrade -1
-```
-
-#### Check current version
-```bash
-alembic current
-```
-
-#### View migration history
-```bash
-alembic history --verbose
-```
-
-## Usage Example
-
-### 1. Create a Grading Configuration
-
-```python
-import requests
-
-response = requests.post("http://localhost:8000/api/v1/configs", json={
-    "external_assignment_id": "assignment-1",
-    "template_name": "webdev",
-    "language": "python",
-    "criteria_config": {
-        "tests": ["test_homepage", "test_navigation"]
-    }
-})
-config = response.json()
-```
-
-### 2. Submit Code for Grading
-
-```python
-response = requests.post("http://localhost:8000/api/v1/submissions", json={
-    "external_assignment_id": "assignment-1",
-    "external_user_id": "student-123",
-    "username": "john.doe",
-    "files": {
-        "app.py": "from flask import Flask\napp = Flask(__name__)"
-    }
-})
-submission = response.json()
-```
-
-### 3. Get Results
-
-```python
-submission_id = submission["id"]
-response = requests.get(f"http://localhost:8000/api/v1/submissions/{submission_id}")
-result = response.json()
-
-print(f"Score: {result['final_score']}")
-print(f"Feedback: {result['feedback']}")
-print(f"Status: {result['status']}")
-
-# New: Pipeline execution details
-if result.get('pipeline_execution'):
-    exec_info = result['pipeline_execution']
-    print(f"\nPipeline Status: {exec_info['status']}")
-    print(f"Execution Time: {exec_info['execution_time_ms']}ms")
-    
-    # Check if preflight failed
-    if exec_info.get('failed_at_step') == 'PRE_FLIGHT':
-        print("Preflight check failed - see feedback for details")
-    
-    # Show all executed steps
-    for step in exec_info['steps']:
-        print(f"  {step['name']}: {step['status']}")
-        if step.get('error_details'):
-            print(f"    Error: {step.get('message')}")
-```
-
-**Response Structure:**
-
-```json
-{
-  "id": 1,
-  "status": "completed",
-  "final_score": 85.5,
-  "feedback": "Grade: 85.5/100...",
-  "result_tree": { /* Grading results */ },
-  "pipeline_execution": {
-    "status": "success",
-    "failed_at_step": null,
-    "total_steps_planned": 7,
-    "steps_completed": 7,
-    "execution_time_ms": 4521,
-    "steps": [
-      {"name": "PRE_FLIGHT", "status": "success"},
-      {"name": "GRADE", "status": "success"}
-    ]
-  }
-}
-```
-
-**Note:** The `pipeline_execution` field provides complete transparency into the grading process, including detailed error information if any step fails.
-
-## Testing
-
-### Run Unit Tests
-```bash
-pytest tests/web/test_database.py -v
-```
-
-### Run All Tests
-```bash
-pytest -v
-```
-
-## Architecture
-
-The API follows a clean architecture pattern:
-
-- **Models**: SQLAlchemy ORM models for database entities
-- **Repositories**: Data access layer abstracting database operations
-- **Schemas**: Pydantic models for request/response validation
-- **Services**: Business logic (template library, sandbox manager)
-- **Endpoints**: FastAPI route handlers
-
-### Request Flow
-
-```
-Client → POST /submissions → Validation → Database → Background Task
-                                                           ↓
-                                                    Autograder Pipeline
-                                                           ↓
-                                                    Sandbox Execution
-                                                           ↓
-                                                    Store Results → Database
-```
-
-## Monitoring
-
-### Health Check
-```bash
-curl http://localhost:8000/api/v1/health
-```
-
-### Check Logs
-```bash
-# Human-readable logs (development)
-JSON_LOGS=false uvicorn web.main:app
-
-# JSON logs (production)
-JSON_LOGS=true uvicorn web.main:app
-```
-
-## Security Considerations
-
-1. **Sandbox Isolation**: Code runs in isolated Docker containers
-2. **Input Validation**: Pydantic schemas validate all inputs
-3. **Database Security**: Parameterized queries prevent SQL injection
-4. **Environment Variables**: Sensitive data in environment, not code
-
-## Troubleshooting
-
-### Database Connection Issues
-
-#### PostgreSQL
-- Verify `DATABASE_URL` is correct and includes `postgresql+asyncpg://` prefix
-- Ensure PostgreSQL is running: `docker ps` or `pg_isready`
-- Check PostgreSQL logs: `docker logs autograder-postgres`
-- Test connection: `psql -U autograder -d autograder -h localhost`
-- Verify user permissions: ensure the database user has CREATE, INSERT, UPDATE, DELETE privileges
-- Check migrations are up to date: `alembic current`
-
-#### SQLite
-- Verify file path in `DATABASE_URL`
-- Check file permissions for the database file
-- Ensure directory exists for the .db file
-
-### Connection Pool Issues
-- **Too many connections**: Reduce `DATABASE_POOL_SIZE` and `DATABASE_MAX_OVERFLOW`
-- **Connection timeouts**: Increase `DATABASE_POOL_TIMEOUT`
-- **Stale connections**: Ensure `pool_pre_ping=True` and `pool_recycle=3600` are set
-- Monitor pool usage: Enable `DATABASE_ECHO=True` temporarily to see connection activity
-
-### Sandbox Issues
-- Verify Docker is running: `docker ps`
-- Build sandbox images: `make sandbox-build-all`
-- Check sandbox pool size: `SANDBOX_POOL_SIZE` environment variable
-
-### API Not Starting
-- Check logs for startup errors
-- Verify all dependencies are installed: `pip install -r requirements.txt`
-- Ensure port 8000 is available
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `pytest`
-5. Submit a pull request
-
-## License
-
-See LICENSE file for details.
+Replay validates provenance against the already bound submission and persists the
+same execution without running the grader. If an identical result already exists
+(for example after an uncertain commit acknowledgement), replay removes the
+receipt safely; a conflicting existing result is rejected and the receipt remains.
+A failed replay preserves the receipt for another attempt.
+
+This receipt mechanism covers finalized-result publication. It does **not** make
+pending/running task dispatch restart-safe, provide an automatic retry scheduler,
+or demonstrate the 150–200-request capacity target. Durable acceptance and
+recovery remain #365; submission/import replay identity remains #366. Deployments
+must mount the receipt directory persistently to retain artifacts across container
+replacement. Deliberate execution at `/api/v1/execute` remains supported separately.

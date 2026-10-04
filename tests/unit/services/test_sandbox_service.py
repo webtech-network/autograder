@@ -31,8 +31,8 @@ def test_create_sandbox_manager_exception(sandbox_service, mock_sandbox_manager)
     result = sandbox_service.create_sandbox(submission)
     assert result is None
 
-def test_create_sandbox_workdir_failure_releases_container(sandbox_service, mock_sandbox_manager):
-    """Test releasing container if workdir preparation fails."""
+def test_create_sandbox_workdir_failure_destroys_container(sandbox_service, mock_sandbox_manager):
+    """Partially copied student files never return to the reusable pool."""
     submission = Submission(username="test", user_id="1", assignment_id="1", language=Language.PYTHON, submission_files={"main.py": "..."})
     mock_sandbox = MagicMock()
     mock_sandbox.prepare_workdir.side_effect = IOError("Disk full")
@@ -42,7 +42,8 @@ def test_create_sandbox_workdir_failure_releases_container(sandbox_service, mock
     
     assert result is None
     # CRITICAL: Verify the container was not leaked
-    mock_sandbox_manager.release_sandbox.assert_called_once_with(Language.PYTHON, mock_sandbox)
+    mock_sandbox_manager.destroy_sandbox.assert_called_once_with(Language.PYTHON, mock_sandbox)
+    mock_sandbox_manager.release_sandbox.assert_not_called()
 
 def test_create_sandbox_success(sandbox_service, mock_sandbox_manager):
     """Test successful sandbox creation."""

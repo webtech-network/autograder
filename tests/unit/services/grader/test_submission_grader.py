@@ -152,7 +152,7 @@ def test_get_file_target_all():
     )
     
     tf = MockTestFunction()
-    t1 = TestNode(name="T1", test_function=tf, weight=100, file_target=["all"])
+    t1 = TestNode(name="T1", test_function=tf, weight=100, file_target=None)
     
     cat = CategoryNode(name="base", weight=100, tests=[t1])
     grader.process_category(cat)
@@ -208,3 +208,10 @@ def test_process_test_passes_scope_and_target_file_metadata():
     assert test_function.kwargs["file_metadata"] == {
         "file1.py": {"change_status": "modified"},
     }
+
+
+def test_literal_file_named_all_does_not_select_other_files():
+    filename = SubmissionFile(filename="all", content="")
+    grader = SubmissionGrader(submission_files={"all": filename, "other.py": SubmissionFile("other.py", "")}, command_resolver=MagicMock())
+    target = TestNode(name="Literal filename", test_function=MockTestFunction(), file_target=["all"])
+    assert grader.get_file_target(target) == [filename]

@@ -13,6 +13,7 @@ from web.database.base import Base
 
 class PipelineStatus(str, Enum):
     """Status of the grading pipeline execution."""
+
     SUCCESS = "success"
     FAILED = "failed"
     INTERRUPTED = "interrupted"
@@ -21,31 +22,48 @@ class PipelineStatus(str, Enum):
 class SubmissionResult(Base):
     """
     Stores the outcome of grading a submission.
-    
+
     Persists grading results, feedback, and detailed test outcomes.
     """
+
     __tablename__ = "submission_results"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    submission_id: Mapped[int] = mapped_column(Integer, ForeignKey("submissions.id"), unique=True, nullable=False, index=True)
-    final_score: Mapped[float] = mapped_column(Float, nullable=False)
+    submission_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("submissions.id"), unique=True, nullable=False, index=True
+    )
+    final_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    outcome: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    diagnostics: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     result_tree: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    focus: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Focus object with test impacts
-    score_vector: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Flat path-keyed score map
-    comparison: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Baseline comparison output
-    pipeline_execution: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # NEW: Pipeline step details
+    focus: Mapped[Optional[dict]] = mapped_column(
+        JSON, nullable=True
+    )  # Focus object with test impacts
+    score_vector: Mapped[Optional[dict]] = mapped_column(
+        JSON, nullable=True
+    )  # Flat path-keyed score map
+    comparison: Mapped[Optional[dict]] = mapped_column(
+        JSON, nullable=True
+    )  # Baseline comparison output
+    pipeline_execution: Mapped[Optional[dict]] = mapped_column(
+        JSON, nullable=True
+    )  # NEW: Pipeline step details
     execution_time_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     pipeline_status: Mapped[PipelineStatus] = mapped_column(
         SQLEnum(PipelineStatus, values_callable=lambda x: [e.value for e in x]),
-        nullable=False
+        nullable=False,
     )
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     failed_at_step: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)  # pylint: disable=not-callable
-    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )  # pylint: disable=not-callable
+
     # Relationships
-    submission: Mapped["Submission"] = relationship("Submission", back_populates="result")
+    submission: Mapped["Submission"] = relationship(
+        "Submission", back_populates="result"
+    )
 
     def __repr__(self):
         return f"<SubmissionResult(id={self.id}, submission_id={self.submission_id}, score={self.final_score})>"

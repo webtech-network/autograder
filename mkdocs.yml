@@ -37,6 +37,10 @@ markdown_extensions:
       alternate_style: true
 
 nav:
+  - Integration Contracts:
+      - Definitions: contracts/DEFINITIONS.md
+      - Outcomes: contracts/OUTCOMES.md
+      - Decisions: contracts/DECISIONS.md
   - Home: index.md
   - Getting Started:
       - Run Your First Grading Workflow: getting-started/mkdocs-local-development.md
@@ -65,7 +69,7 @@ nav:
       - 05 Grade: pipeline/05-grade.md
       - 06 Focus: pipeline/06-focus.md
       - 07 Feedback: pipeline/07-feedback.md
-      - 08 Export: pipeline/08-export.md
+      - Outcome Publication (adapters): pipeline/08-export.md
   - Architecture Reference:
       - Core Structures: architecture/core_structures.md
       - Pipeline Execution Tracking: architecture/pipeline_execution_tracking.md

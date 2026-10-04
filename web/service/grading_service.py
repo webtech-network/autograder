@@ -1,240 +1,156 @@
-"""Grading service for background submission processing."""
+"""Run a bound definition and persist the engine's finalized shared outcome."""
 
 import asyncio
-import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
-
+from uuid import uuid4
+from time import monotonic
 from autograder.autograder import build_pipeline
+from autograder.models.contracts.provenance import DefinitionProvenance
+from autograder.models.contracts.outcome import validate_outcome
 from autograder.models.dataclass.submission import (
     EvaluationScope,
     Submission as AutograderSubmission,
     SubmissionFile,
 )
-from autograder.models.result_tree import ResultTree
-from autograder.services.result_comparator import ResultComparator
-from autograder.utils.feedback_generator import generate_preflight_feedback
 from sandbox_manager.models.sandbox_models import Language
 from web.config.logging import get_logger
 from web.database import get_session
 from web.database.models.submission import SubmissionStatus
 from web.database.models.submission_result import PipelineStatus
 from web.repositories import SubmissionRepository, ResultRepository
-from autograder.serializers.pipeline_execution_serializer import PipelineExecutionSerializer
-
 
 logger = get_logger(__name__)
 
 
 @dataclass
 class GradingRequest:
-    """Encapsulates all parameters needed to grade a submission."""
     submission_id: int
     grading_config_id: int
-    template_name: str
-    criteria_config: dict
-    setup_config: dict
-    feedback_config: dict
-    include_feedback: bool
+    definition: dict
+    configuration_version: int
+    definition_hash: str
     language: str
     username: str
     external_user_id: str
     submission_files: dict
     locale: str = "en"
-    baseline_result_tree: Optional[dict] = None
-    evaluation_scope: Optional[dict] = None
+    evaluation_scope: dict | None = None
+
+    @property
+    def provenance(self):
+        return DefinitionProvenance(
+            definition_hash=self.definition_hash,
+            reference=str(self.grading_config_id),
+            revision=self.configuration_version,
+        )
 
 
-async def grade_submission(request: GradingRequest) -> None:
-    """
-    Background task to grade a submission.
-
-    This function runs the autograder pipeline on the submission and stores results.
-    """
-    logger.info(
-        "Starting grading for submission %d (user: %s)",
-        request.submission_id, request.username
-    )
-    start_time = time.time()
-
-    async with get_session() as session:
-        submission_repo = SubmissionRepository(session)
-        result_repo = ResultRepository(session)
-
-        try:
-            await submission_repo.update_status(request.submission_id, SubmissionStatus.PROCESSING)
-            await session.commit()
-            logger.info("Submission %d status updated to PROCESSING", request.submission_id)
-
-            pipeline_execution = await _run_pipeline(request)
-            execution_time_ms = int((time.time() - start_time) * 1000)
-
-            if pipeline_execution.result:
-                if request.baseline_result_tree and pipeline_execution.result.result_tree:
-                    try:
-                        baseline_tree = ResultTree.from_dict(request.baseline_result_tree)
-                        head_tree = pipeline_execution.result.result_tree
-                        pipeline_execution.result.comparison = ResultComparator.compare(
-                            baseline=baseline_tree,
-                            head=head_tree,
-                        )
-                    except Exception as exc:  # pylint: disable=broad-exception-caught
-                        logger.warning(
-                            "Failed to perform baseline comparison for submission %d: %s",
-                            request.submission_id, str(exc)
-                        )
-
-                await _persist_success(result_repo, submission_repo, request, pipeline_execution, execution_time_ms)
-            else:
-                await _persist_failure(result_repo, submission_repo, request, pipeline_execution, execution_time_ms)
-
-            await session.commit()
-
-        except Exception as exc:  # pylint: disable=broad-exception-caught
-            execution_time_ms = int((time.time() - start_time) * 1000)
-            await result_repo.create(
-                submission_id=request.submission_id,
-                final_score=0.0,
-                execution_time_ms=execution_time_ms,
-                pipeline_status=PipelineStatus.INTERRUPTED,
-                error_message=str(exc),
-            )
-            await submission_repo.update_status(request.submission_id, SubmissionStatus.FAILED)
-            await session.commit()
-            logger.error(
-                "Error grading submission %d: %s",
-                request.submission_id, str(exc),
-                exc_info=True
-            )
-
-
-async def _run_pipeline(request: GradingRequest):
-    """Build the autograder pipeline and run it in a thread."""
+async def _run_pipeline(request):
     pipeline = build_pipeline(
-        template_name=request.template_name,
-        include_feedback=request.include_feedback,
-        grading_criteria=request.criteria_config,
-        feedback_config=request.feedback_config or {},
-        setup_config=request.setup_config if request.setup_config else {},
-        custom_template=None,
+        definition=request.definition,
+        locale=request.locale,
+        provenance=request.provenance,
     )
-
-    files_to_grade = {
+    files = {
         name: SubmissionFile(
             filename=f["filename"],
             content=f["content"],
             changed_lines=(
-                set(f["changed_lines"])
-                if f.get("changed_lines") is not None
-                else None
+                set(f["changed_lines"]) if f.get("changed_lines") is not None else None
             ),
             metadata=f.get("file_metadata"),
         )
         for name, f in request.submission_files.items()
     }
-    evaluation_scope = (
-        EvaluationScope(**request.evaluation_scope)
-        if request.evaluation_scope is not None
-        else None
-    )
-
-    autograder_submission = AutograderSubmission(
+    submission = AutograderSubmission(
         username=request.username,
         user_id=request.external_user_id,
         assignment_id=request.grading_config_id,
-        submission_files=files_to_grade,
-        language=Language[request.language.upper()] if request.language else None,
+        submission_files=files,
+        language=Language(request.language),
         locale=request.locale,
-        evaluation_scope=evaluation_scope,
+        evaluation_scope=(
+            EvaluationScope(**request.evaluation_scope)
+            if request.evaluation_scope
+            else None
+        ),
     )
+    return await asyncio.to_thread(pipeline.run, submission)
 
-    return await asyncio.to_thread(pipeline.run, autograder_submission)
 
-
-async def _persist_success(result_repo, submission_repo, request: GradingRequest, pipeline_execution, execution_time_ms: int) -> None:
-    """Store successful grading results and update submission status."""
-    result = pipeline_execution.result
-    result_tree_dict = None
-    if result.result_tree:
-        result_tree_dict = {
-            "final_score": result.final_score,
-            "children": _node_to_dict(result.result_tree.root),
-        }
-
-    focus_dict = result.focus.to_dict() if result.focus else None
-    comparison_dict = result.comparison.to_dict() if result.comparison else None
-    pipeline_summary = PipelineExecutionSerializer.serialize(pipeline_execution)
-    score_vector = result.result_tree.to_score_vector() if result.result_tree else None
-
+async def persist_outcome(
+    result_repo, submission_repo, submission_id, outcome, diagnostics=None
+):
+    normalized = validate_outcome(outcome).model_dump(mode="json")
+    completed = normalized["status"] == "completed"
     await result_repo.create(
-        submission_id=request.submission_id,
-        final_score=result.final_score,
-        result_tree=result_tree_dict,
-        feedback=result.feedback,
-        focus=focus_dict,
-        score_vector=score_vector,
-        comparison=comparison_dict,
-        pipeline_execution=pipeline_summary,
-        execution_time_ms=execution_time_ms,
-        pipeline_status=PipelineStatus.SUCCESS,
+        submission_id=submission_id,
+        outcome=normalized,
+        diagnostics=diagnostics,
+        final_score=normalized["score"],
+        execution_time_ms=normalized["duration_ms"],
+        pipeline_status=PipelineStatus.SUCCESS if completed else PipelineStatus.FAILED,
     )
-
     await submission_repo.update(
-        request.submission_id,
-        status=SubmissionStatus.COMPLETED,
-        graded_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        submission_id,
+        status=SubmissionStatus.COMPLETED if completed else SubmissionStatus.FAILED,
+        graded_at=datetime.fromisoformat(
+            normalized["finished_at"].replace("Z", "+00:00")
+        ),
     )
-
-    logger.info(
-        "Submission %d graded successfully. Score: %s, Time: %dms",
-        request.submission_id, result.final_score, execution_time_ms
-    )
+    return normalized
 
 
-async def _persist_failure(result_repo, submission_repo, request: GradingRequest, pipeline_execution, execution_time_ms: int) -> None:
-    """Store failed grading results and update submission status."""
-    error_msg = "Pipeline failed to produce results"
-    if pipeline_execution.step_results:
-        last_step = pipeline_execution.get_previous_step()
-        if last_step and last_step.error:
-            error_msg = last_step.error
+async def grade_submission(request):
+    async with get_session() as session:
+        submissions, results = SubmissionRepository(session), ResultRepository(session)
+        await submissions.update_status(
+            request.submission_id, SubmissionStatus.PROCESSING
+        )
+        await session.commit()
+        started = datetime.now(timezone.utc)
+        started_monotonic = monotonic()
+        try:
+            execution = await _run_pipeline(request)
+            if execution.outcome is None:
+                raise RuntimeError("Engine returned no finalized outcome")
+            finalized = execution.outcome.model_dump(mode="json")
+        except Exception:
+            # Roll back incomplete result writes before storing one safe terminal failure.
+            await session.rollback()
+            logger.exception("Grading failed for submission %s", request.submission_id)
+            finished = datetime.now(timezone.utc)
+            execution_id = str(uuid4())
+            fallback = {
+                "schema_version": "1.0",
+                "status": "failed",
+                "execution_id": execution_id,
+                "language": request.language,
+                "provenance": request.provenance.model_dump(mode="json"),
+                "started_at": started.isoformat(),
+                "finished_at": finished.isoformat(),
+                "duration_ms": max(0, int((monotonic() - started_monotonic) * 1000)),
+                "score": None,
+                "tree": None,
+                "feedback": {"status": "disabled", "content": None, "error": None},
+                "comparison": {"status": "disabled", "content": None, "error": None},
+                "error": {
+                    "code": "EXECUTION_FAILED",
+                    "message": "Grading execution could not be completed.",
+                    "category": "internal",
+                    "retryable": True,
+                    "correlation_id": execution_id,
+                },
+            }
+            finalized = fallback
+        # Persistence is adapter publication. Its failure cannot change a finalized grade.
+        from web.service.outcome_delivery import publish_finalized
 
-    logger.warning("Submission %d pipeline failed: %s", request.submission_id, error_msg)
-
-    pipeline_summary = PipelineExecutionSerializer.serialize(pipeline_execution)
-
-    feedback = None
-    failed_step_name = pipeline_summary.get("failed_at_step")
-    if failed_step_name == "PreFlightStep":
-        feedback = generate_preflight_feedback(pipeline_summary, locale=request.locale)
-
-    await result_repo.create(
-        submission_id=request.submission_id,
-        final_score=0.0,
-        feedback=feedback,
-        pipeline_execution=pipeline_summary,
-        execution_time_ms=execution_time_ms,
-        pipeline_status=PipelineStatus.FAILED,
-        error_message=error_msg,
-        failed_at_step=failed_step_name,
-    )
-
-    await submission_repo.update_status(request.submission_id, SubmissionStatus.FAILED)
-
-
-def _node_to_dict(node) -> dict:
-    """
-    Recursively convert ResultTree nodes to a serializable dictionary.
-    Leverages the native to_dict() methods in the ResultTree models.
-    """
-    if node is None:
-        return {}
-
-    if hasattr(node, "to_dict") and callable(getattr(node, "to_dict")):
-        return node.to_dict()
-
-    if isinstance(node, list):
-        return [_node_to_dict(child) for child in node]
-
-    return {}
+        await publish_finalized(
+            session,
+            request.submission_id,
+            finalized,
+            results=results,
+            submissions=submissions,
+        )

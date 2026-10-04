@@ -1,83 +1,27 @@
-# Autograder Examples
+# Runnable grading examples
 
-Interactive demo and reference files for testing the autograder system.
+`assets/input_output/criteria_examples/` contains five complete v1 definitions,
+from flat addition checks to weighted nested calculator groups. Web and API
+examples use `assets/web_dev/definition.json` and `assets/api_testing/definition.json`.
+Student sample sources remain under `assets/input_output/code_examples/`.
 
-## Quick Start
+Validate all calculator definitions from the repository root:
 
-**Start demo:**
-```bash
-make examples-demo
+```sh
+python examples/assets/input_output/scripts/validate_criteria.py
 ```
 
-Or manually:
-```bash
-cd examples/demo
-python serve_demo.py
-```
+The [contract fixtures](../docs/contracts/DEFINITIONS.md#examples-and-errors) also
+cover C, artifacts, AI/static analysis and invalid authoring examples. Old split
+criteria/setup/feedback files were retired; use the explicit offline converter.
 
-Then open: **http://localhost:8080**
+For the browser demo, start the API (`uvicorn web.main:app`) and run
+`python examples/demo/serve_demo.py`. Open `http://localhost:8080/demo/`. The demo
+loads the same checked-in definitions, creates canonical configuration envelopes,
+submits real files and polls compact results. Supply the configured integration
+token on the landing page to fetch protected outcome details. The token stays in
+session storage. Required language commands/setup follow the selected languages.
 
-> **Note:** API server must be running (`cd web && python main.py`)
-
-## Directory Structure
-
-```
-examples/
-├── demo/                    # Interactive web demo
-│   ├── index.html          # Landing page
-│   ├── template.html       # Template selector
-│   ├── config.html         # Config creator
-│   ├── submit.html         # Code submission
-│   ├── api.html           # API explorer
-│   ├── *.js, *.css        # Scripts and styles
-│   └── serve_demo.py      # Demo server
-│
-└── assets/                 # Reference data
-    ├── input_output/       # I/O template examples
-    │   ├── code_examples/     # Python, Java, JS, C++
-    │   ├── criteria_examples/ # 5 preset configs
-    │   ├── sample_files/      # Config templates
-    │   └── scripts/           # Utilities
-    ├── web_dev/           # Web dev examples
-    └── api_testing/       # API testing examples
-```
-
-## Using the Demo
-
-### 1. Create Configuration
-- Select **Input/Output** template
-- Choose preset criteria (1-5)
-- Select language
-- Click **Create Configuration**
-
-### 2. Submit Code  
-- Select **Input/Output** template
-- Click **Submit and Grade**
-- Choose code example or write your own
-- Click **Submit for Grading**
-
-### 3. Explore API
-- Click **View API Operations**
-- Test endpoints directly
-
-## Available Templates
-
-| Template | Status |
-|----------|--------|
-| Input/Output | ✅ Available |
-| Web Development | 🚧 Coming Soon |
-| API Testing | 🚧 Coming Soon |
-
-## Configuration
-
-API endpoint (default: `http://localhost:8000`) can be changed on the landing page.
-
-## Troubleshooting
-
-**Demo won't start:** Ensure you're in `examples/demo/` directory  
-**API connection failed:** Start API server first  
-**Config not found:** Create config before submitting code
-
-
-
-
+`assets/curl_examples.sh validate-io` exercises validation without saving;
+`create-io` and `create-web` create configuration resources on the chosen API.
+Configure `AUTOGRADER_API_URL` to change its base URL.

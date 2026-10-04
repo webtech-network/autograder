@@ -1,194 +1,192 @@
-"""Grading configuration endpoints."""
+"""Configuration resources: one definition validator and one update path."""
 
-from typing import List
-
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from datetime import timezone
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from sqlalchemy.exc import IntegrityError
 from web.api.deps import get_db_session, require_integration_token
-from web.config.logging import get_logger
 from web.repositories import GradingConfigRepository
-from web.schemas import (
+from web.schemas.assignment import (
     GradingConfigCreate,
-    GradingConfigResponse,
     GradingConfigUpdate,
+    GradingConfigResponse,
+)
+from autograder.models.contracts.definition import (
+    compile_definition,
+    DefinitionValidationError,
+    GradingDefinition,
 )
 
-
-logger = get_logger(__name__)
 router = APIRouter(prefix="/configs", tags=["Grading Configurations"])
+
+
+def _compile(value):
+    try:
+        return compile_definition(value)
+    except DefinitionValidationError as exc:
+        raise HTTPException(422, detail=exc.errors()) from exc
+
+
+def _response(config, response):
+    response.headers["ETag"] = f'"{config.version}"'
+    # SQLite and pre-migration timestamps are naive UTC; wire timestamps always carry offsets.
+    return {
+        key: (
+            value.replace(tzinfo=timezone.utc)
+            if key.endswith("_at") and value.tzinfo is None
+            else value
+        )
+        for key in GradingConfigResponse.model_fields
+        if (value := getattr(config, key)) is not None
+    } | {
+        "definition": config.definition,
+        "definition_hash": config.definition_hash,
+        "migration_error": config.migration_error,
+    }
+
+
+@router.post("/validate")
+async def validate_definition(definition: GradingDefinition):
+    compiled = _compile(definition)
+    return {
+        "definition": compiled.definition.model_dump(mode="json"),
+        "definition_hash": compiled.definition_hash,
+    }
 
 
 @router.post("", response_model=GradingConfigResponse)
 async def create_grading_config(
-    config: GradingConfigCreate,
-    session: AsyncSession = Depends(get_db_session)
+    config: GradingConfigCreate, response: Response, session=Depends(get_db_session)
 ):
-    """Create a new grading configuration."""
-    logger.info(
-        "Creating grading configuration: assignment=%s, template=%s, languages=%s",
-        config.external_assignment_id,
-        config.template_name,
-        config.languages,
-    )
+    compiled = _compile(config.definition)
     repo = GradingConfigRepository(session)
-
-    # Check if config already exists
-    existing = await repo.get_by_external_id(config.external_assignment_id)
-    if existing:
-        logger.warning(
-            "Grading configuration already exists: assignment=%s (config_id=%d)",
-            config.external_assignment_id,
-            existing.id,
-        )
+    if await repo.get_by_external_id(config.external_assignment_id):
         raise HTTPException(
-            status_code=400,
-            detail=f"Configuration for assignment {config.external_assignment_id} already exists"
+            409, "Configuration already exists; reactivate the existing resource"
         )
+    try:
+        row = await repo.create(
+            external_assignment_id=config.external_assignment_id,
+            definition=compiled.definition.model_dump(mode="json"),
+            definition_hash=compiled.definition_hash,
+        )
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise HTTPException(409, "Configuration already exists") from exc
+    return _response(row, response)
 
-    # Create new configuration
-    db_config = await repo.create(
-        external_assignment_id=config.external_assignment_id,
-        template_name=config.template_name,
-        criteria_config=config.criteria_config,
-        languages=config.languages,
-        setup_config=config.setup_config,
-        feedback_config=config.feedback_config,
-        include_feedback=config.include_feedback,
+
+async def _get(repo, config_id=None, external_id=None):
+    row = (
+        await repo.get_by_id(config_id)
+        if config_id is not None
+        else await repo.get_by_external_id(external_id)
     )
-
-    logger.info(
-        "Grading configuration created: config_id=%d, assignment=%s, template=%s",
-        db_config.id,
-        db_config.external_assignment_id,
-        db_config.template_name,
-    )
-    return db_config
+    if row is None:
+        raise HTTPException(404, "Configuration not found")
+    return row
 
 
-@router.get("/id/{config_id}", response_model=GradingConfigResponse, dependencies=[Depends(require_integration_token)])
+@router.get(
+    "/id/{config_id}",
+    response_model=GradingConfigResponse,
+    dependencies=[Depends(require_integration_token)],
+)
 async def get_grading_config_by_id(
-    config_id: int,
-    session: AsyncSession = Depends(get_db_session)
+    config_id: int, response: Response, session=Depends(get_db_session)
 ):
-    """Get grading configuration by internal config ID."""
-    logger.info("Fetching grading configuration by ID: config_id=%d", config_id)
-    repo = GradingConfigRepository(session)
-    config = await repo.get_by_id(config_id)
-
-    if not config:
-        logger.warning("Grading configuration not found: config_id=%d", config_id)
-        raise HTTPException(
-            status_code=404,
-            detail=f"Configuration with id {config_id} not found"
-        )
-
-    logger.info(
-        "Grading configuration fetched: config_id=%d, assignment=%s, template=%s",
-        config.id,
-        config.external_assignment_id,
-        config.template_name,
+    return _response(
+        await _get(GradingConfigRepository(session), config_id=config_id), response
     )
-    return config
+
+
+@router.get("", response_model=list[GradingConfigResponse])
+async def list_grading_configs(
+    response: Response,
+    limit: int = Query(100, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    session=Depends(get_db_session),
+):
+    rows = await GradingConfigRepository(session).get_active_configs(limit, offset)
+    return [_response(row, response) for row in rows]
 
 
 @router.get("/{external_assignment_id}", response_model=GradingConfigResponse)
 async def get_grading_config(
-    external_assignment_id: str,
-    session: AsyncSession = Depends(get_db_session)
+    external_assignment_id: str, response: Response, session=Depends(get_db_session)
 ):
-    """Get grading configuration by external assignment ID."""
-    logger.info("Fetching grading configuration: assignment=%s", external_assignment_id)
-    repo = GradingConfigRepository(session)
-    config = await repo.get_by_external_id(external_assignment_id)
-
-    if not config:
-        logger.warning("Grading configuration not found: assignment=%s", external_assignment_id)
-        raise HTTPException(
-            status_code=404,
-            detail=f"Configuration for assignment {external_assignment_id} not found"
-        )
-
-    logger.info(
-        "Grading configuration fetched: config_id=%d, assignment=%s, template=%s",
-        config.id,
-        config.external_assignment_id,
-        config.template_name,
+    return _response(
+        await _get(
+            GradingConfigRepository(session), external_id=external_assignment_id
+        ),
+        response,
     )
-    return config
 
 
-@router.get("", response_model=List[GradingConfigResponse])
-async def list_grading_configs(
-    limit: int = 100,
-    offset: int = 0,
-    session: AsyncSession = Depends(get_db_session)
-):
-    """List all grading configurations."""
-    logger.info("Listing grading configurations: limit=%d, offset=%d", limit, offset)
-    repo = GradingConfigRepository(session)
-    configs = await repo.get_active_configs(limit=limit, offset=offset)
-    logger.info("Found %d grading configuration(s)", len(configs))
-    return configs
-
-
-@router.put("/{config_id}", response_model=GradingConfigResponse)
-async def update_grading_config(
-    config_id: int,
-    update: GradingConfigUpdate,
-    session: AsyncSession = Depends(get_db_session)
-):
-    """Update a grading configuration."""
-    logger.info("Updating grading configuration: config_id=%d", config_id)
-    repo = GradingConfigRepository(session)
-
-    # Get existing config
-    config = await repo.get_by_id(config_id)
-    if not config:
-        logger.warning("Grading configuration not found for update: config_id=%d", config_id)
-        raise HTTPException(status_code=404, detail="Configuration not found")
-
-    # Update fields
-    update_data = update.model_dump(exclude_unset=True)
-    if update_data:
-        updated_config = await repo.update(config_id, **update_data)
-        logger.info(
-            "Grading configuration updated: config_id=%d, fields=%s",
-            config_id,
-            list(update_data.keys()),
+def _revision(if_match):
+    if if_match is None:
+        raise HTTPException(
+            428, "If-Match with the current quoted revision is required"
         )
-        return updated_config
+    import re
 
-    logger.info("No fields to update for grading configuration: config_id=%d", config_id)
-    return config
+    if not re.fullmatch(r'"[1-9][0-9]*"', if_match):
+        raise HTTPException(422, "If-Match must be a quoted positive integer revision")
+    return int(if_match[1:-1])
 
 
-@router.put("/external/{external_assignment_id}", response_model=GradingConfigResponse)
+async def _patch(repo, row, payload, if_match, response):
+    expected = _revision(if_match)
+    changes = payload.model_dump(exclude_unset=True)
+    if "definition" in changes:
+        compiled = _compile(changes["definition"])
+        changes["definition"] = compiled.definition.model_dump(mode="json")
+        changes["definition_hash"] = compiled.definition_hash
+        changes["migration_error"] = None
+    if changes.get("is_active") and changes.get("definition", row.definition) is None:
+        raise HTTPException(
+            422,
+            "A quarantined configuration requires a valid definition before activation",
+        )
+    changes = {
+        key: value for key, value in changes.items() if getattr(row, key) != value
+    }
+    updated = await repo.conditional_update(row.id, expected, changes)
+    if updated is None:
+        raise HTTPException(412, "Configuration revision changed; fetch it and retry")
+    await repo.session.commit()
+    return _response(updated, response)
+
+
+@router.patch(
+    "/external/{external_assignment_id}", response_model=GradingConfigResponse
+)
 async def update_grading_config_external(
     external_assignment_id: str,
     update: GradingConfigUpdate,
-    session: AsyncSession = Depends(get_db_session)
+    response: Response,
+    if_match: str | None = Header(None),
+    session=Depends(get_db_session),
 ):
-    """Update a grading configuration by its external assignment ID."""
-    logger.info("Updating grading configuration by external ID: assignment=%s", external_assignment_id)
     repo = GradingConfigRepository(session)
+    return await _patch(
+        repo,
+        await _get(repo, external_id=external_assignment_id),
+        update,
+        if_match,
+        response,
+    )
 
-    # Get existing config
-    config = await repo.get_by_external_id(external_assignment_id)
-    if not config:
-        logger.warning("Grading configuration not found for update: assignment=%s", external_assignment_id)
-        raise HTTPException(status_code=404, detail="Configuration not found")
 
-    # Update fields
-    update_data = update.model_dump(exclude_unset=True)
-    if update_data:
-        updated_config = await repo.update_by_external_id(external_assignment_id, **update_data)
-        logger.info(
-            "Grading configuration updated by external ID: assignment=%s, fields=%s",
-            external_assignment_id,
-            list(update_data.keys()),
-        )
-        return updated_config
-
-    logger.info("No fields to update for grading configuration: assignment=%s", external_assignment_id)
-    return config
+@router.patch("/{config_id}", response_model=GradingConfigResponse)
+async def update_grading_config(
+    config_id: int,
+    update: GradingConfigUpdate,
+    response: Response,
+    if_match: str | None = Header(None),
+    session=Depends(get_db_session),
+):
+    repo = GradingConfigRepository(session)
+    return await _patch(
+        repo, await _get(repo, config_id=config_id), update, if_match, response
+    )

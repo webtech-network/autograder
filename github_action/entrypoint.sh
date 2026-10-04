@@ -1,105 +1,18 @@
 #!/bin/bash
-# This script validates required environment variables and dynamically builds
-# the command to run the python entrypoint, only passing arguments that are set.
-
-# Exit immediately if a command exits with a non-zero status for robustness.
-set -e
-
-# --- 1. Validate Required Environment Variables ---
-# These variables correspond to arguments marked as `required=True` in the Python script.
-# The script will exit with an error if any of them are missing.
-if [[ -z "$GITHUB_TOKEN" ]]; then
-  echo "Error: Environment variable GITHUB_TOKEN is not set." >&2
-  exit 1
-fi
-
-if [[ -z "$TEMPLATE_PRESET" ]]; then
-  echo "Error: Environment variable TEMPLATE_PRESET is not set." >&2
-  exit 1
-fi
-
-if [[ -z "$GITHUB_ACTOR" ]]; then
-  echo "Error: Environment variable GITHUB_ACTOR is not set." >&2
-  exit 1
-fi
-
-# --- 1b. Mode-specific validation ---
-# Resolve effective execution mode (default: repo)
-EFFECTIVE_MODE="${EXECUTION_MODE:-repo}"
-
-if [[ "$EFFECTIVE_MODE" == "external" ]]; then
-  if [[ -z "$GRADING_CONFIG_ID" ]]; then
-    echo "Error: GRADING_CONFIG_ID is required when execution-mode is 'external'." >&2
-    exit 1
+set -euo pipefail
+cd "$(dirname "$0")/.."
+args=(python -m github_action.main)
+for mapping in \
+  'EXECUTION_MODE:execution-mode' 'DEFINITION_PATH:definition-path' \
+  'SUBMISSION_ROOT:submission-root' 'GITHUB_ACTOR:student-name' \
+  'SUBMISSION_LANGUAGE:submission-language' 'LOCALE:locale' \
+  'GRADING_CONFIG_ID:grading-config-id' 'AUTOGRADER_CLOUD_URL:autograder-cloud-url' \
+  'AUTOGRADER_CLOUD_TOKEN:autograder-cloud-token' 'UPLOAD_TO_CLOUD:upload-to-cloud' \
+  'RETRY_DELIVERY_PATH:retry-delivery-path'; do
+  variable="${mapping%%:*}"
+  argument="${mapping#*:}"
+  if [[ -n "${!variable:-}" ]]; then
+    args+=("--$argument" "${!variable}")
   fi
-  if [[ -z "$AUTOGRADER_CLOUD_URL" ]]; then
-    echo "Error: AUTOGRADER_CLOUD_URL is required when execution-mode is 'external'." >&2
-    exit 1
-  fi
-  if [[ -z "$AUTOGRADER_CLOUD_TOKEN" ]]; then
-    echo "Error: AUTOGRADER_CLOUD_TOKEN is required when execution-mode is 'external'." >&2
-    exit 1
-  fi
-fi
-
-cd /app
-
-
-# --- 2. Dynamically Build Command Arguments ---
-# Initialize a bash array with the base command and the required arguments.
-args=(
-    "python"
-    "-m"
-    "github_action.main"
-    "--github-token" "$GITHUB_TOKEN"
-    "--template-preset" "$TEMPLATE_PRESET"
-    "--student-name" "$GITHUB_ACTOR"
-    "--execution-mode" "$EFFECTIVE_MODE"
-)
-
-# Conditionally add optional arguments to the array ONLY if they are set.
-# The '-n' flag checks if the variable's string length is non-zero.
-# Note: The argument flags (e.g., --app_token) match the ones in your Python script.
-if [[ -n "$APP_TOKEN" ]]; then
-    args+=("--app-token" "$APP_TOKEN")
-fi
-
-if [[ -n "$FEEDBACK_TYPE" ]]; then
-    args+=("--feedback-type" "$FEEDBACK_TYPE")
-fi
-
-if [[ -n "$OPENAI_KEY" ]]; then
-    args+=("--openai-key" "$OPENAI_KEY")
-fi
-
-if [[ -n "$INCLUDE_FEEDBACK" ]]; then
-  args+=("--include-feedback" "$INCLUDE_FEEDBACK")
-fi
-
-if [[ -n "$GRADING_CONFIG_ID" ]]; then
-    args+=("--grading-config-id" "$GRADING_CONFIG_ID")
-fi
-
-if [[ -n "$AUTOGRADER_CLOUD_URL" ]]; then
-    args+=("--autograder-cloud-url" "$AUTOGRADER_CLOUD_URL")
-fi
-
-if [[ -n "$AUTOGRADER_CLOUD_TOKEN" ]]; then
-    args+=("--autograder-cloud-token" "$AUTOGRADER_CLOUD_TOKEN")
-fi
-
-if [[ -n "$SUBMISSION_LANGUAGE" ]]; then
-    args+=("--submission-language" "$SUBMISSION_LANGUAGE")
-fi
-
-if [[ -n "$LOCALE" ]]; then
-    args+=("--locale" "$LOCALE")
-fi
-
-
-# --- 3. Execute the Python Script ---
-echo "Executing python entrypoint with configured arguments..."
-
-# The "${args[@]}" syntax expands the array into separate, properly quoted arguments.
-# This is the safest way to run commands with dynamic arguments that might contain spaces.
-"${args[@]}"
+done
+exec "${args[@]}"
