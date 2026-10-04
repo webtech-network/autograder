@@ -7,15 +7,19 @@ and [Actions migration](github_action/configuration.md).
 
 ## Configurations
 
-POST `/api/v1/configs` with `{external_assignment_id, definition}`. The definition
-is compiled before saving. POST `/api/v1/configs/validate` accepts just the definition
+`POST /api/v1/configs` with `{external_assignment_id, definition}`. The definition
+is compiled before saving. `POST /api/v1/configs/validate` accepts just the definition
 and returns normalized JSON/hash without saving or provisioning resources.
-GET `/configs/{external_assignment_id}` resolves the alias even when inactive;
-authenticated GET `/configs/id/{id}` uses canonical identity. Responses include
+`GET /api/v1/configs/{external_assignment_id}` resolves the alias even when inactive;
+authenticated `GET /api/v1/configs/id/{config_id}` uses canonical identity. Responses include
 `id`, `definition`, `definition_hash`, `version`, `is_active`, UTC timestamps,
 optional migration errors and quoted revision `ETag`.
 
-PATCH `/configs/{id}` or `/configs/external/{alias}` with an entire `definition`
+`GET /api/v1/configs` lists active configurations, with `limit` 1–100 and
+nonnegative `offset`.
+
+`PATCH /api/v1/configs/{config_id}` or
+`PATCH /api/v1/configs/external/{external_assignment_id}` with an entire `definition`
 and/or `is_active`. Supply `If-Match: "<version>"`. Omitted fields are preserved;
 explicit nulls are rejected. Updates validate the full definition and atomically
 check revision. Missing precondition is 428; stale revision is 412; malformed
@@ -24,23 +28,23 @@ are 409; reactivate the existing resource. PUT is retired.
 
 ## Submissions and results
 
-POST `/api/v1/submissions` accepts `external_assignment_id`, `external_user_id`,
+`POST /api/v1/submissions` accepts `external_assignment_id`, `external_user_id`,
 `username`, `files:[{filename,content}]`, optional language/locale/metadata and
 typed evaluation scope/file context. Filenames are unique normalized relative
 paths. A single definition language is inferred; multiple choices require one.
 Inactive/quarantined definitions reject new work with 409. Acceptance binds the
 exact definition snapshot/hash/revision before starting grading.
 
-GET `/submissions/{id}` returns compact polling status, nullable `final_score`,
+`GET /api/v1/submissions/{submission_id}` returns compact polling status, nullable `final_score`,
 `execution_time_ms`, provenance/status, structured error and enrichment statuses.
-It excludes files, trees and snapshots. Authenticated GET `/submissions/{id}/details`
+It excludes files, trees and snapshots. Authenticated `GET /api/v1/submissions/{submission_id}/details`
 adds the full canonical `outcome`, definition snapshot, files/metadata and protected
-diagnostics. GET `/submissions` provides history filtered by user, configuration
+diagnostics. `GET /api/v1/submissions` provides history filtered by user, configuration
 and status, with `limit` 1–100 and nonnegative `offset`, newest timestamp then ID.
-GET `/submissions/user/{user}` is the user-filtered projection. Terminal poll/history
+`GET /api/v1/submissions/user/{external_user_id}` is the user-filtered projection. Terminal poll/history
 scores come from the same persisted outcome; failed execution never means grade0.
 
-Authenticated POST `/submissions/external-results` accepts `grading_config_id`,
+Authenticated `POST /api/v1/submissions/external-results` accepts `grading_config_id`,
 `external_user_id`, `username`, `language`, `definition_snapshot`, canonical
 `outcome` and optional `submission_metadata`. It checks hash/resource/revision,
 language, tree identity/placement/weights and terminal invariants. Current revision
@@ -55,14 +59,23 @@ broader authentication changes are tracked separately.
 
 ## Discovery and operations
 
-GET `/templates` and `/templates/{identifier}` expose registry evaluator identifiers
+`GET /api/v1/templates` and `GET /api/v1/templates/{template_name}` expose registry evaluator identifiers
 and typed `parameters_schema` generated from the same executable contracts.
 Definitions may use input_output, static_analysis, webdev and api. Valid API
 parameters do not imply the selected host has API networking; unavailable host
 capabilities produce structured failed outcomes.
 
-The deliberate execution endpoint remains available under its existing contract
-(#378). Grading publication retains a private local receipt on DB failure;
+`GET /api/v1/health` returns service health, version and a UTC timestamp.
+`GET /api/v1/ready` returns readiness and a UTC timestamp, with status 503 until
+the template registry is initialized.
+
+`POST /api/v1/execute` executes code without grading or persistence under its
+existing contract (#378). It accepts `language`, `submission_files`,
+`program_command`, optional `test_cases` (lists of input strings), and optional
+`assets`. Its `results` contain output, execution category, nullable error message
+and execution time in seconds for each test case.
+
+Grading publication retains a private local receipt on DB failure;
 [receipt replay](contracts/OUTCOMES.md#publication-receipts) retries publication without running evaluators.
 Background HTTP grading remains in-process. These contracts do not establish
 durable scheduling or idempotent submission acceptance (#365/#366).
