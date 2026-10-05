@@ -38,6 +38,7 @@ markdown_extensions:
 
 nav:
   - Integration Contracts:
+      - Executable Examples: contracts/CONFORMANCE.md
       - Definitions: contracts/DEFINITIONS.md
       - Outcomes: contracts/OUTCOMES.md
       - Decisions: contracts/DECISIONS.md

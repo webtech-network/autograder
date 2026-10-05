@@ -31,6 +31,9 @@ jobs:
         run: |
           echo "PYTHONPATH=." >> $GITHUB_ENV
 
+      - name: Check generated contracts
+        run: python scripts/generate_contract_schemas.py --check
+
       - name: Build sandbox images
         run: |
           make sandbox-build-all

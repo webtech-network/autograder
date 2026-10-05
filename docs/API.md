@@ -4,6 +4,8 @@ Run `uvicorn web.main:app`; interactive OpenAPI is at `/docs`.
 The grading definition and outcome each carry their own `schema_version: "1.0"`.
 See [definition contract](contracts/DEFINITIONS.md), [outcomes](contracts/OUTCOMES.md)
 and [Actions migration](github_action/configuration.md).
+For runnable integration examples, generated OpenAPI, and Prisma migration
+details, see [contract conformance](contracts/CONFORMANCE.md).
 
 ## Configurations
 

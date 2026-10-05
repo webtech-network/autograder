@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "templates": ["webdev"],
+  "languages": ["node"],
+  "criteria": {
+    "base": {
+      "weight": 100,
+      "tests": [
+        {
+          "id": "html-entry",
+          "type": "check_project_structure",
+          "name": "HTML entry file",
+          "weight": 100,
+          "parameters": {"expected_structure": "index.html"}
+        }
+      ]
+    }
+  }
+}

@@ -124,11 +124,11 @@ def test_metadata_inputs_are_forwarded_by_real_shell(tmp_path):
 def test_real_shell_grades_ordinary_checkout_and_retains_canonical_outcome(workspace):
     import sys
     from autograder.models.contracts.outcome import validate_outcome
-    from tests.unit.github_action.test_github_action_service import definition
+    from examples.contracts.http_round_trip import DEFINITION
     repo = Path(__file__).resolve().parents[3]
     path = workspace / ".github/autograder/definition.json"
     path.parent.mkdir(parents=True)
-    path.write_text(json.dumps(definition()))
+    path.write_text(DEFINITION.read_text(encoding="utf-8"))
     env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
                GITHUB_ACTOR="alice", LOCALE="pt-br", EXECUTION_MODE="repo",
                DEFINITION_PATH=".github/autograder/definition.json", SUBMISSION_ROOT=".",
