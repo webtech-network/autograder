@@ -93,3 +93,18 @@ cover the single-definition-file and scalar output changes.
 Durable scheduling, distributed sandbox provisioning, host capability redesign,
 HTTP submission idempotency, and retention policy are separate phase-2 items.
 They must not be implied by these schema and publication changes.
+
+## Deliberate execution (#378)
+
+The web adapter retains a bounded synchronous `POST /api/v1/execute` for Prisma's
+pre-submission runs. It keeps `test_cases` as stdin lines and `results` as an
+ordered list, avoiding a second request model or grading-tree orchestration.
+Authentication uses the existing host integration token. The shared sandbox
+manager's per-language pool is the current common admission limit for grading
+and deliberate runs. A process failure is a 200 result with stdout, stderr,
+exit status and category; an infrastructure failure is 503, and a connected
+caller past the response deadline gets 504. A cancelled/timed-out HTTP request
+does not cancel its single worker; the worker owns cleanup. The [full contract,
+limits, error matrix and Prisma cutover](../features/deliberate_code_execution.md)
+are documented separately. Hard Docker/provider deadlines and distributed
+admission remain with #376/#377, and router-wide authentication remains #318.

@@ -103,8 +103,11 @@ compact status, nullable `final_score`, `provenance`, and structured `error`.
 After terminal polling, fetch authenticated `/api/v1/submissions/{id}/details` for
 `outcome.tree`, `outcome.feedback`, files, and diagnostics as needed. Treat a
 failed null score differently from a completed zero. Prisma's deliberate
-`/api/v1/execute` request/response records already use `test_cases` and a
-`results` list; their redesign is tracked separately in #378.
+`/api/v1/execute` request/response records use `test_cases` and a `results`
+list. The [execution contract](../features/deliberate_code_execution.md)
+preserves these fields while adding process details, request bounds, and
+distinct service failures. Its contract test exercises the Prisma-shaped
+request over HTTP.
 
 Coordinate the Prisma DTO/service migration before deploying the v1 HTTP
 contract to that consumer. No Prisma code is changed by this repository's PR.

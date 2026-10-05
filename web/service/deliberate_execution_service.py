@@ -1,207 +1,162 @@
-"""
-Deliberate Code Execution Service.
-
-This service provides stateless code execution without grading.
-It uses the sandbox manager to execute code and return outputs.
-"""
+"""Host-owned synchronous execution, independent of grading semantics."""
 
 import asyncio
+import logging
+from time import monotonic
 
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.services.assets.resolver import AssetSourceResolver
 from sandbox_manager.manager import get_sandbox_manager
-from sandbox_manager.models.sandbox_models import Language, ResponseCategory, CommandResponse
-from web.config.logging import get_logger
-from web.schemas.execution import DeliberateCodeExecutionRequest, DeliberateCodeExecutionResponse, DeliberateCodeExecutionResult
+from sandbox_manager.models.sandbox_models import Language, ResponseCategory
+from web.schemas.execution import (
+    CASE_TIMEOUT_SECONDS,
+    MAX_OUTPUT_BYTES,
+    MAX_TOTAL_FILE_BYTES,
+    REQUEST_DEADLINE_SECONDS,
+    DeliberateCodeExecutionRequest,
+    DeliberateCodeExecutionResponse,
+    DeliberateCodeExecutionResult,
+)
+
+logger = logging.getLogger(__name__)
 
 
-logger = get_logger(__name__)
+class ExecutionServiceError(Exception):
+    def __init__(self, code: str, message: str, status_code: int):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.status_code = status_code
 
 
-def _get_error_message(result: CommandResponse) -> str | None:
-    """
-    Build error message based on response category.
+UNAVAILABLE = ("EXECUTION_UNAVAILABLE", "Execution service is unavailable.", 503)
+DEADLINE = ("EXECUTION_DEADLINE_EXCEEDED", "Execution deadline exceeded.", 504)
 
-    Args:
-        result: CommandResponse from sandbox execution
 
-    Returns:
-        Error message string or None if successful
-    """
-    if result.category == ResponseCategory.SUCCESS:
-        return None
+def _bounded(text: str) -> tuple[str, bool]:
+    encoded = text.encode("utf-8")
+    if len(encoded) <= MAX_OUTPUT_BYTES:
+        return text, False
+    return encoded[:MAX_OUTPUT_BYTES].decode("utf-8", errors="ignore"), True
 
-    # Map category to error message
-    error_messages = {
-        ResponseCategory.COMPILATION_ERROR: "Compilation failed",
+
+def _result(command_result) -> DeliberateCodeExecutionResult:
+    if command_result.category == ResponseCategory.SYSTEM_ERROR:
+        raise ExecutionServiceError(*UNAVAILABLE)
+    stdout, out_cut = _bounded(command_result.stdout)
+    stderr, err_cut = _bounded(command_result.stderr)
+    labels = {
         ResponseCategory.RUNTIME_ERROR: "Runtime error occurred",
+        ResponseCategory.COMPILATION_ERROR: "Compilation failed",
         ResponseCategory.TIMEOUT: "Execution timed out",
-        ResponseCategory.SYSTEM_ERROR: "System error occurred",
     }
+    error_message = labels.get(command_result.category)
+    if error_message and stderr:
+        error_message = f"{error_message}: {stderr}"
+    return DeliberateCodeExecutionResult(
+        category=command_result.category,
+        stdout=stdout,
+        stderr=stderr,
+        exit_code=command_result.exit_code,
+        execution_time=command_result.execution_time,
+        output="\n".join(part for part in (stdout, stderr) if part),
+        error_message=error_message,
+        truncated=out_cut or err_cut,
+    )
 
-    error_message = error_messages.get(result.category)
 
-    # Add stderr if available
-    if result.stderr:
-        if error_message:
-            error_message = f"{error_message}: {result.stderr}"
-        else:
-            error_message = result.stderr
+def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: float):
+    """Keep acquisition, execution, and cleanup in one worker even after disconnect."""
+    if monotonic() >= deadline_at:
+        raise ExecutionServiceError(*DEADLINE)
+    try:
+        manager = get_sandbox_manager()
+    except Exception as exc:
+        raise ExecutionServiceError(*UNAVAILABLE) from exc
 
-    return error_message
+    language = Language(request.language)
+    sandbox = None
+    timed_out = False
+    try:
+        sandbox = manager.get_sandbox(language)
+        if monotonic() >= deadline_at:
+            raise ExecutionServiceError(*DEADLINE)
+        files = {
+            item.filename: SubmissionFile(filename=item.filename, content=item.content)
+            for item in request.submission_files
+        }
+        sandbox.prepare_workdir(files)
+        if request.assets:
+            resolved = AssetSourceResolver().resolve_assets(request.assets)
+            if sum(len(item.content) for item in resolved) > MAX_TOTAL_FILE_BYTES:
+                raise ExecutionServiceError(*UNAVAILABLE)
+            sandbox.inject_assets(resolved)
 
-
-async def _execute_test_cases(
-    sandbox,
-    program_command: str,
-    test_cases: list[list[str]]
-) -> list[DeliberateCodeExecutionResult]:
-    """Execute a list of test cases in the sandbox."""
-    execution_results: list[DeliberateCodeExecutionResult] = []
-
-    for idx, test_case_args in enumerate(test_cases):
-        logger.info("Executing test case %d of %d", idx + 1, len(test_cases))
-
-        result: CommandResponse
-
-        if test_case_args:
-            # Format/flatten inputs if they're provided as list of lists
-            flattened_inputs = [str(input_args) for input_args in test_case_args]
-
-            logger.info("Executing with %d input(s) for test case %d", len(flattened_inputs), idx + 1)
-            result = await asyncio.to_thread(
-                sandbox.run_commands,
-                flattened_inputs,
-                program_command,
-                timeout=30,
-                workdir="/app"
-            )
-        else:
-            # No inputs, just run the command
-            logger.info("Executing without inputs for test case %d", idx + 1)
-            result = await asyncio.to_thread(
-                sandbox.run_command,
-                program_command,
-                timeout=30,
-                workdir="/app"
-            )
-
-        logger.info(
-            "Test case %d completed: category=%s, exit_code=%d, time=%.3fs",
-            idx + 1, result.category.value, result.exit_code, result.execution_time
+        results = []
+        cases = request.test_cases if request.test_cases is not None else [[]]
+        for case in cases:
+            remaining = deadline_at - monotonic()
+            if remaining <= 0:
+                raise ExecutionServiceError(*DEADLINE)
+            timeout = max(1, min(CASE_TIMEOUT_SECONDS, int(remaining)))
+            if case:
+                command_result = sandbox.run_commands(
+                    case, request.program_command, timeout=timeout, workdir="/app"
+                )
+            else:
+                command_result = sandbox.run_command(
+                    request.program_command, timeout=timeout, workdir="/app"
+                )
+            results.append(_result(command_result))
+            if command_result.category == ResponseCategory.TIMEOUT:
+                timed_out = True
+                break
+        return DeliberateCodeExecutionResponse(
+            results=results, stopped_early=len(results) < len(cases)
         )
+    except ExecutionServiceError:
+        raise
+    except Exception as exc:
+        logger.exception("Deliberate execution infrastructure failed")
+        raise ExecutionServiceError(*UNAVAILABLE) from exc
+    finally:
+        if sandbox is not None:
+            try:
+                # A timed-out process may still be running; never recycle its sandbox.
+                if timed_out:
+                    manager.destroy_sandbox(language, sandbox)
+                else:
+                    manager.release_sandbox(language, sandbox)
+            except Exception:
+                # A known process result remains valid even if pool cleanup fails.
+                logger.exception("Deliberate execution sandbox cleanup failed")
+                if not timed_out:
+                    try:
+                        manager.destroy_sandbox(language, sandbox)
+                    except Exception:
+                        logger.exception("Deliberate execution sandbox destroy failed")
 
-        # Build result item
-        output_parts = [part for part in (result.stdout, result.stderr) if part]
-        output = "\n".join(output_parts)
-        error_message = _get_error_message(result)
 
-        execution_results.append(
-            DeliberateCodeExecutionResult(
-                output=output,
-                category=result.category,
-                error_message=error_message,
-                execution_time=result.execution_time
-            )
-        )
-
-    return execution_results
+def _observe_worker(task: asyncio.Task) -> None:
+    """Consume a detached worker's error after response deadline or disconnect."""
+    if not task.cancelled():
+        try:
+            task.result()
+        except Exception:
+            logger.exception("Detached deliberate execution finished with an error")
 
 
 async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCodeExecutionResponse:
-    """
-    Execute code in a sandbox without grading.
-
-    This is a stateless operation - no data is persisted.
-
-    Args:
-        request: DeliberateCodeExecutionRequest containing language, files, command, and optional inputs
-
-    Returns:
-        DeliberateCodeExecutionResponse with output, category, error message, and execution time
-
-    Raises:
-        ValueError: If language is not supported or sandbox manager is not initialized
-        Exception: If execution fails
-    """
-    logger.info("Deliberate execution request: language=%s, command=%s",
-                request.language, request.program_command)
-
-    # Convert language string to Language enum
+    deadline_at = monotonic() + REQUEST_DEADLINE_SECONDS
+    worker = asyncio.create_task(asyncio.to_thread(_execute_in_worker, request, deadline_at))
     try:
-        language = Language[request.language.upper()]
-    except KeyError as exc:
-        raise ValueError(f"Unsupported language: {request.language}") from exc
-
-    # Get sandbox manager
-    try:
-        sandbox_manager = get_sandbox_manager()
-    except ValueError as e:
-        logger.error("Sandbox manager not initialized: %s", e)
-        raise ValueError("Sandbox manager not available. Please contact system administrator.") from e
-
-    # Acquire sandbox
-    sandbox = None
-    try:
-        sandbox = await asyncio.to_thread(sandbox_manager.get_sandbox, language)
-        logger.info("Acquired sandbox for %s", language.value)
-
-        # Convert submission files to the format expected by sandbox
-        files_dict = {
-            file_data.filename: SubmissionFile(
-                filename=file_data.filename,
-                content=file_data.content
-            )
-            for file_data in request.submission_files
-        }
-
-        # Prepare workdir with submission files
-        await asyncio.to_thread(sandbox.prepare_workdir, files_dict)
-        logger.info("Prepared workdir with %d file(s)", len(files_dict))
-
-        # Resolve and inject assets if provided
-        if request.assets:
-            logger.info("Resolving and injecting %d assets for deliberate execution", len(request.assets))
-            asset_resolver = AssetSourceResolver()
-            resolved_assets = await asyncio.to_thread(
-                asset_resolver.resolve_assets,
-                request.assets
-            )
-            await asyncio.to_thread(
-                sandbox.inject_assets,
-                resolved_assets
-            )
-            logger.info("Successfully injected %d assets", len(resolved_assets))
-
-        # Determine test cases to run (at least 1 empty run if none provided)
-        test_cases = request.test_cases if request.test_cases else [[]]
-
-        # Execute test cases
-        execution_results = await _execute_test_cases(
-            sandbox,
-            request.program_command,
-            test_cases
+        return await asyncio.wait_for(
+            asyncio.shield(worker), timeout=REQUEST_DEADLINE_SECONDS
         )
-
-        return DeliberateCodeExecutionResponse(results=execution_results)
-
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error("Execution failed: %s", e, exc_info=True)
-        num_results = len(request.test_cases) if request.test_cases else 1
-        return DeliberateCodeExecutionResponse(
-            results=[
-                DeliberateCodeExecutionResult(
-                    output="",
-                    category=ResponseCategory.SYSTEM_ERROR,
-                    error_message="An unexpected error occurred. Please try again later.",
-                    execution_time=0.0
-                )
-                for _ in range(num_results)
-            ]
-        )
-
-    finally:
-        # Always release sandbox back to pool
-        if sandbox and sandbox_manager:
-            await asyncio.to_thread(sandbox_manager.release_sandbox, language, sandbox)
-            logger.info("Released sandbox for %s", language.value)
+    except asyncio.TimeoutError as exc:
+        # The worker retains its pool slot and releases the sandbox in its finally block.
+        worker.add_done_callback(_observe_worker)
+        raise ExecutionServiceError(*DEADLINE) from exc
+    except asyncio.CancelledError:
+        worker.add_done_callback(_observe_worker)
+        raise

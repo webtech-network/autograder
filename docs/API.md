@@ -71,11 +71,11 @@ capabilities produce structured failed outcomes.
 `GET /api/v1/ready` returns readiness and a UTC timestamp, with status 503 until
 the template registry is initialized.
 
-`POST /api/v1/execute` executes code without grading or persistence under its
-existing contract (#378). It accepts `language`, `submission_files`,
-`program_command`, optional `test_cases` (lists of input strings), and optional
-`assets`. Its `results` contain output, execution category, nullable error message
-and execution time in seconds for each test case.
+`POST /api/v1/execute` is the [bounded deliberate execution API](features/deliberate_code_execution.md).
+It requires the integration Bearer token. `test_cases` supplies stdin lines;
+the response separates stdout, stderr, exit status and process category. Invalid
+input is 422, unavailable infrastructure is 503, and the response deadline is
+504. The endpoint shares the sandbox pool with grading.
 
 Grading publication retains a private local receipt on DB failure;
 [receipt replay](contracts/OUTCOMES.md#publication-receipts) retries publication without running evaluators.
