@@ -156,7 +156,6 @@ def build_pipeline(*, definition, locale="en", provenance=None, templates=None) 
     if pipeline.definition_provenance.definition_hash != compiled.definition_hash:
         raise ValueError("Provenance hash must identify the compiled definition")
     config = {
-        "template_name": normalized.templates,
         "include_feedback": normalized.feedback.enabled,
         "grading_criteria": normalized.criteria.model_dump(mode="json"),
         "feedback_config": normalized.feedback.preferences.model_dump(mode="json"),

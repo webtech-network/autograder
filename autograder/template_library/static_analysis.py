@@ -54,6 +54,7 @@ class ForbiddenImportTest(TestFunction):
             r'^\s*#\s*include\s*[<"]{lib}[/\.>"]',
         ],
     }
+    supported_languages = [language.value for language in IMPORT_PATTERNS]
 
     @property
     def name(self):
@@ -208,6 +209,8 @@ class ForbiddenKeywordTest(TestFunction):
             "do_while_loop": {"kind": "do_statement"},
         },
     }
+    supported_languages = [language.value for language in PREDEFINED_RULES]
+    required_capabilities = ("structural_analysis",)
 
     @property
     def name(self):

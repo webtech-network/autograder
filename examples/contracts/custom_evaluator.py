@@ -2,13 +2,11 @@
 
 from pydantic import BaseModel, Field
 
-from autograder import build_pipeline
-from autograder.models.abstract.template import Template
-from autograder.models.abstract.test_function import TestFunction
+from autograder import (
+    compile_definition, evaluate_submission, Template, TestFunction,
+    Submission, SubmissionFile, TestResult,
+)
 from autograder.models.dataclass.param_description import ParamDescription
-from autograder.models.dataclass.submission import Submission, SubmissionFile
-from autograder.models.dataclass.test_result import TestResult
-from sandbox_manager.models.sandbox_models import Language
 
 
 class ContainsTextParameters(BaseModel):
@@ -56,8 +54,8 @@ DEFINITION = {
 
 
 def grade(content: str):
-    pipeline = build_pipeline(
-        definition=DEFINITION,
+    compiled = compile_definition(
+        DEFINITION,
         templates={"trusted_text": TrustedTextTemplate()},
     )
     submission = Submission(
@@ -65,9 +63,9 @@ def grade(content: str):
         user_id="local",
         assignment_id="trusted-example",
         submission_files={"index.html": SubmissionFile("index.html", content)},
-        language=Language.NODE,
     )
-    return pipeline.run(submission).outcome
+    # The compiled definition retains the trusted instance; language is inferred.
+    return evaluate_submission(submission, definition=compiled)
 
 
 if __name__ == "__main__":

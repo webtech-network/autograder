@@ -59,7 +59,10 @@ local `TestFunction` and `Template` example. It compiles a v1 definition with
 `templates={"trusted_text": TrustedTextTemplate()}`, grades an in-memory
 submission, and prints the terminal outcome. Only a trusted Python caller can
 inject executable evaluator code. JSON sent to HTTP or Actions cannot load a
-Python class, and no plugin upload API is advertised.
+Python class, and no plugin upload API is advertised. The example uses
+`compile_definition` followed by `evaluate_submission`; injected instances survive
+that boundary. See the [catalog and Python facade](CATALOG.md) for the supported
+surface, typed discovery responses and remaining INT-14 host responsibilities.
 
 ## Supported environments and test scope
 

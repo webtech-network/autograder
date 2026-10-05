@@ -21,6 +21,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class HealthCheckTest(TestFunction):
     """A simple test to check if an API endpoint is alive and returns a 200 OK status."""
 
+    required_capabilities = ("http_network",)
+
     @property
     def name(self):
         return "health_check"
@@ -70,6 +72,8 @@ class HealthCheckTest(TestFunction):
 
 class CheckResponseJsonTest(TestFunction):
     """Checks if an endpoint returns a JSON with a specific key-value pair."""
+
+    required_capabilities = ("http_network",)
 
     @property
     def name(self):

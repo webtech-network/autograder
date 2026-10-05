@@ -105,8 +105,8 @@ class TestTemplateEndpoints:
             mock_service = Mock()
             mock_service.get_all_templates_info = Mock(
                 return_value=[
-                    {"name": "webdev", "description": "Web dev"},
-                    {"name": "api_testing", "description": "API testing"},
+                    {"identifier": "webdev", "name": "Web dev", "description": "Web dev", "requires_sandbox": False, "evaluators": []},
+                    {"identifier": "api", "name": "API testing", "description": "API testing", "requires_sandbox": True, "evaluators": []},
                 ]
             )
             mock_get.return_value = mock_service
@@ -123,9 +123,11 @@ class TestTemplateEndpoints:
             mock_service = Mock()
             mock_service.get_template_info = Mock(
                 return_value={
+                    "identifier": "webdev",
                     "name": "webdev",
                     "description": "Web development",
-                    "supported_languages": ["python", "javascript"],
+                    "requires_sandbox": False,
+                    "evaluators": [],
                 }
             )
             mock_get.return_value = mock_service
@@ -133,7 +135,8 @@ class TestTemplateEndpoints:
             assert response.status_code == 200
             data = response.json()
             assert data["name"] == "webdev"
-            assert "supported_languages" in data
+            assert data["identifier"] == "webdev"
+            assert "evaluators" in data
 
     @pytest.mark.asyncio
     async def test_get_nonexistent_template(self, client):

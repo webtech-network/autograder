@@ -119,12 +119,11 @@ The Autograder uses a **pipeline architecture** that processes submissions throu
 The system is built around **AutograderPipeline** - a stateless, reusable grading workflow.
 
 ```python
-from autograder import build_pipeline
+from autograder import compile_definition, evaluate_submission
 
 # One versioned grading definition, compiled before execution.
-pipeline = build_pipeline(definition=definition_json)
-execution = pipeline.run(submission)
-outcome = execution.outcome.model_dump(mode="json")
+compiled = compile_definition(definition_json)
+outcome = evaluate_submission(submission, definition=compiled).model_dump(mode="json")
 ```
 
 #### Criteria Tree
@@ -221,7 +220,7 @@ Validates HTML, CSS, and JavaScript files.
 And much more! Check the [WebDev Template Documentation](docs/templates/web_dev.md) for the full list of tests.
 #### 4. Custom Templates
 Trusted Python callers can pass their own test functions through the `templates`
-argument to `build_pipeline()`. See the [runnable custom evaluator](examples/contracts/custom_evaluator.py)
+argument to `compile_definition()` or `evaluate_submission()`. See the [runnable custom evaluator](examples/contracts/custom_evaluator.py)
 and [contract guide](docs/contracts/CONFORMANCE.md). HTTP and Actions JSON
 definitions cannot upload Python evaluator code.
 

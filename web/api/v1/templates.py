@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 
+from autograder.models.contracts.catalog import TemplateCatalog, TemplateDescription
 from web.config.logging import get_logger
 from web.core.lifespan import get_template_service
 
@@ -10,9 +11,9 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/templates", tags=["Templates"])
 
 
-@router.get("")
-async def list_templates():
-    """List all available grading templates."""
+@router.get("", response_model=TemplateCatalog)
+async def list_templates() -> TemplateCatalog:
+    """List built-in templates with evaluator parameter schemas, samples and capabilities."""
     logger.info("Listing all available grading templates")
     template_service = get_template_service()
 
@@ -22,11 +23,11 @@ async def list_templates():
 
     templates = template_service.get_all_templates_info()
     logger.info("Returned %d template(s)", len(templates))
-    return {"templates": templates}
+    return TemplateCatalog(templates=templates)
 
 
-@router.get("/{template_name}")
-async def get_template_info(template_name: str):
+@router.get("/{template_name}", response_model=TemplateDescription)
+async def get_template_info(template_name: str) -> TemplateDescription:
     """Get information about a specific template."""
     logger.info("Fetching template info: template=%s", template_name)
     template_service = get_template_service()

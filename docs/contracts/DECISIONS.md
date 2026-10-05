@@ -91,6 +91,22 @@ The definition and outcome schemas do not provide durable scheduling,
 distributed sandbox provisioning, submission idempotency, or retention policy.
 Those are hosting responsibilities.
 
+## Discovery and trusted Python extensions
+
+The typed template/evaluator catalog derives parameter schemas and validated
+samples from the same contracts used by compilation. Capability requirements
+and known language constraints live on evaluator implementations. Discovery does
+not probe host availability. `compile_definition`, `describe_templates` and
+`evaluate_submission` form the supported facade; evaluation returns the finalized
+terminal outcome. Trusted instantiated `Template` objects may be injected by
+identifier and retained through recompilation. JSON transports accept built-in
+identifiers only. No uploaded code or dynamic plugin loader is supported.
+
+The current facade uses existing host configuration. Host-supplied resource
+interfaces and ownership remain INT-14 work. See [CATALOG.md](CATALOG.md) for the
+INT-11 implementation contract, deployment assumptions, migration and issue
+coordination; internal pipeline classes are not a compatibility promise.
+
 ## Deliberate execution
 
 The web adapter provides a bounded synchronous `POST /api/v1/execute` for
