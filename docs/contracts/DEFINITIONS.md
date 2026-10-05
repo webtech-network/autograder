@@ -92,7 +92,7 @@ paths, backslashes and NUL. The current S3 host maps a safe relative reference t
 an object key and mounts fixtures at `/tmp/app/<path>`, separately from student
 files at `/app`. Commands reading fixtures must use this documented mount root.
 Credentials, bucket, provider endpoint and sandbox pool limits are host settings,
-never definition fields. Host mapping abstraction is tracked in #376.
+never definition fields. The host controls provider mapping.
 
 Feedback is one `enabled`, `mode`, `preferences` policy. Only implemented mode
 `default` is accepted. Preferences include general title/score/passed-test/summary
@@ -118,7 +118,7 @@ For example: `{"code":"INVALID_DEFINITION","path":["criteria","base","tests",0,"
 HTTP adds envelope/body components to paths for Pydantic request errors. Errors
 never echo input files/provider credentials.
 
-## Migration and issue reconciliation
+## Legacy definition migration
 
 Convert one legacy definition envelope offline:
 
@@ -145,14 +145,8 @@ engine/API/Action consumers together, run Alembic upgrade, inspect quarantined r
 then reactivate only corrected definitions. Rollback restores the pre-upgrade DB
 backup with the previous code. Automatic schema creation does not migrate a DB.
 
-[Live conversion verification](v1/live-conversion-verification.json) converted 44
-of 50 read-only production snapshots; six rows with empty criteria were rejected.
-No grading/submission data is included in that artifact and the VPS was unchanged.
-
-#218's test_library envelope is superseded; #51's multiple-template requirement is served
-by explicit template lists and collision-checked registry resolution; closed #305 is respected with explicit
-parameter contracts. #373's broader Python facade/capability discovery and #375's
-comparison policy remain separate work; this delivery exposes typed evaluator
-schemas and stable identities needed by these contracts. #376 retains responsibility
-for removing concrete host/provider coupling. Phase-3/6 evaluator algorithms,
-resource limits and infrastructure scheduling are not redefined by this schema.
+The old `test_library` envelope is unsupported. Multiple templates use an
+explicit list with collision-checked registry resolution. Evaluator parameters
+have typed contracts and stable criterion IDs. Provider mapping, resource limits,
+and infrastructure scheduling belong to the hosting environment rather than
+the definition schema.

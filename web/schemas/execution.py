@@ -44,7 +44,7 @@ class ExecutionFile(BaseModel):
 
 
 class ExecutionAsset(BaseModel):
-    """A host-authorized asset reference supplied by the Prisma adapter."""
+    """An asset reference supplied by an authenticated host."""
 
     model_config = ConfigDict(extra="forbid")
     source: str = Field(min_length=1, max_length=255, strict=True)
@@ -119,7 +119,7 @@ class DeliberateCodeExecutionResult(BaseModel):
     stderr: str
     exit_code: int
     execution_time: float
-    output: str  # Prisma's existing display field; stdout followed by stderr.
+    output: str  # Display field; stdout followed by stderr.
     error_message: str | None = None
     truncated: bool = False
 

@@ -4,8 +4,8 @@ Run `uvicorn web.main:app`; interactive OpenAPI is at `/docs`.
 The grading definition and outcome each carry their own `schema_version: "1.0"`.
 See [definition contract](contracts/DEFINITIONS.md), [outcomes](contracts/OUTCOMES.md)
 and [Actions migration](github_action/configuration.md).
-For runnable integration examples, generated OpenAPI, and Prisma migration
-details, see [contract conformance](contracts/CONFORMANCE.md).
+For runnable integration examples and generated OpenAPI, see
+[contract conformance](contracts/CONFORMANCE.md).
 
 ## Configurations
 
@@ -80,4 +80,4 @@ input is 422, unavailable infrastructure is 503, and the response deadline is
 Grading publication retains a private local receipt on DB failure;
 [receipt replay](contracts/OUTCOMES.md#publication-receipts) retries publication without running evaluators.
 Background HTTP grading remains in-process. These contracts do not establish
-durable scheduling or idempotent submission acceptance (#365/#366).
+durable scheduling or idempotent submission acceptance.

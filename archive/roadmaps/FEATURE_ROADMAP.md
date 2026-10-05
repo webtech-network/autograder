@@ -169,7 +169,7 @@ Repository configuration remains available through the versioned definition file
 #### Motivation
 
 - **Private grading logic:** Students cannot inspect the exact grading criteria/setup in repository files.
-- **Multi-platform integration:** Platforms such as Prisma can keep assignment lifecycle and reporting centralized while still using GitHub repositories as submission sources.
+- **Multi-platform integration:** A hosting application can keep assignment lifecycle and reporting centralized while still using GitHub repositories as submission sources.
 - **Operational control:** Institutions can update grading rules centrally in one cloud instance instead of editing many classroom repositories.
 - **Better observability:** Results are persisted in one place for dashboards, historical analysis, and cross-assignment metrics.
 

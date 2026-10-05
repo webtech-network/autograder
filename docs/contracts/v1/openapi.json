@@ -1828,7 +1828,7 @@
           "target"
         ],
         "title": "ExecutionAsset",
-        "description": "A host-authorized asset reference supplied by the Prisma adapter."
+        "description": "An asset reference supplied by an authenticated host."
       },
       "ExecutionError": {
         "properties": {

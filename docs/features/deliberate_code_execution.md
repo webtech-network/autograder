@@ -2,10 +2,10 @@
 
 `POST /api/v1/execute` runs a submitted program for pre-submission testing. It
 does not create a grading submission or score. The caller must be a trusted host
-using `Authorization: Bearer <AUTOGRADER_INTEGRATION_TOKEN>`; Prisma must enforce
-assignment and student access before calling it. The request is synchronous and
-is not durably accepted. The endpoint and grading both acquire from the same
-sandbox manager and language pool, so its `scale_limit` bounds active containers
+using `Authorization: Bearer <AUTOGRADER_INTEGRATION_TOKEN>`. The host must
+authorize its own users and resource access before calling it. The request is
+synchronous and is not durably accepted. The endpoint and grading both acquire
+from the same sandbox manager and language pool, so its `scale_limit` bounds active containers
 for both paths. Pool exhaustion is a service failure, not a student result.
 
 ## Request and stdin
@@ -74,9 +74,9 @@ the first case. This does not make arbitrary callers trusted.
 `results` follows request order. `success`, `runtime_error`,
 `compilation_error`, and `timeout` are process outcomes (HTTP 200).
 A timed-out process ends the batch, and `stopped_early: true` means the results
-are a prefix of the requested cases. `output` is the existing Prisma display
-field: nonempty stdout then stderr joined by a newline. Prisma should prefer
-`stdout`, `stderr`, and `exit_code` when it needs the exact process outcome.
+are a prefix of the requested cases. `output` is a display field: nonempty
+stdout then stderr joined by a newline. Clients should use `stdout`,
+`stderr`, and `exit_code` when they need the exact process outcome.
 Each stream is capped at 16 KiB UTF-8 on the wire; `truncated` indicates a
 cut. `execution_time` is seconds.
 
@@ -98,8 +98,7 @@ caller receives no result (or 504 for a connected caller); the worker continues
 to completion and releases or destroys the sandbox. A timed-out process's
 sandbox is destroyed. Cleanup failure is logged and never replaces a known
 process result. This is a bounded *response* deadline, not a hard stop for a
-blocked Docker call or asset provider: those lower-level deadlines belong to
-#376/#377. No job ID or later status query exists.
+blocked Docker call or asset provider. No job ID or later status query exists.
 
 | Condition | HTTP status | Machine-readable representation |
 | --- | ---: | --- |
@@ -110,24 +109,15 @@ blocked Docker call or asset provider: those lower-level deadlines belong to
 | Response deadline | 504 | `detail.code=EXECUTION_DEADLINE_EXCEEDED` |
 | Caller disconnect | no response | worker completes cleanup; no persisted result |
 
-## Prisma migration and cutover
+## Client integration
 
-The current `AutograderExecutionRequest` already sends `language`,
-`submission_files`, `program_command`, `test_cases`, and `assets`; its
-`AutograderExecutionResponse` reads `results[].output/category/error_message/
-execution_time`. Those fields remain. The Prisma host must attach the
-integration Bearer token, send normalized lower-case language and valid
-asset paths, keep at most four cases, and handle 422/503/504 separately from
-student results. It may add `stdout`, `stderr`, `exit_code`, `truncated`, and
-`stopped_early` to its DTOs when needed. The
-[contract test](../../tests/web/test_deliberate_execution_service.py) sends
-Prisma's current request shape through the real HTTP endpoint and checks stdin,
-result mapping, and cleanup. Configure the Prisma token and error mapping before
-deploying this contract; no dual route or compatibility window is proposed.
+Send the integration Bearer token, a supported lower-case language, normalized
+file and asset paths, and at most four stdin cases. Treat 422, 503, and 504 as
+request or service failures. Treat `results[].category` as the student process
+outcome. A caller that only displays output can use `output`; one that needs
+precise process details should read `stdout`, `stderr`, `exit_code`,
+`truncated`, and `stopped_early`.
 
-This execution endpoint owns its own lifecycle in the web adapter. The grading
-criteria tree remains for grading. #318 owns consistent authentication on the
-other HTTP routes; #365/#366 own durable submission acceptance and retry.
-This preserves #188's pre-submission capability and #296's asset injection.
-The single worker keeps blocking sandbox I/O off the event loop, as requested
-by #314; lower-level isolation and hard deadlines stay with #376/#377.
+The web adapter owns this execution lifecycle independently of the grading
+criteria tree. Blocking sandbox operations run in a worker thread, leaving the
+HTTP event loop available for other requests.

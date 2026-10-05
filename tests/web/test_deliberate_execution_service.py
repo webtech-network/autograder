@@ -1,4 +1,4 @@
-"""Contract checks for Prisma's deliberate execution request and host lifecycle."""
+"""Contract checks for deliberate execution requests and host lifecycle."""
 
 import asyncio
 import threading
@@ -64,7 +64,7 @@ async def test_execute_requires_trusted_host_token():
 
 
 @pytest.mark.asyncio
-async def test_prisma_cases_send_stdin_and_receive_process_details():
+async def test_cases_send_stdin_and_receive_process_details():
     manager, sandbox = manager_with_sandbox(
         command_result(stdout="Alice\n"),
         command_result(category=ResponseCategory.RUNTIME_ERROR, stdout="", stderr="bad input", exit_code=1),
