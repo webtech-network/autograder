@@ -44,9 +44,7 @@ class StepRegistry:
         }
 
     def _build_load_template(self) -> Optional[Step]:
-        template_name = self.config.get("template_name")
-        custom_template = self.config.get("custom_template")
-        return TemplateLoaderStep(template_name, custom_template, templates=self.templates)
+        return TemplateLoaderStep(self.templates)
 
     def _build_build_tree(self) -> Optional[Step]:
         return BuildTreeStep(self.config.get("grading_criteria"))

@@ -1,33 +1,15 @@
-from unittest.mock import Mock, patch
-
-import pytest
-
-from autograder.steps.load_template_step import TemplateLoaderStep
+from autograder import build_pipeline, compile_definition, Submission
+from autograder.models.dataclass.step_result import StepName
+from examples.contracts.custom_evaluator import DEFINITION, TrustedTextTemplate
 
 
-@patch("autograder.steps.load_template_step.TemplateLibraryService.get_instance")
-def test_normalizes_comma_separated_template_names(mock_get_instance):
-    mock_get_instance.return_value = Mock()
-    step = TemplateLoaderStep("input_output, static_analysis,")
-    assert step._template_names == ["input_output", "static_analysis"]
-
-
-@patch("autograder.steps.load_template_step.TemplateLibraryService.get_instance")
-def test_normalizes_template_name_list(mock_get_instance):
-    mock_get_instance.return_value = Mock()
-    step = TemplateLoaderStep(["input_output", " static_analysis ", ""])
-    assert step._template_names == ["input_output", "static_analysis"]
-
-
-@patch("autograder.steps.load_template_step.TemplateLibraryService.get_instance")
-def test_rejects_empty_template_names_after_normalization(mock_get_instance):
-    mock_get_instance.return_value = Mock()
-    with pytest.raises(ValueError, match="at least one non-empty template identifier"):
-        TemplateLoaderStep(" , , ")
-
-
-@patch("autograder.steps.load_template_step.TemplateLibraryService.get_instance")
-def test_custom_template_allows_missing_template_names(mock_get_instance):
-    mock_get_instance.return_value = Mock()
-    step = TemplateLoaderStep(None, custom_template={"inline": "template"})
-    assert step._template_names == []
+def test_loader_retains_injected_instance_after_recompiling():
+    template = TrustedTextTemplate()
+    compiled = compile_definition(DEFINITION, templates={"trusted_text": template})
+    execution = build_pipeline(definition=compiled).run(Submission(
+        username="local", user_id="local", assignment_id="local", submission_files={}))
+    assert execution.get_loaded_templates() == [template]
+    assert execution.outcome.status == "completed"
+    assert execution.outcome.score == 0
+    assert StepName.SANDBOX not in execution.planned_steps
+    assert StepName.AI_BATCH not in execution.planned_steps

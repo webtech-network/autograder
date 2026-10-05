@@ -10,6 +10,7 @@ This is a singleton service that should be instantiated once at application star
 import logging
 from typing import Dict, List, Optional, Type
 from autograder.models.abstract.template import Template
+from autograder.models.contracts.catalog import TemplateDescription, describe_template
 from autograder.template_library.web_dev.template import WebDevTemplate
 from autograder.template_library.api_testing import ApiTestingTemplate
 from autograder.template_library.input_output import InputOutputTemplate
@@ -110,39 +111,14 @@ class TemplateLibraryService:
 
         return self._templates[template_name]
 
-    def get_template_info(self, template_name: str) -> dict:
+    def get_template_info(self, template_name: str) -> TemplateDescription:
         """
-        Return metadata about the template.
-
-        Args:
-            template_name: The identifier for the template
-
-        Returns:
-            A dictionary containing template metadata including:
-            - name: The display name of the template
-            - description: A description of what the template is for
-            - requires_sandbox: Whether the template requires a sandbox environment
-            - available_tests: List of available test function names
+        Return the typed catalog description of a built-in template.
 
         Raises:
             KeyError: If the template name is not found in the registry
         """
-        template = self.start_template(template_name)
-
-        info = {
-            "identifier": template_name,
-            "name": template.template_name,
-            "description": template.template_description,
-            "requires_sandbox": template.requires_sandbox,
-            "available_tests": list(template.get_tests()),
-            "evaluators": [{"identifier": identifier,
-                            "description": function.description,
-                            "parameters_schema": {**function.config_schema.model_json_schema(), "additionalProperties": False},
-                            "requires_sandbox": template.requires_sandbox}
-                           for identifier, function in template.get_tests().items()]
-        }
-
-        return info
+        return describe_template(template_name, self.start_template(template_name))
 
     def list_available_templates(self) -> List[str]:
         """
@@ -153,13 +129,8 @@ class TemplateLibraryService:
         """
         return list(self._TEMPLATE_REGISTRY.keys())
 
-    def get_all_templates_info(self) -> List[dict]:
-        """
-        Get metadata for all available templates.
-
-        Returns:
-            A list of dictionaries containing metadata for each template
-        """
+    def get_all_templates_info(self) -> List[TemplateDescription]:
+        """Get the typed catalog description of every built-in template."""
         return [self.get_template_info(name) for name in self.list_available_templates()]
 
 
@@ -196,20 +167,3 @@ class TemplateLibraryService:
             KeyError: If the template name is not found in the registry
         """
         return self.start_template(template_name)
-
-    def load_custom_template(self, custom_template):
-        """
-        Load a custom template provided by the user.
-
-        TODO: Implement custom template loading with sandboxed environment.
-
-        Args:
-            custom_template: The custom template data/code
-
-        Returns:
-            The loaded custom template instance
-
-        Raises:
-            NotImplementedError: This feature is not yet implemented
-        """
-        raise NotImplementedError("Custom template loading is not yet implemented. This feature requires sandboxed environment support.")

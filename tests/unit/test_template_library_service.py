@@ -7,6 +7,6 @@ def test_template_info_exposes_stable_identifier_and_display_name():
 
     info = service.get_template_info("static_analysis")
 
-    assert info["identifier"] == "static_analysis"
-    assert isinstance(info["name"], str)
-    assert info["name"]
+    assert info.identifier == "static_analysis"
+    assert isinstance(info.name, str)
+    assert info.name

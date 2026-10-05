@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from pydantic import BaseModel
 
@@ -13,6 +13,13 @@ class TestFunction(ABC):
     """
     An abstract base class for a single, executable test function.
     """
+
+    #: Host capabilities needed beyond the template sandbox flag (see catalog.Capability).
+    required_capabilities: Tuple[str, ...] = ()
+    #: Known evaluator language constraints; None declares no specific restriction.
+    supported_languages: Optional[List[str]] = None
+    #: Optional catalog example; otherwise required fields are synthesized from config_schema.
+    example_parameters: Optional[Dict[str, Any]] = None
 
     @property
     def config_schema(self) -> Optional[Type[BaseModel]]:
@@ -46,4 +53,3 @@ class TestFunction(ABC):
     @abstractmethod
     def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
         """The concrete implementation of the test logic."""
-

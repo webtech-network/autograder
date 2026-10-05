@@ -19,6 +19,8 @@ class AiTestFunction(TestFunction):
     single-call path (useful for direct testing without a full pipeline).
     """
 
+    required_capabilities = ("ai_provider",)
+
     @abstractmethod
     def build_prompt(self, files: Optional[List[SubmissionFile]], **kwargs) -> str:
         """

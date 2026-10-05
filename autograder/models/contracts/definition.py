@@ -192,6 +192,8 @@ def compile_definition(value: GradingDefinition | dict | CompiledDefinition, *, 
             errors.append(_error('UNKNOWN_TEMPLATE', ('templates', index), 'Unknown template identifier'))
             continue
         try:
+            if not isinstance(template, Template):
+                raise TypeError('Injected templates must be trusted Template instances')
             template.validate_contract()
         except (TypeError, ValueError) as exc:
             errors.append(_error('INVALID_TEMPLATE', ('templates', index), str(exc)))

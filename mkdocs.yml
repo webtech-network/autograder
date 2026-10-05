@@ -40,6 +40,7 @@ nav:
   - Integration Contracts:
       - Executable Examples: contracts/CONFORMANCE.md
       - Definitions: contracts/DEFINITIONS.md
+      - Catalog and Python API: contracts/CATALOG.md
       - Outcomes: contracts/OUTCOMES.md
       - Decisions: contracts/DECISIONS.md
   - Home: index.md

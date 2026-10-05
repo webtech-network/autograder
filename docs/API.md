@@ -63,6 +63,11 @@ broader authentication changes are tracked separately.
 
 `GET /api/v1/templates` and `GET /api/v1/templates/{template_name}` expose registry evaluator identifiers
 and typed `parameters_schema` generated from the same executable contracts.
+The OpenAPI models also include validated `sample_parameters`, evaluator-specific
+`required_capabilities` and known `supported_languages`; the list response's
+`capabilities` map explains deployment limitations. Use `evaluators[].identifier`
+in place of the removed `available_tests` list. See the
+[catalog and Python contract](contracts/CATALOG.md) for migration details.
 Definitions may use input_output, static_analysis, webdev and api. Valid API
 parameters do not imply the selected host has API networking; unavailable host
 capabilities produce structured failed outcomes.

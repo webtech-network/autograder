@@ -52,14 +52,16 @@
           "Templates"
         ],
         "summary": "List Templates",
-        "description": "List all available grading templates.",
+        "description": "List built-in templates with evaluator parameter schemas, samples and capabilities.",
         "operationId": "list_templates_api_v1_templates_get",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateCatalog"
+                }
               }
             }
           }
@@ -90,7 +92,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDescription"
+                }
               }
             }
           },
@@ -1801,6 +1805,79 @@
         ],
         "title": "EvaluationScopeData",
         "description": "Schema defining the files that are the primary evaluation subject."
+      },
+      "EvaluatorDescription": {
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "title": "Identifier"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "parameters_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters Schema"
+          },
+          "sample_parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Sample Parameters"
+          },
+          "required_capabilities": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "sandbox_execution",
+                "http_network",
+                "ai_provider",
+                "structural_analysis"
+              ]
+            },
+            "type": "array",
+            "title": "Required Capabilities"
+          },
+          "supported_languages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "python",
+                    "java",
+                    "node",
+                    "cpp",
+                    "c"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Languages",
+            "description": "Known language constraints; null means no evaluator-specific restriction is declared. Host execution support is separate."
+          },
+          "requires_sandbox": {
+            "type": "boolean",
+            "title": "Requires Sandbox"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "identifier",
+          "description",
+          "parameters_schema",
+          "sample_parameters",
+          "required_capabilities",
+          "requires_sandbox"
+        ],
+        "title": "EvaluatorDescription",
+        "description": "One evaluator, as accepted by criterion ``type`` within its template."
       },
       "ExecutionAsset": {
         "properties": {
@@ -3654,6 +3731,76 @@
         ],
         "title": "SubmissionStatus",
         "description": "Status of a submission."
+      },
+      "TemplateCatalog": {
+        "properties": {
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateDescription"
+            },
+            "type": "array",
+            "title": "Templates"
+          },
+          "capabilities": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "enum": [
+                "sandbox_execution",
+                "http_network",
+                "ai_provider",
+                "structural_analysis"
+              ]
+            },
+            "type": "object",
+            "title": "Capabilities",
+            "description": "Why each capability may be unavailable on a host."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "templates"
+        ],
+        "title": "TemplateCatalog"
+      },
+      "TemplateDescription": {
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "title": "Identifier"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "requires_sandbox": {
+            "type": "boolean",
+            "title": "Requires Sandbox"
+          },
+          "evaluators": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluatorDescription"
+            },
+            "type": "array",
+            "title": "Evaluators"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "identifier",
+          "name",
+          "description",
+          "requires_sandbox",
+          "evaluators"
+        ],
+        "title": "TemplateDescription"
       },
       "TestConfig": {
         "properties": {
