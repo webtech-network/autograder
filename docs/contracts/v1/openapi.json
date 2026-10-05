@@ -1727,7 +1727,8 @@
         "required": [
           "results"
         ],
-        "title": "DeliberateCodeExecutionResponse"
+        "title": "DeliberateCodeExecutionResponse",
+        "description": "Ordered process results, possibly a prefix after a timeout."
       },
       "DeliberateCodeExecutionResult": {
         "properties": {
@@ -1846,7 +1847,8 @@
           "code",
           "message"
         ],
-        "title": "ExecutionError"
+        "title": "ExecutionError",
+        "description": "Safe machine-readable service failure."
       },
       "ExecutionErrorResponse": {
         "properties": {
@@ -1858,7 +1860,8 @@
         "required": [
           "detail"
         ],
-        "title": "ExecutionErrorResponse"
+        "title": "ExecutionErrorResponse",
+        "description": "HTTP error envelope for service failures."
       },
       "ExecutionFile": {
         "properties": {
@@ -1879,7 +1882,8 @@
           "filename",
           "content"
         ],
-        "title": "ExecutionFile"
+        "title": "ExecutionFile",
+        "description": "One UTF-8 source file staged under the sandbox work directory."
       },
       "ExternalResultCreate": {
         "properties": {

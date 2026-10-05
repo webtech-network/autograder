@@ -1,5 +1,8 @@
 """Contract checks for deliberate execution requests and host lifecycle."""
 
+# The test names state each checked behavior.
+# pylint: disable=missing-function-docstring
+
 import asyncio
 import threading
 from unittest.mock import Mock, patch
@@ -15,6 +18,7 @@ from web.schemas.execution import (
     MAX_OUTPUT_BYTES,
     DeliberateCodeExecutionRequest,
 )
+from web.service import deliberate_execution_service as service
 from web.service.deliberate_execution_service import execute_code
 
 
@@ -134,7 +138,7 @@ async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
 
-    manager, sandbox = manager_with_sandbox(command_result(category=ResponseCategory.SYSTEM_ERROR))
+    manager, _ = manager_with_sandbox(command_result(category=ResponseCategory.SYSTEM_ERROR))
     with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 503
@@ -151,7 +155,7 @@ async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
 
 @pytest.mark.asyncio
 async def test_timeout_stops_batch_and_destroys_sandbox():
-    manager, sandbox = manager_with_sandbox(
+    manager, _ = manager_with_sandbox(
         command_result(category=ResponseCategory.TIMEOUT, stderr="Execution timed out", exit_code=124)
     )
     with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
@@ -198,8 +202,6 @@ async def test_trusted_assets_are_injected_before_execution():
 
 @pytest.mark.asyncio
 async def test_deadline_and_disconnect_leave_worker_to_release_sandbox(monkeypatch):
-    from web.service import deliberate_execution_service as service
-
     started, unblock = threading.Event(), threading.Event()
     manager, sandbox = manager_with_sandbox()
     def blocked(*_args, **_kwargs):
