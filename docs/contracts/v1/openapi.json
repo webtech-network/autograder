@@ -1,0 +1,3747 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Autograder Web API",
+    "description": "RESTful API for code submission grading",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "description": "Health check endpoint for monitoring.",
+        "operationId": "health_check_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness Check",
+        "description": "Readiness check for orchestration platforms.",
+        "operationId": "readiness_check_api_v1_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "List Templates",
+        "description": "List all available grading templates.",
+        "operationId": "list_templates_api_v1_templates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/templates/{template_name}": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Get Template Info",
+        "description": "Get information about a specific template.",
+        "operationId": "get_template_info_api_v1_templates__template_name__get",
+        "parameters": [
+          {
+            "name": "template_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/configs/validate": {
+      "post": {
+        "tags": [
+          "Grading Configurations"
+        ],
+        "summary": "Validate Definition",
+        "operationId": "validate_definition_api_v1_configs_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradingDefinition-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/configs": {
+      "post": {
+        "tags": [
+          "Grading Configurations"
+        ],
+        "summary": "Create Grading Config",
+        "operationId": "create_grading_config_api_v1_configs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradingConfigCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradingConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Grading Configurations"
+        ],
+        "summary": "List Grading Configs",
+        "operationId": "list_grading_configs_api_v1_configs_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GradingConfigResponse"
+                  },
+                  "title": "Response List Grading Configs Api V1 Configs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/configs/id/{config_id}": {
+      "get": {
+        "tags": [
+          "Grading Configurations"
+        ],
+        "summary": "Get Grading Config By Id",
+        "operationId": "get_grading_config_by_id_api_v1_configs_id__config_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Config Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradingConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/configs/{external_assignment_id}": {
+      "get": {
+        "tags": [
+          "Grading Configurations"
+        ],
+        "summary": "Get Grading Config",
+        "operationId": "get_grading_config_api_v1_configs__external_assignment_id__get",
+        "parameters": [
+          {
+            "name": "external_assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "External Assignment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradingConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/configs/external/{external_assignment_id}": {
+      "patch": {
+        "tags": [
+          "Grading Configurations"
+        ],
+        "summary": "Update Grading Config External",
+        "operationId": "update_grading_config_external_api_v1_configs_external__external_assignment_id__patch",
+        "parameters": [
+          {
+            "name": "external_assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "External Assignment Id"
+            }
+          },
+          {
+            "name": "if-match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradingConfigUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradingConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/configs/{config_id}": {
+      "patch": {
+        "tags": [
+          "Grading Configurations"
+        ],
+        "summary": "Update Grading Config",
+        "operationId": "update_grading_config_api_v1_configs__config_id__patch",
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Config Id"
+            }
+          },
+          {
+            "name": "if-match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradingConfigUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradingConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions": {
+      "post": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "Create Submission",
+        "operationId": "create_submission_api_v1_submissions_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmissionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "History",
+        "operationId": "history_api_v1_submissions_get",
+        "parameters": [
+          {
+            "name": "external_user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "External User Id"
+            }
+          },
+          {
+            "name": "grading_config_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Grading Config Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SubmissionStatus-Input"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubmissionResponse"
+                  },
+                  "title": "Response History Api V1 Submissions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/user/{external_user_id}": {
+      "get": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "Get User Submissions",
+        "operationId": "get_user_submissions_api_v1_submissions_user__external_user_id__get",
+        "parameters": [
+          {
+            "name": "external_user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "External User Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubmissionResponse"
+                  },
+                  "title": "Response Get User Submissions Api V1 Submissions User  External User Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/external-results": {
+      "post": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "Ingest External Result",
+        "operationId": "ingest_external_result_api_v1_submissions_external_results_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalResultCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/submissions/{submission_id}/details": {
+      "get": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "Get Submission Details",
+        "operationId": "get_submission_details_api_v1_submissions__submission_id__details_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/{submission_id}": {
+      "get": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "Get Submission",
+        "operationId": "get_submission_api_v1_submissions__submission_id__get",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/execute": {
+      "post": {
+        "tags": [
+          "Code Execution"
+        ],
+        "summary": "Execute Code Endpoint",
+        "description": "Execute code in a sandbox without grading.\n\nThis endpoint is stateless and does not store any data.\nIt's designed for testing and debugging code before actual submission.\n\n**Use Cases:**\n- Students testing their code before submitting for grading\n- Quick debugging of code issues\n- Interactive code execution (with stdin inputs)\n\n**Request:**\n- `language`: Programming language (python, java, node, cpp)\n- `submission_files`: List of files with filename and content\n- `program_command`: Command to execute (e.g., \"python main.py\")\n- `inputs`: Optional list of inputs to provide to the program\n\n**Response:**\n- `output`: Combined stdout/stderr output\n- `category`: Execution result category (success, runtime_error, timeout, etc.)\n- `error_message`: Error details if execution failed\n- `execution_time`: Time taken to execute in seconds\n\n**Example:**\n```json\n{\n    \"language\": \"python\",\n    \"submission_files\": [\n        {\n            \"filename\": \"main.py\",\n            \"content\": \"name = input('Enter name: ')\\nprint(f'Hello, {name}!')\"\n        }\n    ],\n    \"program_command\": \"python main.py\",\n    \"inputs\": [[\"Alice\"]]\n}\n```",
+        "operationId": "execute_code_endpoint_api_v1_execute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliberateCodeExecutionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliberateCodeExecutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssetConfig": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "Relative path for the asset on the S3 provider"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "Absolute path for the asset inside the container"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only",
+            "description": "Whether the asset should be read-only (0444)",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "target"
+        ],
+        "title": "AssetConfig",
+        "description": "Configuration for a static asset to be injected into the sandbox."
+      },
+      "CategoryConfig-Input": {
+        "properties": {
+          "weight": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Weight",
+            "description": "Weight of this category (0-100)"
+          },
+          "tests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TestConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tests",
+            "description": "Tests under this subject"
+          },
+          "subjects": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SubjectConfig-Input"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects",
+            "description": "Nested subjects"
+          },
+          "subjects_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects Weight",
+            "description": "Weight of the subject when it is a heterogeneous tree"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "weight"
+        ],
+        "title": "CategoryConfig",
+        "description": "Configuration for a grading category (base, bonus, or penalty)."
+      },
+      "CategoryConfig-Output": {
+        "properties": {
+          "weight": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Weight",
+            "description": "Weight of this category (0-100)"
+          },
+          "tests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TestConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tests",
+            "description": "Tests under this subject"
+          },
+          "subjects": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SubjectConfig-Output"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects",
+            "description": "Nested subjects"
+          },
+          "subjects_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects Weight",
+            "description": "Weight of the subject when it is a heterogeneous tree"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "weight"
+        ],
+        "title": "CategoryConfig",
+        "description": "Configuration for a grading category (base, bonus, or penalty)."
+      },
+      "CategoryOutcome-Input": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "base",
+              "bonus",
+              "penalty"
+            ],
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "category",
+            "title": "Type",
+            "default": "category"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "weight": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Weight"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectOutcome-Input"
+            },
+            "type": "array",
+            "title": "Subjects",
+            "default": []
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/TestOutcome"
+            },
+            "type": "array",
+            "title": "Tests",
+            "default": []
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "score",
+          "weight"
+        ],
+        "title": "CategoryOutcome"
+      },
+      "CategoryOutcome-Output": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "base",
+              "bonus",
+              "penalty"
+            ],
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "category",
+            "title": "Type",
+            "default": "category"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "weight": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Weight"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectOutcome-Output"
+            },
+            "type": "array",
+            "title": "Subjects",
+            "default": []
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/TestOutcome"
+            },
+            "type": "array",
+            "title": "Tests",
+            "default": []
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "score",
+          "weight"
+        ],
+        "title": "CategoryOutcome"
+      },
+      "ComparisonContent": {
+        "properties": {
+          "score_delta": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": -100.0,
+            "title": "Score Delta"
+          },
+          "improved": {
+            "type": "boolean",
+            "title": "Improved"
+          },
+          "test_deltas": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionDelta"
+            },
+            "type": "array",
+            "title": "Test Deltas",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "score_delta",
+          "improved"
+        ],
+        "title": "ComparisonContent"
+      },
+      "ComparisonOutcome-Input": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "default": "disabled"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComparisonContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutcomeError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ComparisonOutcome"
+      },
+      "ComparisonOutcome-Output": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "default": "disabled"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComparisonContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutcomeError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ComparisonOutcome"
+      },
+      "CompletedOutcome-Input": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version"
+          },
+          "execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Execution Id"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "python",
+                  "java",
+                  "c",
+                  "cpp",
+                  "node"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DefinitionProvenance"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Finished At"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Duration Ms"
+          },
+          "feedback": {
+            "$ref": "#/components/schemas/FeedbackOutcome"
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/ComparisonOutcome-Input"
+          },
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "title": "Status"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "tree": {
+            "$ref": "#/components/schemas/ResultOutcomeTree-Input"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "execution_id",
+          "provenance",
+          "started_at",
+          "finished_at",
+          "duration_ms",
+          "status",
+          "score",
+          "tree"
+        ],
+        "title": "CompletedOutcome"
+      },
+      "CompletedOutcome-Output": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version"
+          },
+          "execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Execution Id"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "python",
+                  "java",
+                  "c",
+                  "cpp",
+                  "node"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DefinitionProvenance"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Finished At"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Duration Ms"
+          },
+          "feedback": {
+            "$ref": "#/components/schemas/FeedbackOutcome"
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/ComparisonOutcome-Output"
+          },
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "title": "Status"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "tree": {
+            "$ref": "#/components/schemas/ResultOutcomeTree-Output"
+          },
+          "error": {
+            "type": "null",
+            "title": "Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "execution_id",
+          "provenance",
+          "started_at",
+          "finished_at",
+          "duration_ms",
+          "status",
+          "score",
+          "tree"
+        ],
+        "title": "CompletedOutcome"
+      },
+      "CriteriaConfig-Input": {
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/CategoryConfig-Input",
+            "description": "Base grading criteria (required)"
+          },
+          "bonus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryConfig-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bonus points criteria"
+          },
+          "penalty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryConfig-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Penalty criteria"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base"
+        ],
+        "title": "CriteriaConfig",
+        "description": "Root configuration for grading criteria."
+      },
+      "CriteriaConfig-Output": {
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/CategoryConfig-Output",
+            "description": "Base grading criteria (required)"
+          },
+          "bonus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryConfig-Output"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bonus points criteria"
+          },
+          "penalty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryConfig-Output"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Penalty criteria"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base"
+        ],
+        "title": "CriteriaConfig",
+        "description": "Root configuration for grading criteria."
+      },
+      "CriterionDelta": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Path",
+            "description": "Criterion ID, independent of display names"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "improved",
+              "regressed",
+              "unchanged",
+              "introduced",
+              "removed"
+            ],
+            "title": "Status"
+          },
+          "baseline_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Score"
+          },
+          "head_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Score"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -100.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "status"
+        ],
+        "title": "CriterionDelta"
+      },
+      "DefaultPreferences": {
+        "properties": {
+          "category_headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "enum": [
+                "base",
+                "bonus",
+                "penalty"
+              ]
+            },
+            "type": "object",
+            "title": "Category Headers"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DefaultPreferences"
+      },
+      "DefinitionProvenance": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "definition_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Definition Hash"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "definition_hash"
+        ],
+        "title": "DefinitionProvenance"
+      },
+      "DeliberateCodeExecutionRequest": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "description": "The programming language of the code to be executed (e.g., python, java, node, cpp)."
+          },
+          "submission_files": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionFileData"
+            },
+            "type": "array",
+            "title": "Submission Files",
+            "description": "List of files to be executed, including their content."
+          },
+          "program_command": {
+            "type": "string",
+            "title": "Program Command",
+            "description": "The command to execute the program (e.g., 'python main.py', 'java Main', 'node app.js', './a.out')."
+          },
+          "test_cases": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Cases",
+            "description": "Optional list of test cases to be evaluated. Each test case is a list of inputs/arguments."
+          },
+          "assets": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AssetConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assets",
+            "description": "Optional list of assets to be injected into the sandbox before execution."
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "submission_files",
+          "program_command"
+        ],
+        "title": "DeliberateCodeExecutionRequest",
+        "description": "Request schema for Deliberate Code Execution."
+      },
+      "DeliberateCodeExecutionResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/DeliberateCodeExecutionResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "A list of execution results corresponding to each test case."
+          }
+        },
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "title": "DeliberateCodeExecutionResponse",
+        "description": "Response schema for Deliberate Code Execution containing all test cases evaluated."
+      },
+      "DeliberateCodeExecutionResult": {
+        "properties": {
+          "output": {
+            "type": "string",
+            "title": "Output",
+            "description": "The output of the executed code."
+          },
+          "category": {
+            "$ref": "#/components/schemas/ResponseCategory",
+            "description": "The category of the execution result (e.g., success, runtime_error, timeout, system_error)."
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "Any error that occurred during execution."
+          },
+          "execution_time": {
+            "type": "number",
+            "title": "Execution Time",
+            "description": "Execution time in seconds."
+          }
+        },
+        "type": "object",
+        "required": [
+          "output",
+          "category",
+          "execution_time"
+        ],
+        "title": "DeliberateCodeExecutionResult",
+        "description": "Result of a single code execution block representing a test case."
+      },
+      "EvaluationScopeData": {
+        "properties": {
+          "scoped_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scoped Files",
+            "description": "Filenames to include in scope-aware pipeline analysis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scoped_files"
+        ],
+        "title": "EvaluationScopeData",
+        "description": "Schema defining the files that are the primary evaluation subject."
+      },
+      "ExternalResultCreate": {
+        "properties": {
+          "grading_config_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Grading Config Id"
+          },
+          "external_user_id": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "External User Id"
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Username"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "definition_snapshot": {
+            "$ref": "#/components/schemas/GradingDefinition-Input"
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CompletedOutcome-Input"
+              },
+              {
+                "$ref": "#/components/schemas/FailedOutcome-Input"
+              }
+            ],
+            "title": "Outcome",
+            "discriminator": {
+              "propertyName": "status",
+              "mapping": {
+                "completed": "#/components/schemas/CompletedOutcome-Input",
+                "failed": "#/components/schemas/FailedOutcome-Input"
+              }
+            }
+          },
+          "submission_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "grading_config_id",
+          "external_user_id",
+          "username",
+          "language",
+          "definition_snapshot",
+          "outcome"
+        ],
+        "title": "ExternalResultCreate",
+        "description": "Authenticated host attestation using the shared outcome and exact definition."
+      },
+      "ExternalResultResponse": {
+        "properties": {
+          "submission_id": {
+            "type": "integer",
+            "title": "Submission Id"
+          },
+          "grading_config_id": {
+            "type": "integer",
+            "title": "Grading Config Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubmissionStatus-Output"
+          },
+          "final_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Score"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DefinitionProvenance"
+          },
+          "graded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Graded At"
+          },
+          "execution_time_ms": {
+            "type": "integer",
+            "title": "Execution Time Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "submission_id",
+          "grading_config_id",
+          "status",
+          "final_score",
+          "language",
+          "provenance",
+          "graded_at",
+          "execution_time_ms"
+        ],
+        "title": "ExternalResultResponse"
+      },
+      "FailedOutcome-Input": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version"
+          },
+          "execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Execution Id"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "python",
+                  "java",
+                  "c",
+                  "cpp",
+                  "node"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DefinitionProvenance"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Finished At"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Duration Ms"
+          },
+          "feedback": {
+            "$ref": "#/components/schemas/FeedbackOutcome"
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/ComparisonOutcome-Input"
+          },
+          "status": {
+            "type": "string",
+            "const": "failed",
+            "title": "Status"
+          },
+          "score": {
+            "type": "null",
+            "title": "Score"
+          },
+          "tree": {
+            "type": "null",
+            "title": "Tree"
+          },
+          "error": {
+            "$ref": "#/components/schemas/OutcomeError"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "execution_id",
+          "provenance",
+          "started_at",
+          "finished_at",
+          "duration_ms",
+          "status",
+          "error"
+        ],
+        "title": "FailedOutcome"
+      },
+      "FailedOutcome-Output": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version"
+          },
+          "execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Execution Id"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "python",
+                  "java",
+                  "c",
+                  "cpp",
+                  "node"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DefinitionProvenance"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Finished At"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Duration Ms"
+          },
+          "feedback": {
+            "$ref": "#/components/schemas/FeedbackOutcome"
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/ComparisonOutcome-Output"
+          },
+          "status": {
+            "type": "string",
+            "const": "failed",
+            "title": "Status"
+          },
+          "score": {
+            "type": "null",
+            "title": "Score"
+          },
+          "tree": {
+            "type": "null",
+            "title": "Tree"
+          },
+          "error": {
+            "$ref": "#/components/schemas/OutcomeError"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "execution_id",
+          "provenance",
+          "started_at",
+          "finished_at",
+          "duration_ms",
+          "status",
+          "error"
+        ],
+        "title": "FailedOutcome"
+      },
+      "Feedback-Input": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "mode": {
+            "type": "string",
+            "const": "default",
+            "title": "Mode",
+            "default": "default"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/FeedbackPreferences-Input"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Feedback"
+      },
+      "Feedback-Output": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "mode": {
+            "type": "string",
+            "const": "default",
+            "title": "Mode",
+            "default": "default"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/FeedbackPreferences-Output"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Feedback"
+      },
+      "FeedbackOutcome": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "default": "disabled"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutcomeError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedbackOutcome"
+      },
+      "FeedbackPreferences-Input": {
+        "properties": {
+          "general": {
+            "$ref": "#/components/schemas/GeneralPreferences"
+          },
+          "default": {
+            "$ref": "#/components/schemas/DefaultPreferences"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedbackPreferences"
+      },
+      "FeedbackPreferences-Output": {
+        "properties": {
+          "general": {
+            "$ref": "#/components/schemas/GeneralPreferences"
+          },
+          "default": {
+            "$ref": "#/components/schemas/DefaultPreferences"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FeedbackPreferences"
+      },
+      "Fixture": {
+        "properties": {
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Reference"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reference",
+          "path"
+        ],
+        "title": "Fixture"
+      },
+      "GeneralPreferences": {
+        "properties": {
+          "report_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Title"
+          },
+          "show_score": {
+            "type": "boolean",
+            "title": "Show Score",
+            "default": true
+          },
+          "show_passed_tests": {
+            "type": "boolean",
+            "title": "Show Passed Tests",
+            "default": false
+          },
+          "add_report_summary": {
+            "type": "boolean",
+            "title": "Add Report Summary",
+            "default": true
+          },
+          "online_content": {
+            "items": {
+              "$ref": "#/components/schemas/LearningResource"
+            },
+            "type": "array",
+            "title": "Online Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GeneralPreferences"
+      },
+      "GradingConfigCreate": {
+        "properties": {
+          "external_assignment_id": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "External Assignment Id"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/GradingDefinition-Input"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "external_assignment_id",
+          "definition"
+        ],
+        "title": "GradingConfigCreate"
+      },
+      "GradingConfigResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "external_assignment_id": {
+            "type": "string",
+            "title": "External Assignment Id"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradingDefinition-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "definition_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition Hash"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "migration_error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Migration Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "external_assignment_id",
+          "definition",
+          "definition_hash",
+          "version",
+          "created_at",
+          "updated_at",
+          "is_active"
+        ],
+        "title": "GradingConfigResponse"
+      },
+      "GradingConfigUpdate": {
+        "properties": {
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradingDefinition-Input"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GradingConfigUpdate"
+      },
+      "GradingDefinition-Input": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version"
+          },
+          "templates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Templates"
+          },
+          "languages": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "python",
+                "java",
+                "node",
+                "cpp",
+                "c"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Languages"
+          },
+          "criteria": {
+            "$ref": "#/components/schemas/CriteriaConfig-Input"
+          },
+          "preparation": {
+            "$ref": "#/components/schemas/Preparation-Input"
+          },
+          "feedback": {
+            "$ref": "#/components/schemas/Feedback-Input"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "templates",
+          "languages",
+          "criteria"
+        ],
+        "title": "GradingDefinition"
+      },
+      "GradingDefinition-Output": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version"
+          },
+          "templates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Templates"
+          },
+          "languages": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "python",
+                "java",
+                "node",
+                "cpp",
+                "c"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Languages"
+          },
+          "criteria": {
+            "$ref": "#/components/schemas/CriteriaConfig-Output"
+          },
+          "preparation": {
+            "$ref": "#/components/schemas/Preparation-Output"
+          },
+          "feedback": {
+            "$ref": "#/components/schemas/Feedback-Output"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schema_version",
+          "templates",
+          "languages",
+          "criteria"
+        ],
+        "title": "GradingDefinition"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "JsonValue": {},
+      "LanguagePreparation": {
+        "properties": {
+          "required_files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Files"
+          },
+          "setup_commands": {
+            "items": {
+              "$ref": "#/components/schemas/SetupCommand"
+            },
+            "type": "array",
+            "title": "Setup Commands"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LanguagePreparation"
+      },
+      "LearningResource": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Url"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "linked_tests": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Linked Tests"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "description"
+        ],
+        "title": "LearningResource"
+      },
+      "OutcomeError": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "definition",
+              "submission",
+              "capability",
+              "provider",
+              "internal"
+            ],
+            "title": "Category"
+          },
+          "retryable": {
+            "type": "boolean",
+            "title": "Retryable"
+          },
+          "correlation_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Correlation Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "category",
+          "retryable",
+          "correlation_id"
+        ],
+        "title": "OutcomeError"
+      },
+      "Preparation-Input": {
+        "properties": {
+          "languages": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LanguagePreparation"
+            },
+            "propertyNames": {
+              "enum": [
+                "python",
+                "java",
+                "node",
+                "cpp",
+                "c"
+              ]
+            },
+            "type": "object",
+            "title": "Languages"
+          },
+          "fixtures": {
+            "items": {
+              "$ref": "#/components/schemas/Fixture"
+            },
+            "type": "array",
+            "title": "Fixtures"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Preparation"
+      },
+      "Preparation-Output": {
+        "properties": {
+          "languages": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LanguagePreparation"
+            },
+            "propertyNames": {
+              "enum": [
+                "python",
+                "java",
+                "node",
+                "cpp",
+                "c"
+              ]
+            },
+            "type": "object",
+            "title": "Languages"
+          },
+          "fixtures": {
+            "items": {
+              "$ref": "#/components/schemas/Fixture"
+            },
+            "type": "array",
+            "title": "Fixtures"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Preparation"
+      },
+      "ResponseCategory": {
+        "type": "string",
+        "enum": [
+          "success",
+          "runtime_error",
+          "timeout",
+          "system_error",
+          "compilation_error"
+        ],
+        "title": "ResponseCategory",
+        "description": "Classification of the execution result."
+      },
+      "ResultOutcomeTree-Input": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "const": "root",
+            "title": "Name",
+            "default": "root"
+          },
+          "type": {
+            "type": "string",
+            "const": "root",
+            "title": "Type",
+            "default": "root"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "base": {
+            "$ref": "#/components/schemas/CategoryOutcome-Input"
+          },
+          "bonus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryOutcome-Input"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "penalty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryOutcome-Input"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "score",
+          "base"
+        ],
+        "title": "ResultOutcomeTree"
+      },
+      "ResultOutcomeTree-Output": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "const": "root",
+            "title": "Name",
+            "default": "root"
+          },
+          "type": {
+            "type": "string",
+            "const": "root",
+            "title": "Type",
+            "default": "root"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "base": {
+            "$ref": "#/components/schemas/CategoryOutcome-Output"
+          },
+          "bonus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryOutcome-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "penalty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryOutcome-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "score",
+          "base"
+        ],
+        "title": "ResultOutcomeTree"
+      },
+      "SetupCommand": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Command"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "command"
+        ],
+        "title": "SetupCommand"
+      },
+      "SubjectConfig-Input": {
+        "properties": {
+          "subject_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Subject Name",
+            "description": "Name of the subject"
+          },
+          "weight": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Weight",
+            "description": "Weight of this subject (0-100)"
+          },
+          "tests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TestConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tests",
+            "description": "Tests under this subject"
+          },
+          "subjects": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SubjectConfig-Input"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects",
+            "description": "Nested subjects"
+          },
+          "subjects_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects Weight",
+            "description": "Weight of the subject when it is a heterogeneous tree"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subject_name",
+          "weight"
+        ],
+        "title": "SubjectConfig",
+        "description": "Configuration for a subject within a grading category."
+      },
+      "SubjectConfig-Output": {
+        "properties": {
+          "subject_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Subject Name",
+            "description": "Name of the subject"
+          },
+          "weight": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Weight",
+            "description": "Weight of this subject (0-100)"
+          },
+          "tests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TestConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tests",
+            "description": "Tests under this subject"
+          },
+          "subjects": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SubjectConfig-Output"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects",
+            "description": "Nested subjects"
+          },
+          "subjects_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects Weight",
+            "description": "Weight of the subject when it is a heterogeneous tree"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "subject_name",
+          "weight"
+        ],
+        "title": "SubjectConfig",
+        "description": "Configuration for a subject within a grading category."
+      },
+      "SubjectOutcome-Input": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "subject",
+            "title": "Type",
+            "default": "subject"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Weight"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectOutcome-Input"
+            },
+            "type": "array",
+            "title": "Subjects",
+            "default": []
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/TestOutcome"
+            },
+            "type": "array",
+            "title": "Tests",
+            "default": []
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "score",
+          "weight"
+        ],
+        "title": "SubjectOutcome"
+      },
+      "SubjectOutcome-Output": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "subject",
+            "title": "Type",
+            "default": "subject"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Weight"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectOutcome-Output"
+            },
+            "type": "array",
+            "title": "Subjects",
+            "default": []
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/TestOutcome"
+            },
+            "type": "array",
+            "title": "Tests",
+            "default": []
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "score",
+          "weight"
+        ],
+        "title": "SubjectOutcome"
+      },
+      "SubmissionCreate": {
+        "properties": {
+          "external_assignment_id": {
+            "type": "string",
+            "title": "External Assignment Id",
+            "description": "External assignment ID"
+          },
+          "external_user_id": {
+            "type": "string",
+            "title": "External User Id",
+            "description": "External user ID"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username",
+            "description": "Username of the submitter"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionFileData"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "List of files to submit"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "Optional language override"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale",
+            "description": "Optional locale for feedback (e.g., 'en', 'pt_br')",
+            "default": "en"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Optional submission metadata"
+          },
+          "evaluation_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationScopeData"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional file scope for pipeline analysis"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "external_assignment_id",
+          "external_user_id",
+          "username",
+          "files"
+        ],
+        "title": "SubmissionCreate"
+      },
+      "SubmissionDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "grading_config_id": {
+            "type": "integer",
+            "title": "Grading Config Id"
+          },
+          "external_user_id": {
+            "type": "string",
+            "title": "External User Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubmissionStatus-Output"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "graded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graded At"
+          },
+          "final_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Score"
+          },
+          "execution_time_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Time Ms"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DefinitionProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance_status": {
+            "type": "string",
+            "title": "Provenance Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutcomeError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feedback_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Status"
+          },
+          "comparison_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison Status"
+          },
+          "submission_files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Submission Files"
+          },
+          "submission_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Metadata"
+          },
+          "definition_snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradingDefinition-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CompletedOutcome-Output"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FailedOutcome-Output"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "status",
+                  "mapping": {
+                    "completed": "#/components/schemas/CompletedOutcome-Output",
+                    "failed": "#/components/schemas/FailedOutcome-Output"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnostics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "grading_config_id",
+          "external_user_id",
+          "username",
+          "language",
+          "status",
+          "submitted_at",
+          "provenance_status",
+          "submission_files"
+        ],
+        "title": "SubmissionDetailResponse"
+      },
+      "SubmissionFileData": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "description": "Name of the file"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "Content of the file"
+          },
+          "changed_lines": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed Lines",
+            "description": "One-indexed line numbers added or modified in this file"
+          },
+          "file_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Metadata",
+            "description": "Optional opaque metadata for this file"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "content"
+        ],
+        "title": "SubmissionFileData",
+        "description": "Schema for a submission file."
+      },
+      "SubmissionResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "grading_config_id": {
+            "type": "integer",
+            "title": "Grading Config Id"
+          },
+          "external_user_id": {
+            "type": "string",
+            "title": "External User Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubmissionStatus-Output"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "graded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graded At"
+          },
+          "final_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Score"
+          },
+          "execution_time_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Time Ms"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DefinitionProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance_status": {
+            "type": "string",
+            "title": "Provenance Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OutcomeError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "feedback_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Status"
+          },
+          "comparison_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "grading_config_id",
+          "external_user_id",
+          "username",
+          "language",
+          "status",
+          "submitted_at",
+          "provenance_status"
+        ],
+        "title": "SubmissionResponse",
+        "description": "Compact status/history projection; source files and tree require details."
+      },
+      "SubmissionStatus-Input": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "processing",
+          "completed",
+          "failed"
+        ],
+        "title": "SubmissionStatus",
+        "description": "Status of a submission in the grading pipeline."
+      },
+      "SubmissionStatus-Output": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "processing",
+          "completed",
+          "failed"
+        ],
+        "title": "SubmissionStatus",
+        "description": "Status of a submission."
+      },
+      "TestConfig": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Type"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Parameters"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Weight",
+            "default": 100.0
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "name",
+          "parameters"
+        ],
+        "title": "TestConfig"
+      },
+      "TestOutcome": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Id"
+          },
+          "evaluator": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Evaluator"
+          },
+          "type": {
+            "type": "string",
+            "const": "test",
+            "title": "Type",
+            "default": "test"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Weight"
+          },
+          "report": {
+            "type": "string",
+            "title": "Report",
+            "default": ""
+          },
+          "file_target": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Target"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Parameters"
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "evaluator",
+          "name",
+          "score",
+          "weight"
+        ],
+        "title": "TestOutcome"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

@@ -1,25 +1,7 @@
 # Action quick start
 
-Create `.github/autograder/definition.json`:
-
-```json
-{
-  "schema_version": "1.0",
-  "templates": ["webdev"],
-  "languages": ["node"],
-  "criteria": {
-    "base": {
-      "weight": 100,
-      "tests": [{
-        "id": "html-entry", "type": "check_project_structure",
-        "name": "HTML entry file", "weight": 100,
-        "parameters": {"expected_structure": "index.html"}
-      }]
-    }
-  },
-  "feedback": {"enabled": true, "mode": "default"}
-}
-```
+Copy the tested [static definition](../contracts/v1/examples/static-conformance.json)
+to `.github/autograder/definition.json` in the repository being graded.
 
 This static evaluator does not require a sandbox or provider. Add `index.html`
 and an ordinary workflow; its job name is arbitrary:

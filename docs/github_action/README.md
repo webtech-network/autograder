@@ -32,3 +32,4 @@ explicit legacy converter; the runtime accepts only the versioned definition.
 - [Inputs and outputs](configuration.md)
 - [Cloud publication](external-mode.md)
 - [Contract decisions](../contracts/DECISIONS.md)
+- [Executable conformance examples](../contracts/CONFORMANCE.md)

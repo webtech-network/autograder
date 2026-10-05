@@ -220,26 +220,10 @@ Validates HTML, CSS, and JavaScript files.
 
 And much more! Check the [WebDev Template Documentation](docs/templates/web_dev.md) for the full list of tests.
 #### 4. Custom Templates
-Upload your own test functions for specialized grading contexts:
-
-```python
-from autograder.models.abstract.test_function import TestFunction
-from autograder.models.dataclass.test_result import TestResult
-
-class MyCustomTest(TestFunction):
-    @property
-    def name(self):
-        return "my_custom_test"
-    
-    def execute(self, files, sandbox, **kwargs) -> TestResult:
-        # Your custom grading logic
-        score = 100 if condition else 0
-        return TestResult(
-            test_name=self.name,
-            score=score,
-            report="Test passed!" if score == 100 else "Test failed"
-        )
-```
+Trusted Python callers can pass their own test functions through the `templates`
+argument to `build_pipeline()`. See the [runnable custom evaluator](examples/contracts/custom_evaluator.py)
+and [contract guide](docs/contracts/CONFORMANCE.md). HTTP and Actions JSON
+definitions cannot upload Python evaluator code.
 
 ---
 

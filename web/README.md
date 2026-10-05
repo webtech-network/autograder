@@ -5,6 +5,8 @@ shared engine, and persists its finalized terminal outcome. Definitions and
 outcomes follow the [v1 decision record](../docs/contracts/DECISIONS.md). This is a
 breaking wire/storage migration; legacy dictionaries are not accepted by live
 endpoints.
+The [executable contract guide](../docs/contracts/CONFORMANCE.md) contains a
+validate/create/submit/poll smoke test and the generated OpenAPI reference.
 
 ## Operation
 
