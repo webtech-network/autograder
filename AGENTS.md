@@ -1,9 +1,9 @@
 # Autograder — contributor reference
 
-Read this reference before changing the repository. Phase-2 integration decisions
-are recorded in [docs/contracts/DECISIONS.md](docs/contracts/DECISIONS.md), following
-#363. Reduce the concepts a developer must understand; remove obsolete paths
-before adding abstractions. Breaking contract changes require migration evidence.
+Read this reference before changing the repository. Integration contracts are
+recorded in [docs/contracts/DECISIONS.md](docs/contracts/DECISIONS.md). Reduce
+the concepts a developer must understand; remove obsolete paths before adding
+abstractions. Breaking contract changes require migration evidence.
 
 ## Boundaries
 
@@ -13,9 +13,9 @@ persist/publish results and retry delivery. `sandbox_manager/` supplies executio
 infrastructure. Core must never import adapters or interpret platform identities,
 repository changes, database IDs, or workflow job names.
 
-The current sandbox/AI implementations still use concrete services. A future
-host-capability/provisioning redesign (#376/#377) should remove that coupling;
-this document does not pretend those boundaries have already been implemented.
+The current sandbox/AI implementations still use concrete services. Their
+host capability boundary remains incomplete; this document does not imply
+those boundaries have already been implemented.
 
 ## Public Python and JSON contracts
 

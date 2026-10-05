@@ -1,302 +1,123 @@
-# Deliberate Code Execution (DCE) Feature
+# Deliberate execution API
 
-## Overview
+`POST /api/v1/execute` runs a submitted program for pre-submission testing. It
+does not create a grading submission or score. The caller must be a trusted host
+using `Authorization: Bearer <AUTOGRADER_INTEGRATION_TOKEN>`. The host must
+authorize its own users and resource access before calling it. The request is
+synchronous and is not durably accepted. The endpoint and grading both acquire
+from the same sandbox manager and language pool, so its `scale_limit` bounds active containers
+for both paths. Pool exhaustion is a service failure, not a student result.
 
-The Deliberate Code Execution (DCE) feature allows users to execute code in sandboxed environments **without going through the full autograder pipeline**. This is a stateless feature designed for quick testing and debugging purposes.
-
-## Use Cases
-
-- **Pre-submission Testing**: Students can test their code before submitting it for grading
-- **Debugging**: Quick feedback on code errors without creating a submission record
-- **Interactive Execution**: Run code with stdin inputs to test interactive programs
-- **Syntax Validation**: Verify code compiles/runs before final submission
-
-## Key Features
-
-✅ **Stateless**: No data is persisted - perfect for testing  
-✅ **Multi-language**: Supports Python, Java, Node.js, and C++  
-✅ **Interactive Input**: Support for stdin inputs  
-✅ **Multiple Files**: Execute projects with multiple source files  
-✅ **Error Classification**: Automatic categorization of errors (runtime, compilation, timeout, etc.)  
-✅ **Fast**: Direct sandbox execution without grading overhead  
-
-## API Endpoint
-
-### POST `/api/v1/execute`
-
-Execute code in a sandbox environment.
-
-#### Request Body
+## Request and stdin
 
 ```json
 {
   "language": "python",
   "submission_files": [
-    {
-      "filename": "main.py",
-      "content": "print('Hello, World!')"
-    }
+    {"filename": "main.py", "content": "name = input()\nprint('Hello, ' + name)"}
   ],
   "program_command": "python main.py",
-  "test_cases": [["optional", "stdin", "inputs"]]
+  "test_cases": [["Alice"], ["Bob"]],
+  "assets": []
 }
 ```
 
-#### Parameters
+Save this JSON as `execute.json` and send it with
+`curl -H "Authorization: Bearer $AUTOGRADER_INTEGRATION_TOKEN" -H "Content-Type: application/json" --data-binary @execute.json http://localhost:8000/api/v1/execute`.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `language` | string | ✓ | Programming language: `python`, `java`, `node`, or `cpp` |
-| `submission_files` | array | ✓ | List of files with `filename` and `content` |
-| `program_command` | string | ✓ | Command to execute (e.g., `python main.py`) |
-| `test_cases` | array | ✗ | Optional test cases. Each test case is a list of stdin inputs. If omitted, the program runs once with no input. |
+`test_cases` is an optional, nonempty array of stdin cases. Each case is an
+array of **lines** joined with newline and delivered to a fresh process in the
+same sandbox workspace. Omit `test_cases` for one run with empty stdin. These
+strings are stdin, never command arguments. A process can leave files in the
+workspace for a later case; the sandbox is destroyed after the request. The
+command is parsed into an executable and arguments, without an implicit shell.
+Use an explicit `sh -c '...'` command for compilation chains or shell syntax.
+Invalid quoting and unknown fields, including the old misleading `inputs`
+field, receive 422.
 
-#### Response
+`assets` is an optional list of `{source, target, read_only}` references. It
+is for a trusted host to forward assignment assets from its own authorization
+checks. `source` is a normalized relative provider key; `target` is a
+normalized path under `/tmp`. The service resolves and injects these before
+the first case. This does not make arbitrary callers trusted.
+
+## Process response
 
 ```json
 {
   "results": [
     {
-      "output": "Hello, World!\n",
       "category": "success",
+      "stdout": "Hello, Alice\n",
+      "stderr": "",
+      "exit_code": 0,
+      "execution_time": 0.01,
+      "output": "Hello, Alice\n",
       "error_message": null,
-      "execution_time": 0.123
+      "truncated": false
+    },
+    {
+      "category": "success",
+      "stdout": "Hello, Bob\n",
+      "stderr": "",
+      "exit_code": 0,
+      "execution_time": 0.01,
+      "output": "Hello, Bob\n",
+      "error_message": null,
+      "truncated": false
     }
-  ]
+  ],
+  "stopped_early": false
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `results` | array | One result object per test case (or one result if no test cases provided) |
-| `results[].output` | string | Combined stdout/stderr output |
-| `results[].category` | string | Result category: `success`, `runtime_error`, `compilation_error`, `timeout`, `system_error` |
-| `results[].error_message` | string\|null | Error details if execution failed |
-| `results[].execution_time` | float | Execution time in seconds |
+`results` follows request order. `success`, `runtime_error`,
+`compilation_error`, and `timeout` are process outcomes (HTTP 200).
+A timed-out process ends the batch, and `stopped_early: true` means the results
+are a prefix of the requested cases. `output` is a display field: nonempty
+stdout then stderr joined by a newline. Clients should use `stdout`,
+`stderr`, and `exit_code` when they need the exact process outcome.
+Each stream is capped at 16 KiB UTF-8 on the wire; `truncated` indicates a
+cut. `execution_time` is seconds.
 
-## Examples
+## Limits and lifecycle
 
-### 1. Simple Python Execution
+| Limit | Value |
+| --- | ---: |
+| Files | 20, 64 KiB each, 256 KiB total UTF-8 content |
+| Asset references | 5; resolved content 256 KiB total |
+| Stdin cases | 1–4, 16 KiB per case |
+| Process time | 8 seconds per case |
+| HTTP response deadline | 45 seconds |
+| Response output | 16 KiB per stream per case |
 
-```bash
-curl -X POST http://localhost:8000/api/v1/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "language": "python",
-    "submission_files": [
-      {
-        "filename": "main.py",
-        "content": "print(\"Hello, World!\")"
-      }
-    ],
-    "program_command": "python main.py"
-  }'
-```
+The host acquires one sandbox for the request, prepares files and assets, then
+runs cases sequentially. Acquisition, preparation, execution, and release stay
+in one worker. When the HTTP request is cancelled or reaches 45 seconds, the
+caller receives no result (or 504 for a connected caller); the worker continues
+to completion and releases or destroys the sandbox. A timed-out process's
+sandbox is destroyed. Cleanup failure is logged and never replaces a known
+process result. This is a bounded *response* deadline, not a hard stop for a
+blocked Docker call or asset provider. No job ID or later status query exists.
 
-### 2. Python with Interactive Input
+| Condition | HTTP status | Machine-readable representation |
+| --- | ---: | --- |
+| Invalid input or limit | 422 | `detail[]` with path, code, message |
+| Missing/invalid token | 401 | authentication detail |
+| Student runtime/compile error or process timeout | 200 | `results[].category`, stdout/stderr/exit_code |
+| Pool unavailable/full, asset or sandbox failure | 503 | `detail.code=EXECUTION_UNAVAILABLE` |
+| Response deadline | 504 | `detail.code=EXECUTION_DEADLINE_EXCEEDED` |
+| Caller disconnect | no response | worker completes cleanup; no persisted result |
 
-```bash
-curl -X POST http://localhost:8000/api/v1/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "language": "python",
-    "submission_files": [
-      {
-        "filename": "calculator.py",
-        "content": "a = int(input())\nb = int(input())\nprint(a + b)"
-      }
-    ],
-    "program_command": "python calculator.py",
-    "test_cases": [["10"], ["20"]]
-  }'
-```
+## Client integration
 
-### 3. Java Compilation and Execution
+Send the integration Bearer token, a supported lower-case language, normalized
+file and asset paths, and at most four stdin cases. Treat 422, 503, and 504 as
+request or service failures. Treat `results[].category` as the student process
+outcome. A caller that only displays output can use `output`; one that needs
+precise process details should read `stdout`, `stderr`, `exit_code`,
+`truncated`, and `stopped_early`.
 
-```bash
-curl -X POST http://localhost:8000/api/v1/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "language": "java",
-    "submission_files": [
-      {
-        "filename": "Main.java",
-        "content": "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello from Java!\");\n    }\n}"
-      }
-    ],
-    "program_command": "javac Main.java && java Main"
-  }'
-```
-
-### 4. C++ Compilation and Execution
-
-```bash
-curl -X POST http://localhost:8000/api/v1/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "language": "cpp",
-    "submission_files": [
-      {
-        "filename": "main.cpp",
-        "content": "#include <iostream>\nint main() {\n    std::cout << \"Hello from C++!\" << std::endl;\n    return 0;\n}"
-      }
-    ],
-    "program_command": "g++ main.cpp -o main && ./main"
-  }'
-```
-
-### 5. Node.js Execution
-
-```bash
-curl -X POST http://localhost:8000/api/v1/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "language": "node",
-    "submission_files": [
-      {
-        "filename": "app.js",
-        "content": "console.log(\"Hello from Node.js!\");"
-      }
-    ],
-    "program_command": "node app.js"
-  }'
-```
-
-### 6. Multiple Files
-
-```bash
-curl -X POST http://localhost:8000/api/v1/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "language": "python",
-    "submission_files": [
-      {
-        "filename": "main.py",
-        "content": "from utils import greet\ngreet(\"World\")"
-      },
-      {
-        "filename": "utils.py",
-        "content": "def greet(name):\n    print(f\"Hello, {name}!\")"
-      }
-    ],
-    "program_command": "python main.py"
-  }'
-```
-
-## Error Categories
-
-The API automatically classifies execution results into categories:
-
-| Category | Description | Example |
-|----------|-------------|---------|
-| `success` | Code executed successfully | Normal program completion |
-| `runtime_error` | Program crashed during execution | Division by zero, null pointer |
-| `compilation_error` | Code failed to compile | Syntax errors in Java/C++ |
-| `timeout` | Execution exceeded time limit | Infinite loops |
-| `system_error` | Infrastructure failure | Docker errors |
-
-## Implementation Details
-
-### Architecture
-
-```
-Client Request
-    ↓
-FastAPI Endpoint (/api/v1/execute)
-    ↓
-DeliberateExecutionService
-    ↓
-Sandbox Manager (acquire sandbox)
-    ↓
-Sandbox Container (prepare workdir + execute)
-    ↓
-Result Classification
-    ↓
-Response to Client
-```
-
-### Key Components
-
-1. **Schema** (`web/schemas/execution.py`):
-   - `DeliberateCodeExecutionRequest`: Request validation
-   - `DeliberateCodeExecutionResponse`: Response structure
-
-2. **Service** (`web/service/deliberate_execution_service.py`):
-   - `execute_code()`: Core execution logic
-   - Sandbox acquisition and release
-   - Error handling
-
-3. **Endpoint** (`web/api/v1/execution.py`):
-   - POST `/execute` handler
-   - Request validation
-   - Error responses
-
-### Sandbox Integration
-
-The DCE feature uses the existing **Sandbox Manager** infrastructure:
-
-- Acquires sandboxes from the pool
-- Prepares workdir with submission files
-- Executes commands with optional stdin
-- Automatically releases sandbox back to pool
-- Handles timeouts (30 seconds default)
-
-### Security
-
-- ✅ Sandboxed execution (Docker containers)
-- ✅ Resource limits (CPU, memory)
-- ✅ Network isolation
-- ✅ Timeout protection
-- ✅ No data persistence (stateless)
-
-## Testing
-
-Run the integration tests:
-
-```bash
-# Start the API server first
-cd /path/to/project-root
-python -m web.main
-
-# In another terminal, run tests
-python tests/integration/test_execution_endpoint.py
-```
-
-The test suite covers:
-- ✅ Simple execution (all languages)
-- ✅ Interactive input
-- ✅ Runtime errors
-- ✅ Compilation errors
-- ✅ Multiple files
-- ✅ Invalid language validation
-
-## Limitations
-
-1. **Stateless**: No execution history is stored
-2. **Timeout**: 30 seconds maximum execution time
-3. **No Grading**: This feature does not produce scores or feedback
-4. **Single Execution**: Each request is independent
-
-## Future Enhancements
-
-- [ ] Configurable timeout per request
-- [ ] Output size limits
-- [ ] Execution history (optional persistence)
-- [ ] Streaming output for long-running processes
-- [ ] Custom resource limits per request
-
-## Comparison with Submission Grading
-
-| Feature | DCE | Submission Grading |
-|---------|-----|-------------------|
-| Purpose | Testing/Debugging | Grade assignment |
-| Persistence | No | Yes (database) |
-| Feedback | No | Yes |
-| Scoring | No | Yes |
-| Speed | Fast | Slower (full pipeline) |
-| Use Case | Pre-submission | Final submission |
-
-## Conclusion
-
-The Deliberate Code Execution feature provides a lightweight, fast way for users to test their code before submission. It leverages the existing sandbox infrastructure while remaining completely stateless and optimal for quick feedback loops.
-
+The web adapter owns this execution lifecycle independently of the grading
+criteria tree. Blocking sandbox operations run in a worker thread, leaving the
+HTTP event loop available for other requests.

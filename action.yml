@@ -1,4 +1,4 @@
-name: "Prisma Autograder"
+name: "Autograder"
 author: "Arthur Carvalho"
 description: "Grade one checkout from a versioned definition and retain a canonical outcome."
 inputs:

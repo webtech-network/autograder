@@ -94,6 +94,3 @@ nav:
       - Docs Site Development: guides/docs-site-development.md
       - Criteria Configuration Examples: guides/criteria_configuration_examples.md
       - GitHub Module (legacy): guides/github_module.md
-  - Roadmaps:
-      - Feature Roadmap: roadmaps/FEATURE_ROADMAP.md
-      - Technical Debt Roadmap: roadmaps/TECHNICAL_DEBT_ROADMAP.md

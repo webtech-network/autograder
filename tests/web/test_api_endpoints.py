@@ -17,6 +17,8 @@ from web.schemas.execution import (
     DeliberateCodeExecutionResponse,
     DeliberateCodeExecutionResult,
 )
+from web.service.deliberate_execution_service import ExecutionServiceError
+from web.config import auth
 from sandbox_manager.models.sandbox_models import ResponseCategory
 
 
@@ -99,8 +101,11 @@ async def test_readiness_check(client):
 
 
 @pytest.mark.asyncio
-async def test_execute_endpoint_contract_and_value_error_mapping(client):
-    """Test /api/v1/execute response contract and ValueError mapping."""
+async def test_execute_endpoint_contract_and_service_error_mapping(client, monkeypatch):
+    """Test process details and machine-readable infrastructure failure."""
+    monkeypatch.setenv("AUTOGRADER_INTEGRATION_TOKEN", "test-token")
+    monkeypatch.setattr(auth, "integration_auth_config", None)
+    headers = {"Authorization": "Bearer test-token"}
     execute_request = {
         "language": "python",
         "submission_files": [{"filename": "main.py", "content": "print('ok')"}],
@@ -110,6 +115,9 @@ async def test_execute_endpoint_contract_and_value_error_mapping(client):
         results=[
             DeliberateCodeExecutionResult(
                 output="ok\n",
+                stdout="ok\n",
+                stderr="",
+                exit_code=0,
                 category=ResponseCategory.SUCCESS,
                 error_message=None,
                 execution_time=0.12,
@@ -120,17 +128,15 @@ async def test_execute_endpoint_contract_and_value_error_mapping(client):
         "web.api.v1.execution.execute_code",
         new=AsyncMock(return_value=service_response),
     ):
-        response = await client.post("/api/v1/execute", json=execute_request)
+        response = await client.post("/api/v1/execute", json=execute_request, headers=headers)
     assert response.status_code == 200
     body = response.json()
     assert "results" in body
     assert len(body["results"]) == 1
     result = body["results"][0]
     assert set(result.keys()) == {
-        "output",
-        "category",
-        "error_message",
-        "execution_time",
+        "output", "stdout", "stderr", "exit_code", "category",
+        "error_message", "execution_time", "truncated",
     }
     assert result["output"] == "ok\n"
     assert result["category"] == "success"
@@ -138,11 +144,13 @@ async def test_execute_endpoint_contract_and_value_error_mapping(client):
     assert isinstance(result["execution_time"], float)
     with patch(
         "web.api.v1.execution.execute_code",
-        new=AsyncMock(side_effect=ValueError("invalid request")),
+        new=AsyncMock(side_effect=ExecutionServiceError(
+            "EXECUTION_UNAVAILABLE", "Execution service is unavailable.", 503
+        )),
     ):
-        error_response = await client.post("/api/v1/execute", json=execute_request)
-    assert error_response.status_code == 400
-    assert error_response.json()["detail"] == "invalid request"
+        error_response = await client.post("/api/v1/execute", json=execute_request, headers=headers)
+    assert error_response.status_code == 503
+    assert error_response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
 
 
 @pytest.mark.asyncio

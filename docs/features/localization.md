@@ -41,7 +41,7 @@ report = t(
 
 ## Translation Catalogs
 
-Catalogs are JSON files located in `autograder/translations/`. Using JSON allows the same translation keys to be shared across a multi-language ecosystem (e.g., Prisma API, Frontend, CLI).
+Catalogs are JSON files located in `autograder/translations/`. JSON keeps translation keys portable across applications and command-line tools.
 
 ### Catalog Structure (Nested)
 

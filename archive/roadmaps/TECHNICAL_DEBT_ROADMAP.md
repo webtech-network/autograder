@@ -216,7 +216,7 @@ These items prepare the codebase for future growth by establishing patterns and 
 
 The former grading-step export interface is removed. Hosts receive a finalized
 terminal outcome and independently persist or publish it; delivery errors cannot
-invalidate grading. See [contract decisions](../contracts/DECISIONS.md).
+invalidate grading. See [contract decisions](../../docs/contracts/DECISIONS.md).
 
 #### Item 19: Separate the `PipelineExecution` Summary Logic from the Model
 

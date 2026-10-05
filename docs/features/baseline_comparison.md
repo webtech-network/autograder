@@ -21,9 +21,9 @@ enriched = validate_outcome(wire)
 A hosting adapter owns selecting a trusted baseline and deciding whether the
 comparison is meaningful across revisions. The engine does not fetch baselines,
 rerun evaluations, or infer baseline identity from submission usernames.
-The current HTTP contract has no opaque `baseline_result_tree` input: baseline
-selection and trust require the separate #375 design before restoring that
-transport feature.
+The current HTTP contract has no opaque `baseline_result_tree` input. A hosting
+adapter must choose and verify a trusted baseline before supplying comparison
+content.
 
 Comparison is disabled by default. An adapter may supply completed comparison
 content, or mark optional comparison failed with a safe structured error while

@@ -13,8 +13,9 @@ validate/create/submit/poll smoke test and the generated OpenAPI reference.
 Configure `DATABASE_URL` and `AUTOGRADER_INTEGRATION_TOKEN`, install the repository
 requirements, and start the server with `uvicorn web.main:app`. The existing
 sandbox/provider deployment settings still apply. The integration token protects
-internal-ID definition fetch, external outcome ingestion, and detailed submission
-retrieval. Full HTTP identity/access control remains a separate work item (#318).
+internal-ID definition fetch, external outcome ingestion, detailed submission
+retrieval, and deliberate execution. Other routes follow their documented
+access policy.
 
 For an existing installation, back up the database and run the migration before
 starting the new service:
@@ -116,7 +117,6 @@ A failed replay preserves the receipt for another attempt.
 
 This receipt mechanism covers finalized-result publication. It does **not** make
 pending/running task dispatch restart-safe, provide an automatic retry scheduler,
-or demonstrate the 150–200-request capacity target. Durable acceptance and
-recovery remain #365; submission/import replay identity remains #366. Deployments
+or demonstrate a particular concurrent-request capacity. Deployments
 must mount the receipt directory persistently to retain artifacts across container
 replacement. Deliberate execution at `/api/v1/execute` remains supported separately.

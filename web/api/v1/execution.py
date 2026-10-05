@@ -1,68 +1,50 @@
-"""Deliberate Code Execution endpoints."""
+"""Synchronous deliberate code execution endpoint."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from web.config.logging import get_logger
+from web.api.deps import require_integration_token
 from web.schemas.execution import (
     DeliberateCodeExecutionRequest,
     DeliberateCodeExecutionResponse,
+    ExecutionErrorResponse,
 )
-from web.service.deliberate_execution_service import execute_code
+from web.service.deliberate_execution_service import ExecutionServiceError, execute_code
 
-
-logger = get_logger(__name__)
 router = APIRouter(prefix="/execute", tags=["Code Execution"])
 
 
-@router.post("", response_model=DeliberateCodeExecutionResponse)
+@router.post(
+    "",
+    response_model=DeliberateCodeExecutionResponse,
+    dependencies=[Depends(require_integration_token)],
+    responses={
+        401: {"description": "Missing or invalid integration token"},
+        422: {"description": "Invalid or over-limit request"},
+        503: {"model": ExecutionErrorResponse, "description": "Execution infrastructure unavailable"},
+        504: {"model": ExecutionErrorResponse, "description": "Request deadline exceeded"},
+    },
+)
 async def execute_code_endpoint(request: DeliberateCodeExecutionRequest):
-    """
-    Execute code in a sandbox without grading.
+    """Execute one command against sequential stdin cases, without grading.
 
-    This endpoint is stateless and does not store any data.
-    It's designed for testing and debugging code before actual submission.
+    `test_cases` contains arrays of stdin lines. Omit it for one run with empty
+    stdin. The command is parsed as executable and arguments; use an explicit
+    `sh -c` command if shell operators are required.
 
-    **Use Cases:**
-    - Students testing their code before submitting for grading
-    - Quick debugging of code issues
-    - Interactive code execution (with stdin inputs)
+    Example request:
+    `{"language":"python","submission_files":[{"filename":"main.py",
+    "content":"name = input()\\nprint('Hello, ' + name)"}],
+    "program_command":"python main.py","test_cases":[["Alice"]]}`
 
-    **Request:**
-    - `language`: Programming language (python, java, node, cpp)
-    - `submission_files`: List of files with filename and content
-    - `program_command`: Command to execute (e.g., "python main.py")
-    - `inputs`: Optional list of inputs to provide to the program
-
-    **Response:**
-    - `output`: Combined stdout/stderr output
-    - `category`: Execution result category (success, runtime_error, timeout, etc.)
-    - `error_message`: Error details if execution failed
-    - `execution_time`: Time taken to execute in seconds
-
-    **Example:**
-    ```json
-    {
-        "language": "python",
-        "submission_files": [
-            {
-                "filename": "main.py",
-                "content": "name = input('Enter name: ')\\nprint(f'Hello, {name}!')"
-            }
-        ],
-        "program_command": "python main.py",
-        "inputs": [["Alice"]]
-    }
-    ```
+    Example result:
+    `{"results":[{"category":"success","stdout":"Hello, Alice\\n",
+    "stderr":"","exit_code":0,"execution_time":0.01,"output":"Hello, Alice\\n",
+    "error_message":null,"truncated":false}],"stopped_early":false}`
     """
     try:
-        logger.info("Code execution request received for language: %s", request.language)
-        result = await execute_code(request)
-        logger.info("Code execution completed with %d result(s)", len(result.results))
-        return result
-    except ValueError as e:
-        logger.warning("Invalid request: %s", e)
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        logger.error("Execution endpoint error: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during code execution") from e
-
+        return await execute_code(request)
+    except ExecutionServiceError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc

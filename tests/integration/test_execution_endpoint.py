@@ -5,10 +5,17 @@ This script tests the execution endpoint with various scenarios.
 """
 
 import pytest
-from httpx import AsyncClient, ASGITransport, ASGITransport
+from httpx import AsyncClient, ASGITransport
+from web.config import auth
 from web.main import app
 
 BASE_URL = "/api/v1/execute"
+
+
+@pytest.fixture(autouse=True)
+def integration_token(monkeypatch):
+    monkeypatch.setenv("AUTOGRADER_INTEGRATION_TOKEN", "integration-token")
+    monkeypatch.setattr(auth, "integration_auth_config", None)
 
 
 @pytest.mark.asyncio
@@ -43,7 +50,7 @@ class TestExecutionEndpoint:
 
     async def test_simple_python_execution(self):
         """Test simple Python code execution without inputs."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer integration-token"}) as client:
             request = {
                 "language": "python",
                 "submission_files": [
@@ -63,7 +70,7 @@ class TestExecutionEndpoint:
 
     async def test_python_with_input(self):
         """Test Python code with stdin input."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer integration-token"}) as client:
             request = {
                 "language": "python",
                 "submission_files": [
@@ -73,7 +80,7 @@ class TestExecutionEndpoint:
                     }
                 ],
                 "program_command": "python main.py",
-                "test_cases": [["Alice\n"]]
+                "test_cases": [["Alice"]]
             }
 
             response = await client.post(BASE_URL, json=request)
@@ -83,7 +90,7 @@ class TestExecutionEndpoint:
 
     async def test_python_runtime_error(self):
         """Test Python code with runtime error."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer integration-token"}) as client:
             request = {
                 "language": "python",
                 "submission_files": [
@@ -103,7 +110,7 @@ class TestExecutionEndpoint:
 
     async def test_java_execution(self):
         """Test Java code execution."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer integration-token"}) as client:
             request = {
                 "language": "java",
                 "submission_files": [
@@ -128,7 +135,7 @@ public class Main {
 
     async def test_node_execution(self):
         """Test Node.js code execution."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer integration-token"}) as client:
             request = {
                 "language": "node",
                 "submission_files": [
@@ -147,7 +154,7 @@ public class Main {
 
     async def test_cpp_execution(self):
         """Test C++ code execution."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer integration-token"}) as client:
             request = {
                 "language": "cpp",
                 "submission_files": [
@@ -174,7 +181,7 @@ int main() {
 
     async def test_c_execution(self):
         """Test C code execution."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer integration-token"}) as client:
             request = {
                 "language": "c",
                 "submission_files": [
@@ -190,7 +197,7 @@ int main() {
 """
                     }
                 ],
-                "program_command": "gcc main.c -o main && ./main"
+                "program_command": "sh -c \"gcc main.c -o main && ./main\""
             }
 
             response = await client.post(BASE_URL, json=request)
@@ -200,7 +207,7 @@ int main() {
 
     async def test_multiple_files(self):
         """Test execution with multiple files."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer integration-token"}) as client:
             request = {
                 "language": "python",
                 "submission_files": [
@@ -223,7 +230,7 @@ int main() {
 
     async def test_invalid_language(self):
         """Test with invalid language."""
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers={"Authorization": "Bearer integration-token"}) as client:
             request = {
                 "language": "rust",  # Not supported
                 "submission_files": [
@@ -237,3 +244,35 @@ int main() {
 
             response = await client.post(BASE_URL, json=request)
             assert response.status_code == 422  # Validation error
+
+    async def test_execution_uses_the_grading_sandbox_pool_budget(self):
+        from autograder.models.dataclass.submission import Submission, SubmissionFile
+        from autograder.services.sandbox_service import SandboxService
+        from sandbox_manager.manager import get_sandbox_manager
+        from sandbox_manager.models.sandbox_models import Language
+
+        grading = SandboxService()
+        submission = Submission(
+            username="student", user_id=1, assignment_id=1,
+            submission_files={"main.py": SubmissionFile("main.py", "print('grade')")},
+            language=Language.PYTHON,
+        )
+        first = grading.create_sandbox(submission)
+        second = grading.create_sandbox(submission)
+        assert first is not None and second is not None
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test",
+                headers={"Authorization": "Bearer integration-token"},
+            ) as client:
+                response = await client.post(BASE_URL, json={
+                    "language": "python",
+                    "submission_files": [{"filename": "main.py", "content": "print('run')"}],
+                    "program_command": "python main.py",
+                })
+            assert response.status_code == 503
+            assert response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
+        finally:
+            manager = get_sandbox_manager()
+            manager.release_sandbox(Language.PYTHON, first)
+            manager.release_sandbox(Language.PYTHON, second)

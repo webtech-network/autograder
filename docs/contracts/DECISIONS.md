@@ -1,10 +1,8 @@
-# Integration contracts v1 — phase 2 decision record
+# Integration contract boundaries
 
-This delivery implements #367 and #369 with the necessary definition identity
-(#368), adapter publication (#370), and Actions Classroom retirement (#372).
-It follows #363: grading semantics belong to the engine; transport, persistence,
-credentials, acceptance, publication, and submission identity belong to adapters.
-The v1 wire contract is intentionally breaking. There is no live dual parser.
+Grading semantics belong to the engine. Transport, persistence, credentials,
+acceptance, publication, and submission identity belong to hosting adapters.
+The version 1 wire contract has one parser and one terminal outcome format.
 
 ## Definition
 
@@ -20,8 +18,8 @@ Preparation has language-keyed required files and named setup commands, and
 fixtures identified by logical reference and a relative fixture-root path. Required-file paths are relative to the submission root.
 The current Docker host mounts fixtures under `/tmp/app/`; commands reading
 fixtures use that documented root. Provider credentials remain host-owned.
-Feedback has `enabled`, `mode: "default"`, and typed preferences. The previously
-advertised but unimplemented AI reporter is rejected. Language IDs are the
+Feedback has `enabled`, `mode: "default"`, and typed preferences. Only the
+implemented feedback mode is accepted. Language IDs are the
 canonical lowercase enum; a single allowed language is inferred, while multiple
 languages require an explicit selection at submission time. Missing host
 capabilities are execution failures, distinct from disallowed languages.
@@ -77,8 +75,7 @@ any adapter publication. No exporter is a grading step. Delivery failure cannot
 change a completed grade into a failed execution or trigger a contradictory
 second upload. Actions writes the canonical artifact before optional cloud
 publication, reports delivery failure separately, and permits explicit artifact
-retry without regrading. Upstash and Classroom reporting/automatic feedback
-commits are retired. Actions uses ordinary summary, scalar outputs, and local
+retry without regrading. Actions uses ordinary summary, scalar outputs, and local
 artifacts, independently of workflow job name and repository write permissions.
 
 ## Migration and limits
@@ -90,6 +87,21 @@ silently accepted. The HTTP migration records snapshots only for future
 executions and labels unsnapshotted history unverified. Workflow instructions
 cover the single-definition-file and scalar output changes.
 
-Durable scheduling, distributed sandbox provisioning, host capability redesign,
-HTTP submission idempotency, and retention policy are separate phase-2 items.
-They must not be implied by these schema and publication changes.
+The definition and outcome schemas do not provide durable scheduling,
+distributed sandbox provisioning, submission idempotency, or retention policy.
+Those are hosting responsibilities.
+
+## Deliberate execution
+
+The web adapter provides a bounded synchronous `POST /api/v1/execute` for
+pre-submission runs. It uses `test_cases` as stdin lines and `results` as an
+ordered list, separate from grading-tree orchestration.
+Authentication uses the existing host integration token. The shared sandbox
+manager's per-language pool is the current common admission limit for grading
+and deliberate runs. A process failure is a 200 result with stdout, stderr,
+exit status and category; an infrastructure failure is 503, and a connected
+caller past the response deadline gets 504. A cancelled/timed-out HTTP request
+does not cancel its single worker; the worker owns cleanup. See the
+[execution contract](../features/deliberate_code_execution.md) for limits and
+the error matrix. The response deadline does not impose a hard deadline on
+blocked Docker or asset-provider calls.

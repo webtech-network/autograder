@@ -828,7 +828,7 @@
           "Code Execution"
         ],
         "summary": "Execute Code Endpoint",
-        "description": "Execute code in a sandbox without grading.\n\nThis endpoint is stateless and does not store any data.\nIt's designed for testing and debugging code before actual submission.\n\n**Use Cases:**\n- Students testing their code before submitting for grading\n- Quick debugging of code issues\n- Interactive code execution (with stdin inputs)\n\n**Request:**\n- `language`: Programming language (python, java, node, cpp)\n- `submission_files`: List of files with filename and content\n- `program_command`: Command to execute (e.g., \"python main.py\")\n- `inputs`: Optional list of inputs to provide to the program\n\n**Response:**\n- `output`: Combined stdout/stderr output\n- `category`: Execution result category (success, runtime_error, timeout, etc.)\n- `error_message`: Error details if execution failed\n- `execution_time`: Time taken to execute in seconds\n\n**Example:**\n```json\n{\n    \"language\": \"python\",\n    \"submission_files\": [\n        {\n            \"filename\": \"main.py\",\n            \"content\": \"name = input('Enter name: ')\\nprint(f'Hello, {name}!')\"\n        }\n    ],\n    \"program_command\": \"python main.py\",\n    \"inputs\": [[\"Alice\"]]\n}\n```",
+        "description": "Execute one command against sequential stdin cases, without grading.\n\n`test_cases` contains arrays of stdin lines. Omit it for one run with empty\nstdin. The command is parsed as executable and arguments; use an explicit\n`sh -c` command if shell operators are required.\n\nExample request:\n`{\"language\":\"python\",\"submission_files\":[{\"filename\":\"main.py\",\n\"content\":\"name = input()\\nprint('Hello, ' + name)\"}],\n\"program_command\":\"python main.py\",\"test_cases\":[[\"Alice\"]]}`\n\nExample result:\n`{\"results\":[{\"category\":\"success\",\"stdout\":\"Hello, Alice\\n\",\n\"stderr\":\"\",\"exit_code\":0,\"execution_time\":0.01,\"output\":\"Hello, Alice\\n\",\n\"error_message\":null,\"truncated\":false}],\"stopped_early\":false}`",
         "operationId": "execute_code_endpoint_api_v1_execute_post",
         "requestBody": {
           "content": {
@@ -851,49 +851,43 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid integration token"
+          },
           "422": {
-            "description": "Validation Error",
+            "description": "Invalid or over-limit request"
+          },
+          "503": {
+            "description": "Execution infrastructure unavailable",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ExecutionErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Request deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionErrorResponse"
                 }
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     }
   },
   "components": {
     "schemas": {
-      "AssetConfig": {
-        "properties": {
-          "source": {
-            "type": "string",
-            "title": "Source",
-            "description": "Relative path for the asset on the S3 provider"
-          },
-          "target": {
-            "type": "string",
-            "title": "Target",
-            "description": "Absolute path for the asset inside the container"
-          },
-          "read_only": {
-            "type": "boolean",
-            "title": "Read Only",
-            "description": "Whether the asset should be read-only (0444)",
-            "default": true
-          }
-        },
-        "type": "object",
-        "required": [
-          "source",
-          "target"
-        ],
-        "title": "AssetConfig",
-        "description": "Configuration for a static asset to be injected into the sandbox."
-      },
       "CategoryConfig-Input": {
         "properties": {
           "weight": {
@@ -1660,21 +1654,22 @@
         "properties": {
           "language": {
             "type": "string",
-            "title": "Language",
-            "description": "The programming language of the code to be executed (e.g., python, java, node, cpp)."
+            "title": "Language"
           },
           "submission_files": {
             "items": {
-              "$ref": "#/components/schemas/SubmissionFileData"
+              "$ref": "#/components/schemas/ExecutionFile"
             },
             "type": "array",
-            "title": "Submission Files",
-            "description": "List of files to be executed, including their content."
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Submission Files"
           },
           "program_command": {
             "type": "string",
-            "title": "Program Command",
-            "description": "The command to execute the program (e.g., 'python main.py', 'java Main', 'node app.js', './a.out')."
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Program Command"
           },
           "test_cases": {
             "anyOf": [
@@ -1685,31 +1680,25 @@
                   },
                   "type": "array"
                 },
-                "type": "array"
+                "type": "array",
+                "maxItems": 4
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Test Cases",
-            "description": "Optional list of test cases to be evaluated. Each test case is a list of inputs/arguments."
+            "title": "Test Cases"
           },
           "assets": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/AssetConfig"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assets",
-            "description": "Optional list of assets to be injected into the sandbox before execution."
+            "items": {
+              "$ref": "#/components/schemas/ExecutionAsset"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Assets"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "language",
@@ -1717,7 +1706,7 @@
           "program_command"
         ],
         "title": "DeliberateCodeExecutionRequest",
-        "description": "Request schema for Deliberate Code Execution."
+        "description": "Run one command against at most four sequential stdin cases."
       },
       "DeliberateCodeExecutionResponse": {
         "properties": {
@@ -1726,8 +1715,12 @@
               "$ref": "#/components/schemas/DeliberateCodeExecutionResult"
             },
             "type": "array",
-            "title": "Results",
-            "description": "A list of execution results corresponding to each test case."
+            "title": "Results"
+          },
+          "stopped_early": {
+            "type": "boolean",
+            "title": "Stopped Early",
+            "default": false
           }
         },
         "type": "object",
@@ -1735,18 +1728,32 @@
           "results"
         ],
         "title": "DeliberateCodeExecutionResponse",
-        "description": "Response schema for Deliberate Code Execution containing all test cases evaluated."
+        "description": "Ordered process results, possibly a prefix after a timeout."
       },
       "DeliberateCodeExecutionResult": {
         "properties": {
+          "category": {
+            "$ref": "#/components/schemas/ResponseCategory"
+          },
+          "stdout": {
+            "type": "string",
+            "title": "Stdout"
+          },
+          "stderr": {
+            "type": "string",
+            "title": "Stderr"
+          },
+          "exit_code": {
+            "type": "integer",
+            "title": "Exit Code"
+          },
+          "execution_time": {
+            "type": "number",
+            "title": "Execution Time"
+          },
           "output": {
             "type": "string",
-            "title": "Output",
-            "description": "The output of the executed code."
-          },
-          "category": {
-            "$ref": "#/components/schemas/ResponseCategory",
-            "description": "The category of the execution result (e.g., success, runtime_error, timeout, system_error)."
+            "title": "Output"
           },
           "error_message": {
             "anyOf": [
@@ -1757,23 +1764,25 @@
                 "type": "null"
               }
             ],
-            "title": "Error Message",
-            "description": "Any error that occurred during execution."
+            "title": "Error Message"
           },
-          "execution_time": {
-            "type": "number",
-            "title": "Execution Time",
-            "description": "Execution time in seconds."
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "default": false
           }
         },
         "type": "object",
         "required": [
-          "output",
           "category",
-          "execution_time"
+          "stdout",
+          "stderr",
+          "exit_code",
+          "execution_time",
+          "output"
         ],
         "title": "DeliberateCodeExecutionResult",
-        "description": "Result of a single code execution block representing a test case."
+        "description": "Student process outcome. Infrastructure errors use non-200 HTTP responses."
       },
       "EvaluationScopeData": {
         "properties": {
@@ -1792,6 +1801,89 @@
         ],
         "title": "EvaluationScopeData",
         "description": "Schema defining the files that are the primary evaluation subject."
+      },
+      "ExecutionAsset": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "target": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Target"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "target"
+        ],
+        "title": "ExecutionAsset",
+        "description": "An asset reference supplied by an authenticated host."
+      },
+      "ExecutionError": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ExecutionError",
+        "description": "Safe machine-readable service failure."
+      },
+      "ExecutionErrorResponse": {
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/ExecutionError"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ExecutionErrorResponse",
+        "description": "HTTP error envelope for service failures."
+      },
+      "ExecutionFile": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "filename",
+          "content"
+        ],
+        "title": "ExecutionFile",
+        "description": "One UTF-8 source file staged under the sandbox work directory."
       },
       "ExternalResultCreate": {
         "properties": {

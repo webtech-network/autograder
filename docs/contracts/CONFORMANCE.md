@@ -32,7 +32,7 @@ zero is a valid assessment. `failed` has a null score and structured error; the
 example exits nonzero in that case. Bad definitions and invalid external
 attestations return 422. A missing configuration returns 404. New submissions
 against inactive definitions return 409. Accepted ordinary submissions run in
-process; durable recovery and replay identity are tracked by #365 and #366.
+process; this example does not test recovery across service restarts.
 
 ## GitHub Actions: ordinary checkout and cloud publication
 
@@ -46,8 +46,8 @@ definition, and sends `POST /api/v1/submissions/external-results` only when
 exact request envelope; its `outcome` equals the saved outcome artifact and
 validates as `ExternalResultCreate` at the HTTP seam.
 
-Cloud fetch retries transient errors. Result POST is one attempt because #366
-has not added deduplication; after an uncertain delivery, inspect the cloud
+Cloud fetch retries transient errors. Result POST is one attempt; after an
+uncertain delivery, inspect the cloud
 submission before using `retry-delivery-path` on the saved artifact. A failed
 grade still has an outcome artifact with null score. Delivery failure retains
 both artifacts and never changes a completed grade into a failed grade.
@@ -71,40 +71,26 @@ Python class, and no plugin upload API is advertised.
 | Custom Python evaluator | Trusted local Python process with repository requirements | Actual pipeline run, passing and assessed zero-score cases |
 
 These tests do not establish production PostgreSQL recovery, live provider
-availability, or runner isolation properties. Execution environment and
-capacity changes belong to #365 and #376. The contract version remains `1.0`;
-this PR adds generated reference material and executable verification, with no
-new HTTP or Action wire fields.
+availability, or runner isolation properties. The contract version is `1.0`.
 
-## Prisma consumer migration
+## HTTP client integration
 
-The current Prisma backend at commit
-[`3e2c2ed`](https://github.com/webtech-network/api-grader-prisma/tree/3e2c2edce4e386908bd1f8f44d19d6be469ed48d)
-still sends separate `template_name`, `criteria_config`, `setup_config`, and
-`include_feedback` fields in
-[`AutograderConfigPayload`](https://github.com/webtech-network/api-grader-prisma/blob/3e2c2edce4e386908bd1f8f44d19d6be469ed48d/src/main/java/com/autograder/application/autograder/dto/AutograderConfigPayload.java).
-The v1 create envelope instead contains `external_assignment_id` and one
-`definition`. Build that definition from the existing assignment data, validate
-it at `/api/v1/configs/validate`, then create it at `/api/v1/configs`. For a
-concrete accepted value, wrap [static-conformance.json](v1/examples/static-conformance.json)
-as `{"external_assignment_id":"<assignment UUID>","definition":<file contents>}`.
-Use the offline [legacy converter](DEFINITIONS.md#migration-and-issue-reconciliation) where the
-old rubric is unambiguous. Update uses PATCH with the entire new definition and
-the fetched quoted `ETag` in `If-Match`; Prisma currently uses PUT without that
-precondition in
-[`AutograderClient`](https://github.com/webtech-network/api-grader-prisma/blob/3e2c2edce4e386908bd1f8f44d19d6be469ed48d/src/main/java/com/autograder/infrastructure/client/AutograderClient.java).
+An HTTP client creates a configuration with `external_assignment_id` and one
+`definition`. It can validate the definition first at
+`POST /api/v1/configs/validate` without saving it. For an accepted example,
+wrap [static-conformance.json](v1/examples/static-conformance.json) as
+`{"external_assignment_id":"assignment-1","definition":<file contents>}`.
+Updates use PATCH with the quoted revision `ETag` in `If-Match`.
 
-Prisma's submission request already uses `files:[{filename,content}]` and an
-explicit language, which match v1. Its
-[`AutograderSubmissionResponse`](https://github.com/webtech-network/api-grader-prisma/blob/3e2c2edce4e386908bd1f8f44d19d6be469ed48d/src/main/java/com/autograder/application/autograder/dto/AutograderSubmissionResponse.java)
-still reads `feedback`, `result_tree`, `focus`, `submission_files`, and
-`pipeline_execution` from ordinary polling. V1 polling deliberately returns
-compact status, nullable `final_score`, `provenance`, and structured `error`.
-After terminal polling, fetch authenticated `/api/v1/submissions/{id}/details` for
-`outcome.tree`, `outcome.feedback`, files, and diagnostics as needed. Treat a
-failed null score differently from a completed zero. Prisma's deliberate
-`/api/v1/execute` request/response records already use `test_cases` and a
-`results` list; their redesign is tracked separately in #378.
+A submission sends `files:[{filename,content}]` and an allowed language.
+Polling returns compact status, nullable `final_score`, provenance, and a
+structured error. After terminal polling, fetch authenticated
+`GET /api/v1/submissions/{id}/details` for the result tree, feedback, files,
+and diagnostics. A completed zero is an assessed grade; a failed null score
+means grading did not produce a grade.
 
-Coordinate the Prisma DTO/service migration before deploying the v1 HTTP
-contract to that consumer. No Prisma code is changed by this repository's PR.
+For pre-submission program runs, use the
+[deliberate execution contract](../features/deliberate_code_execution.md).
+It defines stdin cases, process output, request limits, and service failures.
+The [legacy definition converter](DEFINITIONS.md#legacy-definition-migration)
+is an offline tool for deployments with older definition files.
