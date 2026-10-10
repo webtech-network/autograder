@@ -2,7 +2,6 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from web.database.base import Base
 from web.database import models  # register tables
@@ -10,8 +9,10 @@ from web.core.config import Settings
 
 
 @pytest.fixture
-async def db_engine():
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
+async def db_engine(tmp_path):
+    # HTTP requests and worker claims need independent transactions. An in-memory
+    # StaticPool shares one connection, so closing a reader can undo a writer.
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'web.sqlite'}")
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     yield engine
