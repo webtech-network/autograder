@@ -104,7 +104,8 @@ class TestPipelineLanguageHandling:
         mock_sandbox.prepare_workdir.return_value = None
 
         # Create pipeline with preflight step (which uses sandbox)
-        pipeline = build_pipeline(definition={
+        from execution_host.docker import docker_capabilities
+        pipeline = build_pipeline(capabilities=docker_capabilities(mock_manager), definition={
             "schema_version": "1.0", "templates": ["input_output"], "languages": ["java"],
             "criteria": {"base": {"weight": 100, "tests": [{"id": "run", "type": "dont_fail", "name": "Runs",
                           "parameters": {"program_command": "java Test"}}]}}

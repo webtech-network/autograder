@@ -10,7 +10,7 @@ The pipeline is:
 - **Fail-fast**: If any step fails, the pipeline stops immediately and reports the failure point.
 
 ```
-Submission ──▶ [LOAD_TEMPLATE] ──▶ [BUILD_TREE] ──▶ [SANDBOX] ──▶ [PRE_FLIGHT] ──▶ [AI_BATCH] ──▶ [STRUCTURAL_ANALYSIS] ──▶ [GRADE] ──▶ [FOCUS] ──▶ [FEEDBACK] ──▶ [EXPORT]
+Submission ──▶ [LOAD_TEMPLATE] ──▶ [BUILD_TREE] ──▶ [SANDBOX] ──▶ [PRE_FLIGHT] ──▶ [AI_BATCH] ──▶ [GRADE] ──▶ [FOCUS] ──▶ [FEEDBACK] ──▶ [EXPORT]
                                                                                                                              │
                                                                                                                      PipelineExecution
                                                                                                                      (with GradingResult)
@@ -96,7 +96,6 @@ The `data` field is polymorphic — each step stores a different type:
 | BUILD_TREE | `CriteriaTree` |
 | PRE_FLIGHT | `None` |
 | SANDBOX | `SandboxContainer | None` |
-| STRUCTURAL_ANALYSIS | `StructuralAnalysisResult` |
 | GRADE | `GradeStepResult` |
 | FOCUS | `Focus` |
 | FEEDBACK | `str` (Markdown feedback) |
@@ -153,7 +152,7 @@ cleanup run before the adapter receives an outcome. Publication belongs to that
 adapter and never runs as a grading step.
 
 ```
-LOAD_TEMPLATE → BUILD_TREE → SANDBOX* → PRE_FLIGHT* → AI_BATCH* → STRUCTURAL_ANALYSIS → GRADE → FOCUS → FEEDBACK*
+LOAD_TEMPLATE → BUILD_TREE → SANDBOX* → PRE_FLIGHT* → AI_BATCH* → GRADE → FOCUS → FEEDBACK*
 ```
 
 ---
@@ -166,7 +165,6 @@ LOAD_TEMPLATE → BUILD_TREE → SANDBOX* → PRE_FLIGHT* → AI_BATCH* → STRU
 | [Build Tree](02-build-tree.md) | `build_tree_step.py` | Constructs the `CriteriaTree` from JSON config, matching test functions from the template | Load Template |
 | [Sandbox](03-sandbox.md) | `sandbox_step.py` | Creates the sandbox environment and prepares the workspace | Load Template |
 | [Pre-Flight](04-pre-flight.md) | `pre_flight_step.py` | Validates required files and executes setup commands (compilation, etc.) | Sandbox |
-| [Structural Analysis](04.8-structural-analysis.md) | `structural_analysis_step.py` | Parses submission files into ast-grep SgRoot objects | None |
 | [Grade](05-grade.md) | `grade_step.py` | Executes all tests against the submission and produces the scored `ResultTree` | Load Template, Build Tree, Sandbox* |
 | [Focus](06-focus.md) | `focus_step.py` | Ranks all tests by their impact on the final score | Grade |
 | [Feedback](07-feedback.md) | `feedback_step.py` | Generates student-facing feedback reports (default reporter) | Focus |

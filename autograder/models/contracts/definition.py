@@ -70,13 +70,6 @@ class Preparation(StrictModel):
             raise ValueError("fixture paths must be unique")
         return self
 
-    def runtime_setup(self) -> dict:
-        """Translate fixture-root paths for the current sandbox host, not a wire alias."""
-        setup = {key: value.model_dump(mode='json') for key, value in self.languages.items()}
-        if self.fixtures:
-            setup['assets'] = [{'source': fixture.reference, 'target': '/tmp/app/' + fixture.path,
-                                'read_only': fixture.read_only} for fixture in self.fixtures]
-        return setup
 
 
 class LearningResource(StrictModel):

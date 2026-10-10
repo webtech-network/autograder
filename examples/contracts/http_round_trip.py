@@ -36,9 +36,11 @@ async def round_trip(client: httpx.AsyncClient, assignment_id: str) -> dict:
         },
     )
     submitted.raise_for_status()
+    assert submitted.status_code == 202
+    status_url = submitted.headers["Location"]
     submission_id = submitted.json()["id"]
     for _ in range(100):
-        polled = await client.get(f"/api/v1/submissions/{submission_id}")
+        polled = await client.get(status_url)
         polled.raise_for_status()
         result = polled.json()
         if result["status"] in ("completed", "failed"):

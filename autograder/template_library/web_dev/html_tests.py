@@ -8,7 +8,7 @@ from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from sandbox_manager.sandbox_container import SandboxContainer
+from autograder.models.execution import ExecutionSession
 
 
 class CheckHeadDetails(TestFunction):
@@ -19,15 +19,15 @@ class CheckHeadDetails(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_head.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("detail_tag", t("web_dev.html.check_head.param.detail_tag"), "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, detail_tag: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, detail_tag: str = "", **kwargs) -> TestResult:
         """Executes the detail tag verification test in the head."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -54,15 +54,15 @@ class HasForbiddenTag(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.has_forbidden_tag.description")
-    @property
-    def required_file(self): 
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("tag", t("web_dev.html.has_forbidden_tag.param.tag"), "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, tag: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, tag: str = "", **kwargs) -> TestResult:
         """Executes the forbidden tag verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -88,16 +88,16 @@ class HasAttribute(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.has_attribute.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("attribute", t("web_dev.html.has_attribute.param.attribute"), "string"),
             ParamDescription("required_count", t("web_dev.html.has_attribute.param.required_count"), "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, attribute: str = "", required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, attribute: str = "", required_count: int = 0, **kwargs) -> TestResult:
         """Executes the search for specific attributes."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -122,9 +122,9 @@ class CheckAttributeAndValue(TestFunction):
     @property
     def description(self): 
         return t("web_dev.html.check_attribute_and_value.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
@@ -132,7 +132,7 @@ class CheckAttributeAndValue(TestFunction):
             ParamDescription("attribute", t("web_dev.html.check_attribute_and_value.param.attribute"), "string"),
             ParamDescription("value", t("web_dev.html.check_attribute_and_value.param.value"), "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, tag: str = "", attribute: str = "", value: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, tag: str = "", attribute: str = "", value: str = "", **kwargs) -> TestResult:
         """Executes the attribute and value verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -158,13 +158,13 @@ class CheckNoInlineStyles(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_no_inline_styles.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the search for inline styles."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -189,16 +189,16 @@ class CheckInternalLinks(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_internal_links.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("required_count", "O número mínimo de links válidos.", "integer")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, required_count: int = 0, **kwargs) -> TestResult:
         """Executes the internal link verification."""
         if not files or len(files) == 0:
             return TestResult(
@@ -243,13 +243,13 @@ class CheckNoUnclosedTags(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_no_unclosed_tags.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the search for unclosed tags."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -301,9 +301,9 @@ class LinkPointsToPageWithQueryParam(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.link_points_to_page_with_query_param.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
@@ -312,7 +312,7 @@ class LinkPointsToPageWithQueryParam(TestFunction):
             ParamDescription("required_count", t("web_dev.html.link_points_to_page_with_query_param.param.required_count"), "integer")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, target_page: str = "", query_param: str = "", required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, target_page: str = "", query_param: str = "", required_count: int = 0, **kwargs) -> TestResult:
         """Executes the verification of links with query parameters."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -347,15 +347,15 @@ class CheckInternalLinksToArticle(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_internal_links_to_article.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("required_count", "O número mínimo de links válidos.", "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, required_count: int = 0, **kwargs) -> TestResult:
         """Executes the verification of links to articles."""
         if not files or len(files) == 0:
             return TestResult(
@@ -400,16 +400,16 @@ class CheckTagNotInside(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_tag_not_inside.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("child_tag", t("web_dev.html.check_tag_not_inside.param.child_tag"), "string"),
             ParamDescription("parent_tag", t("web_dev.html.check_tag_not_inside.param.parent_tag"), "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, child_tag: str = "", parent_tag: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, child_tag: str = "", parent_tag: str = "", **kwargs) -> TestResult:
         """Executes the forbidden nesting verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -436,13 +436,13 @@ class CheckHeadingsSequential(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_headings_sequential.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the heading sequence verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -484,16 +484,16 @@ class HasTag(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.has_tag.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("tag", t("web_dev.html.has_tag.param.tag"), "string"),
             ParamDescription("required_count", t("web_dev.html.has_tag.param.required_count"), "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, tag: str = "", required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, tag: str = "", required_count: int = 0, **kwargs) -> TestResult:
         """Executes the tag presence verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -518,13 +518,13 @@ class CheckBootstrapLinked(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_bootstrap_linked.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the Bootstrap link verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -550,13 +550,13 @@ class CheckBootstrapUsage(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_bootstrap_usage.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the Bootstrap usage verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -582,13 +582,13 @@ class UsesSemanticTags(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.uses_semantic_tags.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the semantic tags verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -613,13 +613,13 @@ class CheckCssLinked(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_css_linked.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the CSS link verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -644,13 +644,13 @@ class CheckAllImagesHaveAlt(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_all_images_have_alt.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the alt attribute verification in images."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -677,9 +677,9 @@ class HasClass(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.has_class.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
@@ -691,7 +691,7 @@ class HasClass(TestFunction):
         """Helper to compile regex patterns for classes."""
         return [re.compile(name.replace('*', r'\S*')) for name in (class_names or [])]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, class_names: list[str] = None, required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, class_names: list[str] = None, required_count: int = 0, **kwargs) -> TestResult:
         """Executes the search for CSS classes in the HTML."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
@@ -723,13 +723,13 @@ class CheckHtmlDirectChildren(TestFunction):
     @property
     def description(self):
         return t("web_dev.html.check_html_direct_children.description")
-    @property
-    def required_file(self):
-        return "HTML"
+    file_extensions = (".html", ".htm")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the direct structure verification of <html>."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")

@@ -2,11 +2,12 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy import text
 from fastapi.responses import JSONResponse
 
 from web.config.logging import get_logger
-from web.core.lifespan import get_template_service
+from web.api.deps import get_host
 
 
 logger = get_logger(__name__)
@@ -25,22 +26,22 @@ async def health_check():
 
 
 @router.get("/ready")
-async def readiness_check():
+async def readiness_check(host=Depends(get_host)):
     """Readiness check for orchestration platforms."""
-    template_service = get_template_service()
-
-    ready = template_service is not None
+    try:
+        async with host.sessions() as session:
+            await session.execute(text("SELECT 1"))
+        ready = host.ready
+    except Exception:
+        ready = False
     status_code = 200 if ready else 503
-
-    if ready:
-        logger.debug("Readiness check: service is ready")
-    else:
-        logger.warning("Readiness check failed: template service is not initialized")
 
     return JSONResponse(
         status_code=status_code,
         content={
             "ready": ready,
+            "durable_acceptance": ready,
+            "execution_providers": "checked when required",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
     )

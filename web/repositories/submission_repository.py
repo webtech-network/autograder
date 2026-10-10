@@ -28,6 +28,8 @@ class SubmissionRepository(BaseRepository[Submission]):
         definition_snapshot: Optional[dict] = None,
         definition_hash: Optional[str] = None,
         configuration_version: Optional[int] = None,
+        locale: str = "en",
+        evaluation_scope: Optional[dict] = None,
     ) -> Submission:
         """Create a new submission."""
 
@@ -43,6 +45,8 @@ class SubmissionRepository(BaseRepository[Submission]):
             definition_snapshot=definition_snapshot,
             definition_hash=definition_hash,
             configuration_version=configuration_version,
+            locale=locale,
+            evaluation_scope=evaluation_scope,
         )
 
         self.session.add(db_submission)

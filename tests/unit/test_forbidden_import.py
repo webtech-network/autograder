@@ -40,9 +40,9 @@ class TestForbiddenImportMetadata:
         assert params[0].name == "forbidden_imports"
         assert params[1].name == "submission_language"
 
-    def test_required_file_is_none(self):
+    def test_selects_source_files(self):
         """Test that no specific file is required."""
-        assert self.test_fn.required_file is None
+        assert self.test_fn.source_files_only is True
 
 
 class TestForbiddenImportEdgeCases:

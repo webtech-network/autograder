@@ -39,6 +39,10 @@ markdown_extensions:
 nav:
   - Integration Contracts:
       - Executable Examples: contracts/CONFORMANCE.md
+      - Submission Input: contracts/SUBMISSIONS.md
+      - Evaluator Files: contracts/FILES.md
+      - Host Capabilities: contracts/CAPABILITIES.md
+      - Durable Jobs: contracts/JOBS.md
       - Definitions: contracts/DEFINITIONS.md
       - Catalog and Python API: contracts/CATALOG.md
       - Outcomes: contracts/OUTCOMES.md

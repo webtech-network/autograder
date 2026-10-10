@@ -7,20 +7,19 @@ from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from sandbox_manager.sandbox_container import SandboxContainer
+from autograder.models.execution import ExecutionSession
 
 
 class CountUnusedCssClasses(TestFunction):
     """Analyzes unused CSS classes in the HTML."""
+
+    file_parameters = ("html_file", "css_file")
     @property
     def name(self):
         return "count_unused_css_classes"
     @property
     def description(self):
         return t("web_dev.css.count_unused_css_classes.description")
-    @property
-    def required_file(self):
-        return None
     @property
     def parameter_description(self):
         return [
@@ -133,13 +132,13 @@ class CheckFlexboxUsage(TestFunction):
     @property
     def description(self):
         return t("web_dev.css.check_flexbox_usage.description")
-    @property
-    def required_file(self):
-        return "CSS"
+    file_extensions = (".css",)
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the search for Flexbox properties."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
@@ -163,16 +162,16 @@ class CountOverUsage(TestFunction):
     @property
     def description(self):
         return t("web_dev.css.count_over_usage.description")
-    @property
-    def required_file(self):
-        return "CSS"
+    file_extensions = (".css",)
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("text", t("web_dev.css.count_over_usage.param.text"), "string"),
             ParamDescription("max_allowed", t("web_dev.css.count_over_usage.param.max_allowed"), "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, text: str = "", max_allowed: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, text: str = "", max_allowed: int = 0, **kwargs) -> TestResult:
         """Executes the excess count verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
@@ -197,13 +196,13 @@ class UsesRelativeUnits(TestFunction):
     @property
     def description(self):
         return t("web_dev.css.uses_relative_units.description")
-    @property
-    def required_file(self):
-        return "CSS"
+    file_extensions = (".css",)
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the search for relative units."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
@@ -227,9 +226,9 @@ class CheckIdSelectorOverUsage(TestFunction):
     @property
     def description(self):
         return t("web_dev.css.check_id_selector_over_usage.description")
-    @property
-    def required_file(self):
-        return "CSS"
+    file_extensions = (".css",)
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
@@ -263,7 +262,7 @@ class CheckIdSelectorOverUsage(TestFunction):
                 selectors.append(groups[6])
         return selectors
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, max_allowed: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, max_allowed: int = 0, **kwargs) -> TestResult:
         """Executes the ID selector verification."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
@@ -282,16 +281,16 @@ class HasStyle(TestFunction):
     @property
     def description(self):
         return t("web_dev.css.has_style.description")
-    @property
-    def required_file(self):
-        return "CSS"
+    file_extensions = (".css",)
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("style", t("web_dev.css.has_style.param.style"), "string"),
             ParamDescription("count", t("web_dev.css.has_style.param.count"), "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, style: str = "", count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, style: str = "", count: int = 0, **kwargs) -> TestResult:
         """Executes the search for style rules."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
@@ -315,13 +314,13 @@ class CheckMediaQueries(TestFunction):
     @property
     def description(self):
         return t("web_dev.css.check_media_queries.description")
-    @property
-    def required_file(self):
-        return "CSS"
+    file_extensions = (".css",)
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the search for media queries."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
@@ -345,16 +344,16 @@ class CssUsesProperty(TestFunction):
     @property
     def description(self):
         return t("web_dev.css.css_uses_property.description")
-    @property
-    def required_file(self):
-        return "CSS"
+    file_extensions = (".css",)
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("prop", t("web_dev.css.css_uses_property.param.prop"), "string"),
             ParamDescription("value", t("web_dev.css.css_uses_property.param.value"), "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, prop: str = "", value: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, prop: str = "", value: str = "", **kwargs) -> TestResult:
         """Executes the search for a CSS property/value pair."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")

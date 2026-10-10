@@ -150,3 +150,6 @@ explicit list with collision-checked registry resolution. Evaluator parameters
 have typed contracts and stable criterion IDs. Provider mapping, resource limits,
 and infrastructure scheduling belong to the hosting environment rather than
 the definition schema.
+
+Assessment file targets, scope, context and trusted Python migration are defined
+in [the file-selection contract](FILES.md).

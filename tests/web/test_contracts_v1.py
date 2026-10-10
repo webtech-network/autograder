@@ -1,10 +1,9 @@
 """Contract seams use real registry validation and isolated SQL persistence."""
 
 from copy import deepcopy
-from unittest.mock import AsyncMock, patch
 import pytest
 from autograder.models.contracts.definition import compile_definition
-from web.config import auth
+from web.database.models.submission import Submission
 
 
 def definition():
@@ -35,7 +34,6 @@ def definition():
 @pytest.fixture(autouse=True)
 def integration_auth(monkeypatch):
     monkeypatch.setenv("AUTOGRADER_INTEGRATION_TOKEN", "test-contract-token")
-    monkeypatch.setattr(auth, "integration_auth_config", None)
 
 
 HEADERS = {"Authorization": "Bearer test-contract-token"}
@@ -268,7 +266,7 @@ async def test_provider_failure_is_not_zero_and_invalid_attestation_is_rejected(
 
 @pytest.mark.asyncio
 async def test_acceptance_binds_snapshot_and_multiple_languages_require_choice(
-    test_client,
+    test_client, application,
 ):
     config = await create(test_client)
     payload = {
@@ -277,20 +275,14 @@ async def test_acceptance_binds_snapshot_and_multiple_languages_require_choice(
         "username": "Student",
         "files": [{"filename": "main.py", "content": "print('Hello')"}],
     }
-    with patch(
-        "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
-    ) as grade:
-        response = await test_client.post("/api/v1/submissions", json=payload)
-        assert response.status_code == 200, response.text
-        import asyncio
-
-        await asyncio.sleep(0)
-        request = grade.call_args.args[0]
-        assert request.definition == config["definition"]
-        assert (
-            request.configuration_version == 1
-            and request.definition_hash == config["definition_hash"]
-        )
+    response = await test_client.post("/api/v1/submissions", json=payload)
+    assert response.status_code == 202, response.text
+    assert response.headers["Location"] == f'/api/v1/submissions/{response.json()["id"]}'
+    async with application.state.host.sessions() as session:
+        row = await session.get(Submission, response.json()["id"])
+        assert row.definition_snapshot == config["definition"]
+        assert row.configuration_version == 1
+        assert row.definition_hash == config["definition_hash"]
     changed = definition()
     changed["languages"] = ["python", "node"]
     assert (
@@ -347,7 +339,7 @@ EXAMPLES = (
     "example_path", sorted(EXAMPLES.glob("*.json")), ids=lambda path: path.stem
 )
 async def test_each_published_assignment_type_validates_and_binds_at_http_seam(
-    test_client, example_path
+    test_client, application, example_path
 ):
     import json
 
@@ -358,24 +350,19 @@ async def test_each_published_assignment_type_validates_and_binds_at_http_seam(
     )
     assert response.status_code == 200, response.text
     resource = response.json()
-    with patch(
-        "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
-    ) as grade:
-        accepted = await test_client.post(
-            "/api/v1/submissions",
-            json={
-                "external_assignment_id": example_path.stem,
-                "external_user_id": "student",
-                "username": "Student",
-                "language": resource["definition"]["languages"][0],
-                "files": [{"filename": "main.py", "content": "print('Hello')"}],
-            },
-        )
-        assert accepted.status_code == 200, accepted.text
-        import asyncio
-
-        await asyncio.sleep(0)
-        bound = grade.call_args.args[0]
-        assert bound.definition == resource["definition"]
+    accepted = await test_client.post(
+        "/api/v1/submissions",
+        json={
+            "external_assignment_id": example_path.stem,
+            "external_user_id": "student",
+            "username": "Student",
+            "language": resource["definition"]["languages"][0],
+            "files": [{"filename": "main.py", "content": "print('Hello')"}],
+        },
+    )
+    assert accepted.status_code == 202, accepted.text
+    async with application.state.host.sessions() as session:
+        bound = await session.get(Submission, accepted.json()["id"])
+        assert bound.definition_snapshot == resource["definition"]
         assert bound.definition_hash == resource["definition_hash"]
         assert bound.configuration_version == resource["version"]

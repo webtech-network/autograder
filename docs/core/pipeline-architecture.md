@@ -8,7 +8,7 @@ implementations. Invalid definitions never reach evaluation.
 
 ```text
 LOAD_TEMPLATE -> BUILD_TREE -> SANDBOX? -> PRE_FLIGHT? -> AI_BATCH?
-              -> STRUCTURAL_ANALYSIS -> GRADE -> FOCUS -> FEEDBACK?
+              -> GRADE -> FOCUS -> FEEDBACK?
 ```
 
 `AutograderPipeline.run(submission)` selects the definition's language, creates

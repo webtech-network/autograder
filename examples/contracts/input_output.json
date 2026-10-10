@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "templates": ["input_output"],
+  "languages": ["python"],
+  "criteria": {
+    "base": {
+      "weight": 100,
+      "tests": [
+        {
+          "id": "echo",
+          "type": "expect_output",
+          "name": "Echo stdin",
+          "parameters": {
+            "program_command": "python main.py",
+            "inputs": ["hello"],
+            "expected_output": "hello"
+          }
+        }
+      ]
+    }
+  },
+  "preparation": {"languages": {"python": {"required_files": ["main.py"]}}}
+}

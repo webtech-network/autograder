@@ -17,6 +17,9 @@ from autograder.models.result_tree import (
 )
 from autograder.services.command_resolver import CommandResolver
 from autograder.models.evaluation_error import EvaluationError
+from autograder.services.file_selection import select_files
+from autograder.services.structural_analysis import StructuralAnalysisCache
+from autograder.services.weights import normalized_sibling_weights
 
 
 class SubmissionGrader(CriteriaTreeProcesser):
@@ -33,7 +36,6 @@ class SubmissionGrader(CriteriaTreeProcesser):
         submission_language=None,
         locale: str = "en",
         pre_computed_results: Optional[Dict[str, TestResult]] = None,
-        structural_analysis=None,
         evaluation_scope: Optional[EvaluationScope] = None,
     ):
         self.logger = logging.getLogger("SubmissionGrader")
@@ -43,7 +45,7 @@ class SubmissionGrader(CriteriaTreeProcesser):
         self.submission_language = submission_language
         self.locale = locale
         self.pre_computed_results = pre_computed_results
-        self.structural_analysis = structural_analysis
+        self.structural_analysis = StructuralAnalysisCache()
         self.evaluation_scope = evaluation_scope
 
     def __balance_nodes(
@@ -52,19 +54,9 @@ class SubmissionGrader(CriteriaTreeProcesser):
         factor: float,
     ) -> None:
         """Balance the weights of sibling nodes to sum to a target total (100 * factor)."""
-        if len(nodes) == 0:
-            return
-
-        target_total = 100.0 * factor
-        maximum_weight = max(node.weight for node in nodes)
-        if maximum_weight == 0:
-            equal_weight = target_total / len(nodes)
-            for node in nodes:
-                node.weight = equal_weight
-        else:
-            relative_sum = math.fsum(node.weight / maximum_weight for node in nodes)
-            for node in nodes:
-                node.weight = target_total * (node.weight / maximum_weight) / relative_sum
+        weights = normalized_sibling_weights([node.weight for node in nodes], factor)
+        for node, weight in zip(nodes, weights):
+            node.weight = weight
 
     @overload
     def __process_holder(self, holder: CategoryNode) -> CategoryResultNode: ...
@@ -168,6 +160,7 @@ class SubmissionGrader(CriteriaTreeProcesser):
             submission_language=effective_submission_language,
             evaluation_scope=self.evaluation_scope,
             file_metadata=file_metadata,
+            context_files=[self.submission_files[name] for name in sorted(self.submission_files)],
             criterion_id=test.criterion_id,
             **test_params,
         )
@@ -186,20 +179,9 @@ class SubmissionGrader(CriteriaTreeProcesser):
             weight=test.weight,
         )
 
-    def get_file_target(self, test_node: TestNode) -> Optional[List[SubmissionFile]]:
-        """Filter out the submission files strictly relevant to the current test node."""
-        if not self.submission_files:
-            return None
-
-        if not test_node.file_target:
-            return list(self.submission_files.values())
-
-        target_files = []
-        for file_name in self.submission_files:
-            if file_name in test_node.file_target:
-                target_files.append(self.submission_files[file_name])
-
-        return target_files
+    def get_file_target(self, test_node: TestNode) -> List[SubmissionFile]:
+        """Use the same selection contract as batched AI assessment."""
+        return select_files(test_node, self.submission_files, self.evaluation_scope, self.submission_language)
 
     def process_category(self, category: CategoryNode) -> CategoryResultNode:
         """Process a category node from criteria tree and create result node."""

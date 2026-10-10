@@ -35,13 +35,18 @@ are 409; reactivate the existing resource. PUT is retired.
 typed evaluation scope/file context. Filenames are unique normalized relative
 paths. A single definition language is inferred; multiple choices require one.
 Inactive/quarantined definitions reject new work with 409. Acceptance binds the
-exact definition snapshot/hash/revision before starting grading.
+exact definition snapshot/hash/revision, locale, scope and files in the acceptance
+transaction. HTTP 202 includes a `Location` polling URL after commit. Host workers
+claim saved jobs and recover interrupted attempts; see [durable jobs](contracts/JOBS.md).
+The [submission input contract](contracts/SUBMISSIONS.md) defines canonical paths,
+UTF-8, limits, scope membership and metadata semantics.
 
 `GET /api/v1/submissions/{submission_id}` returns compact polling status, nullable `final_score`,
 `execution_time_ms`, provenance/status, structured error and enrichment statuses.
 It excludes files, trees and snapshots. Authenticated `GET /api/v1/submissions/{submission_id}/details`
-adds the full canonical `outcome`, definition snapshot, files/metadata and protected
-diagnostics. `GET /api/v1/submissions` provides history filtered by user, configuration
+adds the full canonical `outcome`, definition snapshot, locale, scope,
+files/metadata and protected diagnostics. `submission_files[name]` is an object
+with `filename`, exact `content`, nullable `changed_lines` and `file_metadata`. `GET /api/v1/submissions` provides history filtered by user, configuration
 and status, with `limit` 1–100 and nonnegative `offset`, newest timestamp then ID.
 `GET /api/v1/submissions/user/{external_user_id}` is the user-filtered projection. Terminal poll/history
 scores come from the same persisted outcome; failed execution never means grade0.
@@ -73,8 +78,8 @@ parameters do not imply the selected host has API networking; unavailable host
 capabilities produce structured failed outcomes.
 
 `GET /api/v1/health` returns service health, version and a UTC timestamp.
-`GET /api/v1/ready` returns readiness and a UTC timestamp, with status 503 until
-the template registry is initialized.
+`GET /api/v1/ready` returns readiness and a UTC timestamp, with status 503 when the host cannot durably accept work. Execution-provider
+availability is reported separately and does not strand accepted jobs.
 
 `POST /api/v1/execute` is the [bounded deliberate execution API](features/deliberate_code_execution.md).
 It requires the integration Bearer token. `test_cases` supplies stdin lines;
@@ -84,5 +89,6 @@ input is 422, unavailable infrastructure is 503, and the response deadline is
 
 Grading publication retains a private local receipt on DB failure;
 [receipt replay](contracts/OUTCOMES.md#publication-receipts) retries publication without running evaluators.
-Background HTTP grading remains in-process. These contracts do not establish
-durable scheduling or idempotent submission acceptance.
+Bounded workers use persisted PostgreSQL jobs, lease identities and fenced
+publication. Submission idempotency remains separate work; replaying a finalized
+outcome does not regrade it.
