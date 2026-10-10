@@ -1,153 +1,56 @@
-# Web Module — Architecture & Deployment
+# Web host architecture and deployment
 
-The `web/` module is the FastAPI-based REST API layer of the Autograder system. It handles HTTP requests, persists grading configurations and submissions to a database, and delegates actual grading to the core autograder pipeline via background tasks.
+The web host accepts work, runs bounded workers and publishes finalized engine
+outcomes. Grading semantics remain in `autograder/`; persistence, scheduling,
+HTTP authentication and deployment settings remain in `web/`.
 
-> **For endpoint reference**, see [API Documentation](../API.md).
+`create_app(settings, session_factory=..., capabilities=...)` constructs one
+`WebHost`. Each host has its own settings, session factory, resource owner,
+catalog and worker task set. Tests can inject isolated sessions and fake
+capabilities directly. Settings are read at construction; imports do not load
+credentials or replace mutable database configuration.
 
----
+The demonstrated operations are concrete functions in
+`web/service/submission_operations.py`: acceptance, attested ingestion, history
+and detail queries. Routes translate HTTP concerns and delegate to these
+operations. Acceptance binds the normalized definition/hash/revision and the
+complete source, scope, locale and language input in one transaction. Its owner
+commits before returning 202 with a polling `Location`.
 
-## Architecture
+`web/service/worker.py` claims persisted jobs using PostgreSQL row locks and
+leases. Each attempt has its own identity and bounded retry budget. It calls
+`web/service/grading_service.py` with saved input and explicit host capabilities;
+the engine is unaware of worker leases, database IDs or dispatch policies.
 
-The web module follows a clean layered architecture:
+`web/service/outcome_delivery.py` writes a finalized outcome receipt and publishes
+it under the attempt's row lock. It owns its publication transaction, validates
+provenance and rejects stale ownership. Publication and receipt replay do not
+import the grading runner. Session contexts close unfinished work without an
+implicit second commit policy. Repositories are small concrete data-access
+helpers; there is no generic repository interface hierarchy.
 
-```
-Client Request
-    ↓
-Endpoint (web/api/v1/)         → Route handlers, request validation
-    ↓
-Schema (web/schemas/)          → Pydantic models for request/response
-    ↓
-Repository (web/repositories/) → Data access layer (SQLAlchemy)
-    ↓
-Database (PostgreSQL/SQLite)   → Persistence
-    ↓ (async)
-Service (web/service/)         → Business logic, grading orchestration
-    ↓
-Autograder Pipeline            → Core grading engine
-    ↓
-Sandbox Manager                → Docker container execution
-```
-
-### Key Design Decisions
-
-- **Async throughout**: All database operations and grading use `async/await` via SQLAlchemy's async engine and `asyncio`
-- **Background grading**: Submissions are saved immediately, grading runs as an `asyncio.create_task` so the API responds without blocking
-- **Repository pattern**: Database access is abstracted behind repository classes, keeping endpoint handlers thin
-- **Stateless DCE**: The [Deliberate Code Execution](../features/deliberate_code_execution.md) feature bypasses the database entirely for fast, stateless code execution
-
----
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `postgresql+asyncpg://...localhost:5432/autograder` |
-| `DATABASE_ECHO` | Log SQL queries | `False` |
-| `DATABASE_POOL_SIZE` | Connection pool size (PostgreSQL only) | `10` |
-| `DATABASE_MAX_OVERFLOW` | Max overflow connections | `20` |
-| `DATABASE_POOL_TIMEOUT` | Connection timeout (seconds) | `30` |
-| `DATABASE_POOL_RECYCLE` | Connection recycle time (seconds) | `3600` |
-| `SANDBOX_POOL_SIZE` | Sandbox containers per language | `2` |
-| `JSON_LOGS` | Use JSON logging format | `false` |
-| `OPENAI_API_KEY` | OpenAI API key (for AI feedback mode) | — |
-
-### Database Setup
-
-#### PostgreSQL (Recommended for Production)
-
-```bash
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/autograder
-```
-
-**Connection pool sizing guidelines:**
-
-| Environment | `POOL_SIZE` | `MAX_OVERFLOW` |
-|-------------|-------------|----------------|
-| Development | 5 | 10 |
-| Production (low traffic) | 10 | 20 |
-| Production (high traffic) | 20 | 40 |
-
-#### SQLite (Development Only)
-
-```bash
-DATABASE_URL=sqlite+aiosqlite:///./autograder.db
-```
-
-> **Note:** SQLite lacks concurrent write support and connection pooling — not recommended for production.
-
-### Database Migrations
-
-```bash
-# Apply all pending migrations
-make db-upgrade
-
-# Create a new migration
-make db-migrate MSG="description of change"
-
-# Show current version
-make db-current
-
-# Rollback last migration
-make db-downgrade
-
-# Reset database (destructive)
-make db-reset
-```
-
-Or using Alembic directly:
-
-```bash
-alembic upgrade head          # Apply migrations
-alembic revision --autogenerate -m "description"  # Create migration
-alembic downgrade -1          # Rollback
-alembic current               # Current version
-```
-
----
+The host stops claims and drains execution threads before disposing providers.
+Cancelling an asyncio wrapper does not establish that its underlying thread has
+stopped. See [durable jobs](../contracts/JOBS.md) for leases, interrupted work,
+receipts, startup/shutdown and migration behavior.
 
 ## Deployment
 
-### Docker Compose
+Configure `DATABASE_URL` and `AUTOGRADER_INTEGRATION_TOKEN`, apply migrations from
+`web/` with `alembic upgrade head`, then run `uvicorn web.main:app`. PostgreSQL is
+the supported concurrent worker deployment; SQLite is for isolated operation and
+HTTP contract tests. Production workers must share the configured receipt
+storage and database. See the [capability profiles](../contracts/CAPABILITIES.md)
+for local/remote Docker, fixture and provider configuration.
 
-```bash
-docker-compose up -d
-```
+`WEB_WORKER_COUNT`, `WEB_LEASE_SECONDS`, `WEB_MAX_ATTEMPTS` and `WEB_POLL_SECONDS`
+control the documented worker policy. Keep `WEB_OUTCOME_RECEIPT_DIR` on persistent
+private storage. A dependency outage can delay execution while the database
+continues accepting jobs. Readiness checks durable acceptance separately from
+provider availability. It does not promise that every provider is currently
+available or that hundreds of environments can execute simultaneously.
 
-This starts PostgreSQL and the Autograder API with sandbox support.
-
-### Manual
-
-```bash
-# Development
-uvicorn web.main:app --reload
-
-# Production
-uvicorn web.main:app --host 0.0.0.0 --port 8000
-```
-
-API docs available at `http://localhost:8000/docs` (Swagger) and `http://localhost:8000/redoc` (ReDoc).
-
----
-
-## Troubleshooting
-
-### Database Connection Issues
-
-- **PostgreSQL**: Verify `DATABASE_URL` includes the `postgresql+asyncpg://` prefix. Check the server is running (`docker ps` or `pg_isready`). Ensure migrations are up to date (`alembic current`).
-- **SQLite**: Verify file path and directory permissions.
-- **Pool exhaustion**: Reduce `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW`, or increase `DATABASE_POOL_TIMEOUT`. Enable `DATABASE_ECHO=True` temporarily to monitor pool activity.
-
-### Sandbox Issues
-
-- Verify Docker is running: `docker ps`
-- Build sandbox images: `make sandbox-build-all`  
-- Adjust pool size: `SANDBOX_POOL_SIZE` environment variable
-
-### API Not Starting
-
-- Check logs for startup errors
-- Verify dependencies: `pip install -r requirements.txt`
-- Ensure port 8000 is available
-
+The [HTTP API](../API.md), [accepted source input](../contracts/SUBMISSIONS.md) and
+[executable examples](../contracts/CONFORMANCE.md) define the public wire contract.
+Deliberate execution remains a bounded authenticated synchronous operation; it
+shares the host's execution provider and bypasses grading job persistence.

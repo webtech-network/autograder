@@ -8,11 +8,8 @@ from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from sandbox_manager.sandbox_container import SandboxContainer
+from autograder.models.execution import ExecutionSession
 from autograder.models.evaluation_error import EvaluationError
-
-# Configure basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # ===============================================================
 # region: Concrete TestFunction Implementations for API Testing
@@ -20,6 +17,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class HealthCheckTest(TestFunction):
     """A simple test to check if an API endpoint is alive and returns a 200 OK status."""
+
+    maximum_files = 0
 
     required_capabilities = ("http_network",)
 
@@ -32,10 +31,6 @@ class HealthCheckTest(TestFunction):
         return t("api_testing.health_check.description")
 
     @property
-    def required_file(self):
-        return None
-
-    @property
     def parameter_description(self):
         return [
             ParamDescription("endpoint", t("api_testing.health_check.params.endpoint"), "string")
@@ -44,7 +39,7 @@ class HealthCheckTest(TestFunction):
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def execute(self, files , sandbox: SandboxContainer, endpoint: str = "", **kwargs) -> TestResult:
+    def execute(self, files , sandbox: ExecutionSession, endpoint: str = "", **kwargs) -> TestResult:
         """Executes the health check test."""
 
         report = ""
@@ -73,6 +68,8 @@ class HealthCheckTest(TestFunction):
 class CheckResponseJsonTest(TestFunction):
     """Checks if an endpoint returns a JSON with a specific key-value pair."""
 
+    maximum_files = 0
+
     required_capabilities = ("http_network",)
 
     @property
@@ -82,10 +79,6 @@ class CheckResponseJsonTest(TestFunction):
     @property
     def description(self):
         return t("api_testing.check_response_json.description")
-
-    @property
-    def required_file(self):
-        return None
 
     @property
     def parameter_description(self):
@@ -98,7 +91,7 @@ class CheckResponseJsonTest(TestFunction):
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def execute(self, files, sandbox: SandboxContainer, endpoint: str = "", expected_key: str = "", expected_value: Any = None, **kwargs) -> TestResult:
+    def execute(self, files, sandbox: ExecutionSession, endpoint: str = "", expected_key: str = "", expected_value: Any = None, **kwargs) -> TestResult:
         """Executes the JSON validation test."""
 
         report = ""
@@ -140,7 +133,7 @@ class CheckResponseJsonTest(TestFunction):
 
 class ApiTestingTemplate(Template):
     """
-    A template for API testing assignments. It uses the SandboxContainer to securely
+    A template for API testing assignments. It uses the ExecutionSession to securely
     run and test student-submitted web servers.
     """
 

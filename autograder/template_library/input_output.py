@@ -7,7 +7,7 @@ from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from sandbox_manager.sandbox_container import SandboxContainer
+from autograder.models.execution import ExecutionSession
 from sandbox_manager.models.sandbox_models import ResponseCategory
 from autograder.models.evaluation_error import EvaluationError
 
@@ -22,7 +22,9 @@ class BaseExecutionTest(TestFunction):
     in a sandbox and handling basic execution results (timeouts, crashes).
     """
 
-    def run_sandbox_execution(self, sandbox: SandboxContainer, inputs: list = None,
+    uses_context_files = True
+
+    def run_sandbox_execution(self, sandbox: ExecutionSession, inputs: list = None,
                               program_command: Optional[str] = None):
         """
         Executes the command inside the sandbox.
@@ -107,11 +109,6 @@ class ExpectOutputTest(BaseExecutionTest):
         return t("io.expect_output.description")
 
     @property
-    def required_file(self):
-        """Returns the name of the file required for this test, or None if not applicable."""
-        return None
-
-    @property
     def parameter_description(self):
         return [
             ParamDescription("inputs", t("io.expect_output.params.inputs"), "list of strings"),
@@ -120,7 +117,7 @@ class ExpectOutputTest(BaseExecutionTest):
             ParamDescription("normalization", t("io.expect_output.params.normalization"), "boolean")
         ]
 
-    def execute(self, files, sandbox: SandboxContainer, *args, **kwargs) -> TestResult:
+    def execute(self, files, sandbox: ExecutionSession, *args, **kwargs) -> TestResult:
         """
         Execute the test by comparing program output with expected output.
         """
@@ -189,18 +186,13 @@ class DontFailTest(BaseExecutionTest):
         return t("io.dont_fail.description")
 
     @property
-    def required_file(self):
-        """Returns the name of the file required for this test, or None if not applicable."""
-        return None
-
-    @property
     def parameter_description(self):
         return [
             ParamDescription("input", t("io.expect_output.params.inputs"), "string"),
             ParamDescription("program_command", t("io.expect_output.params.program_command"), "string or dict")
         ]
 
-    def execute(self, files, sandbox: SandboxContainer, *args, **kwargs) -> TestResult:
+    def execute(self, files, sandbox: ExecutionSession, *args, **kwargs) -> TestResult:
         """
         Execute the test by verifying the program doesn't crash with given input.
         """
@@ -211,7 +203,7 @@ class DontFailTest(BaseExecutionTest):
         try:
             # Reformat scalar input to standard list
             inputs = [user_input] if user_input is not None and user_input != "" else []
-            
+
             output = self.run_sandbox_execution(
                 sandbox=sandbox,
                 inputs=inputs,
@@ -261,11 +253,6 @@ class ExpectFileArtifactTest(BaseExecutionTest):
         return t("io.expect_file_artifact.description")
 
     @property
-    def required_file(self):
-        """Returns the name of the file required for this test, or None if not applicable."""
-        return None
-
-    @property
     def parameter_description(self):
         return [
             ParamDescription("program_command", t("io.expect_file_artifact.params.program_command"), "string or dict"),
@@ -293,7 +280,7 @@ class ExpectFileArtifactTest(BaseExecutionTest):
             return bool(re.search(expected, actual))
         return actual == expected
 
-    def execute(self, files, sandbox: SandboxContainer, *args, **kwargs) -> TestResult:
+    def execute(self, files, sandbox: ExecutionSession, *args, **kwargs) -> TestResult:
         """
         Execute the test by extracting a file from the sandbox and comparing its content.
         """
@@ -341,11 +328,11 @@ class ExpectFileArtifactTest(BaseExecutionTest):
                                   report=t("io.expect_file_artifact.report.invalid_regex", locale=locale, error=str(e)))
         return None
 
-    def _extract_and_compare(self, sandbox: SandboxContainer, path: str, expected: str, 
+    def _extract_and_compare(self, sandbox: ExecutionSession, path: str, expected: str,
                              mode: str, normalization: bool, locale: str) -> TestResult:
         """Extract the artifact and compare its content."""
         try:
-            extracted = sandbox.extract_file(f"/app/{path}")
+            extracted = sandbox.read_artifact(path)
         except FileNotFoundError:
             return TestResult(test_name=self.name, score=0.0,
                               report=t("io.expect_file_artifact.report.file_not_found", locale=locale, path=path))

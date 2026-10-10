@@ -28,7 +28,6 @@ class StepName(Enum):
     PRE_FLIGHT = "PreFlightStep"
     SANDBOX = "SandboxStep"
     AI_BATCH = "AiBatchStep"
-    STRUCTURAL_ANALYSIS = "StructuralAnalysisStep"
     GRADE = "GradeStep"
     FOCUS = "FocusStep"
     FEEDBACK = "FeedbackStep"

@@ -12,8 +12,10 @@ from httpx import ASGITransport, AsyncClient
 
 from autograder.models.dataclass.asset import ResolvedAsset
 from sandbox_manager.models.sandbox_models import CommandResponse, ResponseCategory
-from web.config import auth
-from web.main import app
+from contextlib import contextmanager
+from dataclasses import replace
+from autograder.models.capabilities import HostCapabilities
+from execution_host.docker import DockerSession
 from web.schemas.execution import (
     MAX_OUTPUT_BYTES,
     DeliberateCodeExecutionRequest,
@@ -32,9 +34,22 @@ REQUEST = {
 
 
 @pytest.fixture(autouse=True)
-def integration_token(monkeypatch):
+def integration_token(monkeypatch, application):
+    monkeypatch.setitem(globals(), "app", application)
+    application.state.host.settings = replace(application.state.host.settings, INTEGRATION_TOKEN="contract-token")
     monkeypatch.setenv("AUTOGRADER_INTEGRATION_TOKEN", "contract-token")
-    monkeypatch.setattr(auth, "integration_auth_config", None)
+
+
+@contextmanager
+def manager_profile(return_value=None, side_effect=None):
+    factory = Mock(return_value=return_value, side_effect=side_effect)
+    previous = app.state.host.capabilities
+    app.state.host.capabilities = HostCapabilities(
+        execution=lambda language: DockerSession(factory(), language))
+    try:
+        yield factory
+    finally:
+        app.state.host.capabilities = previous
 
 
 def command_result(category=ResponseCategory.SUCCESS, stdout="Hello\n", stderr="", exit_code=0):
@@ -73,7 +88,7 @@ async def test_cases_send_stdin_and_receive_process_details():
         command_result(stdout="Alice\n"),
         command_result(category=ResponseCategory.RUNTIME_ERROR, stdout="", stderr="bad input", exit_code=1),
     )
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
+    with manager_profile(return_value=manager):
         response = await post(REQUEST)
 
     assert response.status_code == 200, response.text
@@ -86,9 +101,10 @@ async def test_cases_send_stdin_and_receive_process_details():
     assert data["results"][1]["category"] == "runtime_error"
     assert data["results"][1]["stderr"] == "bad input"
     assert data["results"][1]["exit_code"] == 1
-    assert sandbox.run_commands.call_args_list[0].args[:2] == (["Alice"], "python main.py")
-    assert sandbox.run_commands.call_args_list[1].args[:2] == (["Bob"], "python main.py")
-    manager.release_sandbox.assert_called_once()
+    assert sandbox.run_commands.call_args_list[0].args == (["Alice"],)
+    assert sandbox.run_commands.call_args_list[0].kwargs["program_command"] == "python main.py"
+    assert sandbox.run_commands.call_args_list[1].args == (["Bob"],)
+    manager.destroy_sandbox.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -96,7 +112,7 @@ async def test_empty_stdin_runs_once_and_output_is_bounded():
     manager, sandbox = manager_with_sandbox()
     sandbox.run_command.return_value = command_result(stdout="é" * MAX_OUTPUT_BYTES, stderr="err")
     payload = {key: value for key, value in REQUEST.items() if key != "test_cases"}
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
+    with manager_profile(return_value=manager):
         response = await post(payload)
     assert response.status_code == 200
     result = response.json()["results"][0]
@@ -124,7 +140,7 @@ async def test_empty_stdin_runs_once_and_output_is_bounded():
 async def test_invalid_requests_are_rejected_before_acquisition(change):
     payload = dict(REQUEST)
     payload.update(change)
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager") as manager:
+    with manager_profile() as manager:
         response = await post(payload)
     assert response.status_code == 422
     assert response.json()["detail"]
@@ -133,24 +149,24 @@ async def test_invalid_requests_are_rejected_before_acquisition(change):
 
 @pytest.mark.asyncio
 async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", side_effect=ValueError("not ready")):
+    with manager_profile(side_effect=ValueError("not ready")):
         response = await post(REQUEST)
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
 
     manager, _ = manager_with_sandbox(command_result(category=ResponseCategory.SYSTEM_ERROR))
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
+    with manager_profile(return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 503
-    manager.release_sandbox.assert_called_once()
+    manager.destroy_sandbox.assert_called_once()
 
     manager, sandbox = manager_with_sandbox()
     sandbox.prepare_workdir.side_effect = RuntimeError("Docker unavailable")
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
+    with manager_profile(return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 503
     assert "Docker unavailable" not in response.text
-    manager.release_sandbox.assert_called_once()
+    manager.destroy_sandbox.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -158,7 +174,7 @@ async def test_timeout_stops_batch_and_destroys_sandbox():
     manager, _ = manager_with_sandbox(
         command_result(category=ResponseCategory.TIMEOUT, stderr="Execution timed out", exit_code=124)
     )
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
+    with manager_profile(return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 200
     assert response.json()["results"][0]["category"] == "timeout"
@@ -173,8 +189,8 @@ async def test_cleanup_failure_does_not_erase_known_execution_result():
     manager, _ = manager_with_sandbox(
         command_result(stdout="one"), command_result(stdout="two")
     )
-    manager.release_sandbox.side_effect = RuntimeError("release failed")
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
+    manager.destroy_sandbox.side_effect = RuntimeError("destroy failed")
+    with manager_profile(return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 200
     assert len(response.json()["results"]) == 2
@@ -187,7 +203,7 @@ async def test_trusted_assets_are_injected_before_execution():
         "source": "datasets/sample.txt", "target": "/tmp/sample.txt", "read_only": True,
     }])
     asset = ResolvedAsset(target="/tmp/sample.txt", content=b"sample", read_only=True)
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager), \
+    with manager_profile(return_value=manager), \
          patch("web.service.deliberate_execution_service.AssetSourceResolver") as resolver:
         resolver.return_value.resolve_assets.return_value = [asset]
         response = await post(payload)
@@ -197,7 +213,7 @@ async def test_trusted_assets_are_injected_before_execution():
     sandbox.inject_assets.assert_called_once_with([asset])
     calls = [call[0] for call in sandbox.mock_calls]
     assert calls.index("prepare_workdir") < calls.index("inject_assets") < calls.index("run_commands")
-    manager.release_sandbox.assert_called_once()
+    manager.destroy_sandbox.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -210,32 +226,74 @@ async def test_deadline_and_disconnect_leave_worker_to_release_sandbox(monkeypat
         return command_result()
     sandbox.run_commands.side_effect = blocked
     request = DeliberateCodeExecutionRequest.model_validate(REQUEST)
-    monkeypatch.setattr(service, "REQUEST_DEADLINE_SECONDS", 0.02)
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
+    monkeypatch.setattr(service, "REQUEST_DEADLINE_SECONDS", 0.5)
+    with manager_profile(return_value=manager):
         with pytest.raises(service.ExecutionServiceError) as error:
-            await execute_code(request)
+            await execute_code(request, capabilities=app.state.host.capabilities)
         assert error.value.code == "EXECUTION_DEADLINE_EXCEEDED"
         assert started.is_set()
         unblock.set()
         await asyncio.to_thread(lambda: None)
         for _ in range(100):
-            if manager.release_sandbox.called:
+            if manager.destroy_sandbox.called:
                 break
             await asyncio.sleep(0.01)
-    manager.release_sandbox.assert_called_once()
+    manager.destroy_sandbox.assert_called_once()
 
     started.clear()
     unblock.clear()
     manager.reset_mock()
-    with patch("web.service.deliberate_execution_service.get_sandbox_manager", return_value=manager):
-        task = asyncio.create_task(execute_code(request))
+    with manager_profile(return_value=manager):
+        task = asyncio.create_task(execute_code(request, capabilities=app.state.host.capabilities))
         assert await asyncio.to_thread(started.wait, 1)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
         unblock.set()
         for _ in range(100):
-            if manager.release_sandbox.called:
+            if manager.destroy_sandbox.called:
                 break
             await asyncio.sleep(0.01)
-    manager.release_sandbox.assert_called_once()
+    manager.destroy_sandbox.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_shutdown_after_response_deadline_drains_thread_before_closing_provider(monkeypatch):
+    started, unblock = threading.Event(), threading.Event()
+    manager, sandbox = manager_with_sandbox()
+    owner = Mock()
+    host = app.state.host
+    host.resource_owner = owner
+
+    def blocked(*_args, **_kwargs):
+        started.set()
+        assert unblock.wait(timeout=5)
+        owner.close.assert_not_called()
+        return command_result()
+
+    sandbox.run_commands.side_effect = blocked
+    monkeypatch.setattr(service, "REQUEST_DEADLINE_SECONDS", 0.5)
+    with manager_profile(return_value=manager):
+        request = asyncio.create_task(post(REQUEST))
+        assert await asyncio.to_thread(started.wait, 2)
+        response = await request
+        assert response.status_code == 504
+        assert len(host.execution_tasks) == 1
+        closing = asyncio.create_task(host.close())
+        await asyncio.sleep(0)
+        owner.close.assert_not_called()
+        assert not closing.done()
+        # Cancelling shutdown cannot release providers that the thread still uses.
+        closing.cancel()
+        await asyncio.sleep(0)
+        owner.close.assert_not_called()
+        try:
+            response = await post(REQUEST)
+            assert response.status_code == 503
+        finally:
+            unblock.set()
+        with pytest.raises(asyncio.CancelledError):
+            await closing
+    manager.destroy_sandbox.assert_called_once()
+    owner.close.assert_called_once()
+    assert not host.execution_tasks

@@ -27,12 +27,14 @@ access policy; authenticated details and external ingestion require
 `AUTOGRADER_INTEGRATION_TOKEN`. The example's `check_project_structure` evaluator
 uses no sandbox or provider, making it suitable for local smoke tests.
 
-The response to create is HTTP 200. A terminal `completed` status with score
+The response to configuration create is HTTP 200; submission acceptance returns
+HTTP 202 with a `Location` status URL after saving the complete input. A terminal `completed` status with score
 zero is a valid assessment. `failed` has a null score and structured error; the
 example exits nonzero in that case. Bad definitions and invalid external
 attestations return 422. A missing configuration returns 404. New submissions
-against inactive definitions return 409. Accepted ordinary submissions run in
-process; this example does not test recovery across service restarts.
+against inactive definitions return 409. Bounded host workers claim saved submissions; the example exercises ordinary
+acceptance and polling. Dedicated PostgreSQL tests cover worker recovery and
+publication races; see [durable jobs](JOBS.md).
 
 ## GitHub Actions: ordinary checkout and cloud publication
 
@@ -62,7 +64,8 @@ inject executable evaluator code. JSON sent to HTTP or Actions cannot load a
 Python class, and no plugin upload API is advertised. The example uses
 `compile_definition` followed by `evaluate_submission`; injected instances survive
 that boundary. See the [catalog and Python facade](CATALOG.md) for the supported
-surface, typed discovery responses and remaining INT-14 host responsibilities.
+surface and typed discovery responses, and [host capabilities](CAPABILITIES.md)
+for explicit execution/provider composition.
 
 ## Supported environments and test scope
 

@@ -215,3 +215,15 @@ def test_literal_file_named_all_does_not_select_other_files():
     grader = SubmissionGrader(submission_files={"all": filename, "other.py": SubmissionFile("other.py", "")}, command_resolver=MagicMock())
     target = TestNode(name="Literal filename", test_function=MockTestFunction(), file_target=["all"])
     assert grader.get_file_target(target) == [filename]
+
+
+def test_finite_large_sibling_weights_preserve_ratio(grader):
+    """Finite authored ratios remain meaningful even when their raw sum overflows."""
+    function = MockTestFunction()
+    category = CategoryNode(name="base", weight=100, tests=[
+        TestNode(name="Pass", test_function=function, weight=1e308, parameters={"score": 100}),
+        TestNode(name="Fail", test_function=function, weight=1e308, parameters={"score": 0}),
+    ])
+    result = grader.process_category(category)
+    assert [test.weight for test in result.tests] == [50, 50]
+    assert result.calculate_score() == 50

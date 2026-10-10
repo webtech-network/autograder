@@ -10,7 +10,6 @@ from autograder.steps.build_tree_step import BuildTreeStep
 from autograder.steps.pre_flight_step import PreFlightStep
 from autograder.steps.sandbox_step import SandboxStep
 from autograder.steps.ai_batch_step import AiBatchStep
-from autograder.steps.structural_analysis_step import StructuralAnalysisStep
 from autograder.steps.grade_step import GradeStep
 from autograder.steps.focus_step import FocusStep
 from autograder.steps.feedback_step import FeedbackStep
@@ -37,7 +36,6 @@ class StepRegistry:
             StepName.PRE_FLIGHT: self._build_pre_flight,
             StepName.SANDBOX: self._build_sandbox,
             StepName.AI_BATCH: self._build_ai_batch,
-            StepName.STRUCTURAL_ANALYSIS: self._build_structural_analysis,
             StepName.GRADE: self._build_grade,
             StepName.FOCUS: self._build_focus,
             StepName.FEEDBACK: self._build_feedback,
@@ -50,41 +48,13 @@ class StepRegistry:
         return BuildTreeStep(self.config.get("grading_criteria"))
 
     def _build_pre_flight(self) -> Optional[Step]:
-        # Only return PreFlightStep if there is a setup_config to process.
-        setup_config = self.config.get("setup_config")
-        if not setup_config:
-            return None
-        return PreFlightStep(setup_config)
+        return PreFlightStep(self.config["preparation"])
 
     def _build_sandbox(self) -> Optional[Step]:
-        setup = self.config.get("setup_config") or {}
-        needs_preparation = bool(setup.get("assets")) or any(
-            isinstance(value, dict) and value.get("setup_commands")
-            for value in setup.values()
-        )
-        tree = self.config.get("compiled_tree")
-        if tree is not None:
-            selected = {id(test.test_function) for category in (tree.base, tree.bonus, tree.penalty)
-                        if category for test in category.get_all_tests()}
-            needs_execution = any(template.requires_sandbox and
-                                  any(id(function) in selected for function in template.get_tests().values())
-                                  for template in self.templates)
-        else:
-            needs_execution = any(template.requires_sandbox for template in self.templates)
-        return SandboxStep() if needs_execution or needs_preparation else None
+        return SandboxStep()
 
     def _build_ai_batch(self) -> Optional[Step]:
-        from autograder.models.abstract.ai_test_function import AiTestFunction
-        tree = self.config.get("compiled_tree")
-        if tree is not None:
-            functions = [test.test_function for category in (tree.base, tree.bonus, tree.penalty)
-                         if category for test in category.get_all_tests()]
-        else:
-            functions = [function for template in self.templates for function in template.get_tests().values()]
-        return AiBatchStep() if any(isinstance(function, AiTestFunction) for function in functions) else None
-
-    def _build_structural_analysis(self) -> Optional[Step]:
-        return StructuralAnalysisStep()
+        return AiBatchStep()
 
     def _build_grade(self) -> Optional[Step]:
         return GradeStep()

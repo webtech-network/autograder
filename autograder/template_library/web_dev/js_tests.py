@@ -6,7 +6,7 @@ from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from sandbox_manager.sandbox_container import SandboxContainer
+from autograder.models.execution import ExecutionSession
 
 
 class CountGlobalVars(TestFunction):
@@ -17,15 +17,15 @@ class CountGlobalVars(TestFunction):
     @property
     def description(self):
         return t("web_dev.js.count_global_vars.description")
-    @property
-    def required_file(self):
-        return "JavaScript"
+    file_extensions = (".js", ".mjs", ".cjs")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("max_allowed", t("web_dev.js.count_global_vars.param.max_allowed"), "integer")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, max_allowed: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, max_allowed: int = 0, **kwargs) -> TestResult:
         """Executes the global variable count."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, t("web_dev.error.no_js", locale=kwargs.get("locale")))
@@ -44,15 +44,14 @@ class CountGlobalVars(TestFunction):
 
 class HasNoJsFramework(TestFunction):
     """Checks if forbidden JS frameworks are present."""
+
+    file_parameters = ("html_file", "js_file")
     @property
     def name(self):
         return "has_no_js_framework"
     @property
     def description(self):
         return t("web_dev.js.has_no_js_framework.description")
-    @property
-    def required_file(self):
-        return None
     @property
     def parameter_description(self):
         return [
@@ -61,7 +60,7 @@ class HasNoJsFramework(TestFunction):
             ParamDescription("js_file", t("web_dev.js.has_no_js_framework.param.js_file"), "string")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, html_file: str = "", js_file: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, html_file: str = "", js_file: str = "", **kwargs) -> TestResult:
         """Executes the framework verification."""
         if not files:
             return TestResult(self.name, 0, t("web_dev.error.no_files", locale=kwargs.get("locale")))
@@ -96,14 +95,14 @@ class JsUsesQueryStringParsing(TestFunction):
     @property
     def description(self):
         return t("web_dev.js.js_uses_query_string_parsing.description")
-    @property
-    def required_file(self):
-        return "JavaScript"
+    file_extensions = (".js", ".mjs", ".cjs")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return []
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """Executes the query string pattern search."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, t("web_dev.error.no_js", locale=kwargs.get("locale")))
@@ -129,15 +128,15 @@ class UsesForbiddenMethod(TestFunction):
     @property
     def description(self):
         return t("web_dev.js.uses_forbidden_method.description")
-    @property
-    def required_file(self):
-        return "JavaScript"
+    file_extensions = (".js", ".mjs", ".cjs")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("method", t("web_dev.js.uses_forbidden_method.param.method"), "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, method: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, method: str = "", **kwargs) -> TestResult:
         """Executes the search for forbidden methods."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, t("web_dev.error.no_js", locale=kwargs.get("locale")))
@@ -160,14 +159,15 @@ class JsUsesFeature(TestFunction):
     def name(self): return "js_uses_feature"
     @property
     def description(self): return t("web_dev.js.js_uses_feature.description")
-    @property
-    def required_file(self): return "JavaScript"
+    file_extensions = (".js", ".mjs", ".cjs")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
             ParamDescription("feature", t("web_dev.js.js_uses_feature.param.feature"), "string")
         ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, feature: str = "", **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, feature: str = "", **kwargs) -> TestResult:
         """Executes the search for features (literal string)."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, t("web_dev.error.no_js", locale=kwargs.get("locale")))
@@ -191,9 +191,9 @@ class JsUsesDomManipulation(TestFunction):
     @property
     def description(self):
         return t("web_dev.js.js_uses_dom_manipulation.description")
-    @property
-    def required_file(self):
-        return "JavaScript"
+    file_extensions = (".js", ".mjs", ".cjs")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
@@ -201,7 +201,7 @@ class JsUsesDomManipulation(TestFunction):
             ParamDescription("required_count", t("web_dev.js.js_uses_dom_manipulation.param.required_count"), "integer")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, methods: list = None, required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, methods: list = None, required_count: int = 0, **kwargs) -> TestResult:
         """Executes the search for DOM manipulations."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, t("web_dev.error.no_js", locale=kwargs.get("locale")))
@@ -229,9 +229,9 @@ class JsHasJsonArrayWithId(TestFunction):
     @property
     def description(self):
         return t("web_dev.js.js_has_json_array_with_id.description")
-    @property
-    def required_file(self):
-        return "JavaScript"
+    file_extensions = (".js", ".mjs", ".cjs")
+    minimum_files = 1
+    maximum_files = 1
     @property
     def parameter_description(self):
         return [
@@ -239,7 +239,7 @@ class JsHasJsonArrayWithId(TestFunction):
             ParamDescription("min_items", t("web_dev.js.js_has_json_array_with_id.param.min_items"), "integer")
         ]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, required_key: str = "", min_items: int = 0, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, required_key: str = "", min_items: int = 0, **kwargs) -> TestResult:
         """Executes the JSON structure check in JS."""
         if not files or len(files) == 0:
             return TestResult(self.name, 0, t("web_dev.error.no_js", locale=kwargs.get("locale")))

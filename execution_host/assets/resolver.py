@@ -1,9 +1,9 @@
 import os
 import logging
 from typing import List
-from autograder.services.assets.s3_provider import S3AssetProvider
-from autograder.services.assets.cache_manager import AssetCacheManager
-from autograder.models.config.setup import AssetConfig
+from execution_host.assets.s3_provider import S3AssetProvider
+from execution_host.assets.cache_manager import AssetCacheManager
+from execution_host.assets.config import AssetConfig
 from autograder.models.dataclass.asset import ResolvedAsset
 
 logger = logging.getLogger("AssetSourceResolver")
@@ -12,10 +12,11 @@ class AssetSourceResolver:
     """
     Resolves asset configurations into actual asset content using providers and caches.
     """
-    def __init__(self):
-        in_memory_limit = int(os.getenv("EXTERNAL_ASSETS_IN_MEMORY_CACHE_LIMIT", "100"))
+    def __init__(self, config=None):
+        config = dict(os.environ) if config is None else config
+        in_memory_limit = int(config.get("EXTERNAL_ASSETS_IN_MEMORY_CACHE_LIMIT", "100"))
         self.cache_manager = AssetCacheManager(in_memory_limit=in_memory_limit)
-        self.provider = S3AssetProvider(self.cache_manager)
+        self.provider = S3AssetProvider(self.cache_manager, config=config)
         
     def resolve_assets(self, assets_config: List[AssetConfig]) -> List[ResolvedAsset]:
         """
@@ -38,7 +39,7 @@ class AssetSourceResolver:
             # Resolve asset
             content = self.provider.get_asset(source, target, read_only)
             
-            if not content:
+            if content is None:
                 raise RuntimeError(f"Failed to resolve asset: source={source}, target={target}")
                 
             resolved_assets.append(ResolvedAsset(

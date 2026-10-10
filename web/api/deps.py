@@ -1,47 +1,28 @@
-"""Shared API dependencies."""
-
+"""HTTP dependencies resolve through this application's explicitly composed host."""
 import hmac
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from web.config.auth import get_integration_auth_config
-from web.database import get_session
 
 
-async def get_db_session() -> AsyncSession:
-    """Get database session dependency."""
-    async with get_session() as session:
+def get_host(request: Request):
+    return request.app.state.host
+
+
+async def get_db_session(host=Depends(get_host)):
+    async with host.sessions() as session:
         yield session
 
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
-async def require_integration_token(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
-) -> None:
-    """Enforce Bearer-token auth on integration endpoints."""
-    try:
-        config = get_integration_auth_config()
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Integration authentication is not configured",
-        ) from exc
-
+async def require_integration_token(credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+                                    host=Depends(get_host)) -> None:
+    token = host.settings.INTEGRATION_TOKEN.strip()
+    if not token:
+        raise HTTPException(503, "Integration authentication is not configured")
     if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not hmac.compare_digest(credentials.credentials, config.token):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
+        raise HTTPException(401, "Missing authentication token", headers={"WWW-Authenticate": "Bearer"})
+    if not hmac.compare_digest(credentials.credentials, token):
+        raise HTTPException(401, "Invalid authentication token", headers={"WWW-Authenticate": "Bearer"})

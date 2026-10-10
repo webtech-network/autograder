@@ -55,6 +55,11 @@ class Submission(Base):
     definition_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     definition_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     configuration_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    locale: Mapped[str] = mapped_column(String(32), nullable=False, default="en")
+    evaluation_scope: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    attempt_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     # Relationships
     grading_config: Mapped["GradingConfiguration"] = relationship(

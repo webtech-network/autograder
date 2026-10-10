@@ -15,16 +15,16 @@ def evaluate_submission(
     definition: GradingDefinition | dict | CompiledDefinition,
     templates: Mapping[str, Template] | None = None,
     provenance: DefinitionProvenance | None = None,
+    capabilities=None,
 ) -> TerminalOutcome:
     """Compile, evaluate and clean up before returning an immutable outcome.
 
     Invalid definitions raise DefinitionValidationError; execution failures return
     failed outcomes. Templates are trusted, already-instantiated Python objects.
-    Sandbox/provider resources use the current host configuration; discovery does
-    not provision them or guarantee availability. Explicit provider injection is
-    tracked separately in INT-14.
+    Hosts explicitly supply capabilities; static evaluation needs none. Returned
+    sessions belong to the run and are closed before the immutable outcome returns.
     """
     return build_pipeline(
         definition=definition, templates=templates, provenance=provenance,
-        locale=submission.locale,
+        locale=submission.locale, capabilities=capabilities,
     ).run(submission).outcome

@@ -57,8 +57,9 @@ that resource instead of recreating it.
 
 `POST /api/v1/submissions` accepts external assignment/user identity, username,
 files, optional language/locale/metadata and optional evaluation scope. It binds
-and stores the exact normalized definition, hash, and revision before scheduling
-work. A single definition language is inferred; multiple languages require an
+and stores the exact normalized definition, hash, revision, locale and scope
+in the acceptance transaction. HTTP 202 includes the status URL in `Location`;
+bounded workers claim the committed job. A single definition language is inferred; multiple languages require an
 explicit allowed choice. Inactive/quarantined configurations reject new work;
 already bound work remains tied to its accepted snapshot.
 
@@ -71,7 +72,8 @@ submission time descending, then ID descending. `limit` is 1–100; `offset` is
 nonnegative. `/user/{external_user_id}` is the user-filtered alias.
 
 Authenticated `GET /api/v1/submissions/{id}/details` additionally returns source
-files, metadata, the bound definition snapshot, the complete canonical outcome,
+file objects containing exact content, changed lines and per-file metadata,
+locale/scope, the bound definition snapshot, the complete canonical outcome,
 and optional internal diagnostics. A completed zero score is an assessed grade;
 a failed execution has null score/tree and a structured error. Legacy history
 has `provenance_status: "unverified_legacy"`; new accepted/imported snapshots use
@@ -115,8 +117,9 @@ same execution without running the grader. If an identical result already exists
 receipt safely; a conflicting existing result is rejected and the receipt remains.
 A failed replay preserves the receipt for another attempt.
 
-This receipt mechanism covers finalized-result publication. It does **not** make
-pending/running task dispatch restart-safe, provide an automatic retry scheduler,
-or demonstrate a particular concurrent-request capacity. Deployments
-must mount the receipt directory persistently to retain artifacts across container
-replacement. Deliberate execution at `/api/v1/execute` remains supported separately.
+Finalized receipts and persisted jobs have separate responsibilities. Workers
+recover accepted input and interrupted attempts; receipts recover publication
+without regrading. Deployments must mount the receipt directory persistently
+and share it across workers. See [durable jobs](../docs/contracts/JOBS.md) for
+policy, migration 006, startup/shutdown and measured acceptance limits, and
+[accepted input](../docs/contracts/SUBMISSIONS.md) for payload and detail-client migration. Deliberate execution at `/api/v1/execute` remains supported separately.
