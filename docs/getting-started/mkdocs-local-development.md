@@ -112,6 +112,6 @@ When grading finishes, response status becomes `completed`, and you will get:
 
 You ran the full core flow:
 
-`LOAD_TEMPLATE -> BUILD_TREE -> SANDBOX -> PRE_FLIGHT -> GRADE -> FOCUS -> FEEDBACK`
+`validate -> acquire/prepare? -> AI batch? -> grade -> requested feedback? -> close -> outcome`
 
 To understand each stage in depth, continue with [Pipeline Architecture](../core/pipeline-architecture.md).

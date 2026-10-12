@@ -71,7 +71,6 @@ def test_setup_and_empty_fixture_use_selected_session_then_close_before_outcome(
     owned.stage_fixture.assert_called_once_with("data.bin", b"", True)
     owned.run_command.assert_called_once_with("prepare")
     owned.close.assert_called_once()
-    assert execution.sandbox is None
 
 
 @pytest.mark.parametrize("operation", ["prepare_workdir", "stage_fixture", "run_command"])
@@ -94,7 +93,7 @@ def test_acquisition_failure_transfers_no_session():
         "setup_commands": [{"name": "setup", "command": "prepare"}]}}}),
         capabilities=HostCapabilities(execution=acquire))
     result = pipeline.run(submission())
-    assert result.sandbox is None and result.outcome.error.code == "CAPABILITY_UNAVAILABLE"
+    assert result.outcome.error.code == "CAPABILITY_UNAVAILABLE"
 
 
 def test_setup_student_failure_stops_before_assessment():

@@ -1,25 +1,30 @@
-# Internal pipeline diagnostics
+# Execution diagnostics
 
-The public integration contract is the finalized
-[terminal outcome v1](../contracts/OUTCOMES.md). Consumers use its completed/failed
-status, nullable score, definition provenance, safe error, language, timestamps,
-and enrichment status. They do not depend on pipeline class names or step counts.
+The [terminal outcome](../contracts/OUTCOMES.md) is the only grading artifact.
+An optional `observer=callback` argument on `run` and `evaluate_submission`
+lets a host collect operational observations separately:
 
-`PipelineExecutionSerializer.serialize(execution)` is an optional internal
-operator/debugging projection. It includes executed step names/statuses,
-`failed_at_step`, planned step count, successfully completed step count, and
-execution duration. `FAIL` and `INTERRUPTED` are both unsuccessful. Bootstrap is
-an internal initialization record and is omitted from displayed steps. Planned
-steps come from the configured pipeline, not the number executed before failure.
-Completed count includes only successful step results. Duration freezes at
-terminal finalization; polling/serializing later cannot make execution slower.
+```python
+events = []
+outcome = evaluate_submission(
+    submission, definition=compiled, capabilities=host_capabilities,
+    observer=events.append,
+)
+```
 
-Structured preparation diagnostics may contain required-file names, setup
-commands, stdout, stderr, and implementation details. Hosts must protect these
-operator diagnostics separately from student-facing responses and public error
-messages. The HTTP outcome does not include them by default.
+Each frozen `DiagnosticEvent` contains an execution ID, an operation string,
+a completed/failed status, and an optional safe structured error. It contains no
+submission, criteria tree, session, grade, or back-reference. The coordinator
+never reads the observer's records. Callers may collect, discard or add records;
+observer exceptions are logged and do not change grading order or results.
+Operation strings are internal diagnostics, not an enum or versioned wire contract.
+No diagnostic serializer or planned-step reconstruction is required.
 
-The hosting adapter owns persistence and delivery. It may store internal
-execution diagnostics separately from the immutable public outcome. A failed
-publication is not an unsuccessful grading step, and optional feedback failure
-can coexist with a completed grade.
+Cleanup failures always reach logging and, when supplied, the observer as
+`close_session` / `CLEANUP_ERROR`. The original grading outcome is preserved.
+Raw exceptions remain in host logs; hosts control access and retention.
+The terminal outcome duration includes cleanup and freezes when constructed.
+
+The former execution journal, artifact accessors and
+`PipelineExecutionSerializer` have been removed. Consumers of the old debugging
+projection migrate to these independent events and terminal outcome fields.

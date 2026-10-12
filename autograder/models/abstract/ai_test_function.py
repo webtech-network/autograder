@@ -15,7 +15,7 @@ class AiTestFunction(TestFunction):
 
     Subclasses must implement ``build_prompt()`` to describe what the AI should evaluate.
     Subclasses must NOT override ``execute()``; the base implementation handles both the
-    normal pipeline path (pre-computed results injected by ``AiBatchStep``) with results supplied by the host assessment provider.
+    normal grading path with pre-computed results supplied by the host assessment provider.
     """
 
     required_capabilities = ("ai_provider",)
@@ -44,10 +44,10 @@ class AiTestFunction(TestFunction):
         """
         Return the required pre-computed AI result.
 
-        When ``AiBatchStep`` has already produced results, ``GraderService`` injects
+        After ``evaluate_ai_batch`` returns assessments, ``GraderService`` injects
         them as the ``pre_computed_results`` kwarg. This method looks up its own
         criterion ID in that dict and returns the result directly. If the dict is
-        absent (standalone usage), it falls back to ``_run_single()``.
+        absent (standalone usage), assessment fails without a provider fallback.
         """
         # args is not used in AI tests as parameters are in kwargs
         _ = args

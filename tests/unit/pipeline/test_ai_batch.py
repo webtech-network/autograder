@@ -1,21 +1,12 @@
-"""
-Unit tests for the AI-batch pipeline redesign.
-
-Covers:
-- AiTestFunction ABC: pre_computed_results lookup and fallback path
-- AiBatchStep: skip when no AI tests, collect and forward batch results
-- GraderService: pre_computed_results forwarded to test functions
-- GradeStep: picks up AI_BATCH results and passes them through
-"""
+"""AI batching returns explicit assessments; providers remain stateless."""
 
 import pytest
 from autograder.models.evaluation_error import EvaluationError
 from typing import Dict, List, Optional
 import autograder.utils.executors.ai_executor as ai_executor_mod
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from autograder.models.abstract.ai_test_function import AiTestFunction
-from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.criteria_tree import (
     CategoryNode,
@@ -24,20 +15,14 @@ from autograder.models.criteria_tree import (
     TestNode,
 )
 from autograder.models.dataclass.param_description import ParamDescription
-from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
 from autograder.models.dataclass.submission import (
-    EvaluationScope,
     Submission,
     SubmissionFile,
 )
 from autograder.models.dataclass.test_result import TestResult
-from autograder.models.pipeline_execution import PipelineExecution
-from autograder.models.result_tree import CategoryResultNode, ResultTree, RootResultNode
 from autograder.services.grader.grader_service import GraderService
-from autograder.steps.ai_batch_step import AiBatchStep
-from autograder.steps.grade_step import GradeStep
+from autograder.services.ai_batch import evaluate_ai_batch
 from execution_host.openai_provider import AiExecutor, TestInput, TestOutput
-from autograder.models.capabilities import HostCapabilities
 
 
 # ---------------------------------------------------------------------------
@@ -54,18 +39,6 @@ def _make_submission(files: Optional[Dict[str, str]] = None) -> Submission:
             name: SubmissionFile(filename=name, content=content)
             for name, content in files.items()
         },
-    )
-
-
-def _make_pipeline_exec(submission: Optional[Submission] = None) -> PipelineExecution:
-    execution = PipelineExecution.start_execution(submission or _make_submission())
-    execution.capabilities = HostCapabilities(ai=MagicMock())
-    return execution
-
-
-def _inject_step_result(pipeline_exec: PipelineExecution, step_name: StepName, data) -> PipelineExecution:
-    return pipeline_exec.add_step_result(
-        StepResult(step=step_name, data=data, status=StepStatus.SUCCESS)
     )
 
 
@@ -122,7 +95,7 @@ class TestAiTestFunctionPreComputedPath:
 
 
 # ---------------------------------------------------------------------------
-# AiBatchStep tests
+# AI batch assessments
 # ---------------------------------------------------------------------------
 
 def _build_criteria_tree_with_ai_test(ai_test_func: AiTestFunction, test_name="ai_test_1") -> CriteriaTree:
@@ -161,106 +134,32 @@ def _build_criteria_tree_no_ai() -> CriteriaTree:
     return CriteriaTree(base=base)
 
 
-class TestAiBatchStep:
-    """Tests for the AiBatchStep pipeline step."""
+class TestAiBatch:
+    def test_skips_provider_when_no_ai_tests(self):
+        provider = MagicMock()
+        assert evaluate_ai_batch(_build_criteria_tree_no_ai(), _make_submission(), provider) == {}
+        provider.run.assert_not_called()
 
-    def test_skips_gracefully_when_no_ai_tests(self):
-        """Step exits with an empty results dict when no AI test functions are found."""
-        step = AiBatchStep()
-        tree = _build_criteria_tree_no_ai()
-        pipeline_exec = _make_pipeline_exec()
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
+    def test_returns_assessments_and_sends_context(self):
+        provider = MagicMock()
+        expected = TestResult("ai_code_review", 90, "Nice")
+        provider.run.return_value = {"ai_code_review": expected}
+        result = evaluate_ai_batch(_build_criteria_tree_with_ai_test(_ConcreteAiTest()),
+                                   _make_submission({"main.py": "code"}), provider)
+        assert result["ai_code_review"] is expected
+        inputs, files, locale = provider.run.call_args.args
+        assert [item.test_name for item in inputs] == ["ai_code_review"]
+        assert files == {"main.py": "code"}
+        assert locale == "en"
 
-        result_exec = step.execute(pipeline_exec)
-
-        assert not result_exec.has_step_result(StepName.AI_BATCH)
-
-    def test_collects_ai_tests_and_calls_executor(self):
-        """AI test functions are collected and passed to AiExecutor in a single call."""
-        ai_func = _ConcreteAiTest()
-        tree = _build_criteria_tree_with_ai_test(ai_func)
-        submission = _make_submission({"main.py": "code"})
-        pipeline_exec = _make_pipeline_exec(submission)
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
-
-        expected_ai_result = TestResult(
-            test_name="ai_code_review", score=90.0, report="Nice.", subject_name=""
-        )
-
-        with patch.object(pipeline_exec.capabilities.ai, "run") as run:
-            run.return_value = {"ai_code_review": expected_ai_result}
-            result_exec = AiBatchStep().execute(pipeline_exec)
-
-        assert result_exec.has_step_result(StepName.AI_BATCH)
-        data: Dict[str, TestResult] = result_exec.get_step_result(StepName.AI_BATCH).data
-        assert data["ai_code_review"] is expected_ai_result
-
-    def test_executor_called_with_correct_files(self):
-        """AiExecutor.run receives the submission files keyed by filename."""
-        ai_func = _ConcreteAiTest()
-        tree = _build_criteria_tree_with_ai_test(ai_func)
-        submission = _make_submission({"main.py": "my code"})
-        pipeline_exec = _make_pipeline_exec(submission)
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
-
-        with patch.object(pipeline_exec.capabilities.ai, "run") as run:
-            run.return_value = {}
-            AiBatchStep().execute(pipeline_exec)
-
-        call_args = run.call_args
-        # Second positional arg is the submission_files dict
-        files_passed = call_args[0][1]
-        assert "main.py" in files_passed
-        assert files_passed["main.py"] == "my code"
-
-    def test_step_result_stored_in_pipeline(self):
-        """AI_BATCH StepResult is accessible via get_ai_batch_results() after execution."""
-        ai_func = _ConcreteAiTest()
-        tree = _build_criteria_tree_with_ai_test(ai_func)
-        pipeline_exec = _make_pipeline_exec()
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
-
-        with patch.object(pipeline_exec.capabilities.ai, "run") as run:
-            run.return_value = {}
-            result_exec = AiBatchStep().execute(pipeline_exec)
-
-        assert not result_exec.get_ai_batch_results()
-
-    def test_handles_multiple_ai_tests_in_tree(self):
-        """All AI test functions across the tree are collected into a single batch."""
-        class _AiTest2(AiTestFunction):
-            @property
-            def name(self):
-                return "ai_test_2"
-
-            @property
-            def description(self):
-                return "Second AI test"
-
-            @property
-            def parameter_description(self):
-                return []
-
-            def build_prompt(self, files, **kwargs):
-                return "Second prompt."
-
-        t1 = TestNode(name="ai_1", criterion_id="first", test_function=_ConcreteAiTest())
-        t2 = TestNode(name="ai_2", criterion_id="second", test_function=_AiTest2())
-        base = CategoryNode(name="base", weight=100, tests=[t1, t2])
-        tree = CriteriaTree(base=base)
-
-        pipeline_exec = _make_pipeline_exec()
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
-
-        with patch.object(pipeline_exec.capabilities.ai, "run") as run:
-            run.return_value = {}
-            AiBatchStep().execute(pipeline_exec)
-
-        call_args = run.call_args
-        test_inputs = call_args[0][0]  # first positional arg is List[TestInput]
-        names = [ti.test_name for ti in test_inputs]
-        assert "first" in names
-        assert "second" in names
+    @pytest.mark.parametrize("results", [{}, {"unknown": TestResult("unknown", 50, "")}])
+    def test_missing_or_unexpected_output_fails_without_retry(self, results):
+        provider = MagicMock()
+        provider.run.return_value = results
+        with pytest.raises(EvaluationError, match="required AI assessment"):
+            evaluate_ai_batch(_build_criteria_tree_with_ai_test(_ConcreteAiTest()),
+                              _make_submission(), provider)
+        provider.run.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -339,100 +238,6 @@ class TestGraderServicePreComputedResults:
 
         # The executor.stop() should never have been called
         _TestWithExecutorAttr.executor.stop.assert_not_called()
-
-
-# ---------------------------------------------------------------------------
-# GradeStep integration
-# ---------------------------------------------------------------------------
-
-class TestGradeStepPassesAiBatchResults:
-    """GradeStep must forward AI_BATCH results to GraderService."""
-
-    def _make_pipeline_with_tree_and_ai_batch(self, pre_computed):
-        """Build a minimal pipeline_exec that has BUILD_TREE and AI_BATCH results."""
-        tree = _build_criteria_tree_no_ai()  # no AI tests needed for this check
-        pipeline_exec = _make_pipeline_exec()
-
-        # Inject required prior steps
-        class _FakeTemplate(Template):
-            @property
-            def template_name(self):
-                return "fake"
-
-            @property
-            def template_description(self):
-                return "fake"
-
-            @property
-            def requires_sandbox(self):
-                return False
-
-            def get_test(self, name):
-                return None
-
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.LOAD_TEMPLATE, _FakeTemplate())
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.AI_BATCH, pre_computed)
-        return pipeline_exec
-
-    def test_pre_computed_results_passed_to_grader_service(self):
-        """GradeStep forwards AI_BATCH pre_computed_results to GraderService.grade_from_tree."""
-        pre_computed = {"ai_code_review": TestResult("ai_code_review", 77, "good", "")}
-        pipeline_exec = self._make_pipeline_with_tree_and_ai_batch(pre_computed)
-        scope = EvaluationScope(scoped_files=["main.py"])
-        pipeline_exec.submission.evaluation_scope = scope
-
-        captured = {}
-
-        def _fake_grade_from_tree(**kwargs):
-            captured.update(kwargs)
-            # Return a minimal ResultTree
-            cat = CategoryResultNode(name="base", weight=100)
-            root = RootResultNode(name="root", base=cat)
-            return ResultTree(root)
-
-        with patch.object(GraderService, "grade_from_tree", side_effect=_fake_grade_from_tree):
-            GradeStep().execute(pipeline_exec)
-
-        assert captured.get("pre_computed_results") is pre_computed
-        assert captured.get("evaluation_scope") is scope
-
-    def test_pre_computed_results_is_none_when_no_ai_batch_step(self):
-        """When AI_BATCH step was not in the pipeline, None must be passed."""
-        tree = _build_criteria_tree_no_ai()
-        pipeline_exec = _make_pipeline_exec()
-
-        class _FakeTemplate(Template):
-            @property
-            def template_name(self):
-                return "fake"
-
-            @property
-            def template_description(self):
-                return "fake"
-
-            @property
-            def requires_sandbox(self):
-                return False
-
-            def get_test(self, name):
-                return None
-
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.LOAD_TEMPLATE, _FakeTemplate())
-        pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
-
-        captured = {}
-
-        def _fake_grade_from_tree(**kwargs):
-            captured.update(kwargs)
-            cat = CategoryResultNode(name="base", weight=100)
-            root = RootResultNode(name="root", base=cat)
-            return ResultTree(root)
-
-        with patch.object(GraderService, "grade_from_tree", side_effect=_fake_grade_from_tree):
-            GradeStep().execute(pipeline_exec)
-
-        assert captured.get("pre_computed_results") is None
 
 
 # ---------------------------------------------------------------------------

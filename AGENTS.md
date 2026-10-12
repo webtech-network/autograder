@@ -65,14 +65,19 @@ penalty subtracts `(100-score)/100 * cap`; final score clamps to 0–100.
 weight and criterion ID. Display names may repeat or contain slashes: they never
 identify AI batch outputs, result leaves, score vectors, or comparison deltas.
 
-The pipeline uses typed accessors on its internal mutable `PipelineExecution`:
+The runtime order lives in `AutograderPipeline.run` as explicit calls:
 
 ```
-LOAD_TEMPLATE → BUILD_TREE → SANDBOX? → PRE_FLIGHT? → AI_BATCH?
-              → GRADE → FOCUS → FEEDBACK?
+validate submission → acquire/prepare session? → batch AI?
+                    → grade → requested focus/feedback? → close → outcome
 ```
 
-Optional resource steps depend on selected tests/preparation, not merely other
+Compilation supplies the templates and criteria tree directly. Intermediate
+values are local arguments and return values, never stored in diagnostic events.
+The optional observer receives frozen observations with no grading data.
+Observer failures cannot alter the grade or execution order.
+
+Optional resources depend on selected tests/preparation, not merely other
 unused evaluators in a template. Batch AI results must exactly cover criterion
 IDs. There is no provider retry fallback or silent zero for missing assessments.
 
@@ -81,9 +86,11 @@ reported during evaluator assessment can produce a valid zero. Preparation
 failures stop before assessment. Optional focus/feedback/comparison failures
 preserve the completed grade with a separate enrichment status.
 
-`execution.outcome` is the immutable versioned terminal integration artifact.
-`execution.result` and step diagnostics are internal. Cleanup runs on all execution
-paths before returning to the adapter. Never publish mutable `PipelineExecution`.
+`evaluate_submission` returns the immutable versioned terminal artifact;
+`build_pipeline(...).run(...).outcome` retains a frozen return envelope.
+There is no mutable execution journal, artifact accessor or result reconstruction.
+Cleanup runs on every owned-session path before finalization. Cleanup errors
+reach host logging and the optional observer while preserving the grading outcome.
 See [OUTCOMES.md](docs/contracts/OUTCOMES.md) for the failure matrix and invariants.
 
 ## Adding an evaluator

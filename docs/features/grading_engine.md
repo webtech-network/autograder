@@ -151,27 +151,14 @@ This allows tests to operate on specific files (e.g., a `has_tag` test targeting
 
 Some templates include AI-powered tests that delegate evaluation to an LLM. These tests extend the `AiTestFunction` ABC (instead of `TestFunction` directly) and implement a `build_prompt()` method that describes what the AI should evaluate.
 
-AI test execution is handled by a dedicated pipeline step — `AiBatchStep` — that runs **before** the Grade step:
+AI assessment is an explicit function call before grading:
+`evaluate_ai_batch(criteria, submission, provider)` resolves selected files,
+builds prompts and returns assessments keyed by criterion ID.
 
-1. `AiBatchStep` walks the criteria tree and collects every `AiTestFunction` instance.
-2. It calls `build_prompt()` on each one to produce the evaluation prompt.
-3. All prompts are sent to the AI model in a **single batched request** via `AiExecutor.run()`.
-4. The results are stored as `Dict[test_name, TestResult]` in the step's `StepResult.data`.
-
-During grading, `GraderService` passes this dict as `pre_computed_results` to every `test_function.execute()` call. `AiTestFunction.execute()` looks up its test name in the dict and returns the pre-computed result directly — no further API call, no in-place mutation.
-
-```
-AiBatchStep                                    GradeStep
-  ├── Walk CriteriaTree                          ├── grade_from_tree(pre_computed_results=...)
-  ├── Collect AiTestFunction instances            │     └── process_test(pre_computed_results=...)
-  ├── build_prompt() for each                     │           └── test_func.execute(pre_computed_results=...)
-  ├── AiExecutor.run() → Dict[name, TestResult]   │                 └── return pre_computed[self.name]
-  └── Store in StepResult(AI_BATCH)               └── Build ResultTree with real scores
-```
-
-If no AI test functions exist in the criteria tree, `AiBatchStep` exits immediately with an empty dict and costs nothing.
-
-For standalone usage (e.g. unit tests without a full pipeline), `AiTestFunction.execute()` falls back to a single-test API call via `AiExecutor`, so AI tests remain independently executable.
+`GraderService` receives these values as `pre_computed_results`.
+`AiTestFunction.execute` retrieves its criterion ID's assessment. There is no
+journal lookup, provider retry or standalone provider fallback. Missing required
+assessments fail the grade; repeated display labels remain independent.
 
 ---
 
@@ -215,6 +202,5 @@ The `ResultTree` also provides utility methods:
 | `autograder/services/grader/grader_service.py` | `GraderService` — coordinator for the grading process |\n| `autograder/services/grader/criteria_grader.py` | `SubmissionGrader` — stateful tree traversal, test execution, weight balancing |
 | `autograder/models/result_tree.py` | `ResultTree`, `RootResultNode`, `CategoryResultNode`, `SubjectResultNode`, `TestResultNode` |
 | `autograder/models/criteria_tree.py` | `CriteriaTree`, `CategoryNode`, `SubjectNode`, `TestNode` |
-| `autograder/models/dataclass/grade_step_result.py` | `GradeStepResult` — wrapper for final score + result tree |
 | `autograder/models/dataclass/test_result.py` | `TestResult` — individual test execution output |
 | `autograder/services/command_resolver.py` | `CommandResolver` — multi-language command resolution |

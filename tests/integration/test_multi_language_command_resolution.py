@@ -325,6 +325,6 @@ class TestMultiLanguageCommandResolution:
         assert call2[1]['program_command'] == "./calc"
 
         # Verify final score is 100 (both tests passed)
-        assert execution.result is not None
-        assert execution.result.final_score == 100.0
+        assert execution.outcome.tree is not None
+        assert execution.outcome.score == 100.0
 

@@ -133,7 +133,7 @@ class TestEvaluationScopeIntegration:
         execution = pipeline.run(submission)
 
         # Pipeline should succeed
-        assert execution.result is not None
+        assert execution.outcome.tree is not None
 
         assert execution.outcome.status == "completed"
         assert execution.outcome.score == 0
@@ -196,7 +196,7 @@ class TestEvaluationScopeIntegration:
         )
         execution = pipeline.run(submission)
 
-        assert execution.result is not None
+        assert execution.outcome.tree is not None
 
         assert execution.outcome.status == "completed"
         assert execution.outcome.score == 100
@@ -264,9 +264,9 @@ class TestChangedLinesIntegration:
         )
         execution = pipeline.run(submission)
 
-        assert execution.result is not None
+        assert execution.outcome.tree is not None
 
-        assert execution.submission.submission_files["main.py"].changed_lines == {1, 2}
+        assert submission.submission_files["main.py"].changed_lines == {1, 2}
 
     def test_no_changed_lines_still_works(self):
         """Submission without changed_lines → pipeline works normally, is_contribution_aware=False."""
@@ -293,10 +293,10 @@ class TestChangedLinesIntegration:
         )
         execution = pipeline.run(submission)
 
-        assert execution.result is not None
-        assert execution.result.final_score == 100.0
+        assert execution.outcome.tree is not None
+        assert execution.outcome.score == 100.0
 
-        assert execution.submission.submission_files["main.py"].changed_lines is None
+        assert submission.submission_files["main.py"].changed_lines is None
 
     def test_changed_lines_set_means_contribution_aware(self):
         """SubmissionFile with changed_lines set → is_contribution_aware is True."""

@@ -22,12 +22,14 @@ from tests.unit.pipeline.test_terminal_outcome import definition, submission
 def test_comparison_of_real_runs(before, after, delta):
     pipeline = build_pipeline(definition=definition())
     baseline, head = pipeline.run(submission(before)), pipeline.run(submission(after))
-    comparison = ResultComparator.compare(baseline.result.result_tree, head.result.result_tree)
+    baseline_tree = ResultTree.from_dict(baseline.outcome.tree.model_dump(mode="json"))
+    head_tree = ResultTree.from_dict(head.outcome.tree.model_dump(mode="json"))
+    comparison = ResultComparator.compare(baseline_tree, head_tree)
     assert comparison.score_delta == delta
     assert comparison.test_deltas[0].path == 'imports'
     enriched = head.outcome.model_copy(update={'comparison':ComparisonOutcome(status='completed', content=comparison.to_dict())})
     assert validate_outcome(enriched.model_dump(mode='json')).comparison.content.score_delta == delta
-    assert outcome_score_vector(head.outcome) == head.result.result_tree.to_score_vector()
+    assert outcome_score_vector(head.outcome) == head_tree.to_score_vector()
 
 
 def test_tree_roundtrip_and_renamed_groups_preserve_join_identity():
@@ -37,7 +39,7 @@ def test_tree_roundtrip_and_renamed_groups_preserve_join_identity():
     baseline = build_pipeline(definition=original).run(submission('import os'))
     head = build_pipeline(definition=renamed).run(submission('print(1)'))
     reconstructed = ResultTree.from_dict(baseline.outcome.tree.model_dump(mode='json'))
-    comparison = ResultComparator.compare(reconstructed, head.result.result_tree)
+    comparison = ResultComparator.compare(reconstructed, ResultTree.from_dict(head.outcome.tree.model_dump(mode="json")))
     assert len(comparison.test_deltas) == 1
     assert comparison.test_deltas[0].path == 'imports'
     assert comparison.test_deltas[0].status == 'improved'

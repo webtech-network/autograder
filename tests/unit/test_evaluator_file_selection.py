@@ -11,7 +11,7 @@ from autograder.models.evaluation_error import EvaluationError
 from autograder.services.file_selection import select_files
 from autograder.services.grader.grader_service import GraderService
 from autograder.services.structural_analysis import StructuralAnalysisCache
-from autograder.steps.ai_batch_step import AiBatchStep
+from autograder.services.ai_batch import evaluate_ai_batch
 from autograder.template_library.static_analysis import AiSortingAlgorithmTest, ForbiddenKeywordTest
 from autograder.template_library.input_output import DontFailTest
 from autograder.template_library.api_testing import HealthCheckTest
@@ -97,12 +97,16 @@ def test_ai_and_ordinary_assessment_share_scoped_selection():
     scope = EvaluationScope(scoped_files=["a.py"])
     test = criterion(AiSortingAlgorithmTest(), parameters={"algorithm_name": "merge sort"})
     tree = CriteriaTree(base=CategoryNode("base", 100, tests=[test]))
-    entries = AiBatchStep()._collect_ai_tests(tree, submitted, scope, Language.PYTHON)  # pylint: disable=protected-access
-    assert entries[0][1] == select_files(test, submitted, scope, Language.PYTHON)
-    assert [f.filename for f in entries[0][1]] == ["a.py"]
+    provider = MagicMock()
+    provider.run.return_value = {"check": MagicMock()}
+    with patch.object(test.test_function, "build_prompt", return_value="review") as prompt:
+        evaluate_ai_batch(tree, submission(submitted, scope), provider)
+    selected = prompt.call_args.args[0]
+    assert selected == select_files(test, submitted, scope, Language.PYTHON)
+    assert [f.filename for f in selected] == ["a.py"]
     test.file_target = ["b.py"]
     with pytest.raises(EvaluationError) as error:
-        AiBatchStep()._collect_ai_tests(tree, submitted, scope, Language.PYTHON)  # pylint: disable=protected-access
+        evaluate_ai_batch(tree, submission(submitted, scope), provider)
     assert error.value.code == "FILE_TARGET_CONFLICT"
 
 

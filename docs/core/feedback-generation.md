@@ -20,16 +20,14 @@ A grading system is educational only when results are understandable and actiona
 ... -> GRADE -> FOCUS -> FEEDBACK -> ...
 ```
 
-Feedback runs only when `include_feedback=True`.
+Feedback and focus run only when the definition has `feedback.enabled=true`.
 
 ## How it works
 
-1. `FeedbackStep` reads focus and result tree from `PipelineExecution`.
-2. `ReporterService` selects reporter mode:
-   - `default` -> `DefaultReporter`
-   - `ai` -> `AiReporter` (not implemented yet)
-3. Preferences are parsed from `feedback_config`.
-4. Reporter returns Markdown content.
+1. The coordinator passes the completed result tree to `FocusService.find`.
+2. `ReporterService` receives that focus, tree, preferences and locale directly.
+3. The supported `default` reporter returns Markdown content.
+4. Exceptions or missing content mark feedback failed and preserve the grade.
 
 ## Educational quality patterns
 
@@ -42,7 +40,7 @@ High-quality reports should:
 
 ## Linking resources to criteria
 
-`online_content` resources can be linked to specific test names. This lets the report include remediation links only when relevant tests fail.
+`online_content` resources can be linked to stable criterion IDs. This lets the report include remediation links only when relevant tests fail.
 
 ## Common mistakes
 
