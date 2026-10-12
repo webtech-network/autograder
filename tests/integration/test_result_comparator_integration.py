@@ -1,6 +1,7 @@
 """Real grading runs and round trips retain criterion identity and weighted scores."""
 from copy import deepcopy
-from unittest.mock import patch
+from unittest.mock import Mock
+from autograder.models.capabilities import HostCapabilities
 
 import pytest
 from pydantic import BaseModel, ConfigDict
@@ -107,26 +108,25 @@ def ai_definition():
 
 
 def test_repeated_ai_evaluator_outputs_are_bound_to_criterion_ids():
-    pipeline = build_pipeline(definition=ai_definition(), templates={'review':ReviewTemplate()})
-    with patch('autograder.steps.ai_batch_step.AiExecutor') as executor:
-        executor.return_value.run.return_value={'first':TestResult('first',100,''),'second':TestResult('second',0,'')}
-        execution = pipeline.run(submission('print(1)'))
+    provider = Mock()
+    pipeline = build_pipeline(definition=ai_definition(), templates={'review':ReviewTemplate()}, capabilities=HostCapabilities(ai=provider))
+    provider.run.return_value={'first':TestResult('first',100,''),'second':TestResult('second',0,'')}
+    execution = pipeline.run(submission('print(1)'))
     assert execution.outcome.status == 'completed' and execution.outcome.score == 50
     assert outcome_score_vector(execution.outcome) == {'first':100,'second':0}
-    inputs = executor.return_value.run.call_args.args[0]
+    inputs = provider.run.call_args.args[0]
     assert [item.test_name for item in inputs] == ['first','second']
-    executor.return_value.run.assert_called_once()
+    provider.run.assert_called_once()
 
 
 def test_missing_ai_assessment_fails_once_without_fallback_or_zero_grade():
-    pipeline = build_pipeline(definition=ai_definition(), templates={'review':ReviewTemplate()})
-    with patch('autograder.steps.ai_batch_step.AiExecutor') as executor, patch('autograder.models.abstract.ai_test_function.AiExecutor') as fallback:
-        executor.return_value.run.return_value={'first':TestResult('first',100,'')}
-        execution = pipeline.run(submission('print(1)'))
+    provider = Mock()
+    pipeline = build_pipeline(definition=ai_definition(), templates={'review':ReviewTemplate()}, capabilities=HostCapabilities(ai=provider))
+    provider.run.return_value={'first':TestResult('first',100,'')}
+    execution = pipeline.run(submission('print(1)'))
     assert execution.outcome.status == 'failed' and execution.outcome.score is None
     assert execution.outcome.error.code == 'MISSING_EVALUATOR_RESULT'
-    executor.return_value.run.assert_called_once()
-    fallback.assert_not_called()
+    provider.run.assert_called_once()
 
 
 @pytest.mark.parametrize('weights', [[0,0], [1e308,1e308], [1e-300,1e-300], [1,3]])

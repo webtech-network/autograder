@@ -36,7 +36,8 @@ from autograder.models.result_tree import CategoryResultNode, ResultTree, RootRe
 from autograder.services.grader.grader_service import GraderService
 from autograder.steps.ai_batch_step import AiBatchStep
 from autograder.steps.grade_step import GradeStep
-from autograder.utils.executors.ai_executor import AiExecutor, TestInput, TestOutput
+from execution_host.openai_provider import AiExecutor, TestInput, TestOutput
+from autograder.models.capabilities import HostCapabilities
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +58,9 @@ def _make_submission(files: Optional[Dict[str, str]] = None) -> Submission:
 
 
 def _make_pipeline_exec(submission: Optional[Submission] = None) -> PipelineExecution:
-    return PipelineExecution.start_execution(submission or _make_submission())
+    execution = PipelineExecution.start_execution(submission or _make_submission())
+    execution.capabilities = HostCapabilities(ai=MagicMock())
+    return execution
 
 
 def _inject_step_result(pipeline_exec: PipelineExecution, step_name: StepName, data) -> PipelineExecution:
@@ -110,31 +113,12 @@ class TestAiTestFunctionPreComputedPath:
 
     def test_missing_precomputed_result_does_not_retry(self):
         func = _ConcreteAiTest()
-        with patch("autograder.models.abstract.ai_test_function.AiExecutor") as executor:
-            with pytest.raises(EvaluationError, match="required AI assessment"):
-                func.execute(files=[], sandbox=None, criterion_id="ai_code_review", pre_computed_results={"other": TestResult("x", 100, "")})
-        executor.assert_not_called()
+        with pytest.raises(EvaluationError, match="required AI assessment"):
+            func.execute(files=[], sandbox=None, criterion_id="ai_code_review", pre_computed_results={"other": TestResult("x", 100, "")})
 
-    def test_fallback_called_when_no_precomputed(self):
-        """Fallback path is invoked when no pre_computed_results are provided."""
-        func = _ConcreteAiTest()
-        fallback_result = TestResult(
-            test_name="ai_code_review", score=70.0, report="Fallback.", subject_name=""
-        )
-
-        with patch(
-            "autograder.models.abstract.ai_test_function.AiExecutor"
-        ) as mock_executor:
-            mock_executor.return_value.run.return_value = {"ai_code_review": fallback_result}
-            result = func.execute(files=[], sandbox=None, criterion_id="ai_code_review")
-
-        assert result is fallback_result
-
-    def test_standalone_missing_result_fails_without_numeric_grade(self):
-        with patch("autograder.models.abstract.ai_test_function.AiExecutor") as executor:
-            executor.return_value.run.return_value = {}
-            with pytest.raises(EvaluationError):
-                _ConcreteAiTest().execute(files=None, sandbox=None, criterion_id="ai_code_review")
+    def test_standalone_requires_host_provider(self):
+        with pytest.raises(EvaluationError, match="host-supplied"):
+            _ConcreteAiTest().execute(files=None, sandbox=None, criterion_id="ai_code_review")
 
 
 # ---------------------------------------------------------------------------
@@ -203,10 +187,8 @@ class TestAiBatchStep:
             test_name="ai_code_review", score=90.0, report="Nice.", subject_name=""
         )
 
-        with patch(
-            "autograder.steps.ai_batch_step.AiExecutor"
-        ) as mock_executor:
-            mock_executor.return_value.run.return_value = {"ai_code_review": expected_ai_result}
+        with patch.object(pipeline_exec.capabilities.ai, "run") as run:
+            run.return_value = {"ai_code_review": expected_ai_result}
             result_exec = AiBatchStep().execute(pipeline_exec)
 
         assert result_exec.has_step_result(StepName.AI_BATCH)
@@ -221,12 +203,11 @@ class TestAiBatchStep:
         pipeline_exec = _make_pipeline_exec(submission)
         pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
 
-        with patch("autograder.steps.ai_batch_step.AiExecutor") as mock_executor:
-            mock_executor.return_value.run.return_value = {}
+        with patch.object(pipeline_exec.capabilities.ai, "run") as run:
+            run.return_value = {}
             AiBatchStep().execute(pipeline_exec)
 
-        _executor_instance = mock_executor.return_value
-        call_args = _executor_instance.run.call_args
+        call_args = run.call_args
         # Second positional arg is the submission_files dict
         files_passed = call_args[0][1]
         assert "main.py" in files_passed
@@ -239,8 +220,8 @@ class TestAiBatchStep:
         pipeline_exec = _make_pipeline_exec()
         pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
 
-        with patch("autograder.steps.ai_batch_step.AiExecutor") as mock_executor:
-            mock_executor.return_value.run.return_value = {}
+        with patch.object(pipeline_exec.capabilities.ai, "run") as run:
+            run.return_value = {}
             result_exec = AiBatchStep().execute(pipeline_exec)
 
         assert not result_exec.get_ai_batch_results()
@@ -271,11 +252,11 @@ class TestAiBatchStep:
         pipeline_exec = _make_pipeline_exec()
         pipeline_exec = _inject_step_result(pipeline_exec, StepName.BUILD_TREE, tree)
 
-        with patch("autograder.steps.ai_batch_step.AiExecutor") as mock_executor:
-            mock_executor.return_value.run.return_value = {}
+        with patch.object(pipeline_exec.capabilities.ai, "run") as run:
+            run.return_value = {}
             AiBatchStep().execute(pipeline_exec)
 
-        call_args = mock_executor.return_value.run.call_args
+        call_args = run.call_args
         test_inputs = call_args[0][0]  # first positional arg is List[TestInput]
         names = [ti.test_name for ti in test_inputs]
         assert "first" in names

@@ -1,10 +1,10 @@
 """Template library endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from autograder.models.contracts.catalog import TemplateCatalog, TemplateDescription
 from web.config.logging import get_logger
-from web.core.lifespan import get_template_service
+from web.api.deps import get_host
 
 
 logger = get_logger(__name__)
@@ -12,10 +12,10 @@ router = APIRouter(prefix="/templates", tags=["Templates"])
 
 
 @router.get("", response_model=TemplateCatalog)
-async def list_templates() -> TemplateCatalog:
+async def list_templates(host=Depends(get_host)) -> TemplateCatalog:
     """List built-in templates with evaluator parameter schemas, samples and capabilities."""
     logger.info("Listing all available grading templates")
-    template_service = get_template_service()
+    template_service = host.templates
 
     if not template_service:
         logger.error("Template service not initialized when listing templates")
@@ -27,10 +27,10 @@ async def list_templates() -> TemplateCatalog:
 
 
 @router.get("/{template_name}", response_model=TemplateDescription)
-async def get_template_info(template_name: str) -> TemplateDescription:
+async def get_template_info(template_name: str, host=Depends(get_host)) -> TemplateDescription:
     """Get information about a specific template."""
     logger.info("Fetching template info: template=%s", template_name)
-    template_service = get_template_service()
+    template_service = host.templates
 
     if not template_service:
         logger.error("Template service not initialized when fetching template: template=%s", template_name)

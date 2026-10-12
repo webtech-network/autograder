@@ -3,11 +3,10 @@
 from unittest.mock import MagicMock
 import pytest
 from autograder.models.evaluation_error import EvaluationError
-from pydantic import ValidationError
 
 from autograder.template_library.static_analysis import ForbiddenKeywordTest, StaticAnalysisTemplate, ForbiddenKeywordConfig
 from autograder.models.dataclass.submission import SubmissionFile
-from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
+from autograder.services.structural_analysis import StructuralAnalysisCache
 from sandbox_manager.models.sandbox_models import Language
 
 
@@ -87,11 +86,7 @@ class TestForbiddenKeywordExecution:
 
     def test_unavailable_analysis_gives_0(self):
         """Unavailable structural analysis should fail explicitly."""
-        sa_result = StructuralAnalysisResult(
-            roots={},
-            available=False,
-            reason="ast_grep_unavailable",
-        )
+        sa_result = MagicMock(root_for=MagicMock(side_effect=EvaluationError("CAPABILITY_UNAVAILABLE", "Unavailable", "capability")))
         with pytest.raises(EvaluationError):
             self.test_fn.execute(
                 [SubmissionFile("main.py", "for i in range(10): pass")],
@@ -103,7 +98,7 @@ class TestForbiddenKeywordExecution:
 
     def test_no_language_gives_0(self):
         """Test that missing language returns score 0."""
-        sa_result = StructuralAnalysisResult(roots={})
+        sa_result = StructuralAnalysisCache()
         with pytest.raises(EvaluationError):
             self.test_fn.execute([], None,
                                          forbidden_keywords=["for_loop"],
@@ -111,7 +106,7 @@ class TestForbiddenKeywordExecution:
 
     def test_no_files_gives_100(self):
         """Test that empty file list returns full score."""
-        sa_result = StructuralAnalysisResult(roots={})
+        sa_result = StructuralAnalysisCache()
         result = self.test_fn.execute([], None,
                                      forbidden_keywords=["for_loop"],
                                      structural_analysis=sa_result,
@@ -125,7 +120,7 @@ class TestForbiddenKeywordExecution:
         mock_match = MagicMock()
         mock_root.root().find_all.return_value = [mock_match]
 
-        sa_result = StructuralAnalysisResult(roots={"main.py": mock_root})
+        sa_result = MagicMock(root_for=MagicMock(return_value=mock_root))
         files = [SubmissionFile("main.py", "for i in range(10): pass")]
         
         result = self.test_fn.execute(files, None,
@@ -142,7 +137,7 @@ class TestForbiddenKeywordExecution:
         mock_root = MagicMock()
         mock_root.root().find_all.return_value = [MagicMock()]
 
-        sa_result = StructuralAnalysisResult(roots={"main.py": mock_root})
+        sa_result = MagicMock(root_for=MagicMock(return_value=mock_root))
         files = [SubmissionFile("main.py", "if True: pass")]
         custom_rules = [{"kind": "if_statement"}]
         
@@ -159,7 +154,7 @@ class TestForbiddenKeywordExecution:
         mock_root = MagicMock()
         mock_root.root().find_all.return_value = []
 
-        sa_result = StructuralAnalysisResult(roots={"main.py": mock_root})
+        sa_result = MagicMock(root_for=MagicMock(return_value=mock_root))
         files = [SubmissionFile("main.py", "x = 1")]
         
         result = self.test_fn.execute(files, None,
@@ -171,7 +166,7 @@ class TestForbiddenKeywordExecution:
 
     def test_missing_roots_for_target_file_gives_0(self):
         """If target files have no parsed roots, the test should fail as no-analysis."""
-        sa_result = StructuralAnalysisResult(roots={})
+        sa_result = MagicMock(root_for=MagicMock(side_effect=EvaluationError("CAPABILITY_UNAVAILABLE", "Unavailable", "capability")))
         files = [SubmissionFile("main.py", "for i in range(10): pass")]
         with pytest.raises(EvaluationError):
             self.test_fn.execute(

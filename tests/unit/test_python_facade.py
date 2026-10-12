@@ -17,8 +17,8 @@ def test_documented_custom_evaluator_and_catalog_need_no_external_capabilities(m
 
     monkeypatch.setattr("socket.socket.connect", unavailable)
     monkeypatch.setattr("sandbox_manager.manager.get_sandbox_manager", unavailable)
-    monkeypatch.setattr("autograder.utils.executors.ai_executor.AiExecutor.__init__", unavailable)
-    monkeypatch.setattr("autograder.utils.secrets_fetcher.get_secret", unavailable)
+    monkeypatch.setattr("execution_host.openai_provider.AiExecutor.__init__", unavailable)
+    monkeypatch.setattr("execution_host.secrets.fetch_secret", unavailable)
     assert describe_templates().templates
     assert grade("<h1>Hello</h1>").score == 100
     missing = grade("<h1>Goodbye</h1>")

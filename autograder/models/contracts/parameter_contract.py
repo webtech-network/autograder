@@ -4,7 +4,7 @@ from typing import Annotated, Any, get_type_hints
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
 RUNTIME_PARAMETERS = frozenset({"files", "sandbox", "submission_files", "submission_language",
-    "structural_analysis", "locale", "evaluation_scope", "file_metadata", "pre_computed_results", "criterion_id", "precomputed_results"})
+    "structural_analysis", "context_files", "locale", "evaluation_scope", "file_metadata", "pre_computed_results", "criterion_id", "precomputed_results"})
 
 
 def signature_contract(function) -> type[BaseModel]:

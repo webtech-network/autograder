@@ -102,8 +102,10 @@ terminal outcome. Trusted instantiated `Template` objects may be injected by
 identifier and retained through recompilation. JSON transports accept built-in
 identifiers only. No uploaded code or dynamic plugin loader is supported.
 
-The current facade uses existing host configuration. Host-supplied resource
-interfaces and ownership remain INT-14 work. See [CATALOG.md](CATALOG.md) for the
+The facade accepts explicit host capabilities. Providers are borrowed; returned
+execution sessions belong to one run and close before finalization. Selected
+language, selected evaluator instances and selected preparation drive one
+requirements decision. See [CAPABILITIES.md](CAPABILITIES.md). See [CATALOG.md](CATALOG.md) for the
 INT-11 implementation contract, deployment assumptions, migration and issue
 coordination; internal pipeline classes are not a compatibility promise.
 
@@ -121,3 +123,19 @@ does not cancel its single worker; the worker owns cleanup. See the
 [execution contract](../features/deliberate_code_execution.md) for limits and
 the error matrix. The response deadline does not impose a hard deadline on
 blocked Docker or asset-provider calls.
+
+## Assessment inputs
+
+[File selection](FILES.md) is shared by ordinary and AI assessment. Structural
+parsing belongs to the static evaluator and is cached only within one grading
+traversal; there is no pipeline-wide structural-analysis stage. Explicit targets
+and required file counts fail clearly rather than silently omitting criteria.
+
+## Submission inputs and evaluator files
+
+HTTP and Actions share bounded canonical UTF-8 input validation outside the core.
+Accepted source is preserved exactly; no implicit path, encoding or newline
+normalization is performed. File metadata and changed-line absence survive
+authenticated details. Scope is a validated subset of source names, not a privacy
+boundary. See [SUBMISSIONS.md](SUBMISSIONS.md) for limits and client migration and
+[FILES.md](FILES.md) for assessment targets versus execution/context files.

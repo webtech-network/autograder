@@ -11,65 +11,8 @@ from unittest.mock import Mock, patch, AsyncMock
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import StaticPool
 from web.database.base import Base
-from web.database import session
 
 
-@pytest.fixture(scope="module", autouse=True)
-def mock_external_services():
-    """Mock external services for all tests."""
-    with patch("web.core.lifespan.initialize_sandbox_manager"), patch(
-        "web.core.lifespan.TemplateLibraryService"
-    ) as mock_template, patch(
-        "web.core.lifespan.SandboxPoolConfig.load_from_yaml", return_value=[]
-    ):
-        mock_service = Mock()
-        mock_service.get_all_templates_info = Mock(
-            return_value=[
-                {"name": "webdev", "description": "Web development grading"},
-                {"name": "input_output", "description": "Input/output testing"},
-            ]
-        )
-        mock_service.get_template_info = Mock(
-            return_value={
-                "name": "webdev",
-                "description": "Web development grading",
-                "supported_languages": ["python", "javascript"],
-            }
-        )
-        mock_template.get_instance.return_value = mock_service
-        yield
-
-
-from web.main import app
-
-
-@pytest.fixture
-async def test_db():
-    """Create a fresh test database for each test."""
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    old_session_maker = session.AsyncSessionLocal
-    session.AsyncSessionLocal = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
-    session.engine = engine
-    yield engine
-    session.AsyncSessionLocal = old_session_maker
-    await engine.dispose()
-
-
-@pytest.fixture
-async def client(test_db):
-    """Create test client."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
-        yield ac
 
 
 class TestHealthEndpoints:
@@ -99,17 +42,15 @@ class TestTemplateEndpoints:
     """Test template-related endpoints."""
 
     @pytest.mark.asyncio
-    async def test_list_templates(self, client):
+    async def test_list_templates(self, client, application):
         """Test GET /api/v1/templates."""
-        with patch("web.api.v1.templates.get_template_service") as mock_get:
-            mock_service = Mock()
+        with patch.object(application.state.host, "templates") as mock_service:
             mock_service.get_all_templates_info = Mock(
                 return_value=[
                     {"identifier": "webdev", "name": "Web dev", "description": "Web dev", "requires_sandbox": False, "evaluators": []},
                     {"identifier": "api", "name": "API testing", "description": "API testing", "requires_sandbox": True, "evaluators": []},
                 ]
             )
-            mock_get.return_value = mock_service
             response = await client.get("/api/v1/templates")
             assert response.status_code == 200
             data = response.json()
@@ -117,10 +58,9 @@ class TestTemplateEndpoints:
             assert len(data["templates"]) == 2
 
     @pytest.mark.asyncio
-    async def test_get_template_info(self, client):
+    async def test_get_template_info(self, client, application):
         """Test GET /api/v1/templates/{name}."""
-        with patch("web.api.v1.templates.get_template_service") as mock_get:
-            mock_service = Mock()
+        with patch.object(application.state.host, "templates") as mock_service:
             mock_service.get_template_info = Mock(
                 return_value={
                     "identifier": "webdev",
@@ -130,7 +70,6 @@ class TestTemplateEndpoints:
                     "evaluators": [],
                 }
             )
-            mock_get.return_value = mock_service
             response = await client.get("/api/v1/templates/webdev")
             assert response.status_code == 200
             data = response.json()
@@ -139,14 +78,12 @@ class TestTemplateEndpoints:
             assert "evaluators" in data
 
     @pytest.mark.asyncio
-    async def test_get_nonexistent_template(self, client):
+    async def test_get_nonexistent_template(self, client, application):
         """Test GET /api/v1/templates/{name} with invalid template."""
-        with patch("web.api.v1.templates.get_template_service") as mock_get:
-            mock_service = Mock()
+        with patch.object(application.state.host, "templates") as mock_service:
             mock_service.get_template_info = Mock(
                 side_effect=KeyError("Template not found")
             )
-            mock_get.return_value = mock_service
             response = await client.get("/api/v1/templates/nonexistent")
             assert response.status_code == 404
 
@@ -248,64 +185,53 @@ class TestSubmissionEndpoints:
             "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-        mock_grading_tasks = set()
-        with patch(
-            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
-        ) as mock_grade, patch(
-            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
-        ):
-            submission_data = {
-                "external_assignment_id": "submit-test-1",
-                "external_user_id": "user_001",
-                "username": "student1",
-                "files": [{"filename": "main.py", "content": "print('hello')"}],
-            }
-            response = await client.post("/api/v1/submissions", json=submission_data)
-            assert response.status_code == 200
-            data = response.json()
-            assert data["id"] is not None
-            assert data["username"] == "student1"
-            assert data["status"] == "pending"
+        submission_data = {
+            "external_assignment_id": "submit-test-1",
+            "external_user_id": "user_001",
+            "username": "student1",
+            "files": [{"filename": "main.py", "content": "print('hello')"}],
+        }
+        response = await client.post("/api/v1/submissions", json=submission_data)
+        assert response.status_code == 202
+        data = response.json()
+        assert data["id"] is not None
+        assert data["username"] == "student1"
+        assert data["status"] == "pending"
 
     @pytest.mark.asyncio
-    async def test_create_submission_persists_evaluation_context(self, client):
+    async def test_create_submission_persists_evaluation_context(self, client, application):
         """Scope, changed lines, and file metadata reach the grading request."""
         config_data = {
             "external_assignment_id": "submit-scope-test",
             "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-        mock_grading_tasks = set()
-        with patch(
-            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
-        ) as mock_grade, patch(
-            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
-        ):
-            response = await client.post(
-                "/api/v1/submissions",
-                json={
-                    "external_assignment_id": "submit-scope-test",
-                    "external_user_id": "user_scope",
-                    "username": "student_scope",
-                    "files": [
-                        {
-                            "filename": "main.py",
-                            "content": "print('hello')",
-                            "changed_lines": [1],
-                            "file_metadata": {"change_status": "modified"},
-                        }
-                    ],
-                    "evaluation_scope": {"scoped_files": ["main.py"]},
-                },
-            )
-            assert response.status_code == 200
-            mock_grade.assert_called_once()
-            grading_request = mock_grade.call_args.args[0]
-            assert grading_request.submission_files["main.py"]["changed_lines"] == [1]
-            assert grading_request.submission_files["main.py"]["file_metadata"] == {
-                "change_status": "modified"
-            }
-            assert grading_request.evaluation_scope == {"scoped_files": ["main.py"]}
+        response = await client.post(
+            "/api/v1/submissions",
+            json={
+                "external_assignment_id": "submit-scope-test",
+                "external_user_id": "user_scope",
+                "username": "student_scope",
+                "files": [
+                    {
+                        "filename": "main.py",
+                        "content": "print('hello')",
+                        "changed_lines": [1],
+                        "file_metadata": {"change_status": "modified"},
+                    }
+                ],
+                "evaluation_scope": {"scoped_files": ["main.py"]},
+            },
+        )
+        assert response.status_code == 202
+        async with application.state.host.sessions() as session:
+            from web.database.models.submission import Submission
+            grading_request = await session.get(Submission, response.json()["id"])
+        assert grading_request.submission_files["main.py"]["changed_lines"] == [1]
+        assert grading_request.submission_files["main.py"]["file_metadata"] == {
+            "change_status": "modified"
+        }
+        assert grading_request.evaluation_scope == {"scoped_files": ["main.py"]}
 
     @pytest.mark.asyncio
     async def test_create_submission_with_language(self, client):
@@ -315,23 +241,17 @@ class TestSubmissionEndpoints:
             "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-        mock_grading_tasks = set()
-        with patch(
-            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
-        ), patch(
-            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
-        ):
-            submission_data = {
-                "external_assignment_id": "submit-lang-test",
-                "external_user_id": "user_002",
-                "username": "student2",
-                "language": "python",
-                "files": [{"filename": "Main.java", "content": "public class Main {}"}],
-            }
-            response = await client.post("/api/v1/submissions", json=submission_data)
-            assert response.status_code == 200
-            data = response.json()
-            assert data["language"] == "python"
+        submission_data = {
+            "external_assignment_id": "submit-lang-test",
+            "external_user_id": "user_002",
+            "username": "student2",
+            "language": "python",
+            "files": [{"filename": "Main.java", "content": "public class Main {}"}],
+        }
+        response = await client.post("/api/v1/submissions", json=submission_data)
+        assert response.status_code == 202
+        data = response.json()
+        assert data["language"] == "python"
 
     @pytest.mark.asyncio
     async def test_create_submission_invalid_language(self, client):
@@ -361,28 +281,22 @@ class TestSubmissionEndpoints:
             "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-        mock_grading_tasks = set()
-        with patch(
-            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
-        ), patch(
-            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
-        ):
-            submission_data = {
-                "external_assignment_id": "get-submit-test",
-                "external_user_id": "user_004",
-                "username": "student4",
-                "files": [{"filename": "main.py", "content": "print('test')"}],
-            }
-            create_response = await client.post(
-                "/api/v1/submissions", json=submission_data
-            )
-            submission_id = create_response.json()["id"]
-            response = await client.get(f"/api/v1/submissions/{submission_id}")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["id"] == submission_id
-            assert data["username"] == "student4"
-            assert "submission_files" not in data
+        submission_data = {
+            "external_assignment_id": "get-submit-test",
+            "external_user_id": "user_004",
+            "username": "student4",
+            "files": [{"filename": "main.py", "content": "print('test')"}],
+        }
+        create_response = await client.post(
+            "/api/v1/submissions", json=submission_data
+        )
+        submission_id = create_response.json()["id"]
+        response = await client.get(f"/api/v1/submissions/{submission_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == submission_id
+        assert data["username"] == "student4"
+        assert "submission_files" not in data
 
     @pytest.mark.asyncio
     async def test_get_user_submissions(self, client):
@@ -392,23 +306,17 @@ class TestSubmissionEndpoints:
             "definition": definition(),
         }
         await client.post("/api/v1/configs", json=config_data)
-        mock_grading_tasks = set()
-        with patch(
-            "web.api.v1.submissions.grade_submission", new_callable=AsyncMock
-        ), patch(
-            "web.api.v1.submissions.get_grading_tasks", return_value=mock_grading_tasks
-        ):
-            for i in range(3):
-                submission_data = {
-                    "external_assignment_id": "user-submits-test",
-                    "external_user_id": "user_multi",
-                    "username": "student_multi",
-                    "files": [{"filename": "main.py", "content": f"print({i})"}],
-                }
-                await client.post("/api/v1/submissions", json=submission_data)
-            response = await client.get("/api/v1/submissions/user/user_multi")
-            assert response.status_code == 200
-            data = response.json()
-            assert isinstance(data, list)
-            assert len(data) >= 3
-            assert all((s["external_user_id"] == "user_multi" for s in data))
+        for i in range(3):
+            submission_data = {
+                "external_assignment_id": "user-submits-test",
+                "external_user_id": "user_multi",
+                "username": "student_multi",
+                "files": [{"filename": "main.py", "content": f"print({i})"}],
+            }
+            await client.post("/api/v1/submissions", json=submission_data)
+        response = await client.get("/api/v1/submissions/user/user_multi")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 3
+        assert all((s["external_user_id"] == "user_multi" for s in data))

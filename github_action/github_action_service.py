@@ -1,5 +1,6 @@
 """One-submission Actions adapter; credentials never enter grading identity."""
 import json
+import logging
 from pathlib import Path
 
 from autograder.autograder import build_pipeline
@@ -10,8 +11,12 @@ from github_action.cloud_client import CloudClient
 from github_action.cloud_exporter import CloudPublisher
 
 
+logger = logging.getLogger(__name__)
+
+
 class GithubActionService:
     def __init__(self):
+        self.host = None
         self.publisher = None
         self.language = None
         self.locale = "en"
@@ -43,14 +48,24 @@ class GithubActionService:
             )
         if upload_to_cloud:
             self.publisher = CloudPublisher(client, config["id"], compiled.definition)
-        return build_pipeline(definition=compiled, locale=locale, provenance=provenance)
+        from execution_host.docker import DockerHost
+        self.host = DockerHost.from_environment()
+        return build_pipeline(definition=compiled, locale=locale, provenance=provenance,
+                              capabilities=self.host.capabilities)
 
     def run_autograder(self, pipeline, user_name, submission_files):
         submission = Submission(
             username=user_name, user_id=user_name, assignment_id=self.assignment_id,
             submission_files=submission_files, language=self.language, locale=self.locale,
         )
-        return pipeline.run(submission).outcome
+        try:
+            return pipeline.run(submission).outcome
+        finally:
+            if self.host is not None:
+                try:
+                    self.host.close()
+                except Exception:
+                    logger.exception("Actions host cleanup failed after grading")
 
     def delivery_payload(self, outcome, user_name):
         if self.publisher is None:

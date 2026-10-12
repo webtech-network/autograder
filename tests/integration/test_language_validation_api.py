@@ -1,7 +1,7 @@
 """Definition validation is an HTTP seam and requires no sandbox provisioning."""
 
 import pytest
-from tests.web.conftest import db_engine, test_client
+from tests.web.conftest import db_engine, session_factory, application, test_client  # pylint: disable=unused-import
 from tests.web.test_contracts_v1 import definition
 
 

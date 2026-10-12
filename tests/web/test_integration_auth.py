@@ -6,81 +6,14 @@ from httpx import AsyncClient, ASGITransport
 from unittest.mock import Mock, patch
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import StaticPool
-import web.config.auth as auth_module
-from web.config.auth import IntegrationAuthConfig
 from web.database.base import Base
-from web.database import session
 
 TEST_TOKEN = "test-integration-secret-token-abc123"
 
 
-@pytest.fixture(scope="module", autouse=True)
-def mock_external_services():
-    """Mock external services for all tests."""
-    with patch("web.core.lifespan.initialize_sandbox_manager"), patch(
-        "web.core.lifespan.TemplateLibraryService"
-    ) as mock_template, patch(
-        "web.core.lifespan.SandboxPoolConfig.load_from_yaml", return_value=[]
-    ):
-        mock_service = Mock()
-        mock_service.get_all_templates_info = Mock(
-            return_value=[{"name": "input_output", "description": "I/O testing"}]
-        )
-        mock_service.get_template_info = Mock(
-            return_value={
-                "name": "input_output",
-                "description": "I/O testing",
-                "supported_languages": ["python"],
-            }
-        )
-        mock_template.get_instance.return_value = mock_service
-        yield
-
-
-from web.main import app
-
-
 @pytest.fixture(autouse=True)
-def _set_integration_token():
-    """Ensure the integration token is set for every test."""
-    old_integration_auth_config = getattr(auth_module, "integration_auth_config", None)
-    cfg = IntegrationAuthConfig.__new__(IntegrationAuthConfig)
-    cfg.token = TEST_TOKEN
-    auth_module.integration_auth_config = cfg
-    yield
-    auth_module.integration_auth_config = old_integration_auth_config
-
-
-@pytest.fixture
-async def test_db():
-    """Create a fresh test database for each test."""
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    old_session_maker = session.AsyncSessionLocal
-    old_engine = getattr(session, "engine", None)
-    session.AsyncSessionLocal = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
-    session.engine = engine
-    yield engine
-    session.AsyncSessionLocal = old_session_maker
-    if old_engine is not None:
-        session.engine = old_engine
-    await engine.dispose()
-
-
-@pytest.fixture
-async def client(test_db):
-    """Create test client."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
-        yield ac
+def _set_integration_token(monkeypatch):
+    monkeypatch.setenv("AUTOGRADER_INTEGRATION_TOKEN", TEST_TOKEN)
 
 
 def _auth_header(token: str = TEST_TOKEN) -> dict:

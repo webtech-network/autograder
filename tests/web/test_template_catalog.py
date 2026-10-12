@@ -6,12 +6,10 @@ import pytest
 
 from autograder import describe_templates
 from autograder.models.contracts.catalog import TemplateCatalog, TemplateDescription
-from autograder.services.template_library_service import TemplateLibraryService
 
 
 @pytest.mark.asyncio
-async def test_catalog_and_detail_publish_the_real_typed_contract(test_client, monkeypatch):
-    monkeypatch.setattr("web.api.v1.templates.get_template_service", TemplateLibraryService.get_instance)
+async def test_catalog_and_detail_publish_the_real_typed_contract(test_client):
     response = await test_client.get("/api/v1/templates")
     assert response.status_code == 200
     catalog = TemplateCatalog.model_validate(response.json())
@@ -25,8 +23,8 @@ async def test_catalog_and_detail_publish_the_real_typed_contract(test_client, m
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("endpoint", ["/api/v1/templates", "/api/v1/templates/webdev"])
-async def test_uninitialized_catalog_is_503(test_client, monkeypatch, endpoint):
-    monkeypatch.setattr("web.api.v1.templates.get_template_service", lambda: None)
+async def test_uninitialized_catalog_is_503(test_client, application, endpoint):
+    application.state.host.templates = None
     assert (await test_client.get(endpoint)).status_code == 503
 
 

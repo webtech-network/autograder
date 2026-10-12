@@ -8,11 +8,11 @@ from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
-from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
 from autograder.translations import t
-from sandbox_manager.sandbox_container import SandboxContainer
+from autograder.models.execution import ExecutionSession
 from sandbox_manager.models.sandbox_models import Language
 from autograder.models.evaluation_error import EvaluationError
+from autograder.services.structural_analysis import StructuralAnalysisCache
 import re
 
 # ===============================================================
@@ -26,6 +26,9 @@ class ForbiddenImportTest(TestFunction):
     Performs static analysis on submission file contents using language-aware
     regex patterns. Supports Python, Java, JavaScript/Node, C and C++.
     """
+
+    source_files_only = True
+    minimum_files = 1
 
     # Language-specific regex builders: each returns a compiled pattern
     # that matches an import of the given library name.
@@ -63,10 +66,6 @@ class ForbiddenImportTest(TestFunction):
     @property
     def description(self):
         return t("static_analysis.forbidden_import.description")
-
-    @property
-    def required_file(self):
-        return None
 
     @property
     def parameter_description(self):
@@ -115,7 +114,7 @@ class ForbiddenImportTest(TestFunction):
                 return lang
         return None
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer],
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession],
                 *args, forbidden_imports: List[str] = None,
                 submission_language=None, **kwargs) -> TestResult:
         locale = kwargs.get("locale")
@@ -182,6 +181,9 @@ class ForbiddenKeywordTest(TestFunction):
     keywords or language constructs.
     """
 
+    source_files_only = True
+    minimum_files = 1
+
     PREDEFINED_RULES: Dict[Language, Dict[str, Dict[str, Any]]] = {
         Language.PYTHON: {
             "for_loop": {"kind": "for_statement"},
@@ -231,10 +233,10 @@ class ForbiddenKeywordTest(TestFunction):
     def config_schema(self) -> Type[BaseModel]:
         return ForbiddenKeywordConfig
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer],
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession],
                 *args, forbidden_keywords: List[str] = None,
                 custom_ast_grep_rules: List[Dict[str, Any]] = None,
-                structural_analysis: Optional[StructuralAnalysisResult] = None,
+                structural_analysis: Optional[StructuralAnalysisCache] = None,
                 submission_language: Optional[Language] = None,
                 **kwargs) -> TestResult:
         locale = kwargs.get("locale")
@@ -248,8 +250,8 @@ class ForbiddenKeywordTest(TestFunction):
                 report=t("static_analysis.forbidden_keyword.report.no_rules", locale=locale)
             )
 
-        if structural_analysis is None or not structural_analysis.available:
-            raise EvaluationError("CAPABILITY_UNAVAILABLE", "Structural analysis is unavailable for this assessment.", "capability")
+        if structural_analysis is None:
+            structural_analysis = StructuralAnalysisCache()
 
         if submission_language is None:
             raise EvaluationError("LANGUAGE_REQUIRED", "A language is required for structural assessment.", "submission")
@@ -277,22 +279,8 @@ class ForbiddenKeywordTest(TestFunction):
                 report=t("static_analysis.forbidden_keyword.report.no_files", locale=locale)
             )
 
-        if not structural_analysis.roots:
-            raise EvaluationError("CAPABILITY_UNAVAILABLE", "Structural analysis is unavailable for this assessment.", "capability")
-
-        missing_roots = [
-            sub_file.filename
-            for sub_file in files
-            if sub_file.filename not in structural_analysis.roots
-            or structural_analysis.roots[sub_file.filename] is None
-        ]
-        if missing_roots:
-            raise EvaluationError("CAPABILITY_UNAVAILABLE", "Structural analysis is unavailable for this assessment.", "capability")
-
         for sub_file in files:
-            root = structural_analysis.roots.get(sub_file.filename)
-            if root is None:
-                continue
+            root = structural_analysis.root_for(sub_file, submission_language)
 
             for rule in active_rules:
                 matches = root.root().find_all(**rule)

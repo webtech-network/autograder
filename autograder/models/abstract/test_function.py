@@ -6,13 +6,24 @@ from pydantic import BaseModel
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.dataclass.param_description import ParamDescription
-from sandbox_manager.sandbox_container import SandboxContainer
+from autograder.models.execution import ExecutionSession
 
 
 class TestFunction(ABC):
     """
     An abstract base class for a single, executable test function.
     """
+
+    #: Assessment input contract. Defaults allow zero or more files of any type.
+    file_extensions: Optional[Tuple[str, ...]] = None
+    minimum_files: int = 0
+    maximum_files: Optional[int] = None
+    #: Whole-submission checks and execution need their inputs even outside scope.
+    uses_context_files: bool = False
+    #: Static code checks choose source extensions from the submission language.
+    source_files_only: bool = False
+    #: Multi-file checks can name their required inputs in normalized parameters.
+    file_parameters: Tuple[str, ...] = ()
 
     #: Host capabilities needed beyond the template sandbox flag (see catalog.Capability).
     required_capabilities: Tuple[str, ...] = ()
@@ -42,14 +53,6 @@ class TestFunction(ABC):
     def parameter_description(self) -> List[ParamDescription]:
         """A list of ParamDescription objects describing each parameter (excluding file content)."""
 
-    @property
-    def required_file_type(self) -> Optional[str]:
-        """
-        The type of file content this test expects (e.g., 'HTML', 'CSS', 'JavaScript', 'JSON').
-        Return None if the test doesn't require file content.
-        """
-        return None
-
     @abstractmethod
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[SandboxContainer], *args, **kwargs) -> TestResult:
+    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
         """The concrete implementation of the test logic."""

@@ -41,7 +41,7 @@ def test_capabilities_are_per_evaluator_and_explain_host_limits():
     for evaluator in evaluators.values():
         for capability in evaluator.required_capabilities:
             assert catalog.capabilities[capability]
-    assert "local sandbox pool does not" in catalog.capabilities["http_network"]
+    assert "supplies no server lifecycle" in catalog.capabilities["http_network"]
 
 
 def test_trusted_override_is_local_to_call_and_uses_same_resolution_as_compiler():

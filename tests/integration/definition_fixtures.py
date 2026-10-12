@@ -10,4 +10,6 @@ def build_migrated_fixture_pipeline(*, template_name, include_feedback, grading_
         "grading_criteria": grading_criteria, "include_feedback": include_feedback,
         "feedback_config": feedback_config or {}, "setup_config": setup_config or {},
     })
-    return build_pipeline(definition=definition)
+    from sandbox_manager.manager import get_sandbox_manager
+    from execution_host.docker import docker_capabilities
+    return build_pipeline(definition=definition, capabilities=docker_capabilities(get_sandbox_manager()))

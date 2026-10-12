@@ -11,10 +11,8 @@ These tests use the static_analysis template (no sandbox) so they can run
 without Docker infrastructure.
 """
 
-import time
-
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import patch
 
 from autograder.autograder import build_pipeline
 from autograder.models.abstract.test_function import TestFunction
@@ -104,10 +102,10 @@ class ContextCapturingTest(TestFunction):
 
 
 class TestEvaluationScopeIntegration:
-    """Verify evaluation_scope restricts structural analysis and propagates to test functions."""
+    """Verify evaluation_scope restricts assessment and propagates to test functions."""
 
-    def test_structural_analysis_respects_evaluation_scope(self):
-        """Pipeline with 2 files but scope limited to 1 → structural analysis parses only scoped file."""
+    def test_static_assessment_respects_evaluation_scope(self):
+        """Scope limits static assessment to the selected source file."""
         from sandbox_manager.models.sandbox_models import Language
 
         criteria = _static_analysis_criteria(["os"])
@@ -137,12 +135,9 @@ class TestEvaluationScopeIntegration:
         # Pipeline should succeed
         assert execution.result is not None
 
-        # Structural analysis should have only parsed main.py (the scoped file)
-        sa_result = execution.get_structural_analysis_result()
-        assert sa_result is not None
-        assert sa_result.available is True
-        assert "main.py" in sa_result.roots
-        assert "helper.py" not in sa_result.roots
+        assert execution.outcome.status == "completed"
+        assert execution.outcome.score == 0
+        assert "helper.py" not in execution.outcome.tree.base.tests[0].report
 
     def test_grading_with_evaluation_scope_passes_to_test_functions(self):
         """Verify evaluation_scope is propagated as kwarg to test functions via GraderService."""
@@ -203,11 +198,8 @@ class TestEvaluationScopeIntegration:
 
         assert execution.result is not None
 
-        # Without scope, structural analysis should parse both files
-        sa_result = execution.get_structural_analysis_result()
-        assert sa_result is not None
-        assert "main.py" in sa_result.roots
-        assert "helper.py" in sa_result.roots
+        assert execution.outcome.status == "completed"
+        assert execution.outcome.score == 100
 
     def test_evaluation_scope_none_passed_to_test_functions(self):
         """When evaluation_scope is None, test functions receive None."""
@@ -245,7 +237,7 @@ class TestChangedLinesIntegration:
     """Verify changed_lines propagation through the pipeline."""
 
     def test_changed_lines_propagated_through_pipeline(self):
-        """SubmissionFile with changed_lines → structural analysis captures them."""
+        """SubmissionFile retains changed lines through execution."""
         from sandbox_manager.models.sandbox_models import Language
 
         criteria = _static_analysis_criteria(["os"])
@@ -274,11 +266,7 @@ class TestChangedLinesIntegration:
 
         assert execution.result is not None
 
-        # Structural analysis should carry the changed_lines
-        sa_result = execution.get_structural_analysis_result()
-        assert sa_result is not None
-        assert "main.py" in sa_result.changed_lines
-        assert sa_result.changed_lines["main.py"] == {1, 2}
+        assert execution.submission.submission_files["main.py"].changed_lines == {1, 2}
 
     def test_no_changed_lines_still_works(self):
         """Submission without changed_lines → pipeline works normally, is_contribution_aware=False."""
@@ -308,9 +296,7 @@ class TestChangedLinesIntegration:
         assert execution.result is not None
         assert execution.result.final_score == 100.0
 
-        # Structural analysis should have empty changed_lines
-        sa_result = execution.get_structural_analysis_result()
-        assert sa_result.changed_lines == {}
+        assert execution.submission.submission_files["main.py"].changed_lines is None
 
     def test_changed_lines_set_means_contribution_aware(self):
         """SubmissionFile with changed_lines set → is_contribution_aware is True."""

@@ -13,9 +13,10 @@ persist/publish results and retry delivery. `sandbox_manager/` supplies executio
 infrastructure. Core must never import adapters or interpret platform identities,
 repository changes, database IDs, or workflow job names.
 
-The current sandbox/AI implementations still use concrete services. Their
-host capability boundary remains incomplete; this document does not imply
-those boundaries have already been implemented.
+Hosts explicitly supply execution, fixture-byte and AI providers through
+`HostCapabilities`. Core validates selected files before acquisition, consumes
+typed preparation, and closes each owned session before returning its outcome.
+See [CAPABILITIES.md](docs/contracts/CAPABILITIES.md).
 
 ## Public Python and JSON contracts
 
@@ -68,7 +69,7 @@ The pipeline uses typed accessors on its internal mutable `PipelineExecution`:
 
 ```
 LOAD_TEMPLATE → BUILD_TREE → SANDBOX? → PRE_FLIGHT? → AI_BATCH?
-              → STRUCTURAL_ANALYSIS → GRADE → FOCUS → FEEDBACK?
+              → GRADE → FOCUS → FEEDBACK?
 ```
 
 Optional resource steps depend on selected tests/preparation, not merely other

@@ -121,3 +121,22 @@ def test_valid_conversion_invalid_quarantine_and_unverified_history(monkeypatch)
             sa.text("SELECT final_score,outcome FROM submission_results ORDER BY id")
         ).all()
         assert old_results == [(None, None), (80, None)]
+
+
+def test_durable_migration_resolves_unreplayable_legacy_work(monkeypatch):
+    engine = sa.create_engine("sqlite://")
+    metadata = sa.MetaData()
+    submissions = sa.Table("submissions", metadata,
+                           sa.Column("id", sa.Integer, primary_key=True),
+                           sa.Column("status", sa.String, nullable=False))
+    metadata.create_all(engine)
+    with engine.begin() as connection:
+        connection.execute(submissions.insert(), [{"id": 1, "status": "pending"},
+                           {"id": 2, "status": "processing"}, {"id": 3, "status": "completed"}])
+        migration = importlib.import_module("web.migrations.versions.006_durable_work")
+        monkeypatch.setattr(migration, "op", Operations(MigrationContext.configure(connection)))
+        migration.upgrade()
+        rows = connection.execute(sa.text("SELECT status, locale, evaluation_scope, attempt_count FROM submissions ORDER BY id")).all()
+        assert rows == [("failed", "en", None, 0), ("failed", "en", None, 0), ("completed", "en", None, 0)]
+        attempts = sa.Table("grading_attempts", sa.MetaData(), autoload_with=connection)
+        assert set(attempts.c.keys()) == {"id", "submission_id", "number", "status", "started_at", "finished_at"}

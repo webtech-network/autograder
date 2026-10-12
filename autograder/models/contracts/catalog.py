@@ -15,9 +15,9 @@ from autograder.models.contracts.parameters import LanguageId
 Capability = Literal["sandbox_execution", "http_network", "ai_provider", "structural_analysis"]
 
 CAPABILITY_DESCRIPTIONS: Dict[str, str] = {
-    "sandbox_execution": "Runs the submission in an isolated sandbox. Unavailable when the host has no sandbox pool for the selected language.",
-    "http_network": "Sends HTTP requests to a server started inside the sandbox. Requires a sandbox that exposes a mapped port; the local sandbox pool does not, so these evaluators fail with an evaluation error there.",
-    "ai_provider": "Delegates assessment to the configured AI provider. Unavailable without provider credentials (OPENAI_API_KEY); the execution then fails instead of scoring zero.",
+    "sandbox_execution": "Runs the submission through a host-supplied execution session. Unavailable without execution support for the selected language.",
+    "http_network": "Requires a host-supplied assessed-server session covering startup, readiness, HTTP reachability and teardown. The default Docker profile fails before acquisition because it supplies no server lifecycle.",
+    "ai_provider": "Delegates assessment to a host-supplied AI provider. Missing provider support fails the execution before scoring.",
     "structural_analysis": "Uses in-process ast-grep structural analysis of the submission source. Requires ast-grep-py to be installed and a supported language; missing analysis fails the assessment instead of scoring zero.",
 }
 

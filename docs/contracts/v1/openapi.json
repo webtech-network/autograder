@@ -492,7 +492,7 @@
           }
         },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -1795,10 +1795,13 @@
               "type": "string"
             },
             "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
             "title": "Scoped Files",
             "description": "Filenames to include in scope-aware pipeline analysis"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "scoped_files"
@@ -2084,7 +2087,8 @@
           "graded_at",
           "execution_time_ms"
         ],
-        "title": "ExternalResultResponse"
+        "title": "ExternalResultResponse",
+        "description": "Receipt for a validated external host attestation."
       },
       "FailedOutcome-Input": {
         "properties": {
@@ -3250,16 +3254,22 @@
         "properties": {
           "external_assignment_id": {
             "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
             "title": "External Assignment Id",
             "description": "External assignment ID"
           },
           "external_user_id": {
             "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
             "title": "External User Id",
             "description": "External user ID"
           },
           "username": {
             "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
             "title": "Username",
             "description": "Username of the submitter"
           },
@@ -3268,8 +3278,10 @@
               "$ref": "#/components/schemas/SubmissionFileData"
             },
             "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
             "title": "Files",
-            "description": "List of files to submit"
+            "description": "List of source files to submit"
           },
           "language": {
             "anyOf": [
@@ -3286,7 +3298,8 @@
           "locale": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 32
               },
               {
                 "type": "null"
@@ -3329,7 +3342,8 @@
           "username",
           "files"
         ],
-        "title": "SubmissionCreate"
+        "title": "SubmissionCreate",
+        "description": "Schema for creating a new submission."
       },
       "SubmissionDetailResponse": {
         "properties": {
@@ -3450,10 +3464,25 @@
           },
           "submission_files": {
             "additionalProperties": {
-              "type": "string"
+              "$ref": "#/components/schemas/SubmissionFileDetail"
             },
             "type": "object",
             "title": "Submission Files"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale",
+            "default": "en"
+          },
+          "evaluation_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvaluationScopeData"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "submission_metadata": {
             "anyOf": [
@@ -3527,19 +3556,20 @@
           "provenance_status",
           "submission_files"
         ],
-        "title": "SubmissionDetailResponse"
+        "title": "SubmissionDetailResponse",
+        "description": "Authenticated source, provenance and outcome projection."
       },
       "SubmissionFileData": {
         "properties": {
           "filename": {
             "type": "string",
             "title": "Filename",
-            "description": "Name of the file"
+            "description": "Canonical relative POSIX path"
           },
           "content": {
             "type": "string",
             "title": "Content",
-            "description": "Content of the file"
+            "description": "Exact UTF-8 source text"
           },
           "changed_lines": {
             "anyOf": [
@@ -3570,6 +3600,7 @@
             "description": "Optional opaque metadata for this file"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "filename",
@@ -3577,6 +3608,51 @@
         ],
         "title": "SubmissionFileData",
         "description": "Schema for a submission file."
+      },
+      "SubmissionFileDetail": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "changed_lines": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed Lines"
+          },
+          "file_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "content"
+        ],
+        "title": "SubmissionFileDetail",
+        "description": "Stored source projection; legacy records are not revalidated as new input."
       },
       "SubmissionResponse": {
         "properties": {

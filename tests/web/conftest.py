@@ -1,162 +1,75 @@
-"""Shared test fixtures and configuration for web tests."""
-
+"""Each HTTP test composes an isolated app and session factory."""
 import pytest
-from unittest.mock import Mock, patch
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.pool import StaticPool
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
+from autograder.models.capabilities import HostCapabilities
 from web.database.base import Base
-from web.database import models  # register tables before the first create_all
-from web.database import session
-
-
-@pytest.fixture(scope="session", autouse=True)
-def mock_external_dependencies():
-    """
-    Mock external dependencies that require Docker or external services.
-
-    This fixture is automatically used for all tests to avoid requiring
-    Docker containers or external services during testing.
-    """
-    with patch("web.core.lifespan.initialize_sandbox_manager"), patch(
-        "web.core.lifespan.TemplateLibraryService"
-    ) as mock_template_lib, patch(
-        "web.core.lifespan.SandboxPoolConfig.load_from_yaml"
-    ) as mock_load_yaml:
-
-        # Mock template library service
-        mock_template_service = Mock()
-        mock_template_service.get_all_templates_info = Mock(
-            return_value=[
-                {
-                    "name": "webdev",
-                    "description": "Web development grading",
-                    "supported_languages": ["python", "javascript", "html"],
-                },
-                {
-                    "name": "input_output",
-                    "description": "Input/output testing",
-                    "supported_languages": ["python", "java", "cpp"],
-                },
-                {
-                    "name": "api_testing",
-                    "description": "API testing",
-                    "supported_languages": ["python", "javascript", "java"],
-                },
-            ]
-        )
-
-        mock_template_service.get_template_info = Mock(
-            side_effect=lambda name: {
-                "name": name,
-                "description": f"{name} template",
-                "supported_languages": ["python", "java"],
-            }
-        )
-
-        mock_template_lib.get_instance.return_value = mock_template_service
-
-        # Mock sandbox config loading
-        mock_load_yaml.return_value = []
-
-        yield
+from web.database import models  # pylint: disable=unused-import  # Register tables.
+from web.core.config import Settings
 
 
 @pytest.fixture
-async def db_engine():
-    """
-    Create an in-memory SQLite database engine for testing.
-
-    This provides isolated database for each test.
-    """
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-
-    # Create all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
+async def db_engine(tmp_path):
+    """Give concurrent HTTP and worker sessions independent connections."""
+    # HTTP requests and worker claims need independent transactions. An in-memory
+    # StaticPool shares one connection, so closing a reader can undo a writer.
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'web.sqlite'}")
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
     yield engine
-
-    # Cleanup
     await engine.dispose()
 
 
 @pytest.fixture
-async def db_session(db_engine):
-    """
-    Create a database session for testing.
-
-    Replaces the global session maker with a test-specific one.
-    """
-    # Store original session maker
-    original_session_maker = session.AsyncSessionLocal
-
-    # Create test session maker
-    test_session_maker = async_sessionmaker(
-        db_engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    # Replace global session maker
-    session.AsyncSessionLocal = test_session_maker
-    session.engine = db_engine
-
-    # Provide session to test
-    async with test_session_maker() as sess:
-        yield sess
-        # Rollback any uncommitted changes
-        await sess.rollback()
-
-    # Restore original session maker
-    session.AsyncSessionLocal = original_session_maker
+async def session_factory(db_engine):
+    """Bind sessions to this test's database."""
+    return async_sessionmaker(db_engine, expire_on_commit=False)
 
 
 @pytest.fixture
-async def test_client(db_engine):
-    """
-    Create an HTTP test client for the FastAPI application.
+async def db_session(session_factory):
+    """Roll back any unfinished transaction when the test releases its session."""
+    async with session_factory() as session:
+        yield session
+        await session.rollback()
 
-    This client can be used to make requests to the API endpoints.
-    """
-    # Import app here to ensure mocks are in place
-    from web.main import app
 
-    # Replace session maker for this test
-    original_session_maker = session.AsyncSessionLocal
-    session.AsyncSessionLocal = async_sessionmaker(
-        db_engine, class_=AsyncSession, expire_on_commit=False
-    )
-    session.engine = db_engine
+@pytest.fixture
+async def application(session_factory, tmp_path):
+    """Compose an app after the test's environment fixtures have run."""
+    from web.main import create_app
 
-    # Create and yield client
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts")),
+                     session_factory=session_factory, capabilities=HostCapabilities(), start_workers=False)
+    app.state.host.ready = True
+    yield app
+    await app.state.host.close()
+
+
+@pytest.fixture
+async def test_client(application):
+    """Send HTTP requests through the real application without a network server."""
+    async with AsyncClient(transport=ASGITransport(app=application), base_url="http://test") as client:
         yield client
 
-    # Restore original session maker
-    session.AsyncSessionLocal = original_session_maker
+
+@pytest.fixture
+async def client(test_client):
+    """Retain the short fixture name used by contract tests."""
+    yield test_client
 
 
 @pytest.fixture
 def sample_config_data():
-    """Sample grading configuration data for testing."""
+    """Supply a valid configuration envelope for route tests."""
     from tests.web.test_contracts_v1 import definition
-
     return {"external_assignment_id": "test-assignment-001", "definition": definition()}
 
 
 @pytest.fixture
 def sample_submission_data():
-    """Sample submission data for testing."""
-    return {
-        "external_assignment_id": "test-assignment-001",
-        "external_user_id": "user_test_001",
-        "username": "test_student",
-        "files": [{"filename": "main.py", "content": "print('Hello, World!')"}],
-        "metadata": {"ip_address": "127.0.0.1", "user_agent": "pytest"},
-    }
+    """Supply a small valid submission with host audit metadata."""
+    return {"external_assignment_id": "test-assignment-001", "external_user_id": "user_test_001",
+            "username": "test_student", "files": [{"filename": "main.py", "content": "print('Hello, World!')"}],
+            "metadata": {"ip_address": "127.0.0.1", "user_agent": "pytest"}}

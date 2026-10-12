@@ -27,7 +27,6 @@ class GraderService:
         submission_language=None,
         locale: str = "en",
         pre_computed_results: Optional[Dict[str, TestResult]] = None,
-        structural_analysis=None,
         evaluation_scope: Optional[EvaluationScope] = None,
     ) -> ResultTree:
         """Traverse the generic built criteria tree to resolve inputs, grades and report to ResultTree."""
@@ -38,7 +37,6 @@ class GraderService:
             submission_language=submission_language,
             locale=locale,
             pre_computed_results=pre_computed_results,
-            structural_analysis=structural_analysis,
             evaluation_scope=evaluation_scope,
         )
 

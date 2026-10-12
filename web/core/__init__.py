@@ -1,7 +1,4 @@
-"""Core application components."""
+"""Web-host configuration and composition."""
+from web.core.config import Settings
 
-from web.core.config import settings
-from web.core.lifespan import lifespan
-
-__all__ = ["settings", "lifespan"]
-
+__all__ = ["Settings"]

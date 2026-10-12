@@ -3,15 +3,15 @@
 from copy import deepcopy
 from pathlib import Path
 import re
+import asyncio
 from unittest.mock import patch
 
 import pytest
 import yaml
 
-from examples.contracts.http_round_trip import DEFINITION, round_trip
+from examples.contracts.http_round_trip import DEFINITION, round_trip as published_round_trip
 from github_action.github_action_service import GithubActionService
 from autograder.models.dataclass.submission import SubmissionFile
-from web.config import auth
 from web.schemas.submission import ExternalResultCreate
 
 
@@ -22,12 +22,25 @@ HEADERS = {"Authorization": "Bearer conformance-token"}
 def integration_token(monkeypatch, tmp_path):
     monkeypatch.setenv("AUTOGRADER_INTEGRATION_TOKEN", "conformance-token")
     monkeypatch.setenv("WEB_OUTCOME_RECEIPT_DIR", str(tmp_path / "receipts"))
-    monkeypatch.setattr(auth, "integration_auth_config", None)
+
+
+async def round_trip(client, assignment, application):
+    """Exercise the published client while a real durable worker services its job."""
+    async def process():
+        for _ in range(100):
+            if await application.state.host.worker.run_once():
+                return
+            await asyncio.sleep(0.02)
+    worker = asyncio.create_task(process())
+    try:
+        return await published_round_trip(client, assignment)
+    finally:
+        await worker
 
 
 @pytest.mark.asyncio
-async def test_documented_http_round_trip_grades_and_polls_without_mocking_execution(test_client):
-    polled = await round_trip(test_client, "documented-http")
+async def test_documented_http_round_trip_grades_and_polls_without_mocking_execution(test_client, application):
+    polled = await round_trip(test_client, "documented-http", application)
     assert polled["status"] == "completed"
     assert polled["final_score"] == 100
     assert polled["error"] is None
@@ -40,8 +53,8 @@ async def test_documented_http_round_trip_grades_and_polls_without_mocking_execu
 
 
 @pytest.mark.asyncio
-async def test_action_attestation_and_http_execution_have_the_same_polling_outcome(test_client):
-    normal = await round_trip(test_client, "shared-contract")
+async def test_action_attestation_and_http_execution_have_the_same_polling_outcome(test_client, application):
+    normal = await round_trip(test_client, "shared-contract", application)
     config = (await test_client.get("/api/v1/configs/shared-contract")).json()
     service = GithubActionService()
     with patch("github_action.github_action_service.CloudClient") as client:
@@ -100,8 +113,8 @@ def test_trusted_python_extension_runs_both_success_and_assessed_failure():
 
 
 @pytest.mark.asyncio
-async def test_failed_attestation_polls_as_failure_and_not_as_zero(test_client):
-    await round_trip(test_client, "failed-attestation")
+async def test_failed_attestation_polls_as_failure_and_not_as_zero(test_client, application):
+    await round_trip(test_client, "failed-attestation", application)
     config = (await test_client.get("/api/v1/configs/failed-attestation")).json()
     service = GithubActionService()
     with patch("github_action.github_action_service.CloudClient") as client:

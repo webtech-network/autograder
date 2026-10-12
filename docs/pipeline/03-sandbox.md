@@ -1,66 +1,22 @@
-# Step 3: Sandbox
+# Step 3: Execution session
 
-## Purpose
+`SandboxStep` acquires the execution session requested by the run's requirements
+and stages all accepted source/context files. The host supplies the factory;
+the engine does not look up a global manager or construct Docker clients.
 
-The Sandbox step is responsible for preparing a secure, isolated environment where the student's code can be executed. This separates the autograder's internal logic from the potentially unsafe student code.
+The pipeline first selects a language, checks required preparation files and
+criterion file inputs, and derives one capability decision from selected tests
+and selected preparation. Unused templates do not acquire resources. A selected
+setup command or fixture requires execution even for an otherwise static check.
 
-This step performs two main functions:
-1. **Acquiring a sandbox**: Getting a container from the pool.
-2. **Mounting files**: Copying the submission files into the sandbox's working directory.
+Ownership transfers when acquisition returns. The pipeline attaches the session
+before staging, so a staging failure still closes it. The same session is used
+for [preparation](04-pre-flight.md) and [assessment](05-grade.md), then closed
+before the terminal outcome is returned for adapter publication. Providers are
+borrowed; the host owns their lifetime. Missing execution support is a required
+capability failure with no score/tree, distinct from disallowed language.
 
-## How It Works
-
-The step execution follows these logic gates:
-
-1. **Check Template Requirements**: The step first checks the loaded `Template`. If `template.requires_sandbox` is `False` (e.g., for a static HTML validation assignment), the step immediately succeeds with `data=None` and does nothing.
-
-2. **Sandbox Creation**: If required, a sandbox container is requested from the `SandboxManager` (via `SandboxService`) for the specific submission language.
-
-3. **Workspace Preparation**: All submission files are streamed into the sandbox's working directory.
-
-The resulting `SandboxContainer` object is stored in the step result's `data` field and also attached to the `PipelineExecution` object for use by subsequent steps.
-
-## Dependencies
-
-| Step | What It Needs |
-|------|---------------|
-| **Load Template** | Reads `template.requires_sandbox` to determine if action is needed |
-
-## Input
-
-| Source | Data |
-|--------|------|
-| Pipeline | `StepName.LOAD_TEMPLATE` → `Template` |
-| Pipeline | `pipeline_exec.submission` → submission files and language |
-
-## Output
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `data` | `SandboxContainer | None` | Reference to the prepared sandbox, or `None` if not required |
-| `status` | `StepStatus.SUCCESS` | Sandbox was successfully created and files were mounted |
-
-## Failure Scenarios
-
-- **Sandbox Pool Exhausted** → `StepStatus.FAIL` with infrastructure error details.
-- **Submission Language Missing** → `StepStatus.FAIL` if the submission didn't specify a language required for the sandbox.
-- **File Transfer Error** → `StepStatus.FAIL`.
-
-## Sandbox Lifecycle
-
-The sandbox created in this step is **persisted** throughout the remaining pipeline.
-- It is used by **[Step 4: Pre-Flight](04-pre-flight.md)** to run setup commands.
-- It is used by **[Step 5: Grade](05-grade.md)** to run tests.
-- It is **automatically released** back to the pool by the `AutograderPipeline` orchestrator once the `run()` method finishes, regardless of the outcome.
-
-## Next Step
-
-After environment preparation, the pipeline proceeds to **[Step 4: Pre-Flight](04-pre-flight.md)** to validate the submission structure and compile the code.
-
----
-
-## Source
-
-`autograder/steps/sandbox_step.py` → `SandboxStep`
-
-`autograder/services/sandbox_service.py` → `SandboxService`
+The concrete Docker adapter lives in `execution_host/docker.py`. Server/API
+assessment requires a separate complete server profile; ordinary I/O pools do
+not gain network access. See [capabilities](../contracts/CAPABILITIES.md) for
+operations, host compositions and cleanup behavior.

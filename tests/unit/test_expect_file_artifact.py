@@ -39,7 +39,7 @@ def _make_sandbox(stdout="", stderr="", exit_code=0, category=ResponseCategory.S
     return sandbox
 
 
-def _make_extracted(content: str, path="/app/output.txt"):
+def _make_extracted(content: str, path="output.txt"):
     return ExtractedFile(
         path=path,
         content_bytes=content.encode("utf-8"),
@@ -59,7 +59,7 @@ class TestExpectFileArtifactExactMatch(unittest.TestCase):
     def test_exact_match_success(self):
         """Test success when artifact content exactly matches expected content."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.return_value = _make_extracted("hello world")
+        sandbox.read_artifact.return_value = _make_extracted("hello world")
 
         result = self.test.execute(
             files=None, sandbox=sandbox,
@@ -73,7 +73,7 @@ class TestExpectFileArtifactExactMatch(unittest.TestCase):
     def test_exact_match_with_normalization(self):
         """Normalization strips trailing whitespace and normalizes line endings."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.return_value = _make_extracted("line1  \r\nline2  \n")
+        sandbox.read_artifact.return_value = _make_extracted("line1  \r\nline2  \n")
 
         result = self.test.execute(
             files=None, sandbox=sandbox,
@@ -87,7 +87,7 @@ class TestExpectFileArtifactExactMatch(unittest.TestCase):
     def test_exact_match_mismatch(self):
         """Test failure when artifact content does not match expected content."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.return_value = _make_extracted("wrong content")
+        sandbox.read_artifact.return_value = _make_extracted("wrong content")
 
         result = self.test.execute(
             files=None, sandbox=sandbox,
@@ -102,7 +102,7 @@ class TestExpectFileArtifactExactMatch(unittest.TestCase):
     def test_exact_match_no_normalization(self):
         """When normalization is off, trailing whitespace matters."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.return_value = _make_extracted("hello ")
+        sandbox.read_artifact.return_value = _make_extracted("hello ")
 
         result = self.test.execute(
             files=None, sandbox=sandbox,
@@ -125,7 +125,7 @@ class TestExpectFileArtifactContainsMatch(unittest.TestCase):
     def test_contains_match_success(self):
         """Test success when artifact content contains expected content."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.return_value = _make_extracted("result: PASSED with 100%")
+        sandbox.read_artifact.return_value = _make_extracted("result: PASSED with 100%")
 
         result = self.test.execute(
             files=None, sandbox=sandbox,
@@ -140,7 +140,7 @@ class TestExpectFileArtifactContainsMatch(unittest.TestCase):
     def test_contains_match_failure(self):
         """Test failure when artifact content does not contain expected content."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.return_value = _make_extracted("result: FAILED")
+        sandbox.read_artifact.return_value = _make_extracted("result: FAILED")
 
         result = self.test.execute(
             files=None, sandbox=sandbox,
@@ -163,7 +163,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
     def test_regex_match_success(self):
         """Test success when artifact content matches expected regex."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.return_value = _make_extracted("comparacoes: 42\ntempo: 0.003s")
+        sandbox.read_artifact.return_value = _make_extracted("comparacoes: 42\ntempo: 0.003s")
 
         result = self.test.execute(
             files=None, sandbox=sandbox,
@@ -178,7 +178,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
     def test_regex_match_failure(self):
         """Test failure when artifact content does not match expected regex."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.return_value = _make_extracted("no numbers here")
+        sandbox.read_artifact.return_value = _make_extracted("no numbers here")
 
         result = self.test.execute(
             files=None, sandbox=sandbox,
@@ -216,7 +216,7 @@ class TestExpectFileArtifactErrors(unittest.TestCase):
     def test_missing_artifact(self):
         """Test behavior when the artifact file is not found in the container."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.side_effect = FileNotFoundError("File not found")
+        sandbox.read_artifact.side_effect = FileNotFoundError("File not found")
 
         result = self.test.execute(
             files=None, sandbox=sandbox,
@@ -231,7 +231,7 @@ class TestExpectFileArtifactErrors(unittest.TestCase):
     def test_extraction_error(self):
         """Test behavior when an error occurs during file extraction."""
         sandbox = _make_sandbox()
-        sandbox.extract_file.side_effect = RuntimeError("tar stream corrupt")
+        sandbox.read_artifact.side_effect = RuntimeError("tar stream corrupt")
 
         with self.assertRaises(EvaluationError) as error:
             self.test.execute(

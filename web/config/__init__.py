@@ -1,5 +1,1 @@
-"""Configuration module."""
-
-from web.config.database import DatabaseConfig, db_config
-
-__all__ = ["DatabaseConfig", "db_config"]
+"""Transport concerns; application settings live in web.core.config."""

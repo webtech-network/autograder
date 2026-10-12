@@ -84,7 +84,7 @@ compilation is authoritative for cross-field and language-specific checks.
 Static checks need no sandbox or AI setup. Execution still uses the configured
 host's sandbox manager and supported language pools. API evaluators need an HTTP
 port mapping, which the current local pool does not expose. AI evaluators need
-the existing provider credentials; structural rules need `ast-grep-py`. Missing
+a host-supplied assessment provider; structural rules need `ast-grep-py`. Missing
 resources fail execution rather than becoming student zeroes. Requirements for
 unused evaluators do not cause sandbox or AI provisioning for a static assignment.
 
@@ -100,19 +100,19 @@ through `templates={...}` instead. All public definitions use `templates: [id]`;
 comma-separated strings and plugin/source objects are rejected. The internal load
 step now attaches compiled instances and performs no second registry resolution.
 
-## Related work and remaining boundaries
+## File selection and host composition
 
-As checked on 2026-10-05, INT-05 (#367), #231 (Template ABC), #223 (registration),
-#51 (multiple templates) and #305 (static/multiple templates) are closed. This
-change uses their canonical registry/definition contracts rather than adding a
-second loader. #228 remains open for the separate `required_file` versus
-`required_file_type` mismatch; this catalog deliberately makes no claim about
-that unsettled metadata field.
+The unused `required_file` and `required_file_type` properties have been removed.
+See [evaluator file selection](FILES.md) for explicit targets, source types,
+zero/one/many requirements and context. These declarations control assessment
+input and are separate from execution capability requirements.
 
-INT-14 (#376) remains open and owns Phase 3 host capability injection, preparation,
-resource ownership and lifecycle. The facade currently uses existing host
-configuration; it does not claim a new provider-injection API. Phase 6 verification
-of real host parity, missing capabilities and cleanup at each ownership transition
-belongs with that work and the parent investigation #363. INT-11 adds offline
-catalog/extension and HTTP/OpenAPI contract coverage; it does not mark other phase
-reports complete or create duplicate capability/preparation work items.
+Trusted Python callers pass `capabilities=HostCapabilities(...)` to
+`build_pipeline` or `evaluate_submission`. The core does not construct providers,
+read credentials or choose an AI model. HTTP and Actions compose their concrete
+services outside the core. See [host capabilities](CAPABILITIES.md) for typed
+preparation, ownership, cleanup and missing-capability behavior.
+
+These changes complete the overlapping file/capability work tracked by #228 and
+#376 without claiming that the broader #363 investigation or other phase work is
+complete. Transport/storage validation is documented in [submission input](SUBMISSIONS.md).

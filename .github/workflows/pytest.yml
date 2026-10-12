@@ -11,6 +11,22 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: autograder
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: autograder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U autograder"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_POSTGRES_URL: postgresql+asyncpg://autograder:local-test-only@127.0.0.1:5432/autograder
 
     steps:
       - uses: actions/checkout@v4

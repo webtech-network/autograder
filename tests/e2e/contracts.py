@@ -28,7 +28,8 @@ def submit(url, headers, config, files, **extra):
     payload = {"external_assignment_id": config["external_assignment_id"],
         "external_user_id": "e2e-" + uuid4().hex, "username": "student", "files": files, **extra}
     response = requests.post(url + "/submissions", json=payload, headers=headers, timeout=10)
-    assert response.status_code == 200, response.text
+    assert response.status_code == 202, response.text
+    assert response.headers["Location"].endswith("/submissions/" + str(response.json()["id"]))
     return response.json()
 
 

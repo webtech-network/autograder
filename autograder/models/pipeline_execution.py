@@ -10,7 +10,6 @@ from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome,
 from autograder.models.dataclass.grading_result import GradingResult
 from autograder.models.dataclass.step_result import StepResult, StepName, StepStatus
 from autograder.models.dataclass.submission import Submission
-from autograder.models.dataclass.structural_analysis_result import StructuralAnalysisResult
 
 if TYPE_CHECKING:
     from autograder.models.abstract.template import Template
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
     from autograder.models.dataclass.focus import Focus
     from autograder.models.dataclass.grade_step_result import GradeStepResult
     from autograder.models.result_tree import ResultTree
-    from sandbox_manager.sandbox_container import SandboxContainer
+    from autograder.models.capabilities import ExecutionSession, ExecutionRequirements, HostCapabilities
 
 
 class PipelineStatus(Enum):
@@ -47,7 +46,9 @@ class PipelineExecution:
     submission: Submission
     status: PipelineStatus = PipelineStatus.EMPTY
     result: Optional[GradingResult] = None
-    sandbox: Optional["SandboxContainer"] = field(default=None, init=False)
+    sandbox: Optional["ExecutionSession"] = field(default=None, init=False)
+    capabilities: Optional["HostCapabilities"] = None
+    requirements: Optional["ExecutionRequirements"] = None
     start_time: float = field(default_factory=time.time)  # Track execution time
     end_time: Optional[float] = None
     started_monotonic: float = field(default_factory=time.monotonic)
@@ -144,20 +145,9 @@ class PipelineExecution:
             self._require_step_data(StepName.BUILD_TREE, "criteria tree"),
         )
 
-    def get_structural_analysis_result(self) -> Optional["StructuralAnalysisResult"]:
+    def get_sandbox(self) -> Optional["ExecutionSession"]:
         """
-        Retrieves the StructuralAnalysisResult object if it was produced during the pipeline.
-        """
-        if not self.has_step_result(StepName.STRUCTURAL_ANALYSIS):
-            return None
-        return cast(
-            StructuralAnalysisResult,
-            self._require_step_data(StepName.STRUCTURAL_ANALYSIS, "structural analysis result"),
-        )
-
-    def get_sandbox(self) -> Optional["SandboxContainer"]:
-        """
-        Retrieves the SandboxContainer object if it was created during the pipeline.
+        Retrieves the ExecutionSession object if it was created during the pipeline.
         """
         return self.sandbox
 

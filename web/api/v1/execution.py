@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from web.api.deps import require_integration_token
+from web.api.deps import get_host, require_integration_token
 from web.schemas.execution import (
     DeliberateCodeExecutionRequest,
     DeliberateCodeExecutionResponse,
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/execute", tags=["Code Execution"])
         504: {"model": ExecutionErrorResponse, "description": "Request deadline exceeded"},
     },
 )
-async def execute_code_endpoint(request: DeliberateCodeExecutionRequest):
+async def execute_code_endpoint(request: DeliberateCodeExecutionRequest, host=Depends(get_host)):
     """Execute one command against sequential stdin cases, without grading.
 
     `test_cases` contains arrays of stdin lines. Omit it for one run with empty
@@ -41,8 +41,10 @@ async def execute_code_endpoint(request: DeliberateCodeExecutionRequest):
     "stderr":"","exit_code":0,"execution_time":0.01,"output":"Hello, Alice\\n",
     "error_message":null,"truncated":false}],"stopped_early":false}`
     """
+    if not host.ready:
+        raise HTTPException(503, "Execution service is shutting down")
     try:
-        return await execute_code(request)
+        return await execute_code(request, capabilities=host.capabilities, tasks=host.execution_tasks)
     except ExecutionServiceError as exc:
         raise HTTPException(
             status_code=exc.status_code,

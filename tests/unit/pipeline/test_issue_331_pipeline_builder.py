@@ -1,14 +1,15 @@
 """Pipeline selects resources from an already validated definition."""
 from autograder.autograder import build_pipeline
 from autograder.models.dataclass.step_result import StepName
-from tests.unit.pipeline.test_terminal_outcome import definition
+from tests.unit.pipeline.test_terminal_outcome import definition, submission
 
 
 def test_static_pipeline_has_no_sandbox_or_preparation():
     pipeline = build_pipeline(definition=definition())
-    assert StepName.GRADE in pipeline._steps
-    assert StepName.SANDBOX not in pipeline._steps
-    assert StepName.PRE_FLIGHT not in pipeline._steps
+    execution = pipeline.run(submission())
+    assert StepName.GRADE in execution.planned_steps
+    assert StepName.SANDBOX not in execution.planned_steps
+    assert StepName.PRE_FLIGHT not in execution.planned_steps
 
 
 def test_io_pipeline_requires_sandbox():
@@ -16,13 +17,14 @@ def test_io_pipeline_requires_sandbox():
              'criteria':{'base':{'weight':100,'tests':[{'id':'runs','type':'dont_fail','name':'Runs',
                 'parameters':{'program_command':'python main.py'}}]}}}
     pipeline = build_pipeline(definition=value)
-    assert StepName.SANDBOX in pipeline._steps
-    assert StepName.PRE_FLIGHT not in pipeline._steps
+    execution = pipeline.run(submission())
+    assert StepName.SANDBOX in execution.planned_steps
+    assert StepName.PRE_FLIGHT not in execution.planned_steps
 
 
 def test_language_specific_preparation_is_installed():
     value = definition(preparation={'languages':{'python':{'required_files':['main.py']}}})
-    assert StepName.PRE_FLIGHT in build_pipeline(definition=value)._steps
+    assert StepName.PRE_FLIGHT not in build_pipeline(definition=value).run(submission()).planned_steps
 
 
 def test_public_builder_does_not_accept_exporter_configuration():

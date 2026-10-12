@@ -7,9 +7,13 @@ from autograder.models.contracts.provenance import DefinitionProvenance
 from typing import Dict, List, Optional, Any
 from enum import Enum
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, StrictInt, field_validator, model_validator
 
 from sandbox_manager.models.sandbox_models import Language
+from submission_contract import (
+    MAX_FILES, MAX_TOTAL_FILE_BYTES, MAX_TOTAL_METADATA_BYTES,
+    validate_filename, validate_content, validate_filenames, validate_metadata, metadata_bytes,
+)
 
 
 class SubmissionStatus(str, Enum):
@@ -24,9 +28,11 @@ class SubmissionStatus(str, Enum):
 class SubmissionFileData(BaseModel):
     """Schema for a submission file."""
 
-    filename: str = Field(..., description="Name of the file")
-    content: str = Field(..., description="Content of the file")
-    changed_lines: Optional[List[int]] = Field(
+    model_config = ConfigDict(extra="forbid")
+
+    filename: str = Field(..., strict=True, description="Canonical relative POSIX path")
+    content: str = Field(..., strict=True, description="Exact UTF-8 source text")
+    changed_lines: Optional[List[StrictInt]] = Field(
         None,
         description="One-indexed line numbers added or modified in this file",
     )
@@ -36,13 +42,41 @@ class SubmissionFileData(BaseModel):
     )
 
 
+    _filename = field_validator("filename")(validate_filename)
+    _content = field_validator("content")(validate_content)
+    _metadata = field_validator("file_metadata")(validate_metadata)
+
+    @model_validator(mode="after")
+    def valid_changed_lines(self):
+        """Line numbers refer to actual lines; empty differs from unspecified."""
+        if self.changed_lines is not None:
+            if len(self.changed_lines) != len(set(self.changed_lines)):
+                raise ValueError("changed_lines must not contain duplicates")
+            line_count = len(self.content.splitlines())
+            if any(line < 1 or line > line_count for line in self.changed_lines):
+                raise ValueError("changed_lines must name existing one-based lines")
+        return self
+
+
 class EvaluationScopeData(BaseModel):
     """Schema defining the files that are the primary evaluation subject."""
 
+    model_config = ConfigDict(extra="forbid")
+
     scoped_files: List[str] = Field(
-        ...,
+        ..., min_length=1, max_length=MAX_FILES,
         description="Filenames to include in scope-aware pipeline analysis",
     )
+
+
+    @field_validator("scoped_files")
+    @classmethod
+    def valid_scope(cls, value):
+        """Scope has the same names as source files, without aliases or duplicates."""
+        for name in value:
+            validate_filename(name)
+        validate_filenames(value)
+        return value
 
 
 class TestDeltaResponse(BaseModel):
@@ -71,15 +105,16 @@ class ComparisonResultResponse(BaseModel):
 
 
 class SubmissionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
     """Schema for creating a new submission."""
-    external_assignment_id: str = Field(..., description="External assignment ID")
-    external_user_id: str = Field(..., description="External user ID")
-    username: str = Field(..., description="Username of the submitter")
-    files: List[SubmissionFileData] = Field(..., description="List of files to submit")
+
+    model_config = ConfigDict(extra="forbid")
+    external_assignment_id: str = Field(..., min_length=1, max_length=255, strict=True, description="External assignment ID")
+    external_user_id: str = Field(..., min_length=1, max_length=255, strict=True, description="External user ID")
+    username: str = Field(..., min_length=1, max_length=255, strict=True, description="Username of the submitter")
+    files: List[SubmissionFileData] = Field(..., min_length=1, max_length=MAX_FILES, description="List of source files to submit")
     language: Optional[str] = Field(None, description="Optional language override")
     locale: Optional[str] = Field(
-        "en", description="Optional locale for feedback (e.g., 'en', 'pt_br')"
+        "en", max_length=32, description="Optional locale for feedback (e.g., 'en', 'pt_br')"
     )
     metadata: Optional[Dict[str, Any]] = Field(
         None, description="Optional submission metadata"
@@ -88,6 +123,24 @@ class SubmissionCreate(BaseModel):
         None,
         description="Optional file scope for pipeline analysis",
     )
+
+    _metadata = field_validator("metadata")(validate_metadata)
+
+    @model_validator(mode="after")
+    def valid_file_set(self):
+        """Validate the complete accepted input before any job is created."""
+        names = [file.filename for file in self.files]
+        validate_filenames(names)
+        if sum(len(file.content.encode("utf-8")) for file in self.files) > MAX_TOTAL_FILE_BYTES:
+            raise ValueError("submission source exceeds 5 MiB total")
+        total_metadata = metadata_bytes(self.metadata) + sum(
+            metadata_bytes(file.file_metadata) for file in self.files
+        )
+        if total_metadata > MAX_TOTAL_METADATA_BYTES:
+            raise ValueError("submission metadata exceeds 64 KiB total")
+        if self.evaluation_scope and not set(self.evaluation_scope.scoped_files).issubset(names):
+            raise ValueError("evaluation_scope must name submitted files")
+        return self
 
     @field_validator("language")
     @classmethod
@@ -104,7 +157,7 @@ class SubmissionCreate(BaseModel):
         if language_upper not in valid_languages:
             valid_languages_lower = [lang.value for lang in Language]
             raise ValueError(
-                f"Unsupported language '{v}'. "
+                "Unsupported language. "
                 f"Supported languages are: {', '.join(valid_languages_lower)}"
             )
 
@@ -132,8 +185,21 @@ class SubmissionResponse(BaseModel):
     comparison_status: str | None = None
 
 
+class SubmissionFileDetail(BaseModel):
+    """Stored source projection; legacy records are not revalidated as new input."""
+
+    filename: str
+    content: str
+    changed_lines: list[int] | None = None
+    file_metadata: dict | None = None
+
+
 class SubmissionDetailResponse(SubmissionResponse):
-    submission_files: Dict[str, str]
+    """Authenticated source, provenance and outcome projection."""
+
+    submission_files: Dict[str, SubmissionFileDetail]
+    locale: str = "en"
+    evaluation_scope: EvaluationScopeData | None = None
     submission_metadata: dict | None = None
     definition_snapshot: GradingDefinition | None = None
     outcome: TerminalOutcome | None = None
@@ -152,9 +218,12 @@ class ExternalResultCreate(BaseModel):
     outcome: TerminalOutcome
     submission_metadata: dict | None = None
 
+    _metadata = field_validator("submission_metadata")(validate_metadata)
+
     @field_validator("language")
     @classmethod
     def validate_language(cls, value):
+        """Require a canonical language for host attestations."""
         if value not in {language.value for language in Language}:
             raise ValueError(
                 "Language must be a canonical supported language identifier"
@@ -163,6 +232,8 @@ class ExternalResultCreate(BaseModel):
 
 
 class ExternalResultResponse(BaseModel):
+    """Receipt for a validated external host attestation."""
+
     submission_id: int
     grading_config_id: int
     status: SubmissionStatus

@@ -5,8 +5,7 @@ import logging
 from time import monotonic
 
 from autograder.models.dataclass.submission import SubmissionFile
-from autograder.services.assets.resolver import AssetSourceResolver
-from sandbox_manager.manager import get_sandbox_manager
+from execution_host.assets.resolver import AssetSourceResolver
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 from web.schemas.execution import (
     CASE_TIMEOUT_SECONDS,
@@ -65,20 +64,17 @@ def _result(command_result) -> DeliberateCodeExecutionResult:
     )
 
 
-def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: float):
+def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: float, capabilities):
     """Keep acquisition, execution, and cleanup in one worker even after disconnect."""
     if monotonic() >= deadline_at:
         raise ExecutionServiceError(*DEADLINE)
-    try:
-        manager = get_sandbox_manager()
-    except Exception as exc:
-        raise ExecutionServiceError(*UNAVAILABLE) from exc
+    if capabilities is None or capabilities.execution is None:
+        raise ExecutionServiceError(*UNAVAILABLE)
 
     language = Language(request.language)
     sandbox = None
-    timed_out = False
     try:
-        sandbox = manager.get_sandbox(language)
+        sandbox = capabilities.execution(language)
         if monotonic() >= deadline_at:
             raise ExecutionServiceError(*DEADLINE)
         files = {
@@ -101,7 +97,7 @@ def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: flo
             timeout = max(1, min(CASE_TIMEOUT_SECONDS, int(remaining)))
             if case:
                 command_result = sandbox.run_commands(
-                    case, request.program_command, timeout=timeout, workdir="/app"
+                    case, program_command=request.program_command, timeout=timeout, workdir="/app"
                 )
             else:
                 command_result = sandbox.run_command(
@@ -109,7 +105,6 @@ def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: flo
                 )
             results.append(_result(command_result))
             if command_result.category == ResponseCategory.TIMEOUT:
-                timed_out = True
                 break
         return DeliberateCodeExecutionResponse(
             results=results, stopped_early=len(results) < len(cases)
@@ -122,19 +117,10 @@ def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: flo
     finally:
         if sandbox is not None:
             try:
-                # A timed-out process may still be running; never recycle its sandbox.
-                if timed_out:
-                    manager.destroy_sandbox(language, sandbox)
-                else:
-                    manager.release_sandbox(language, sandbox)
+                sandbox.close()
             except Exception:
-                # A known process result remains valid even if pool cleanup fails.
-                logger.exception("Deliberate execution sandbox cleanup failed")
-                if not timed_out:
-                    try:
-                        manager.destroy_sandbox(language, sandbox)
-                    except Exception:
-                        logger.exception("Deliberate execution sandbox destroy failed")
+                # A known process result remains valid even if disposal fails.
+                logger.exception("Deliberate execution session cleanup failed")
 
 
 def _observe_worker(task: asyncio.Task) -> None:
@@ -146,9 +132,12 @@ def _observe_worker(task: asyncio.Task) -> None:
             logger.exception("Detached deliberate execution finished with an error")
 
 
-async def execute_code(request: DeliberateCodeExecutionRequest) -> DeliberateCodeExecutionResponse:
+async def execute_code(request: DeliberateCodeExecutionRequest, *, capabilities=None, tasks=None) -> DeliberateCodeExecutionResponse:
     deadline_at = monotonic() + REQUEST_DEADLINE_SECONDS
-    worker = asyncio.create_task(asyncio.to_thread(_execute_in_worker, request, deadline_at))
+    worker = asyncio.create_task(asyncio.to_thread(_execute_in_worker, request, deadline_at, capabilities))
+    if tasks is not None:
+        tasks.add(worker)
+        worker.add_done_callback(tasks.discard)
     try:
         return await asyncio.wait_for(
             asyncio.shield(worker), timeout=REQUEST_DEADLINE_SECONDS
