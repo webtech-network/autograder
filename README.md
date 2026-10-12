@@ -161,24 +161,24 @@ Templates provide test functions for different assignment contexts:
 - **WebDev**: HTML, CSS, JavaScript validation
 - **API Testing**: HTTP request validation
 - **Input/Output**: Command-line program testing
-- **Custom**: Upload your own test logic
+- **Custom**: Register trusted Python evaluator instances
 
 ---
 
 ## Pipeline Workflow
 
-The pipeline executes these steps in sequence:
+Compilation resolves templates and builds the criteria tree before execution.
+The runtime flow in `autograder/autograder.py` then:
 
-1. **Load Template** - Select test functions from the template library
-2. **Build Tree** - Construct the grading rubric hierarchy  
-3. **Sandbox** - Secure environment acquisition and initial workspace preparation
-4. **Pre-Flight** - Validate requirements and execute setup/compilation commands  
-5. **Grade** - Execute tests and calculate weighted scores
-6. **Focus** - Identify high-impact failed tests
-7. **Feedback** - Generate student-friendly reports
-8. **Export** - Send results to external systems (optional)
+1. Validates the submission and selected host capabilities.
+2. Opens and prepares a session when required.
+3. Batches selected AI assessments and grades the compiled criteria.
+4. Generates focus and feedback when requested.
+5. Closes the owned session and returns the immutable terminal outcome.
 
-Each step receives a `PipelineExecution` object, performs its operation, and passes results to the next step.
+Intermediate values pass directly between calls. Optional diagnostic events carry
+no grading data. The hosting adapter publishes the finalized outcome and retries
+delivery independently. See [execution architecture](docs/core/pipeline-architecture.md).
 
 ---
 

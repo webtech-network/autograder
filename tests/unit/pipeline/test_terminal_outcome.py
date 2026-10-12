@@ -1,6 +1,5 @@
 """Executable shared outcome/failure matrix, using the real engine boundary."""
 from copy import deepcopy
-from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
 import pytest
@@ -8,14 +7,12 @@ from pydantic import ValidationError
 
 from autograder.autograder import build_pipeline
 from autograder.models.contracts.outcome import (
-    CompletedOutcome, ComparisonOutcome, FeedbackOutcome, OutcomeError,
+    CompletedOutcome,
     outcome_json_schema, outcome_score_vector, validate_outcome,
 )
-from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.evaluation_error import EvaluationError
-from autograder.serializers.pipeline_execution_serializer import PipelineExecutionSerializer
 from autograder.template_library.input_output import ExpectOutputTest
 from sandbox_manager.models.sandbox_models import CommandResponse, Language, ResponseCategory
 
@@ -85,7 +82,7 @@ def test_sandbox_infrastructure_failure_is_not_an_assessment(failure):
 def test_required_file_missing_has_no_grade():
     pipeline = build_pipeline(definition=definition(preparation={'languages': {'python': {'required_files': ['other.py']}}}))
     execution = pipeline.run(submission())
-    assert execution.result is None
+    assert execution.outcome.tree is None
     assert execution.outcome.status == 'failed'
     assert execution.outcome.score is None and execution.outcome.tree is None
     assert execution.outcome.error.code == 'REQUIRED_FILE_MISSING'
@@ -105,7 +102,7 @@ def test_feedback_failure_preserves_completed_grade_and_sanitizes_message():
     pipeline = build_pipeline(definition=definition(feedback=True))
     with patch('autograder.services.report.reporter_service.ReporterService.generate_feedback', side_effect=RuntimeError('secret')):
         execution = pipeline.run(submission('print(1)'))
-    assert execution.result.final_score == 100
+    assert execution.outcome.score == 100
     assert execution.outcome.status == 'completed'
     assert execution.outcome.score == 100
     assert execution.outcome.feedback.status == 'failed'
@@ -123,19 +120,16 @@ def test_invalid_required_evaluator_score_invalidates_grade(score):
     assert execution.outcome.error.code == 'INVALID_EVALUATOR_RESULT'
 
 
-def test_custom_step_exception_has_diagnostics_and_cleanup_is_always_called():
+def test_required_exception_has_safe_diagnostics():
     pipeline = build_pipeline(definition=definition())
-    pipeline._steps[StepName.GRADE] = Mock()
-    pipeline._steps[StepName.GRADE].execute.side_effect = RuntimeError('secret')
-    with patch.object(pipeline, '_cleanup_sandbox') as cleanup:
-        execution = pipeline.run(submission())
-    cleanup.assert_called_once_with(execution)
+    events = []
+    with patch('autograder.autograder.GraderService.grade_from_tree', side_effect=RuntimeError('secret')):
+        execution = pipeline.run(submission(), observer=events.append)
     assert execution.outcome.status == 'failed'
-    diagnostics = PipelineExecutionSerializer.serialize(execution)
-    assert diagnostics['failed_at_step'] == 'GradeStep'
-    assert diagnostics['steps_completed'] < diagnostics['total_steps_planned']
-    assert diagnostics['steps'][-1]['status'] == 'interrupted'
-    assert PipelineExecutionSerializer.serialize(execution)['execution_time_ms'] == diagnostics['execution_time_ms']
+    assert events[-1].operation == 'grade'
+    assert events[-1].status == 'failed'
+    assert events[-1].error == execution.outcome.error
+    assert 'secret' not in str(events)
 
 
 @pytest.mark.parametrize('mutation', [
@@ -181,13 +175,13 @@ def test_external_grade_must_be_numeric_without_coercion(grade):
         validate_outcome(value)
 
 
-def test_finalization_is_idempotent_and_does_not_change_duration():
+def test_return_envelope_and_outcome_are_frozen():
+    from dataclasses import FrozenInstanceError
     execution = build_pipeline(definition=definition()).run(submission())
     artifact = execution.outcome
-    duration = execution.duration_ms
-    execution.finish_execution()
+    with pytest.raises(FrozenInstanceError):
+        execution.outcome = None
     assert execution.outcome is artifact
-    assert execution.duration_ms == duration
 
 
 @pytest.mark.parametrize('evaluator', ['health_check', 'check_response_json'])

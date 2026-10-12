@@ -139,3 +139,14 @@ normalization is performed. File metadata and changed-line absence survive
 authenticated details. Scope is a validated subset of source names, not a privacy
 boundary. See [SUBMISSIONS.md](SUBMISSIONS.md) for limits and client migration and
 [FILES.md](FILES.md) for assessment targets versus execution/context files.
+
+## Explicit orchestration (ARC-01)
+
+Compilation supplies the tree and trusted evaluators. Runtime uses direct calls
+with local intermediate values; no diagnostic journal is used as artifact storage.
+The step registry, wrappers and artifact accessors are removed. Required failure
+and optional feedback handling have separate explicit boundaries. Session cleanup
+precedes terminal outcome construction; cleanup errors reach host logging and an
+optional observer without replacing the grade. Disabled feedback calls neither
+focus nor reporting. The supported facades and v1 wire schemas are unchanged.
+See [Python migration and execution order](../core/pipeline-architecture.md).

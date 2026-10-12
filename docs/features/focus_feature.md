@@ -61,7 +61,7 @@ diff_score = (100 - test_score) * (test_weight / 100) * cumulative_multiplier
 The Focus step is automatically executed when feedback generation is enabled. It runs after the GRADE step and before the FEEDBACK step:
 
 ```
-LOAD_TEMPLATE → BUILD_TREE → PRE_FLIGHT → GRADE → FOCUS → FEEDBACK
+compile → validate → prepare? → grade → requested focus/feedback → close → outcome
 ```
 
 ### Storage
@@ -144,7 +144,7 @@ The migration adds a nullable `focus` JSON column to the `submission_results` ta
 - **Focus** (`autograder/models/dataclass/focus.py`): Main dataclass holding base, penalty, and bonus test lists
 - **FocusedTest** (`autograder/models/dataclass/focus.py`): Wrapper combining a test result with its calculated impact
 - **FocusService** (`autograder/services/focus_service.py`): Service that calculates impact scores and generates Focus objects
-- **FocusStep** (`autograder/steps/focus_step.py`): Pipeline step that executes the focus service
+- **Coordinator** (`autograder/autograder.py`): Calls focus only for requested feedback
 
 ### Serialization
 

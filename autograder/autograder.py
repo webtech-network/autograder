@@ -1,212 +1,181 @@
+"""The ordered grading flow. Intermediate values never live in diagnostics."""
 import logging
+import time
 from dataclasses import replace
-from autograder.models.evaluation_error import EvaluationError
+from datetime import datetime, timezone
+from uuid import uuid4
 
-from autograder.models.abstract.step import Step
-from autograder.models.dataclass.step_result import StepName, StepResult, StepStatus
-from autograder.models.pipeline_execution import PipelineExecution
-from autograder.steps.step_registry import StepRegistry
+from pydantic import ValidationError
+
+from autograder.models.capabilities import HostCapabilities, requirements_for
+from autograder.models.contracts.definition import CompiledDefinition, compile_definition, select_language, DefinitionValidationError
+from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome, FeedbackOutcome, OutcomeError, ResultOutcomeTree
+from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import Submission
+from autograder.models.diagnostics import DiagnosticEvent, DiagnosticObserver
+from autograder.models.evaluation_error import EvaluationError
+from autograder.models.pipeline_execution import PipelineExecution
+from autograder.services.ai_batch import evaluate_ai_batch
+from autograder.services.focus_service import FocusService
+from autograder.services.grader.grader_service import GraderService
+from autograder.services.preparation import check_capabilities, prepare_session, validate_submission
+from autograder.services.report.reporter_service import ReporterService
 
 logger = logging.getLogger(__name__)
 
 
+def _observe(observer: DiagnosticObserver | None, execution_id: str, operation: str,
+             error: OutcomeError | None = None) -> None:
+    if observer is None:
+        return
+    try:
+        observer(DiagnosticEvent(execution_id, operation, "failed" if error else "completed", error))
+    except Exception:  # pylint: disable=broad-exception-caught
+        # A host's diagnostic consumer cannot invalidate or interrupt grading.
+        logger.exception("Diagnostic observer failed (execution_id=%s)", execution_id)
+
+
+def _outcome_error(error: EvaluationError, execution_id: str) -> OutcomeError:
+    return OutcomeError(code=error.code, message=error.message, category=error.category,
+                        retryable=error.retryable, correlation_id=execution_id)
+
+
 class AutograderPipeline:
-    """
-    AutograderPipeline orchestrates the execution of steps for grading a submission.
+    """A compiled definition and borrowed host capabilities, reusable across runs."""
 
-        The pipeline is designed to be flexible and configurable, allowing for different grading workflows based on the provided configuration.
-        It holds a PipelineExecution object that keeps all the execution footprint, including the original submission, intermediate results from each step, and the final grading result.
-    """
+    def __init__(self, compiled: CompiledDefinition, provenance: DefinitionProvenance,
+                 capabilities: HostCapabilities):
+        self.compiled = compiled
+        self.definition = compiled.definition
+        self.definition_provenance = provenance
+        self.capabilities = capabilities
 
-    def __init__(self):
-        """
-        Initializes the AutograderPipeline with an empty steps dictionary.
-         The steps will be added in the order they should be executed.
-         Each step is identified by a unique StepName.
-         The pipeline execution will pass a PipelineExecution object through each step, allowing them to share data and results.
-         The pipeline handles execution flow, error handling, and finalization of the grading process.
-        """
-        self._steps = {}
+    # Keep the ordered calls and failure boundaries together instead of hiding
+    # them behind a configurable step framework.
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+    def run(self, submission: Submission, *, observer: DiagnosticObserver | None = None) -> PipelineExecution:
+        """Return a finalized outcome after closing this run's owned session."""
+        execution_id = str(uuid4())
+        started_at = datetime.now(timezone.utc)
+        started = time.monotonic()
+        session = None
+        tree = None
+        error = None
+        feedback = FeedbackOutcome()
+        operation = "bind_submission"
 
-    def add_step(self, step_name: StepName, step: Step) -> None:
-        """
-        Adds a grading step to the pipeline.
-
-        Args:
-            step_name: The unique identifier for the step.
-            step: The Step instance to be executed.
-        """
-        self._steps[step_name] = step
-
-    def run(self, submission: Submission):
-        """
-        Run the autograder pipeline on a given submission.
-        Args:
-            submission: The submission to be graded, containing all necessary data for grading.
-        Returns:
-            PipelineExecution object containing the results of the grading process, including final score, feedback, and any errors encountered during execution.
-
-        """
-        pipeline_execution = PipelineExecution.start_execution(submission)
-        pipeline_execution.definition_provenance = getattr(self, "definition_provenance", None)
-        pipeline_execution.planned_steps = list(self._steps)
-        pipeline_execution.capabilities = getattr(self, "capabilities", None)
-        if hasattr(self, "definition"):
-            from autograder.models.contracts.definition import select_language, DefinitionValidationError
-            try:
-                selected = select_language(self.definition, submission.language)
-                submission = replace(submission, language=selected)
-                pipeline_execution.submission = submission
-                from autograder.models.capabilities import requirements_for
-                requirements = requirements_for(self.compiled, selected)
-                pipeline_execution.requirements = requirements
-                pipeline_execution.planned_steps = [name for name in self._steps
-                    if self._step_required(name, requirements)]
-                # Pure validation deliberately precedes every provider/availability check.
-                missing = set(requirements.preparation.required_files) - set(submission.submission_files)
-                if missing:
-                    raise EvaluationError("REQUIRED_FILE_MISSING", "A required submission file is missing.", "submission")
-                from autograder.services.file_selection import select_files
-                for category in (self.compiled.criteria_tree.base, self.compiled.criteria_tree.bonus,
-                                 self.compiled.criteria_tree.penalty):
-                    if category:
-                        for test in category.get_all_tests():
-                            select_files(test, submission.submission_files, submission.evaluation_scope, selected)
-                self._check_capabilities(requirements.capabilities)
-            except EvaluationError as exc:
-                pipeline_execution.add_step_result(StepResult(
-                    step=StepName.BOOTSTRAP, data=None, status=StepStatus.FAIL,
-                    error=exc.message, error_code=exc.code, error_category=exc.category,
-                    retryable=exc.retryable))
-                pipeline_execution.finish_execution()
-                return pipeline_execution
-            except DefinitionValidationError as exc:
-                error = exc.errors()[0]
-                pipeline_execution.add_step_result(StepResult(
-                    step=StepName.BOOTSTRAP, data=None, status=StepStatus.FAIL,
-                    error="The submission language is not valid for this definition.",
-                    error_code=error["code"], error_category="submission"))
-                pipeline_execution.finish_execution()
-                return pipeline_execution
-
-        logger.info(
-            "Pipeline started: external_user_id=%s, assignment_id=%s, language=%s, steps=%s",
-            submission.user_id,
-            submission.assignment_id,
-            submission.language.value if submission.language else "none",
-            pipeline_execution.planned_steps,
-        )
-
+        # Required work has one failure boundary. The local session is owned as
+        # soon as acquisition returns, even if staging immediately raises.
         try:
-            for step_name, step_instance in self._steps.items():
-                if step_name not in pipeline_execution.planned_steps:
-                    continue
-                logger.info("Executing step: %s (external_user_id=%s)", step_name, submission.user_id)
+            submission = replace(submission, language=select_language(self.definition, submission.language))
+            requirements = requirements_for(self.compiled, submission.language)
+            validate_submission(self.compiled, submission, requirements)
+            check_capabilities(requirements.capabilities, self.capabilities)
+            _observe(observer, execution_id, operation)
+
+            if "sandbox_execution" in requirements.capabilities:
+                operation = "open_session"
+                acquire = (self.capabilities.server_execution if "http_network" in requirements.capabilities
+                           else self.capabilities.execution)
                 try:
-                    returned = step_instance.execute(pipeline_execution)
-                    if returned is not pipeline_execution:
-                        raise RuntimeError("Steps must return their existing execution context")
-                except Exception:  # A custom step may bypass the standard wrapper.
-                    logger.exception("Unhandled exception in step %s", step_name)
-                    pipeline_execution.add_step_result(StepResult(
-                        step=step_name, data=None, status=StepStatus.INTERRUPTED,
-                        error="The grading execution could not complete.", error_code="EXECUTION_ERROR"))
-                current_step_result = pipeline_execution.get_previous_step()
-                if current_step_result and not current_step_result.is_successful:
-                    pipeline_execution.set_failure()
-                    # Feedback and focus are optional enrichment; continue only if
-                    # later enrichment can operate independently of the failure.
-                    if step_name == StepName.FEEDBACK:
-                        continue
-                    break
-        finally:
-            self._cleanup_sandbox(pipeline_execution)
-        try:
-            pipeline_execution.finish_execution()
-        except Exception:
-            logger.exception("Invalid final grading assessment")
-            pipeline_execution.add_step_result(StepResult(
-                step=StepName.GRADE, data=None, status=StepStatus.INTERRUPTED,
-                error="The grading execution produced an invalid assessment.",
-                error_code="INVALID_EVALUATOR_RESULT"))
-            pipeline_execution.set_failure()
-            pipeline_execution.finish_execution()
+                    session = acquire(submission.language)
+                    session.prepare_workdir(submission.submission_files)
+                except Exception as exc:
+                    raise EvaluationError("CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.", "capability", True) from exc
+                _observe(observer, execution_id, operation)
+                operation = "prepare_session"
+                prepare_session(session, self.compiled, requirements, self.capabilities)
+                _observe(observer, execution_id, operation)
 
-        logger.info(
-            "Pipeline finished: external_user_id=%s, status=%s",
-            submission.user_id,
-            pipeline_execution.status,
-        )
+            assessments = None
+            if "ai_provider" in requirements.capabilities:
+                operation = "evaluate_ai_batch"
+                assessments = evaluate_ai_batch(self.compiled.criteria_tree, submission, self.capabilities.ai)
+                _observe(observer, execution_id, operation)
 
-        return pipeline_execution
-
-    def _step_required(self, name, requirements):
-        if name == StepName.SANDBOX:
-            return "sandbox_execution" in requirements.capabilities
-        if name == StepName.PRE_FLIGHT:
-            return bool(requirements.preparation.setup_commands or self.definition.preparation.fixtures
-                        or "http_network" in requirements.capabilities)
-        if name == StepName.AI_BATCH:
-            return "ai_provider" in requirements.capabilities
-        return True
-
-    def _check_capabilities(self, required):
-        providers = self.capabilities
-        if "http_network" in required and providers.server_execution is None:
-            raise EvaluationError("SERVER_CAPABILITY_UNAVAILABLE",
-                                  "This host cannot start and reach an assessed server.", "capability")
-        if "sandbox_execution" in required and "http_network" not in required and providers.execution is None:
-            raise EvaluationError("CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.", "capability")
-        if "fixture_provider" in required and providers.fixtures is None:
-            raise EvaluationError("FIXTURE_PROVIDER_UNAVAILABLE", "The fixture provider is unavailable.", "capability")
-        if "ai_provider" in required and providers.ai is None:
-            raise EvaluationError("PROVIDER_UNAVAILABLE", "The assessment provider is unavailable.", "provider")
-
-    def _cleanup_sandbox(self, pipeline_execution: PipelineExecution) -> None:
-        """Close only this run's owned session before finalizing its outcome."""
-        session = pipeline_execution.sandbox
-        pipeline_execution.sandbox = None
-        if session is not None:
+            operation = "grade"
+            result_tree = GraderService().grade_from_tree(
+                criteria_tree=self.compiled.criteria_tree,
+                submission_files=submission.submission_files, sandbox=session,
+                submission_language=submission.language, locale=submission.locale,
+                pre_computed_results=assessments, evaluation_scope=submission.evaluation_scope,
+            )
+            result_tree.calculate_final_score()
             try:
-                session.close()
-            except Exception:
-                logger.exception("Execution session cleanup failed (execution_id=%s)", pipeline_execution.execution_id)
+                tree = ResultOutcomeTree.model_validate(result_tree.root.to_dict())
+            except (ValidationError, TypeError, ValueError) as exc:
+                raise EvaluationError("INVALID_EVALUATOR_RESULT", "The grading execution produced an invalid assessment.", "internal") from exc
+            _observe(observer, execution_id, operation)
+
+            # Optional enrichment receives the completed grade directly. It
+            # cannot replace that grade, and disabled feedback performs no work.
+            if self.definition.feedback.enabled:
+                operation = "feedback"
+                try:
+                    focus = FocusService().find(result_tree)
+                    content = ReporterService(feedback_mode=self.definition.feedback.mode).generate_feedback(
+                        grading_result=focus, result_tree=result_tree,
+                        feedback_config=self.definition.feedback.preferences.model_dump(mode="json"),
+                        locale=submission.locale,
+                    )
+                    feedback = FeedbackOutcome(status="completed", content=content)
+                    _observe(observer, execution_id, operation)
+                except Exception as exc:  # pylint: disable=broad-exception-caught
+                    logger.exception("Feedback failed (execution_id=%s)", execution_id)
+                    feedback_error = OutcomeError(
+                        code="FEEDBACK_ERROR", message="Feedback could not be generated.",
+                        category=exc.category if isinstance(exc, EvaluationError) else "internal",
+                        retryable=exc.retryable if isinstance(exc, EvaluationError) else False,
+                        correlation_id=execution_id,
+                    )
+                    feedback = FeedbackOutcome(status="failed", error=feedback_error)
+                    _observe(observer, execution_id, operation, feedback_error)
+        except DefinitionValidationError as exc:
+            error = OutcomeError(code=exc.errors()[0]["code"],
+                                 message="The submission language is not valid for this definition.",
+                                 category="submission", retryable=False, correlation_id=execution_id)
+        except EvaluationError as exc:
+            logger.exception("Required evaluation failed (execution_id=%s)", execution_id)
+            error = _outcome_error(exc, execution_id)
+        except Exception:  # pylint: disable=broad-exception-caught
+            logger.exception("Required evaluation failed (execution_id=%s)", execution_id)
+            error = OutcomeError(code="EXECUTION_ERROR", message="The grading execution could not complete.",
+                                 category="internal", retryable=False, correlation_id=execution_id)
+        finally:
+            if error is not None:
+                _observe(observer, execution_id, operation, error)
+            if session is not None:
+                try:
+                    session.close()
+                    _observe(observer, execution_id, "close_session")
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logger.exception("Execution session cleanup failed (execution_id=%s)", execution_id)
+                    cleanup_error = OutcomeError(code="CLEANUP_ERROR", message="The execution session could not be closed.",
+                                                 category="capability", retryable=False, correlation_id=execution_id)
+                    _observe(observer, execution_id, "close_session", cleanup_error)
+
+        # Finalization consumes explicit values only, after resource cleanup.
+        language = getattr(submission.language, "value", submission.language)
+        common = {
+            "schema_version": "1.0", "execution_id": execution_id,
+            "language": language if language in ("python", "java", "c", "cpp", "node") else None,
+            "provenance": self.definition_provenance, "started_at": started_at,
+            "finished_at": max(started_at, datetime.now(timezone.utc)),
+            "duration_ms": max(0, int((time.monotonic() - started) * 1000)),
+        }
+        outcome = (FailedOutcome(**common, status="failed", error=error) if error is not None
+                   else CompletedOutcome(**common, status="completed", score=tree.score, tree=tree, feedback=feedback))
+        return PipelineExecution(outcome)
 
 
-def build_pipeline(*, definition, locale="en", provenance=None, templates=None, capabilities=None) -> AutograderPipeline:
-    """Compile the single public contract before constructing execution steps.
+def build_pipeline(*, definition, locale="en", provenance=None, templates=None, capabilities=None) -> AutograderPipeline:  # pylint: disable=unused-argument
+    """Compile without opening resources; retain trusted template instances.
 
-    Trusted Python templates may be supplied as an identifier-to-Template map.
-    Publication and provider credentials belong to the caller.
+    locale remains accepted for facade compatibility; submission.locale
+    selects the language of reports as before.
     """
-    from autograder.models.contracts.definition import compile_definition
-    from autograder.models.contracts.provenance import DefinitionProvenance
-    from autograder.steps.build_tree_step import BuildTreeStep
     compiled = compile_definition(definition, templates=templates)
-    normalized = compiled.definition
-    pipeline = AutograderPipeline()
-    from autograder.models.capabilities import HostCapabilities
-    pipeline.capabilities = capabilities or HostCapabilities()
-    pipeline.compiled = compiled
-    pipeline.definition = normalized
-    pipeline.definition_provenance = provenance or DefinitionProvenance(definition_hash=compiled.definition_hash)
-    if pipeline.definition_provenance.definition_hash != compiled.definition_hash:
+    provenance = provenance or DefinitionProvenance(definition_hash=compiled.definition_hash)
+    if provenance.definition_hash != compiled.definition_hash:
         raise ValueError("Provenance hash must identify the compiled definition")
-    config = {
-        "include_feedback": normalized.feedback.enabled,
-        "grading_criteria": normalized.criteria.model_dump(mode="json"),
-        "feedback_config": normalized.feedback.preferences.model_dump(mode="json"),
-        "preparation": normalized.preparation,
-        "feedback_mode": normalized.feedback.mode,
-        "locale": locale,
-        "compiled_tree": compiled.criteria_tree,
-    }
-    registry = StepRegistry(config, templates=compiled.templates)
-    for step_name in [StepName.LOAD_TEMPLATE, StepName.BUILD_TREE, StepName.SANDBOX,
-                      StepName.PRE_FLIGHT, StepName.AI_BATCH,
-                      StepName.GRADE, StepName.FOCUS, StepName.FEEDBACK]:
-        step = BuildTreeStep(compiled.criteria_tree) if step_name == StepName.BUILD_TREE else registry.build_step(step_name)
-        if step is not None:
-            pipeline.add_step(step_name, step)
-    return pipeline
+    return AutograderPipeline(compiled, provenance, capabilities or HostCapabilities())

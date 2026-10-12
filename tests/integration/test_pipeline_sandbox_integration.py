@@ -19,7 +19,6 @@ from typing import Dict
 
 from tests.integration.definition_fixtures import build_migrated_fixture_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from autograder.models.pipeline_execution import PipelineStatus
 from sandbox_manager.manager import initialize_sandbox_manager, get_sandbox_manager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import Language
@@ -133,9 +132,9 @@ elif operation == 'DIV':
         result = pipeline.run(submission)
 
         # Verify pipeline succeeded
-        self.assertEqual(result.status, PipelineStatus.SUCCESS)
-        self.assertIsNotNone(result.result)
-        self.assertEqual(result.result.final_score, 100.0)
+        self.assertEqual(result.outcome.status, "completed")
+        self.assertIsNotNone(result.outcome.tree)
+        self.assertEqual(result.outcome.score, 100.0)
 
         # Wait for sandbox release and replenishment
         time.sleep(2)
@@ -147,7 +146,7 @@ elif operation == 'DIV':
         self.assertEqual(final_idle, initial_idle, "Pool should replenish to initial state")
         self.assertEqual(final_active, initial_active, "No sandboxes should be active after completion")
 
-        print(f"✅ Pipeline completed: Score {result.result.final_score}/100")
+        print(f"✅ Pipeline completed: Score {result.outcome.score}/100")
 
     def test_02_incorrect_submission_with_sandbox(self):
         """Test pipeline with incorrect submission (partial credit)."""
@@ -219,11 +218,11 @@ else:
 
         result = pipeline.run(submission)
 
-        self.assertEqual(result.status, PipelineStatus.SUCCESS)
-        self.assertLess(result.result.final_score, 100.0)
-        self.assertGreater(result.result.final_score, 0.0)
+        self.assertEqual(result.outcome.status, "completed")
+        self.assertLess(result.outcome.score, 100.0)
+        self.assertGreater(result.outcome.score, 0.0)
 
-        print(f"✅ Partial credit working: Score {result.result.final_score:.2f}/100")
+        print(f"✅ Partial credit working: Score {result.outcome.score:.2f}/100")
 
     def test_03_missing_required_file_preflight_failure(self):
         """Test that pipeline fails in pre-flight when required file is missing."""
@@ -281,7 +280,7 @@ else:
         result = pipeline.run(submission)
 
         # Pipeline should fail at pre-flight
-        self.assertEqual(result.status, PipelineStatus.FAILED)
+        self.assertEqual(result.outcome.status, "failed")
 
         # Verify sandbox was never created (pool unchanged)
         self.assertEqual(len(py_pool.idle_sandboxes), initial_idle)
@@ -346,8 +345,8 @@ print(lib_function())
 
         result = pipeline.run(submission)
 
-        self.assertEqual(result.status, PipelineStatus.SUCCESS)
-        self.assertEqual(result.result.final_score, 100.0)
+        self.assertEqual(result.outcome.status, "completed")
+        self.assertEqual(result.outcome.score, 100.0)
 
         print("✅ Setup commands executed successfully in sandbox")
 
@@ -408,8 +407,8 @@ print(lib_function())
 
         # All should succeed
         for result in results:
-            self.assertEqual(result.status, PipelineStatus.SUCCESS)
-            self.assertEqual(result.result.final_score, 100.0)
+            self.assertEqual(result.outcome.status, "completed")
+            self.assertEqual(result.outcome.score, 100.0)
 
         print("✅ Concurrent pipeline executions successful")
 
@@ -475,8 +474,8 @@ public class HelloWorld {
 
         result = pipeline.run(submission)
 
-        self.assertEqual(result.status, PipelineStatus.SUCCESS)
-        self.assertEqual(result.result.final_score, 100.0)
+        self.assertEqual(result.outcome.status, "completed")
+        self.assertEqual(result.outcome.score, 100.0)
 
         # Wait for cleanup
         time.sleep(2)
@@ -545,8 +544,8 @@ def calculate(a, b):
 
         result = pipeline.run(submission)
 
-        self.assertEqual(result.status, PipelineStatus.SUCCESS)
-        self.assertEqual(result.result.final_score, 100.0)
+        self.assertEqual(result.outcome.status, "completed")
+        self.assertEqual(result.outcome.score, 100.0)
 
         print("✅ Multi-file project successfully graded")
 
@@ -603,8 +602,8 @@ raise Exception("Intentional error!")
         result = pipeline.run(submission)
 
         # Pipeline should complete (even if test fails)
-        self.assertEqual(result.status, PipelineStatus.SUCCESS)
-        self.assertEqual(result.result.final_score, 0.0)  # Test failed
+        self.assertEqual(result.outcome.status, "completed")
+        self.assertEqual(result.outcome.score, 0.0)  # Test failed
 
         # Wait for cleanup
         time.sleep(2)
@@ -665,7 +664,7 @@ raise Exception("Intentional error!")
             )
 
             result = pipeline.run(submission)
-            self.assertEqual(result.status, PipelineStatus.SUCCESS)
+            self.assertEqual(result.outcome.status, "completed")
 
         print("✅ Pool handled multiple sequential requests successfully")
 
@@ -737,7 +736,7 @@ print('Created')
         )
 
         result1 = pipeline1.run(submission1)
-        self.assertEqual(result1.status, PipelineStatus.SUCCESS)
+        self.assertEqual(result1.outcome.status, "completed")
 
         time.sleep(2)  # Allow cleanup
 
@@ -768,8 +767,8 @@ else:
 
         result2 = pipeline2.run(submission2)
 
-        self.assertEqual(result2.status, PipelineStatus.SUCCESS)
-        self.assertEqual(result2.result.final_score, 100.0)  # Should print "Clean"
+        self.assertEqual(result2.outcome.status, "completed")
+        self.assertEqual(result2.outcome.score, 100.0)  # Should print "Clean"
 
         print("✅ Sandbox isolation between submissions verified")
 
@@ -830,7 +829,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
 
         # During execution, a sandbox should be active
         result = pipeline.run(submission)
-        self.assertEqual(result.status, PipelineStatus.SUCCESS)
+        self.assertEqual(result.outcome.status, "completed")
 
         # After completion and cleanup
         time.sleep(2)
@@ -891,7 +890,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
         )
 
         result = pipeline.run(submission)
-        self.assertEqual(result.status, PipelineStatus.SUCCESS)
+        self.assertEqual(result.outcome.status, "completed")
 
         # Wait for replenishment
         time.sleep(2)

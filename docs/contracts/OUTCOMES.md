@@ -40,7 +40,7 @@ pipeline diagnostics are not public result fields.
 | Missing required AI assessment | Failed, no score | provider / MISSING_EVALUATOR_RESULT |
 | Duplicate, unknown, or invalid provider assessment | Failed, no score | provider / INVALID_EVALUATOR_RESULT |
 | Evaluator returns an invalid numeric grade | Failed, no score | internal / INVALID_EVALUATOR_RESULT |
-| Unexpected required step exception | Failed, no score | internal / EXECUTION_ERROR |
+| Unexpected required operation exception | Failed, no score | internal / EXECUTION_ERROR |
 | Optional focus or feedback fails | Completed, original grade preserved | feedback.error / FEEDBACK_ERROR |
 | Optional comparison fails | Completed, original grade preserved | adapter-supplied comparison.error |
 | Persistence/publication fails after finalization | Original artifact remains completed or failed | Adapter delivery failure, outside the grading outcome |
@@ -77,8 +77,10 @@ student-facing visibility policy belongs to the hosting adapter.
 Python terminal models are frozen, including nested JSON maps/lists. Their
 `model_dump(mode="json")` output is an independent JSON-compatible delivery
 payload. Modifying a payload does not modify the finalized grading snapshot.
-Internal mutable `PipelineExecution` and `GradingResult` objects are diagnostic
-implementation details, not publisher inputs.
+The frozen `PipelineExecution` return envelope holds only `outcome`; intermediate
+assessment data remains local to the coordinator. Optional diagnostic events
+are separate from the grading artifact. Cleanup failures reach host logging and
+an optional observer without replacing the completed or failed grading outcome.
 
 Operationally, v1 outcomes replace legacy duplicate `root`/`tree` and HTTP
 `children` wrappers. Stored legacy results are not automatically attested with

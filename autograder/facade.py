@@ -7,15 +7,17 @@ from autograder.models.contracts.definition import CompiledDefinition, GradingDe
 from autograder.models.contracts.outcome import TerminalOutcome
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import Submission
+from autograder.models.diagnostics import DiagnosticObserver
 
 
-def evaluate_submission(
+def evaluate_submission(  # pylint: disable=too-many-arguments
     submission: Submission,
     *,
     definition: GradingDefinition | dict | CompiledDefinition,
     templates: Mapping[str, Template] | None = None,
     provenance: DefinitionProvenance | None = None,
     capabilities=None,
+    observer: DiagnosticObserver | None = None,
 ) -> TerminalOutcome:
     """Compile, evaluate and clean up before returning an immutable outcome.
 
@@ -27,4 +29,4 @@ def evaluate_submission(
     return build_pipeline(
         definition=definition, templates=templates, provenance=provenance,
         locale=submission.locale, capabilities=capabilities,
-    ).run(submission).outcome
+    ).run(submission, observer=observer).outcome

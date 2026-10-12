@@ -84,7 +84,7 @@ For standard executions where the entry point is typical or explicitly clear fro
 
 When a student submits code, it enters an execution pipeline managed by the Autograder's `GraderService`, supported by the `CommandResolver`:
 
-1. **Language Association:** The API or Web layer identifies the submitted language and sets it in the overarching `PipelineExecution`.
+1. **Language Association:** The API or Web layer identifies the submitted language and supplies it on `Submission`.
 2. **Configuration Load:** The pipeline loads the standard criteria (e.g., weight, number of tests, configurations like `setup_config` to compile `.java` or `.cpp`).
 3. **Execution Routing in `SubmissionGrader`:** When evaluating an individual test node, `SubmissionGrader` discovers that `program_command` isn't an exact literal. It hands over the raw value (Dict or `"CMD"`) alongside the current `SubmissionLanguage` to the `CommandResolver`.
 4. **Processing by `CommandResolver`:**
@@ -348,7 +348,7 @@ None. This feature is fully backward compatible with existing configurations.
 ### Modified Components
 
 - `GraderService`: Tracks and passes submission language to tests
-- `GradeStep`: Sets submission language in grader service
+- `AutograderPipeline.run`: Passes the selected submission language directly to the grader service
 
 ---
 

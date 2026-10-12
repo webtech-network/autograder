@@ -64,7 +64,6 @@ autograder/
 │   │   ├── focus_service.py        # Focus-based feedback
 │   │   ├── criteria_tree_service.py # Tree construction
 │   │   └── template_library_service.py
-│   ├── steps/              # Pipeline steps
 │   │   ├── load_template_step.py
 │   │   ├── build_tree_step.py
 │   │   ├── pre_flight_step.py
@@ -264,48 +263,19 @@ def test_my_test_function():
     assert result.report is not None
 ```
 
-### Adding a New Pipeline Step
+### Extending grading behavior
 
-1. **Create step file** in `autograder/steps/`:
+Ordinary evaluators implement `TestFunction` or `AiTestFunction`, declare a
+parameter contract, and register in a trusted template. They need no coordinator,
+diagnostic-name or serializer changes.
 
-```python
-# autograder/steps/my_step.py
-from autograder.models.abstract.pipeline_step import PipelineStep
-from autograder.models.pipeline_execution import PipelineExecution
+For cross-cutting execution changes, update the explicit call sequence in
+`autograder/autograder.py`. Pass typed inputs and return values directly.
+Keep required assessment failures separate from optional enrichment failures,
+and close owned sessions before constructing the terminal outcome.
+Do not add step registries or store intermediate artifacts in diagnostic events.
 
-class MyStep(PipelineStep):
-    @property
-    def name(self) -> str:
-        return "my_step"
-    
-    def execute(self, execution: PipelineExecution) -> PipelineExecution:
-        # Your step logic here
-        print(f"Executing {self.name}")
-        
-        # Modify execution as needed
-        execution.metadata["my_step_completed"] = True
-        
-        return execution
-```
-
-2. **Add to pipeline** in `autograder.py`:
-
-```python
-# autograder/autograder.py
-from autograder.steps.my_step import MyStep
-
-def build_pipeline(...):
-    steps = [
-        LoadTemplateStep(),
-        BuildTreeStep(),
-        PreFlightStep(),
-        GradeStep(),
-        MyStep(),  # Add your step
-        FocusStep(),
-        FeedbackStep(),
-    ]
-    return AutograderPipeline(steps)
-```
+See [the execution architecture and internal migration](../core/pipeline-architecture.md).
 
 ### Adding a New API Endpoint
 

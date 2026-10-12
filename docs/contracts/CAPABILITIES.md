@@ -128,4 +128,4 @@ already expresses the required variation; a new pipeline framework is unnecessar
 | #309 add AssetInjectionStep | Fulfilled by typed fixture staging through the acquired session. |
 | #310 add SetupCommandsStep | Fulfilled by typed selected-language commands after fixtures. |
 | #311 merge template setup | Superseded: evaluator capabilities and explicit definition preparation express current requirements without inheritance. |
-| #312 remove PreFlightStep | Superseded: its remaining responsibility is the short, typed preparation sequence; legacy parsing/provider construction are removed. |
+| #312 remove PreFlightStep | Completed by ARC-01: typed preparation is a direct function call; the wrapper, legacy parsing and provider construction are removed. |

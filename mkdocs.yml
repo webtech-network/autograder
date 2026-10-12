@@ -65,16 +65,16 @@ nav:
       - Quick Start Guide: github_action/quick-start.md
       - Configuration Reference: github_action/configuration.md
       - External Mode: github_action/external-mode.md
-  - Pipeline Deep Dive:
+  - Grading Operations:
       - Overview: pipeline/README.md
-      - 01 Load Template: pipeline/01-load-template.md
-      - 02 Build Tree: pipeline/02-build-tree.md
-      - 03 Sandbox: pipeline/03-sandbox.md
-      - 04 Pre Flight: pipeline/04-pre-flight.md
-      - 04.5 AI Batch: pipeline/04.5-ai-batch.md
-      - 05 Grade: pipeline/05-grade.md
-      - 06 Focus: pipeline/06-focus.md
-      - 07 Feedback: pipeline/07-feedback.md
+      - Compile Templates: pipeline/01-load-template.md
+      - Compile Criteria: pipeline/02-build-tree.md
+      - Execution Sessions: pipeline/03-sandbox.md
+      - Preparation: pipeline/04-pre-flight.md
+      - AI Batch: pipeline/04.5-ai-batch.md
+      - Grade: pipeline/05-grade.md
+      - Focus: pipeline/06-focus.md
+      - Feedback: pipeline/07-feedback.md
       - Outcome Publication (adapters): pipeline/08-export.md
   - Architecture Reference:
       - Core Structures: architecture/core_structures.md

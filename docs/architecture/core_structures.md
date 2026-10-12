@@ -193,141 +193,20 @@ Penalty Score: 0
 Final Score: 86 + 5 - 0 = 91
 ```
 
-## Grading Result
+## Terminal grading outcome
 
-The complete grading result object returned after pipeline execution.
+The immutable [outcome v1](../contracts/OUTCOMES.md) contains execution identity,
+provenance, language, timestamps, score/tree, optional feedback/comparison status,
+and a safe error on required failure. A completed zero is distinct from a failed
+execution with null score/tree.
 
-### Properties
+`evaluate_submission` returns this artifact directly.
+`build_pipeline(...).run(...)` returns a frozen `PipelineExecution` envelope
+containing only `outcome`. Intermediate criteria, sessions, assessments and
+result trees are ordinary local values in the coordinator.
 
-```python
-class GradingResult:
-    final_score: float                     # Overall grade (0-100+)
-    feedback: Optional[str] = None         # Generated feedback (if enabled)
-    result_tree: Optional[ResultTree] = None  # Detailed score breakdown
-    focus: Optional[Focus] = None          # Focus object organizing tests by impact
-    error: Optional[str] = None            # Error message (if grading failed)
-    failed_at_step: Optional[str] = None   # Pipeline step where failure occurred
-```
-
-### Example
-
-```json
-{
-  "final_score": 91.0,
-  "feedback": "Great work! Your program meets most requirements...",
-  "result_tree": {
-    "final_score": 91.0,
-    "root": { ... }
-  },
-  "focus": {
-    "high_impact": [ ... ],
-    "medium_impact": [ ... ],
-    "low_impact": [ ... ]
-  },
-  "error": null,
-  "failed_at_step": null
-}
-```
-
-## Pipeline Execution
-
-Internal state object passed between pipeline steps and used to generate API responses.
-
-### Properties
-
-```python
-class PipelineExecution:
-    submission: Submission           # Student files and metadata
-    step_results: list[StepResult]  # Results from each pipeline step
-    assignment_id: int              # Assignment identifier
-    status: PipelineStatus          # Overall execution status (SUCCESS, FAILED, RUNNING)
-    result: GradingResult | None    # Final grading result (if grading completed)
-    start_time: float               # Execution start timestamp
-```
-
-### Pipeline Execution Summary
-
-The `PipelineExecutionSerializer` (`autograder/serializers/pipeline_execution_serializer.py`) handles the conversion of an execution into a dictionary for API responses.
-
-#### Step Status Semantics
-During execution, steps return a `StepResult` which contains a `status`:
-- `SUCCESS`: The step executed correctly and produced the expected output data.
-- `FAIL`: The step executed correctly, but encountered a logical domain failure (e.g. pre-flight file check missing required files, or code styling was bad).
-- `INTERRUPTED`: The step encountered an unexpected system-level error or unhandled exception. The pipeline base class traps this to prevent full collapse.
-
-#### `PipelineExecutionSerializer.serialize(execution) -> dict`
-
-
-Generates detailed summary for API responses.
-
-**Returns:**
-```json
-{
-    "status": "success" | "failed",
-    "failed_at_step": str | None,
-    "total_steps_planned": int,
-    "steps_completed": int,
-    "execution_time_ms": int,
-    "steps": [
-        {
-            "name": "PreFlightStep",
-            "status": "success" | "fail",
-            "message": str,
-            "error_details": dict | None  # Present if step failed
-        }
-    ]
-}
-```
-
-### Example Summary (Success)
-
-```json
-{
-  "status": "success",
-  "failed_at_step": null,
-  "total_steps_planned": 8,
-  "steps_completed": 8,
-  "execution_time_ms": 4521,
-  "steps": [
-    {"name": "LOAD_TEMPLATE", "status": "success"},
-    {"name": "PRE_FLIGHT", "status": "success", "message": "Required files found"},
-    {"name": "SANDBOX", "status": "success", "message": "Sandbox environment ready"},
-    {"name": "GRADE", "status": "success", "message": "Grading completed: 85.5/100"}
-  ]
-}
-```
-
-### Example Summary (Preflight Failure)
-
-```json
-{
-  "status": "failed",
-  "failed_at_step": "SANDBOX",
-  "total_steps_planned": 8,
-  "steps_completed": 4,
-  "execution_time_ms": 1523,
-  "steps": [
-    {"name": "LOAD_TEMPLATE", "status": "success"},
-    {"name": "BUILD_TREE", "status": "success"},
-    {"name": "PRE_FLIGHT", "status": "success"},
-    {
-      "name": "SANDBOX",
-      "status": "fail",
-      "message": "Setup command 'Compile Calculator.java' failed",
-      "error_details": {
-        "error_type": "setup_command_failed",
-        "phase": "setup_commands",
-        "command_name": "Compile Calculator.java",
-        "failed_command": {
-          "command": "javac Calculator.java",
-          "exit_code": 1,
-          "stderr": "Calculator.java:4: error: ';' expected..."
-        }
-      }
-    }
-  ]
-}
-```
+Optional [diagnostic events](pipeline_execution_tracking.md) contain observations
+without artifact data or references to the execution. They never drive grading.
 
 ## Test Result
 
