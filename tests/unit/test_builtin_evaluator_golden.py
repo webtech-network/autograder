@@ -2,7 +2,7 @@
 import pytest
 
 from autograder import Submission, SubmissionFile, build_pipeline, compile_snapshot
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from tests.builtin_evaluator_cases import DEFINITION, SUBMISSIONS, golden, leaves
 
 

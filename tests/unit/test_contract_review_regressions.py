@@ -7,7 +7,7 @@ from autograder.autograder import build_pipeline
 from autograder.models.contracts.definition import compile_definition, DefinitionValidationError
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.services.definition_migration import convert_legacy_definition
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 
 def web_definition():

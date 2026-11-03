@@ -10,7 +10,9 @@ import pytest
 from sandbox_manager.errors import Disposal, SandboxCapacityError, SandboxCleanupError
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig, SandboxRuntimeProfile
-from sandbox_manager.models.sandbox_models import Language, SandboxState
+from sandbox_manager.models.sandbox_models import SandboxState
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_IMAGES
 from sandbox_manager.ownership import LABEL_OWNER
 
 
@@ -58,7 +60,7 @@ class FakeDocker:
 
 
 def config(**overrides):
-    values = dict(language=Language.PYTHON, pool_size=0, scale_limit=2, idle_timeout=300, running_timeout=60)
+    values = dict(language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0, scale_limit=2, idle_timeout=300, running_timeout=60)
     values.update(overrides)
     return SandboxPoolConfig(**values)
 

@@ -30,6 +30,17 @@ general:
     # Development: 60, Production: 120 (2 min) for safety
     running_timeout: 120
 
+# RUNTIMES: the host's runtime profiles, mapping a domain language identifier to the
+# sandbox image this host runs for it. Replacing an image changes only this map.
+# A language left out has no pool: grading or deliberate execution in that language
+# fails as an unavailable capability (never as an invalid language).
+runtimes:
+    python: sandbox-py:latest
+    java: sandbox-java:latest
+    node: sandbox-node:latest
+    cpp: sandbox-cpp:latest
+    c: sandbox-cpp:latest
+
 # RUNTIME PROFILE: the single owner of Docker isolation and limits for every sandbox.
 # runtime: auto (gVisor runsc when Docker registers it, else runc) | runsc (required) | runc
 # Only the isolation kernel differs between runtimes; every limit below applies to both.

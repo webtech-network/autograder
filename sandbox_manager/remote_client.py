@@ -22,11 +22,11 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from sandbox_manager.errors import (
-    ArtifactTooLargeError, Disposal, SandboxCleanupError, SandboxHandleError, SandboxTransportError,
+    ArtifactTooLargeError, Disposal, RuntimeUnavailableError, SandboxCleanupError, SandboxHandleError,
+    SandboxTransportError,
 )
-from sandbox_manager.models.sandbox_models import (
-    CommandResponse, ExtractedFile, HttpResponse, Language, ResponseCategory,
-)
+from autograder.models.language import Language
+from sandbox_manager.models.sandbox_models import CommandResponse, ExtractedFile, HttpResponse, ResponseCategory
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
@@ -58,6 +58,8 @@ def _raise_for(response, operation: str) -> None:
     code = _error_code(response)
     if code in ("sandbox_not_found", "sandbox_expired"):
         raise SandboxHandleError(code, f"Sandbox lease unavailable during {operation} ({code})")
+    if code == "runtime_unavailable":
+        raise RuntimeUnavailableError(f"The sandbox service has no runtime for this language ({operation})")
     if code == "artifact_not_found":
         raise FileNotFoundError(f"Artifact not found in sandbox during {operation}")
     if code == "artifact_too_large":

@@ -60,6 +60,10 @@ in metadata; core owns only typed values it must actually interpret.
 Language is inferred for a single-language definition. Multiple allowed languages
 require explicit selection. Disallowed language and unavailable execution
 capability are different failures. Runtime context cannot be assignment-authored.
+`autograder/models/language.py` is the only language list; hosts map languages to
+images (`sandbox_config.yml` `runtimes:`), I/O evaluators choose commands and
+analysis chooses grammars per file type. See
+[LANGUAGES.md](docs/contracts/LANGUAGES.md).
 
 The recursive tree retains base/bonus/penalty, nested subjects, tests and the
 explicit mixed-group `subjects_weight` split. Sibling weights are ratios; all-zero

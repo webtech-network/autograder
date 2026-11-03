@@ -14,7 +14,8 @@ from autograder.models.contracts.definition import compile_definition, Definitio
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.template_library.input_output import DontFailTest, ExpectOutputTest
 from autograder.template_library.static_analysis import ForbiddenImportTest
-from sandbox_manager.models.sandbox_models import CommandResponse, Language, ResponseCategory
+from sandbox_manager.models.sandbox_models import CommandResponse, ResponseCategory
+from autograder.models.language import Language
 from tests.evaluator_calls import invoke
 
 
@@ -51,17 +52,49 @@ class TestCmdPlaceholderResolution:
     """CMD means the conventional per-language default command."""
 
     @pytest.mark.parametrize("language,expected", [
-        (Language.PYTHON, "python3 main.py"), (Language.JAVA, "java Main"), (Language.NODE, "node index.js")])
+        (Language.PYTHON, "python3 main.py"), (Language.JAVA, "java Main"), (Language.NODE, "node index.js"),
+        (Language.CPP, "./a.out"), (Language.C, "./a.out")])
     def test_cmd_resolved(self, language, expected):
         assert _executed_command("CMD", language) == expected
+
+    def test_default_table_covers_every_domain_language(self):
+        """Adding a language without a default would make CMD a compile-time error."""
+        from autograder.template_library.input_output import DEFAULT_COMMANDS
+        assert set(DEFAULT_COMMANDS) == set(Language)
+
+    def test_cmd_without_default_is_rejected_at_compilation(self, monkeypatch):
+        from autograder.template_library import input_output
+        monkeypatch.setattr(input_output, "DEFAULT_COMMANDS", {Language.PYTHON: "python3 main.py"})
+        value = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python", "java"],
+                 "criteria": {"base": {"weight": 100, "tests": [{"id": "run", "name": "Run", "type": "dont_fail",
+                                                                 "parameters": {"program_command": "CMD"}}]}}}
+        with pytest.raises(DefinitionValidationError) as failure:
+            compile_definition(value)
+        assert failure.value.errors()[0]["code"] == "MISSING_LANGUAGE_COMMAND"
 
 
 class TestStringAndMissingLanguage:
     def test_string_command_is_used_directly(self):
         assert _executed_command("python3 my_script.py", Language.PYTHON) == "python3 my_script.py"
 
-    def test_command_unchanged_when_no_language(self):
-        assert _executed_command("CMD") == "CMD"
+    def test_string_command_needs_no_language(self):
+        assert _executed_command("python3 main.py") == "python3 main.py"
+
+    @pytest.mark.parametrize("command", ["CMD", {"python": "python3 main.py"}])
+    def test_language_selected_command_without_a_bound_language_is_an_error(self, command):
+        """Never send the unresolved map or the literal placeholder to the process."""
+        from autograder.models.evaluation_error import EvaluationError
+        with pytest.raises(EvaluationError) as failure:
+            _executed_command(command)
+        assert failure.value.code == "LANGUAGE_REQUIRED"
+
+    def test_map_alias_keys_are_not_accepted(self):
+        """Only canonical identifiers select commands; there is no upper-case alias."""
+        value = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
+                 "criteria": {"base": {"weight": 100, "tests": [{"id": "run", "name": "Run", "type": "dont_fail",
+                                                                 "parameters": {"program_command": {"PYTHON": "python3 main.py"}}}]}}}
+        with pytest.raises(DefinitionValidationError):
+            compile_definition(value)
 
 
 class TestNoHiddenOrRuntimeKeywords:

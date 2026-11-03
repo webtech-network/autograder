@@ -20,7 +20,8 @@ from docker.client import DockerClient
 
 from sandbox_manager.errors import Disposal, SandboxCapacityError, SandboxCleanupError
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import Language, SandboxState
+from sandbox_manager.models.sandbox_models import SandboxState
+from autograder.models.language import Language
 from sandbox_manager.ownership import APP_VALUE, LABEL_APP, LABEL_OWNER
 from sandbox_manager.sandbox_container import SandboxContainer
 
@@ -237,7 +238,7 @@ class LanguagePool:
         }
         try:
             container = self.client.containers.run(
-                image=self.language.image, name=name, labels=labels,
+                image=self.config.image, name=name, labels=labels,
                 **self.config.profile.container_options(self.runtime))
         except Exception:
             # ``run`` may have created the container before start failed.

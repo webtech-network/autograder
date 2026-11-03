@@ -11,7 +11,8 @@ from sandbox_manager.api import create_app
 from sandbox_manager.errors import (
     Disposal, SandboxCleanupError, SandboxHandleError, SandboxTransportError,
 )
-from sandbox_manager.models.sandbox_models import Language, SandboxState
+from sandbox_manager.models.sandbox_models import SandboxState
+from autograder.models.language import Language
 from sandbox_manager.remote_client import RemoteSandboxManager
 from tests.unit.sandbox.fakes import FakeManager, serve
 

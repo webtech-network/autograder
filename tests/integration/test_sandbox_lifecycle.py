@@ -22,7 +22,9 @@ from sandbox_manager.api import create_app
 from sandbox_manager.errors import Disposal, SandboxCapacityError, SandboxCleanupError, SandboxHandleError
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig, SandboxRuntimeProfile
-from sandbox_manager.models.sandbox_models import Language, ResponseCategory, SandboxState
+from sandbox_manager.models.sandbox_models import ResponseCategory, SandboxState
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_IMAGES
 from sandbox_manager.ownership import LABEL_OWNER, reclaim_dead_owners
 from sandbox_manager.remote_client import RemoteSandboxContainer, RemoteSandboxManager
 from tests.unit.sandbox.fakes import serve
@@ -40,7 +42,7 @@ def client():
 
 
 def config(**overrides):
-    values = dict(language=Language.PYTHON, pool_size=1, scale_limit=3, idle_timeout=300, running_timeout=60)
+    values = dict(language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=1, scale_limit=3, idle_timeout=300, running_timeout=60)
     values.update(overrides)
     return SandboxPoolConfig(**values)
 
@@ -155,8 +157,8 @@ OWNER_SCRIPT = textwrap.dedent("""
     import json, sys, time
     from sandbox_manager.manager import SandboxManager
     from sandbox_manager.models.pool_config import SandboxPoolConfig
-    from sandbox_manager.models.sandbox_models import Language
-    manager = SandboxManager([SandboxPoolConfig(Language.PYTHON, 1, 2, 300, 600)], lease_dir=sys.argv[1]).start()
+    from autograder.models.language import Language
+    manager = SandboxManager([SandboxPoolConfig(Language.PYTHON, "sandbox-py:latest", 1, 2, 300, 600)], lease_dir=sys.argv[1]).start()
     sandbox = manager.acquire(Language.PYTHON)
     manager.language_pools[Language.PYTHON].replenish()  # one leased, one warm
     print(json.dumps({"owner": manager.owner_id}), flush=True)

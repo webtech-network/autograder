@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 import requests
+from tests.sandbox_profiles import TEST_SANDBOX_CONFIG
 
 
 @pytest.fixture(scope="session")
@@ -17,7 +18,7 @@ def isolated_api(tmp_path_factory):
     directory = tmp_path_factory.mktemp("autograder-e2e")
     database = directory / "api.sqlite3"
     config = directory / "sandbox.yml"
-    config.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
+    config.write_text(TEST_SANDBOX_CONFIG)
     token = secrets.token_hex(24)
     # A private lease directory: this API's startup reclamation can only select
     # owners created by this test run, never another host's sandboxes.

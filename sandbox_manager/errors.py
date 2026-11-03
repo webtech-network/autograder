@@ -20,6 +20,14 @@ class SandboxCapacityError(SandboxError):
     """No sandbox could be leased: the pool is at its scale limit or shut down."""
 
 
+class RuntimeUnavailableError(SandboxError):
+    """This host has no runtime profile (image) for the requested language.
+
+    The language may be valid and allowed by the definition; the host simply
+    cannot execute it. Callers report a capability failure, never an invalid language.
+    """
+
+
 class SandboxCleanupError(SandboxError):
     """Disposal was not confirmed. The owner retains the record and retries it."""
 

@@ -21,7 +21,8 @@ from tests.integration.definition_fixtures import build_migrated_fixture_pipelin
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from tests.integration.sandbox_support import current_test_manager, start_test_manager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_IMAGES
 
 
 class TestPipelineSandboxIntegration(unittest.TestCase):
@@ -33,6 +34,7 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
         pool_configs = [
             SandboxPoolConfig(
                 language=Language.PYTHON,
+                image=TEST_IMAGES[Language.PYTHON],
                 pool_size=3,  # More sandboxes for concurrent tests
                 scale_limit=6,
                 idle_timeout=300,
@@ -40,6 +42,7 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
             ),
             SandboxPoolConfig(
                 language=Language.JAVA,
+                image=TEST_IMAGES[Language.JAVA],
                 pool_size=2,
                 scale_limit=4,
                 idle_timeout=300,

@@ -19,7 +19,8 @@ from autograder.template_library.api_testing import HealthCheckTest
 from autograder.template_library.web_dev.html_tests import HasTag
 from autograder.template_library.web_dev.css_tests import CountUnusedCssClasses
 from autograder.template_library.web_dev.structure_tests import CheckProjectStructure
-from sandbox_manager.models.sandbox_models import CommandResponse, Language
+from sandbox_manager.models.sandbox_models import CommandResponse
+from autograder.models.language import Language
 
 
 def files(*pairs):

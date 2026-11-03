@@ -16,10 +16,10 @@ from typing import Dict, Iterable, Optional
 
 import docker
 
-from sandbox_manager.errors import Disposal, SandboxCapacityError, SandboxCleanupError
+from sandbox_manager.errors import Disposal, RuntimeUnavailableError, SandboxCapacityError, SandboxCleanupError
 from sandbox_manager.language_pool import LanguagePool
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from sandbox_manager.ownership import LABEL_OWNER, OwnerLease, ReclaimReport, reclaim_dead_owners
 from sandbox_manager.sandbox_container import SandboxContainer
 
@@ -155,7 +155,7 @@ class SandboxManager:
         try:
             return self.language_pools[language]
         except KeyError:
-            raise SandboxCapacityError(f"No sandbox pool is configured for {language.value}") from None
+            raise RuntimeUnavailableError(f"No sandbox runtime is configured for {language.value}") from None
 
     def acquire(self, language: Language) -> SandboxContainer:
         """Lease a sandbox. The caller must call :meth:`dispose` exactly when finished."""

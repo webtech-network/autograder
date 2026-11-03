@@ -5,7 +5,8 @@ so its startup reclamation can never select another host's containers.
 """
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_IMAGES
 
 _CURRENT = None
 
@@ -21,7 +22,7 @@ def start_test_manager(pool_configs):
 def current_test_manager():
     if _CURRENT is None:
         return start_test_manager([
-            SandboxPoolConfig(language=language, pool_size=1, scale_limit=4, idle_timeout=300, running_timeout=120)
+            SandboxPoolConfig(language=language, image=TEST_IMAGES[language], pool_size=1, scale_limit=4, idle_timeout=300, running_timeout=120)
             for language in (Language.PYTHON, Language.JAVA, Language.NODE, Language.CPP)])
     return _CURRENT
 

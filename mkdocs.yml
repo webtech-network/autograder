@@ -42,6 +42,7 @@ nav:
       - Submission Input: contracts/SUBMISSIONS.md
       - Evaluator Files: contracts/FILES.md
       - Host Capabilities: contracts/CAPABILITIES.md
+      - Languages and Runtimes: contracts/LANGUAGES.md
       - Sandbox Ownership: contracts/SANDBOX.md
       - Durable Jobs: contracts/JOBS.md
       - Definitions: contracts/DEFINITIONS.md
@@ -93,7 +94,7 @@ nav:
       - Baseline Comparison: features/baseline_comparison.md
       - Deliberate Code Execution: features/deliberate_code_execution.md
       - Setup Config: features/setup_config_feature.md
-      - Command Resolver: features/command_resolver.md
+      - Program Commands: features/program_commands.md
       - Localization: features/localization.md
   - Guides:
       - Development Guide: guides/development.md

@@ -18,7 +18,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 from sandbox_manager.errors import SandboxCleanupError, SandboxHandleError
-from sandbox_manager.models.sandbox_models import Language, SandboxState
+from sandbox_manager.models.sandbox_models import SandboxState
+from autograder.models.language import Language
 
 logger = logging.getLogger(__name__)
 

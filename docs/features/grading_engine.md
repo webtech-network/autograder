@@ -209,4 +209,4 @@ The `ResultTree` also provides utility methods:
 | `autograder/models/result_tree.py` | `ResultTree`, `RootResultNode`, `CategoryResultNode`, `SubjectResultNode`, `TestResultNode` |
 | `autograder/models/criteria_tree.py` | `CriteriaTree`, `CategoryNode`, `SubjectNode`, `TestNode` |
 | `autograder/models/dataclass/test_result.py` | `TestResult` — individual test execution output |
-| `autograder/services/command_resolver.py` | `CommandResolver` — multi-language command resolution |
+| `autograder/template_library/input_output.py` | I/O evaluators, including `program_command` selection (see [Program Commands](program_commands.md)) |

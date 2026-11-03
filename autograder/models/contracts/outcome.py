@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_validator, model_validator
 
 from autograder.models.contracts.provenance import DefinitionProvenance
+from autograder.models.language import LanguageId
 
 Score = Annotated[float, Field(ge=0, le=100, allow_inf_nan=False, strict=True)]
 Weight = Annotated[float, Field(ge=0, allow_inf_nan=False, strict=True)]
@@ -238,7 +239,7 @@ def _validate_enrichment(enrichment):
 class OutcomeBase(ContractModel):
     schema_version: Literal["1.0"]
     execution_id: str = Field(min_length=1)
-    language: Literal["python", "java", "c", "cpp", "node"] | None = None
+    language: LanguageId | None = None
     provenance: DefinitionProvenance
     started_at: datetime
     finished_at: datetime

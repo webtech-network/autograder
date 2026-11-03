@@ -82,6 +82,13 @@ general:
     # Maximum lease duration (acquisition to disposal), in seconds
     running_timeout: 120
 
+runtimes:           # host runtime profiles: language identifier -> sandbox image
+    python: sandbox-py:latest
+    java: sandbox-java:latest
+    node: sandbox-node:latest
+    cpp: sandbox-cpp:latest
+    c: sandbox-cpp:latest
+
 runtime:            # the single Docker runtime/limit profile (see the ownership contract)
     runtime: auto   # auto | runsc | runc
     memory: 128m

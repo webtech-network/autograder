@@ -12,6 +12,7 @@ from autograder.models.contracts.definition import CompiledDefinition, compile_d
 from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome, FeedbackOutcome, OutcomeError, ResultOutcomeTree
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import Submission
+from autograder.models.language import LANGUAGE_IDS, Language
 from autograder.models.diagnostics import DiagnosticEvent, DiagnosticObserver
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.pipeline_execution import PipelineExecution
@@ -156,10 +157,10 @@ class AutograderPipeline:
                     _observe(observer, execution_id, "close_session", cleanup_error)
 
         # Finalization consumes explicit values only, after resource cleanup.
-        language = getattr(submission.language, "value", submission.language)
+        language = submission.language.value if isinstance(submission.language, Language) else submission.language
         common = {
             "schema_version": "1.0", "execution_id": execution_id,
-            "language": language if language in ("python", "java", "c", "cpp", "node") else None,
+            "language": language if language in LANGUAGE_IDS else None,
             "provenance": self.definition_provenance, "started_at": started_at,
             "finished_at": max(started_at, datetime.now(timezone.utc)),
             "duration_ms": max(0, int((time.monotonic() - started) * 1000)),

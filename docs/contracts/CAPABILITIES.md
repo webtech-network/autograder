@@ -18,7 +18,9 @@ the selected language. Unused execution templates and another language's setup
 do not request resources. Fixtures apply to the definition's selected run.
 Discovery uses the same evaluator capability declarations and never probes
 availability. Missing execution support has a capability error; a disallowed
-language has a separate submission error.
+language has a separate submission error. A host that supports execution but has
+no runtime profile for the bound language (no `runtimes:` image) also fails with
+`CAPABILITY_UNAVAILABLE`; see [LANGUAGES.md](LANGUAGES.md).
 
 `ExecutionSession` provides submission staging, process execution, relative
 artifact readback, fixture staging and disposal. Its `fixture_root` declares the

@@ -17,14 +17,14 @@ from fastapi.responses import JSONResponse
 
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.dataclass.submission import SubmissionFile
-from sandbox_manager.errors import ArtifactTooLargeError, SandboxCapacityError, SandboxHandleError
+from sandbox_manager.errors import ArtifactTooLargeError, RuntimeUnavailableError, SandboxCapacityError, SandboxHandleError
 from sandbox_manager.handles import HandleRegistry
 from sandbox_manager.models.api_models import (
     MAX_ARTIFACT_BYTES, AcquireSandboxResponse, CommandResponseModel, DisposeSandboxResponse,
     ExtractedFileResponse, HttpResponseModel, InjectAssetsRequest, MakeRequestRequest,
     PrepareWorkdirRequest, RunBatchRequest, RunCommandRequest,
 )
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +137,8 @@ def create_app(*, token: Optional[str] = None, manager_factory: Optional[Callabl
             raise _error(status.HTTP_404_NOT_FOUND, "artifact_not_found", str(exc)) from exc
         except ArtifactTooLargeError as exc:
             raise _error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "artifact_too_large", str(exc)) from exc
+        except RuntimeUnavailableError as exc:
+            raise _error(status.HTTP_501_NOT_IMPLEMENTED, "runtime_unavailable", str(exc)) from exc
         except SandboxCapacityError as exc:
             raise _error(status.HTTP_503_SERVICE_UNAVAILABLE, "capacity_unavailable", str(exc)) from exc
         except ValueError as exc:

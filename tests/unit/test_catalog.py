@@ -6,6 +6,7 @@ import pytest
 from pydantic import BaseModel, Field
 
 from autograder import compile_definition, describe_templates, DefinitionValidationError
+from autograder.models.language import LANGUAGE_IDS
 from autograder.models.contracts.catalog import describe_template
 from autograder.services.template_library_service import TemplateLibraryService
 from examples.contracts.custom_evaluator import ContainsText, DEFINITION, TrustedTextTemplate
@@ -19,7 +20,7 @@ def test_every_catalog_evaluator_resolves_and_its_sample_compiles(template):
         function = instance.get_test(evaluator.identifier)
         assert evaluator.parameters_schema == {
             **function.config_schema.model_json_schema(), "additionalProperties": False}
-        for language in evaluator.supported_languages or ["python", "java", "node", "cpp", "c"]:
+        for language in evaluator.supported_languages or LANGUAGE_IDS:
             value = deepcopy(DEFINITION)
             value.update(templates=[template.identifier], languages=[language])
             value["criteria"]["base"]["tests"][0].update(

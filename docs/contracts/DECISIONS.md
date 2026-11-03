@@ -220,3 +220,21 @@ Acquisition and disposal are safely replayable; commands are never replayed. A
 distributed handle store is unnecessary for the documented single-process
 deployment. See [SANDBOX.md](SANDBOX.md) for the boundary, limits, recovery
 table and migration.
+
+## Language identity and its consumers (ARC-05)
+
+`autograder.models.language.Language` is the only declaration of supported
+language identifiers. It carries no image and imports no infrastructure. The
+definition and outcome schemas, submission and deliberate-execution validation,
+and the outcome's `language` derive from it, and wire identifiers are unchanged.
+The host owns runtime images in the `runtimes:` map of `sandbox_config.yml`; an
+allowed language without a profile is an unavailable capability
+(`RuntimeUnavailableError`, control API `501 runtime_unavailable`, grading
+`CAPABILITY_UNAVAILABLE`), never an invalid language. I/O evaluators own
+`program_command` selection, with one documented `CMD` table; the
+`CommandResolver`, its unused default table and its alias and file-name fallbacks
+are removed. Analysis owns grammar selection (`structural_analysis.py`), and
+evaluators decide their assessable files through `accepts_file`, so mixed
+HTML/CSS/JavaScript submissions are parsed per file type. The HTTP submission
+adapter still lower-cases its input language before binding. No plugin framework
+was introduced. See [LANGUAGES.md](LANGUAGES.md) for the change surface.

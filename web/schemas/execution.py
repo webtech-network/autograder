@@ -5,7 +5,9 @@ import shlex
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, model_validator
 
-from sandbox_manager.models.sandbox_models import Language, ResponseCategory
+from sandbox_manager.models.sandbox_models import ResponseCategory
+
+from autograder.models.language import LANGUAGE_IDS
 
 
 MAX_FILES = 20
@@ -83,8 +85,8 @@ class DeliberateCodeExecutionRequest(BaseModel):
     @field_validator("language")
     @classmethod
     def canonical_language(cls, value: str) -> str:
-        """Accept only sandbox language identifiers exposed by this host."""
-        if value not in {language.value for language in Language}:
+        """Accept only canonical domain identifiers; host runtime support is checked at execution."""
+        if value not in LANGUAGE_IDS:
             raise ValueError("language must be a supported lowercase identifier")
         return value
 

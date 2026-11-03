@@ -8,9 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, f
 from autograder.models.abstract.template import Template
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import CriteriaTree
-from autograder.models.contracts.parameters import LanguageId
 from autograder.models.frozen import freeze, thaw
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language, LanguageId
 
 
 class StrictModel(BaseModel):

@@ -9,7 +9,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, ConfigDict, StrictInt, field_validator, model_validator
 
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import LANGUAGE_IDS, Language
 from submission_contract import (
     MAX_FILES, MAX_TOTAL_FILE_BYTES, MAX_TOTAL_METADATA_BYTES,
     validate_filename, validate_content, validate_filenames, validate_metadata, metadata_bytes,
@@ -145,24 +145,15 @@ class SubmissionCreate(BaseModel):
     @field_validator("language")
     @classmethod
     def validate_language(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that the language is supported."""
+        """Bind a domain language identifier; input case is normalized, output is canonical."""
         if v is None:
             return v
-
-        # Normalize to uppercase for comparison
-        language_upper = v.upper()
-
-        # Check if language exists in Language enum
-        valid_languages = [lang.name for lang in Language]
-        if language_upper not in valid_languages:
-            valid_languages_lower = [lang.value for lang in Language]
+        try:
+            return Language(v.lower()).value
+        except ValueError:
             raise ValueError(
-                "Unsupported language. "
-                f"Supported languages are: {', '.join(valid_languages_lower)}"
-            )
-
-        # Return the lowercase value (as stored in the enum)
-        return Language[language_upper].value
+                f"Unsupported language. Supported languages are: {', '.join(LANGUAGE_IDS)}"
+            ) from None
 
 
 class SubmissionResponse(BaseModel):
@@ -224,7 +215,7 @@ class ExternalResultCreate(BaseModel):
     @classmethod
     def validate_language(cls, value):
         """Require a canonical language for host attestations."""
-        if value not in {language.value for language in Language}:
+        if value not in LANGUAGE_IDS:
             raise ValueError(
                 "Language must be a canonical supported language identifier"
             )

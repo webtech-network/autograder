@@ -112,6 +112,8 @@ creation errors. The isolation kernel is the only permitted difference between
 runtimes. Earlier runc fallbacks had no `/app` tmpfs, so every container leaked
 an anonymous image volume; that difference is removed. `running_timeout` (lease
 duration), `pool_size`, `scale_limit` and `idle_timeout` remain under `general:`.
+The `runtimes:` map is the host's only language-to-image table; a pool exists
+only for listed languages (see [LANGUAGES.md](LANGUAGES.md)).
 
 ## Private control API
 
@@ -141,7 +143,7 @@ duration), `pool_size`, `scale_limit` and `idle_timeout` remain under `general:`
 
 | Route | Success | Distinct failures (`detail.code`) |
 | --- | --- | --- |
-| `POST /sandboxes/{language}` | 201 `{sandbox_id, language, lease_seconds}` | 503 `capacity_unavailable` |
+| `POST /sandboxes/{language}` | 201 `{sandbox_id, language, lease_seconds}` | 503 `capacity_unavailable`, 501 `runtime_unavailable` (no `runtimes:` image for this language), 422 unknown identifier |
 | `POST /sandboxes/{id}/prepare`, `/inject` | 200 | see below |
 | `POST /sandboxes/{id}/run`, `/run-batch` | 200 command result | 422 `invalid_request` (timeout above lease) |
 | `GET /sandboxes/{id}/files?path=&max_bytes=` | 200 file | 404 `artifact_not_found`, 413 `artifact_too_large` |

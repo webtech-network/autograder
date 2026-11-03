@@ -14,6 +14,7 @@ from autograder.models.abstract.test_function import EvaluationInput, ParameterI
 from autograder.models.abstract.ai_test_function import AiTestFunction
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from autograder.models.language import Language
 
 __all__ = ["build_pipeline", "compile_definition", "compile_snapshot", "select_language", "validate_outcome",
            "grading_definition_json_schema", "outcome_json_schema", "GradingDefinition",
@@ -21,4 +22,4 @@ __all__ = ["build_pipeline", "compile_definition", "compile_snapshot", "select_l
            "evaluate_submission", "Template", "TestFunction", "AiTestFunction",
            "EvaluationInput", "ParameterIssue", "Submission",
            "SubmissionFile", "TestResult", "HostCapabilities", "ExecutionSession",
-           "ServerSession", "AssessmentProvider"]
+           "ServerSession", "AssessmentProvider", "Language"]
