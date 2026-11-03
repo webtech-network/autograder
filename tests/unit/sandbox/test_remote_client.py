@@ -6,6 +6,7 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from autograder.models.dataclass.submission import SubmissionFile
+from autograder.models.process import ProcessRequest
 from execution_host.docker import DockerSession
 from sandbox_manager.api import create_app
 from sandbox_manager.errors import (
@@ -70,8 +71,8 @@ def test_full_lease_over_http_and_session_closure(service):
     client = RemoteSandboxManager(url, TOKEN, session_factory=TrackingSession)
     with DockerSession(client, Language.PYTHON) as session:
         session.prepare_workdir({"out.txt": SubmissionFile("out.txt", "hello")})
-        assert session.run_command("python3 main.py", timeout=5).stdout == "ran python3 main.py"
-        assert session.run_commands(["a", "b"], program_command="cat", timeout=5).stdout == "a\nb"
+        assert session.run_process(ProcessRequest.command("python3 main.py", timeout=5)).stdout == "ran python3 main.py\n"
+        assert session.run_process(ProcessRequest(argv=("cat",), stdin=b"a\nb", timeout=5)).stdout == "ran cat\na\nb"
         assert session.read_artifact("out.txt").content_text == "hello"
         with pytest.raises(FileNotFoundError):
             session.read_artifact("missing.txt")
@@ -80,7 +81,7 @@ def test_full_lease_over_http_and_session_closure(service):
     assert lease_session.closed
     assert client.dispose(session.sandbox) is Disposal.ALREADY_DISPOSED
     with pytest.raises(SandboxHandleError) as closed:
-        session.run_command("id")
+        session.run_process(ProcessRequest(argv=("id",)))
     assert closed.value.code == "sandbox_expired"
 
 
@@ -89,7 +90,7 @@ def test_client_preserves_unknown_expired_and_execution_failure(service):
     client = RemoteSandboxManager(url, TOKEN)
     sandbox = client.acquire(Language.PYTHON)
     with pytest.raises(SandboxTransportError) as failed:
-        sandbox.run_command("explode")
+        sandbox.run_process(ProcessRequest(argv=("explode",)))
     assert failed.value.code == "execution_failed" and not isinstance(failed.value, FileNotFoundError)
 
     forged = client.acquire(Language.PYTHON)
@@ -137,11 +138,11 @@ def test_lost_delete_response_then_retry_confirms_closure(service):
 
 def test_commands_are_never_replayed_after_a_lost_response(service):
     url, manager = service
-    adapter = LossyAdapter("POST", "/run")
+    adapter = LossyAdapter("POST", "/process")
     client = RemoteSandboxManager(url, TOKEN, session_factory=lossy_factory(adapter), retry_delay=0)
     sandbox = client.acquire(Language.PYTHON)
     with pytest.raises(SandboxTransportError, match="outcome is unknown"):
-        sandbox.run_command("python3 main.py", timeout=5)
+        sandbox.run_process(ProcessRequest.command("python3 main.py", timeout=5))
     assert adapter.sent == 1 and manager.leased[0].runs == ["python3 main.py"]
     client.dispose(sandbox)
 

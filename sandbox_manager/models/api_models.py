@@ -1,12 +1,15 @@
-from typing import Dict, List, Optional
+import base64
+import binascii
+from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from sandbox_manager.models.sandbox_models import ResponseCategory
+from autograder.models.process import (
+    DEFAULT_MAX_OUTPUT_BYTES, DEFAULT_TIMEOUT_SECONDS, MAX_OUTPUT_BYTES, MAX_STDIN_BYTES, MAX_TIMEOUT_SECONDS,
+    ProcessRequest, ProcessResult, ProcessStatus,
+)
 
 MAX_ARTIFACT_BYTES = 8 * 1024 * 1024
-MAX_COMMAND_CHARS = 64 * 1024
-MAX_COMMAND_TIMEOUT_SECONDS = 600  # further bounded by the pool's lease duration
 
 
 class AcquireSandboxResponse(BaseModel):
@@ -38,17 +41,31 @@ class InjectAssetsRequest(BaseModel):
     resolved_assets: List[ResolvedAssetModel]
 
 
-class RunCommandRequest(BaseModel):
-    command: str = Field(max_length=MAX_COMMAND_CHARS)
-    timeout: int = Field(default=30, ge=1, le=MAX_COMMAND_TIMEOUT_SECONDS)
-    workdir: str = Field(default="/app", max_length=4096)
+class ProcessRequestModel(BaseModel):
+    """Wire form of ``autograder.models.process.ProcessRequest`` (stdin is base64)."""
+    model_config = ConfigDict(extra="forbid")
+    argv: Optional[List[str]] = None
+    shell: Optional[str] = None
+    stdin: str = Field(default="", max_length=(MAX_STDIN_BYTES // 3 + 1) * 4)
+    cwd: str = Field(default="/app", max_length=4096)
+    timeout: float = Field(default=DEFAULT_TIMEOUT_SECONDS, gt=0, le=MAX_TIMEOUT_SECONDS)
+    max_output_bytes: int = Field(default=DEFAULT_MAX_OUTPUT_BYTES, ge=1, le=MAX_OUTPUT_BYTES)
 
+    @classmethod
+    def from_request(cls, request: ProcessRequest) -> "ProcessRequestModel":
+        return cls(argv=list(request.argv) if request.argv is not None else None, shell=request.shell,
+                   stdin=base64.b64encode(request.stdin).decode("ascii"), cwd=request.cwd,
+                   timeout=request.timeout, max_output_bytes=request.max_output_bytes)
 
-class RunBatchRequest(BaseModel):
-    commands: List[str]
-    program_command: Optional[str] = Field(default=None, max_length=MAX_COMMAND_CHARS)
-    timeout: int = Field(default=30, ge=1, le=MAX_COMMAND_TIMEOUT_SECONDS)
-    workdir: str = Field(default="/app", max_length=4096)
+    def to_request(self) -> ProcessRequest:
+        """Validate with the shared contract; raises ValueError for any violation."""
+        try:
+            stdin = base64.b64decode(self.stdin, validate=True)
+        except binascii.Error as exc:
+            raise ValueError("stdin must be base64") from exc
+        return ProcessRequest(argv=tuple(self.argv) if self.argv is not None else None, shell=self.shell,
+                              stdin=stdin, cwd=self.cwd, timeout=self.timeout,
+                              max_output_bytes=self.max_output_bytes)
 
 
 class MakeRequestRequest(BaseModel):
@@ -57,17 +74,27 @@ class MakeRequestRequest(BaseModel):
     kwargs: dict = Field(default_factory=dict)
 
 
-class CommandResponseModel(BaseModel):
-    stdout: str
-    stderr: str
-    exit_code: int
-    execution_time: float
-    category: ResponseCategory
+class ProcessResultModel(BaseModel):
+    """Wire form of ``ProcessResult``; outputs are already bounded by the service."""
+    status: Literal["exited", "timed_out", "not_started"]
+    exit_code: Optional[int] = None
+    stdout: str = ""
+    stderr: str = ""
+    stdout_truncated: bool = False
+    stderr_truncated: bool = False
+    duration: float = 0.0
+    missing_executable: Optional[str] = None
 
     @classmethod
-    def from_response(cls, response) -> "CommandResponseModel":
-        return cls(stdout=response.stdout, stderr=response.stderr, exit_code=response.exit_code,
-                   execution_time=response.execution_time, category=response.category)
+    def from_result(cls, result: ProcessResult) -> "ProcessResultModel":
+        return cls(status=result.status.value, exit_code=result.exit_code, stdout=result.stdout,
+                   stderr=result.stderr, stdout_truncated=result.stdout_truncated,
+                   stderr_truncated=result.stderr_truncated, duration=result.duration,
+                   missing_executable=result.missing_executable)
+
+    def to_result(self) -> ProcessResult:
+        return ProcessResult(ProcessStatus(self.status), self.exit_code, self.stdout, self.stderr,
+                             self.stdout_truncated, self.stderr_truncated, self.duration, self.missing_executable)
 
 
 class ExtractedFileResponse(BaseModel):

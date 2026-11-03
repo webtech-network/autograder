@@ -22,11 +22,13 @@ import requests
 from requests.adapters import HTTPAdapter
 
 from sandbox_manager.errors import (
-    ArtifactTooLargeError, Disposal, RuntimeUnavailableError, SandboxCleanupError, SandboxHandleError,
-    SandboxTransportError,
+    ArtifactReadError, ArtifactTooLargeError, Disposal, RuntimeUnavailableError,
+    SandboxCleanupError, SandboxHandleError, SandboxInvalidatedError, SandboxTransportError,
 )
 from autograder.models.language import Language
-from sandbox_manager.models.sandbox_models import CommandResponse, ExtractedFile, HttpResponse, ResponseCategory
+from autograder.models.process import ProcessRequest, ProcessResult
+from sandbox_manager.models.api_models import ProcessRequestModel, ProcessResultModel
+from sandbox_manager.models.sandbox_models import ExtractedFile, HttpResponse
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
@@ -60,6 +62,10 @@ def _raise_for(response, operation: str) -> None:
         raise SandboxHandleError(code, f"Sandbox lease unavailable during {operation} ({code})")
     if code == "runtime_unavailable":
         raise RuntimeUnavailableError(f"The sandbox service has no runtime for this language ({operation})")
+    if code == "sandbox_invalidated":
+        raise SandboxInvalidatedError(f"The sandbox was invalidated ({operation})")
+    if code == "artifact_read_failed":
+        raise ArtifactReadError(f"The artifact could not be read back ({operation})")
     if code == "artifact_not_found":
         raise FileNotFoundError(f"Artifact not found in sandbox during {operation}")
     if code == "artifact_too_large":
@@ -67,11 +73,6 @@ def _raise_for(response, operation: str) -> None:
     raise SandboxTransportError(
         f"Sandbox control API {operation} failed with HTTP {response.status_code} ({code or 'no code'})",
         code=code or f"http_{response.status_code}")
-
-
-def _command_response(data: dict) -> CommandResponse:
-    return CommandResponse(stdout=data["stdout"], stderr=data["stderr"], exit_code=data["exit_code"],
-                           execution_time=data["execution_time"], category=ResponseCategory(data["category"]))
 
 
 class RemoteSandboxContainer:
@@ -122,17 +123,12 @@ class RemoteSandboxContainer:
         self._call("POST", "/inject", "fixture staging", timeout=STAGING_TIMEOUT_SECONDS,
                    json={"resolved_assets": assets})
 
-    def run_command(self, command: str, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
-        response = self._call("POST", "/run", "command execution", timeout=timeout + TRANSPORT_MARGIN_SECONDS,
-                              json={"command": command, "timeout": timeout, "workdir": workdir})
-        return _command_response(response.json())
-
-    def run_commands(self, commands: List[str], program_command: str = None, timeout: int = 30,
-                     workdir: str = "/app") -> CommandResponse:
-        response = self._call("POST", "/run-batch", "command execution", timeout=timeout + TRANSPORT_MARGIN_SECONDS,
-                              json={"commands": commands, "program_command": program_command,
-                                    "timeout": timeout, "workdir": workdir})
-        return _command_response(response.json())
+    def run_process(self, request: ProcessRequest) -> ProcessResult:
+        """Run one process remotely. A lost response is an unknown outcome: never replayed."""
+        body = ProcessRequestModel.from_request(request).model_dump(mode="json")
+        response = self._call("POST", "/process", "process execution",
+                              timeout=request.timeout + TRANSPORT_MARGIN_SECONDS, json=body)
+        return ProcessResultModel.model_validate(response.json()).to_result()
 
     def extract_file(self, path: str, max_bytes: int = 1_048_576) -> ExtractedFile:
         data = self._call("GET", "/files", "artifact extraction", timeout=STAGING_TIMEOUT_SECONDS,

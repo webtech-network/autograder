@@ -7,7 +7,7 @@ installs no signal handlers, ``atexit`` hooks or process-global instances.
 Lease API (shared with :class:`~sandbox_manager.remote_client.RemoteSandboxManager`)::
 
     sandbox = manager.acquire(Language.PYTHON)   # the caller now owns the lease
-    ...prepare_workdir / inject_assets / run_command / extract_file...
+    ...prepare_workdir / inject_assets / run_process / extract_file...
     manager.dispose(sandbox)                     # idempotent, confirmed destruction
 """
 import logging

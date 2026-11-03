@@ -42,7 +42,7 @@ session = DockerSession(manager, Language.PYTHON)   # manager.acquire()
     ├── idle sandbox available? → lease it
     ├── below scale_limit?      → create one and lease it
     └── otherwise               → SandboxCapacityError
-session.prepare_workdir(files) / stage_fixture(...) / run_command(...) / read_artifact(...)
+session.prepare_workdir(files) / stage_fixture(...) / run_process(...) / read_artifact(...)
 session.close()                                      # manager.dispose(): destroy, confirm, replenish
 ```
 
@@ -147,21 +147,23 @@ sandbox.inject_assets(resolved_assets)
 # Assets are now available in /tmp (or specified path)
 ```
 
-### `run_command(command, timeout=30, workdir="/app")`
-Executes a single shell command in the container. Returns a `CommandResponse`.
+### `run_process(request)`
+The only process operation (see [the process contract](../contracts/PROCESSES.md)).
+`request` is a `ProcessRequest` with an exact `argv` (or an explicit `shell`
+script), exact `stdin` bytes, `cwd`, a `timeout` and a per-stream output bound.
+It returns a `ProcessResult` (`exited`, `timed_out` or `not_started`) and raises
+for infrastructure failures.
 
 ```python
-result = sandbox.run_command("python main.py")
-# result.stdout, result.stderr, result.exit_code, result.execution_time, result.category
+from autograder.models.process import ProcessRequest, lines_to_stdin
+result = sandbox.run_process(ProcessRequest.command("python3 calculator.py", stdin=lines_to_stdin(["5", "3"])))
+# result.status, result.exit_code, result.stdout, result.stderr, result.duration
 ```
 
-### `run_commands(commands, program_command=None, timeout=30)`
-Executes a program with stdin input streaming. Each item in `commands` is sent as a line to stdin.
-
-```python
-result = sandbox.run_commands(["5", "3"], program_command="python calculator.py")
-# Sends "5\n3" to stdin of "python calculator.py"
-```
+### `extract_file(path, max_bytes=1 MiB)`
+Reads back a regular file. It raises `FileNotFoundError` only when the file is
+missing, `ArtifactTooLargeError` above `max_bytes`, and `ArtifactReadError` when
+an existing file cannot be read.
 
 ### `make_request(method, endpoint, data=None, json_data=None, headers=None, timeout=5)`
 Makes an HTTP request to a web application running inside the container. Used by the API Testing template.
@@ -175,15 +177,11 @@ response = sandbox.make_request("GET", "/api/health")
 
 ## Models
 
-### `Language` Enum
+### Languages and images
 
-| Value | Docker Image |
-|-------|-------------|
-| `PYTHON` | `sandbox-py:latest` |
-| `JAVA` | `sandbox-java:latest` |
-| `NODE` | `sandbox-node:latest` |
-| `CPP` | `sandbox-cpp:latest` |
-| `C` | `sandbox-cpp:latest` (shares C++ image) |
+The domain `Language` (`autograder/models/language.py`) carries no image. The
+`runtimes:` map in `sandbox_config.yml` assigns each language its image (see
+[LANGUAGES.md](../contracts/LANGUAGES.md)).
 
 ### `SandboxState` Enum
 
@@ -194,27 +192,12 @@ response = sandbox.make_request("GET", "/api/health")
 | `CLOSING` | Disposal started; the record is retained until Docker confirms removal |
 | `STOPPED` | Removal confirmed |
 
-### `ResponseCategory` Enum
+### Process results
 
-| Value | Description |
-|-------|-------------|
-| `SUCCESS` | Program exited with code 0 |
-| `RUNTIME_ERROR` | Program crashed (exception, segfault) |
-| `COMPILATION_ERROR` | Compilation failed (Java/C++) |
-| `TIMEOUT` | Execution exceeded time limit |
-| `SYSTEM_ERROR` | Infrastructure failure (Docker error) |
-
-### `CommandResponse` Dataclass
-
-```python
-@dataclass
-class CommandResponse:
-    stdout: str               # Standard output
-    stderr: str               # Standard error
-    exit_code: int            # Process exit code
-    execution_time: float     # Execution time in seconds
-    category: ResponseCategory  # Classified result
-```
+`ProcessResult`, `ProcessStatus` and the deliberate-execution `ResponseCategory`
+(`success`, `runtime_error`, `timeout`) live in `autograder/models/process.py`.
+Classification uses the exit status only; see
+[PROCESSES.md](../contracts/PROCESSES.md).
 
 ---
 
@@ -260,12 +243,12 @@ from execution_host.docker import DockerSession
 with SandboxManager(pool_configs) as manager:          # host owns start/shutdown
     with DockerSession(manager, Language.PYTHON) as session:
         session.prepare_workdir(files)
-        result = session.run_command("python main.py", timeout=30)
+        result = session.run_process(ProcessRequest.command("python main.py", timeout=30))
     # the sandbox is destroyed even if the block raised
 ```
 
-A timeout or fatal error needs no special path: closing the session always
-destroys the container.
+A timed-out process is killed, along with every process it started, before
+`run_process` returns. Closing the session always destroys the container.
 
 ---
 

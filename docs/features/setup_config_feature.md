@@ -26,6 +26,11 @@ fixtures request an execution session even when every criterion is static.
 Fixtures are resolved by a host-supplied function returning bytes and staged
 under the session's declared fixture root before setup commands execute.
 
+Each setup command runs with the [process contract](../contracts/PROCESSES.md):
+it is split into arguments with no implicit shell (write `sh -c '...'` for shell
+syntax), gets empty stdin and has a 30 s deadline. Malformed quoting is rejected
+when the definition is compiled. Any nonzero exit or timeout is a failed setup
+command (`PREPARATION_FAILED`); a missing executable is `PREPARATION_ERROR`.
 A failed required setup command stops assessment with null score/tree. A student
 compilation failure reported by an evaluator during assessment can instead be a
 valid zero. See the [outcome failure matrix](../contracts/OUTCOMES.md).

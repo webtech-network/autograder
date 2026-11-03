@@ -22,7 +22,8 @@ from sandbox_manager.api import create_app
 from sandbox_manager.errors import Disposal, SandboxCapacityError, SandboxCleanupError, SandboxHandleError
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig, SandboxRuntimeProfile
-from sandbox_manager.models.sandbox_models import ResponseCategory, SandboxState
+from autograder.models.process import ProcessRequest, ProcessStatus
+from sandbox_manager.models.sandbox_models import SandboxState
 from autograder.models.language import Language
 from tests.sandbox_profiles import TEST_IMAGES
 from sandbox_manager.ownership import LABEL_OWNER, reclaim_dead_owners
@@ -74,8 +75,8 @@ def test_lease_acquisition_preparation_use_and_disposal(manager, client):
         assert all(mount["Type"] != "volume" for mount in container.attrs["Mounts"])  # nothing outlives it
         session.prepare_workdir({"main.py": SubmissionFile(
             "main.py", "open('output.txt', 'w').write('42')\nprint(input())")})
-        result = session.run_commands(["hello"], program_command="python main.py", timeout=10)
-        assert result.stdout.strip() == "hello" and result.category is ResponseCategory.SUCCESS
+        result = session.run_process(ProcessRequest.command("python main.py", stdin=b"hello\n", timeout=10))
+        assert result.stdout.strip() == "hello" and result.succeeded
         assert session.read_artifact("output.txt").content_text == "42"
         with pytest.raises(FileNotFoundError):
             session.read_artifact("missing.txt")
@@ -90,11 +91,11 @@ def test_lease_acquisition_preparation_use_and_disposal(manager, client):
 def test_timed_out_command_is_reported_and_its_sandbox_still_disposed(manager, client):
     session = DockerSession(manager, Language.PYTHON)
     started = time.monotonic()
-    result = session.run_command("sleep 30", timeout=2)
-    assert result.category is ResponseCategory.TIMEOUT and time.monotonic() - started < 10
+    result = session.run_process(ProcessRequest(argv=("sleep", "30"), timeout=2))
+    assert result.status is ProcessStatus.TIMED_OUT and time.monotonic() - started < 10
     container_id = session.sandbox.container_ref.id
     started = time.monotonic()
-    session.close()  # the exec is still running inside; disposal must not wait for it
+    session.close()
     assert gone(client, container_id) and time.monotonic() - started < 15
 
 
@@ -149,7 +150,7 @@ def test_runc_profile_has_the_same_limits_and_a_working_workspace(tmp_path):
             assert host["Memory"] == 128 * 1024 * 1024 and host["PidsLimit"] == 64
             assert host["Tmpfs"] == profile.container_options("runc")["tmpfs"]
             session.prepare_workdir({"run.sh": SubmissionFile("run.sh", "echo from-workspace")})
-            result = session.run_command("sh -c 'cp run.sh x.sh && chmod +x x.sh && ./x.sh'", timeout=10)
+            result = session.run_process(ProcessRequest(shell="cp run.sh x.sh && chmod +x x.sh && ./x.sh", timeout=10))
             assert result.stdout.strip() == "from-workspace", result
 
 
@@ -215,7 +216,7 @@ def test_remote_lease_over_real_http(remote_service, client):
     remote = RemoteSandboxManager(url, TOKEN, session_factory=TrackingSession)
     session = DockerSession(remote, Language.PYTHON)
     session.prepare_workdir({"main.py": SubmissionFile("main.py", "open('out.txt','w').write('ok')")})
-    assert session.run_command("python main.py", timeout=10).exit_code == 0
+    assert session.run_process(ProcessRequest.command("python main.py", timeout=10)).exit_code == 0
     assert session.read_artifact("out.txt").content_text == "ok"
     with pytest.raises(FileNotFoundError):
         session.read_artifact("absent.txt")
@@ -233,7 +234,7 @@ def test_remote_lease_over_real_http(remote_service, client):
     session.close()
     assert gone(client, container.id) and all(item.closed for item in TrackingSession.instances)
     with pytest.raises(SandboxHandleError) as expired:
-        session.sandbox.run_command("id")
+        session.sandbox.run_process(ProcessRequest(argv=("id",)))
     assert expired.value.code == "sandbox_expired"
 
 

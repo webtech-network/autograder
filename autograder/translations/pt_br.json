@@ -423,9 +423,8 @@
   "io": {
     "execution": {
       "timeout": "FALHA: O tempo de execução do programa expirou. Verifique se há loops infinitos. [Tempo: {time:.2f}s]",
-      "compilation_error": "FALHA: Erro de Compilação.\nDetalhes:\n{error}",
       "runtime_error": "FALHA: O programa falhou durante a execução (crash).\nErro:\n{error}",
-      "system_error": "ERRO DE SISTEMA: Ocorreu um erro de infraestrutura durante a execução.\nDetalhes:\n{error}"
+      "exit_code": "Código de saída {code} (sem saída de erro)"
     },
     "expect_output": {
       "description": "Executa o programa do aluno, fornece uma série de entradas separadas por linha e verifica se a saída final está correta.",

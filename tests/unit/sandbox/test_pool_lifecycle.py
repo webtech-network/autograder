@@ -224,12 +224,13 @@ def test_cleanup_failure_keeps_the_grade_and_the_pool_record(manager, docker_cli
     from autograder.models.capabilities import HostCapabilities
     from execution_host.docker import DockerSession
     from tests.unit.pipeline.test_host_capabilities import definition, submission
+    from tests.unit.test_sandbox_manager import ScriptedContainer
 
     sessions = []
 
     def execution(language):
         session = DockerSession(manager, language)
-        session.sandbox.container_ref.exec_run.return_value = MagicMock(exit_code=0, output=(b"ok", b""))
+        session.sandbox.container_ref.exec_run.side_effect = ScriptedContainer(stdout=b"ok").exec_run
         sessions.append(session)
         return session
 

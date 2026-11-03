@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 from tests.integration.definition_fixtures import build_migrated_fixture_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from sandbox_manager.models.sandbox_models import ResponseCategory
+from tests.process_results import exited
 from autograder.models.language import Language
 
 
@@ -22,11 +22,8 @@ class TestMultiLanguageCommandResolution:
         mock_sandbox.prepare_workdir.return_value = None
 
         # Mock command execution
-        mock_output = Mock()
-        mock_output.stdout = "8"
-        mock_output.stderr = ""
-        mock_output.category = ResponseCategory.SUCCESS
-        mock_sandbox.run_commands.return_value = mock_output
+        mock_output = exited("8")
+        mock_sandbox.run_process.return_value = mock_output
 
         # Create pipeline
         pipeline = build_migrated_fixture_pipeline(
@@ -81,9 +78,9 @@ class TestMultiLanguageCommandResolution:
         pipeline.run(submission)
 
         # Verify sandbox was called with Python command
-        assert mock_sandbox.run_commands.called
-        call_args = mock_sandbox.run_commands.call_args
-        assert call_args[1]['program_command'] == "python3 calculator.py"
+        assert mock_sandbox.run_process.called
+        call_args = mock_sandbox.run_process.call_args
+        assert " ".join(call_args.args[0].argv) == "python3 calculator.py"
 
     @patch('tests.integration.sandbox_support.current_test_manager')
     def test_pipeline_resolves_java_command(self, mock_get_manager):
@@ -96,11 +93,8 @@ class TestMultiLanguageCommandResolution:
         mock_sandbox.prepare_workdir.return_value = None
 
         # Mock command execution
-        mock_output = Mock()
-        mock_output.stdout = "8"
-        mock_output.stderr = ""
-        mock_output.category = ResponseCategory.SUCCESS
-        mock_sandbox.run_commands.return_value = mock_output
+        mock_output = exited("8")
+        mock_sandbox.run_process.return_value = mock_output
 
         # Create pipeline
         pipeline = build_migrated_fixture_pipeline(
@@ -155,9 +149,9 @@ class TestMultiLanguageCommandResolution:
         pipeline.run(submission)
 
         # Verify sandbox was called with Java command
-        assert mock_sandbox.run_commands.called
-        call_args = mock_sandbox.run_commands.call_args
-        assert call_args[1]['program_command'] == "java Calculator"
+        assert mock_sandbox.run_process.called
+        call_args = mock_sandbox.run_process.call_args
+        assert " ".join(call_args.args[0].argv) == "java Calculator"
 
     @patch('tests.integration.sandbox_support.current_test_manager')
     def test_pipeline_resolves_cmd_placeholder(self, mock_get_manager):
@@ -170,11 +164,8 @@ class TestMultiLanguageCommandResolution:
         mock_sandbox.prepare_workdir.return_value = None
 
         # Mock command execution
-        mock_output = Mock()
-        mock_output.stdout = "8"
-        mock_output.stderr = ""
-        mock_output.category = ResponseCategory.SUCCESS
-        mock_sandbox.run_commands.return_value = mock_output
+        mock_output = exited("8")
+        mock_sandbox.run_process.return_value = mock_output
 
         # Create pipeline with CMD placeholder
         pipeline = build_migrated_fixture_pipeline(
@@ -221,10 +212,10 @@ class TestMultiLanguageCommandResolution:
         pipeline.run(submission)
 
         # Verify sandbox was called with auto-resolved Node command
-        assert mock_sandbox.run_commands.called
-        call_args = mock_sandbox.run_commands.call_args
+        assert mock_sandbox.run_process.called
+        call_args = mock_sandbox.run_process.call_args
         # CMD should auto-resolve to default Node command
-        assert "node" in call_args[1]['program_command']
+        assert "node" in " ".join(call_args.args[0].argv)
 
     @patch('tests.integration.sandbox_support.current_test_manager')
     def test_pipeline_grading_with_multi_language_commands(self, mock_get_manager):
@@ -237,17 +228,11 @@ class TestMultiLanguageCommandResolution:
         mock_sandbox.prepare_workdir.return_value = None
 
         # Mock command executions (2 tests)
-        mock_output1 = Mock()
-        mock_output1.stdout = "8"
-        mock_output1.stderr = ""
-        mock_output1.category = ResponseCategory.SUCCESS
+        mock_output1 = exited("8")
 
-        mock_output2 = Mock()
-        mock_output2.stdout = "14"
-        mock_output2.stderr = ""
-        mock_output2.category = ResponseCategory.SUCCESS
+        mock_output2 = exited("14")
 
-        mock_sandbox.run_commands.side_effect = [mock_output1, mock_output2]
+        mock_sandbox.run_process.side_effect = [mock_output1, mock_output2]
 
         # Create pipeline with multiple tests
         pipeline = build_migrated_fixture_pipeline(
@@ -318,12 +303,12 @@ class TestMultiLanguageCommandResolution:
         execution = pipeline.run(submission)
 
         # Verify both tests used C++ command
-        assert mock_sandbox.run_commands.call_count == 2
-        call1 = mock_sandbox.run_commands.call_args_list[0]
-        call2 = mock_sandbox.run_commands.call_args_list[1]
+        assert mock_sandbox.run_process.call_count == 2
+        call1 = mock_sandbox.run_process.call_args_list[0]
+        call2 = mock_sandbox.run_process.call_args_list[1]
 
-        assert call1[1]['program_command'] == "./calc"
-        assert call2[1]['program_command'] == "./calc"
+        assert " ".join(call1.args[0].argv) == "./calc"
+        assert " ".join(call2.args[0].argv) == "./calc"
 
         # Verify final score is 100 (both tests passed)
         assert execution.outcome.tree is not None

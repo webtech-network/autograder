@@ -7,7 +7,8 @@ from contextlib import contextmanager
 import uvicorn
 
 from sandbox_manager.errors import Disposal, SandboxCapacityError, SandboxCleanupError
-from sandbox_manager.models.sandbox_models import CommandResponse, ExtractedFile, ResponseCategory, SandboxState
+from autograder.models.process import ProcessResult, ProcessStatus
+from sandbox_manager.models.sandbox_models import ExtractedFile, SandboxState
 
 
 class FakeSandbox:
@@ -23,18 +24,14 @@ class FakeSandbox:
     def inject_assets(self, assets):
         self.files.update({item.target: item.content.decode() for item in assets})
 
-    def run_command(self, command, timeout=30, workdir="/app"):
+    def run_process(self, request):
+        command = " ".join(request.program)
         self.runs.append(command)
         if command == "explode":
             raise RuntimeError("docker exec failed")
         if command == "slow":
             time.sleep(1.5)
-        return CommandResponse(stdout=f"ran {command}", stderr="", exit_code=0, execution_time=0.01,
-                               category=ResponseCategory.SUCCESS)
-
-    def run_commands(self, commands, program_command=None, timeout=30, workdir="/app"):
-        self.runs.append(program_command)
-        return CommandResponse(stdout="\n".join(commands), stderr="", exit_code=0, execution_time=0.01)
+        return ProcessResult(ProcessStatus.EXITED, 0, f"ran {command}\n" + request.stdin.decode(), "", duration=0.01)
 
     def extract_file(self, path, max_bytes=1_048_576):
         name = path.removeprefix("/app/")

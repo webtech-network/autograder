@@ -3,49 +3,24 @@ Unit tests for SandboxContainer functionality.
 
 Tests cover:
 - File preparation with directory structure
-- Single command execution
-- Batch command execution (interactive stdin)
-- Response object functionality
+- The process contract: argv/shell, exact stdin, exit status, bounded output
+- Invalidation and artifact readback errors
 """
 
 import unittest
 from unittest.mock import Mock, MagicMock, patch
-from sandbox_manager.sandbox_container import SandboxContainer
-from sandbox_manager.models.sandbox_models import SandboxState, CommandResponse, HttpResponse
+import base64
+
+from autograder.models.process import ProcessRequest, ProcessStatus
+from sandbox_manager.errors import (
+    ArtifactReadError, ArtifactTooLargeError, ProcessExecutionError, SandboxInvalidatedError,
+)
+from sandbox_manager.sandbox_container import COLLECT, RUNNER, WRITE, SandboxContainer
+from sandbox_manager.models.sandbox_models import SandboxState, HttpResponse
 from autograder.models.language import Language
 from tests.sandbox_profiles import TEST_IMAGES
 from autograder.models.dataclass.submission import SubmissionFile
 import requests
-
-
-class TestCommandResponse(unittest.TestCase):
-    """Test the CommandResponse dataclass."""
-
-    def test_command_response_creation(self):
-        """Test creating a CommandResponse object."""
-        response = CommandResponse(
-            stdout="Hello World",
-            stderr="",
-            exit_code=0,
-            execution_time=0.123
-        )
-
-        self.assertEqual(response.stdout, "Hello World")
-        self.assertEqual(response.stderr, "")
-        self.assertEqual(response.exit_code, 0)
-        self.assertEqual(response.execution_time, 0.123)
-
-    def test_output_property(self):
-        """Test the output property for backward compatibility."""
-        response = CommandResponse(
-            stdout="Output",
-            stderr="Error",
-            exit_code=1,
-            execution_time=0.5
-        )
-
-        self.assertEqual(response.output, "Output")
-        self.assertEqual(str(response), "Output")
 
 
 class TestHttpResponse(unittest.TestCase):
@@ -69,137 +44,167 @@ class TestHttpResponse(unittest.TestCase):
         self.assertTrue(http_response.ok)
 
 
+class ScriptedContainer:
+    """A docker container double that answers the sandbox's fixed scripts."""
+
+    def __init__(self, exit_code=0, stdout=b"", stderr=b"", marker=b"autograder:started\n", survivors=0,
+                 run_error=None, hang=False):
+        self.exit_code, self.stdout, self.stderr, self.marker = exit_code, stdout, stderr, marker
+        self.survivors, self.run_error, self.hang = survivors, run_error, hang
+        self.calls = []
+        self.id, self.name = "abc123def456", "fake"
+
+    def exec_run(self, cmd, user=None, workdir=None, **kwargs):
+        self.calls.append((cmd, user, workdir))
+        script = cmd[2] if cmd[:2] == ["/bin/sh", "-c"] else None
+        if script == RUNNER:
+            if self.run_error:
+                raise self.run_error
+            if self.hang:
+                import time
+                time.sleep(2)
+            return Mock(exit_code=self.exit_code, output=self.marker)
+        if script == COLLECT:
+            def stream(name, data):
+                return f"{name} {len(data)}\n".encode() + base64.b64encode(data[:int(cmd[5])]) + b"\n"
+            return Mock(exit_code=0, output=f"survivors {self.survivors}\n".encode()
+                        + stream("out", self.stdout) + stream("err", self.stderr))
+        return Mock(exit_code=0, output=b"")
+
+
 class TestSandboxContainer(unittest.TestCase):
     """Test SandboxContainer functionality."""
 
     def setUp(self):
-        """Set up test fixtures."""
         self.mock_container = MagicMock()
         self.mock_container.id = "abc123def456"
-        self.sandbox = SandboxContainer(
-            language=Language.PYTHON,
-            container_ref=self.mock_container,
-            port=5000
-        )
+        self.mock_container.exec_run.return_value = Mock(exit_code=0, output=b"")
+        self.sandbox = SandboxContainer(language=Language.PYTHON, container_ref=self.mock_container, port=5000)
 
     def test_sandbox_initialization(self):
-        """Test sandbox initializes with correct state."""
         self.assertEqual(self.sandbox.language, Language.PYTHON)
         self.assertEqual(self.sandbox.state, SandboxState.IDLE)
         self.assertEqual(self.sandbox.port, 5000)
-        self.assertFalse(self.sandbox._workdir_prepared)
+        self.assertIsNone(self.sandbox.invalidated)
 
     def test_pickup_marks_busy(self):
-        """Test pickup() changes state to BUSY."""
         self.sandbox.pickup()
         self.assertEqual(self.sandbox.state, SandboxState.BUSY)
 
-    def test_prepare_workdir_with_simple_files(self):
-        """Test preparing workdir with simple filenames."""
-        submission_files = {
-            "main.py": SubmissionFile("main.py", "print('Hello')"),
-            "test.py": SubmissionFile("test.py", "import main")
-        }
-
-        # Mock exec_run to return successful result
-        mock_result = Mock()
-        mock_result.exit_code = 0
-        mock_result.output = b""
-        self.mock_container.exec_run.return_value = mock_result
-
-        self.sandbox.prepare_workdir(submission_files)
-
-        self.assertTrue(self.sandbox._workdir_prepared)
-        # Verify file creation command was called for each file.
-        self.assertEqual(self.mock_container.exec_run.call_count, 2)
-
-    def test_prepare_workdir_with_nested_structure(self):
-        """Test preparing workdir with nested directory structure."""
-        submission_files = {
-            "services/user_service.py": SubmissionFile(
-                "services/user_service.py",
-                "class UserService: pass"
-            ),
-            "models/user.py": SubmissionFile(
-                "models/user.py",
-                "class User: pass"
-            ),
-            "main.py": SubmissionFile("main.py", "from services import user_service")
-        }
-
-        # Mock exec_run to return successful result
-        mock_result = Mock()
-        mock_result.exit_code = 0
-        mock_result.output = b""
-        self.mock_container.exec_run.return_value = mock_result
-
-        self.sandbox.prepare_workdir(submission_files)
-
-        self.assertTrue(self.sandbox._workdir_prepared)
-        # Should be called: 2 times for mkdir (services, models) + 3 times for files = 5 calls
-        self.assertGreaterEqual(self.mock_container.exec_run.call_count, 5)
+    def test_prepare_workdir_writes_each_file_with_exact_bytes(self):
+        content = "print('ol\u00e1')\n" + "x" * 100_000  # larger than one argument chunk
+        self.sandbox.prepare_workdir({"pkg/main.py": SubmissionFile("pkg/main.py", content)})
+        written = b""
+        for call in self.mock_container.exec_run.call_args_list:
+            cmd = call.kwargs["cmd"]
+            self.assertEqual(cmd[:3], ["/bin/sh", "-c", WRITE])
+            self.assertEqual(cmd[4], "/app/pkg/main.py")
+            written += base64.b64decode(cmd[6])
+        self.assertEqual(written, content.encode("utf-8"))
+        self.assertEqual([call.kwargs["cmd"][5] for call in self.mock_container.exec_run.call_args_list],
+                         ["new", "append", "append"])
 
     def test_prepare_workdir_empty_files(self):
-        """Test preparing workdir with no files."""
         self.sandbox.prepare_workdir({})
+        self.mock_container.exec_run.assert_not_called()
 
-        # Should not call put_archive for empty files
-        self.mock_container.put_archive.assert_not_called()
+    def test_argv_is_passed_as_positional_parameters_never_as_shell_text(self):
+        container = ScriptedContainer(stdout=b"ok\n")
+        sandbox = SandboxContainer(Language.PYTHON, container)
+        result = sandbox.run_process(ProcessRequest.command('python3 "my script.py" ) && touch /tmp/pwned',
+                                                            stdin=b"-n\n"))
+        cmd, user, workdir = container.calls[0]
+        self.assertEqual(cmd[:4], ["/bin/sh", "-c", RUNNER, "autograder-run"])
+        self.assertEqual(base64.b64decode(cmd[5]), b"-n\n")
+        self.assertEqual(cmd[6:], ["python3", "my script.py", ")", "&&", "touch", "/tmp/pwned"])
+        self.assertEqual((user, workdir), ("sandbox", "/app"))
+        self.assertEqual((result.status, result.exit_code, result.stdout), (ProcessStatus.EXITED, 0, "ok\n"))
 
-    def test_run_command_success(self):
-        """Test successful command execution."""
-        mock_result = MagicMock()
-        mock_result.exit_code = 0
-        mock_result.output = (b"Hello World\n", b"")
+    def test_explicit_shell_is_the_only_shell(self):
+        container = ScriptedContainer()
+        SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(shell="echo one && echo two"))
+        self.assertEqual(container.calls[0][0][6:], ["/bin/sh", "-c", "echo one && echo two"])
 
-        self.mock_container.exec_run.return_value = mock_result
+    def test_nonzero_exit_with_empty_stderr_is_a_returned_process(self):
+        result = SandboxContainer(Language.PYTHON, ScriptedContainer(exit_code=1)).run_process(
+            ProcessRequest(argv=("python3", "main.py")))
+        self.assertEqual((result.status, result.exit_code, result.stderr), (ProcessStatus.EXITED, 1, ""))
 
-        response = self.sandbox.run_command("echo 'Hello World'")
+    def test_exit_137_is_reported_as_returned_not_as_timeout(self):
+        result = SandboxContainer(Language.PYTHON, ScriptedContainer(exit_code=137)).run_process(
+            ProcessRequest(argv=("python3", "main.py")))
+        self.assertEqual((result.status, result.exit_code), (ProcessStatus.EXITED, 137))
 
-        self.assertIsInstance(response, CommandResponse)
-        self.assertEqual(response.exit_code, 0)
-        self.assertEqual(response.stdout.strip(), "Hello World")
-        self.assertEqual(response.stderr, "")
-        self.assertGreaterEqual(response.execution_time, 0.0)
+    def test_missing_executable_is_not_started(self):
+        container = ScriptedContainer(exit_code=127, marker=b"autograder:not-found\n")
+        result = SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(argv=("./a.out",)))
+        self.assertEqual((result.status, result.missing_executable), (ProcessStatus.NOT_STARTED, "./a.out"))
 
-    def test_run_command_with_stderr(self):
-        """Test command execution with stderr output."""
-        mock_result = MagicMock()
-        mock_result.exit_code = 1
-        mock_result.output = (b"", b"Error occurred\n")
+    def test_output_is_bounded_at_readback(self):
+        container = ScriptedContainer(stdout=b"x" * 100, stderr="\u00e9".encode() * 10)
+        result = SandboxContainer(Language.PYTHON, container).run_process(
+            ProcessRequest(argv=("p",), max_output_bytes=5))
+        self.assertEqual((result.stdout, result.stdout_truncated), ("xxxxx", True))
+        self.assertEqual((result.stderr, result.stderr_truncated), ("\u00e9\u00e9", True))  # no split character
 
-        self.mock_container.exec_run.return_value = mock_result
+    def test_exec_failure_raises_and_invalidates(self):
+        sandbox = SandboxContainer(Language.PYTHON, ScriptedContainer(run_error=OSError("container crashed")))
+        with self.assertRaises(ProcessExecutionError):
+            sandbox.run_process(ProcessRequest(argv=("p",)))
+        with self.assertRaises(SandboxInvalidatedError):
+            sandbox.run_process(ProcessRequest(argv=("p",)))
+        with self.assertRaises(SandboxInvalidatedError):
+            sandbox.extract_file("/app/out.txt")
 
-        response = self.sandbox.run_command("invalid_command")
+    def test_unconfirmed_termination_invalidates_the_sandbox(self):
+        sandbox = SandboxContainer(Language.PYTHON, ScriptedContainer(survivors=1))
+        with self.assertRaises(ProcessExecutionError):
+            sandbox.run_process(ProcessRequest(argv=("p",)))
+        self.assertIsNotNone(sandbox.invalidated)
 
-        self.assertEqual(response.exit_code, 1)
-        self.assertEqual(response.stdout, "")
-        self.assertIn("Error occurred", response.stderr)
+    def test_timeout_collects_before_returning(self):
+        container = ScriptedContainer(hang=True, stdout=b"partial")
+        result = SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(argv=("p",), timeout=0.2))
+        self.assertEqual((result.status, result.exit_code, result.stdout), (ProcessStatus.TIMED_OUT, None, "partial"))
+        self.assertEqual([call[0][2] for call in container.calls], [RUNNER, COLLECT])
 
-    def test_run_command_exception_handling(self):
-        """Test command execution handles exceptions."""
-        self.mock_container.exec_run.side_effect = Exception("Container crashed")
+    def test_unparseable_readback_is_an_execution_error(self):
+        container = ScriptedContainer()
+        container.exec_run = lambda cmd, **kwargs: Mock(exit_code=0, output=b"autograder:started\n" if cmd[2] == RUNNER else b"garbage")
+        with self.assertRaises(ProcessExecutionError):
+            SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(argv=("p",)))
 
-        response = self.sandbox.run_command("some_command")
+    def test_container_stopped_under_the_process_keeps_its_exit_and_invalidates(self):
+        container = ScriptedContainer(exit_code=137)
+        container.exec_run_orig = container.exec_run
 
-        self.assertEqual(response.exit_code, -1)
-        self.assertIn("Command execution failed", response.stderr)
+        def exec_run(cmd, **kwargs):
+            if cmd[2] == COLLECT:
+                raise OSError("container is not running")
+            return container.exec_run_orig(cmd, **kwargs)
+        container.exec_run, container.status, container.reload = exec_run, "exited", lambda: None
+        sandbox = SandboxContainer(Language.PYTHON, container)
+        result = sandbox.run_process(ProcessRequest(argv=("p",)))
+        self.assertEqual((result.status, result.exit_code, result.stdout), (ProcessStatus.EXITED, 137, ""))
+        with self.assertRaises(SandboxInvalidatedError):
+            sandbox.run_process(ProcessRequest(argv=("p",)))
+        container.status = "running"  # a live container whose readback failed is an execution error
+        with self.assertRaises(ProcessExecutionError):
+            SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(argv=("p",)))
 
-    def test_run_commands_batch_input(self):
-        """Test batch command execution with multiple inputs."""
-        mock_result = MagicMock()
-        mock_result.exit_code = 0
-        mock_result.output = (b"30\n", b"")
-
-        self.mock_container.exec_run.return_value = mock_result
-
-        response = self.sandbox.run_commands(
-            ["ADD", "10", "20"],
-            program_command="python3 calculator.py"
-        )
-
-        self.assertEqual(response.exit_code, 0)
-        self.assertIn("30", response.stdout)
+    def test_artifact_missing_vs_unreadable(self):
+        self.mock_container.exec_run.return_value = Mock(exit_code=3, output=b"")
+        with self.assertRaises(FileNotFoundError):
+            self.sandbox.extract_file("/app/out.txt")
+        self.mock_container.exec_run.return_value = Mock(exit_code=1, output=b"head: I/O error")
+        with self.assertRaises(ArtifactReadError) as unreadable:
+            self.sandbox.extract_file("/app/out.txt")
+        self.assertNotIsInstance(unreadable.exception, FileNotFoundError)
+        self.mock_container.exec_run.return_value = Mock(exit_code=0, output=b"11\n" + base64.b64encode(b"x" * 11))
+        with self.assertRaises(ArtifactTooLargeError):
+            self.sandbox.extract_file("/app/out.txt", max_bytes=10)
+        self.mock_container.exec_run.return_value = Mock(exit_code=0, output=b"2\n" + base64.b64encode(b"ok"))
+        self.assertEqual(self.sandbox.extract_file("/app/out.txt").content_text, "ok")
 
     @patch('sandbox_manager.sandbox_container.requests')
     def test_make_request_get(self, mock_requests):

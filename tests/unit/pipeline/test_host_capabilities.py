@@ -6,7 +6,8 @@ import pytest
 from autograder import build_pipeline
 from autograder.models.capabilities import HostCapabilities
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from sandbox_manager.models.sandbox_models import CommandResponse, ResponseCategory
+from autograder.models.process import ProcessRequest
+from tests.process_results import exited, not_started, timed_out
 from autograder.models.language import Language
 
 
@@ -25,7 +26,7 @@ def submission(language=Language.PYTHON, files=None):
 
 def session():
     result = Mock()
-    result.run_command.return_value = CommandResponse("ok", "", 0, 0)
+    result.run_process.return_value = exited("ok")
     return result
 
 
@@ -70,11 +71,11 @@ def test_setup_and_empty_fixture_use_selected_session_then_close_before_outcome(
     assert execution.outcome.status == "completed" and events == ["closed"]
     acquire.assert_called_once_with(Language.PYTHON)
     owned.stage_fixture.assert_called_once_with("data.bin", b"", True)
-    owned.run_command.assert_called_once_with("prepare")
+    owned.run_process.assert_called_once_with(ProcessRequest(argv=("prepare",), timeout=30))
     owned.close.assert_called_once()
 
 
-@pytest.mark.parametrize("operation", ["prepare_workdir", "stage_fixture", "run_command"])
+@pytest.mark.parametrize("operation", ["prepare_workdir", "stage_fixture", "run_process"])
 def test_failure_after_ownership_transfer_closes_once(operation):
     owned = session()
     getattr(owned, operation).side_effect = RuntimeError("private details")
@@ -97,9 +98,11 @@ def test_acquisition_failure_transfers_no_session():
     assert result.outcome.error.code == "CAPABILITY_UNAVAILABLE"
 
 
-def test_setup_student_failure_stops_before_assessment():
+@pytest.mark.parametrize("result", [exited(stderr="compile error", code=1), exited(code=1), timed_out()])
+def test_setup_student_failure_stops_before_assessment(result):
+    """Any returned nonzero exit or timeout is a failed setup, whatever stderr says."""
     owned = session()
-    owned.run_command.return_value = CommandResponse("", "compile error", 1, 0, ResponseCategory.COMPILATION_ERROR)
+    owned.run_process.return_value = result
     pipeline = build_pipeline(definition=definition(preparation={"languages": {"python": {
         "setup_commands": [{"name": "setup", "command": "prepare"}]}}}),
         capabilities=HostCapabilities(execution=lambda language: owned))
@@ -107,6 +110,17 @@ def test_setup_student_failure_stops_before_assessment():
     assert outcome.status == "failed" and outcome.score is None
     assert outcome.error.code == "PREPARATION_FAILED"
     owned.close.assert_called_once()
+
+
+def test_setup_command_that_cannot_start_is_not_a_student_failure():
+    owned = session()
+    owned.run_process.return_value = not_started("prepare")
+    pipeline = build_pipeline(definition=definition(preparation={"languages": {"python": {
+        "setup_commands": [{"name": "setup", "command": "prepare"}]}}}),
+        capabilities=HostCapabilities(execution=lambda language: owned))
+    outcome = pipeline.run(submission()).outcome
+    assert outcome.status == "failed" and outcome.error.code == "PREPARATION_ERROR"
+    assert outcome.error.category == "capability"
 
 
 def test_api_missing_server_capability_fails_before_acquiring_or_scoring():

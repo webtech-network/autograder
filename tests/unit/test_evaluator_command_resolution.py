@@ -14,15 +14,14 @@ from autograder.models.contracts.definition import compile_definition, Definitio
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.template_library.input_output import DontFailTest, ExpectOutputTest
 from autograder.template_library.static_analysis import ForbiddenImportTest
-from sandbox_manager.models.sandbox_models import CommandResponse, ResponseCategory
+from tests.process_results import exited
 from autograder.models.language import Language
 from tests.evaluator_calls import invoke
 
 
 def _session():
     session = MagicMock()
-    session.run_commands.return_value = CommandResponse(
-        stdout="ok", stderr="", exit_code=0, execution_time=0.1, category=ResponseCategory.SUCCESS)
+    session.run_process.return_value = exited("ok")
     return session
 
 
@@ -30,7 +29,7 @@ def _executed_command(program_command, language=None, function=None):
     session = _session()
     function = function or DontFailTest()
     function.execute(EvaluationInput(language=language, session=session), program_command=program_command)
-    return session.run_commands.call_args.kwargs["program_command"]
+    return " ".join(session.run_process.call_args.args[0].argv)
 
 
 class TestDictCommandResolution:
@@ -45,7 +44,7 @@ class TestDictCommandResolution:
         ExpectOutputTest().execute(EvaluationInput(language=Language.JAVA, session=session),
                                    program_command={"python": "python3 a.py", "java": "java A"},
                                    expected_output="ok")
-        assert session.run_commands.call_args.kwargs["program_command"] == "java A"
+        assert session.run_process.call_args.args[0].argv == ("java", "A")
 
 
 class TestCmdPlaceholderResolution:

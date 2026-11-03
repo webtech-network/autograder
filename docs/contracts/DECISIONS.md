@@ -238,3 +238,22 @@ evaluators decide their assessable files through `accepts_file`, so mixed
 HTML/CSS/JavaScript submissions are parsed per file type. The HTTP submission
 adapter still lower-cases its input language before binding. No plugin framework
 was introduced. See [LANGUAGES.md](LANGUAGES.md) for the change surface.
+
+## One process contract (ARC-08)
+
+`ProcessRequest`/`ProcessResult` (`autograder/models/process.py`) are the only
+way to run a process. A request has an explicit command mode: an exact `argv`, or
+an explicit `shell` script run as `/bin/sh -c`. It also carries exact `stdin`
+bytes, `cwd`, a process deadline and a per-stream output bound. Malformed quoting
+is an error; it never switches to a shell, and definitions reject it when they
+are compiled. A result is `exited` (any returned code), `timed_out` (killed by
+the backend, with every process it started, before returning), or `not_started`
+(missing executable). Transport, readback and invalidation failures are
+exceptions. Classification uses only the exit status, so the language-specific
+stderr classifier and the 137-means-timeout rule are removed. Preparation, the
+I/O and artifact evaluators, and deliberate execution share the primitive and
+keep their own policies. The local and remote backends were checked against each
+other in real containers. `POST /process` replaces `/run` and `/run-batch`, and
+process requests are never replayed. Output and artifact readback are bounded
+where the process runs. See [PROCESSES.md](PROCESSES.md), which also gives the
+migration from the old newline and shell behaviour.

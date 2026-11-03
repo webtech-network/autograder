@@ -11,33 +11,6 @@ class SandboxState(Enum):
     CLOSING = "closing"    # disposal started; owner retains the record until confirmed
     STOPPED = "stopped"    # destruction confirmed
 
-class ResponseCategory(Enum):
-    """Classification of the execution result."""
-    SUCCESS = "success"             # Program ran and exited with 0
-    RUNTIME_ERROR = "runtime_error" # Program crashed (e.g., Exception, Segmentation Fault)
-    TIMEOUT = "timeout"             # Program was killed because it took too long
-    SYSTEM_ERROR = "system_error"   # Infrastructure failure (e.g., Docker error)
-    COMPILATION_ERROR = "compilation_error" # Specific to compiled languages like C++/Java
-
-@dataclass
-class CommandResponse:
-    """Represents the output and metadata of a command execution."""
-    stdout: str
-    stderr: str
-    exit_code: int
-    execution_time: float
-    # New field to hold the classification
-    category: ResponseCategory = ResponseCategory.SUCCESS
-
-    @property
-    def output(self) -> str:
-        """Alias for stdout."""
-        return self.stdout
-
-    def __str__(self):
-        return self.stdout
-
-
 @dataclass
 class ExtractedFile:
     """Result of extracting a single file from a sandbox container."""

@@ -48,5 +48,23 @@ class SandboxTransportError(SandboxError):
         self.code = code
 
 
+class SandboxInvalidatedError(SandboxError):
+    """The sandbox can no longer be trusted (a timed-out process could not be
+    confirmed terminated, or its readback failed). Every later operation on it
+    fails with this error until the lease is disposed."""
+
+
+class ProcessExecutionError(SandboxError):
+    """The backend could not run a process or read its result back.
+
+    This is never a student outcome: a process that ran and returned any exit
+    code is a ``ProcessResult``.
+    """
+
+
+class ArtifactReadError(SandboxError):
+    """An existing artifact could not be read back (as opposed to a missing artifact)."""
+
+
 class ArtifactTooLargeError(ValueError):
     """A requested artifact exceeds the caller's byte limit."""

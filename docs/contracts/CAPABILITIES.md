@@ -22,8 +22,9 @@ language has a separate submission error. A host that supports execution but has
 no runtime profile for the bound language (no `runtimes:` image) also fails with
 `CAPABILITY_UNAVAILABLE`; see [LANGUAGES.md](LANGUAGES.md).
 
-`ExecutionSession` provides submission staging, process execution, relative
-artifact readback, fixture staging and disposal. Its `fixture_root` declares the
+`ExecutionSession` provides submission staging, process execution
+(`run_process`, see [PROCESSES.md](PROCESSES.md)), relative artifact readback,
+fixture staging and disposal. Its `fixture_root` declares the
 host's fixture root; `stage_fixture(path, bytes, read_only)` receives a relative
 path. Fixture references remain logical and the supplied resolver returns bytes,
 including empty bytes. Core does not select S3 credentials, Docker managers,

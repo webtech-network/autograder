@@ -33,11 +33,8 @@ class DockerSession:
         """Deliberate-run host path; grading uses stage_fixture instead."""
         self.sandbox.inject_assets(assets)
 
-    def run_command(self, command, **kwargs):
-        return self.sandbox.run_command(command, **kwargs)
-
-    def run_commands(self, inputs, *, program_command, **kwargs):
-        return self.sandbox.run_commands(inputs, program_command=program_command, **kwargs)
+    def run_process(self, request):
+        return self.sandbox.run_process(request)
 
     def read_artifact(self, path):
         return self.sandbox.extract_file(f"/app/{relative_path(path)}")

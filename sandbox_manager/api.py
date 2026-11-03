@@ -17,12 +17,15 @@ from fastapi.responses import JSONResponse
 
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.dataclass.submission import SubmissionFile
-from sandbox_manager.errors import ArtifactTooLargeError, RuntimeUnavailableError, SandboxCapacityError, SandboxHandleError
+from sandbox_manager.errors import (
+    ArtifactReadError, ArtifactTooLargeError, RuntimeUnavailableError, SandboxCapacityError, SandboxHandleError,
+    SandboxInvalidatedError,
+)
 from sandbox_manager.handles import HandleRegistry
 from sandbox_manager.models.api_models import (
-    MAX_ARTIFACT_BYTES, AcquireSandboxResponse, CommandResponseModel, DisposeSandboxResponse,
-    ExtractedFileResponse, HttpResponseModel, InjectAssetsRequest, MakeRequestRequest,
-    PrepareWorkdirRequest, RunBatchRequest, RunCommandRequest,
+    MAX_ARTIFACT_BYTES, AcquireSandboxResponse, DisposeSandboxResponse, ExtractedFileResponse,
+    HttpResponseModel, InjectAssetsRequest, MakeRequestRequest, PrepareWorkdirRequest,
+    ProcessRequestModel, ProcessResultModel,
 )
 from autograder.models.language import Language
 
@@ -133,6 +136,12 @@ def create_app(*, token: Optional[str] = None, manager_factory: Optional[Callabl
         except SandboxHandleError as exc:
             code = status.HTTP_410_GONE if exc.code == "sandbox_expired" else status.HTTP_404_NOT_FOUND
             raise _error(code, exc.code, str(exc)) from exc
+        except SandboxInvalidatedError as exc:
+            raise _error(status.HTTP_409_CONFLICT, "sandbox_invalidated", str(exc)) from exc
+        except ArtifactReadError as exc:
+            logger.exception("Sandbox operation %s failed", name)
+            raise _error(status.HTTP_500_INTERNAL_SERVER_ERROR, "artifact_read_failed",
+                         "The artifact exists but could not be read back") from exc
         except FileNotFoundError as exc:
             raise _error(status.HTTP_404_NOT_FOUND, "artifact_not_found", str(exc)) from exc
         except ArtifactTooLargeError as exc:
@@ -151,7 +160,7 @@ def create_app(*, token: Optional[str] = None, manager_factory: Optional[Callabl
     def registry(request: Request) -> HandleRegistry:
         return request.app.state.handles
 
-    def check_timeout(handles: HandleRegistry, sandbox, timeout: int) -> None:
+    def check_timeout(handles: HandleRegistry, sandbox, timeout: float) -> None:
         limit_seconds = handles.manager.lease_seconds(sandbox.language)
         if timeout > limit_seconds:
             raise _error(422, "invalid_request", f"timeout exceeds the {limit_seconds}s lease limit")
@@ -188,24 +197,15 @@ def create_app(*, token: Optional[str] = None, manager_factory: Optional[Callabl
                                                  read_only=item.read_only) for item in body.resolved_assets])
             return {"status": "success"}
 
-    @app.post("/sandboxes/{sandbox_id}/run", response_model=CommandResponseModel, dependencies=authenticated)
-    def run_command(sandbox_id: str, body: RunCommandRequest, request: Request, secret: str = Depends(lease)):
-        with operation("command execution"):
+    @app.post("/sandboxes/{sandbox_id}/process", response_model=ProcessResultModel, dependencies=authenticated)
+    def run_process(sandbox_id: str, body: ProcessRequestModel, request: Request, secret: str = Depends(lease)):
+        """Run one process with the shared contract. Never replayed by clients."""
+        with operation("process execution"):
             handles = registry(request)
             sandbox = handles.sandbox(sandbox_id, secret)
-            check_timeout(handles, sandbox, body.timeout)
-            return CommandResponseModel.from_response(
-                sandbox.run_command(command=body.command, timeout=body.timeout, workdir=body.workdir))
-
-    @app.post("/sandboxes/{sandbox_id}/run-batch", response_model=CommandResponseModel, dependencies=authenticated)
-    def run_batch(sandbox_id: str, body: RunBatchRequest, request: Request, secret: str = Depends(lease)):
-        with operation("command execution"):
-            handles = registry(request)
-            sandbox = handles.sandbox(sandbox_id, secret)
-            check_timeout(handles, sandbox, body.timeout)
-            return CommandResponseModel.from_response(sandbox.run_commands(
-                commands=body.commands, program_command=body.program_command,
-                timeout=body.timeout, workdir=body.workdir))
+            process = body.to_request()
+            check_timeout(handles, sandbox, process.timeout)
+            return ProcessResultModel.from_result(sandbox.run_process(process))
 
     @app.get("/sandboxes/{sandbox_id}/files", response_model=ExtractedFileResponse, dependencies=authenticated)
     def extract_file(sandbox_id: str, path: str, request: Request, max_bytes: int = MAX_ARTIFACT_BYTES,

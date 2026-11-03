@@ -22,22 +22,16 @@ from autograder.models.evaluation_error import EvaluationError
 from unittest.mock import MagicMock
 
 from autograder.template_library.input_output import ExpectFileArtifactTest, InputOutputTemplate
-from sandbox_manager.models.sandbox_models import (
-    CommandResponse, ResponseCategory, ExtractedFile,
-)
+from autograder.models.process import ProcessResult, ProcessStatus
+from sandbox_manager.models.sandbox_models import ExtractedFile
 
 
-def _make_sandbox(stdout="", stderr="", exit_code=0, category=ResponseCategory.SUCCESS):
-    """Return a mock sandbox whose run_commands returns the given CommandResponse."""
+def _make_sandbox(stdout="", stderr="", exit_code=0, timed_out=False):
+    """Return a mock session whose run_process returns the given process result."""
     sandbox = MagicMock()
-    sandbox.run_commands.return_value = CommandResponse(
-        stdout=stdout, stderr=stderr, exit_code=exit_code,
-        execution_time=0.1, category=category,
-    )
-    sandbox.run_command.return_value = CommandResponse(
-        stdout=stdout, stderr=stderr, exit_code=exit_code,
-        execution_time=0.1, category=category,
-    )
+    sandbox.run_process.return_value = (
+        ProcessResult(ProcessStatus.TIMED_OUT, None, stdout, stderr, duration=30) if timed_out
+        else ProcessResult(ProcessStatus.EXITED, exit_code, stdout, stderr, duration=0.1))
     return sandbox
 
 
@@ -204,7 +198,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
                 expected_content="[invalid(regex",
                 match_mode="regex",
             )
-        sandbox.run_commands.assert_not_called()
+        sandbox.run_process.assert_not_called()
 
     def setUp(self):
         """Set up the test case."""
@@ -251,7 +245,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
                 artifact_path="/etc/passwd",
                 expected_content="anything",
             )
-        sandbox.run_commands.assert_not_called()
+        sandbox.run_process.assert_not_called()
 
     def test_traversal_path_rejected(self):
         """Test that directory traversal in artifact paths is rejected."""
@@ -264,7 +258,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
                 artifact_path="../secret.txt",
                 expected_content="anything",
             )
-        sandbox.run_commands.assert_not_called()
+        sandbox.run_process.assert_not_called()
 
     def test_invalid_match_mode(self):
         """Test rejection of invalid match modes."""
@@ -278,7 +272,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
                 expected_content="anything",
                 match_mode="fuzzy",
             )
-        sandbox.run_commands.assert_not_called()
+        sandbox.run_process.assert_not_called()
 
     def test_empty_artifact_path(self):
         """Test rejection of empty artifact paths."""
@@ -291,7 +285,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
                 artifact_path="",
                 expected_content="anything",
             )
-        sandbox.run_commands.assert_not_called()
+        sandbox.run_process.assert_not_called()
 
     def setUp(self):
         """Set up the test case."""
@@ -302,7 +296,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
         sandbox = _make_sandbox(
             stderr="Execution timed out after 30 seconds",
             exit_code=124,
-            category=ResponseCategory.TIMEOUT,
+            timed_out=True,
         )
 
         result = invoke(self.test,
@@ -319,7 +313,6 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
         sandbox = _make_sandbox(
             stderr="ZeroDivisionError: division by zero",
             exit_code=1,
-            category=ResponseCategory.RUNTIME_ERROR,
         )
 
         result = invoke(self.test,

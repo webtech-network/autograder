@@ -145,8 +145,8 @@ only for listed languages (see [LANGUAGES.md](LANGUAGES.md)).
 | --- | --- | --- |
 | `POST /sandboxes/{language}` | 201 `{sandbox_id, language, lease_seconds}` | 503 `capacity_unavailable`, 501 `runtime_unavailable` (no `runtimes:` image for this language), 422 unknown identifier |
 | `POST /sandboxes/{id}/prepare`, `/inject` | 200 | see below |
-| `POST /sandboxes/{id}/run`, `/run-batch` | 200 command result | 422 `invalid_request` (timeout above lease) |
-| `GET /sandboxes/{id}/files?path=&max_bytes=` | 200 file | 404 `artifact_not_found`, 413 `artifact_too_large` |
+| `POST /sandboxes/{id}/process` | 200 process result ([PROCESSES.md](PROCESSES.md)) | 422 `invalid_request` (contract violation, or timeout above the lease), 409 `sandbox_invalidated` |
+| `GET /sandboxes/{id}/files?path=&max_bytes=` | 200 file | 404 `artifact_not_found`, 413 `artifact_too_large`, 500 `artifact_read_failed`, 409 `sandbox_invalidated` |
 | `DELETE /sandboxes/{id}` | 200 `{"state":"disposed"}` | 202 `{"state":"closing"}` retained for retry |
 | `GET /stats` | pools, handle counts, `cleanup_problems` | |
 | `GET /health` | unauthenticated liveness | |
@@ -168,13 +168,16 @@ are `RuntimeError`s, so the engine reports them as `SANDBOX_ERROR` or
 | Limit | Value |
 | --- | --- |
 | Request body (`SANDBOX_MAX_BODY_BYTES`) | 64 MiB received bytes. This is above the 32 MiB HTTP submission limit after JSON/base64 expansion. |
-| Command text | 64 KiB |
-| Command `timeout` | 1–600 s and at most the pool's `running_timeout` |
+| Process `argv`/`shell` text | 64 KiB |
+| Process `stdin` | 1 MiB |
+| Process `timeout` | (0, 600] s and at most the pool's `running_timeout` |
+| Process output | `max_output_bytes` per stream, 1 B–8 MiB (default 1 MiB), bounded at readback inside the service |
 | Artifact `max_bytes` | 1 B–8 MiB |
-| Client transport deadline (`run`, `request`) | process timeout + 15 s |
+| Client transport deadline (`process`, `request`) | process timeout + 15 s |
 | Client deadline: acquire / staging / dispose | 120 s / 120 s / 60 s |
 
-Command output size is a process-semantics limit (ARC-08) and is not changed here.
+Output and artifact readback are bounded where the process runs, so a large
+output never reaches the client unbounded (ARC-08).
 
 ### Recovery after loss
 
