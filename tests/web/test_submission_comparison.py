@@ -76,7 +76,7 @@ async def stored(application):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("headers,status", [({}, 401), ({"Authorization": "Bearer wrong"}, 401), (HEADERS, 200)])
+@pytest.mark.parametrize("headers,status", [({"Authorization": ""}, 401), ({"Authorization": "Bearer wrong"}, 401), (HEADERS, 200)])
 async def test_comparison_requires_integration_token(test_client, headers, status):
     config = await create(test_client)
     first, second = await attest(test_client, config, {"hello": 0}), await attest(test_client, config, {"hello": 100})
@@ -261,4 +261,4 @@ def test_openapi_documents_authenticated_comparison():
     assert operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/SubmissionComparisonResponse")
     assert [parameter["name"] for parameter in operation["parameters"]] == ["submission_id", "baseline_submission_id"]
-    assert operation["security"] == [{"HTTPBearer": []}]
+    assert operation["security"] == [{"IntegrationBearer": []}]

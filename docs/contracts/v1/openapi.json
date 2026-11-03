@@ -999,7 +999,7 @@
         "operationId": "compare_submission_api_v1_submissions__submission_id__comparison_get",
         "security": [
           {
-            "HTTPBearer": []
+            "IntegrationBearer": []
           }
         ],
         "parameters": [
@@ -1033,6 +1033,15 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
           },
           "422": {
             "description": "Validation Error",
