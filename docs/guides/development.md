@@ -83,7 +83,9 @@ autograder/
 ├── sandbox_manager/         # Sandbox management
 │   ├── images/             # Dockerfiles for each language
 │   ├── models/             # Sandbox models
-│   ├── manager.py          # Global manager
+│   ├── manager.py          # Host-owned local manager (start/acquire/dispose/shutdown)
+│   ├── api.py              # Private control API (one worker)
+│   ├── remote_client.py    # Control API client with the same lease API
 │   ├── language_pool.py    # Language-specific pools
 │   └── sandbox_container.py # Container wrapper
 ├── web/                     # FastAPI web service
@@ -135,11 +137,13 @@ python -m web.scripts.seed_data
 ### Start Development Server
 
 ```bash
-# Start sandbox manager
-docker-compose up -d
-
-# Start FastAPI server
+# Local mode (default): the API process owns its sandbox pools directly
 uvicorn web.main:app --reload --port 8000
+
+# Remote mode: the private control API on loopback, one worker
+export SANDBOX_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+python -m sandbox_manager &
+SANDBOX_MODE=remote SANDBOX_API_URL=http://127.0.0.1:8001 uvicorn web.main:app --port 8000
 ```
 
 Access API docs at: http://localhost:8000/docs
@@ -494,12 +498,12 @@ docker logs <container_id>
 # Execute commands in container
 docker exec -it <container_id> bash
 
-# Check sandbox manager status
-python -c "
-from sandbox_manager.manager import SandboxManager
-manager = SandboxManager.get_instance()
-print(manager.get_status())
-"
+# Check control API pools, leases and retained cleanup problems
+curl -H "Authorization: Bearer $SANDBOX_API_TOKEN" http://127.0.0.1:8001/stats
+
+# List sandbox containers by owning host
+docker ps -a --filter label=autograder.sandbox.app=autograder-sandbox \
+  --format '{{.Names}} {{.Label "autograder.sandbox.owner"}} {{.Status}}'
 ```
 
 ### Debug Database Issues

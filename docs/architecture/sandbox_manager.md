@@ -7,65 +7,60 @@ The Sandbox Manager provides secure, isolated Docker container environments for 
 ## Architecture
 
 ```
-SandboxManager
-├── LanguagePool (Python)
-│   ├── idle_sandboxes: deque[SandboxContainer]
-│   └── active_sandboxes: set[SandboxContainer]
-├── LanguagePool (Java)
-│   ├── idle_sandboxes
-│   └── active_sandboxes
-├── LanguagePool (Node.js)
-│   └── ...
-├── LanguagePool (C++)
-│   └── ...
-└── Monitor Thread (checks TTLs + replenishes every 1s)
+Host (DockerHost / control API lifespan / test)
+└── SandboxManager            owns: OwnerLease, pools, monitor thread
+    ├── LanguagePool (Python) idle → active → closing records
+    ├── LanguagePool (Java)
+    ├── LanguagePool (Node.js)
+    └── LanguagePool (C++)
+DockerSession                 one lease: acquire → prepare/use → dispose
 ```
 
-Each `LanguagePool` manages a set of Docker containers for one language. Containers are pre-started ("warm") and kept alive with `sleep infinity`, ready to execute commands instantly via `docker exec`.
+Each `LanguagePool` manages the Docker containers for one language. Containers
+are prestarted ("warm") and kept alive with `sleep infinity`, so commands can
+run immediately through `docker exec`. Ownership, cleanup guarantees, dead-owner
+reclamation and the private control API are specified in
+[Sandbox ownership and the control API](../contracts/SANDBOX.md).
 
 ---
 
 ## Lifecycle
 
-### Startup
+### Startup (host-owned)
 
-1. `initialize_sandbox_manager()` is called at application startup
-2. Orphaned containers from previous runs are cleaned up (identified by `autograder.sandbox.app` label)
-3. A `LanguagePool` is created for each configured language
-4. Each pool calls `replenish()` to create `pool_size` idle containers
-5. A background monitor thread starts (runs every 1 second)
-6. Signal handlers (`SIGTERM`, `SIGINT`) and `atexit` hooks are registered for cleanup
+1. The host constructs `SandboxManager(pool_configs, lease_dir=...)` and calls `start()`. `DockerHost` does this on first acquisition, and the control API does it in its lifespan.
+2. The manager locks its owner lease file and reclaims containers whose owner is provably dead. Live owners and unverifiable owners are never touched.
+3. The Docker runtime (`runsc`/`runc`) is resolved once from the runtime profile.
+4. Each pool creates `pool_size` warm containers, and the monitor thread starts.
 
-### Request Flow
+The library installs no signal handlers or `atexit` hooks.
+
+### Request flow
 
 ```
-get_sandbox_manager()
-    ↓
-manager.get_sandbox(Language.PYTHON)
-    ↓
-LanguagePool.acquire()
-    ├── Idle sandbox available? → Move to active, return
-    ├── Below scale_limit? → Create new container on-demand, return
-    └── At scale_limit, all busy? → Raise ValueError (bottleneck)
-    ↓
-SandboxContainer
-    ├── prepare_workdir(submission_files)  → Copy files into /app
-    ├── run_command("python main.py")     → Execute single command
-    ├── run_commands(["input1", "input2"], program_command="python main.py")  → Execute with stdin
-    └── make_request("GET", "/api/data")  → HTTP request to containerized app
-    ↓
-manager.release_sandbox(Language.PYTHON, sandbox)
-    ↓
-LanguagePool.release()
-    ├── Below scale_limit? → Return to idle pool for reuse
-    └── Above scale_limit? → Destroy container (scale down)
+session = DockerSession(manager, Language.PYTHON)   # manager.acquire()
+    ├── idle sandbox available? → lease it
+    ├── below scale_limit?      → create one and lease it
+    └── otherwise               → SandboxCapacityError
+session.prepare_workdir(files) / stage_fixture(...) / run_command(...) / read_artifact(...)
+session.close()                                      # manager.dispose(): destroy, confirm, replenish
 ```
+
+Used containers are always destroyed, never returned to the pool.
+
+### Monitor (every second)
+
+Each pass retries unconfirmed cleanup that is due, destroys leases older than
+`running_timeout`, scales idle containers above `pool_size` down after
+`idle_timeout`, and replenishes to `pool_size`.
 
 ### Shutdown
 
-1. `shutdown()` is called (via signal handler, atexit, or context manager)
-2. Each pool destroys all containers (both active and idle)
-3. Docker containers are stopped and removed
+The host calls `shutdown()`. The monitor stops, and every idle, leased and
+retained container is destroyed. Untracked containers carrying this owner's
+label are swept. The lease file is removed only when everything is confirmed;
+otherwise the next start reclaims the remainder, and `SandboxCleanupError` is
+raised.
 
 ---
 
@@ -84,8 +79,14 @@ general:
     # Seconds before destroying idle sandboxes above pool_size
     idle_timeout: 600
 
-    # Maximum seconds a sandbox can be actively processing
+    # Maximum lease duration (acquisition to disposal), in seconds
     running_timeout: 120
+
+runtime:            # the single Docker runtime/limit profile (see the ownership contract)
+    runtime: auto   # auto | runsc | runc
+    memory: 128m
+    cpus: 0.5
+    pids_limit: 64
 ```
 
 ### Sizing Guidelines
@@ -116,7 +117,8 @@ The pool scales between `pool_size` (minimum) and `scale_limit` (maximum):
 - **Below `pool_size`:** Pool automatically replenishes idle containers
 - **Between `pool_size` and `scale_limit`:** New containers created on-demand when all are busy
 - **At `scale_limit`:** Requests fail with an error (bottleneck)
-- **Scale down:** Containers released above `pool_size` are destroyed if they exceed `idle_timeout`
+- **Scale down:** Idle containers above `pool_size` are destroyed after `idle_timeout`
+- **Unconfirmed cleanup** keeps counting against `scale_limit` until Docker confirms removal
 
 ---
 
@@ -181,8 +183,9 @@ response = sandbox.make_request("GET", "/api/health")
 | Value | Description |
 |-------|-------------|
 | `IDLE` | Waiting in pool for a request |
-| `BUSY` | Currently executing a submission |
-| `STOPPED` | Container has been stopped |
+| `BUSY` | Leased to one session |
+| `CLOSING` | Disposal started; the record is retained until Docker confirms removal |
+| `STOPPED` | Removal confirmed |
 
 ### `ResponseCategory` Enum
 
@@ -226,63 +229,36 @@ make build-sandboxes
 
 ### Container Security
 
-Each container is created with:
+Each container is created from `SandboxRuntimeProfile` (the single owner of these options):
 
-- **Name:** Deterministic format `ag-sbx-{lang}-{pool8}-{seq4}` (e.g., `ag-sbx-py-a1b2c3d4-0001`)
-  - `lang`: language key (`python`, `java`, `node`, `cpp`, `c`)
-  - `pool8`: first 8 chars of the pool's UUID
-  - `seq4`: zero-padded per-pool creation sequence
+- **Name:** Deterministic format `ag-sbx-{lang}-{owner8}-{seq4}` (e.g., `ag-sbx-python-a1b2c3d4-0001`)
+- **Labels:** `autograder.sandbox.app`, `autograder.sandbox.owner` (owner ID), language, pool ID, creation time
 - **Memory limit:** 128 MB (no swap)
 - **CPU limit:** 0.5 CPU cores
 - **Process limit:** 64 PIDs
 - **Network:** Disabled (`network_mode="none"`)
 - **Capabilities:** All dropped (`cap_drop=["ALL"]`)
 - **File size limit:** 10 MB
-- **Filesystem:** tmpfs-based (`/app` 64 MB writable, `/tmp` 32 MB)
-- **Runtime:** gVisor (`runsc`) when available, falls back to default `runc`
+- **Filesystem:** tmpfs `/app` 64 MB (exec) and `/tmp` 32 MB (noexec) on every runtime
+- **Runtime:** `auto` uses gVisor (`runsc`) when Docker registers it and `runc` otherwise. The runtime is the only difference between them.
 - **User:** Runs as non-root `sandbox` user
 
 ---
 
-## Usage Patterns
-
-### Direct Acquire/Release
+## Usage
 
 ```python
-manager = get_sandbox_manager()
-sandbox = manager.get_sandbox(Language.PYTHON)
-try:
-    sandbox.prepare_workdir(files)
-    result = sandbox.run_command("python main.py")
-finally:
-    manager.release_sandbox(Language.PYTHON, sandbox)
+from execution_host.docker import DockerSession
+
+with SandboxManager(pool_configs) as manager:          # host owns start/shutdown
+    with DockerSession(manager, Language.PYTHON) as session:
+        session.prepare_workdir(files)
+        result = session.run_command("python main.py", timeout=30)
+    # the sandbox is destroyed even if the block raised
 ```
 
-### Context Manager (Recommended)
-
-```python
-manager = get_sandbox_manager()
-with manager.acquire_sandbox(Language.PYTHON) as sandbox:
-    sandbox.prepare_workdir(files)
-    result = sandbox.run_command("python main.py")
-# Automatically released, even on exception
-```
-
-### Destroy on Fatal Error
-
-```python
-manager = get_sandbox_manager()
-sandbox = manager.get_sandbox(Language.PYTHON)
-try:
-    result = sandbox.run_command("python main.py", timeout=30)
-    if result.category == ResponseCategory.TIMEOUT:
-        manager.destroy_sandbox(Language.PYTHON, sandbox)
-        return  # Don't release — it's already destroyed
-except Exception:
-    manager.destroy_sandbox(Language.PYTHON, sandbox)
-    raise
-manager.release_sandbox(Language.PYTHON, sandbox)
-```
+A timeout or fatal error needs no special path: closing the session always
+destroys the container.
 
 ---
 
@@ -293,13 +269,12 @@ Get pool statistics:
 ```python
 stats = manager.get_pool_stats()
 # {
-#   "python": { "idle": 2, "active": 1, "total": 3, "pool_size": 3, "scale_limit": 10, "utilization": 33.3 },
+#   "python": { "idle": 2, "active": 1, "cleanup_pending": 0, "total": 3, "pool_size": 3,
+#               "scale_limit": 10, "utilization": 33.3 },
 #   "java":   { "idle": 3, "active": 0, "total": 3, "pool_size": 3, "scale_limit": 10, "utilization": 0.0 },
 #   ...
 # }
 ```
 
-The monitor thread logs load warnings automatically:
-- **≥90% utilization:** 🚨 `HIGH LOAD` warning
-- **≥70% utilization:** ⚠️ `MODERATE LOAD` warning
-- **Otherwise:** 📊 periodic stats
+`manager.cleanup_problems()` lists retained cleanup records with attempts and the
+last Docker error. The control API returns both at `GET /stats`.

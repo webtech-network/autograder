@@ -7,7 +7,8 @@ one owned `ExecutionSession` for one run. Ownership transfers when the factory
 returns, before file staging. The pipeline closes that session once on every
 subsequent path, then constructs its immutable terminal outcome. Failed
 acquisition transfers nothing. Cleanup errors are logged and preserve a completed
-grade; hosts can inspect their infrastructure logs and dispose their manager.
+grade. The Docker host's manager still retains any container whose removal was not
+confirmed, retries it, and reports it in its stats (see [SANDBOX.md](SANDBOX.md)).
 Never publish until the pipeline has returned.
 
 The engine first selects the language, validates required preparation files and
@@ -52,9 +53,12 @@ to its configured local profile; the container Action defaults to remote executi
 at `http://localhost:8001` and should set an accessible service URL explicitly:
 
 ```python
+import os
+
 from execution_host.docker import DockerHost
 
-host = DockerHost(mode="remote", api_url="http://sandbox-manager:8001")
+host = DockerHost(mode="remote", api_url="http://sandbox-manager:8001",
+                  api_token=os.environ["SANDBOX_API_TOKEN"])
 try:
     outcome = evaluate_submission(
         submission, definition=io_definition, capabilities=host.capabilities
@@ -71,8 +75,10 @@ Use it as the HTTP configuration's `definition` and as the Action's
 its submission endpoint; Actions collects it from `submission-root`.
 
 The Actions container can use an accessible sandbox service through
-`SANDBOX_MODE=remote` and `SANDBOX_API_URL`; this avoids requiring a nested Docker
-daemon. Local Docker hosts use `mode="local"` and a sandbox configuration file.
+`SANDBOX_MODE=remote`, `SANDBOX_API_URL` and `SANDBOX_API_TOKEN`; this avoids requiring a nested Docker
+daemon. The control API is private: authenticated, single-worker and never
+publicly exposed. See [SANDBOX.md](SANDBOX.md) for sandbox ownership, cleanup,
+the control API boundary and recovery. Local Docker hosts use `mode="local"` and a sandbox configuration file.
 Custom runner implementations implement the same session operations; evaluators
 receive no manager or provider identity. There is no unrestricted runner profile
 shipped by this change.
