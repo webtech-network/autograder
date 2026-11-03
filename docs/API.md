@@ -59,6 +59,23 @@ must match current definition; an older revision is a trusted host attestation,
 not cryptographic proof of server execution. Known inactive configurations can
 receive historical results. No private files are required in an attestation.
 
+Authenticated `GET /api/v1/submissions/{submission_id}/comparison`, with the required
+query parameter `baseline_submission_id`, compares the stored canonical outcome of
+`submission_id` (head) with an earlier stored submission (baseline) of the same
+configuration resource. It is read-only
+and deterministic: nothing is graded or stored, and retrying means calling again.
+The response states `compatibility` (`same_definition` or `cross_revision`), both
+sides' submission ID, `source` (`executed` or `attested`), execution ID, score and
+provenance, an overall `score_delta` (null across revisions) with `explanation`,
+`changed_definition_sections`, and per-criterion rows keyed by `criterion_id` with
+both labels, scores, categories, effective weights, `delta` and `status`
+(`improved`, `regressed`, `unchanged`, `reweighted`, `redefined`, `introduced`,
+`removed`). Different configurations give 422 `NOT_COMPARABLE`; pending or failed
+outcomes 409 `OUTCOME_NOT_COMPLETED`; unsnapshotted legacy history 409
+`LEGACY_UNVERIFIED`; unknown submissions 404. See the
+[baseline comparison contract](features/baseline_comparison.md) for the full
+compatibility table and an example.
+
 ## Authentication
 
 Every route except `/health`, `/ready` and the template catalog requires

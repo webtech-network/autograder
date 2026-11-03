@@ -186,3 +186,23 @@ requests, unknown events and unreviewed self-hosted runners. Restricted attestat
 tokens publish a named revision without reading configurations. Attestations remain
 producer claims; untrusted work is graded server-side through a trusted broker. See
 [the trust table](../github_action/trust.md).
+
+## Baseline comparison (INT-13)
+
+Consumer: Prisma shows progress between two stored submissions of one
+assignment. Owner: the authenticated read-only HTTP operation
+`GET /api/v1/submissions/{submission_id}/comparison?baseline_submission_id={id}`,
+computed on demand from the two stored canonical outcomes and their bound
+definition snapshots; Python consumers use the pure facade function
+`compare_outcomes`. No caller-supplied tree, vector or baseline content is
+accepted. Comparison is never a grading stage, is never persisted and never
+regrades; the outcome's `comparison` enrichment remains `disabled` for normal
+grading. Same definition hash permits an overall delta; any other revision
+pairing reports per-criterion results by criterion ID (`reweighted` and
+`redefined` mark changed meaning) and a null overall delta. Different
+configuration resources, incomplete outcomes and unsnapshotted legacy history are
+rejected with explained codes. Attested outcomes are compared under the same
+rules and labelled `attested`, without claiming local execution. The legacy
+`ResultComparator`, its dataclasses, `ResultTree` vector helpers and unused web
+comparison schemas are removed; the `score_vector`/`comparison` result columns
+are unused legacy storage. See [baseline comparison](../features/baseline_comparison.md).
