@@ -200,3 +200,23 @@ Evaluator instances are shared by every submission and thread that uses their
 template and must be stateless. Per-submission state lives in the call
 (`EvaluationInput`, parameters, locals) or in the grader that owns one traversal.
 
+## Sandbox ownership and private control API (ARC-09 / INT-15)
+
+One `DockerSession` lease owns a sandbox from acquisition through disposal. It
+borrows a host-owned manager. Local and remote managers share `acquire`/`dispose`.
+Every disposal destroys the container, and repeated disposal is defined. The
+competing release/destroy APIs, the module-global manager and library signal
+handlers are removed. A pool forgets a container only after Docker confirms
+removal. Failed removals are retained, retried and reported, and they still hold
+capacity. Startup reclaims only owners proven dead by an acquirable lease lock,
+so a second live host never removes the first host's containers. One
+`SandboxRuntimeProfile` owns Docker options, and the runtime is the only
+difference between runsc and runc.
+
+The control API is private, token-authenticated and single-worker. Each lease is
+bound to a client-generated secret. Unknown/expired handles, missing artifacts
+and execution failures have distinct responses that the client preserves.
+Acquisition and disposal are safely replayable; commands are never replayed. A
+distributed handle store is unnecessary for the documented single-process
+deployment. See [SANDBOX.md](SANDBOX.md) for the boundary, limits, recovery
+table and migration.

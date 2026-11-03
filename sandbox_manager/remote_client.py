@@ -1,202 +1,265 @@
+"""HTTP client for the private sandbox control API.
+
+It has the same lease API as the local :class:`~sandbox_manager.manager.SandboxManager`:
+``acquire(language)`` returns a sandbox the caller owns, ``dispose(sandbox)``
+ends the lease idempotently. Each lease owns one HTTP session, which is closed
+by ``dispose`` on every path, including failure.
+
+Replay policy: acquisition is retried once with the same lease secret (the
+server returns the same handle), and disposal is retried because it is
+idempotent. Workdir preparation, fixture staging, commands and HTTP requests
+are never replayed automatically: their outcome is uncertain after a lost
+response.
+"""
 import base64
-from typing import Dict, List, TYPE_CHECKING
+import logging
+import secrets
+import threading
+import time
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional
+
 import requests
-from contextlib import contextmanager
+from requests.adapters import HTTPAdapter
+
+from sandbox_manager.errors import (
+    ArtifactTooLargeError, Disposal, SandboxCleanupError, SandboxHandleError, SandboxTransportError,
+)
+from sandbox_manager.models.sandbox_models import (
+    CommandResponse, ExtractedFile, HttpResponse, Language, ResponseCategory,
+)
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
     from autograder.models.dataclass.submission import SubmissionFile
-from sandbox_manager.models.sandbox_models import (
-    Language,
-    CommandResponse,
-    ExtractedFile,
-    ResponseCategory,
-    HttpResponse
-)
+
+logger = logging.getLogger(__name__)
+
+LEASE_HEADER = "X-Sandbox-Lease"
+TRANSPORT_MARGIN_SECONDS = 15   # server-side work beyond the process timeout
+ACQUIRE_TIMEOUT_SECONDS = 120   # scale-up may create a container
+STAGING_TIMEOUT_SECONDS = 120
+DISPOSE_TIMEOUT_SECONDS = 60
+DISPOSE_ATTEMPTS = 3
+_TRANSIENT = (requests.ConnectionError, requests.Timeout)
+
+
+def _error_code(response) -> str:
+    try:
+        detail = response.json().get("detail")
+    except ValueError:
+        return ""
+    return detail.get("code", "") if isinstance(detail, dict) else ""
+
+
+def _raise_for(response, operation: str) -> None:
+    """Translate a control API error into a distinct client exception."""
+    if response.status_code < 400:
+        return
+    code = _error_code(response)
+    if code in ("sandbox_not_found", "sandbox_expired"):
+        raise SandboxHandleError(code, f"Sandbox lease unavailable during {operation} ({code})")
+    if code == "artifact_not_found":
+        raise FileNotFoundError(f"Artifact not found in sandbox during {operation}")
+    if code == "artifact_too_large":
+        raise ArtifactTooLargeError(f"Artifact exceeds the requested size limit during {operation}")
+    raise SandboxTransportError(
+        f"Sandbox control API {operation} failed with HTTP {response.status_code} ({code or 'no code'})",
+        code=code or f"http_{response.status_code}")
+
+
+def _command_response(data: dict) -> CommandResponse:
+    return CommandResponse(stdout=data["stdout"], stderr=data["stderr"], exit_code=data["exit_code"],
+                           execution_time=data["execution_time"], category=ResponseCategory(data["category"]))
 
 
 class RemoteSandboxContainer:
-    """
-    Client wrapper for a remote SandboxContainer communicating via HTTP.
-    Matches the interface of SandboxContainer.
-    """
-    def __init__(self, sandbox_id: str, language: Language, api_url: str):
+    """A leased remote sandbox. Matches the operations of ``SandboxContainer``."""
+
+    def __init__(self, *, sandbox_id: str, language: Language, api_url: str, secret: str,
+                 session: requests.Session, lease_seconds: int):
         self.sandbox_id = sandbox_id
         self.language = language
-        self.api_url = api_url.rstrip('/')
-        self._session = requests.Session()
+        self.api_url = api_url
+        self.lease_seconds = lease_seconds
+        self._secret = secret
+        self._session: Optional[requests.Session] = session
+        self.disposed = False
 
-    def close(self):
-        """Closes the HTTP session to prevent connection leaks."""
-        self._session.close()
+    @property
+    def secret(self) -> str:
+        return self._secret
+
+    def _url(self, suffix: str = "") -> str:
+        return f"{self.api_url}/sandboxes/{self.sandbox_id}{suffix}"
+
+    def _call(self, method: str, suffix: str, operation: str, *, timeout: float, **kwargs):
+        session = self._session
+        if session is None:
+            raise SandboxHandleError("sandbox_expired", f"The sandbox lease is closed; {operation} is unavailable")
+        try:
+            response = session.request(method, self._url(suffix), timeout=timeout, **kwargs)
+        except _TRANSIENT as exc:
+            # Never replayed: the server may already have executed this operation.
+            raise SandboxTransportError(f"Sandbox control API {operation} outcome is unknown: {exc}") from exc
+        _raise_for(response, operation)
+        return response
+
+    def take_session(self) -> Optional[requests.Session]:
+        session, self._session = self._session, None
+        return session
 
     def prepare_workdir(self, submission_files: Dict[str, 'SubmissionFile']) -> None:
-        """Uploads submission files to the remote sandbox."""
-        url = f"{self.api_url}/sandboxes/{self.sandbox_id}/prepare"
-        files_data = {
-            name: {
-                "filename": sf.filename,
-                "content": sf.content
-            } for name, sf in submission_files.items()
-        }
-        response = self._session.post(url, json={"submission_files": files_data}, timeout=30)
-        response.raise_for_status()
+        files = {name: {"filename": item.filename, "content": item.content}
+                 for name, item in submission_files.items()}
+        self._call("POST", "/prepare", "workdir preparation", timeout=STAGING_TIMEOUT_SECONDS,
+                   json={"submission_files": files})
 
     def inject_assets(self, resolved_assets: List['ResolvedAsset']) -> None:
-        """Injects resolved assets into the remote sandbox."""
-        url = f"{self.api_url}/sandboxes/{self.sandbox_id}/inject"
-        assets_data = [
-            {
-                "target": asset.target,
-                "content": base64.b64encode(asset.content).decode('ascii'),
-                "read_only": asset.read_only
-            } for asset in resolved_assets
-        ]
-        response = self._session.post(url, json={"resolved_assets": assets_data}, timeout=30)
-        response.raise_for_status()
+        assets = [{"target": item.target, "content": base64.b64encode(item.content).decode("ascii"),
+                   "read_only": item.read_only} for item in resolved_assets]
+        self._call("POST", "/inject", "fixture staging", timeout=STAGING_TIMEOUT_SECONDS,
+                   json={"resolved_assets": assets})
 
     def run_command(self, command: str, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
-        """Executes a single command in the remote sandbox."""
-        url = f"{self.api_url}/sandboxes/{self.sandbox_id}/run"
-        payload = {
-            "command": command,
-            "timeout": timeout,
-            "workdir": workdir
-        }
-        response = self._session.post(url, json=payload, timeout=timeout + 5)
-        response.raise_for_status()
-        data = response.json()
-        return CommandResponse(
-            stdout=data["stdout"],
-            stderr=data["stderr"],
-            exit_code=data["exit_code"],
-            execution_time=data["execution_time"],
-            category=ResponseCategory(data["category"])
-        )
+        response = self._call("POST", "/run", "command execution", timeout=timeout + TRANSPORT_MARGIN_SECONDS,
+                              json={"command": command, "timeout": timeout, "workdir": workdir})
+        return _command_response(response.json())
 
-    def run_commands(self, commands: List[str], program_command: str = None, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
-        """Executes a batch of commands in the remote sandbox."""
-        url = f"{self.api_url}/sandboxes/{self.sandbox_id}/run-batch"
-        payload = {
-            "commands": commands,
-            "program_command": program_command,
-            "timeout": timeout,
-            "workdir": workdir
-        }
-        response = self._session.post(url, json=payload, timeout=timeout + 5)
-        response.raise_for_status()
-        data = response.json()
-        return CommandResponse(
-            stdout=data["stdout"],
-            stderr=data["stderr"],
-            exit_code=data["exit_code"],
-            execution_time=data["execution_time"],
-            category=ResponseCategory(data["category"])
-        )
+    def run_commands(self, commands: List[str], program_command: str = None, timeout: int = 30,
+                     workdir: str = "/app") -> CommandResponse:
+        response = self._call("POST", "/run-batch", "command execution", timeout=timeout + TRANSPORT_MARGIN_SECONDS,
+                              json={"commands": commands, "program_command": program_command,
+                                    "timeout": timeout, "workdir": workdir})
+        return _command_response(response.json())
 
     def extract_file(self, path: str, max_bytes: int = 1_048_576) -> ExtractedFile:
-        """Extracts a file from the remote sandbox."""
-        url = f"{self.api_url}/sandboxes/{self.sandbox_id}/files"
-        response = self._session.get(url, params={"path": path, "max_bytes": max_bytes}, timeout=30)
-        if response.status_code == 404:
-            raise FileNotFoundError(f"File not found in container: {path}")
-        response.raise_for_status()
-        data = response.json()
-        
-        content_bytes = base64.b64decode(data["content_bytes"])
-        
-        return ExtractedFile(
-            path=data["path"],
-            content_bytes=content_bytes,
-            size=data["size"],
-            content_text=data["content_text"],
-            encoding=data["encoding"]
-        )
+        data = self._call("GET", "/files", "artifact extraction", timeout=STAGING_TIMEOUT_SECONDS,
+                          params={"path": path, "max_bytes": max_bytes}).json()
+        return ExtractedFile(path=data["path"], content_bytes=base64.b64decode(data["content_bytes"]),
+                             size=data["size"], content_text=data["content_text"], encoding=data["encoding"])
 
     def make_request(self, method: str, endpoint: str, **kwargs) -> HttpResponse:
-        """Sends an HTTP request to the remote sandbox."""
-        url = f"{self.api_url}/sandboxes/{self.sandbox_id}/request"
-        payload = {
-            "method": method,
-            "endpoint": endpoint,
-            "kwargs": kwargs
-        }
-        timeout = kwargs.get("timeout", 30)
-        if timeout is None:
-            timeout = 30
-        response = self._session.post(url, json=payload, timeout=timeout + 5)
-        response.raise_for_status()
-        data = response.json()
-        
-        # Build a dummy requests.Response object
-        dummy_resp = requests.Response()
-        dummy_resp.status_code = data["status_code"]
-        dummy_resp._content = base64.b64decode(data["content"])
-        dummy_resp.headers = data["headers"]
-        # Setting a dummy url because requests uses it for things
-        dummy_resp.url = f"http://dummy_remote_container{endpoint}"
-        return HttpResponse(dummy_resp)
+        timeout = kwargs.get("timeout") or 30
+        data = self._call("POST", "/request", "HTTP request", timeout=timeout + TRANSPORT_MARGIN_SECONDS,
+                          json={"method": method, "endpoint": endpoint, "kwargs": kwargs}).json()
+        response = requests.Response()
+        response.status_code = data["status_code"]
+        response._content = base64.b64decode(data["content"])  # pylint: disable=protected-access
+        response.headers = data["headers"]
+        response.url = f"http://remote-sandbox{endpoint}"
+        return HttpResponse(response)
 
 
 class RemoteSandboxManager:
-    """
-    Client wrapper for the SandboxManager communicating via HTTP.
-    Matches the interface of SandboxManager.
-    """
-    def __init__(self, api_url: str):
-        self.api_url = api_url.rstrip('/')
-        self._session = requests.Session()
+    """Client-side lease owner for one host. Borrowed by sessions, owned by the host."""
 
-    def get_sandbox(self, lang: Language) -> RemoteSandboxContainer:
-        """Acquires a sandbox from the remote pool."""
-        url = f"{self.api_url}/sandboxes/{lang.value}"
-        response = self._session.post(url, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-        return RemoteSandboxContainer(
-            sandbox_id=data["sandbox_id"],
-            language=lang,
-            api_url=self.api_url
-        )
+    def __init__(self, api_url: str, token: str, *, session_factory: Callable[[], requests.Session] = requests.Session,
+                 retry_delay: float = 0.5):
+        if not token:
+            raise ValueError("A sandbox control API token (SANDBOX_API_TOKEN) is required for remote mode")
+        self.api_url = api_url.rstrip("/")
+        self._token = token
+        self._session_factory = session_factory
+        self._retry_delay = retry_delay
+        self._leases: set = set()
+        self._lock = threading.Lock()
+        self._closed = False
 
-    def release_sandbox(self, lang: Language, sandbox: RemoteSandboxContainer):
-        """Releases the remote sandbox."""
-        _ = lang  # unused but part of the interface
-        url = f"{self.api_url}/sandboxes/{sandbox.sandbox_id}"
-        response = self._session.delete(url, timeout=15)
-        response.raise_for_status()
-        sandbox.close()
+    def _new_session(self, secret: str) -> requests.Session:
+        session = self._session_factory()
+        adapter = HTTPAdapter(max_retries=0)  # replay is decided explicitly, per operation
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        session.headers.update({"Authorization": f"Bearer {self._token}", LEASE_HEADER: secret})
+        return session
 
-    def destroy_sandbox(self, lang: Language, sandbox: RemoteSandboxContainer):
-        """Destroys the remote sandbox immediately."""
-        _ = lang  # unused but part of the interface
-        url = f"{self.api_url}/sandboxes/{sandbox.sandbox_id}/destroy"
-        response = self._session.delete(url, timeout=15)
-        response.raise_for_status()
-        sandbox.close()
+    def start(self) -> "RemoteSandboxManager":
+        return self
 
-    @contextmanager
-    def acquire_sandbox(self, lang: Language):
-        """Context manager for safe sandbox acquisition."""
-        sandbox = self.get_sandbox(lang)
+    def acquire(self, language: Language) -> RemoteSandboxContainer:
+        if self._closed:
+            raise SandboxTransportError("The remote sandbox client is shut down", code="client_closed")
+        secret = secrets.token_urlsafe(32)
+        session = self._new_session(secret)
         try:
-            yield sandbox
-        finally:
-            self.release_sandbox(lang, sandbox)
+            response = None
+            for attempt in (1, 2):
+                try:
+                    response = session.post(f"{self.api_url}/sandboxes/{language.value}",
+                                            timeout=ACQUIRE_TIMEOUT_SECONDS)
+                    break
+                except _TRANSIENT as exc:
+                    if attempt == 2:
+                        raise SandboxTransportError(f"Sandbox acquisition failed: {exc}") from exc
+                    time.sleep(self._retry_delay)  # same secret: the server replays the same handle
+            _raise_for(response, "acquisition")
+            data = response.json()
+        except BaseException:
+            session.close()
+            raise
+        sandbox = RemoteSandboxContainer(sandbox_id=data["sandbox_id"], language=language, api_url=self.api_url,
+                                         secret=secret, session=session, lease_seconds=data["lease_seconds"])
+        with self._lock:
+            self._leases.add(sandbox)
+        return sandbox
 
-    def shutdown(self):
-        """Shuts down the client session."""
-        self._session.close()
+    def dispose(self, sandbox: RemoteSandboxContainer) -> Disposal:
+        """End a lease. Retries transport loss; always closes the lease's HTTP session."""
+        if sandbox.disposed:
+            return Disposal.ALREADY_DISPOSED
+        session = sandbox.take_session() or self._new_session(sandbox.secret)
+        try:
+            failure = None
+            for attempt in range(1, DISPOSE_ATTEMPTS + 1):
+                try:
+                    response = session.delete(f"{self.api_url}/sandboxes/{sandbox.sandbox_id}",
+                                              timeout=DISPOSE_TIMEOUT_SECONDS)
+                except _TRANSIENT as exc:
+                    failure = SandboxTransportError(f"Sandbox disposal response was lost: {exc}")
+                else:
+                    if response.status_code == 200:
+                        sandbox.disposed = True
+                        with self._lock:
+                            self._leases.discard(sandbox)
+                        return Disposal.DISPOSED
+                    if response.status_code == 202:
+                        raise SandboxCleanupError("The sandbox service retained this sandbox for cleanup retry")
+                    if response.status_code < 500:
+                        _raise_for(response, "disposal")
+                    failure = SandboxTransportError(f"Sandbox disposal failed with HTTP {response.status_code}")
+                if attempt < DISPOSE_ATTEMPTS:
+                    time.sleep(self._retry_delay * attempt)
+            raise failure
+        finally:
+            session.close()
+
+    def shutdown(self) -> None:
+        """Dispose leases still held by this host. Safe to repeat."""
+        self._closed = True
+        with self._lock:
+            remaining = list(self._leases)
+        failures = 0
+        for sandbox in remaining:
+            try:
+                self.dispose(sandbox)
+            except Exception:  # pylint: disable=broad-exception-caught
+                failures += 1
+                logger.exception("Remote sandbox %s cleanup failed at shutdown", sandbox.sandbox_id[:8])
+        if failures:
+            raise SandboxCleanupError(f"{failures} remote sandbox lease(s) could not be confirmed closed; "
+                                      "the service expires them")
 
     def get_pool_stats(self) -> dict:
-        """Gets pool statistics from the remote API."""
-        url = f"{self.api_url}/stats"
-        response = self._session.get(url, timeout=10)
-        response.raise_for_status()
-        return response.json()
+        session = self._new_session("")
+        try:
+            response = session.get(f"{self.api_url}/stats", timeout=10)
+            _raise_for(response, "stats")
+            return response.json()
+        finally:
+            session.close()
 
     def __enter__(self):
-        return self
+        return self.start()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.shutdown()

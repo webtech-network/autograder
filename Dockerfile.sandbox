@@ -21,8 +21,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 6. Copy the rest of the application code
 COPY . .
 
-# 7. Expose the port the Sandbox Manager API runs on
+# 7. Ownership leases; mount a persistent volume here so restarts reclaim dead owners
+ENV SANDBOX_LEASE_DIR=/var/lib/autograder/sandbox-leases
+
+# 8. Container port for the private control network. Do not publish it to the host.
 EXPOSE 8001
 
-# 8. Define the command to run the Sandbox Manager API
-CMD ["uvicorn", "sandbox_manager.api:app", "--host", "0.0.0.0", "--port", "8001"]
+# 9. Exactly one worker: lease handles are process memory. SANDBOX_API_TOKEN is required.
+CMD ["uvicorn", "sandbox_manager.api:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

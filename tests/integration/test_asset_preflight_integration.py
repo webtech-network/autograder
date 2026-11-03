@@ -10,7 +10,7 @@ from tests.unit.pipeline.test_host_capabilities import definition, submission
 
 def test_typed_fixture_maps_to_host_root_and_closes_owned_session():
     manager = Mock()
-    concrete = manager.get_sandbox.return_value
+    concrete = manager.acquire.return_value
     session = DockerSession(manager, Language.PYTHON)
     resolver = Mock(return_value=b"asset bytes")
     pipeline = build_pipeline(definition=definition(preparation={"fixtures": [
@@ -22,4 +22,4 @@ def test_typed_fixture_maps_to_host_root_and_closes_owned_session():
     assert len(assets) == 1
     assert assets[0].target == "/tmp/app/data.csv"
     assert assets[0].content == b"asset bytes" and assets[0].read_only is True
-    manager.destroy_sandbox.assert_called_once_with(Language.PYTHON, concrete)
+    manager.dispose.assert_called_once_with(concrete)

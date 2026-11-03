@@ -20,9 +20,10 @@ class Language(Enum):
 
 class SandboxState(Enum):
     """Current state of a sandbox instance."""
-    IDLE = "idle"
-    BUSY = "busy"
-    STOPPED = "stopped"
+    IDLE = "idle"          # warm, owned by the pool
+    BUSY = "busy"          # leased to one session
+    CLOSING = "closing"    # disposal started; owner retains the record until confirmed
+    STOPPED = "stopped"    # destruction confirmed
 
 class ResponseCategory(Enum):
     """Classification of the execution result."""

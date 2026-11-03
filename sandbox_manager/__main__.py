@@ -1,14 +1,17 @@
-import uvicorn
+"""Run the private control API: one process, one worker, loopback by default.
+
+Handles live in this process's memory, so never add workers or replicas behind
+a load balancer. Uvicorn owns SIGINT/SIGTERM and runs the application lifespan,
+which shuts the sandbox manager down.
+"""
 import os
 
+import uvicorn
+
 if __name__ == "__main__":
-    port = int(os.getenv("SANDBOX_PORT", "8001"))
-    host = os.getenv("SANDBOX_HOST", "0.0.0.0")
-    
-    # We use sandbox_manager.api:app to allow hot reload if needed
     uvicorn.run(
         "sandbox_manager.api:app",
-        host=host,
-        port=port,
-        reload=os.getenv("APP_ENV", "local") == "local"
+        host=os.getenv("SANDBOX_HOST", "127.0.0.1"),
+        port=int(os.getenv("SANDBOX_PORT", "8001")),
+        workers=1,
     )

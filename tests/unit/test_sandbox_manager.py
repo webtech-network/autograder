@@ -92,12 +92,6 @@ class TestSandboxContainer(unittest.TestCase):
         self.sandbox.pickup()
         self.assertEqual(self.sandbox.state, SandboxState.BUSY)
 
-    def test_release_marks_idle(self):
-        """Test release() changes state to IDLE."""
-        self.sandbox.pickup()
-        self.sandbox.release()
-        self.assertEqual(self.sandbox.state, SandboxState.IDLE)
-
     def test_prepare_workdir_with_simple_files(self):
         """Test preparing workdir with simple filenames."""
         submission_files = {
@@ -270,7 +264,7 @@ class TestLanguagePoolNaming(unittest.TestCase):
             idle_timeout=300,
             running_timeout=60
         )
-        pool = LanguagePool(Language.PYTHON, config, client=None)
+        pool = LanguagePool(Language.PYTHON, config, client=None, owner_id='a1b2c3d4' * 4, runtime='runc')
 
         name = pool._build_container_name()
         assert re.match(r'^ag-sbx-python-[a-f0-9]{8}-0001$', name), f"Unexpected name: {name}"
@@ -287,7 +281,7 @@ class TestLanguagePoolNaming(unittest.TestCase):
             idle_timeout=300,
             running_timeout=60
         )
-        pool = LanguagePool(Language.JAVA, config, client=None)
+        pool = LanguagePool(Language.JAVA, config, client=None, owner_id='a1b2c3d4' * 4, runtime='runc')
 
         name1 = pool._build_container_name()
         name2 = pool._build_container_name()
