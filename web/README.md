@@ -78,7 +78,10 @@ and optional internal diagnostics. A completed zero score is an assessed grade;
 a failed execution has null score/tree and a structured error. Legacy history
 has `provenance_status: "unverified_legacy"`; new accepted/imported snapshots use
 `"bound_snapshot"`, which records binding rather than proof of execution origin.
-The old arbitrary `baseline_result_tree` submission input is removed.
+The old arbitrary `baseline_result_tree` submission input is removed. Authenticated
+`GET /api/v1/submissions/{id}/comparison?baseline_submission_id={baseline}` compares
+two stored canonical outcomes on demand without grading or storing anything; see
+[baseline comparison](../docs/features/baseline_comparison.md).
 
 Authenticated `POST /api/v1/submissions/external-results` accepts
 `grading_config_id`, external user identity, username, language,

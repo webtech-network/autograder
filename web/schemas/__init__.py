@@ -14,6 +14,7 @@ from web.schemas.submission import (
     EvaluationScopeData,
     ExternalResultCreate,
     ExternalResultResponse,
+    SubmissionComparisonResponse,
 )
 from web.schemas.execution import (
     DeliberateCodeExecutionRequest,
@@ -32,6 +33,7 @@ __all__ = [
     "EvaluationScopeData",
     "ExternalResultCreate",
     "ExternalResultResponse",
+    "SubmissionComparisonResponse",
     "DeliberateCodeExecutionRequest",
     "DeliberateCodeExecutionResponse",
 ]

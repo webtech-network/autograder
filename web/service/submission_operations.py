@@ -6,6 +6,7 @@ import json
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from autograder.models.contracts.comparison import ComparisonError, compare_outcomes
 from autograder.models.contracts.definition import compile_definition, select_language, DefinitionValidationError
 from autograder.services.weights import normalized_sibling_weights
 from web.database.models.submission import SubmissionStatus
@@ -277,6 +278,63 @@ async def query_submission(session, submission_id, *, details=False):
     if row is None:
         raise OperationError(404, "Submission not found")
     return project_submission(row, details=details)
+
+
+def _comparison_problem(status_code, code, message, row=None, side=None):
+    detail = {"code": code, "message": message}
+    if side is not None:
+        detail["side"] = side
+    if row is not None:
+        detail["submission_id"] = row.id
+    return OperationError(status_code, detail)
+
+
+def _comparable_outcome(side, row):
+    """Only completed canonical outcomes bound to a definition snapshot are comparable."""
+    outcome = row.result.outcome if row.result else None
+    if row.status in (SubmissionStatus.PENDING, SubmissionStatus.PROCESSING):
+        raise _comparison_problem(409, "OUTCOME_NOT_COMPLETED",
+                                  f"The {side} submission has not finished grading", row, side)
+    if row.definition_snapshot is None or row.definition_hash is None or outcome is None:
+        # Never guess correspondence from display names or today's definition.
+        raise _comparison_problem(409, "LEGACY_UNVERIFIED",
+                                  f"The {side} submission predates bound definition snapshots and "
+                                  "canonical outcomes; it cannot be compared reliably", row, side)
+    if outcome["status"] != "completed":
+        raise _comparison_problem(409, "OUTCOME_NOT_COMPLETED",
+                                  f"The {side} submission failed and has no authoritative grade", row, side)
+    return outcome
+
+
+def outcome_source(row):
+    """Accepted submissions always store source files; attestations store none."""
+    return "executed" if row.submission_files else "attested"
+
+
+async def compare_submissions(session, submission_id, baseline_submission_id):
+    """Read-only, deterministic comparison of two stored outcomes; never regrades or writes."""
+    repo = SubmissionRepository(session)
+    head = await repo.get_by_id_with_result(submission_id)
+    if head is None:
+        raise OperationError(404, "Submission not found")
+    baseline = await repo.get_by_id_with_result(baseline_submission_id)
+    if baseline is None:
+        raise OperationError(404, "Baseline submission not found")
+    if baseline.grading_config_id != head.grading_config_id:
+        raise _comparison_problem(422, "NOT_COMPARABLE",
+                                  "Both submissions must belong to the same grading configuration")
+    baseline_outcome = _comparable_outcome("baseline", baseline)
+    head_outcome = _comparable_outcome("head", head)
+    try:
+        comparison = compare_outcomes(baseline_outcome, head_outcome,
+                                      baseline.definition_snapshot, head.definition_snapshot)
+    except ComparisonError as exc:
+        row = baseline if exc.side == "baseline" else head
+        raise _comparison_problem(409, exc.code, exc.message, row, exc.side) from exc
+    data = comparison.model_dump(mode="json")
+    for side, row in (("baseline", baseline), ("head", head)):
+        data[side].update(submission_id=row.id, source=outcome_source(row))
+    return data
 
 
 async def _accept_submission(session, submission):

@@ -989,6 +989,64 @@
         }
       }
     },
+    "/api/v1/submissions/{submission_id}/comparison": {
+      "get": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "Compare Submission",
+        "description": "Compare two stored canonical outcomes on demand; nothing is graded or stored.",
+        "operationId": "compare_submission_api_v1_submissions__submission_id__comparison_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "baseline_submission_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Baseline Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionComparisonResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/submissions/{submission_id}": {
       "get": {
         "tags": [
@@ -1376,6 +1434,48 @@
         ],
         "title": "CategoryOutcome"
       },
+      "ComparedSubmission": {
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Execution Id"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DefinitionProvenance"
+          },
+          "submission_id": {
+            "type": "integer",
+            "title": "Submission Id"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "executed",
+              "attested"
+            ],
+            "title": "Source",
+            "description": "executed: graded by this server from accepted source files; attested: an authenticated external host attestation that this server did not execute"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "execution_id",
+          "score",
+          "provenance",
+          "submission_id",
+          "source"
+        ],
+        "title": "ComparedSubmission",
+        "description": "One stored side of an on-demand comparison."
+      },
       "ComparisonContent": {
         "properties": {
           "score_delta": {
@@ -1742,6 +1842,156 @@
         ],
         "title": "CriteriaConfig",
         "description": "Root configuration for grading criteria."
+      },
+      "CriterionComparison": {
+        "properties": {
+          "criterion_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Criterion Id",
+            "description": "Stable criterion ID; display labels never identify criteria"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "improved",
+              "regressed",
+              "unchanged",
+              "reweighted",
+              "redefined",
+              "introduced",
+              "removed"
+            ],
+            "title": "Status"
+          },
+          "baseline_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Label"
+          },
+          "head_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Label"
+          },
+          "baseline_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Score"
+          },
+          "head_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Score"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -100.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta",
+            "description": "head_score - baseline_score; null when not comparable"
+          },
+          "baseline_category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "base",
+                  "bonus",
+                  "penalty"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Category"
+          },
+          "head_category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "base",
+                  "bonus",
+                  "penalty"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Category"
+          },
+          "baseline_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Weight",
+            "description": "Effective final-score points: category weight times normalized share within it"
+          },
+          "head_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Weight"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "criterion_id",
+          "status"
+        ],
+        "title": "CriterionComparison",
+        "description": "One criterion joined by ID; absent sides carry no label, score, category or weight."
       },
       "CriterionDelta": {
         "properties": {
@@ -3471,6 +3721,80 @@
           "weight"
         ],
         "title": "SubjectOutcome"
+      },
+      "SubmissionComparisonResponse": {
+        "properties": {
+          "compatibility": {
+            "type": "string",
+            "enum": [
+              "same_definition",
+              "cross_revision"
+            ],
+            "title": "Compatibility"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/ComparedSubmission"
+          },
+          "head": {
+            "$ref": "#/components/schemas/ComparedSubmission"
+          },
+          "score_delta": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -100.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Delta",
+            "description": "Overall head - baseline; null across revisions"
+          },
+          "improved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Improved"
+          },
+          "explanation": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Explanation"
+          },
+          "changed_definition_sections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changed Definition Sections",
+            "default": []
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionComparison"
+            },
+            "type": "array",
+            "title": "Criteria",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "compatibility",
+          "baseline",
+          "head",
+          "explanation"
+        ],
+        "title": "SubmissionComparisonResponse",
+        "description": "Read-only comparison of two stored canonical outcomes; never stored or regraded."
       },
       "SubmissionCreate": {
         "properties": {
