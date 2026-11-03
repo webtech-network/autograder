@@ -497,38 +497,6 @@ class ResultTree:
         """Get all test nodes with score of 100."""
         return [test for test in self.get_all_test_results() if test.score >= 100]
 
-    def iter_test_results(self) -> Iterator[Tuple[str, TestResultNode]]:
-        """
-        Yield (criterion_id, node) for every test in the tree.
-
-        Identity is independent of display names and subject grouping.
-        Used by to_score_vector() and ResultComparator.
-
-        Yields:
-            Tuples of (criterion_id, TestResultNode) for every leaf test
-            in the result tree, ordered by category → subject → test.
-        """
-        seen = set()
-        for category in self.root.get_all_categories():
-            for path, test_node, _multiplier in category.iter_test_results():
-                criterion_id = test_node.criterion_id or (test_node.test_node.criterion_id if test_node.test_node else None)
-                if not criterion_id:
-                    raise ValueError("Result tree test lacks a criterion ID")
-                if criterion_id in seen:
-                    raise ValueError(f"Duplicate result criterion ID: {criterion_id}")
-                seen.add(criterion_id)
-                yield (criterion_id, test_node)
-
-    def to_score_vector(self) -> Dict[str, float]:
-        """
-        Flatten the result tree into a criterion-ID-keyed score map.
-        Suitable for storage, diffing, and longitudinal SQL queries.
-
-        Returns:
-            Dict mapping criterion IDs to raw test scores (0-100).
-        """
-        return {path: node.score for path, node in self.iter_test_results()}
-
     def to_dict(self) -> dict:
         """Convert entire result tree to dictionary."""
         all_tests = self.get_all_test_results()
