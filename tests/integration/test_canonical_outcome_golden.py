@@ -23,7 +23,7 @@ import pytest
 
 from autograder import Submission, SubmissionFile, build_pipeline
 from execution_host.docker import DockerHost
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 GOLDEN = Path(__file__).with_name("canonical_outcome_golden.json")
 RUN = "python3 main.py"
