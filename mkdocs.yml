@@ -44,6 +44,7 @@ nav:
       - Submission Input: contracts/SUBMISSIONS.md
       - Evaluator Files: contracts/FILES.md
       - Host Capabilities: contracts/CAPABILITIES.md
+      - Sandbox Ownership: contracts/SANDBOX.md
       - Durable Jobs: contracts/JOBS.md
       - Definitions: contracts/DEFINITIONS.md
       - Catalog and Python API: contracts/CATALOG.md

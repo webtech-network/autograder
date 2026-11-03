@@ -8,6 +8,8 @@ returns, before file staging. The pipeline closes that session once on every
 subsequent path, then constructs its immutable terminal outcome. Failed
 acquisition transfers nothing. Cleanup errors are logged and preserve a completed
 grade; hosts can inspect their infrastructure logs and dispose their manager.
+The Docker session's `close()` raises when sandbox removal is not confirmed; the
+sandbox stays quarantined in its pool for bounded retry and pool statistics.
 Never publish until the pipeline has returned.
 
 The engine first selects the language, validates required preparation files and
@@ -71,8 +73,10 @@ Use it as the HTTP configuration's `definition` and as the Action's
 its submission endpoint; Actions collects it from `submission-root`.
 
 The Actions container can use an accessible sandbox service through
-`SANDBOX_MODE=remote` and `SANDBOX_API_URL`; this avoids requiring a nested Docker
-daemon. Local Docker hosts use `mode="local"` and a sandbox configuration file.
+`SANDBOX_MODE=remote`, `SANDBOX_API_URL` and `SANDBOX_API_TOKEN`; this avoids
+requiring a nested Docker daemon. The control service is private and token
+protected; see [SANDBOX.md](SANDBOX.md) for its lifecycle, owner leases,
+worker model and recovery rules. Local Docker hosts use `mode="local"` and a sandbox configuration file.
 Custom runner implementations implement the same session operations; evaluators
 receive no manager or provider identity. There is no unrestricted runner profile
 shipped by this change.
