@@ -42,7 +42,9 @@ ACQUIRE_TIMEOUT_SECONDS = 120   # scale-up may create a container
 STAGING_TIMEOUT_SECONDS = 120
 DISPOSE_TIMEOUT_SECONDS = 60
 DISPOSE_ATTEMPTS = 3
-_TRANSIENT = (requests.ConnectionError, requests.Timeout)
+# Every requests failure (connection, timeout, broken chunked body, ...) leaves the
+# outcome unknown; none may escape as a non-RuntimeError (ConnectionError is OSError).
+_TRANSIENT = (requests.RequestException,)
 
 
 def _error_code(response) -> str:
