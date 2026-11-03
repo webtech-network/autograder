@@ -51,6 +51,8 @@ class Settings:
     SANDBOX_CONFIG_FILE: str = field(default_factory=lambda: os.getenv("SANDBOX_CONFIG_FILE", "sandbox_config.yml"))
     SANDBOX_MODE: str = field(default_factory=lambda: os.getenv("SANDBOX_MODE", "local"))
     SANDBOX_API_URL: str = field(default_factory=lambda: os.getenv("SANDBOX_API_URL", "http://localhost:8001"))
+    # Bearer token for the private sandbox control API (remote mode only).
+    SANDBOX_API_TOKEN: str = field(default_factory=lambda: os.getenv("SANDBOX_API_TOKEN", ""), repr=False)
 
     def __post_init__(self):
         tokens = [self.INTEGRATION_TOKEN.strip()] if self.INTEGRATION_TOKEN.strip() else []

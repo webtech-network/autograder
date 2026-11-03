@@ -19,7 +19,7 @@ from typing import Dict
 
 from tests.integration.definition_fixtures import build_migrated_fixture_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from sandbox_manager.manager import initialize_sandbox_manager, get_sandbox_manager
+from tests.integration.sandbox_support import current_manager, start_manager, wait_for_idle
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import Language
 
@@ -46,7 +46,7 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
                 running_timeout=60
             ),
         ]
-        cls.manager = initialize_sandbox_manager(pool_configs)
+        cls.manager = start_manager(pool_configs)
         time.sleep(2)
 
     def test_01_simple_python_io_assignment_complete_flow(self):
@@ -90,6 +90,7 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
 
         # Build pipeline
         pipeline = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -209,6 +210,7 @@ else:
         )
 
         pipeline = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -266,6 +268,7 @@ else:
         )
 
         pipeline = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -336,6 +339,7 @@ print(lib_function())
         )
 
         pipeline = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -391,6 +395,7 @@ print(lib_function())
         pipelines = []
         for _ in range(3):
             pipeline = build_migrated_fixture_pipeline(
+                manager=self.manager,
                 template_name="input_output",
                 include_feedback=False,
                 grading_criteria=grading_criteria,
@@ -461,6 +466,7 @@ public class HelloWorld {
         }
 
         pipeline = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -535,6 +541,7 @@ def calculate(a, b):
         }
 
         pipeline = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -589,6 +596,7 @@ raise Exception("Intentional error!")
         )
 
         pipeline = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -605,11 +613,8 @@ raise Exception("Intentional error!")
         self.assertEqual(result.outcome.status, "completed")
         self.assertEqual(result.outcome.score, 0.0)  # Test failed
 
-        # Wait for cleanup
-        time.sleep(2)
-
-        # Pool should be replenished
-        self.assertEqual(len(py_pool.idle_sandboxes), initial_idle)
+        # Pool should be replenished by the monitor
+        self.assertEqual(wait_for_idle(py_pool), py_pool.config.pool_size)
 
         print("✅ Sandbox cleaned up correctly after execution error")
 
@@ -656,6 +661,7 @@ raise Exception("Intentional error!")
             )
 
             pipeline = build_migrated_fixture_pipeline(
+                manager=self.manager,
                 template_name="input_output",
                 include_feedback=False,
                 grading_criteria=grading_criteria,
@@ -708,6 +714,7 @@ print('Created')
         )
 
         pipeline1 = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria={
@@ -758,6 +765,7 @@ else:
         )
 
         pipeline2 = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -779,7 +787,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Use already initialized manager."""
-        cls.manager = get_sandbox_manager()
+        cls.manager = current_manager()
 
     def test_sandbox_release_on_pipeline_success(self):
         """Verify sandbox is released when pipeline succeeds."""
@@ -820,6 +828,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
         )
 
         pipeline = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -846,7 +855,8 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
         """Test complete lifecycle: create -> use -> destroy -> replenish."""
         py_pool = self.manager.language_pools[Language.PYTHON]
 
-        # Record initial container IDs
+        # Record initial container IDs once the pool is at steady state
+        wait_for_idle(py_pool)
         initial_containers = {s.container_ref.id for s in py_pool.idle_sandboxes}
 
         grading_criteria = {
@@ -882,6 +892,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
         )
 
         pipeline = build_migrated_fixture_pipeline(
+            manager=self.manager,
             template_name="input_output",
             include_feedback=False,
             grading_criteria=grading_criteria,
@@ -893,7 +904,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
         self.assertEqual(result.outcome.status, "completed")
 
         # Wait for replenishment
-        time.sleep(2)
+        wait_for_idle(py_pool)
 
         # Container should have been destroyed and a new one created
         final_containers = {s.container_ref.id for s in py_pool.idle_sandboxes}

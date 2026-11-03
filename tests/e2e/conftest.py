@@ -20,10 +20,8 @@ def isolated_api(tmp_path_factory):
     config.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
     token = secrets.token_hex(24)
     producer_token = secrets.token_hex(24)
-    owner = uuid4().hex
     env = dict(os.environ, DATABASE_URL=f"sqlite+aiosqlite:///{database}",
         AUTOGRADER_INTEGRATION_TOKEN=token, AUTOGRADER_ATTESTATION_TOKENS=f"actions={producer_token}",
-        AUTOGRADER_E2E_OWNER=owner,
         SANDBOX_MODE="local", SANDBOX_CONFIG_FILE=str(config), LOG_LEVEL="WARNING",
         APP_ENV="test", PYTHON_DOTENV_DISABLED="1")
     # Retain the bound socket through exec, avoiding a free-port discovery race.
@@ -35,7 +33,7 @@ def isolated_api(tmp_path_factory):
     repo = Path(__file__).resolve().parents[2]
     log_path = directory / "server.log"
     with log_path.open("w") as log:
-        process = subprocess.Popen([sys.executable, "-m", "uvicorn", "tests.e2e.server:app",
+        process = subprocess.Popen([sys.executable, "-m", "uvicorn", "web.main:app",
             "--fd", str(listener.fileno()), "--log-level", "warning"], cwd=repo, env=env,
             pass_fds=(listener.fileno(),), stdout=log, stderr=subprocess.STDOUT)
         listener.close()
