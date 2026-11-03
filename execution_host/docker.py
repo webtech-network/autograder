@@ -67,10 +67,10 @@ class ConfiguredAssessmentProvider:
         self.secret_name = os.environ.get("AUTOGRADER_AI_SECRET_NAME", "AUTOGRADER_OPENAI_KEY") if os.environ.get("ENVIRONMENT") == "production" else None
         self.region = os.environ.get("AWS_REGION", "us-east-1")
 
-    def run(self, tests, submission_files, locale="en"):
+    def assess(self, requests, *, context_files, locale="en"):
         from execution_host.openai_provider import AiExecutor
         return AiExecutor(api_key=self.api_key, model=self.model, secret_name=self.secret_name,
-                          region=self.region).run(tests, submission_files, locale)
+                          region=self.region).assess(requests, context_files=context_files, locale=locale)
 
 
 def docker_capabilities(manager):

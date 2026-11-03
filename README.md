@@ -172,7 +172,8 @@ The runtime flow in `autograder/autograder.py` then:
 
 1. Validates the submission and selected host capabilities.
 2. Opens and prepares a session when required.
-3. Batches selected AI assessments and grades the compiled criteria.
+3. Assesses every criterion (selected AI criteria share one provider call) and
+   grades the compiled criteria.
 4. Generates focus and feedback when requested.
 5. Closes the owned session and returns the immutable terminal outcome.
 

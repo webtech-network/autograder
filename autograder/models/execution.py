@@ -1,7 +1,7 @@
 """Provider-neutral operations accepted by evaluators and owned by a run."""
+from dataclasses import dataclass
 from typing import Mapping, Protocol, Sequence
 from autograder.models.dataclass.submission import SubmissionFile
-from autograder.models.dataclass.test_result import TestResult
 from sandbox_manager.models.sandbox_models import CommandResponse, ExtractedFile, HttpResponse
 
 
@@ -29,5 +29,27 @@ class ServerSession(ExecutionSession, Protocol):
     def make_request(self, method: str, endpoint: str) -> HttpResponse: ...
 
 
+@dataclass(frozen=True)
+class AssessmentRequest:
+    """One prepared AI criterion: its stable criterion ID and evaluator-built prompt."""
+    criterion_id: str
+    prompt: str
+
+
+@dataclass(frozen=True)
+class ProviderAssessment:
+    """A provider's answer for exactly one requested criterion ID."""
+    criterion_id: str
+    score: float
+    report: str = ""
+
+
 class AssessmentProvider(Protocol):
-    def run(self, tests, submission_files: dict[str, str], locale: str = "en") -> dict[str, TestResult]: ...
+    """A host-supplied AI provider (model, credentials and deadline are host-owned).
+
+    ``assess`` receives one batch of requests and returns one assessment per
+    request. The engine validates exact criterion-ID coverage and every score;
+    providers must not retry, drop or invent criteria.
+    """
+    def assess(self, requests: Sequence[AssessmentRequest], *, context_files: Mapping[str, str],
+               locale: str) -> Sequence[ProviderAssessment]: ...

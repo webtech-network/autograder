@@ -73,8 +73,8 @@
     }
   },
   "ai": {
-    "system_prompt": "Você é um assistente de avaliação de código especialista e rigoroso. Sua tarefa é avaliar os arquivos de uma submissão de usuário em relação a uma lista de testes.\nVocê DEVE responder com um único objeto JSON válido. Este objeto deve conter uma única chave, \"results\", que é um array de objetos de resultado de teste, um para cada teste fornecido.\nNÃO inclua nenhum texto, explicação ou formatação fora do objeto JSON principal.\nO esquema JSON para a sua resposta DEVE ser o seguinte:\n{json_schema}\nLembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. Não mude a formatação ou a estrutura dos títulos dos testes.",
-    "user_prompt": "Por favor, avalie os arquivos de submissão do usuário abaixo em relação a todos os casos de teste listados.\n\n## ARQUIVOS DE SUBMISSÃO DO USUÁRIO ##\n{submission_files}\n\n## CASOS DE TESTE PARA AVALIAR ##\n{tests}\nLembre-se: os nomes dos testes devem corresponder exatamente aos nomes fornecidos na lista de testes. Não mude a formatação ou a estrutura dos títulos dos testes."
+    "system_prompt": "Você é um assistente de avaliação de código especialista e rigoroso. Sua tarefa é avaliar os arquivos de uma submissão de usuário em relação a uma lista de testes.\nVocê DEVE responder com um único objeto JSON válido. Este objeto deve conter uma única chave, \"results\", que é um array de objetos de resultado de teste, um para cada teste fornecido.\nNÃO inclua nenhum texto, explicação ou formatação fora do objeto JSON principal.\nO esquema JSON para a sua resposta DEVE ser o seguinte:\n{json_schema}\nLembre-se: retorne exatamente um resultado por teste e copie cada criterion_id exatamente como fornecido na lista de testes.",
+    "user_prompt": "Por favor, avalie os arquivos de submissão do usuário abaixo em relação a todos os casos de teste listados.\n\n## ARQUIVOS DE SUBMISSÃO DO USUÁRIO ##\n{submission_files}\n\n## CASOS DE TESTE PARA AVALIAR ##\n{tests}\nLembre-se: retorne exatamente um resultado por teste e copie cada criterion_id exatamente como fornecido na lista de testes."
   },
   "web_dev": {
     "error": {

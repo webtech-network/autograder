@@ -7,8 +7,10 @@ The complete runtime order lives in `AutograderPipeline.run` in
 2. Validate required files and evaluator file selection before checking providers.
 3. Acquire a host-owned session only when execution is required, stage files,
    fixtures and setup commands, and start an assessed server when needed.
-4. Evaluate selected AI criteria once, returning assessments keyed by criterion ID.
-5. Pass the compiled criteria, submission, session and assessments directly to
+4. Assess every criterion with `assess_criteria`: ordinary evaluators run
+   individually and selected AI criteria share one provider call; the results
+   are keyed by criterion ID.
+5. Pass the compiled criteria and those results to
    `GraderService.grade_from_tree`; calculate and validate the result tree.
 6. If feedback is enabled, pass that result to focus selection and reporting.
 7. Close the owned session in `finally`, then construct the terminal outcome.
@@ -59,7 +61,7 @@ The regression coverage uses the replacement interfaces directly:
 | Close before terminal construction on success and failures; visible cleanup errors | `test_explicit_flow.py` and `test_host_capabilities.py` |
 | Invalid assessment, completed zero, optional feedback failure | `test_terminal_outcome.py` and `test_explicit_flow.py` |
 | Trusted compiled evaluators and repeated runs | `test_compiled_execution.py` and `test_explicit_flow.py` |
-| AI coverage and direct assessment propagation | `test_ai_batch.py` and `tests/integration/test_result_comparator_integration.py` |
+| AI batching, exact coverage and call counts | `tests/unit/pipeline/test_ai_assessment.py`, `tests/web/test_ai_assessment_http.py` |
 | Static parsing, scoped files and normalized commands | `tests/unit/test_evaluator_file_selection.py` and contribution/command integration tests |
 | Host wire contracts and publication retries | `tests/web/` and `tests/unit/github_action/` |
 

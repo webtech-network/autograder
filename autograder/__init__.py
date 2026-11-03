@@ -1,7 +1,9 @@
 """Supported Python facade for definitions, discovery and terminal results."""
 from autograder.autograder import build_pipeline
 from autograder.models.capabilities import HostCapabilities
-from autograder.models.execution import ExecutionSession, ServerSession, AssessmentProvider
+from autograder.models.execution import (
+    AssessmentProvider, AssessmentRequest, ExecutionSession, ProviderAssessment, ServerSession,
+)
 from autograder.models.contracts.definition import (
     CompiledDefinition, DefinitionValidationError, GradingDefinition,
     compile_definition, compile_snapshot, grading_definition_json_schema, select_language,
@@ -21,4 +23,4 @@ __all__ = ["build_pipeline", "compile_definition", "compile_snapshot", "select_l
            "evaluate_submission", "Template", "TestFunction", "AiTestFunction",
            "EvaluationInput", "ParameterIssue", "Submission",
            "SubmissionFile", "TestResult", "HostCapabilities", "ExecutionSession",
-           "ServerSession", "AssessmentProvider"]
+           "ServerSession", "AssessmentProvider", "AssessmentRequest", "ProviderAssessment"]

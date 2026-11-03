@@ -23,7 +23,7 @@ from autograder.models.dataclass.submission import (
     SubmissionFile,
 )
 from autograder.models.dataclass.test_result import TestResult
-from autograder.services.grader.grader_service import GraderService
+from tests.grading import grade
 from web.service.grading_service import GradingRequest, _run_pipeline
 from autograder.models.contracts.definition import compile_definition
 
@@ -155,11 +155,7 @@ class TestEvaluationScopeIntegration:
         }
         scope = EvaluationScope(scoped_files=["main.py"])
 
-        GraderService().grade_from_tree(
-            criteria_tree=criteria_tree,
-            submission_files=files,
-            evaluation_scope=scope,
-        )
+        grade(criteria_tree, files, scope=scope)
 
         assert capturing_test.evaluation is not None
         assert [file.filename for file in capturing_test.evaluation.files] == ["main.py"]
@@ -215,11 +211,7 @@ class TestEvaluationScopeIntegration:
         files = {"main.py": SubmissionFile(filename="main.py", content="x = 1"),
                  "util.py": SubmissionFile(filename="util.py", content="y = 2")}
 
-        GraderService().grade_from_tree(
-            criteria_tree=criteria_tree,
-            submission_files=files,
-            evaluation_scope=None,
-        )
+        grade(criteria_tree, files, scope=None)
 
         assert [file.filename for file in capturing_test.evaluation.files] == ["main.py", "util.py"]
 
@@ -338,10 +330,7 @@ class TestFileMetadataIntegration:
             ),
         }
 
-        GraderService().grade_from_tree(
-            criteria_tree=criteria_tree,
-            submission_files=files,
-        )
+        grade(criteria_tree, files)
 
         [selected] = capturing_test.evaluation.files
         assert selected.filename == "main.py"
@@ -368,10 +357,7 @@ class TestFileMetadataIntegration:
             "main.py": SubmissionFile(filename="main.py", content="x = 1"),
         }
 
-        GraderService().grade_from_tree(
-            criteria_tree=criteria_tree,
-            submission_files=files,
-        )
+        grade(criteria_tree, files)
 
         assert [file.metadata for file in capturing_test.evaluation.files] == [None]
 
@@ -405,10 +391,7 @@ class TestFileMetadataIntegration:
             ),
         }
 
-        GraderService().grade_from_tree(
-            criteria_tree=criteria_tree,
-            submission_files=files,
-        )
+        grade(criteria_tree, files)
 
         # Only main.py is selected (file_target = ["main.py"])
         assert {file.filename: file.metadata for file in capturing_test.evaluation.files} == {

@@ -73,7 +73,7 @@ identify AI batch outputs, result leaves, score vectors, or comparison deltas.
 The runtime order lives in `AutograderPipeline.run` as explicit calls:
 
 ```
-validate submission → acquire/prepare session? → batch AI?
+validate submission → acquire/prepare session? → assess (one AI batch)
                     → grade → requested focus/feedback? → close → outcome
 ```
 
@@ -85,6 +85,9 @@ Observer failures cannot alter the grade or execution order.
 Optional resources depend on selected tests/preparation, not merely other
 unused evaluators in a template. Batch AI results must exactly cover criterion
 IDs. There is no provider retry fallback or silent zero for missing assessments.
+`assess_criteria` runs ordinary evaluators and gives all selected AI criteria to
+`assess_many` (one `AssessmentProvider.assess` call, ID-keyed, shared validation for
+any group size); the grader only aggregates the merged ID-keyed results.
 
 Required failures produce null score/tree. Student compilation/runtime/timeout
 reported during evaluator assessment can produce a valid zero. Preparation

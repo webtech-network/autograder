@@ -10,9 +10,9 @@ from autograder.models.criteria_tree import CategoryNode, CriteriaTree, TestNode
 from autograder.models.dataclass.submission import EvaluationScope, Submission, SubmissionFile
 from autograder.models.evaluation_error import EvaluationError
 from autograder.services.file_selection import select_files
-from autograder.services.grader.grader_service import GraderService
+from tests.grading import FakeProvider, grade
 from autograder.services.structural_analysis import parse_source
-from autograder.services.ai_batch import evaluate_ai_batch
+from autograder.services.assessment import assess_criteria
 from autograder.template_library.static_analysis import AiSortingAlgorithmTest, ForbiddenKeywordTest
 from autograder.template_library.input_output import DontFailTest
 from autograder.template_library.api_testing import HealthCheckTest
@@ -38,7 +38,7 @@ def test_html_input_ignores_context_and_upload_order(reverse):
     values = [("README.md", "<title>context</title>"), ("index.html", "<main>Hello</main>")]
     submitted = files(*(reversed(values) if reverse else values))
     tree = CriteriaTree(base=CategoryNode("base", 100, tests=[criterion(HasTag(), parameters={"tag": "main", "required_count": 1})]))
-    result = GraderService().grade_from_tree(tree, submitted)
+    result = grade(tree, submitted)
     assert result.calculate_final_score() == 100
     assert select_files(tree.base.tests[0], submitted)[0].filename == "index.html"
 
@@ -96,17 +96,17 @@ def test_ai_and_ordinary_assessment_share_scoped_selection():
     scope = EvaluationScope(scoped_files=["a.py"])
     test = criterion(AiSortingAlgorithmTest(), parameters={"algorithm_name": "merge sort"})
     tree = CriteriaTree(base=CategoryNode("base", 100, tests=[test]))
-    provider = MagicMock()
-    provider.run.return_value = {"check": MagicMock()}
+    provider = FakeProvider()
     with patch.object(test.test_function, "build_prompt", return_value="review") as prompt:
-        evaluate_ai_batch(tree, submission(submitted, scope), provider)
+        assess_criteria(tree, submission(submitted, scope), ai=provider)
     selected = list(prompt.call_args.args[0].files)
     assert selected == select_files(test, submitted, scope, Language.PYTHON)
     assert [f.filename for f in selected] == ["a.py"]
     tree = CriteriaTree(base=CategoryNode("base", 100, tests=[replace(test, file_target=["b.py"])]))
     with pytest.raises(EvaluationError) as error:
-        evaluate_ai_batch(tree, submission(submitted, scope), provider)
+        assess_criteria(tree, submission(submitted, scope), ai=provider)
     assert error.value.code == "FILE_TARGET_CONFLICT"
+    assert len(provider.calls) == 1  # selection fails before any provider call
 
 
 def static_pipeline(*tests):
@@ -186,9 +186,7 @@ def test_html_and_io_pipelines_do_no_structural_parsing():
 
 def test_ai_batch_assesses_scoped_sources_with_other_files_as_context():
     """The prompt names assessed files while the provider retains complete context."""
-    provider = MagicMock()
-    from autograder.models.dataclass.test_result import TestResult  # pylint: disable=import-outside-toplevel
-    provider.run.return_value = {"algorithm": TestResult("algorithm", 100, "Correct")}
+    provider = FakeProvider()
     pipeline = build_pipeline(definition={"schema_version": "1.0", "templates": ["static_analysis"],
         "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [{
             "id": "algorithm", "type": "ai_sorting_algorithm", "name": "Sorting",
@@ -196,8 +194,8 @@ def test_ai_batch_assesses_scoped_sources_with_other_files_as_context():
     submitted = files(("main.py", "x=1"), ("helper.py", "x=2"), ("README.md", "docs"))
     outcome = pipeline.run(submission(submitted, EvaluationScope(scoped_files=["main.py"]))).outcome
     assert outcome.status == "completed" and outcome.score == 100
-    inputs, context, locale = provider.run.call_args.args
-    assert len(inputs) == 1
+    [(inputs, context, locale)] = provider.calls
+    assert len(inputs) == 1 and inputs[0].criterion_id == "algorithm"
     assert "Focus only on these files: main.py." in inputs[0].prompt
     assert "helper.py" not in inputs[0].prompt and "README.md" not in inputs[0].prompt
     assert context == {name: file.content for name, file in submitted.items()}

@@ -73,8 +73,8 @@
     }
   },
   "ai": {
-    "system_prompt": "You are an expert and rigorous code evaluation assistant. Your task is to evaluate a user's submission files against a list of tests.\nYou MUST respond with a single valid JSON object. This object must contain a single key, \"results\", which is an array of test result objects, one for each provided test.\nDO NOT include any text, explanation, or formatting outside of the main JSON object.\nThe JSON schema for your response MUST be as follows:\n{json_schema}\nRemember: test names must match exactly the names provided in the test list. Do not change the formatting or structure of the test titles.",
-    "user_prompt": "Please evaluate the user's submission files below against all listed test cases.\n\n## USER SUBMISSION FILES ##\n{submission_files}\n\n## TEST CASES TO EVALUATE ##\n{tests}\nRemember: test names must match exactly the names provided in the test list. Do not change the formatting or structure of the test titles."
+    "system_prompt": "You are an expert and rigorous code evaluation assistant. Your task is to evaluate a user's submission files against a list of tests.\nYou MUST respond with a single valid JSON object. This object must contain a single key, \"results\", which is an array of test result objects, one for each provided test.\nDO NOT include any text, explanation, or formatting outside of the main JSON object.\nThe JSON schema for your response MUST be as follows:\n{json_schema}\nRemember: return exactly one result per test, and copy each criterion_id exactly as provided in the test list.",
+    "user_prompt": "Please evaluate the user's submission files below against all listed test cases.\n\n## USER SUBMISSION FILES ##\n{submission_files}\n\n## TEST CASES TO EVALUATE ##\n{tests}\nRemember: return exactly one result per test, and copy each criterion_id exactly as provided in the test list."
   },
   "web_dev": {
     "error": {

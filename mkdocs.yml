@@ -71,7 +71,7 @@ nav:
       - Compile Criteria: pipeline/02-build-tree.md
       - Execution Sessions: pipeline/03-sandbox.md
       - Preparation: pipeline/04-pre-flight.md
-      - AI Batch: pipeline/04.5-ai-batch.md
+      - Assess (AI batch): pipeline/04.5-ai-batch.md
       - Grade: pipeline/05-grade.md
       - Focus: pipeline/06-focus.md
       - Feedback: pipeline/07-feedback.md

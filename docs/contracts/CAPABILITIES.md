@@ -105,6 +105,12 @@ Hosts must collect only files appropriate for that provider. The supplied
 OpenAI host reads its credentials and optional `AUTOGRADER_AI_MODEL`; standalone
 AI evaluators do not create a provider or retry missing batch results.
 
+`AssessmentProvider.assess(requests, *, context_files, locale)` receives one
+batch of `AssessmentRequest(criterion_id, prompt)` and returns a sequence of
+`ProviderAssessment(criterion_id, score, report)`, one per request. The engine
+(`assess_many`) validates exact ID coverage and every score: unknown, duplicate,
+missing or invalid answers fail the required grade, and nothing is retried.
+
 API assessments require `server_execution`, a factory returning a
 `ServerSession`: staging/setup precede `start_server()` and `wait_ready()`, HTTP
 requests use `make_request()`, and `close()` owns teardown even after startup or

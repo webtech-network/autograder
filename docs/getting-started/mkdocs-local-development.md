@@ -112,6 +112,6 @@ When grading finishes, response status becomes `completed`, and you will get:
 
 You ran the full core flow:
 
-`validate -> acquire/prepare? -> AI batch? -> grade -> requested feedback? -> close -> outcome`
+`validate -> acquire/prepare? -> assess (one AI batch) -> grade -> requested feedback? -> close -> outcome`
 
 To understand each stage in depth, continue with [Pipeline Architecture](../core/pipeline-architecture.md).

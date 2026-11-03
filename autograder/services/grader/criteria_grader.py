@@ -1,16 +1,12 @@
 import logging
-import math
-from typing import Dict, Optional, Sequence, List, overload
+from typing import Mapping, Sequence, overload
 
-from autograder.models.abstract.ai_test_function import AiTestFunction
 from autograder.models.abstract.criteria_tree_processer import CriteriaTreeProcesser
-from autograder.models.abstract.test_function import EvaluationInput
 from autograder.models.criteria_tree import (
     CategoryNode,
     SubjectNode,
     TestNode,
 )
-from autograder.models.dataclass.submission import EvaluationScope, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.result_tree import (
     CategoryResultNode,
@@ -19,35 +15,19 @@ from autograder.models.result_tree import (
 )
 from autograder.models.frozen import thaw
 from autograder.models.evaluation_error import EvaluationError
-from autograder.services.file_selection import select_files
 from autograder.services.weights import normalized_sibling_weights
-
-EXECUTION_CAPABILITIES = frozenset({"sandbox_execution", "http_network"})
 
 
 class SubmissionGrader(CriteriaTreeProcesser):
-    """Traverses a criteria tree for a single submission.
+    """Combines one submission's assessed results into a weighted result tree.
 
-    All per-submission state lives here (and in each call's EvaluationInput);
-    evaluator instances themselves are shared and stateless.
+    The grader executes no evaluator: ``assess_criteria`` already produced one
+    validated result per criterion ID (ordinary and AI alike).
     """
 
-    def __init__(
-        self,
-        submission_files: Dict[str, SubmissionFile],
-        sandbox=None,
-        submission_language=None,
-        locale: str = "en",
-        assessments: Optional[Dict[str, TestResult]] = None,
-        evaluation_scope: Optional[EvaluationScope] = None,
-    ):
+    def __init__(self, results: Mapping[str, TestResult]):
         self.logger = logging.getLogger("SubmissionGrader")
-        self.submission_files = submission_files
-        self.sandbox = sandbox
-        self.submission_language = submission_language
-        self.locale = locale
-        self.assessments = assessments
-        self.evaluation_scope = evaluation_scope
+        self.results = results
 
     def __balance_nodes(
         self,
@@ -121,28 +101,13 @@ class SubmissionGrader(CriteriaTreeProcesser):
         return self.__process_holder(subject)
 
     def process_test(self, test: TestNode) -> TestResultNode:
-        """Assess one criterion and create its result node."""
-        function = test.test_function
-        files = self.get_file_target(test)
-        if isinstance(function, AiTestFunction):
-            test_result = self.__assessment(test)
-        else:
-            evaluation = EvaluationInput(
-                files=tuple(files),
-                language=self.submission_language,
-                locale=self.locale,
-                # Only evaluators declaring execution receive the session.
-                session=self.sandbox if test.capabilities & EXECUTION_CAPABILITIES else None,
-            )
-            # Each invocation receives an isolated copy of the canonical parameters.
-            test_result = function.execute(evaluation, **thaw(test.parameters))
-        if (not isinstance(test_result, TestResult) or isinstance(test_result.score, bool)
-                or not isinstance(test_result.score, (int, float))
-                or not math.isfinite(test_result.score) or not 0 <= test_result.score <= 100):
-            raise EvaluationError("INVALID_EVALUATOR_RESULT", "An evaluator returned an invalid assessment.")
+        """Place one criterion's assessed result in the tree."""
+        if test.criterion_id not in self.results:
+            raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required assessment was not produced.")
+        test_result = self.results[test.criterion_id]
         return TestResultNode(
             criterion_id=test.criterion_id,
-            evaluator=function.name,
+            evaluator=test.test_function.name,
             name=test.name,
             score=test_result.score,
             report=test_result.report,
@@ -150,18 +115,6 @@ class SubmissionGrader(CriteriaTreeProcesser):
             parameters=thaw(test.parameters),
             weight=test.weight,
         )
-
-    def __assessment(self, test: TestNode) -> TestResult:
-        """AI criteria take the provider batch's assessment for their criterion ID."""
-        if self.assessments is None:
-            raise EvaluationError("PROVIDER_UNAVAILABLE", "An AI assessment requires a host-supplied provider.", "provider")
-        if test.criterion_id not in self.assessments:
-            raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
-        return self.assessments[test.criterion_id]
-
-    def get_file_target(self, test_node: TestNode) -> List[SubmissionFile]:
-        """Use the same selection contract as batched AI assessment."""
-        return select_files(test_node, self.submission_files, self.evaluation_scope, self.submission_language)
 
     def process_category(self, category: CategoryNode) -> CategoryResultNode:
         """Process a category node from criteria tree and create result node."""

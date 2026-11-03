@@ -1,49 +1,20 @@
-import logging
-from typing import Dict, Optional
+from typing import Mapping
 
 from autograder.models.criteria_tree import CriteriaTree
-from autograder.models.dataclass.submission import EvaluationScope, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
-from autograder.models.result_tree import (
-    ResultTree,
-    RootResultNode,
-)
+from autograder.models.result_tree import ResultTree, RootResultNode
 from .criteria_grader import SubmissionGrader
 
 
 class GraderService:
-    """Service responsible for orchestrating the grading process using a configured criteria tree."""
+    """Aggregate ID-keyed assessed results over a compiled criteria tree."""
 
-    def __init__(self):
-        self.logger = logging.getLogger("GraderService")
-
-    def grade_from_tree(
-        self,
-        criteria_tree: CriteriaTree,
-        submission_files: Dict[str, SubmissionFile],
-        sandbox=None,
-        submission_language=None,
-        locale: str = "en",
-        assessments: Optional[Dict[str, TestResult]] = None,
-        evaluation_scope: Optional[EvaluationScope] = None,
-    ) -> ResultTree:
-        """Traverse the generic built criteria tree to resolve inputs, grades and report to ResultTree."""
-        grader = SubmissionGrader(
-            submission_files=submission_files,
-            sandbox=sandbox,
-            submission_language=submission_language,
-            locale=locale,
-            assessments=assessments,
-            evaluation_scope=evaluation_scope,
-        )
-
-        base_result = grader.process_category(criteria_tree.base)
-        root = RootResultNode(name="root", base=base_result)
-
+    def grade_from_tree(self, criteria_tree: CriteriaTree, results: Mapping[str, TestResult]) -> ResultTree:
+        """Build the weighted result tree; evaluators already ran in ``assess_criteria``."""
+        grader = SubmissionGrader(results)
+        root = RootResultNode(name="root", base=grader.process_category(criteria_tree.base))
         if criteria_tree.bonus:
             root.bonus = grader.process_category(criteria_tree.bonus)
-
         if criteria_tree.penalty:
             root.penalty = grader.process_category(criteria_tree.penalty)
-
         return ResultTree(root)
