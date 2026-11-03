@@ -4,6 +4,9 @@ Every behavioural test runs against both backends: the local ``SandboxManager``
 (also used by the Actions host) and a ``RemoteSandboxManager`` talking to the
 private control API served by real uvicorn with its own real ``SandboxManager``.
 """
+# Test names state each checked behaviour; some fixtures are requested only to
+# parametrize the backend or keep a resource alive.
+# pylint: disable=missing-function-docstring,unused-argument
 import json
 
 import pytest
