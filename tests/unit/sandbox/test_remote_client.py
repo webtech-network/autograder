@@ -28,9 +28,10 @@ def service():
 class LossyAdapter(HTTPAdapter):
     """Deliver a request to the server, then lose its response (once per match)."""
 
-    def __init__(self, method, path_suffix, losses=1):
+    def __init__(self, method, path_suffix, losses=1, error=requests.ConnectionError):
         super().__init__(max_retries=0)
         self.method, self.path_suffix, self.losses, self.sent = method, path_suffix, losses, 0
+        self.error = error
 
     def send(self, request, **kwargs):
         response = super().send(request, **kwargs)
@@ -38,7 +39,7 @@ class LossyAdapter(HTTPAdapter):
             self.sent += 1
             if self.losses:
                 self.losses -= 1
-                raise requests.ConnectionError("response lost after the server processed the request")
+                raise self.error("response lost after the server processed the request")
         return response
 
 
@@ -179,3 +180,17 @@ def test_disposal_transport_failure_closes_session_and_reports(service):
     assert all(session.closed for session in TrackingSession.instances)
     client.shutdown()  # host shutdown retries the unconfirmed lease and confirms it
     assert manager.leased[0].state is SandboxState.STOPPED
+
+
+@pytest.mark.parametrize("error", [requests.exceptions.ChunkedEncodingError, requests.exceptions.ContentDecodingError,
+                                   requests.ReadTimeout])
+def test_every_transport_failure_is_a_sandbox_transport_error(service, error):
+    """Not only ConnectionError/Timeout: any requests failure leaves the outcome unknown."""
+    url, _ = service
+    adapter = LossyAdapter("POST", "/prepare", error=error)
+    client = RemoteSandboxManager(url, TOKEN, session_factory=lossy_factory(adapter), retry_delay=0)
+    sandbox = client.acquire(Language.PYTHON)
+    with pytest.raises(SandboxTransportError, match="outcome is unknown"):
+        sandbox.prepare_workdir({"main.py": SubmissionFile("main.py", "print(1)")})
+    assert adapter.sent == 1
+    client.dispose(sandbox)
