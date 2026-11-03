@@ -2,9 +2,13 @@
 import asyncio
 
 from autograder import describe_templates
+from web.config.logging import get_logger
 from web.core.config import Settings
 from web.database.session import create_database, init_db
 from web.service.worker import DurableWorker
+
+
+logger = get_logger(__name__)
 
 
 class BuiltinCatalog:
@@ -48,6 +52,10 @@ class WebHost:
         self._closing = None
 
     async def start(self):
+        from web.api.deps import configured_principals
+        if not configured_principals(self.settings):
+            logger.error("authentication_not_configured: set AUTOGRADER_INTEGRATION_TOKEN; "
+                         "protected routes return 503 and /ready reports not ready")
         if self.engine is not None:
             await init_db(self.engine)
         self.ready = True

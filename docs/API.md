@@ -59,10 +59,15 @@ must match current definition; an older revision is a trusted host attestation,
 not cryptographic proof of server execution. Known inactive configurations can
 receive historical results. No private files are required in an attestation.
 
-Configure `AUTOGRADER_INTEGRATION_TOKEN` for protected endpoints. Missing server
-configuration gives 503; absent/incorrect bearer token gives 401. Configuration
-mutation/ordinary submission routes retain their existing deployment access policy;
-broader authentication changes are tracked separately.
+## Authentication
+
+Every route except `/health`, `/ready` and the template catalog requires
+`Authorization: Bearer <token>`. `AUTOGRADER_INTEGRATION_TOKEN` grants every
+operation; restricted `AUTOGRADER_ATTESTATION_TOKENS` producers may only call
+`POST /api/v1/submissions/external-results`. Missing server configuration gives
+503, an absent/incorrect token gives 401 and a token without the route's scope
+gives 403. All integration principals share all resources. See the
+[HTTP trust boundary](contracts/AUTH.md).
 
 ## Discovery and operations
 
