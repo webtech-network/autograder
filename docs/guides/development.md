@@ -49,57 +49,28 @@ This builds Docker images for each supported language (Python, Java, JavaScript,
 
 ## Project Structure
 
+Who owns what, and which package may import which, is described once in
+[Responsibilities and Dependencies](../architecture/overview.md). In short:
+
 ```
-autograder/
-├── autograder/              # Core grading logic
-│   ├── models/             # Data models
-│   │   ├── abstract/       # Abstract base classes
-│   │   ├── config/         # Configuration models
-│   │   ├── dataclass/      # Data classes
-│   │   ├── criteria_tree.py
-│   │   ├── result_tree.py
-│   │   └── pipeline_execution.py
-│   ├── services/           # Business logic
-│   │   ├── assessment.py           # Evaluator execution and the AI batch\n│   │   ├── grading.py              # Builds the canonical result tree
-│   │   ├── focus_service.py        # Focus-based feedback
-│   │   ├── criteria_tree_service.py # Tree construction
-│   │   └── template_library_service.py
-│   │   ├── load_template_step.py
-│   │   ├── build_tree_step.py
-│   │   ├── pre_flight_step.py
-│   │   ├── grade_step.py
-│   │   ├── focus_step.py
-│   │   ├── feedback_step.py
-│   │   └── export_step.py
-│   ├── template_library/   # Built-in templates
-│   │   ├── input_output.py
-│   │   ├── api_testing.py
-│   │   ├── web_dev.py
-│   │   └── custom.py
-│   └── utils/              # Utilities
-│       ├── executors/      # Code execution helpers
-│       ├── formatters/     # Output formatting
-│       └── printers/       # Console output
-├── sandbox_manager/         # Sandbox management
-│   ├── images/             # Dockerfiles for each language
-│   ├── models/             # Sandbox models
-│   ├── manager.py          # Host-owned local manager (start/acquire/dispose/shutdown)
-│   ├── api.py              # Private control API (one worker)
-│   ├── remote_client.py    # Control API client with the same lease API
-│   ├── language_pool.py    # Language-specific pools
-│   └── sandbox_container.py # Container wrapper
-├── web/                     # FastAPI web service
-│   ├── database/           # Database models
-│   ├── repositories/       # Data access layer
-│   ├── schemas/            # API schemas
-│   ├── services/           # Web services
-│   └── main.py             # FastAPI app
-├── github_action/           # GitHub Action integration
-├── tests/                   # Test suite
-│   ├── unit/               # Unit tests
-│   ├── integration/        # Integration tests
-│   └── assets/             # Test fixtures
-└── docs/                    # Documentation
+autograder/          core: contracts, compilation, assessment, grading, feedback
+├── autograder.py         AutograderPipeline.run (the explicit run order)
+├── facade.py             evaluate_submission
+├── models/               contracts/ (definition, outcome, scoring, verification,
+│                         catalog), abstract/ (TestFunction, Template), capabilities,
+│                         execution and process protocols, language, criteria tree
+├── services/             assessment, grading, preparation, file selection,
+│                         feedback/focus/report, comparison, template registry
+├── template_library/     built-in evaluators
+└── translations/         en and pt_br messages
+sandbox_manager/     container pools, leases, run_process, private control API
+execution_host/      HostCapabilities composition (Docker, S3 fixtures, OpenAI)
+web/                 HTTP host: configs, durable jobs, delivery, deliberate execution
+github_action/       Actions host
+examples/            runnable definitions and trusted Python examples
+tests/               unit/, web/, integration/ (Docker), e2e/ (Docker + API process)
+docs/                documentation (contracts/ are normative)
+archive/             historical designs and roadmaps, not current guidance
 ```
 
 ## Development Setup
@@ -112,13 +83,12 @@ Create a `.env` file in the project root:
 # Database
 DATABASE_URL=postgresql://user:password@localhost:5432/autograder
 
-# OpenAI (for AI feedback mode)
+# OpenAI (AI evaluators such as ai_sorting_algorithm)
 OPENAI_API_KEY=your_openai_key_here
 
-
-# Sandbox Configuration
-SANDBOX_TIMEOUT=120
-SANDBOX_MEMORY_LIMIT=512m
+# Sandbox host (see docs/contracts/SANDBOX.md); images per language come
+# from the runtimes: map in sandbox_config.yml
+SANDBOX_MODE=local
 ```
 
 ### Database Setup (for Web API)
@@ -195,84 +165,23 @@ ptw
 
 ## Adding Features
 
-### Adding a New Template
+### Adding an evaluator
 
-1. **Create template file** in `autograder/template_library/`:
+Follow [Adding an evaluator](../architecture/extending.md): implementation,
+parameter contract, registration and tests, with runnable static and execution
+examples. A built-in evaluator is registered in its template under
+`autograder/template_library/` (new built-in templates are added to
+`autograder/services/template_library_service.py`); trusted callers pass
+`templates={identifier: instance}` instead.
 
-```python
-# autograder/template_library/my_template.py
-from typing import Annotated
-
-from pydantic import Field
-
-from autograder.models.abstract.template import Template
-from autograder.models.abstract.test_function import EvaluationInput, TestFunction
-from autograder.models.dataclass.test_result import TestResult
-
-
-class MyTestFunction(TestFunction):
-    """Stateless: per-submission state stays in the call."""
-    name = "my_test"
-    description = "Check that the selected file mentions a word."
-
-    def execute(self, evaluation: EvaluationInput, *,
-                word: Annotated[str, Field(min_length=1, description="Word to find")]) -> TestResult:
-        found = any(word in file.content for file in evaluation.files)
-        return TestResult(test_name=self.name, score=100 if found else 0,
-                          report="Found" if found else "Missing")
-
-
-class MyTemplate(Template):
-    template_name = "My template"
-    template_description = "Example template"
-    requires_sandbox = False  # True if code execution is needed
-
-    def __init__(self):
-        self.tests = {"my_test": MyTestFunction()}
-```
-
-2. **Register template** in `TemplateLibraryService`:
-
-```python
-# autograder/services/template_library_service.py
-from autograder.template_library.my_template import MyTemplate
-
-class TemplateLibraryService:
-    def __init__(self):
-        self.templates = {
-            # ...existing templates...
-            "my_template": MyTemplate(),
-        }
-```
-
-3. **Write tests**:
-
-```python
-# tests/unit/test_my_template.py
-from autograder.models.abstract.test_function import EvaluationInput
-from autograder.template_library.my_template import MyTestFunction
-
-def test_my_test_function():
-    test_func = MyTestFunction()
-    result = test_func.execute(EvaluationInput(), word="hello")
-    
-    assert result.score >= 0
-    assert result.report is not None
-```
-
-### Extending grading behavior
-
-Ordinary evaluators implement `TestFunction` or `AiTestFunction`, declare a
-parameter contract, and register in a trusted template. They need no coordinator,
-diagnostic-name or serializer changes.
+### Changing the run order
 
 For cross-cutting execution changes, update the explicit call sequence in
 `autograder/autograder.py`. Pass typed inputs and return values directly.
 Keep required assessment failures separate from optional enrichment failures,
 and close owned sessions before constructing the terminal outcome.
 Do not add step registries or store intermediate artifacts in diagnostic events.
-
-See [the execution architecture and internal migration](../core/pipeline-architecture.md).
+See [the grading flow](../core/pipeline-architecture.md).
 
 ### Adding a New API Endpoint
 

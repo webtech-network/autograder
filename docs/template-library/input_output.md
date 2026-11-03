@@ -38,9 +38,13 @@ Malformed quoting is rejected when the definition is compiled
 **Example:**
 ```json
 {
-  "name": "expect_output",
+  "id": "expect-output",
+  "type": "expect_output",
+  "name": "Expect output",
   "parameters": {
-    "inputs": ["Alice"],
+    "inputs": [
+      "Alice"
+    ],
     "expected_output": "Hello, Alice!",
     "program_command": "python3 main.py"
   },
@@ -51,9 +55,14 @@ Malformed quoting is rejected when the definition is compiled
 **Multi-language example** (auto-resolves command based on submission language):
 ```json
 {
-  "name": "expect_output",
+  "id": "expect-output",
+  "type": "expect_output",
+  "name": "Expect output",
   "parameters": {
-    "inputs": ["5", "3"],
+    "inputs": [
+      "5",
+      "3"
+    ],
     "expected_output": "8",
     "program_command": "CMD"
   },
@@ -77,7 +86,9 @@ Executes a program with a specific input and verifies it completes **without cra
 **Example:**
 ```json
 {
-  "name": "dont_fail",
+  "id": "dont-fail",
+  "type": "dont_fail",
+  "name": "Dont fail",
   "parameters": {
     "user_input": "not_a_number",
     "program_command": "python3 calculator.py"
@@ -88,64 +99,6 @@ Executes a program with a specific input and verifies it completes **without cra
 
 ---
 
-## Multi-Language Command Resolution
+## Usage Example and Multi-Language Commands
 
-```json
-{
-  "external_assignment_id": "calculator-assignment",
-  "template_name": "input_output",
-  "languages": ["python", "java"],
-  "setup_config": {
-    "required_files": ["calculator.py"],
-    "setup_commands": []
-  },
-  "criteria_config": {
-    "base": {
-      "weight": 100,
-      "subjects": [
-        {
-          "subject_name": "Basic Operations",
-          "weight": 60,
-          "tests": [
-            {
-              "name": "expect_output",
-              "parameters": { "inputs": ["add", "5", "3"], "expected_output": "8", "program_command": "CMD" },
-              "weight": 50
-            },
-            {
-              "name": "expect_output",
-              "parameters": { "inputs": ["subtract", "10", "4"], "expected_output": "6", "program_command": "CMD" },
-              "weight": 50
-            }
-          ]
-        },
-        {
-          "subject_name": "Error Handling",
-          "weight": 40,
-          "tests": [
-            {
-              "name": "dont_fail",
-              "parameters": { "user_input": "invalid", "program_command": "CMD" },
-              "weight": 100
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
-```
-
-## Multi-Language Command Resolution
-
-When `program_command` is set to `"CMD"`, the autograder automatically resolves the execution command based on the submission's language:
-
-| Language | Resolved Command |
-|----------|-----------------|
-| Python | `python3 <main_file>` |
-| Java | `java <MainClass>` |
-| Node.js | `node <main_file>` |
-| C++ | `./<compiled_binary>` |
-
-This allows the same grading configuration to work across multiple languages without specifying language-specific commands.
-
+Complete, schema-checked definitions are [`python-io.json`](../contracts/v1/examples/python-io.json), [`multi-language-io.json`](../contracts/v1/examples/multi-language-io.json) and [`file-artifact.json`](../contracts/v1/examples/file-artifact.json). `program_command` is a string, a map with a command for every allowed language, or `"CMD"`, which means the fixed defaults `python3 main.py`, `java Main`, `node index.js` and `./a.out` (C/C++). `CMD` never infers file names; see [Program Commands](../features/program_commands.md). Over HTTP, send the definition as `definition` in the configuration envelope (`POST /api/v1/configs`, see [API.md](../API.md)). A snippet above is one criterion; [DEFINITIONS.md](../contracts/DEFINITIONS.md) describes the whole object.

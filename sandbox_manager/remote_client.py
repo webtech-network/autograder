@@ -28,7 +28,8 @@ from sandbox_manager.errors import (
 from autograder.models.language import Language
 from autograder.models.process import ProcessRequest, ProcessResult
 from sandbox_manager.models.api_models import ProcessRequestModel, ProcessResultModel
-from sandbox_manager.models.sandbox_models import ExtractedFile, HttpResponse
+from autograder.models.execution import ExtractedFile
+from sandbox_manager.models.sandbox_models import HttpResponse
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
