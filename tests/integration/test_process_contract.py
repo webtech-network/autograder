@@ -185,13 +185,22 @@ def test_background_processes_do_not_outlive_their_run(session):
     assert check.exit_code == 0, check.stdout
 
 
-def test_a_program_that_takes_the_container_down_keeps_its_exit_and_invalidates_the_sandbox(session):
-    """Exhausting the memory limit stops the container: the exit is kept, the sandbox is unusable."""
+def test_memory_exhaustion_keeps_its_exit_and_never_fabricates_a_later_result(session):
+    """Exhausting the memory limit is an exited, non-zero program.
+
+    Whether the kernel kills only the process or the whole container depends on
+    the host (cgroup/OOM configuration). Either way no later result is invented:
+    a surviving sandbox runs the next process normally, and a stopped one is
+    invalidated so every later operation raises a non-missing-file error.
+    """
     result = run(session, "python3 hog.py", timeout=30)
     assert result.status is ProcessStatus.EXITED and result.exit_code != 0
-    with pytest.raises(RuntimeError) as later:
-        run(session, "python3 probe.py")
-    assert not isinstance(later.value, FileNotFoundError)
+    try:
+        later = run(session, "python3 probe.py")
+    except RuntimeError as error:
+        assert not isinstance(error, FileNotFoundError)
+    else:
+        assert later.status is ProcessStatus.EXITED and later.exit_code == 0, later
 
 
 # ----- bounded output and distinct readback failures -------------------------------
@@ -265,10 +274,15 @@ def test_timeout_is_terminated_before_the_next_criterion_runs(docker_host, monke
 def test_memory_exhaustion_is_assessed_and_a_dead_sandbox_is_not_reused(docker_host):
     alone = grade(docker_host, [dont_fail("hog", "python3 hog.py")], ["hog.py"])
     assert alone.status == "completed" and alone.score == 0, alone.error
-    # A later criterion cannot run in a container that no longer exists: no fabricated zero.
+    # A later criterion either runs in a surviving container or, if the container
+    # was taken down (host dependent), fails the grade: never a fabricated zero.
     after = grade(docker_host, [dont_fail("hog", "python3 hog.py"), dont_fail("next", "python3 probe.py")],
                   ["hog.py", "probe.py"])
-    assert after.status == "failed" and after.error.code == "SANDBOX_ERROR" and after.score is None
+    if after.status == "failed":
+        assert after.error.code == "SANDBOX_ERROR" and after.score is None
+    else:
+        scores = {test.id: test.score for test in after.tree.base.tests}
+        assert scores == {"hog": 0, "next": 100}, after
 
 
 def test_program_that_cannot_start_is_not_an_assessed_zero(docker_host):

@@ -101,9 +101,12 @@ user except the container's keep-alive PID 1. It waits until none is left
 runs after every process, so background processes never outlive their run or
 reach the next criterion. If termination cannot be confirmed, the sandbox is
 invalidated and every later operation fails. If a program takes the whole
-container down (for example by exhausting the memory limit), its returned exit
-code is still its result, its output is lost, and the sandbox is invalidated: a
-later criterion fails with `SANDBOX_ERROR` instead of being scored. A real-container test runs a
+container down (for example by exhausting the memory limit, when the host's
+OOM handling stops the container rather than only the process), its returned
+exit code is still its result, its output is lost, and the sandbox is
+invalidated: a later criterion fails with `SANDBOX_ERROR` instead of being
+scored. Whether memory exhaustion stops the container is host dependent; the
+tests accept either outcome but never a fabricated result. A real-container test runs a
 program that forks a background writer and then blocks. It shows that the
 writer is gone and its file has stopped growing before the next criterion runs.
 
