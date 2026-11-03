@@ -1,6 +1,6 @@
 """Integration test for multi-language command resolution in the pipeline."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from tests.integration.definition_fixtures import build_migrated_fixture_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile

@@ -124,9 +124,9 @@ elif operation == 'DIV':
             language=Language.PYTHON
         )
 
-        # Check initial pool state
+        # Check initial pool state (replenishment is asynchronous)
         py_pool = self.manager.language_pools[Language.PYTHON]
-        initial_idle = len(py_pool.idle_sandboxes)
+        initial_idle = wait_for_idle(py_pool)
         initial_active = len(py_pool.active_sandboxes)
 
         # Run pipeline
@@ -137,11 +137,8 @@ elif operation == 'DIV':
         self.assertIsNotNone(result.outcome.tree)
         self.assertEqual(result.outcome.score, 100.0)
 
-        # Wait for sandbox release and replenishment
-        time.sleep(2)
-
-        # Verify pool state returned to normal
-        final_idle = len(py_pool.idle_sandboxes)
+        # Wait for disposal and replenishment
+        final_idle = wait_for_idle(py_pool, initial_idle)
         final_active = len(py_pool.active_sandboxes)
 
         self.assertEqual(final_idle, initial_idle, "Pool should replenish to initial state")
@@ -276,9 +273,9 @@ else:
             setup_config=setup_config
         )
 
-        # Check initial pool state
+        # Check initial pool state once replenishment settled
         py_pool = self.manager.language_pools[Language.PYTHON]
-        initial_idle = len(py_pool.idle_sandboxes)
+        initial_idle = wait_for_idle(py_pool)
 
         result = pipeline.run(submission)
 
@@ -790,9 +787,9 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
         cls.manager = current_manager()
 
     def test_sandbox_release_on_pipeline_success(self):
-        """Verify sandbox is released when pipeline succeeds."""
+        """Verify sandbox is disposed and replaced when pipeline succeeds."""
         py_pool = self.manager.language_pools[Language.PYTHON]
-        initial_idle = len(py_pool.idle_sandboxes)
+        initial_idle = wait_for_idle(py_pool)
         initial_active = len(py_pool.active_sandboxes)
 
         grading_criteria = {
@@ -841,9 +838,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
         self.assertEqual(result.outcome.status, "completed")
 
         # After completion and cleanup
-        time.sleep(2)
-
-        final_idle = len(py_pool.idle_sandboxes)
+        final_idle = wait_for_idle(py_pool, initial_idle)
         final_active = len(py_pool.active_sandboxes)
 
         self.assertEqual(final_idle, initial_idle)
