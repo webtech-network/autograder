@@ -1,6 +1,6 @@
 """Concrete web operations own transactions; routes translate HTTP concerns."""
 from datetime import timezone
-from autograder.models.contracts.definition import compile_definition, select_language, DefinitionValidationError
+from autograder.models.contracts.definition import compile_snapshot, select_language, DefinitionValidationError
 from autograder.services.weights import normalized_sibling_weights
 from web.database.models.submission import SubmissionStatus
 from web.repositories import GradingConfigRepository, SubmissionRepository, ResultRepository
@@ -98,9 +98,10 @@ def project_submission(row, *, details=False):
     return data
 
 
-def _compile(value):
+def _compile_snapshot(value):
+    """Stored and attested definitions are canonical snapshots: validate, never re-normalize."""
     try:
-        return compile_definition(value)
+        return compile_snapshot(value)
     except DefinitionValidationError as exc:
         raise OperationError(422, detail=exc.errors()) from exc
 
@@ -142,7 +143,7 @@ def _check_attested_tree(outcome, compiled):
                         result["id"] != child.criterion_id
                         or result["evaluator"] != child.test_function.name
                         or result["name"] != child.name
-                        or result.get("file_target") != child.file_target
+                        or result.get("file_target") != (list(child.file_target) if child.file_target is not None else None)
                     ):
                         mismatch()
                 else:
@@ -197,7 +198,7 @@ async def _accept_submission(session, submission):
         raise OperationError(
             409, "Grading configuration is inactive or requires migration"
         )
-    compiled = _compile(config.definition)
+    compiled = _compile_snapshot(config.definition)
     try:
         language = select_language(compiled.definition, submission.language)
     except DefinitionValidationError as exc:
@@ -232,7 +233,7 @@ async def _ingest_attested_outcome(session, payload):
     config = await GradingConfigRepository(session).get_by_id(payload.grading_config_id)
     if config is None:
         raise OperationError(404, "Grading configuration not found")
-    compiled = _compile(payload.definition_snapshot)
+    compiled = _compile_snapshot(payload.definition_snapshot)
     outcome = payload.outcome.model_dump(mode="json")
     provenance = outcome["provenance"]
     if provenance["definition_hash"] != compiled.definition_hash or provenance.get(

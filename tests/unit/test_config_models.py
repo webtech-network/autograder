@@ -9,6 +9,7 @@ from autograder.models.contracts.definition import (
     select_language,
 )
 from autograder.services.definition_migration import convert_legacy_definition
+from autograder.models.frozen import thaw
 
 
 def definition(evaluator='forbidden_import', parameters=None, templates=None):
@@ -21,7 +22,7 @@ def test_compile_is_pure_and_normalized_parameters_are_executed():
     value=definition('expect_output',{'program_command':'python3 main.py','expected_output':'ok'},['input_output'])
     with patch('boto3.client', side_effect=AssertionError('provider')), patch('sandbox_manager.manager.get_sandbox_manager',side_effect=AssertionError('sandbox')):
         compiled=compile_definition(value)
-    params=compiled.criteria_tree.base.tests[0].parameters
+    params=thaw(compiled.criteria_tree.base.tests[0].parameters)
     assert params=={'program_command':'python3 main.py','expected_output':'ok','inputs':[],'normalization':True}
     assert params==compiled.definition.criteria.base.tests[0].parameters
     assert compiled.criteria_tree.base.tests[0].criterion_id=='first'

@@ -1,122 +1,97 @@
-"""Updated Criteria Tree models with embedded test functions.
+"""Immutable compiled criteria tree.
 
-These models represent the grading criteria structure with test functions
-embedded during tree building (no more lazy loading or pre-execution).
+Nodes are built once by ``compile_definition`` from canonical parameters and
+never change afterwards. Parameters are deeply frozen; use
+``autograder.models.frozen.thaw`` to obtain an isolated mutable copy.
 """
 
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
+from typing import Any, List, Mapping, Optional, Tuple
 
 from autograder.models.abstract.test_function import TestFunction
+from autograder.models.frozen import freeze
 
 
-@dataclass
+@dataclass(frozen=True)
 class TestNode:
-    """
-    Leaf node representing a single test execution configuration.
-
-    Contains:
-    - Test function reference (from template)
-    - Parameters for execution
-    - File target (if applicable)
-    - Category and subject context
-    """
+    """One criterion: its trusted evaluator, canonical parameters and targets."""
 
     name: str
     test_function: TestFunction
-    parameters: Dict[str, Any] = field(default_factory=dict)
-    file_target: Optional[List[str]] = None
+    parameters: Mapping[str, Any] = field(default_factory=dict)
+    file_target: Optional[Tuple[str, ...]] = None
     weight: float = 100.0
     criterion_id: str = ""
 
+    def __post_init__(self):
+        object.__setattr__(self, "parameters", freeze(self.parameters))
+        if self.file_target is not None:
+            object.__setattr__(self, "file_target", tuple(self.file_target))
+
     def __repr__(self):
-        params_str = f", params={self.parameters}" if self.parameters else ""
-        file_str = f", file={self.file_target}" if self.file_target else ""
+        params_str = f", params={dict(self.parameters)}" if self.parameters else ""
+        file_str = f", file={list(self.file_target)}" if self.file_target else ""
         return f"TestNode({self.name}{params_str}{file_str})"
 
 
-@dataclass
-class SubjectNode:
-    """
-    Branch node representing a subject/topic in the grading criteria.
+def _all_tests(holder) -> List[TestNode]:
+    tests = list(holder.tests)
+    for subject in holder.subjects:
+        tests.extend(_all_tests(subject))
+    return tests
 
-    Can contain either:
-    - Nested subjects (recursive structure)
-    - Test nodes (leaf level)
-    """
+
+@dataclass(frozen=True)
+class SubjectNode:
+    """A weighted group of nested subjects and/or tests."""
 
     name: str
     weight: float
-    subjects: List["SubjectNode"] = field(default_factory=list)
-    tests: List[TestNode] = field(default_factory=list)
+    subjects: Tuple["SubjectNode", ...] = ()
+    tests: Tuple[TestNode, ...] = ()
     subjects_weight: Optional[float] = None
+
+    def __post_init__(self):
+        object.__setattr__(self, "subjects", tuple(self.subjects))
+        object.__setattr__(self, "tests", tuple(self.tests))
 
     def __repr__(self):
         if self.subjects:
             return f"SubjectNode({self.name}, weight={self.weight}, subjects={len(self.subjects)})"
-        return (
-            f"SubjectNode({self.name}, weight={self.weight}, tests={len(self.tests)})"
-        )
+        return f"SubjectNode({self.name}, weight={self.weight}, tests={len(self.tests)})"
 
     def get_all_tests(self) -> List[TestNode]:
         """Recursively collect all test nodes under this subject."""
-        tests = [*self.tests]
-        for subject in self.subjects:
-            tests.extend(subject.get_all_tests())
-        return tests
+        return _all_tests(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class CategoryNode:
-    """
-    Top-level category node (base, bonus, or penalty).
-
-    Can contain either:
-    - Subjects (organized hierarchy)
-    - Tests (flat structure)
-    """
+    """Top-level category node (base, bonus, or penalty)."""
 
     name: str
     weight: float
-    subjects: List[SubjectNode] = field(default_factory=list)
-    tests: List[TestNode] = field(default_factory=list)
+    subjects: Tuple[SubjectNode, ...] = ()
+    tests: Tuple[TestNode, ...] = ()
     subjects_weight: Optional[float] = None
+
+    def __post_init__(self):
+        object.__setattr__(self, "subjects", tuple(self.subjects))
+        object.__setattr__(self, "tests", tuple(self.tests))
 
     def __repr__(self):
         if self.subjects:
             return f"CategoryNode({self.name}, weight={self.weight}, subjects={len(self.subjects)})"
-        return (
-            f"CategoryNode({self.name}, weight={self.weight}, tests={len(self.tests)})"
-        )
-
-    def add_subjects(self, subjects: List[SubjectNode]) -> None:
-        """Add a list of subjects to this category."""
-        self.subjects.extend(subjects)
+        return f"CategoryNode({self.name}, weight={self.weight}, tests={len(self.tests)})"
 
     def get_all_tests(self) -> List[TestNode]:
         """Recursively collect all test nodes under this category."""
-        tests = []
-
-        if self.tests:
-            tests.extend(self.tests)
-
-        if self.subjects:
-            for subject in self.subjects:
-                tests.extend(subject.get_all_tests())
-
-        return tests
+        return _all_tests(self)
 
 
-@dataclass
+@dataclass(frozen=True)
 class CriteriaTree:
-    """
-    Root of the criteria tree structure.
-
-    Contains three main categories:
-    - base: Required grading criteria
-    - bonus: Optional bonus points
-    - penalty: Optional penalty points
-    """
+    """Root of the compiled criteria: base plus optional bonus and penalty."""
 
     base: CategoryNode
     bonus: Optional[CategoryNode] = None
@@ -129,3 +104,11 @@ class CriteriaTree:
         if self.penalty:
             categories.append("penalty")
         return f"CriteriaTree(categories={categories})"
+
+    def categories(self) -> List[CategoryNode]:
+        """Present categories in base, bonus, penalty order."""
+        return [category for category in (self.base, self.bonus, self.penalty) if category is not None]
+
+    def get_all_tests(self) -> List[TestNode]:
+        """Every criterion in deterministic definition order."""
+        return [test for category in self.categories() for test in category.get_all_tests()]

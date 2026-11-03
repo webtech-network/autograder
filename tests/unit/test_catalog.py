@@ -50,7 +50,7 @@ def test_trusted_override_is_local_to_call_and_uses_same_resolution_as_compiler(
     assert next(t for t in catalog.templates if t.identifier == "webdev").evaluators[0].identifier == "contains_text"
     value = deepcopy(DEFINITION)
     value["templates"] = ["webdev"]
-    assert compile_definition(value, templates={"webdev": custom}).templates == [custom]
+    assert dict(compile_definition(value, templates={"webdev": custom}).templates) == {"webdev": custom}
     assert "has_tag" in TemplateLibraryService.get_instance().start_template("webdev").get_tests()
 
 

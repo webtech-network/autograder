@@ -1,14 +1,15 @@
 """Versioned, provider-free grading definition and pure compilation boundary."""
-from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import PurePosixPath
+from types import MappingProxyType
 from typing import Literal, Mapping
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, field_validator, model_validator
 from autograder.models.abstract.template import Template
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.contracts.parameters import LanguageId
+from autograder.models.frozen import freeze, thaw
 from sandbox_manager.models.sandbox_models import Language
 
 
@@ -154,21 +155,97 @@ def walk_tests(criteria):
             yield from walk(category, ('criteria', name))
 
 
-@dataclass(frozen=True)
 class CompiledDefinition:
-    definition: GradingDefinition
-    definition_hash: str
-    criteria_tree: CriteriaTree
-    templates: list[Template]
+    """A validated, deeply immutable grading plan.
+
+    Only ``compile_definition`` and ``compile_snapshot`` create one, so holding
+    a ``CompiledDefinition`` means its canonical snapshot, hash, criteria tree and
+    trusted templates were produced together. Reading ``definition`` returns a
+    fresh model copy; changing that copy cannot alter this plan.
+    """
+    __slots__ = ('_snapshot', '_definition_hash', '_criteria_tree', '_templates')
+
+    def __init__(self, *args, **kwargs):
+        raise TypeError('CompiledDefinition is created only by compile_definition or compile_snapshot')
+
+    @classmethod
+    def _create(cls, snapshot: dict, definition_hash: str, criteria_tree: CriteriaTree,
+                templates: Mapping[str, Template]) -> 'CompiledDefinition':
+        compiled = object.__new__(cls)
+        object.__setattr__(compiled, '_snapshot', freeze(snapshot))
+        object.__setattr__(compiled, '_definition_hash', definition_hash)
+        object.__setattr__(compiled, '_criteria_tree', criteria_tree)
+        object.__setattr__(compiled, '_templates', MappingProxyType(dict(templates)))
+        return compiled
+
+    def __setattr__(self, name, value):
+        raise AttributeError('CompiledDefinition is immutable')
+
+    def __delattr__(self, name):
+        raise AttributeError('CompiledDefinition is immutable')
+
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, memo):
+        return self
+
+    def __repr__(self):
+        return f'CompiledDefinition(definition_hash={self._definition_hash!r})'
+
+    @property
+    def definition(self) -> GradingDefinition:
+        """A fresh copy of the canonical definition snapshot."""
+        return GradingDefinition.model_validate(thaw(self._snapshot))
+
+    @property
+    def definition_hash(self) -> str:
+        return self._definition_hash
+
+    @property
+    def criteria_tree(self) -> CriteriaTree:
+        return self._criteria_tree
+
+    @property
+    def templates(self) -> Mapping[str, Template]:
+        """Resolved trusted template instances keyed by definition identifier."""
+        return self._templates
 
 
-def compile_definition(value: GradingDefinition | dict | CompiledDefinition, *, templates: Mapping[str, Template] | None = None) -> CompiledDefinition:
-    """Validate and normalize every criterion before storing/enqueuing work."""
+def compile_definition(value: GradingDefinition | dict | CompiledDefinition, *,
+                       templates: Mapping[str, Template] | None = None) -> CompiledDefinition:
+    """Validate raw authoring input and normalize every criterion exactly once.
+
+    The normalized values form the canonical snapshot, its hash and the executed
+    criteria tree. A ``CompiledDefinition`` is returned unchanged; supplying
+    ``templates`` with one revalidates its canonical snapshot (see
+    ``compile_snapshot``) against those templates without normalizing again.
+    """
     if isinstance(value, CompiledDefinition):
-        # Never bypass validation of a mutable caller-owned Pydantic model.
         if templates is None:
-            templates = dict(zip(value.definition.templates, value.templates))
-        value = value.definition
+            return value
+        return _compile(thaw(value._snapshot), {**value.templates, **templates}, canonical=True)  # pylint: disable=protected-access
+    return _compile(value, templates, canonical=False)
+
+
+def compile_snapshot(snapshot: GradingDefinition | dict, *,
+                     templates: Mapping[str, Template] | None = None) -> CompiledDefinition:
+    """Validate a stored canonical snapshot without applying raw normalization.
+
+    Use this at trust boundaries that receive an already-compiled definition
+    (stored configurations, bound execution snapshots, external attestations).
+    Structure, registry, evaluator contracts and cross-field rules are still
+    checked, but parameter values are kept verbatim, so a snapshot's meaning
+    and hash cannot change when it is loaded again. Every contract field must be
+    explicit, as in a compiled snapshot.
+    """
+    if isinstance(snapshot, CompiledDefinition):
+        raise TypeError('compile_snapshot expects a serialized snapshot; reuse the CompiledDefinition directly')
+    return _compile(snapshot, templates, canonical=True)
+
+
+def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool) -> CompiledDefinition:
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     if isinstance(value, GradingDefinition):
         value = value.model_dump(mode='json')
     try:
@@ -177,7 +254,7 @@ def compile_definition(value: GradingDefinition | dict | CompiledDefinition, *, 
         raise DefinitionValidationError(_pydantic_errors(exc)) from exc
     from autograder.services.template_library_service import TemplateLibraryService
     library = TemplateLibraryService.get_instance()
-    selected, registry, errors = [], {}, []
+    selected, registry, errors = {}, {}, []
     for index, identifier in enumerate(definition.templates):
         try:
             template = templates[identifier] if templates is not None and identifier in templates else library.load_builtin_template(identifier)
@@ -191,7 +268,7 @@ def compile_definition(value: GradingDefinition | dict | CompiledDefinition, *, 
         except (TypeError, ValueError) as exc:
             errors.append(_error('INVALID_TEMPLATE', ('templates', index), str(exc)))
             continue
-        selected.append(template)
+        selected[identifier] = template
         for name, function in template.get_tests().items():
             if name in registry:
                 errors.append(_error('AMBIGUOUS_EVALUATOR', ('templates', index), f'Duplicate evaluator identifier: {name}'))
@@ -219,14 +296,21 @@ def compile_definition(value: GradingDefinition | dict | CompiledDefinition, *, 
             schema = function.config_schema
             if schema is None:
                 raise ValueError('Evaluator must expose a parameter contract')
-            normalized = schema.model_validate(test.parameters, strict=True, extra="forbid")
-            test.parameters = normalized.model_dump(mode='json')
+            normalized = schema.model_validate(test.parameters, strict=True, extra="forbid").model_dump(mode='json')
         except ValidationError as exc:
             errors.extend(_pydantic_errors(exc, (*path, 'parameters')))
             continue
         except (ValueError, TypeError) as exc:
             errors.append(_error('INVALID_PARAMETER_CONTRACT', (*path, 'parameters'), str(exc)))
             continue
+        if canonical:
+            # Canonical values are checked, never transformed a second time.
+            if set(normalized) != set(test.parameters):
+                errors.append(_error('NON_CANONICAL_PARAMETERS', (*path, 'parameters'),
+                                     'Snapshot parameters must list every normalized parameter'))
+                continue
+        else:
+            test.parameters = normalized
         command = test.parameters.get('program_command')
         if isinstance(command, dict) and not set(definition.languages).issubset(command):
             errors.append(_error('MISSING_LANGUAGE_COMMAND', (*path, 'parameters', 'program_command'), 'Command map must cover every allowed language'))
@@ -251,10 +335,11 @@ def compile_definition(value: GradingDefinition | dict | CompiledDefinition, *, 
             errors.append(_error('UNKNOWN_CRITERION_REFERENCE', ('feedback','preferences','general','online_content',resource_index,'linked_tests'), 'Learning resources must reference criterion IDs'))
     if errors:
         raise DefinitionValidationError(errors)
-    from autograder.services.criteria_tree_service import CriteriaTreeService
-    tree = CriteriaTreeService().build_tree(definition.criteria, selected)
-    payload = json.dumps(definition.model_dump(mode='json'), sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
-    return CompiledDefinition(definition, hashlib.sha256(payload).hexdigest(), tree, selected)
+    from autograder.services.criteria_tree_service import build_criteria_tree
+    snapshot = definition.model_dump(mode='json')
+    payload = json.dumps(snapshot, sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
+    tree = build_criteria_tree(definition.criteria, registry)
+    return CompiledDefinition._create(snapshot, hashlib.sha256(payload).hexdigest(), tree, selected)  # pylint: disable=protected-access
 
 
 def select_language(definition: GradingDefinition | CompiledDefinition, supplied=None) -> Language:

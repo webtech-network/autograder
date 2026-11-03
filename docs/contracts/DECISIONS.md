@@ -99,7 +99,7 @@ and known language constraints live on evaluator implementations. Discovery does
 not probe host availability. `compile_definition`, `describe_templates` and
 `evaluate_submission` form the supported facade; evaluation returns the finalized
 terminal outcome. Trusted instantiated `Template` objects may be injected by
-identifier and retained through recompilation. JSON transports accept built-in
+identifier and retained by the immutable compiled definition. JSON transports accept built-in
 identifiers only. No uploaded code or dynamic plugin loader is supported.
 
 The facade accepts explicit host capabilities. Providers are borrowed; returned
@@ -150,3 +150,18 @@ precedes terminal outcome construction; cleanup errors reach host logging and an
 optional observer without replacing the grade. Disabled feedback calls neither
 focus nor reporting. The supported facades and v1 wire schemas are unchanged.
 See [Python migration and execution order](../core/pipeline-architecture.md).
+
+## Immutable compiled definitions (ARC-02)
+
+Raw authoring input is normalized exactly once by `compile_definition`. The same
+canonical values form the snapshot, its hash, the executed parameters and the
+parameters reported in the outcome; tree construction never re-applies evaluator
+normalizers. Stored or attested snapshots (HTTP configurations, bound execution
+snapshots, external results, Action cloud configurations) are loaded with
+`compile_snapshot`, which validates structure, registry, contracts and cross-field
+rules but keeps parameter values verbatim and requires every contract field to be
+explicit. A `CompiledDefinition` is created only by these two functions and is
+deeply immutable: `definition` returns a fresh copy, tree nodes are frozen, and
+parameters are frozen JSON values. Each evaluator invocation and each reported
+result receives an isolated mutable copy, so executions from one plan cannot
+affect one another. v1 JSON shape and hash rules are unchanged.

@@ -13,10 +13,8 @@ def validate_submission(compiled: CompiledDefinition, submission: Submission, re
     missing = set(requirements.preparation.required_files) - set(submission.submission_files)
     if missing:
         raise EvaluationError("REQUIRED_FILE_MISSING", "A required submission file is missing.", "submission")
-    for category in (compiled.criteria_tree.base, compiled.criteria_tree.bonus, compiled.criteria_tree.penalty):
-        if category:
-            for test in category.get_all_tests():
-                select_files(test, submission.submission_files, submission.evaluation_scope, submission.language)
+    for test in compiled.criteria_tree.get_all_tests():
+        select_files(test, submission.submission_files, submission.evaluation_scope, submission.language)
 
 
 def check_capabilities(required: frozenset[str], providers: HostCapabilities) -> None:

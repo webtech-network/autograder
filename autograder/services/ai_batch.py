@@ -6,6 +6,7 @@ from autograder.models.dataclass.test_result import TestResult
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.execution import AssessmentProvider
 from autograder.services.file_selection import select_files
+from autograder.models.frozen import thaw
 from autograder.utils.executors.ai_executor import TestInput
 
 
@@ -15,17 +16,14 @@ def evaluate_ai_batch(
     """Build one batch and require exact criterion-ID coverage from the provider."""
     inputs = []
     context_files = [submission.submission_files[name] for name in sorted(submission.submission_files)]
-    for category in (criteria.base, criteria.bonus, criteria.penalty):
-        if category is None:
+    for test in criteria.get_all_tests():
+        if not isinstance(test.test_function, AiTestFunction):
             continue
-        for test in category.get_all_tests():
-            if not isinstance(test.test_function, AiTestFunction):
-                continue
-            files = select_files(test, submission.submission_files, submission.evaluation_scope, submission.language)
-            prompt = test.test_function.build_prompt(
-                files, locale=submission.locale, context_files=context_files, **test.parameters,
-            )
-            inputs.append(TestInput(test_name=test.criterion_id, prompt=prompt))
+        files = select_files(test, submission.submission_files, submission.evaluation_scope, submission.language)
+        prompt = test.test_function.build_prompt(
+            files, locale=submission.locale, context_files=context_files, **thaw(test.parameters),
+        )
+        inputs.append(TestInput(test_name=test.criterion_id, prompt=prompt))
     if not inputs:
         return {}
     results = provider.run(inputs, {file.filename: file.content for file in context_files}, submission.locale)

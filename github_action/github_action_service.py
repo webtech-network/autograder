@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 from autograder.autograder import build_pipeline
-from autograder.models.contracts.definition import compile_definition, select_language
+from autograder.models.contracts.definition import compile_definition, compile_snapshot, select_language
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import Submission
 from github_action.cloud_client import CloudClient
@@ -30,11 +30,11 @@ class GithubActionService:
             client = CloudClient(cloud_url, cloud_token)
             config = client.get_grading_config(grading_config_id)
         if execution_mode == "external":
-            value = config["definition"]
+            # A cloud configuration is a stored canonical snapshot.
+            compiled = compile_snapshot(config["definition"])
         else:
             with Path(definition_path).open(encoding="utf-8") as handle:
-                value = json.load(handle)
-        compiled = compile_definition(value)
+                compiled = compile_definition(json.load(handle))
         self.language = select_language(compiled.definition, language)
         self.locale = locale
         provenance = DefinitionProvenance(definition_hash=compiled.definition_hash)

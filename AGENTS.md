@@ -41,6 +41,11 @@ JSON Schema derived from these same contracts. Trusted Python templates can be
 supplied with `templates={identifier: TemplateInstance}`; uploaded code is not
 supported. Preserve injected templates when passing a compiled definition.
 
+Normalization happens once, on raw authoring input. Stored/attested snapshots are
+reloaded with `compile_snapshot` (validated, never re-normalized). A
+`CompiledDefinition` is created only by those functions and is deeply immutable;
+evaluators and reports receive isolated copies of the frozen parameters.
+
 See [DEFINITIONS.md](docs/contracts/DEFINITIONS.md) and the checked-in v1 JSON
 Schemas and valid/invalid examples. The offline converter is an explicit migration
 tool, never a fallback inside the public parser.

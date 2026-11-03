@@ -16,6 +16,7 @@ from autograder.models.result_tree import (
     TestResultNode,
 )
 from autograder.services.command_resolver import CommandResolver
+from autograder.models.frozen import thaw
 from autograder.models.evaluation_error import EvaluationError
 from autograder.services.file_selection import select_files
 from autograder.services.structural_analysis import StructuralAnalysisCache
@@ -123,8 +124,8 @@ class SubmissionGrader(CriteriaTreeProcesser):
         """Execute a test and create a test result node."""
         file_target = self.get_file_target(test)
 
-        # Shallow-copy parameters so we don't mutate the original TestNode.
-        test_params = dict(test.parameters or {})
+        # Each invocation receives an isolated copy of the canonical parameters.
+        test_params = thaw(test.parameters)
 
         # Resolve program_command eagerly when the language is known.
         if self.submission_language and 'program_command' in test_params:
@@ -172,10 +173,10 @@ class SubmissionGrader(CriteriaTreeProcesser):
             criterion_id=test.criterion_id,
             evaluator=test.test_function.name,
             name=test.name,
-            test_node=test,
             score=test_result.score,
             report=test_result.report,
-            parameters=dict(test.parameters or {}),
+            file_target=list(test.file_target) if test.file_target is not None else None,
+            parameters=thaw(test.parameters),
             weight=test.weight,
         )
 

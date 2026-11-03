@@ -185,7 +185,8 @@ Each `TestResultNode` contains:
 - `score` — Achieved score (0–100)
 - `report` — Human-readable result explanation
 - `parameters` — Test parameters used
-- `test_node` — Reference back to the original `TestNode`
+- `file_target` — The criterion's explicit file target (results never retain live
+  compiled tree nodes)
 
 The `ResultTree` also provides utility methods:
 - `get_all_test_results()` — Flat list of all test result nodes

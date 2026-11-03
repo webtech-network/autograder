@@ -28,7 +28,8 @@ not a compatibility promise. Public extension types are `Template`, `TestFunctio
 Injected values must be instantiated `Template` objects. Compilation calls
 `validate_contract()`, checks evaluator identifiers and validates parameters.
 Injected identifiers override built-ins only for that call; they do not mutate
-the global library. Recompilation of a compiled definition preserves its instances.
+the global library. Passing a `CompiledDefinition` reuses it unchanged, with its
+instances; adding `templates` revalidates its canonical snapshot without normalizing again.
 Python code is trusted and runs in process. HTTP and Action JSON contain only
 identifier lists; neither transport accepts source code, module paths or plugins.
 

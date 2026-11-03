@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from autograder.models.contracts.definition import compile_definition
+from autograder.models.contracts.definition import CompiledDefinition, DefinitionValidationError, compile_definition
 from autograder.models.contracts.outcome import validate_outcome
 from tests.web.test_contracts_v1 import definition, outcome, create
 from web.database.models.submission import Submission
@@ -89,3 +89,21 @@ async def test_receipt_retains_completed_grade_and_retry_never_regrades(test_cli
     poll = (await test_client.get(f"/api/v1/submissions/{bound.submission_id}")).json()
     assert poll["status"] == "completed" and poll["final_score"] == 100
     assert poll["provenance"] == finalized.provenance.model_dump(mode="json")
+
+
+@pytest.mark.asyncio
+async def test_run_pipeline_loads_the_bound_snapshot_canonically():
+    """The worker validates its bound snapshot without re-normalizing it (ARC-02)."""
+    bound = request()
+    with patch("web.service.grading_service.build_pipeline", return_value=Mock()) as build:
+        await _run_pipeline(bound)
+    compiled = build.call_args.kwargs["definition"]
+    assert isinstance(compiled, CompiledDefinition)
+    assert compiled.definition_hash == bound.definition_hash
+    assert compiled.definition.model_dump(mode="json") == bound.definition
+
+    tampered = json.loads(json.dumps(bound.definition))
+    del tampered["criteria"]["base"]["tests"][0]["parameters"]["normalization"]
+    with pytest.raises(DefinitionValidationError) as failure:
+        await _run_pipeline(replace(bound, definition=tampered))
+    assert failure.value.errors()[0]["code"] == "NON_CANONICAL_PARAMETERS"
