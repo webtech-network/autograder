@@ -100,7 +100,7 @@ class TestEvaluationScopeIntegration:
 
     def test_static_assessment_respects_evaluation_scope(self):
         """Scope limits static assessment to the selected source file."""
-        from sandbox_manager.models.sandbox_models import Language
+        from autograder.models.language import Language
 
         criteria = _static_analysis_criteria(["os"])
 
@@ -164,7 +164,7 @@ class TestEvaluationScopeIntegration:
 
     def test_grading_without_evaluation_scope_processes_all_files(self):
         """Without scope, all submission files are processed normally."""
-        from sandbox_manager.models.sandbox_models import Language
+        from autograder.models.language import Language
 
         criteria = _static_analysis_criteria(["os"])
         files = {
@@ -228,7 +228,7 @@ class TestChangedLinesIntegration:
 
     def test_changed_lines_propagated_through_pipeline(self):
         """SubmissionFile retains changed lines through execution."""
-        from sandbox_manager.models.sandbox_models import Language
+        from autograder.models.language import Language
 
         criteria = _static_analysis_criteria(["os"])
         files = {
@@ -260,7 +260,7 @@ class TestChangedLinesIntegration:
 
     def test_no_changed_lines_still_works(self):
         """Submission without changed_lines → pipeline works normally, is_contribution_aware=False."""
-        from sandbox_manager.models.sandbox_models import Language
+        from autograder.models.language import Language
 
         criteria = _static_analysis_criteria(["os"])
         file_obj = SubmissionFile(filename="main.py", content="x = 1")

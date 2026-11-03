@@ -1,11 +1,12 @@
 """Bounded, synchronous deliberate execution wire contract."""
 
 import posixpath
-import shlex
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, model_validator
 
-from sandbox_manager.models.sandbox_models import Language, ResponseCategory
+from autograder.models.process import ResponseCategory, split_command
+
+from autograder.models.language import LANGUAGE_IDS
 
 
 MAX_FILES = 20
@@ -83,8 +84,8 @@ class DeliberateCodeExecutionRequest(BaseModel):
     @field_validator("language")
     @classmethod
     def canonical_language(cls, value: str) -> str:
-        """Accept only sandbox language identifiers exposed by this host."""
-        if value not in {language.value for language in Language}:
+        """Accept only canonical domain identifiers; host runtime support is checked at execution."""
+        if value not in LANGUAGE_IDS:
             raise ValueError("language must be a supported lowercase identifier")
         return value
 
@@ -95,8 +96,7 @@ class DeliberateCodeExecutionRequest(BaseModel):
         if "\x00" in value or not value.strip():
             raise ValueError("program_command must be nonempty")
         try:
-            if not shlex.split(value):
-                raise ValueError("program_command must contain an executable")
+            split_command(value)
         except ValueError as exc:
             raise ValueError("program_command must be valid shell-style argument quoting") from exc
         return value

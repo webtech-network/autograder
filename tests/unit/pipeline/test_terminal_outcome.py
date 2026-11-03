@@ -15,7 +15,9 @@ from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.evaluation_error import EvaluationError
 from autograder.template_library.input_output import ExpectOutputTest
-from sandbox_manager.models.sandbox_models import CommandResponse, Language, ResponseCategory
+from sandbox_manager.errors import ProcessExecutionError, SandboxInvalidatedError
+from tests.process_results import exited, not_started, timed_out
+from autograder.models.language import Language
 
 API_PARAMETERS = {"health_check": {}, "check_response_json": {"expected_key": "status"}}
 
@@ -58,24 +60,26 @@ def test_zero_is_completed_and_normalized_language_and_provenance_are_retained()
     assert validate_outcome(wire) == value
 
 
-@pytest.mark.parametrize('category', [ResponseCategory.COMPILATION_ERROR, ResponseCategory.RUNTIME_ERROR, ResponseCategory.TIMEOUT])
-def test_student_execution_failure_is_assessed_zero(category):
-    response = CommandResponse(stdout='', stderr='student error', exit_code=1, execution_time=1, category=category)
+@pytest.mark.parametrize('response', [exited(stderr='student error', code=1), exited(code=1), exited(code=137),
+                                      timed_out(stderr='partial')])
+def test_student_execution_failure_is_assessed_zero(response):
+    """Returned exits and timeouts are assessed, whatever stderr says (or does not say)."""
     evaluator = ExpectOutputTest()
     sandbox = Mock()
-    sandbox.run_commands.return_value = response
+    sandbox.run_process.return_value = response
     result = invoke(evaluator, [], sandbox, program_command='python main.py', expected_output='hello')
     assert result.score == 0
 
 
-@pytest.mark.parametrize('failure', [ResponseCategory.SYSTEM_ERROR, RuntimeError('token=secret')])
+@pytest.mark.parametrize('failure', [RuntimeError('token=secret'), ProcessExecutionError('token=secret'),
+                                     SandboxInvalidatedError('token=secret'), 'not_started'])
 def test_sandbox_infrastructure_failure_is_not_an_assessment(failure):
     evaluator = ExpectOutputTest()
     sandbox = Mock()
     if isinstance(failure, Exception):
-        sandbox.run_commands.side_effect = failure
+        sandbox.run_process.side_effect = failure
     else:
-        sandbox.run_commands.return_value = CommandResponse(stdout='', stderr='secret', exit_code=-1, execution_time=0, category=failure)
+        sandbox.run_process.return_value = not_started('python')
     with pytest.raises(EvaluationError) as error:
         invoke(evaluator, [], sandbox, program_command='python main.py', expected_output='hello')
     assert error.value.category == 'capability'

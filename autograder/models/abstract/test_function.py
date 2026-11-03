@@ -19,6 +19,7 @@ and thread that uses their template, so they must be stateless: keep
 per-submission state in local variables of the call, never on ``self``.
 """
 from abc import ABC, abstractmethod
+from pathlib import PurePosixPath
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Type
 
@@ -27,7 +28,7 @@ from pydantic import BaseModel
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.execution import ExecutionSession
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 
 @dataclass(frozen=True)
@@ -64,8 +65,6 @@ class TestFunction(ABC):
     maximum_files: Optional[int] = None
     #: Whole-submission checks and execution need their inputs even outside scope.
     uses_context_files: bool = False
-    #: Static code checks choose source extensions from the submission language.
-    source_files_only: bool = False
     #: Multi-file checks can name their required inputs in normalized parameters.
     file_parameters: Tuple[str, ...] = ()
 
@@ -98,6 +97,16 @@ class TestFunction(ABC):
     @abstractmethod
     def description(self) -> str:
         """A description of what the evaluator assesses."""
+
+    def accepts_file(self, filename: str, language: Optional[Language]) -> bool:
+        """Whether this evaluator can assess ``filename`` (see FILES.md).
+
+        The default honours ``file_extensions``. Evaluators that parse source
+        code override it with their own parser rules, so file types are decided
+        by the analysis implementation, never by a generic language table.
+        """
+        del language
+        return self.file_extensions is None or PurePosixPath(filename).suffix.lower() in self.file_extensions
 
     def validate_parameters(self, parameters: Dict[str, Any], *,
                             languages: Tuple[str, ...]) -> Iterable[ParameterIssue]:

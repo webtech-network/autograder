@@ -200,7 +200,6 @@ Evaluator instances are shared by every submission and thread that uses their
 template and must be stateless. Per-submission state lives in the call
 (`EvaluationInput`, parameters, locals) or in the grader that owns one traversal.
 
-
 ## AI batching inside assessment (ARC-07)
 
 Grading is two explicit calls: `assess_criteria(criteria, submission, session=,
@@ -262,3 +261,61 @@ unused `PreflightError` and the unused report translation keys are removed. The
 legacy pre-flight feedback generator and pipeline execution serializer were
 already deleted with the step framework (#396) and had no remaining callers.
 Feedback `mode` stays `"default"` in the v1 schema.
+
+## Sandbox ownership and private control API (ARC-09 / INT-15)
+
+One `DockerSession` lease owns a sandbox from acquisition through disposal. It
+borrows a host-owned manager. Local and remote managers share `acquire`/`dispose`.
+Every disposal destroys the container, and repeated disposal is defined. The
+competing release/destroy APIs, the module-global manager and library signal
+handlers are removed. A pool forgets a container only after Docker confirms
+removal. Failed removals are retained, retried and reported, and they still hold
+capacity. Startup reclaims only owners proven dead by an acquirable lease lock,
+so a second live host never removes the first host's containers. One
+`SandboxRuntimeProfile` owns Docker options, and the runtime is the only
+difference between runsc and runc.
+
+The control API is private, token-authenticated and single-worker. Each lease is
+bound to a client-generated secret. Unknown/expired handles, missing artifacts
+and execution failures have distinct responses that the client preserves.
+Acquisition and disposal are safely replayable; commands are never replayed. A
+distributed handle store is unnecessary for the documented single-process
+deployment. See [SANDBOX.md](SANDBOX.md) for the boundary, limits, recovery
+table and migration.
+
+## Language identity and its consumers (ARC-05)
+
+`autograder.models.language.Language` is the only declaration of supported
+language identifiers. It carries no image and imports no infrastructure. The
+definition and outcome schemas, submission and deliberate-execution validation,
+and the outcome's `language` derive from it, and wire identifiers are unchanged.
+The host owns runtime images in the `runtimes:` map of `sandbox_config.yml`; an
+allowed language without a profile is an unavailable capability
+(`RuntimeUnavailableError`, control API `501 runtime_unavailable`, grading
+`CAPABILITY_UNAVAILABLE`), never an invalid language. I/O evaluators own
+`program_command` selection, with one documented `CMD` table; the
+`CommandResolver`, its unused default table and its alias and file-name fallbacks
+are removed. Analysis owns grammar selection (`structural_analysis.py`), and
+evaluators decide their assessable files through `accepts_file`, so mixed
+HTML/CSS/JavaScript submissions are parsed per file type. The HTTP submission
+adapter still lower-cases its input language before binding. No plugin framework
+was introduced. See [LANGUAGES.md](LANGUAGES.md) for the change surface.
+
+## One process contract (ARC-08)
+
+`ProcessRequest`/`ProcessResult` (`autograder/models/process.py`) are the only
+way to run a process. A request has an explicit command mode: an exact `argv`, or
+an explicit `shell` script run as `/bin/sh -c`. It also carries exact `stdin`
+bytes, `cwd`, a process deadline and a per-stream output bound. Malformed quoting
+is an error; it never switches to a shell, and definitions reject it when they
+are compiled. A result is `exited` (any returned code), `timed_out` (killed by
+the backend, with every process it started, before returning), or `not_started`
+(missing executable). Transport, readback and invalidation failures are
+exceptions. Classification uses only the exit status, so the language-specific
+stderr classifier and the 137-means-timeout rule are removed. Preparation, the
+I/O and artifact evaluators, and deliberate execution share the primitive and
+keep their own policies. The local and remote backends were checked against each
+other in real containers. `POST /process` replaces `/run` and `/run-batch`, and
+process requests are never replayed. Output and artifact readback are bounded
+where the process runs. See [PROCESSES.md](PROCESSES.md), which also gives the
+migration from the old newline and shell behaviour.

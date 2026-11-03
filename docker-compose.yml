@@ -36,6 +36,8 @@ services:
       SANDBOX_POOL_SIZE: 2
       SANDBOX_MODE: remote
       SANDBOX_API_URL: http://sandbox-manager:8001
+      # Shared secret for the private sandbox control API; set it in the shell or .env.
+      SANDBOX_API_TOKEN: ${SANDBOX_API_TOKEN:?Set SANDBOX_API_TOKEN to a long random secret}
       AUTOGRADER_INTEGRATION_TOKEN: e2e-test-token
 
       # API Configuration
@@ -53,6 +55,9 @@ services:
       # OPENAI_API_KEY: ${OPENAI_API_KEY}
     ports:
       - '8000:8000'
+    networks:
+      - default
+      - sandbox-control
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,7 +71,9 @@ services:
       retries: 3
       start_period: 40s
 
-  # Sandbox Manager API
+  # Sandbox Manager API: private control plane. Its port is deliberately not
+  # published; only services on the internal sandbox-control network reach it.
+  # Run exactly one replica with one worker: lease handles live in its memory.
   sandbox-manager:
     build:
       context: .
@@ -75,13 +82,21 @@ services:
     environment:
       SANDBOX_PORT: 8001
       SANDBOX_HOST: 0.0.0.0
-    ports:
-      - '8001:8001'
+      SANDBOX_API_TOKEN: ${SANDBOX_API_TOKEN:?Set SANDBOX_API_TOKEN to a long random secret}
+      # Ownership leases survive restarts so a restarted manager reclaims the
+      # containers of its dead predecessor (and never those of a live owner).
+      SANDBOX_LEASE_DIR: /var/lib/autograder/sandbox-leases
+    expose:
+      - '8001'
+    networks:
+      - sandbox-control
     volumes:
       # Mount Docker socket for sandbox management
       - /var/run/docker.sock:/var/run/docker.sock
+      - sandbox_leases:/var/lib/autograder/sandbox-leases
+    stop_grace_period: 60s
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8001/stats']
+      test: ['CMD', 'curl', '-f', 'http://localhost:8001/health']
       interval: 10s
       timeout: 5s
       retries: 3
@@ -106,7 +121,14 @@ services:
       - ministack_data:/data
     restart: unless-stopped
 
+networks:
+  default:
+  sandbox-control:
+    internal: true
+
 volumes:
+  sandbox_leases:
+    driver: local
   postgres_data:
     driver: local
   ministack_data:

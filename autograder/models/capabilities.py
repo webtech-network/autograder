@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from autograder.models.contracts.definition import CompiledDefinition, LanguagePreparation
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from autograder.models.execution import AssessmentProvider, ExecutionSession, ServerSession
 
 

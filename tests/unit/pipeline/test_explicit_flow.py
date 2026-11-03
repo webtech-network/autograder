@@ -7,7 +7,7 @@ import pytest
 from autograder import build_pipeline, evaluate_submission
 from autograder.models.capabilities import HostCapabilities
 from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome, validate_outcome
-from sandbox_manager.models.sandbox_models import CommandResponse
+from tests.process_results import exited
 import autograder.autograder as coordinator
 from autograder.models.evaluation_error import EvaluationError
 from tests.unit.pipeline.test_terminal_outcome import definition, submission
@@ -34,7 +34,7 @@ def test_diagnostics_do_not_supply_data_or_change_execution_order():
     outcomes = []
     for observer_kind in ("disabled", "collect", "discard", "raise"):
         owned = session()
-        owned.run_commands.return_value = CommandResponse("ok", "", 0, 0)
+        owned.run_process.return_value = exited("ok")
         events = []
 
         def observe(event, events=events, observer_kind=observer_kind):
@@ -80,7 +80,7 @@ def test_close_precedes_terminal_construction_on_all_owned_paths(failure):
     value = definition(preparation={"languages": {"python": {
         "setup_commands": [{"name": "prepare", "command": "prepare"}]}}})
     if failure == "prepare":
-        owned.run_command.side_effect = RuntimeError("secret")
+        owned.run_process.side_effect = RuntimeError("secret")
     if failure == "evaluate":
         owned_error = EvaluationError("SANDBOX_ERROR", "Assessment unavailable.", "capability", True)
     else:
@@ -111,7 +111,7 @@ def test_cleanup_failure_is_observable_without_replacing_the_grade(required_fail
     owned = session()
     owned.close.side_effect = RuntimeError("private cleanup details")
     if required_failure:
-        owned.run_command.side_effect = RuntimeError("private preparation details")
+        owned.run_process.side_effect = RuntimeError("private preparation details")
     events = []
     value = definition(preparation={"languages": {"python": {
         "setup_commands": [{"name": "prepare", "command": "prepare"}]}}})

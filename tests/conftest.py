@@ -1,11 +1,11 @@
-"""Keep Docker integration tests from adopting or deleting another host's sandboxes."""
-from uuid import uuid4
-import sandbox_manager.language_pool as language_pool
-import sandbox_manager.manager as manager
+"""Give this test process its own sandbox ownership lease directory.
 
-# Set before test modules import LABEL_APP. Existing implementation scopes both
-# orphan cleanup and newly created containers by this key. The label value and
-# lifecycle semantics remain unchanged; only this test process owns the key.
-_TEST_OWNER_LABEL = f"autograder.test.{uuid4().hex}"
-language_pool.LABEL_APP = _TEST_OWNER_LABEL
-manager.LABEL_APP = _TEST_OWNER_LABEL
+Sandbox managers reclaim only containers whose owner is proven dead through a
+lease file in their lease directory. A fresh directory means tests can only
+ever reclaim owners they created; other hosts sharing the Docker daemon (and
+their live or dead containers) are never selected.
+"""
+import os
+import tempfile
+
+os.environ["SANDBOX_LEASE_DIR"] = tempfile.mkdtemp(prefix="autograder-test-leases-")

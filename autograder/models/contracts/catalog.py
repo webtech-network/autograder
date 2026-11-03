@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
-from autograder.models.contracts.parameters import LanguageId
+from autograder.models.language import LanguageId
 
 Capability = Literal["sandbox_execution", "http_network", "ai_provider", "structural_analysis"]
 

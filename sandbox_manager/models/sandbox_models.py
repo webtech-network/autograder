@@ -4,52 +4,12 @@ from typing import Any, Dict
 import requests
 
 
-class Language(Enum):
-    """Supported programming languages in the sandbox."""
-    PYTHON = ("python", "sandbox-py:latest")
-    JAVA = ("java", "sandbox-java:latest")
-    NODE = ("node", "sandbox-node:latest")
-    CPP = ("cpp", "sandbox-cpp:latest")
-    C = ("c", "sandbox-cpp:latest")
-
-    def __new__(cls, value, image):
-        obj = object.__new__(cls)
-        obj._value_ = value
-        obj.image = image
-        return obj
-
 class SandboxState(Enum):
     """Current state of a sandbox instance."""
-    IDLE = "idle"
-    BUSY = "busy"
-    STOPPED = "stopped"
-
-class ResponseCategory(Enum):
-    """Classification of the execution result."""
-    SUCCESS = "success"             # Program ran and exited with 0
-    RUNTIME_ERROR = "runtime_error" # Program crashed (e.g., Exception, Segmentation Fault)
-    TIMEOUT = "timeout"             # Program was killed because it took too long
-    SYSTEM_ERROR = "system_error"   # Infrastructure failure (e.g., Docker error)
-    COMPILATION_ERROR = "compilation_error" # Specific to compiled languages like C++/Java
-
-@dataclass
-class CommandResponse:
-    """Represents the output and metadata of a command execution."""
-    stdout: str
-    stderr: str
-    exit_code: int
-    execution_time: float
-    # New field to hold the classification
-    category: ResponseCategory = ResponseCategory.SUCCESS
-
-    @property
-    def output(self) -> str:
-        """Alias for stdout."""
-        return self.stdout
-
-    def __str__(self):
-        return self.stdout
-
+    IDLE = "idle"          # warm, owned by the pool
+    BUSY = "busy"          # leased to one session
+    CLOSING = "closing"    # disposal started; owner retains the record until confirmed
+    STOPPED = "stopped"    # destruction confirmed
 
 @dataclass
 class ExtractedFile:

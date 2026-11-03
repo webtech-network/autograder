@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 import requests
+from tests.sandbox_profiles import TEST_SANDBOX_CONFIG
 
 
 @pytest.fixture(scope="session")
@@ -17,11 +18,12 @@ def isolated_api(tmp_path_factory):
     directory = tmp_path_factory.mktemp("autograder-e2e")
     database = directory / "api.sqlite3"
     config = directory / "sandbox.yml"
-    config.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
+    config.write_text(TEST_SANDBOX_CONFIG)
     token = secrets.token_hex(24)
-    owner = uuid4().hex
+    # A private lease directory: this API's startup reclamation can only select
+    # owners created by this test run, never another host's sandboxes.
     env = dict(os.environ, DATABASE_URL=f"sqlite+aiosqlite:///{database}",
-        AUTOGRADER_INTEGRATION_TOKEN=token, AUTOGRADER_E2E_OWNER=owner,
+        AUTOGRADER_INTEGRATION_TOKEN=token, SANDBOX_LEASE_DIR=str(directory / "sandbox-leases"),
         SANDBOX_MODE="local", SANDBOX_CONFIG_FILE=str(config), LOG_LEVEL="WARNING",
         APP_ENV="test", PYTHON_DOTENV_DISABLED="1")
     # Retain the bound socket through exec, avoiding a free-port discovery race.
@@ -33,7 +35,7 @@ def isolated_api(tmp_path_factory):
     repo = Path(__file__).resolve().parents[2]
     log_path = directory / "server.log"
     with log_path.open("w") as log:
-        process = subprocess.Popen([sys.executable, "-m", "uvicorn", "tests.e2e.server:app",
+        process = subprocess.Popen([sys.executable, "-m", "uvicorn", "web.main:app",
             "--fd", str(listener.fileno()), "--log-level", "warning"], cwd=repo, env=env,
             pass_fds=(listener.fileno(),), stdout=log, stderr=subprocess.STDOUT)
         listener.close()

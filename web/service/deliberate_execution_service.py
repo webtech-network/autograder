@@ -6,7 +6,8 @@ from time import monotonic
 
 from autograder.models.dataclass.submission import SubmissionFile
 from execution_host.assets.resolver import AssetSourceResolver
-from sandbox_manager.models.sandbox_models import Language, ResponseCategory
+from autograder.models.process import ProcessRequest, ProcessStatus, ResponseCategory, lines_to_stdin
+from autograder.models.language import Language
 from web.schemas.execution import (
     CASE_TIMEOUT_SECONDS,
     MAX_OUTPUT_BYTES,
@@ -32,35 +33,31 @@ UNAVAILABLE = ("EXECUTION_UNAVAILABLE", "Execution service is unavailable.", 503
 DEADLINE = ("EXECUTION_DEADLINE_EXCEEDED", "Execution deadline exceeded.", 504)
 
 
-def _bounded(text: str) -> tuple[str, bool]:
-    encoded = text.encode("utf-8")
-    if len(encoded) <= MAX_OUTPUT_BYTES:
-        return text, False
-    return encoded[:MAX_OUTPUT_BYTES].decode("utf-8", errors="ignore"), True
+TIMEOUT_EXIT_CODE = 124  # the wire needs an integer for a stopped process; `category` is authoritative
 
 
-def _result(command_result) -> DeliberateCodeExecutionResult:
-    if command_result.category == ResponseCategory.SYSTEM_ERROR:
+def _result(process) -> DeliberateCodeExecutionResult:
+    """Map a process result to the wire. Output is already bounded by the host."""
+    if process.status is ProcessStatus.NOT_STARTED:
+        # The program could not be started: a service-side failure, as before.
         raise ExecutionServiceError(*UNAVAILABLE)
-    stdout, out_cut = _bounded(command_result.stdout)
-    stderr, err_cut = _bounded(command_result.stderr)
     labels = {
         ResponseCategory.RUNTIME_ERROR: "Runtime error occurred",
-        ResponseCategory.COMPILATION_ERROR: "Compilation failed",
         ResponseCategory.TIMEOUT: "Execution timed out",
     }
-    error_message = labels.get(command_result.category)
-    if error_message and stderr:
-        error_message = f"{error_message}: {stderr}"
+    category = process.category
+    error_message = labels.get(category)
+    if error_message and process.stderr:
+        error_message = f"{error_message}: {process.stderr}"
     return DeliberateCodeExecutionResult(
-        category=command_result.category,
-        stdout=stdout,
-        stderr=stderr,
-        exit_code=command_result.exit_code,
-        execution_time=command_result.execution_time,
-        output="\n".join(part for part in (stdout, stderr) if part),
+        category=category,
+        stdout=process.stdout,
+        stderr=process.stderr,
+        exit_code=TIMEOUT_EXIT_CODE if process.status is ProcessStatus.TIMED_OUT else process.exit_code,
+        execution_time=process.duration,
+        output="\n".join(part for part in (process.stdout, process.stderr) if part),
         error_message=error_message,
-        truncated=out_cut or err_cut,
+        truncated=process.truncated,
     )
 
 
@@ -95,16 +92,13 @@ def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: flo
             if remaining <= 0:
                 raise ExecutionServiceError(*DEADLINE)
             timeout = max(1, min(CASE_TIMEOUT_SECONDS, int(remaining)))
-            if case:
-                command_result = sandbox.run_commands(
-                    case, program_command=request.program_command, timeout=timeout, workdir="/app"
-                )
-            else:
-                command_result = sandbox.run_command(
-                    request.program_command, timeout=timeout, workdir="/app"
-                )
-            results.append(_result(command_result))
-            if command_result.category == ResponseCategory.TIMEOUT:
+            # The same process primitive as grading: argv, exact stdin bytes (each
+            # line newline-terminated; an omitted or empty case is empty stdin).
+            process = sandbox.run_process(ProcessRequest.command(
+                request.program_command, stdin=lines_to_stdin(case), timeout=timeout,
+                max_output_bytes=MAX_OUTPUT_BYTES))
+            results.append(_result(process))
+            if process.status is ProcessStatus.TIMED_OUT:
                 break
         return DeliberateCodeExecutionResponse(
             results=results, stopped_early=len(results) < len(cases)

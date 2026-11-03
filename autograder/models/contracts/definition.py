@@ -8,9 +8,9 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, f
 from autograder.models.abstract.template import Template
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import CriteriaTree
-from autograder.models.contracts.parameters import LanguageId
 from autograder.models.frozen import freeze, thaw
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language, LanguageId
+from autograder.models.process import split_command
 
 
 class StrictModel(BaseModel):
@@ -26,7 +26,15 @@ def relative_path(value: str) -> str:
 
 class SetupCommand(StrictModel):
     name: str = Field(min_length=1)
-    command: str = Field(min_length=1)
+    command: str = Field(min_length=1, description=(
+        "Executable and arguments, split with POSIX quoting and run without a shell. "
+        "Use an explicit `sh -c '...'` command for shell operators."))
+
+    @field_validator('command')
+    @classmethod
+    def validate_command(cls, value):
+        split_command(value)  # malformed quoting is rejected, never run through a shell
+        return value
 
 
 class LanguagePreparation(StrictModel):

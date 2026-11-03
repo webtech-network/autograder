@@ -60,6 +60,10 @@ in metadata; core owns only typed values it must actually interpret.
 Language is inferred for a single-language definition. Multiple allowed languages
 require explicit selection. Disallowed language and unavailable execution
 capability are different failures. Runtime context cannot be assignment-authored.
+`autograder/models/language.py` is the only language list; hosts map languages to
+images (`sandbox_config.yml` `runtimes:`), I/O evaluators choose commands and
+analysis chooses grammars per file type. See
+[LANGUAGES.md](docs/contracts/LANGUAGES.md).
 
 The recursive tree retains base/bonus/penalty, nested subjects, tests and the
 explicit mixed-group `subjects_weight` split. Sibling weights are ratios; all-zero
@@ -99,7 +103,11 @@ preferences, locale)` (focus + the one `default` Markdown report, reading the
 canonical preferences); disabled feedback does no work and stays `disabled`.
 
 Required failures produce null score/tree. Student compilation/runtime/timeout
-reported during evaluator assessment can produce a valid zero. Preparation
+reported during evaluator assessment can produce a valid zero. Every process runs
+through `ExecutionSession.run_process(ProcessRequest)`: explicit argv or explicit
+shell, exact stdin bytes, a deadline that kills the process tree, and
+classification by exit status only. Infrastructure failures are exceptions, not
+results. See [PROCESSES.md](docs/contracts/PROCESSES.md). Preparation
 failures stop before assessment. Optional focus/feedback/comparison failures
 preserve the completed grade with a separate enrichment status.
 

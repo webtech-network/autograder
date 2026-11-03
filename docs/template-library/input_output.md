@@ -16,17 +16,24 @@ Executes a program with a series of stdin inputs and compares the program's stdo
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `inputs` | list[string] | ✓ | List of strings sent to stdin, each on a new line |
+| `inputs` | list[string] | ✗ | Lines sent to stdin exactly; each is followed by `\n`. `[]` (the default) is empty stdin and `[""]` is one empty line. |
 | `expected_output` | string | ✓ | Exact string the program should print to stdout |
 | `program_command` | string | ✗ | Command to execute. Can be a plain string (e.g., `"python main.py"`), a dict for multi-language support, or `"CMD"` for auto-resolution based on submission language. |
 
 **Scoring:** 100 if output matches exactly (after trimming whitespace), 0 otherwise.
 
-**Error handling:** Automatically detects and reports:
-- Timeouts (infinite loops)
-- Compilation errors (Java/C++)
-- Runtime errors (crashes)
-- System errors (infrastructure failures)
+**Process handling** ([process contract](../contracts/PROCESSES.md)). The command
+is an argument vector with no implicit shell; use `sh -c '...'` for shell syntax.
+Malformed quoting is rejected when the definition is compiled
+(`INVALID_COMMAND`). Each run has a 30 s deadline.
+
+- Any nonzero exit, including one with empty stderr, or a timeout scores 0. The
+  report shows stderr, or the exit code when stderr is empty. A timed-out
+  program, and any process it started, is killed before the next criterion runs.
+- Compile in `preparation` setup commands; a failed setup command stops grading
+  with `PREPARATION_FAILED`.
+- A program that cannot be started (`PROCESS_START_FAILED`) and infrastructure
+  failures (`SANDBOX_ERROR`) fail the execution without a score.
 
 **Example:**
 ```json
@@ -62,7 +69,7 @@ Executes a program with a specific input and verifies it completes **without cra
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `user_input` | string | ✗ | A string to send via stdin |
+| `user_input` | string | ✗ | One line sent to stdin (followed by `\n`); empty (the default) sends nothing |
 | `program_command` | string | ✗ | Command to execute (same format as `expect_output`) |
 
 **Scoring:** 100 if program completes without error, 0 if it crashes/times out.

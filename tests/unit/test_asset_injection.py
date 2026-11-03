@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from execution_host.assets.config import AssetConfig
 from execution_host.assets.resolver import AssetSourceResolver
 from autograder.models.dataclass.asset import ResolvedAsset
-from sandbox_manager.sandbox_container import SandboxContainer
+from sandbox_manager.sandbox_container import WRITE, SandboxContainer
 
 class TestAssetInjection:
     """Test asset resolution and injection logic."""
@@ -54,18 +54,9 @@ class TestAssetInjection:
         
         sandbox.inject_assets(resolved_assets)
         
-        # Check if mkdir -p was called for parent dir
-        container_ref.exec_run.assert_any_call(
-            cmd=["mkdir", "-p", "/tmp"],
-            user="root"
-        )
-
-        # Check if Base64 write command was called
-        call_args = container_ref.exec_run.call_args_list
-        found_b64_call = False
-        for call in call_args:
-            cmd = call.kwargs.get("cmd")
-            if isinstance(cmd, list) and len(cmd) == 3 and "cmF3Y29udGVudA==" in cmd[2]:
-                found_b64_call = True
-                break
-        assert found_b64_call, "Base64 write call not found in exec_run calls"
+        commands = [(call.kwargs["cmd"], call.kwargs["user"]) for call in container_ref.exec_run.call_args_list]
+        assert (["mkdir", "-p", "/tmp"], "root") in commands
+        writes = [cmd for cmd, user in commands if cmd[:3] == ["/bin/sh", "-c", WRITE] and user == "root"]
+        # The target and the base64 content are positional parameters, never shell text.
+        assert [(cmd[4], cmd[5], cmd[6]) for cmd in writes] == [("/tmp/data.csv", "new", "cmF3Y29udGVudA==")]
+        assert (["chmod", "444", "/tmp/data.csv"], "root") in commands

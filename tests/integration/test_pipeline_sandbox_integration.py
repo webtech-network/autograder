@@ -19,9 +19,10 @@ from typing import Dict
 
 from tests.integration.definition_fixtures import build_migrated_fixture_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from sandbox_manager.manager import initialize_sandbox_manager, get_sandbox_manager
+from tests.integration.sandbox_support import current_test_manager, start_test_manager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_IMAGES
 
 
 class TestPipelineSandboxIntegration(unittest.TestCase):
@@ -33,6 +34,7 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
         pool_configs = [
             SandboxPoolConfig(
                 language=Language.PYTHON,
+                image=TEST_IMAGES[Language.PYTHON],
                 pool_size=3,  # More sandboxes for concurrent tests
                 scale_limit=6,
                 idle_timeout=300,
@@ -40,13 +42,14 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
             ),
             SandboxPoolConfig(
                 language=Language.JAVA,
+                image=TEST_IMAGES[Language.JAVA],
                 pool_size=2,
                 scale_limit=4,
                 idle_timeout=300,
                 running_timeout=60
             ),
         ]
-        cls.manager = initialize_sandbox_manager(pool_configs)
+        cls.manager = start_test_manager(pool_configs)
         time.sleep(2)
 
     def test_01_simple_python_io_assignment_complete_flow(self):
@@ -779,7 +782,7 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Use already initialized manager."""
-        cls.manager = get_sandbox_manager()
+        cls.manager = current_test_manager()
 
     def test_sandbox_release_on_pipeline_success(self):
         """Verify sandbox is released when pipeline succeeds."""

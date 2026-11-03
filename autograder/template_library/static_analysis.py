@@ -9,9 +9,9 @@ from autograder.models.abstract.ai_test_function import AiTestFunction
 from autograder.models.abstract.test_function import EvaluationInput, ParameterIssue, TestFunction
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from autograder.models.evaluation_error import EvaluationError
-from autograder.services.structural_analysis import parse_source
+from autograder.services.structural_analysis import RUNTIME_GRAMMARS, is_runtime_source, parse_source
 
 # ===============================================================
 # TestFunction for Forbidden Import Detection
@@ -25,8 +25,11 @@ class ForbiddenImportTest(TestFunction):
     regex patterns. Supports Python, Java, JavaScript/Node, C and C++.
     """
 
-    source_files_only = True
     minimum_files = 1
+
+    def accepts_file(self, filename, language):
+        """Only source files of the runtime language; documents never reach these rules."""
+        return is_runtime_source(filename, language)
 
     # Language-specific regex builders: each returns a compiled pattern
     # that matches an import of the given library name.
@@ -143,7 +146,6 @@ class ForbiddenImportTest(TestFunction):
 # ===============================================================
 
 AST_RULE_KEYS = frozenset({'kind', 'pattern', 'regex', 'all', 'any', 'not', 'has', 'inside', 'precedes', 'follows'})
-AST_GRAMMARS = {'node': 'javascript', 'python': 'python', 'java': 'java', 'cpp': 'cpp', 'c': 'c'}
 
 
 class ForbiddenKeywordConfig(BaseModel):
@@ -159,8 +161,11 @@ class ForbiddenKeywordTest(TestFunction):
     keywords or language constructs.
     """
 
-    source_files_only = True
     minimum_files = 1
+
+    def accepts_file(self, filename, language):
+        """Only source files of the runtime language; documents never reach these rules."""
+        return is_runtime_source(filename, language)
 
     PREDEFINED_RULES: Dict[Language, Dict[str, Dict[str, Any]]] = {
         Language.PYTHON: {
@@ -218,7 +223,7 @@ class ForbiddenKeywordTest(TestFunction):
             try:
                 from ast_grep_py import SgRoot  # pylint: disable=import-outside-toplevel
                 for language in languages:
-                    SgRoot('', AST_GRAMMARS[language]).root().find_all(**rule)
+                    SgRoot('', RUNTIME_GRAMMARS[Language(language)]).root().find_all(**rule)
             except Exception:  # pylint: disable=broad-exception-caught
                 yield ParameterIssue('INVALID_AST_RULE', ('custom_ast_grep_rules', index),
                                      'Rule must compile for every allowed language')

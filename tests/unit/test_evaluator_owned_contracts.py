@@ -19,8 +19,9 @@ from autograder import (
     describe_templates, evaluate_submission,
 )
 from autograder.models.contracts import definition as definition_module
-from sandbox_manager.models.sandbox_models import CommandResponse, Language, ResponseCategory
 from tests.grading import FakeProvider
+from tests.process_results import exited
+from autograder.models.language import Language
 
 
 def template_with(*evaluators, sandbox=False):
@@ -295,8 +296,7 @@ def test_ordinary_evaluators_receive_no_ai_results_provider_or_scope():
 
 def test_execution_session_is_bound_only_to_evaluators_that_declare_it():
     session = MagicMock()
-    session.run_commands.return_value = CommandResponse(stdout="ok", stderr="", exit_code=0, execution_time=0,
-                                                        category=ResponseCategory.SUCCESS)
+    session.run_process.return_value = exited("ok")
     capture = Capture()
     value = definition("capture", {}, templates=("local", "input_output"), extra_tests=[{
         "id": "run", "type": "expect_output", "name": "Run",
@@ -305,7 +305,7 @@ def test_execution_session_is_bound_only_to_evaluators_that_declare_it():
                                   capabilities=HostCapabilities(execution=lambda language: session))
     assert outcome.status == "completed" and outcome.score == 100
     assert capture.calls[0].session is None
-    assert session.run_commands.call_args.kwargs["program_command"] == "python3 main.py"
+    assert session.run_process.call_args.args[0].argv == ("python3", "main.py")
     session.close.assert_called_once()
 
 

@@ -9,7 +9,7 @@ from autograder.models.evaluation_error import EvaluationError
 
 from autograder.template_library.static_analysis import ForbiddenKeywordTest, StaticAnalysisTemplate, ForbiddenKeywordConfig
 from autograder.models.dataclass.submission import SubmissionFile
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 
 class TestForbiddenKeywordRegistration:

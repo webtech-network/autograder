@@ -1,7 +1,7 @@
 """Invoke evaluators exactly as the grader does, for focused unit tests."""
 from autograder.models.abstract.ai_test_function import AiTestFunction
 from autograder.models.abstract.test_function import EvaluationInput
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 
 def invoke(function, files=None, sandbox=None, *, submission_language=None, locale="en", **parameters):

@@ -8,12 +8,18 @@ from autograder.models.dataclass.asset import ResolvedAsset
 
 
 class DockerSession:
+    """One sandbox lease: acquisition, preparation, use and disposal.
+
+    The session borrows its manager (owned by the host) and owns exactly one
+    sandbox. ``close`` disposes it; repeating ``close`` after confirmation is a
+    no-op, and repeating it after a ``SandboxCleanupError`` retries disposal.
+    """
     fixture_root = "/tmp/app"
 
     def __init__(self, manager, language):
         self.manager = manager
         self.language = language
-        self.sandbox = manager.get_sandbox(language)
+        self.sandbox = manager.acquire(language)
         self._closed = False
 
     def prepare_workdir(self, files):
@@ -24,22 +30,26 @@ class DockerSession:
             target=f"{self.fixture_root}/{relative_path(path)}", content=content, read_only=read_only)])
 
     def inject_assets(self, assets):
-        """Legacy deliberate-run host paths; grading uses stage_fixture instead."""
+        """Deliberate-run host path; grading uses stage_fixture instead."""
         self.sandbox.inject_assets(assets)
 
-    def run_command(self, command, **kwargs):
-        return self.sandbox.run_command(command, **kwargs)
-
-    def run_commands(self, inputs, *, program_command, **kwargs):
-        return self.sandbox.run_commands(inputs, program_command=program_command, **kwargs)
+    def run_process(self, request):
+        return self.sandbox.run_process(request)
 
     def read_artifact(self, path):
         return self.sandbox.extract_file(f"/app/{relative_path(path)}")
 
     def close(self):
         if not self._closed:
+            self.manager.dispose(self.sandbox)
             self._closed = True
-            self.manager.destroy_sandbox(self.language, self.sandbox)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
 
 
 class ConfiguredFixtureProvider:
@@ -80,50 +90,55 @@ def docker_capabilities(manager):
 
 
 class DockerHost:
-    """Lazy, isolated manager for one host lifetime. Static work starts nothing."""
-    def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml"):
+    """Lazy, isolated manager for one host lifetime. Static work starts nothing.
+
+    The host owns the manager: the first acquisition starts it (taking Docker
+    ownership and reclaiming provably dead owners in local mode) and ``close``
+    shuts it down. Signal handling stays with the host process (uvicorn or the
+    Actions entrypoint), never with this library.
+    """
+    def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml",
+                 api_token=None, lease_dir=None):
+        if mode not in ("local", "remote"):
+            raise ValueError("Unsupported sandbox host mode")
         self.mode = mode
         self.api_url = api_url
         self.config_file = config_file
+        self.api_token = api_token
+        self.lease_dir = lease_dir
         self._manager = None
-        self._client = None
+        self._closed = False
         self._lock = Lock()
         self.capabilities = HostCapabilities(execution=self.acquire,
             fixtures=ConfiguredFixtureProvider(), ai=ConfiguredAssessmentProvider())
 
+    def _start_manager(self):
+        if self.mode == "remote":
+            from sandbox_manager.remote_client import RemoteSandboxManager
+            return RemoteSandboxManager(api_url=self.api_url, token=self.api_token).start()
+        from sandbox_manager.manager import SandboxManager
+        from sandbox_manager.models.pool_config import SandboxPoolConfig
+        return SandboxManager(SandboxPoolConfig.load_from_yaml(self.config_file), lease_dir=self.lease_dir).start()
+
     def acquire(self, language):
         with self._lock:
+            if self._closed:
+                raise RuntimeError("The sandbox host is closed")
             if self._manager is None:
-                if self.mode == "remote":
-                    from sandbox_manager.remote_client import RemoteSandboxManager
-                    self._manager = RemoteSandboxManager(api_url=self.api_url)
-                elif self.mode == "local":
-                    import docker
-                    from sandbox_manager.manager import SandboxManager
-                    from sandbox_manager.language_pool import LanguagePool
-                    from sandbox_manager.models.pool_config import SandboxPoolConfig
-                    self._client = docker.from_env()
-                    configs = SandboxPoolConfig.load_from_yaml(self.config_file)
-                    self._manager = SandboxManager({config.language: LanguagePool(
-                        config.language, config, self._client) for config in configs})
-                else:
-                    raise ValueError("Unsupported sandbox host mode")
+                self._manager = self._start_manager()
             manager = self._manager
         return DockerSession(manager, language)
 
     def close(self):
         with self._lock:
-            manager, client = self._manager, self._client
-            self._manager = self._client = None
-        try:
-            if manager is not None:
-                manager.shutdown()
-        finally:
-            if client is not None:
-                client.close()
+            manager, self._manager, self._closed = self._manager, None, True
+        if manager is not None:
+            manager.shutdown()
 
     @classmethod
     def from_environment(cls):
         return cls(mode=os.environ.get("SANDBOX_MODE", "remote"),
                    api_url=os.environ.get("SANDBOX_API_URL", "http://localhost:8001"),
-                   config_file=os.environ.get("SANDBOX_CONFIG_FILE", "sandbox_config.yml"))
+                   config_file=os.environ.get("SANDBOX_CONFIG_FILE", "sandbox_config.yml"),
+                   api_token=os.environ.get("SANDBOX_API_TOKEN") or None,
+                   lease_dir=os.environ.get("SANDBOX_LEASE_DIR") or None)

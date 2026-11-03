@@ -23,12 +23,35 @@ general:
     # Development: 300 (5 min), Production: 600 (10 min) to reduce churn
     idle_timeout: 600
 
-    # RUNNING TIMEOUT: Maximum seconds a sandbox can be actively processing
-    # - Prevents hanging/stuck processes from blocking resources
-    # - Active sandboxes exceeding this are forcefully destroyed
+    # RUNNING TIMEOUT: Maximum lease duration in seconds (acquisition to disposal)
+    # - Bounds leaked or abandoned leases, including remote clients that crashed
+    # - Leases exceeding this are destroyed; the holder then sees an expired sandbox
     # - Should be generous enough for complex submissions
     # Development: 60, Production: 120 (2 min) for safety
     running_timeout: 120
+
+# RUNTIMES: the host's runtime profiles, mapping a domain language identifier to the
+# sandbox image this host runs for it. Replacing an image changes only this map.
+# A language left out has no pool: grading or deliberate execution in that language
+# fails as an unavailable capability (never as an invalid language).
+runtimes:
+    python: sandbox-py:latest
+    java: sandbox-java:latest
+    node: sandbox-node:latest
+    cpp: sandbox-cpp:latest
+    c: sandbox-cpp:latest
+
+# RUNTIME PROFILE: the single owner of Docker isolation and limits for every sandbox.
+# runtime: auto (gVisor runsc when Docker registers it, else runc) | runsc (required) | runc
+# Only the isolation kernel differs between runtimes; every limit below applies to both.
+runtime:
+    runtime: auto
+    memory: 128m          # memory and memory+swap
+    cpus: 0.5
+    pids_limit: 64
+    file_size_bytes: 10000000
+    workspace_size: 64m   # /app tmpfs (exec)
+    tmp_size: 32m         # /tmp tmpfs (noexec)
 
 # SCALING BEHAVIOR (After Fix):
 # 1. ON HIGH DEMAND: When all idle sandboxes are busy, system automatically
