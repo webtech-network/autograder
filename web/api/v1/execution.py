@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from web.api.deps import get_host, require_integration_token
+from web.api.deps import get_host
 from web.schemas.execution import (
     DeliberateCodeExecutionRequest,
     DeliberateCodeExecutionResponse,
@@ -16,9 +16,7 @@ router = APIRouter(prefix="/execute", tags=["Code Execution"])
 @router.post(
     "",
     response_model=DeliberateCodeExecutionResponse,
-    dependencies=[Depends(require_integration_token)],
     responses={
-        401: {"description": "Missing or invalid integration token"},
         422: {"description": "Invalid or over-limit request"},
         503: {"model": ExecutionErrorResponse, "description": "Execution infrastructure unavailable"},
         504: {"model": ExecutionErrorResponse, "description": "Request deadline exceeded"},

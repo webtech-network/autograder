@@ -114,7 +114,7 @@ coordination; internal pipeline classes are not a compatibility promise.
 The web adapter provides a bounded synchronous `POST /api/v1/execute` for
 pre-submission runs. It uses `test_cases` as stdin lines and `results` as an
 ordered list, separate from grading-tree orchestration.
-Authentication uses the existing host integration token. The shared sandbox
+Authentication uses the host integration token (see [AUTH.md](AUTH.md)). The shared sandbox
 manager's per-language pool is the current common admission limit for grading
 and deliberate runs. A process failure is a 200 result with stdout, stderr,
 exit status and category; an infrastructure failure is 503, and a connected
@@ -150,3 +150,14 @@ precedes terminal outcome construction; cleanup errors reach host logging and an
 optional observer without replacing the grade. Disabled feedback calls neither
 focus nor reporting. The supported facades and v1 wire schemas are unchanged.
 See [Python migration and execution order](../core/pipeline-architecture.md).
+
+## HTTP trust boundary (INT-01)
+
+The web API is a trusted application-to-application boundary. Authentication is
+declared once per router: health, readiness and the static template catalog are
+public; external-result attestation needs the `attest` scope; every other route,
+including all configuration aliases, submission reads and deliberate execution,
+needs the `integration` scope. All integration principals share all resources;
+caller-supplied user identifiers never authorize. Restricted attestation tokens
+let a producer publish without reading data. A missing credential configuration
+fails closed (503) and readiness reports it. See [AUTH.md](AUTH.md).

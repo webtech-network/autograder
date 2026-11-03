@@ -1,7 +1,7 @@
 """HTTP transport for durable acceptance, history and authenticated outcomes."""
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
-from web.api.deps import get_db_session, require_integration_token
+from web.api.deps import get_db_session
 from web.database.models.submission import SubmissionStatus
 from web.schemas import (
     SubmissionCreate, SubmissionResponse, SubmissionDetailResponse,
@@ -13,6 +13,8 @@ from web.service.submission_operations import (
 )
 
 router = APIRouter(prefix="/submissions", tags=["Submissions"])
+# Restricted producers may only attest finished outcomes (see docs/contracts/AUTH.md).
+attestation_router = APIRouter(prefix="/submissions", tags=["Submissions"])
 
 
 async def _operation(awaitable):
@@ -45,14 +47,12 @@ async def get_user_submissions(external_user_id: str, limit: int = Query(100, ge
     return await query_history(session, external_user_id=external_user_id, limit=limit, offset=offset)
 
 
-@router.post("/external-results", response_model=ExternalResultResponse,
-             dependencies=[Depends(require_integration_token)])
+@attestation_router.post("/external-results", response_model=ExternalResultResponse)
 async def ingest_external_result(payload: ExternalResultCreate, session=Depends(get_db_session)):
     return await _operation(ingest_attested_outcome(session, payload))
 
 
-@router.get("/{submission_id}/details", response_model=SubmissionDetailResponse,
-            dependencies=[Depends(require_integration_token)])
+@router.get("/{submission_id}/details", response_model=SubmissionDetailResponse)
 async def get_submission_details(submission_id: int, session=Depends(get_db_session)):
     return await _operation(query_submission(session, submission_id, details=True))
 

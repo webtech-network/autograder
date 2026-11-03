@@ -19,9 +19,11 @@ def isolated_api(tmp_path_factory):
     config = directory / "sandbox.yml"
     config.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
     token = secrets.token_hex(24)
+    producer_token = secrets.token_hex(24)
     owner = uuid4().hex
     env = dict(os.environ, DATABASE_URL=f"sqlite+aiosqlite:///{database}",
-        AUTOGRADER_INTEGRATION_TOKEN=token, AUTOGRADER_E2E_OWNER=owner,
+        AUTOGRADER_INTEGRATION_TOKEN=token, AUTOGRADER_ATTESTATION_TOKENS=f"actions={producer_token}",
+        AUTOGRADER_E2E_OWNER=owner,
         SANDBOX_MODE="local", SANDBOX_CONFIG_FILE=str(config), LOG_LEVEL="WARNING",
         APP_ENV="test", PYTHON_DOTENV_DISABLED="1")
     # Retain the bound socket through exec, avoiding a free-port discovery race.
@@ -50,7 +52,8 @@ def isolated_api(tmp_path_factory):
                 time.sleep(0.05)
             else:
                 pytest.fail("Isolated API startup timed out:\n" + log_path.read_text())
-            yield {"url": url, "token": token, "database": database, "log": log_path}
+            yield {"url": url, "token": token, "producer_token": producer_token,
+                   "database": database, "log": log_path}
         finally:
             process.terminate()
             try:
@@ -68,6 +71,12 @@ def api_base_url(isolated_api):
 @pytest.fixture
 def auth_headers(isolated_api):
     return {"Authorization": "Bearer " + isolated_api["token"]}
+
+
+@pytest.fixture
+def producer_headers(isolated_api):
+    """Restricted attestation-only credential for the `actions` producer."""
+    return {"Authorization": "Bearer " + isolated_api["producer_token"]}
 
 
 @pytest.fixture

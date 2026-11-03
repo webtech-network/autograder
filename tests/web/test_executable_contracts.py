@@ -98,7 +98,7 @@ async def test_action_attestation_and_http_execution_have_the_same_polling_outco
     )
     assert rejected.status_code == 422
     assert (await test_client.post(
-        "/api/v1/submissions/external-results", json=payload
+        "/api/v1/submissions/external-results", json=payload, headers={"Authorization": ""}
     )).status_code == 401
 
 

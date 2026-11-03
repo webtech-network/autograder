@@ -39,6 +39,7 @@ markdown_extensions:
 nav:
   - Integration Contracts:
       - Executable Examples: contracts/CONFORMANCE.md
+      - HTTP Trust Boundary: contracts/AUTH.md
       - Submission Input: contracts/SUBMISSIONS.md
       - Evaluator Files: contracts/FILES.md
       - Host Capabilities: contracts/CAPABILITIES.md

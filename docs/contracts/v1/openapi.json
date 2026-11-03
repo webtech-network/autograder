@@ -111,6 +111,61 @@
         }
       }
     },
+    "/api/v1/submissions/external-results": {
+      "post": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "Ingest External Result",
+        "operationId": "ingest_external_result_api_v1_submissions_external_results_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalResultCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalResultResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/configs/validate": {
       "post": {
         "tags": [
@@ -137,6 +192,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -147,7 +211,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ]
       }
     },
     "/api/v1/configs": {
@@ -157,6 +226,11 @@
         ],
         "summary": "Create Grading Config",
         "operationId": "create_grading_config_api_v1_configs_post",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -178,6 +252,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -196,6 +279,11 @@
         ],
         "summary": "List Grading Configs",
         "operationId": "list_grading_configs_api_v1_configs_get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -236,6 +324,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -258,7 +355,7 @@
         "operationId": "get_grading_config_by_id_api_v1_configs_id__config_id__get",
         "security": [
           {
-            "HTTPBearer": []
+            "IntegrationBearer": []
           }
         ],
         "parameters": [
@@ -282,6 +379,15 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
           },
           "422": {
             "description": "Validation Error",
@@ -303,6 +409,11 @@
         ],
         "summary": "Get Grading Config",
         "operationId": "get_grading_config_api_v1_configs__external_assignment_id__get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "external_assignment_id",
@@ -325,6 +436,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -345,6 +465,11 @@
         ],
         "summary": "Update Grading Config External",
         "operationId": "update_grading_config_external_api_v1_configs_external__external_assignment_id__patch",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "external_assignment_id",
@@ -393,6 +518,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -413,6 +547,11 @@
         ],
         "summary": "Update Grading Config",
         "operationId": "update_grading_config_api_v1_configs__config_id__patch",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "config_id",
@@ -461,6 +600,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -481,6 +629,11 @@
         ],
         "summary": "Create Submission",
         "operationId": "create_submission_api_v1_submissions_post",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -502,6 +655,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -520,6 +682,11 @@
         ],
         "summary": "History",
         "operationId": "history_api_v1_submissions_get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "external_user_id",
@@ -609,6 +776,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -629,6 +805,11 @@
         ],
         "summary": "Get User Submissions",
         "operationId": "get_user_submissions_api_v1_submissions_user__external_user_id__get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "external_user_id",
@@ -678,6 +859,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -691,52 +881,6 @@
         }
       }
     },
-    "/api/v1/submissions/external-results": {
-      "post": {
-        "tags": [
-          "Submissions"
-        ],
-        "summary": "Ingest External Result",
-        "operationId": "ingest_external_result_api_v1_submissions_external_results_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ExternalResultCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalResultResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/api/v1/submissions/{submission_id}/details": {
       "get": {
         "tags": [
@@ -746,7 +890,7 @@
         "operationId": "get_submission_details_api_v1_submissions__submission_id__details_get",
         "security": [
           {
-            "HTTPBearer": []
+            "IntegrationBearer": []
           }
         ],
         "parameters": [
@@ -771,6 +915,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -791,6 +944,11 @@
         ],
         "summary": "Get Submission",
         "operationId": "get_submission_api_v1_submissions__submission_id__get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "submission_id",
@@ -812,6 +970,15 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
           },
           "422": {
             "description": "Validation Error",
@@ -856,10 +1023,10 @@
             }
           },
           "401": {
-            "description": "Missing or invalid integration token"
+            "description": "Missing or invalid bearer token"
           },
-          "422": {
-            "description": "Invalid or over-limit request"
+          "403": {
+            "description": "Credential lacks the required scope"
           },
           "503": {
             "description": "Execution infrastructure unavailable",
@@ -870,6 +1037,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Invalid or over-limit request"
           },
           "504": {
             "description": "Request deadline exceeded",
@@ -884,7 +1054,7 @@
         },
         "security": [
           {
-            "HTTPBearer": []
+            "IntegrationBearer": []
           }
         ]
       }
@@ -4053,8 +4223,9 @@
       }
     },
     "securitySchemes": {
-      "HTTPBearer": {
+      "IntegrationBearer": {
         "type": "http",
+        "description": "Integration token (full access) or a restricted attestation token (POST /submissions/external-results only).",
         "scheme": "bearer"
       }
     }

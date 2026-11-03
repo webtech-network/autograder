@@ -192,7 +192,7 @@ async def test_source_scope_and_metadata_round_trip(test_client, application, ch
     poll = (await test_client.get(endpoint)).json()
     for omitted in ("submission_files", "submission_metadata", "evaluation_scope", "locale"):
         assert omitted not in poll
-    assert (await test_client.get(endpoint + "/details")).status_code == 401
+    assert (await test_client.get(endpoint + "/details", headers={"Authorization": ""})).status_code == 401
     detail = (await test_client.get(endpoint + "/details",
                                     headers={"Authorization": "Bearer input-test-token"})).json()
     assert detail["submission_files"]["src/main.py"] == {**file, "changed_lines": changed_lines}
