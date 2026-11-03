@@ -32,6 +32,8 @@ class Settings:
     SANDBOX_CONFIG_FILE: str = field(default_factory=lambda: os.getenv("SANDBOX_CONFIG_FILE", "sandbox_config.yml"))
     SANDBOX_MODE: str = field(default_factory=lambda: os.getenv("SANDBOX_MODE", "local"))
     SANDBOX_API_URL: str = field(default_factory=lambda: os.getenv("SANDBOX_API_URL", "http://localhost:8001"))
+    SANDBOX_API_TOKEN: str = field(default_factory=lambda: os.getenv("SANDBOX_API_TOKEN", ""), repr=False)
+    SANDBOX_LEASE_DIR: str = field(default_factory=lambda: os.getenv("SANDBOX_LEASE_DIR", ""))
 
     def __post_init__(self):
         if not self.DATABASE_URL:
@@ -42,5 +44,7 @@ class Settings:
             raise ValueError("Worker lease and polling intervals must be positive")
         if self.SANDBOX_MODE not in ("local", "remote"):
             raise ValueError("SANDBOX_MODE must be local or remote")
+        if self.SANDBOX_MODE == "remote" and not self.SANDBOX_API_TOKEN:
+            raise ValueError("SANDBOX_API_TOKEN is required when SANDBOX_MODE is remote")
         if min(self.DATABASE_POOL_SIZE, self.DATABASE_POOL_TIMEOUT, self.DATABASE_POOL_RECYCLE) <= 0 or self.DATABASE_MAX_OVERFLOW < 0:
             raise ValueError("Database pool settings must be positive; overflow may be zero")

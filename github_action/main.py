@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import signal
 import stat
 
 from autograder.models.dataclass.submission import SubmissionFile
@@ -168,6 +169,13 @@ def main(argv=None):
         raise SystemExit(1) from exc
 
 
+def _exit_on_sigterm(signum, _frame):
+    """Turn runner cancellation into SystemExit so host cleanup ``finally`` blocks run."""
+    raise SystemExit(128 + signum)
+
+
 if __name__ == "__main__":
+    # The Actions entrypoint is the host process; it alone owns signal behavior.
+    signal.signal(signal.SIGTERM, _exit_on_sigterm)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     main()

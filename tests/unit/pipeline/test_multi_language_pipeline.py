@@ -90,8 +90,7 @@ class TestSubmissionLanguageHandling:
 class TestPipelineLanguageHandling:
     """Test that the pipeline correctly uses the submission's language."""
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
-    def test_pipeline_uses_submission_language_for_sandbox(self, mock_get_manager):
+    def test_pipeline_uses_submission_language_for_sandbox(self):
         """Test that the pipeline creates sandbox using submission's language."""
         from autograder.autograder import build_pipeline
         from autograder.models.dataclass.submission import Submission, SubmissionFile
@@ -99,8 +98,7 @@ class TestPipelineLanguageHandling:
         # Mock sandbox manager
         mock_manager = Mock()
         mock_sandbox = Mock()
-        mock_get_manager.return_value = mock_manager
-        mock_manager.get_sandbox.return_value = mock_sandbox
+        mock_manager.acquire.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 
         # Create pipeline with preflight step (which uses sandbox)
@@ -133,7 +131,7 @@ class TestPipelineLanguageHandling:
 
         # Verify sandbox was requested with Java language
         # This will be called during SandboxStep
-        mock_manager.get_sandbox.assert_called_once_with(Language.JAVA)
+        mock_manager.acquire.assert_called_once_with(Language.JAVA)
 
 
 class TestLanguageEnumValues:

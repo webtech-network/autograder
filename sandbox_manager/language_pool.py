@@ -1,379 +1,256 @@
-from datetime import datetime
+"""One language's warm containers and the records that own them until destruction.
+
+A container is always in exactly one record set until Docker confirms removal:
+
+``idle`` (warm) -> ``active`` (leased) -> ``closing`` -> confirmed (record dropped)
+
+``closing`` records are kept when Docker fails, retried with capped backoff by
+the manager's monitor, counted against ``scale_limit`` and reported in stats.
+"""
 import logging
 import threading
-import uuid
+import time
 from collections import deque
-from typing import Set
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, Optional, Set
 
+import docker
 from docker.client import DockerClient
-from docker.types.containers import Ulimit
 
+from sandbox_manager.errors import Disposal, SandboxCapacityError, SandboxCleanupError
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import Language
+from sandbox_manager.models.sandbox_models import Language, SandboxState
+from sandbox_manager.ownership import APP_VALUE, LABEL_APP, LABEL_OWNER
 from sandbox_manager.sandbox_container import SandboxContainer
 
-# Container label constants for tracking and cleanup
-LABEL_APP = "autograder.sandbox.app"
 LABEL_VERSION = "autograder.sandbox.version"
 LABEL_LANGUAGE = "autograder.sandbox.language"
 LABEL_POOL_ID = "autograder.sandbox.pool_id"
 LABEL_CREATED_AT = "autograder.sandbox.created_at"
-SANDBOX_VERSION = "1.0"
+SANDBOX_VERSION = "2.0"
+MAX_RETRY_DELAY_SECONDS = 60.0
 
-# Create module-level logger
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class CleanupRecord:
+    """A container whose destruction has started but is not yet confirmed."""
+    reason: str
+    attempts: int = 0
+    last_error: Optional[str] = None
+    next_attempt: float = 0.0
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+
 class LanguagePool:
-    def __init__(self,
-                 language: Language,
-                 config: SandboxPoolConfig,
-                 client: DockerClient = None
-                 ):
+    def __init__(self, language: Language, config: SandboxPoolConfig, client: DockerClient, *,
+                 owner_id: str, runtime: str):
         self.language = language
         self.config = config
         self.client = client
-        self.pool_id = str(uuid.uuid4())  # Unique identifier for this pool instance
-        self._sandbox_seq = 0  # Per-pool creation sequence counter
+        self.owner_id = owner_id
+        self.runtime = runtime
+        self.pool_id = owner_id  # container names stay unique per owner
+        self._sandbox_seq = 0
+        self.closed = False
 
-        self.idle_sandboxes : deque[SandboxContainer] = deque()
-        self.active_sandboxes : Set[SandboxContainer] = set()
-
-        # Only blocks for this pool, allowing concurrent access to different pools
+        self.idle_sandboxes: deque[SandboxContainer] = deque()
+        self.active_sandboxes: Set[SandboxContainer] = set()
+        self.closing: Dict[SandboxContainer, CleanupRecord] = {}
         self.lock = threading.Lock()
 
-        logger.info("[%s] POOL INITIALIZED - pool_size: %s, scale_limit: %s, pool_id: %s",
-                    language, config.pool_size, config.scale_limit, self.pool_id[:8])
+    # ----- leasing -------------------------------------------------------------------
+    def _total(self) -> int:
+        return len(self.idle_sandboxes) + len(self.active_sandboxes) + len(self.closing)
 
     def acquire(self) -> SandboxContainer:
         with self.lock:
-            current_total = len(self.active_sandboxes) + len(self.idle_sandboxes)
-            current_idle = len(self.idle_sandboxes)
-            current_active = len(self.active_sandboxes)
-
-            logger.debug("[%s] ACQUIRE REQUEST - idle: %s, active: %s, total: %s/%s",
-                         self.language, current_idle, current_active, current_total, self.config.scale_limit)
-
-            # Try to get an idle sandbox first
+            if self.closed:
+                raise SandboxCapacityError(f"The {self.language.value} pool is shut down")
             if self.idle_sandboxes:
                 sandbox = self.idle_sandboxes.popleft()
-                sandbox.pickup() # Update state and timestamp
-                self.active_sandboxes.add(sandbox)
-                logger.info("[%s] ACQUIRED from idle pool - sandbox_id: %s",
-                            self.language, sandbox.container_ref.id[:12])
-                return sandbox
-
-            # No idle sandboxes - check if we can scale up
-            if current_total < self.config.scale_limit:
-                # We can create a new sandbox on-demand
-                logger.info("[%s] NO IDLE SANDBOXES - Attempting scale-up...", self.language)
+            elif self._total() < self.config.scale_limit:
                 try:
-                    new_sandbox = self._create_sandbox()
-                    new_sandbox.pickup()
-                    self.active_sandboxes.add(new_sandbox)
-                    logger.info("[%s] SCALE-UP SUCCESS - created sandbox_id: %s",
-                                self.language, new_sandbox.container_ref.id[:12])
-                    return new_sandbox
-                except Exception as e:
-                    logger.exception("[%s] SCALE-UP FAILED - Error: %s", self.language, e)
-                    raise ValueError(f"Failed to create sandbox for language {self.language}: {e}")
+                    sandbox = self._create_sandbox()
+                except Exception as exc:
+                    logger.exception("[%s] scale-up failed", self.language.value)
+                    raise SandboxCapacityError(f"Failed to create a {self.language.value} sandbox") from exc
+            else:
+                logger.warning("[%s] all %s sandboxes are leased or closing (scale_limit %s)",
+                               self.language.value, self._total(), self.config.scale_limit)
+                raise SandboxCapacityError(
+                    f"No {self.language.value} sandbox is available (scale_limit {self.config.scale_limit})")
+            sandbox.pickup()
+            self.active_sandboxes.add(sandbox)
+            return sandbox
 
-            # At scale limit and all busy - fail
-            logger.warning("[%s] BOTTLENECK DETECTED - All %s sandboxes are BUSY (scale_limit: %s)",
-                           self.language, current_total, self.config.scale_limit)
-            raise ValueError(
-                f"No idle sandboxes available for language {self.language}. "
-                f"All {current_total} sandboxes are busy (scale_limit: {self.config.scale_limit})"
-            )
-
-    def release(self, sandbox: SandboxContainer) -> None:
+    def dispose(self, sandbox: SandboxContainer) -> Disposal:
+        """End a lease. Idempotent; raises ``SandboxCleanupError`` while unconfirmed."""
         with self.lock:
             if sandbox in self.active_sandboxes:
-                sandbox_id = sandbox.container_ref.id[:12]
-                self.active_sandboxes.remove(sandbox)
-
-                # Always destroy on release to ensure strict isolation between users
-                # Performance is secondary to security and isolation in an autograder.
-                self._destroy_sandbox(sandbox)
+                record = self._start_closing(sandbox, "disposed")
+            elif sandbox in self.closing:
+                record = self.closing[sandbox]
+            elif sandbox.state is SandboxState.STOPPED:
+                return Disposal.ALREADY_DISPOSED
             else:
-                raise ValueError("Sandbox not found in active sandboxes")
+                raise ValueError("Sandbox is not leased from this pool")
+        return self._destroy(sandbox, record)
 
-        # Call replenish outside the lock to avoid deadlock
-        # This ensures we maintain minimum pool_size
-        self.replenish()
+    # ----- destruction ---------------------------------------------------------------
+    def _start_closing(self, sandbox: SandboxContainer, reason: str) -> CleanupRecord:
+        """Move a record to ``closing``; caller holds ``self.lock``."""
+        self.active_sandboxes.discard(sandbox)
+        try:
+            self.idle_sandboxes.remove(sandbox)
+        except ValueError:
+            pass
+        sandbox.state = SandboxState.CLOSING
+        record = self.closing[sandbox] = CleanupRecord(reason=reason)
+        return record
 
-    def acquire_sandbox(self):
-        """
-        Context manager for safe sandbox acquisition and guaranteed release.
-
-        Usage:
-            with pool.acquire_sandbox() as sandbox:
-                sandbox.run_command("python script.py")
-            # Sandbox is automatically released even if an exception occurs
-        """
-        from contextlib import contextmanager
-
-        @contextmanager
-        def _sandbox_context():
-            sandbox = self.acquire()
+    def _destroy(self, sandbox: SandboxContainer, record: CleanupRecord) -> Disposal:
+        with record.lock:
+            if sandbox.state is SandboxState.STOPPED:
+                return Disposal.ALREADY_DISPOSED
             try:
-                yield sandbox
-            finally:
-                self.release(sandbox)
-
-        return _sandbox_context()
-
-    def replenish(self):
-        """
-        Responsible for maintaining minimum pool_size of idle sandboxes.
-        Only creates sandboxes if:
-        1. Idle count is below pool_size (minimum)
-        2. Total sandboxes (active + idle) is below scale_limit (maximum)
-        """
+                sandbox.container_ref.remove(force=True, v=True)
+            except docker.errors.NotFound:
+                pass  # already gone: destruction is confirmed
+            except Exception as exc:
+                record.attempts += 1
+                record.last_error = repr(exc)
+                record.next_attempt = time.monotonic() + min(MAX_RETRY_DELAY_SECONDS, 2.0 ** record.attempts)
+                logger.error("[%s] sandbox %s cleanup failed (attempt %s, %s); record retained for retry: %s",
+                             self.language.value, sandbox.container_ref.id[:12], record.attempts,
+                             record.reason, exc)
+                raise SandboxCleanupError("Sandbox disposal was not confirmed; its owner retains it for retry") from exc
+            sandbox.state = SandboxState.STOPPED
         with self.lock:
-            current_total_sandboxes = len(self.active_sandboxes) + len(self.idle_sandboxes)
-            current_idle = len(self.idle_sandboxes)
-            needed = self.config.pool_size - current_idle
+            self.closing.pop(sandbox, None)
+        logger.info("[%s] sandbox %s destroyed (%s)", self.language.value, sandbox.container_ref.id[:12], record.reason)
+        return Disposal.DISPOSED
 
-            if needed > 0:
-                logger.debug("[%s] REPLENISH CHECK - idle: %s/%s (need %s more), total: %s/%s",
-                             self.language, current_idle, self.config.pool_size, needed,
-                             current_total_sandboxes, self.config.scale_limit)
+    def _try_destroy(self, sandbox: SandboxContainer, record: CleanupRecord) -> bool:
+        try:
+            self._destroy(sandbox, record)
+            return True
+        except SandboxCleanupError:
+            return False
 
-            # Maintain minimum pool_size of idle sandboxes
-            while len(self.idle_sandboxes) < self.config.pool_size and current_total_sandboxes < self.config.scale_limit:
+    def retry_cleanup(self) -> None:
+        """Retry due ``closing`` records (called by the monitor)."""
+        now = time.monotonic()
+        with self.lock:
+            due = [(sandbox, record) for sandbox, record in self.closing.items() if record.next_attempt <= now]
+        for sandbox, record in due:
+            self._try_destroy(sandbox, record)
+
+    def expire_leases(self) -> None:
+        """Dispose leases older than ``running_timeout``; the holder sees an expired sandbox."""
+        now = datetime.now()
+        with self.lock:
+            expired = [sandbox for sandbox in self.active_sandboxes
+                       if (now - sandbox.last_updated).total_seconds() > self.config.running_timeout]
+            records = [(sandbox, self._start_closing(sandbox, "lease expired")) for sandbox in expired]
+        for sandbox, record in records:
+            logger.warning("[%s] lease on sandbox %s exceeded %ss; disposing it",
+                           self.language.value, sandbox.container_ref.id[:12], self.config.running_timeout)
+            self._try_destroy(sandbox, record)
+
+    def scale_down_idle(self) -> None:
+        now = datetime.now()
+        with self.lock:
+            surplus = len(self.idle_sandboxes) - self.config.pool_size
+            stale = [sandbox for sandbox in self.idle_sandboxes
+                     if (now - sandbox.created_at).total_seconds() > self.config.idle_timeout][:max(surplus, 0)]
+            records = [(sandbox, self._start_closing(sandbox, "idle scale-down")) for sandbox in stale]
+        for sandbox, record in records:
+            self._try_destroy(sandbox, record)
+
+    def replenish(self) -> None:
+        """Keep ``pool_size`` warm sandboxes without exceeding ``scale_limit``."""
+        with self.lock:
+            while (not self.closed and len(self.idle_sandboxes) < self.config.pool_size
+                   and self._total() < self.config.scale_limit):
                 try:
-                    new_sandbox = self._create_sandbox()
-                    self.idle_sandboxes.append(new_sandbox)
-                    current_total_sandboxes += 1
-                    logger.info("[%s] REPLENISH SUCCESS - sandbox_id: %s",
-                                self.language, new_sandbox.container_ref.id[:12])
-                except Exception as e:
-                    logger.exception("[%s] REPLENISH FAILED - Error: %s", self.language, e)
+                    self.idle_sandboxes.append(self._create_sandbox())
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logger.exception("[%s] replenish failed", self.language.value)
                     break
 
-    def check_ttls(self):
-        """
-        Checks idle sandboxes for idle_timeout and active sandboxes for running_timeout, destroying those that exceed the limits.
-        """
-        now = datetime.now()
-
-        with self.lock:
-            active_snapshot = list(self.active_sandboxes)
-            idle_snapshot = list(self.idle_sandboxes)
-
-        # 1. Active TTL (Runtime limit)
-        for sandbox in active_snapshot:
-            if (now - sandbox.last_updated).total_seconds() > self.config.running_timeout:
-                logger.warning("[%s] Sandbox %s exceeded running timeout, destroying...",
-                              self.language, sandbox.container_ref.id)
-                self.release(sandbox)
-
-        # 2. Idle TTL (Scale down)
-        # Only scale down if we are above the Minimum Pool Size
-        if len(idle_snapshot) > self.config.pool_size:
-
-            for sandbox in idle_snapshot:
-                if (now - sandbox.created_at).total_seconds() > self.config.idle_timeout:
-
-                    with self.lock:
-                        # Double check inside lock before removing
-                        if sandbox in self.idle_sandboxes and len(self.idle_sandboxes) > self.config.pool_size:
-                            self.idle_sandboxes.remove(sandbox)
-                            self._destroy_sandbox(sandbox)
-
-    def monitor(self):
-        """
-        Called periodically by the manager to check TTLs and trigger replenishment if needed.
-        """
-        self.check_ttls()
+    def monitor(self) -> None:
+        self.retry_cleanup()
+        self.expire_leases()
+        self.scale_down_idle()
         self.replenish()
 
-        # Periodic stats logging every ~10 calls (assuming 1 second intervals = ~10 seconds)
-        # Only logs when there's active operations
-        if not hasattr(self, '_monitor_counter'):
-            self._monitor_counter = 0
+    def shutdown(self) -> int:
+        """Stop leasing and attempt to destroy every owned container. Returns pending count.
 
-        self._monitor_counter += 1
-        if self._monitor_counter >= 10:
-            self._monitor_counter = 0
-            stats = self.get_stats()
-            utilization = stats['utilization']
-
-            # Log with appropriate warning level based on utilization
-            if utilization >= 90:
-                logger.warning("[%s] HIGH LOAD - idle: %s, active: %s, total: %s/%s, utilization: %.1f%%",
-                              self.language, stats['idle'], stats['active'],
-                              stats['total'], stats['scale_limit'], utilization)
-            elif utilization >= 70:
-                logger.info("[%s] MODERATE LOAD - idle: %s, active: %s, total: %s/%s, utilization: %.1f%%",
-                            self.language, stats['idle'], stats['active'],
-                            stats['total'], stats['scale_limit'], utilization)
-            elif stats['active'] > 0:
-                logger.debug("[%s] STATS - idle: %s, active: %s, total: %s/%s, utilization: %.1f%%",
-                             self.language, stats['idle'], stats['active'],
-                             stats['total'], stats['scale_limit'], utilization)
-
-    def get_stats(self) -> dict:
-        """
-        Get current pool statistics for monitoring and debugging.
+        Safe to repeat: a later call retries the records that are still pending.
         """
         with self.lock:
+            self.closed = True
+            for sandbox in list(self.idle_sandboxes) + list(self.active_sandboxes):
+                self._start_closing(sandbox, "shutdown")
+            pending = list(self.closing.items())
+        for sandbox, record in pending:
+            self._try_destroy(sandbox, record)
+        with self.lock:
+            return len(self.closing)
+
+    # ----- observability -------------------------------------------------------------
+    def get_stats(self) -> dict:
+        with self.lock:
+            total = self._total()
             return {
                 "language": self.language.value,
                 "idle": len(self.idle_sandboxes),
                 "active": len(self.active_sandboxes),
-                "total": len(self.idle_sandboxes) + len(self.active_sandboxes),
+                "cleanup_pending": len(self.closing),
+                "total": total,
                 "pool_size": self.config.pool_size,
                 "scale_limit": self.config.scale_limit,
-                "utilization": len(self.active_sandboxes) / (len(self.idle_sandboxes) + len(self.active_sandboxes)) * 100 if (len(self.idle_sandboxes) + len(self.active_sandboxes)) > 0 else 0
+                "utilization": len(self.active_sandboxes) / total * 100 if total else 0,
             }
 
+    def cleanup_problems(self) -> list:
+        with self.lock:
+            return [{"language": self.language.value, "container_id": sandbox.container_ref.id[:12],
+                     "reason": record.reason, "attempts": record.attempts, "last_error": record.last_error}
+                    for sandbox, record in self.closing.items() if record.attempts]
+
+    # ----- creation ------------------------------------------------------------------
     def _create_sandbox(self) -> SandboxContainer:
-        """
-        Creates a new sandbox container with security constraints.
-        Uses gVisor runtime if available, falls back to default runtime otherwise.
-
-        Containers are kept alive with 'sleep infinity' to allow exec commands.
-        """
-        container_name = self._build_container_name()
-        logger.info("[%s] CREATE SANDBOX - Starting container creation (%s)...",
-                    self.language, container_name)
-
-        # Container labels for tracking and orphan cleanup
+        """Create one container from the runtime profile; caller holds ``self.lock``."""
+        name = self._build_container_name()
         labels = {
-            LABEL_APP: "autograder-sandbox",
+            LABEL_APP: APP_VALUE,
+            LABEL_OWNER: self.owner_id,
             LABEL_VERSION: SANDBOX_VERSION,
             LABEL_LANGUAGE: self.language.value,
             LABEL_POOL_ID: self.pool_id,
-            LABEL_CREATED_AT: datetime.now().isoformat()
+            LABEL_CREATED_AT: datetime.now().isoformat(),
         }
-
-        # Try to use gVisor runtime for enhanced security, fall back to default if not available
         try:
-            logger.debug("[%s] Attempting to create with gVisor runtime (runsc)...", self.language)
             container = self.client.containers.run(
-                image=self.language.image,
-                name=container_name,
-                detach=True,
-                command="sleep infinity",  # Keep container alive for exec commands
-                runtime="runsc",  # gVisor runtime for enhanced isolation
-                mem_limit="128m",
-                memswap_limit="128m",
-                nano_cpus=500000000,  # 0.5 CPU
-                pids_limit=64,
-                tmpfs={
-                    '/tmp': 'rw,size=32m,noexec',
-                    '/app': 'rw,size=64m,exec'  # Writable workspace for student code
-                },
-                network_mode="none",
-                cap_drop=["ALL"],
-                ulimits=[
-                    Ulimit(name='fsize', soft=10000000, hard=10000000),
-                ],
-                labels=labels
-            )
-            logger.info("[%s] Container created with gVisor - %s (%s)",
-                        self.language, container_name, container.id[:12])
-        except Exception as e:
-            # If gVisor is not available, use default runtime with same constraints
-            if "unknown or invalid runtime name" in str(e).lower() or "runsc" in str(e).lower():
-                logger.info("[%s] gVisor runtime not available, falling back to default runtime", self.language)
-                container = self.client.containers.run(
-                    image=self.language.image,
-                    name=container_name,
-                    detach=True,
-                    command="sleep infinity",  # Keep container alive for exec commands
-                    # No runtime specified = default runc
-                    mem_limit="128m",
-                    memswap_limit="128m",
-                    nano_cpus=500000000,  # 0.5 CPU
-                    pids_limit=64,
-                    tmpfs={
-                        '/tmp': 'rw,size=32m,noexec',
-                        # Note: /app intentionally NOT in tmpfs — see above.
-                    },
-                    network_mode="none",
-                    cap_drop=["ALL"],
-                    ulimits=[
-                        Ulimit(name='fsize', soft=10000000, hard=10000000),
-                    ],
-                    labels=labels
-                )
-                logger.info("[%s] Container created with default runtime - %s (%s)",
-                            self.language, container_name, container.id[:12])
-            else:
-                # Re-raise if it's a different error
-                logger.exception("[%s] Container creation failed: %s", self.language, e)
-                raise
-
-
-        sandbox = SandboxContainer(language=self.language, container_ref=container)
-        logger.info("[%s] SANDBOX CREATED SUCCESSFULLY - %s (%s)",
-                    self.language, container_name, container.id[:12])
-        return sandbox
+                image=self.language.image, name=name, labels=labels,
+                **self.config.profile.container_options(self.runtime))
+        except Exception:
+            # ``run`` may have created the container before start failed.
+            try:
+                self.client.containers.get(name).remove(force=True, v=True)
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass  # absent, or swept by the owner label at shutdown/reclamation
+            raise
+        logger.info("[%s] created sandbox %s (%s, runtime %s)", self.language.value, name,
+                    container.id[:12], self.runtime)
+        return SandboxContainer(language=self.language, container_ref=container)
 
     def _build_container_name(self) -> str:
-        """Build deterministic container name: ag-sbx-{lang}-{pool8}-{seq4}"""
+        """Deterministic container name: ag-sbx-{lang}-{owner8}-{seq4}."""
         self._sandbox_seq += 1
         return f"ag-sbx-{self.language.value}-{self.pool_id[:8]}-{self._sandbox_seq:04d}"
-
-    def destroy_sandbox(self, sandbox: SandboxContainer) -> None:
-        """
-        Destroy a sandbox immediately without releasing it back to the pool.
-        Use this for sandboxes that timeout or encounter fatal errors.
-
-        Args:
-            sandbox: The sandbox to destroy
-        """
-        with self.lock:
-            if sandbox in self.active_sandboxes:
-                sandbox_id = sandbox.container_ref.id[:12]
-                self.active_sandboxes.remove(sandbox)
-                logger.info("[%s] REMOVE FROM ACTIVE - sandbox_id: %s", self.language, sandbox_id)
-            else:
-                raise ValueError("Sandbox not found in active sandboxes")
-
-        # Destroy outside the lock
-        self._destroy_sandbox(sandbox)
-
-        # Replenish pool to maintain minimum size
-        self.replenish()
-
-    def _destroy_sandbox(self, sandbox: SandboxContainer):
-        import docker
-        sandbox_id = sandbox.container_ref.id[:12]
-        logger.info("[%s] DESTROY SANDBOX - container_id: %s", self.language, sandbox_id)
-        try:
-            sandbox.container_ref.stop(timeout=1)
-            sandbox.container_ref.remove()
-            logger.info("[%s] SANDBOX DESTROYED - container_id: %s", self.language, sandbox_id)
-        except (docker.errors.NotFound, docker.errors.APIError):
-            # Container already gone or communication error - ignore silently to avoid noisy logs
-            pass
-        except Exception as e:
-            logger.exception("[%s] Error destroying sandbox %s: %s", self.language, sandbox_id, e)
-
-    def shutdown(self):
-        """
-        Destroy all containers in this pool (both active and idle).
-        Called during system shutdown to ensure cleanup.
-        """
-        logger.info("[%s] Shutting down pool, destroying all containers...", self.language)
-
-        with self.lock:
-            # Copy sets/deques to avoid modification during iteration
-            active_snapshot = list(self.active_sandboxes)
-            idle_snapshot = list(self.idle_sandboxes)
-
-            # Clear the collections
-            self.active_sandboxes.clear()
-            self.idle_sandboxes.clear()
-
-        # Destroy all containers
-        destroyed_count = 0
-        for sandbox in active_snapshot + idle_snapshot:
-            self._destroy_sandbox(sandbox)
-            destroyed_count += 1
-
-        logger.info("[%s] Pool shutdown complete. Destroyed %s containers.", self.language, destroyed_count)

@@ -10,14 +10,14 @@ from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 class TestMultiLanguageCommandResolution:
     """Test that the pipeline correctly resolves commands based on submission language."""
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
+    @patch('tests.integration.sandbox_support.current_test_manager')
     def test_pipeline_resolves_python_command(self, mock_get_manager):
         """Test that Python submissions get Python command."""
         # Mock sandbox
         mock_manager = Mock()
         mock_sandbox = Mock()
         mock_get_manager.return_value = mock_manager
-        mock_manager.get_sandbox.return_value = mock_sandbox
+        mock_manager.acquire.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 
         # Mock command execution
@@ -84,14 +84,14 @@ class TestMultiLanguageCommandResolution:
         call_args = mock_sandbox.run_commands.call_args
         assert call_args[1]['program_command'] == "python3 calculator.py"
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
+    @patch('tests.integration.sandbox_support.current_test_manager')
     def test_pipeline_resolves_java_command(self, mock_get_manager):
         """Test that Java submissions get Java command."""
         # Mock sandbox
         mock_manager = Mock()
         mock_sandbox = Mock()
         mock_get_manager.return_value = mock_manager
-        mock_manager.get_sandbox.return_value = mock_sandbox
+        mock_manager.acquire.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 
         # Mock command execution
@@ -158,14 +158,14 @@ class TestMultiLanguageCommandResolution:
         call_args = mock_sandbox.run_commands.call_args
         assert call_args[1]['program_command'] == "java Calculator"
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
+    @patch('tests.integration.sandbox_support.current_test_manager')
     def test_pipeline_resolves_cmd_placeholder(self, mock_get_manager):
         """Test that CMD placeholder auto-resolves based on language."""
         # Mock sandbox
         mock_manager = Mock()
         mock_sandbox = Mock()
         mock_get_manager.return_value = mock_manager
-        mock_manager.get_sandbox.return_value = mock_sandbox
+        mock_manager.acquire.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 
         # Mock command execution
@@ -225,14 +225,14 @@ class TestMultiLanguageCommandResolution:
         # CMD should auto-resolve to default Node command
         assert "node" in call_args[1]['program_command']
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
+    @patch('tests.integration.sandbox_support.current_test_manager')
     def test_pipeline_grading_with_multi_language_commands(self, mock_get_manager):
         """Test full grading flow with multi-language commands."""
         # Mock sandbox
         mock_manager = Mock()
         mock_sandbox = Mock()
         mock_get_manager.return_value = mock_manager
-        mock_manager.get_sandbox.return_value = mock_sandbox
+        mock_manager.acquire.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 
         # Mock command executions (2 tests)

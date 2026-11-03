@@ -168,16 +168,23 @@ def test_concrete_hosts_have_independent_managers_and_idempotent_shutdown(monkey
     from execution_host.docker import DockerHost
     from sandbox_manager import remote_client
     first_manager, second_manager = Mock(), Mock()
+    first_manager.start.return_value, second_manager.start.return_value = first_manager, second_manager
     initialize = Mock(side_effect=[first_manager, second_manager])
     monkeypatch.setattr(remote_client, "RemoteSandboxManager", initialize)
-    first, second = DockerHost(api_url="http://one"), DockerHost(api_url="http://two")
+    first = DockerHost(api_url="http://one", api_token="token-one")
+    second = DockerHost(api_url="http://two", api_token="token-two")
     first_session, second_session = first.acquire(Language.PYTHON), second.acquire(Language.JAVA)
     first_session.close()
     second_session.close()
     first.close()
     first.close()
     second.close()
-    first_manager.destroy_sandbox.assert_called_once_with(Language.PYTHON, first_manager.get_sandbox.return_value)
-    second_manager.destroy_sandbox.assert_called_once_with(Language.JAVA, second_manager.get_sandbox.return_value)
+    first_manager.dispose.assert_called_once_with(first_manager.acquire.return_value)
+    second_manager.dispose.assert_called_once_with(second_manager.acquire.return_value)
+    first_manager.acquire.assert_called_once_with(Language.PYTHON)
+    second_manager.acquire.assert_called_once_with(Language.JAVA)
     first_manager.shutdown.assert_called_once()
     second_manager.shutdown.assert_called_once()
+    assert initialize.call_args_list[0].kwargs == {"api_url": "http://one", "token": "token-one"}
+    with pytest.raises(RuntimeError, match="closed"):
+        first.acquire(Language.PYTHON)

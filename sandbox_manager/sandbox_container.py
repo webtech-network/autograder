@@ -9,6 +9,7 @@ from docker.models.containers import Container
 import requests
 from sandbox_manager.models.sandbox_models import Language, SandboxState, CommandResponse, HttpResponse, \
     ResponseCategory, ExtractedFile
+from sandbox_manager.errors import ArtifactTooLargeError
 from sandbox_manager.utils.classify_output import classify_output
 
 if TYPE_CHECKING:
@@ -34,13 +35,8 @@ class SandboxContainer:
         self._workdir_prepared = False
 
     def pickup(self):
-        """Mark sandbox as busy and update timestamp."""
+        """Mark sandbox as leased; ``last_updated`` starts the lease clock."""
         self.state = SandboxState.BUSY
-        self.last_updated = datetime.now()
-
-    def release(self):
-        """Mark sandbox as idle and update timestamp."""
-        self.state = SandboxState.IDLE
         self.last_updated = datetime.now()
 
     @staticmethod
@@ -349,7 +345,7 @@ class SandboxContainer:
             size = 0
 
         if size > max_bytes:
-            raise ValueError(f"File exceeds maximum size: {size} bytes > {max_bytes} bytes")
+            raise ArtifactTooLargeError(f"File exceeds maximum size: {size} bytes > {max_bytes} bytes")
 
         # Read file content via base64 to safely transport binary data
         result = self.container_ref.exec_run(

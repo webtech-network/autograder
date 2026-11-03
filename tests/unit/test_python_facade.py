@@ -16,7 +16,7 @@ def test_documented_custom_evaluator_and_catalog_need_no_external_capabilities(m
         pytest.fail("Static compilation/discovery/evaluation must be offline")
 
     monkeypatch.setattr("socket.socket.connect", unavailable)
-    monkeypatch.setattr("sandbox_manager.manager.get_sandbox_manager", unavailable)
+    monkeypatch.setattr("sandbox_manager.manager.SandboxManager.start", unavailable)
     monkeypatch.setattr("execution_host.openai_provider.AiExecutor.__init__", unavailable)
     monkeypatch.setattr("execution_host.secrets.fetch_secret", unavailable)
     assert describe_templates().templates
