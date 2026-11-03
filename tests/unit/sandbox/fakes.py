@@ -8,7 +8,8 @@ import uvicorn
 
 from sandbox_manager.errors import Disposal, SandboxCapacityError, SandboxCleanupError
 from autograder.models.process import ProcessResult, ProcessStatus
-from sandbox_manager.models.sandbox_models import ExtractedFile, SandboxState
+from autograder.models.execution import ExtractedFile
+from sandbox_manager.models.sandbox_models import SandboxState
 
 
 class FakeSandbox:

@@ -23,7 +23,8 @@ from autograder.models.process import ProcessRequest, ProcessResult, ProcessStat
 from sandbox_manager.errors import (
     ArtifactReadError, ArtifactTooLargeError, ProcessExecutionError, SandboxInvalidatedError,
 )
-from sandbox_manager.models.sandbox_models import ExtractedFile, HttpResponse, SandboxState
+from autograder.models.execution import ExtractedFile
+from sandbox_manager.models.sandbox_models import HttpResponse, SandboxState
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset

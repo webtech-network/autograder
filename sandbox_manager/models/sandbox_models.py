@@ -1,5 +1,4 @@
 from enum import Enum
-from dataclasses import dataclass
 from typing import Any, Dict
 import requests
 
@@ -11,18 +10,8 @@ class SandboxState(Enum):
     CLOSING = "closing"    # disposal started; owner retains the record until confirmed
     STOPPED = "stopped"    # destruction confirmed
 
-@dataclass
-class ExtractedFile:
-    """Result of extracting a single file from a sandbox container."""
-    path: str
-    content_bytes: bytes
-    size: int
-    content_text: str = ""
-    encoding: str = "utf-8"
-
-
 class HttpResponse:
-    """Wrapper for HTTP responses from containerized applications."""
+    """``requests``-backed implementation of the core ``HttpResponse`` protocol."""
 
     def __init__(self, response: requests.Response):
         self._response = response

@@ -2,7 +2,6 @@ import json
 import logging
 from typing import Annotated, Any
 
-import requests
 from pydantic import Field
 
 from autograder.models.abstract.template import Template
@@ -54,7 +53,7 @@ class HealthCheckTest(TestFunction):
                 report = t("api_testing.health_check.report.success", locale=locale, endpoint=endpoint)
             else:
                 report = t("api_testing.health_check.report.failure", locale=locale, endpoint=endpoint, code=response.status_code)
-        except requests.RequestException as e:
+        except OSError as e:  # transport failure (HttpResponse contract)
             raise EvaluationError("SANDBOX_ERROR", "The execution environment could not reach the assessed API.", "capability", True) from e
         except Exception as e:
             raise EvaluationError("SANDBOX_ERROR", "The execution environment could not assess the API.", "capability", True) from e
@@ -110,7 +109,7 @@ class CheckResponseJsonTest(TestFunction):
             except json.JSONDecodeError:
                 report = t("api_testing.check_response_json.report.invalid_json", locale=locale, endpoint=endpoint)
 
-        except requests.RequestException as e:
+        except OSError as e:  # transport failure (HttpResponse contract)
             raise EvaluationError("SANDBOX_ERROR", "The execution environment could not reach the assessed API.", "capability", True) from e
         except Exception as e:
             raise EvaluationError("SANDBOX_ERROR", "The execution environment could not assess the API.", "capability", True) from e

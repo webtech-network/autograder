@@ -1,9 +1,33 @@
 """Provider-neutral operations accepted by evaluators and owned by a run."""
+# Protocol members are documented by their class docstrings.
+# pylint: disable=missing-function-docstring
 from dataclasses import dataclass
-from typing import Mapping, Protocol, Sequence
+from typing import Any, Mapping, Protocol, Sequence
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.process import ProcessRequest, ProcessResult
-from sandbox_manager.models.sandbox_models import ExtractedFile, HttpResponse
+
+
+@dataclass
+class ExtractedFile:
+    """An artifact read back from a session's workspace."""
+    path: str
+    content_bytes: bytes
+    size: int
+    content_text: str = ""
+    encoding: str = "utf-8"
+
+
+class HttpResponse(Protocol):
+    """A response from an assessed server, whatever client the host uses.
+
+    Transport failures are raised as ``OSError`` subclasses (for example
+    ``ConnectionError``); an HTTP error status is an ordinary response.
+    """
+    @property
+    def status_code(self) -> int: ...
+    @property
+    def text(self) -> str: ...
+    def json(self) -> Any: ...
 
 
 class ExecutionSession(Protocol):
