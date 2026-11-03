@@ -56,6 +56,8 @@ both artifacts and never changes a completed grade into a failed grade.
 
 ## Trusted Python extension
 
+[Adding an evaluator](../architecture/extending.md) is the recipe; its examples are
+executed by `tests/unit/test_architecture.py`.
 Run `PYTHONPATH=. python -m examples.contracts.custom_evaluator` for a complete
 local `TestFunction` and `Template` example. It compiles a v1 definition with
 `templates={"trusted_text": TrustedTextTemplate()}`, grades an in-memory

@@ -56,4 +56,4 @@ These values are defined in `sandbox_config.yml`.
 
 - [Sandbox ownership and the control API](../contracts/SANDBOX.md)
 - [Sandbox Manager Internals](../architecture/sandbox_manager.md)
-- [Pipeline Step: Sandbox](../pipeline/03-sandbox.md)
+- [Execution sessions](../pipeline/03-sandbox.md)

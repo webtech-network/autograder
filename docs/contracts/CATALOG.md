@@ -44,6 +44,9 @@ It compiles a local `contains_text` evaluator (implementation, `Annotated`
 contract and registration only), infers the single language, and
 returns a completed score of 100 for `<h1>Hello</h1>`. No Docker, credentials or
 network are needed. Missing text is an assessed zero, not an infrastructure failure.
+`python -m examples.contracts.execution_evaluator` shows an evaluator that declares
+`sandbox_execution` and runs the program through a fake session. Both follow
+[Adding an evaluator](../architecture/extending.md).
 
 ## Catalog wire contract
 

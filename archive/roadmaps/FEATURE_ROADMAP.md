@@ -1,5 +1,8 @@
 # Feature Roadmap
 
+> **Historical document.** Superseded and kept for reference only; it does not
+> describe the current system. See [archive/README.md](../README.md).
+
 **Created:** March 18, 2026
 **Status:** Planning
 **Purpose:** Outline planned features for the Autograder, describing what each feature brings to the platform and its priority.

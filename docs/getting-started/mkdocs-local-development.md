@@ -16,60 +16,52 @@ This quickstart walks you through one complete grading cycle:
 ## 1) Start Autograder
 
 ```bash
+export SANDBOX_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 make start-autograder
 ```
 
-When ready, the API is available at `http://localhost:8080`.
-
-You can check health:
+The API and its private sandbox control service share that token. When ready,
+the API is available at `http://localhost:8000`. You can check health:
 
 ```bash
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8000/api/v1/health
 ```
 
 ## 2) Create a grading configuration
 
+A configuration is an assignment alias plus one
+[v1 grading definition](../contracts/DEFINITIONS.md):
+
 ```bash
-curl -X POST http://localhost:8080/api/v1/configs \
+curl -X POST http://localhost:8000/api/v1/configs \
   -H "Content-Type: application/json" \
   -d '{
     "external_assignment_id": "demo-assignment-1",
-    "template_name": "input_output",
-    "criteria_config": {
-      "base": {
-        "weight": 100,
-        "subjects": [
-          {
+    "definition": {
+      "schema_version": "1.0",
+      "templates": ["input_output"],
+      "languages": ["python"],
+      "criteria": {
+        "base": {
+          "weight": 100,
+          "subjects": [{
             "subject_name": "Functionality",
             "weight": 100,
-            "tests": [
-              {
-                "name": "expect_output",
-                "weight": 100,
-                "parameters": {
-                  "inputs": ["Alice"],
-                  "expected_output": "Hello, Alice!",
-                  "program_command": "python3 main.py"
-                }
+            "tests": [{
+              "id": "greets",
+              "type": "expect_output",
+              "name": "Greets the user",
+              "parameters": {
+                "inputs": ["Alice"],
+                "expected_output": "Hello, Alice!",
+                "program_command": "python3 main.py"
               }
-            ]
-          }
-        ]
-      }
-    },
-    "languages": ["python"],
-    "setup_config": {
-      "required_files": ["main.py"],
-      "setup_commands": []
-    },
-    "include_feedback": true,
-    "feedback_config": {
-      "general": {
-        "report_title": "Evaluation Report",
-        "show_score": true,
-        "show_passed_tests": false,
-        "add_report_summary": true
-      }
+            }]
+          }]
+        }
+      },
+      "preparation": {"languages": {"python": {"required_files": ["main.py"]}}},
+      "feedback": {"enabled": true, "mode": "default"}
     }
   }'
 ```
@@ -77,13 +69,12 @@ curl -X POST http://localhost:8080/api/v1/configs \
 ## 3) Submit a student solution
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/submissions \
+curl -i -X POST http://localhost:8000/api/v1/submissions \
   -H "Content-Type: application/json" \
   -d '{
     "external_assignment_id": "demo-assignment-1",
     "external_user_id": "student-1",
     "username": "student_1",
-    "language": "python",
     "files": [
       {
         "filename": "main.py",
@@ -93,20 +84,24 @@ curl -X POST http://localhost:8080/api/v1/submissions \
   }'
 ```
 
-Copy the returned `id` from the response. That is your `submission_id`.
+The response is `202 Accepted` with a `Location` header for polling. The single
+allowed language is inferred.
 
 ## 4) Poll for the result
 
 ```bash
-curl http://localhost:8080/api/v1/submissions/<submission_id>
+curl http://localhost:8000/api/v1/submissions/<submission_id>
 ```
 
-When grading finishes, response status becomes `completed`, and you will get:
+The compact poll reports the status, `final_score`, provenance and feedback
+status. The full terminal [outcome](../contracts/OUTCOMES.md) (score tree and
+rendered feedback) is returned by the authenticated details endpoint; the
+development compose file sets the integration token to `e2e-test-token`:
 
-- `final_score`
-- `feedback`
-- `result_tree`
-- `focus`
+```bash
+curl -H "Authorization: Bearer e2e-test-token" \
+  http://localhost:8000/api/v1/submissions/<submission_id>/details
+```
 
 ## What you just exercised
 
@@ -114,4 +109,5 @@ You ran the full core flow:
 
 `validate -> acquire/prepare? -> assess (one AI batch) -> grade -> requested feedback? -> close -> outcome`
 
-To understand each stage in depth, continue with [Pipeline Architecture](../core/pipeline-architecture.md).
+To understand each stage in depth, continue with [Pipeline Architecture](../core/pipeline-architecture.md)
+and the [responsibility map](../architecture/overview.md).
