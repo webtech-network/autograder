@@ -33,7 +33,7 @@ pipeline diagnostics are not public result fields.
 | Language omitted for a multilingual definition or disallowed language selected | Failed, no score | submission / LANGUAGE_REQUIRED or LANGUAGE_NOT_ALLOWED |
 | Required sandbox cannot be provisioned | Failed, no score | capability / CAPABILITY_UNAVAILABLE |
 | Sandbox system/transport or artifact extraction failure | Failed, no score | capability / SANDBOX_ERROR |
-| Fixture preparation fails | Failed, no score | capability / PREPARATION_ERROR |
+| Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / PREPARATION_ERROR |
 | Required structural analysis unavailable | Failed, no score | capability / CAPABILITY_UNAVAILABLE |
 | Provider initialization fails | Failed, no score | provider / PROVIDER_UNAVAILABLE |
 | Provider request fails | Failed, no score | provider / PROVIDER_ERROR |
