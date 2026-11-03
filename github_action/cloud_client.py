@@ -8,8 +8,9 @@ Retry contract (INT-04):
 * Other 4xx responses (authentication, validation, 409 key conflicts) are permanent.
 * Delays grow exponentially with jitter, honour ``Retry-After`` (seconds or an HTTP
   date) and never exceed the total deadline. ``connect_timeout`` bounds the TCP/TLS
-  connection, ``read_timeout`` bounds each socket read and ``total_timeout`` bounds the
-  whole operation including back-off.
+  connection, ``read_timeout`` bounds inactivity between socket reads and
+  ``total_timeout`` is an absolute deadline for the whole operation including back-off,
+  enforced by a watchdog across the TLS handshake, headers and body reads.
 """
 from __future__ import annotations
 
