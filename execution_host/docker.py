@@ -5,6 +5,7 @@ from threading import Lock
 from autograder.models.capabilities import HostCapabilities
 from autograder.models.contracts.definition import relative_path
 from autograder.models.dataclass.asset import ResolvedAsset
+from sandbox_manager.models.sandbox_models import DisposalStatus
 
 
 class DockerSession:
@@ -37,9 +38,13 @@ class DockerSession:
         return self.sandbox.extract_file(f"/app/{relative_path(path)}")
 
     def close(self):
-        if not self._closed:
-            self._closed = True
-            self.manager.destroy_sandbox(self.language, self.sandbox)
+        """Dispose the sandbox once; unconfirmed removal is reported as a cleanup error."""
+        if self._closed:
+            return
+        self._closed = True
+        status = self.manager.dispose(self.sandbox)
+        if status is DisposalStatus.QUARANTINED:
+            raise RuntimeError("Sandbox removal was not confirmed; it is quarantined for retry.")
 
 
 class ConfiguredFixtureProvider:
@@ -81,12 +86,13 @@ def docker_capabilities(manager):
 
 class DockerHost:
     """Lazy, isolated manager for one host lifetime. Static work starts nothing."""
-    def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml"):
+    def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml",
+                 api_token=None):
         self.mode = mode
         self.api_url = api_url
+        self.api_token = api_token
         self.config_file = config_file
         self._manager = None
-        self._client = None
         self._lock = Lock()
         self.capabilities = HostCapabilities(execution=self.acquire,
             fixtures=ConfiguredFixtureProvider(), ai=ConfiguredAssessmentProvider())
@@ -96,34 +102,27 @@ class DockerHost:
             if self._manager is None:
                 if self.mode == "remote":
                     from sandbox_manager.remote_client import RemoteSandboxManager
-                    self._manager = RemoteSandboxManager(api_url=self.api_url)
+                    self._manager = RemoteSandboxManager(api_url=self.api_url, token=self.api_token)
                 elif self.mode == "local":
-                    import docker
                     from sandbox_manager.manager import SandboxManager
-                    from sandbox_manager.language_pool import LanguagePool
                     from sandbox_manager.models.pool_config import SandboxPoolConfig
-                    self._client = docker.from_env()
-                    configs = SandboxPoolConfig.load_from_yaml(self.config_file)
-                    self._manager = SandboxManager({config.language: LanguagePool(
-                        config.language, config, self._client) for config in configs})
+                    # Reclaims containers of provably dead owners, then starts the pools.
+                    self._manager = SandboxManager(SandboxPoolConfig.load_from_yaml(self.config_file))
                 else:
                     raise ValueError("Unsupported sandbox host mode")
             manager = self._manager
         return DockerSession(manager, language)
 
     def close(self):
+        """Shut down the manager this host created. Safe to call repeatedly."""
         with self._lock:
-            manager, client = self._manager, self._client
-            self._manager = self._client = None
-        try:
-            if manager is not None:
-                manager.shutdown()
-        finally:
-            if client is not None:
-                client.close()
+            manager, self._manager = self._manager, None
+        if manager is not None:
+            manager.shutdown()
 
     @classmethod
     def from_environment(cls):
         return cls(mode=os.environ.get("SANDBOX_MODE", "remote"),
                    api_url=os.environ.get("SANDBOX_API_URL", "http://localhost:8001"),
+                   api_token=os.environ.get("SANDBOX_API_TOKEN") or None,
                    config_file=os.environ.get("SANDBOX_CONFIG_FILE", "sandbox_config.yml"))

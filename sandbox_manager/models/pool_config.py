@@ -16,6 +16,9 @@ class SandboxPoolConfig:
     scale_limit: int
     idle_timeout: int
     running_timeout: int
+    # Bounded attempts to remove a quarantined container before it stays
+    # quarantined (still counted against scale_limit) for an operator.
+    disposal_attempts: int = 5
 
     @classmethod
     def load_from_yaml(cls, config_path: str = "sandbox_config.yml") -> List['SandboxPoolConfig']:
@@ -52,6 +55,7 @@ class SandboxPoolConfig:
         scale_limit = general.get('scale_limit', 5)
         idle_timeout = general.get('idle_timeout', 300)
         running_timeout = general.get('running_timeout', 60)
+        disposal_attempts = general.get('disposal_attempts', 5)
 
         # Create configurations for all supported languages
         configs = []
@@ -61,7 +65,8 @@ class SandboxPoolConfig:
                 pool_size=pool_size,
                 scale_limit=scale_limit,
                 idle_timeout=idle_timeout,
-                running_timeout=running_timeout
+                running_timeout=running_timeout,
+                disposal_attempts=disposal_attempts,
             ))
 
         return configs

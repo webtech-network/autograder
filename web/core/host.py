@@ -39,6 +39,7 @@ class WebHost:
             from execution_host.docker import DockerHost
             self.resource_owner = DockerHost(
                 mode=self.settings.SANDBOX_MODE, api_url=self.settings.SANDBOX_API_URL,
+                api_token=self.settings.SANDBOX_API_TOKEN or None,
                 config_file=self.settings.SANDBOX_CONFIG_FILE,
             )
             capabilities = self.resource_owner.capabilities

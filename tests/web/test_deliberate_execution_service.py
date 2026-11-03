@@ -104,7 +104,7 @@ async def test_cases_send_stdin_and_receive_process_details():
     assert sandbox.run_commands.call_args_list[0].args == (["Alice"],)
     assert sandbox.run_commands.call_args_list[0].kwargs["program_command"] == "python main.py"
     assert sandbox.run_commands.call_args_list[1].args == (["Bob"],)
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -158,7 +158,7 @@ async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
     with manager_profile(return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 503
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
     manager, sandbox = manager_with_sandbox()
     sandbox.prepare_workdir.side_effect = RuntimeError("Docker unavailable")
@@ -166,7 +166,7 @@ async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
         response = await post(REQUEST)
     assert response.status_code == 503
     assert "Docker unavailable" not in response.text
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -180,8 +180,7 @@ async def test_timeout_stops_batch_and_destroys_sandbox():
     assert response.json()["results"][0]["category"] == "timeout"
     assert response.json()["stopped_early"] is True
     assert len(response.json()["results"]) == 1
-    manager.destroy_sandbox.assert_called_once()
-    manager.release_sandbox.assert_not_called()
+    manager.dispose.assert_called_once_with(manager.get_sandbox.return_value)
 
 
 @pytest.mark.asyncio
@@ -189,11 +188,23 @@ async def test_cleanup_failure_does_not_erase_known_execution_result():
     manager, _ = manager_with_sandbox(
         command_result(stdout="one"), command_result(stdout="two")
     )
-    manager.destroy_sandbox.side_effect = RuntimeError("destroy failed")
+    manager.dispose.side_effect = RuntimeError("destroy failed")
     with manager_profile(return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 200
     assert len(response.json()["results"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_quarantined_disposal_is_logged_without_erasing_result(caplog):
+    from sandbox_manager.models.sandbox_models import DisposalStatus
+    manager, _ = manager_with_sandbox(command_result(stdout="one"), command_result(stdout="two"))
+    manager.dispose.return_value = DisposalStatus.QUARANTINED
+    with manager_profile(return_value=manager):
+        response = await post(REQUEST)
+    assert response.status_code == 200
+    assert len(response.json()["results"]) == 2
+    assert "Deliberate execution session cleanup failed" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -213,7 +224,7 @@ async def test_trusted_assets_are_injected_before_execution():
     sandbox.inject_assets.assert_called_once_with([asset])
     calls = [call[0] for call in sandbox.mock_calls]
     assert calls.index("prepare_workdir") < calls.index("inject_assets") < calls.index("run_commands")
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -235,10 +246,10 @@ async def test_deadline_and_disconnect_leave_worker_to_release_sandbox(monkeypat
         unblock.set()
         await asyncio.to_thread(lambda: None)
         for _ in range(100):
-            if manager.destroy_sandbox.called:
+            if manager.dispose.called:
                 break
             await asyncio.sleep(0.01)
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
     started.clear()
     unblock.clear()
@@ -251,10 +262,10 @@ async def test_deadline_and_disconnect_leave_worker_to_release_sandbox(monkeypat
             await task
         unblock.set()
         for _ in range(100):
-            if manager.destroy_sandbox.called:
+            if manager.dispose.called:
                 break
             await asyncio.sleep(0.01)
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -294,6 +305,6 @@ async def test_shutdown_after_response_deadline_drains_thread_before_closing_pro
             unblock.set()
         with pytest.raises(asyncio.CancelledError):
             await closing
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
     owner.close.assert_called_once()
     assert not host.execution_tasks

@@ -1,7 +1,7 @@
 """Unit tests for multi-language submission support in the pipeline."""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from sandbox_manager.models.sandbox_models import Language
@@ -90,8 +90,7 @@ class TestSubmissionLanguageHandling:
 class TestPipelineLanguageHandling:
     """Test that the pipeline correctly uses the submission's language."""
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
-    def test_pipeline_uses_submission_language_for_sandbox(self, mock_get_manager):
+    def test_pipeline_uses_submission_language_for_sandbox(self):
         """Test that the pipeline creates sandbox using submission's language."""
         from autograder.autograder import build_pipeline
         from autograder.models.dataclass.submission import Submission, SubmissionFile
@@ -99,7 +98,6 @@ class TestPipelineLanguageHandling:
         # Mock sandbox manager
         mock_manager = Mock()
         mock_sandbox = Mock()
-        mock_get_manager.return_value = mock_manager
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 

@@ -14,11 +14,14 @@ It is implemented by `SandboxManager`, which coordinates per-language `LanguageP
 
 ## How it works
 
-1. App startup initializes one pool per configured language.
-2. Each pool pre-warms `pool_size` containers.
-3. Grading requests acquire an idle sandbox or scale up until `scale_limit`.
-4. Containers are released back to the pool after execution.
-5. Monitor thread enforces timeout-based cleanup and replenishment.
+1. The host (web API, sandbox control API, GitHub Action) constructs the manager
+   and owns its shutdown; the library installs no signal handlers.
+2. Startup reclaims containers whose owner is provably dead on this host.
+3. Each pool pre-warms `pool_size` containers.
+4. Grading requests acquire an idle sandbox or scale up until `scale_limit`.
+5. Every used container is disposed (never reused). Docker must confirm removal;
+   failed removals are quarantined, reported and retried.
+6. The monitor thread enforces timeouts, retries quarantined removals and replenishes.
 
 ## Resource and isolation controls
 
@@ -45,11 +48,13 @@ These values are defined in `sandbox_config.yml`.
 
 ## Common mistakes
 
-- Treating a timeout sandbox as reusable after fatal execution behavior
+- Publishing the sandbox control API port or running it without `SANDBOX_API_TOKEN`
+- Running the control API with more than one worker (handles are in-process)
 - Aggressive pool downsizing that causes repeated cold starts
 - Raising scale limits without host capacity checks
 
 ## Continue reading
 
+- [Sandbox ownership and private control API](../contracts/SANDBOX.md)
 - [Sandbox Manager Internals](../architecture/sandbox_manager.md)
 - [Pipeline Step: Sandbox](../pipeline/03-sandbox.md)

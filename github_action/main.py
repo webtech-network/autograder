@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import signal
 import stat
 
 from autograder.models.dataclass.submission import SubmissionFile
@@ -197,6 +198,12 @@ def main(argv=None):
         raise SystemExit(1) from exc
 
 
+def _exit_on_sigterm(signum, _frame):
+    """The Action host owns signals: unwind through finally blocks so sandboxes are disposed."""
+    raise SystemExit(128 + signum)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    signal.signal(signal.SIGTERM, _exit_on_sigterm)
     main()

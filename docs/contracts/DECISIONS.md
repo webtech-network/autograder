@@ -206,3 +206,21 @@ rules and labelled `attested`, without claiming local execution. The legacy
 `ResultComparator`, its dataclasses, `ResultTree` vector helpers and unused web
 comparison schemas are removed; the `score_vector`/`comparison` result columns
 are unused legacy storage. See [baseline comparison](../features/baseline_comparison.md).
+
+## Sandbox ownership and private control (INT-15/ARC-09)
+
+One host-owned manager owns a sandbox from acquisition to Docker-confirmed
+removal. Release and destroy are one idempotent `dispose` with a defined
+status; a used sandbox is never reused. Failed removal quarantines the sandbox:
+it stays tracked, counts against capacity, is reported in pool statistics and
+is retried a bounded number of times. Timeouts use the same path. Hosts own
+signals and call `shutdown()`; the library installs no handlers. Orphan
+reclamation is scoped to owner leases (owner id, hostname, boot/pid/start time)
+and removes only provably dead local owners; an explicit operator command
+handles remote and legacy owners. One Docker profile declares all limits; the
+gVisor fallback only drops the runtime argument. The control API is private
+(Compose `expose`), requires a bearer token, uses random bounded expiring
+handles in one worker process, makes acquisition replay-safe by request id,
+tombstones disposed handles, and distinguishes unknown handles from missing
+artifacts. See [SANDBOX.md](SANDBOX.md) for the recovery matrix, limits and
+migration.
