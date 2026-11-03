@@ -1,10 +1,29 @@
 """Concrete web operations own transactions; routes translate HTTP concerns."""
+from dataclasses import dataclass
 from datetime import timezone
+import hashlib
+import json
+
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from autograder.models.contracts.definition import compile_definition, select_language, DefinitionValidationError
 from autograder.services.weights import normalized_sibling_weights
 from web.database.models.submission import SubmissionStatus
+from web.database.models.operation_receipt import OperationReceipt
 from web.repositories import GradingConfigRepository, SubmissionRepository, ResultRepository
 from web.service.outcome_delivery import persist_outcome
+
+
+ACCEPT_OPERATION = "submission.accept"
+ATTEST_OPERATION = "outcome.attest"
+
+
+@dataclass(frozen=True)
+class Idempotency:
+    """A caller-chosen key, namespaced by the authenticated principal (INT-04)."""
+
+    principal: str
+    key: str
 
 
 class OperationError(ValueError):
@@ -160,20 +179,93 @@ def _check_attested_tree(outcome, compiled):
             holder(expected, actual)
 
 
-async def accept_submission(session, submission):
+def request_fingerprint(request) -> str:
+    """SHA-256 over the validated request's canonical JSON."""
+    canonical = json.dumps(request.model_dump(mode="json"), sort_keys=True,
+                           separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+async def _replayed_submission(session, operation, idempotency, fingerprint):
+    receipt = await session.scalar(select(OperationReceipt).where(
+        OperationReceipt.principal == idempotency.principal,
+        OperationReceipt.operation == operation,
+        OperationReceipt.idempotency_key == idempotency.key,
+    ))
+    if receipt is None:
+        return None
+    if receipt.fingerprint != fingerprint:
+        raise OperationError(409, {
+            "code": "IDEMPOTENCY_KEY_REUSED",
+            "message": "This Idempotency-Key was already used with a different request",
+        })
+    return receipt.submission_id
+
+
+async def _run_keyed(session, operation, idempotency, request, create):
+    """Create once per (principal, operation, key); return (submission_id, replayed).
+
+    The resource and its receipt commit in one transaction. A replay never runs
+    `create`, so it never reselects a definition, revalidates against today's
+    configuration, or schedules grading again.
+    """
+    fingerprint = request_fingerprint(request) if idempotency else None
     try:
-        return await _accept_submission(session, submission)
+        if idempotency is not None:
+            existing = await _replayed_submission(session, operation, idempotency, fingerprint)
+            if existing is not None:
+                return existing, True
+        row = await create()
+        if idempotency is not None:
+            session.add(OperationReceipt(principal=idempotency.principal, operation=operation,
+                                         idempotency_key=idempotency.key, fingerprint=fingerprint,
+                                         submission_id=row.id))
+            await session.flush()
+        await session.commit()
+        return row.id, False
+    except IntegrityError:
+        await session.rollback()
+        if idempotency is None:
+            raise
+        # A concurrent equal request committed first: converge on its resource.
+        existing = await _replayed_submission(session, operation, idempotency, fingerprint)
+        if existing is None:
+            raise
+        return existing, True
     except Exception:
         await session.rollback()
         raise
 
 
-async def ingest_attested_outcome(session, payload):
-    try:
-        return await _ingest_attested_outcome(session, payload)
-    except Exception:
-        await session.rollback()
-        raise
+async def accept_submission(session, submission, idempotency: Idempotency | None = None):
+    """Accept work once; return (submission row, replayed)."""
+    submission_id, replayed = await _run_keyed(
+        session, ACCEPT_OPERATION, idempotency, submission,
+        lambda: _accept_submission(session, submission))
+    return await SubmissionRepository(session).get_by_id_with_result(submission_id), replayed
+
+
+async def ingest_attested_outcome(session, payload, idempotency: Idempotency | None = None):
+    """Store one attestation; return (receipt, replayed)."""
+    submission_id, replayed = await _run_keyed(
+        session, ATTEST_OPERATION, idempotency, payload,
+        lambda: _ingest_attested_outcome(session, payload))
+    row = await SubmissionRepository(session).get_by_id_with_result(submission_id, include_files=False)
+    return attestation_receipt(row), replayed
+
+
+def attestation_receipt(row):
+    outcome = row.result.outcome
+    return {
+        "submission_id": row.id,
+        "grading_config_id": row.grading_config_id,
+        "status": row.status,
+        "final_score": outcome["score"],
+        "language": row.language,
+        "provenance": outcome["provenance"],
+        "graded_at": _utc(row.graded_at),
+        "execution_time_ms": outcome["duration_ms"],
+    }
 
 
 async def query_history(session, **filters):
@@ -224,8 +316,7 @@ async def _accept_submission(session, submission):
         locale=submission.locale or "en",
         evaluation_scope=submission.evaluation_scope.model_dump() if submission.evaluation_scope is not None else None,
     )
-    await session.commit()
-    return await repo.get_by_id_with_result(row.id)
+    return row
 
 
 async def _ingest_attested_outcome(session, payload):
@@ -274,14 +365,4 @@ async def _ingest_attested_outcome(session, payload):
         configuration_version=revision,
     )
     await persist_outcome(ResultRepository(session), repo, row.id, outcome)
-    await session.commit()
-    return {
-        "submission_id": row.id,
-        "grading_config_id": config.id,
-        "status": row.status,
-        "final_score": outcome["score"],
-        "language": row.language,
-        "provenance": provenance,
-        "graded_at": _utc(row.graded_at),
-        "execution_time_ms": outcome["duration_ms"],
-    }
+    return row

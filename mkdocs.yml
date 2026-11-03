@@ -40,6 +40,7 @@ nav:
   - Integration Contracts:
       - Executable Examples: contracts/CONFORMANCE.md
       - HTTP Trust Boundary: contracts/AUTH.md
+      - Replay Safety: contracts/REPLAY.md
       - Submission Input: contracts/SUBMISSIONS.md
       - Evaluator Files: contracts/FILES.md
       - Host Capabilities: contracts/CAPABILITIES.md

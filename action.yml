@@ -46,6 +46,8 @@ outputs:
     description: "Workspace-relative canonical outcome JSON path, retained even when delivery fails."
   submission-id:
     description: "Cloud submission ID, present only after successful publication."
+  delivery-status:
+    description: "delivered, failed or uncertain when publication was requested. Uncertain means the server may have stored it; retrying delivery.json is safe."
 runs:
   using: docker
   image: "Dockerfile.actions"

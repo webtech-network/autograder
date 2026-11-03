@@ -26,7 +26,8 @@ unrelated upstream applications must not see each other's data.
 Attestation tokens exist for producers that must publish a finished grade but
 should not read source code, configurations or other students' grades (for
 example a GitHub Actions workflow). A restricted producer gets the
-attestation receipt in the response and nothing else.
+attestation receipt in the response and nothing else. The principal name also
+namespaces [replay keys](REPLAY.md), so producers never observe each other's receipts.
 
 ## Route policy
 
