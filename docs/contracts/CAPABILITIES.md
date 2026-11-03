@@ -31,6 +31,34 @@ including empty bytes. Core does not select S3 credentials, Docker managers,
 OpenAI clients, secrets or provider models. Concrete shared host composition lives
 under `execution_host/`.
 
+## Fixture providers
+
+`HostCapabilities.fixtures` is a callable `reference -> bytes`. It receives only
+the logical reference: destination path and read-only mode are placement and are
+applied by `ExecutionSession.stage_fixture`. `b""` is valid content. A provider
+raises `autograder.models.capabilities.FixtureNotFound` when the reference has no
+object; any other exception is a provider failure. Both stop preparation with the
+same safe `capability / PREPARATION_ERROR` outcome; a missing fixture is not
+retryable, a provider failure is. Raw provider errors stay in host logs.
+
+The Docker host composes `execution_host.fixtures.S3FixtureProvider` from
+`EXTERNAL_ASSETS_BUCKET_NAME`, `S3_ENDPOINT_URL`, `AWS_REGION` and
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (`AWS_ACCESS_ID` is accepted as a
+legacy alias). Configuration is captured at host construction; one SDK client is
+created on the first selected fixture and reused. Missing keys (`NoSuchKey`/404)
+are `FixtureNotFound`; missing buckets, access denials, transport errors and an
+unset bucket are provider failures. Deliberate execution `assets` use the same
+host provider.
+
+There is no fixture cache. Every run reads the current object for each reference,
+so distinct references (for example `a/b` and `a_b`) cannot alias, replacing an
+object needs no invalidation, and no process writes cache files. The former
+in-memory/disk cache (`EXTERNAL_ASSETS_IN_MEMORY_CACHE_LIMIT`,
+`/tmp/autograder_assets_cache`) was removed because no measurement established a
+latency or cost benefit; a host that needs one must key it by full provider
+identity (endpoint, bucket, key and object version), write atomically, and
+document invalidation, size and lifetime.
+
 The public `Preparation` model is consumed directly. `runtime_setup` and the
 permissive parallel `SetupConfig` parser have been removed. Definitions continue
 to use `preparation.languages.<language>.required_files`, typed named

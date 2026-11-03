@@ -11,6 +11,14 @@ from autograder.models.language import Language
 from autograder.models.execution import AssessmentProvider, ExecutionSession, ServerSession
 
 
+class FixtureNotFound(LookupError):
+    """Raised by a fixture provider when a logical reference has no content.
+
+    A fixture provider maps a reference to bytes; ``b""`` is valid content.
+    Any other exception is a provider failure (the reference may exist).
+    """
+
+
 @dataclass(frozen=True)
 class HostCapabilities:
     execution: Callable[[Language], ExecutionSession] | None = None

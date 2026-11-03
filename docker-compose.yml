@@ -44,7 +44,7 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: 8000
 
-      # S3 Assets Configuration
+      # S3 fixture store (read per run, uncached)
       EXTERNAL_ASSETS_BUCKET_NAME: autograder-assets
       AWS_ACCESS_ID: test
       AWS_SECRET_ACCESS_KEY: test

@@ -5,6 +5,7 @@ from threading import Lock
 from autograder.models.capabilities import HostCapabilities
 from autograder.models.contracts.definition import relative_path
 from autograder.models.dataclass.asset import ResolvedAsset
+from execution_host.fixtures import S3FixtureProvider
 
 
 class DockerSession:
@@ -52,23 +53,6 @@ class DockerSession:
         return False
 
 
-class ConfiguredFixtureProvider:
-    """Capture configuration now; initialize SDKs only for selected fixture work."""
-    def __init__(self):
-        names = ("EXTERNAL_ASSETS_IN_MEMORY_CACHE_LIMIT", "EXTERNAL_ASSETS_BUCKET_NAME",
-                 "AWS_ACCESS_KEY_ID", "AWS_ACCESS_ID", "AWS_SECRET_ACCESS_KEY",
-                 "AWS_REGION", "S3_ENDPOINT_URL")
-        self.config = {name: os.environ[name] for name in names if name in os.environ}
-
-    def __call__(self, reference):
-        from execution_host.assets.resolver import AssetSourceResolver
-        provider = AssetSourceResolver(config=self.config).provider
-        content = provider.get_asset(reference, reference)
-        if content is None:
-            raise RuntimeError("Fixture resolution failed")
-        return content
-
-
 class ConfiguredAssessmentProvider:
     """Capture provider choices once, deferring network and credential lookup."""
     def __init__(self):
@@ -86,7 +70,7 @@ class ConfiguredAssessmentProvider:
 def docker_capabilities(manager):
     """Borrow a host-owned manager; each acquisition returns an owned session."""
     return HostCapabilities(execution=lambda language: DockerSession(manager, language),
-                            fixtures=ConfiguredFixtureProvider(), ai=ConfiguredAssessmentProvider())
+                            fixtures=S3FixtureProvider.from_environment(), ai=ConfiguredAssessmentProvider())
 
 
 class DockerHost:
@@ -110,7 +94,7 @@ class DockerHost:
         self._closed = False
         self._lock = Lock()
         self.capabilities = HostCapabilities(execution=self.acquire,
-            fixtures=ConfiguredFixtureProvider(), ai=ConfiguredAssessmentProvider())
+            fixtures=S3FixtureProvider.from_environment(), ai=ConfiguredAssessmentProvider())
 
     def _start_manager(self):
         if self.mode == "remote":

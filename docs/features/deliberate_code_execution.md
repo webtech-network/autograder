@@ -41,8 +41,9 @@ field, receive 422.
 `assets` is an optional list of `{source, target, read_only}` references. It
 is for a trusted host to forward assignment assets from its own authorization
 checks. `source` is a normalized relative provider key; `target` is a
-normalized path under `/tmp`. The service resolves and injects these before
-the first case. This does not make arbitrary callers trusted.
+normalized path under `/tmp`. The service retrieves each `source` through the
+host's fixture provider (the same uncached provider grading uses; empty objects
+are valid) and injects the bytes at `target` before the first case. This does not make arbitrary callers trusted.
 
 ## Process response
 
