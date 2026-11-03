@@ -1,112 +1,70 @@
-from typing import Optional
+"""The ``default`` feedback mode: a Markdown report of a completed grade."""
+from autograder.models.contracts.definition import FeedbackPreferences
+from autograder.models.contracts.outcome import ResultOutcomeTree
 from autograder.models.contracts.scoring import iter_tests
-from autograder.utils.formatters.result_tree import ResultTreeFormatter
+from autograder.models.dataclass.focus import Focus
 from autograder.translations import t
+from autograder.utils.formatters.result_tree import ResultTreeFormatter
+
+_FORMATTER = ResultTreeFormatter()
+_CATEGORY_FALLBACKS = {"base": "✅ Essential Requirements", "penalty": "❌ Points to Improve",
+                       "bonus": "⭐ Extra Points"}
 
 
-class DefaultReporter:
-    """Standard reporter that generates a human-readable markdown report."""
+def render_default_report(focus: Focus, tree: ResultOutcomeTree, preferences: FeedbackPreferences,
+                          locale: str) -> str:
+    """Render the report from canonical preferences without modifying them.
 
-    def __init__(self):
-        self._formatter = ResultTreeFormatter()
+    Defaults (title, category headers) are resolved for ``locale`` at render
+    time; the preferences and the tree are only read.
+    """
+    general = preferences.general
+    lines = [f"# {general.report_title or t('feedback.report_title', locale=locale) or 'Evaluation Report'}", ""]
+    if general.add_report_summary:
+        lines.extend(_summary(tree, locale))
+    lines.extend(_categorized_results(focus, preferences, locale))
+    if general.show_score:
+        lines.extend(_final_score(tree.score, locale))
+    if general.online_content:
+        failed = {test.id for _, test in iter_tests(tree) if test.score < 100}
+        lines.extend(_online_resources(general.online_content, failed, locale))
+    return "\n".join(lines)
 
-    def generate_report(self, focus, result_tree, preferences=None):
-        """
-        Generates a structured report using focus data, result tree, and preferences.
-        """
-        lines = []
-        locale = preferences.locale if preferences else None
 
-        # 1. Title
-        lines.extend(self._add_title(preferences))
+def _summary(tree, locale):
+    header = t("feedback.report.summary_header", locale=locale) or "📊 SUMMARY"
+    return [_FORMATTER.main_divisor(), f"## {header}", _FORMATTER.resume(tree, locale=locale)]
 
-        # 2. Summary (if requested)
-        if preferences and preferences.general.add_report_summary and result_tree:
-            lines.extend(self._add_summary(result_tree, locale=locale))
 
-        # 3. Categorized Results (Base, Penalty, Bonus)
-        if focus:
-            lines.extend(self._add_categorized_results(focus, preferences))
+def _categorized_results(focus, preferences, locale):
+    lines = []
+    show_passed = preferences.general.show_passed_tests
+    headers = preferences.default.category_headers
+    for name in ("base", "penalty", "bonus"):
+        tests = getattr(focus, name)
+        if not tests:
+            continue
+        visible = [focused.test_result for focused in tests if show_passed or focused.test_result.score < 100]
+        if not visible:
+            continue
+        header = headers.get(name) or t(f"feedback.category.{name}", locale=locale) or _CATEGORY_FALLBACKS[name]
+        lines.extend(["", _FORMATTER.main_divisor(), f"## {header}"])
+        for test in visible:
+            lines.extend(["", _FORMATTER.format_test(test), *_FORMATTER.format_test_details(test, locale=locale)])
+    return lines
 
-        # 4. Final Score (if requested)
-        if preferences and preferences.general.show_score and result_tree:
-            lines.extend(self._add_final_score(result_tree.score, locale=locale))
 
-        # 5. Online Resources
-        if preferences and preferences.general.online_content:
-            failed_ids = {test.id for _, test in iter_tests(result_tree) if test.score < 100} if result_tree else set()
-            lines.extend(self._add_online_resources(preferences.general.online_content, failed_ids, locale=locale))
+def _final_score(score, locale):
+    label = t("feedback.report.final_score_label", locale=locale) or "🏆 Final Score"
+    return ["", _FORMATTER.main_divisor(), f"## {label}", "", _FORMATTER.final_score(score)]
 
-        return "\n".join(lines)
 
-    def _add_title(self, preferences):
-        locale = preferences.locale if preferences else None
-        default_title = t("feedback.report_title", locale=locale) or "Evaluation Report"
-        title = preferences.general.report_title if preferences and preferences.general.report_title else default_title
-        return [f"# {title}", ""]
-
-    def _add_summary(self, result_tree, locale: Optional[str] = None):
-        summary_header = t("feedback.report.summary_header", locale=locale) or "📊 SUMMARY"
-        lines = [self._formatter.main_divisor(), f"## {summary_header}"]
-        lines.append(self._formatter.resume(result_tree, locale=locale))
-        return lines
-
-    def _add_categorized_results(self, focus, preferences):
-        lines = []
-        locale = preferences.locale if preferences else None
-        show_passed = preferences.general.show_passed_tests if preferences else False
-        category_headers = preferences.default.category_headers if preferences else {}
-
-        categories = [
-            (focus.base, category_headers.get("base") or t("feedback.category.base", locale=locale) or "✅ Essential Requirements"),
-            (focus.penalty, category_headers.get("penalty") or t("feedback.category.penalty", locale=locale) or "❌ Points to Improve"),
-            (focus.bonus, category_headers.get("bonus") or t("feedback.category.bonus", locale=locale) or "⭐ Extra Points")
-        ]
-
-        for tests, header in categories:
-            if not tests:
-                continue
-
-            filtered_tests = [focused for focused in tests if show_passed or focused.test_result.score < 100]
-
-            if filtered_tests:
-                lines.append("")
-                lines.append(self._formatter.main_divisor())
-                lines.append(f"## {header}")
-                for focused_test in filtered_tests:
-                    test = focused_test.test_result
-                    lines.append("")
-                    lines.append(self._formatter.format_test(test))
-                    details = self._formatter.format_test_details(test, locale=locale)
-                    if details:
-                        lines.extend(details)
-        return lines
-
-    def _add_final_score(self, score, locale: Optional[str] = None):
-        final_score_label = t("feedback.report.final_score_label", locale=locale) or "🏆 Final Score"
-        return [
-            "",
-            self._formatter.main_divisor(),
-            f"## {final_score_label}",
-            "",
-            self._formatter.final_score(score)
-        ]
-
-    def _add_online_resources(self, resources, failed_test_ids: set, locale=None):
-        """
-        Append learning resources to the report.
-
-        A resource is included if:
-        - it has no linked_tests (global resource, always shown), OR
-        - at least one of its linked_tests is in failed_test_ids.
-        """
-        resources_label = t("feedback.report.learning_resources_label", locale=locale) or "📚 Learning Resources"
-        lines = ["", self._formatter.main_divisor(), f"## {resources_label}", ""]
-        visible = [
-            r for r in resources
-            if not r.linked_tests or (set(r.linked_tests) & failed_test_ids)
-        ]
-        for resource in visible:
-            lines.append(f"- 📘 [{resource.description}]({resource.url})")
-        return lines if len(lines) > 4 else []  # skip section if nothing to show
-
+def _online_resources(resources, failed_ids, locale):
+    """Resources without linked criteria always show; linked ones show when one failed."""
+    visible = [resource for resource in resources
+               if not resource.linked_tests or set(resource.linked_tests) & failed_ids]
+    if not visible:
+        return []
+    label = t("feedback.report.learning_resources_label", locale=locale) or "📚 Learning Resources"
+    return ["", _FORMATTER.main_divisor(), f"## {label}", "",
+            *(f"- 📘 [{resource.description}]({resource.url})" for resource in visible)]

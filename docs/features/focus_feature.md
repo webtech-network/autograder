@@ -1,154 +1,51 @@
-# Focus Feature
+# Focus
 
 ## Overview
 
-The Focus feature organizes all executed tests based on their impact on the final score. This helps identify which tests had the most significant effect on the student's grade, making it easier to understand where the student struggled the most.
+Focus orders assessed criteria by how many points each one cost on the final
+score. It is an in-process value used to prioritize requested feedback; it is
+not part of the terminal outcome, the HTTP API or the database.
 
-## What is Focus?
+```python
+from autograder.services.focus_service import find_focus
 
-Focus is a data structure that ranks tests by their "diff_score" - the number of points deducted from the final score due to that specific test failing or performing poorly. Tests are organized into three categories:
-
-1. **Base**: Tests that contribute to the base score
-2. **Penalty**: Tests that apply penalties (if configured)
-3. **Bonus**: Tests that provide bonus points (if configured)
-
-Within each category, tests are sorted by their impact (diff_score) in descending order, so the most impactful tests appear first.
-
-## Data Structure
-
-```json
-{
-  "base": [
-    {
-      "test_result": {
-        "name": "test_name",
-        "score": 85.0,
-        "weight": 20.0,
-        "status": "PARTIAL",
-        ...
-      },
-      "diff_score": 3.0
-    },
-    ...
-  ],
-  "penalty": [...],  // Optional
-  "bonus": [...]     // Optional
-}
+focus = find_focus(outcome.tree)          # completed ResultOutcomeTree
+focus.base[0].test_result.id              # the criterion that cost the most points
+focus.base[0].diff_score                  # points lost on the 0-100 scale
 ```
 
-### Fields
+`Focus` has `base`, `penalty` and `bonus` tuples (`None` for absent categories)
+of `FocusedTest(test_result, diff_score)`. `test_result` is the tree's own
+`TestOutcome`; both values are frozen.
 
-- **test_result**: The complete test result node with all details (name, score, weight, status, etc.)
-- **diff_score**: The actual points deducted from the final score (0-100 scale) by this test
-
-## How It Works
-
-The Focus service calculates the impact of each test by considering:
-
-1. **Test Score**: How well the student performed on that specific test (0-100)
-2. **Test Weight**: The importance of that test relative to its siblings
-3. **Cumulative Multiplier**: The cascading effect of parent weights through the tree structure
-
-The formula for impact calculation:
-```
-diff_score = (100 - test_score) * (test_weight / 100) * cumulative_multiplier
-```
-
-## Integration
-
-### Pipeline Integration
-
-The Focus step is automatically executed when feedback generation is enabled. It runs after the GRADE step and before the FEEDBACK step:
+## Impact
 
 ```
-compile → validate → prepare? → grade → requested focus/feedback → close → outcome
+diff_score = (100 - score) * share
+share      = category weight / 100 * product of (effective weight / 100) along the path
 ```
 
-### Storage
-
-The Focus object is stored in the `submission_results` table as a JSON field alongside:
-- `result_tree`: The complete test execution tree
-- `feedback`: Generated feedback text
-- `pipeline_execution`: Pipeline execution summary
-
-### API Response
-
-When retrieving submission results via the API, the Focus data is included in the response:
-
-```http
-GET /api/v1/submissions/{submission_id}
-```
-
-Response:
-```json
-{
-  "id": 123,
-  "status": "completed",
-  "final_score": 85.5,
-  "result_tree": {...},
-  "focus": {
-    "base": [...],
-    "penalty": null,
-    "bonus": null
-  },
-  "feedback": "...",
-  ...
-}
-```
-
-## Use Cases
-
-### 1. Feedback Generation
-The Focus data helps AI feedback generators prioritize which tests to discuss in detail, focusing on the tests that had the most significant impact on the score.
-
-### 2. Student Analytics
-Instructors can quickly identify which concepts or test categories caused the most trouble for students across multiple submissions.
-
-### 3. Debugging
-During development, Focus helps verify that weight calculations and score propagation are working correctly throughout the criteria tree.
+The share comes from `iter_test_shares` in
+`autograder/models/contracts/scoring.py`, the same effective weights used for
+grading: sibling ratios scaled to 100, all-zero siblings shared equally and a
+mixed holder split once by `subjects_weight`. Within each category, criteria are
+sorted by `diff_score` (descending); ties keep the canonical criterion order. For
+the base category the impacts sum to the points lost.
 
 ## Example
 
-Consider a submission with the following tests:
-- Test A: score=50, weight=30, parent_weight=100 → diff_score = 15.0
-- Test B: score=90, weight=20, parent_weight=100 → diff_score = 2.0
-- Test C: score=0, weight=10, parent_weight=50 → diff_score = 5.0
+A base category with subject `Program` (weight 3) holding test `p`, and subject
+`Quality` (weight 1, `subjects_weight` 60) holding subject `Imports` with test
+`imports` plus direct test `artifact`, all scoring 0:
 
-The Focus base array would be ordered as:
-```
-[Test A (15.0), Test C (5.0), Test B (2.0)]
-```
+| Criterion | Share | diff_score |
+|---|---|---|
+| `p` | 0.75 | 75 |
+| `imports` | 0.25 × 0.60 = 0.15 | 15 |
+| `artifact` | 0.25 × 0.40 = 0.10 | 10 |
 
-This immediately shows that Test A had the most significant impact on the final score, followed by Test C, then Test B.
+## Where it is used
 
-## Database Migration
-
-To add Focus support to an existing database, run:
-
-```bash
-make db-upgrade
-```
-
-Or manually:
-```bash
-cd /home/raspiestchip/PycharmProjects/autograder
-alembic -c web/alembic.ini upgrade head
-```
-
-The migration adds a nullable `focus` JSON column to the `submission_results` table.
-
-## Technical Details
-
-### Classes
-
-- **Focus** (`autograder/models/dataclass/focus.py`): Main dataclass holding base, penalty, and bonus test lists
-- **FocusedTest** (`autograder/models/dataclass/focus.py`): Wrapper combining a test result with its calculated impact
-- **FocusService** (`autograder/services/focus_service.py`): Service that calculates impact scores and generates Focus objects
-- **Coordinator** (`autograder/autograder.py`): Calls focus only for requested feedback
-
-### Data
-
-`Focus` and `FocusedTest` are frozen, in-process values derived from the
-canonical `ResultOutcomeTree`; each `FocusedTest.test_result` is the tree's own
-`TestOutcome`. They are not part of the terminal outcome.
-
+`render_feedback` calls `find_focus` only when the definition enables feedback
+(see [requested feedback](../pipeline/07-feedback.md)). Disabled feedback never
+computes focus.

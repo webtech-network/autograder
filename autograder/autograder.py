@@ -15,10 +15,9 @@ from autograder.models.diagnostics import DiagnosticEvent, DiagnosticObserver
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.assessment import assess_criteria
-from autograder.services.focus_service import FocusService
 from autograder.services.grading import grade
 from autograder.services.preparation import check_capabilities, prepare_session, validate_submission
-from autograder.services.report.reporter_service import ReporterService
+from autograder.services.feedback import render_feedback
 
 logger = logging.getLogger(__name__)
 
@@ -104,17 +103,12 @@ class AutograderPipeline:
                 raise EvaluationError("INVALID_EVALUATOR_RESULT", "The grading execution produced an invalid assessment.", "internal") from exc
             _observe(observer, execution_id, operation)
 
-            # Optional enrichment receives the completed grade directly. It
-            # cannot replace that grade, and disabled feedback performs no work.
+            # Feedback is a requested derivation of the completed grade: disabled
+            # feedback does no work, and a feedback failure cannot replace the grade.
             if definition.feedback.enabled:
                 operation = "feedback"
                 try:
-                    focus = FocusService().find(tree)
-                    content = ReporterService(feedback_mode=definition.feedback.mode).generate_feedback(
-                        grading_result=focus, result_tree=tree,
-                        feedback_config=definition.feedback.preferences.model_dump(mode="json"),
-                        locale=submission.locale,
-                    )
+                    content = render_feedback(tree, definition.feedback.preferences, submission.locale)
                     feedback = FeedbackOutcome(status="completed", content=content)
                     _observe(observer, execution_id, operation)
                 except Exception as exc:  # pylint: disable=broad-exception-caught

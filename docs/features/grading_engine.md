@@ -123,7 +123,7 @@ All derive from the authoritative assessed tree and are keyed by criterion ID,
 so repeated labels or labels containing slashes never collide:
 
 - `score_vector(tree)` / `outcome_score_vector(outcome)` → `{criterion_id: score}`.
-- `FocusService().find(tree)` → criteria per category ordered by points lost.
+- `find_focus(tree)` → criteria per category ordered by points lost (used only for requested feedback).
 - The default feedback report (learning resources link criterion IDs).
 - `compare(baseline_tree, head_tree)` → the contract's `ComparisonContent`.
 

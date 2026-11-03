@@ -6,9 +6,9 @@ Feedback generation transforms grading data into student-facing guidance.
 
 In this architecture, feedback is generated from:
 
-- the canonical `ResultOutcomeTree` (full scoring structure)
-- `Focus` (tests ranked by score impact)
-- `FeedbackPreferences` (report configuration)
+- the completed canonical `ResultOutcomeTree` (full scoring structure)
+- `Focus` (criteria ranked by score impact, derived from that tree)
+- the definition's validated `feedback.preferences` (report configuration)
 
 ## Why it matters
 
@@ -24,10 +24,13 @@ Feedback and focus run only when the definition has `feedback.enabled=true`.
 
 ## How it works
 
-1. The coordinator passes the completed result tree to `FocusService.find`.
-2. `ReporterService` receives that focus, tree, preferences and locale directly.
-3. The supported `default` reporter returns Markdown content.
-4. Exceptions or missing content mark feedback failed and preserve the grade.
+1. The coordinator calls `render_feedback(tree, preferences, locale)` only when
+   feedback is enabled; otherwise feedback stays `disabled` and nothing runs.
+2. `find_focus(tree)` ranks criteria by points lost.
+3. `render_default_report` renders the one implemented `default` mode as Markdown,
+   reading (never modifying) the canonical preferences.
+4. Exceptions or empty content mark feedback `failed` (`FEEDBACK_ERROR`) and
+   preserve the grade.
 
 ## Educational quality patterns
 
@@ -46,7 +49,6 @@ High-quality reports should:
 
 - Long generic feedback that ignores focus ordering
 - Hiding score breakdown while expecting students to self-diagnose
-- Enabling AI mode in production before AI reporter implementation is complete
 
 ## Continue reading
 
