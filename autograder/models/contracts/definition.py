@@ -253,8 +253,13 @@ def compile_definition(value: GradingDefinition | dict | CompiledDefinition, *, 
         raise DefinitionValidationError(errors)
     from autograder.services.criteria_tree_service import CriteriaTreeService
     tree = CriteriaTreeService().build_tree(definition.criteria, selected)
+    return CompiledDefinition(definition, definition_hash(definition), tree, selected)
+
+
+def definition_hash(definition: GradingDefinition) -> str:
+    """SHA-256 over sorted, compact UTF-8 JSON of an already normalized definition."""
     payload = json.dumps(definition.model_dump(mode='json'), sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
-    return CompiledDefinition(definition, hashlib.sha256(payload).hexdigest(), tree, selected)
+    return hashlib.sha256(payload).hexdigest()
 
 
 def select_language(definition: GradingDefinition | CompiledDefinition, supplied=None) -> Language:

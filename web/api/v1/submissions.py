@@ -5,10 +5,10 @@ from web.api.deps import Principal, get_db_session, require_attestation, require
 from web.database.models.submission import SubmissionStatus
 from web.schemas import (
     SubmissionCreate, SubmissionResponse, SubmissionDetailResponse,
-    ExternalResultCreate, ExternalResultResponse,
+    ExternalResultCreate, ExternalResultResponse, SubmissionComparisonResponse,
 )
 from web.service.submission_operations import (
-    Idempotency, OperationError, accept_submission, ingest_attested_outcome,
+    Idempotency, OperationError, accept_submission, compare_submissions, ingest_attested_outcome,
     project_submission, query_history, query_submission,
 )
 
@@ -83,6 +83,14 @@ async def ingest_external_result(payload: ExternalResultCreate, response: Respon
 @router.get("/{submission_id}/details", response_model=SubmissionDetailResponse)
 async def get_submission_details(submission_id: int, session=Depends(get_db_session)):
     return await _operation(query_submission(session, submission_id, details=True))
+
+
+@router.get("/{submission_id}/comparison", response_model=SubmissionComparisonResponse)
+async def compare_submission(submission_id: int,
+                             baseline_submission_id: int = Query(..., gt=0),
+                             session=Depends(get_db_session)):
+    """Compare two stored canonical outcomes on demand; nothing is graded or stored."""
+    return await _operation(compare_submissions(session, submission_id, baseline_submission_id))
 
 
 @router.get("/{submission_id}", response_model=SubmissionResponse)
