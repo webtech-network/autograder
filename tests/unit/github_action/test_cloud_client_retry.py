@@ -1,10 +1,14 @@
+# pylint: disable=missing-function-docstring,missing-class-docstring,invalid-name,protected-access
 """INT-04 client retry contract: bounded, idempotent, deadline-aware and honest."""
 from email.utils import format_datetime
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 import json
+import shutil
 import socket
+import ssl
+import subprocess
 import threading
 import time
 import urllib.error
@@ -388,10 +392,6 @@ def test_stalled_tls_handshake_is_bounded_by_the_total_deadline():
 
 
 def test_real_tls_exchange_verifies_certificate_and_succeeds(tmp_path, monkeypatch):
-    import shutil
-    import ssl
-    import subprocess
-
     if shutil.which("openssl") is None:
         pytest.skip("openssl is required to create a test certificate")
     cert, key = tmp_path / "cert.pem", tmp_path / "key.pem"
