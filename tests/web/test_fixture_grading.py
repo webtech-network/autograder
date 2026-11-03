@@ -5,8 +5,8 @@ import asyncio
 import pytest
 
 from autograder.models.capabilities import HostCapabilities
-from sandbox_manager.models.sandbox_models import CommandResponse
 from tests.fake_object_store import fake_s3_provider
+from tests.process_results import exited
 
 HEADERS = {"Authorization": "Bearer fixture-token"}
 
@@ -25,9 +25,9 @@ class RecordingSession:
     def stage_fixture(self, path, content, read_only):
         self.staged[path] = (content, read_only)
 
-    def run_command(self, command, **_kwargs):
-        self.commands.append(command)
-        return CommandResponse("ok", "", 0, 0)
+    def run_process(self, request):
+        self.commands.append(" ".join(request.argv) if request.argv is not None else request.shell)
+        return exited("ok")
 
     def close(self):
         self.closed += 1

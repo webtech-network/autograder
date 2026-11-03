@@ -24,6 +24,7 @@ import pytest
 from autograder import Submission, SubmissionFile, build_pipeline
 from execution_host.docker import DockerHost
 from autograder.models.language import Language
+from tests.sandbox_profiles import sandbox_config
 
 GOLDEN = Path(__file__).with_name("canonical_outcome_golden.json")
 RUN = "python3 main.py"
@@ -87,7 +88,7 @@ SUBMISSIONS = {"good": GOOD, "partial": PARTIAL, "mixed": MIXED}
 @pytest.fixture(scope="module")
 def docker_host(tmp_path_factory):
     config = tmp_path_factory.mktemp("sandbox") / "sandbox.yml"
-    config.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
+    config.write_text(sandbox_config([Language.PYTHON]))
     host = DockerHost(mode="local", config_file=str(config))
     yield host
     host.close()

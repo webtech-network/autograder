@@ -233,8 +233,8 @@ async def test_unresolvable_assets_are_unavailable_and_release_the_sandbox(compo
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
     sandbox.inject_assets.assert_not_called()
-    sandbox.run_commands.assert_not_called()
-    manager.destroy_sandbox.assert_called_once()
+    sandbox.run_process.assert_not_called()
+    manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
