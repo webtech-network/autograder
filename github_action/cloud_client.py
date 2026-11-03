@@ -21,6 +21,7 @@ import json
 import logging
 import random
 import socket
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -70,55 +71,117 @@ _RETRY_MAX_DELAY: float = 30.0
 _DETAIL_LIMIT = 300
 
 
+class _Watchdog:
+    """Enforce an absolute deadline over one exchange.
+
+    Socket timeouts only bound inactivity between reads, so a server trickling
+    bytes could hold a request open indefinitely. At the deadline the watchdog
+    shuts the connection's socket down, which fails any pending connect/TLS
+    handshake, header or body read, including reads of an error body.
+    """
+
+    def __init__(self, deadline: float):
+        self.deadline = deadline
+        self.expired = False
+        self._socket = None
+        self._lock = threading.Lock()
+        self._timer = threading.Timer(max(0.0, deadline - time.monotonic()), self._fire)
+        self._timer.daemon = True
+        self._timer.start()
+
+    def watch(self, sock):
+        """Track the socket object itself: urllib drops `connection.sock` after the
+        headers while the response keeps reading from the same socket."""
+        with self._lock:
+            self._socket = sock
+            if self.expired:
+                self._shutdown()
+
+    def _fire(self):
+        with self._lock:
+            self.expired = True
+            self._shutdown()
+
+    def _shutdown(self):
+        sock = self._socket
+        if sock is not None:
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+    def cancel(self):
+        self._timer.cancel()
+
+    def check(self):
+        if self.expired:
+            raise TimeoutError("total deadline exceeded")
+
+
 class _DeadlineConnection(http.client.HTTPConnection):
     """Apply the connect timeout while connecting and the read timeout afterwards."""
 
-    def __init__(self, *args, connect_timeout: float, read_timeout: float, **kwargs):
+    def __init__(self, *args, connect_timeout: float, read_timeout: float, watchdog=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._connect_timeout = connect_timeout
         self._read_timeout = read_timeout
+        self._watchdog = watchdog
 
     def connect(self):
         self.timeout = self._connect_timeout
         super().connect()
+        if self._watchdog is not None:
+            self._watchdog.watch(self.sock)
         self.sock.settimeout(self._read_timeout)
 
 
 class _DeadlineHTTPSConnection(http.client.HTTPSConnection):
-    def __init__(self, *args, connect_timeout: float, read_timeout: float, **kwargs):
+    def __init__(self, *args, connect_timeout: float, read_timeout: float, watchdog=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._connect_timeout = connect_timeout
         self._read_timeout = read_timeout
+        self._watchdog = watchdog
 
     def connect(self):
+        # Mirrors HTTPSConnection.connect, but performs the TLS handshake on a
+        # socket the watchdog already tracks so a trickling handshake is bounded.
         self.timeout = self._connect_timeout
-        super().connect()  # includes the TLS handshake
-        self.sock.settimeout(self._read_timeout)
+        http.client.HTTPConnection.connect(self)
+        server_hostname = self._tunnel_host or self.host
+        sock = self._context.wrap_socket(self.sock, server_hostname=server_hostname,
+                                         do_handshake_on_connect=False)
+        self.sock = sock
+        if self._watchdog is not None:
+            self._watchdog.watch(sock)
+        sock.do_handshake()
+        sock.settimeout(self._read_timeout)
 
 
 class _HTTPHandler(urllib.request.HTTPHandler):
-    def __init__(self, connect_timeout, read_timeout):
+    def __init__(self, connect_timeout, read_timeout, watchdog=None):
         super().__init__()
-        self._timeouts = {"connect_timeout": connect_timeout, "read_timeout": read_timeout}
+        self._timeouts = {"connect_timeout": connect_timeout, "read_timeout": read_timeout,
+                          "watchdog": watchdog}
 
     def http_open(self, req):
         return self.do_open(partial(_DeadlineConnection, **self._timeouts), req)
 
 
 class _HTTPSHandler(urllib.request.HTTPSHandler):
-    def __init__(self, connect_timeout, read_timeout):
+    def __init__(self, connect_timeout, read_timeout, watchdog=None):
         super().__init__()
-        self._timeouts = {"connect_timeout": connect_timeout, "read_timeout": read_timeout}
+        self._timeouts = {"connect_timeout": connect_timeout, "read_timeout": read_timeout,
+                          "watchdog": watchdog}
 
     def https_open(self, req):
         return self.do_open(partial(_DeadlineHTTPSConnection, **self._timeouts), req,
                             context=self._context)
 
 
-def _urlopen(req, *, connect_timeout: float, read_timeout: float):
-    """Open ``req`` with separate connect and read deadlines (seam for tests)."""
-    opener = urllib.request.build_opener(_HTTPHandler(connect_timeout, read_timeout),
-                                         _HTTPSHandler(connect_timeout, read_timeout))
+def _urlopen(req, *, connect_timeout: float, read_timeout: float, watchdog: _Watchdog | None = None):
+    """Open ``req`` with connect/read timeouts and an absolute deadline (seam for tests)."""
+    opener = urllib.request.build_opener(_HTTPHandler(connect_timeout, read_timeout, watchdog),
+                                         _HTTPSHandler(connect_timeout, read_timeout, watchdog))
     return opener.open(req, timeout=read_timeout)
 
 
@@ -144,8 +207,8 @@ def _problem(exc: urllib.error.HTTPError) -> tuple[str | None, str | None]:
     try:
         body = exc.read().decode("utf-8", "replace") if exc.fp is not None else ""
         detail = json.loads(body).get("detail") if body else None
-    except (ValueError, AttributeError, OSError):
-        return None, None
+    except (ValueError, AttributeError, OSError, http.client.HTTPException):
+        return None, None  # unreadable, or cut off at the total deadline
     if isinstance(detail, dict):
         return detail.get("code"), str(detail.get("message", ""))[:_DETAIL_LIMIT] or None
     if isinstance(detail, str):
@@ -232,14 +295,17 @@ class CloudClient:
             if remaining <= 0:
                 break
             retry_after = None
+            watchdog = _Watchdog(deadline)
             try:
                 with _urlopen(req, connect_timeout=min(self.connect_timeout, remaining),
-                              read_timeout=min(self.read_timeout, remaining)) as response:
-                    body = response.read().decode("utf-8")
-                return self._parse_json(body, context_label)
+                              read_timeout=min(self.read_timeout, remaining), watchdog=watchdog) as response:
+                    body = response.read()
+                # A body delimited by connection close looks complete after shutdown.
+                watchdog.check()
+                return self._parse_json(body.decode("utf-8"), context_label)
             except urllib.error.HTTPError as exc:
                 if exc.code not in RETRYABLE_STATUS:
-                    code, detail = _problem(exc)
+                    code, detail = _problem(exc)  # the watchdog also bounds this read
                     raise CloudClientError(
                         f"Autograder Cloud returned HTTP {exc.code} for {context_label}"
                         + (f" ({code})" if code else "") + (f": {detail}" if detail else ".")
@@ -258,8 +324,12 @@ class CloudClient:
                     exc.reason, (ConnectionRefusedError, socket.gaierror))
                 uncertain = uncertain or (sends_body and not connect_failure)
                 reason = getattr(exc, "reason", None) or type(exc).__name__
+                if watchdog.expired:
+                    reason = f"the {self.total_timeout:.0f}s total deadline was exceeded"
                 logger.warning("Network error reaching Autograder Cloud for %s (attempt %d/%d): %s",
                                context_label, attempt, attempts, reason)
+            finally:
+                watchdog.cancel()
             if attempt == attempts:
                 break
             delay = self._delay(attempt, retry_after)

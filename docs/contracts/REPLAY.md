@@ -66,9 +66,11 @@ Permanent: other 4xx, including 401/403/409/422; their safe server `code`/messag
 preserved (`CloudClientError.code`, `.detail`). Back-off is exponential (1 s, 2 s,
 4 s… capped at 30 s) with equal jitter, or the server's `Retry-After` (seconds or an
 HTTP date, capped at 30 s). `connect_timeout` (10 s) bounds connection/TLS setup,
-`read_timeout` (30 s) bounds each socket read, and `total_timeout` (120 s) bounds
-the whole operation including back-off; per-attempt timeouts are clamped to the
-remaining budget.
+`read_timeout` (30 s) bounds inactivity between socket reads, and `total_timeout`
+(120 s) is an absolute deadline for the whole operation including back-off. A
+watchdog shuts the connection down at that deadline, so a server trickling bytes
+cannot extend the TLS handshake, headers, body or error body past it, and a
+connection-delimited body cut off by the deadline is never accepted as complete.
 
 If a POST may have reached the server (lost response, reset, timeout, 5xx), the
 client reports `uncertain` rather than "failed". The Action keeps
