@@ -67,6 +67,7 @@ nav:
       - Quick Start Guide: github_action/quick-start.md
       - Configuration Reference: github_action/configuration.md
       - External Mode: github_action/external-mode.md
+      - Identity and Trust: github_action/trust.md
   - Grading Operations:
       - Overview: pipeline/README.md
       - Compile Templates: pipeline/01-load-template.md

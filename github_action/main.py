@@ -12,6 +12,7 @@ from autograder.models.contracts.outcome import validate_outcome
 from github_action.cloud_client import CloudClient, CloudClientError, CloudConnectionError
 from github_action.cloud_exporter import delivery_key
 from github_action.github_action_service import GithubActionService
+from github_action.identity import EXCLUDED_DIRECTORIES, TrustError, check_publication_trust, resolve_identity, run_provenance
 from submission_contract import (
     MAX_FILE_BYTES,
     MAX_FILES,
@@ -25,10 +26,14 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--execution-mode", choices=("repo", "external"), default="repo")
 parser.add_argument("--definition-path", default=".github/autograder/definition.json")
 parser.add_argument("--submission-root", default=".")
-parser.add_argument("--student-name", default=os.getenv("GITHUB_ACTOR", "local"))
+parser.add_argument("--submitter-id", help="Authoritative opaque submitter ID (e.g. Prisma's student ID)")
+parser.add_argument("--submitter-name", help="Display name for the submitter")
+parser.add_argument("--student-name", help=argparse.SUPPRESS)  # removed; fails with migration guidance
 parser.add_argument("--submission-language")
 parser.add_argument("--locale", choices=("en", "pt-br"), default="en")
 parser.add_argument("--grading-config-id", type=int)
+parser.add_argument("--grading-config-revision", type=int)
+parser.add_argument("--trusted-self-hosted-runner", choices=("true", "false"), default="false")
 parser.add_argument("--autograder-cloud-url")
 parser.add_argument("--autograder-cloud-token")
 parser.add_argument("--upload-to-cloud", choices=("true", "false"), default="false")
@@ -51,7 +56,7 @@ def collect_files(root):
         raise ValueError("submission-root contains an unreadable directory.") from error
 
     for directory, directories, filenames in os.walk(root, onerror=walk_error):
-        directories[:] = sorted(d for d in directories if d not in (".git", ".github", ".autograder"))
+        directories[:] = sorted(d for d in directories if d not in EXCLUDED_DIRECTORIES)
         for name in directories:
             if (Path(directory) / name).is_symlink():
                 raise ValueError("Submission directories must not be symbolic links.")
@@ -124,7 +129,14 @@ def _delivery_failure(exc, retained):
 
 
 def run(args):
+    if args.student_name is not None:
+        raise ValueError("student-name was removed: it defaulted to the workflow actor. Pass the owner of the "
+                         "work as submitter-id (and optionally submitter-name); see docs/github_action/trust.md.")
+    if args.grading_config_revision is not None and args.grading_config_revision <= 0:
+        raise ValueError("grading-config-revision must be positive.")
     wants_delivery = args.upload_to_cloud == "true" or bool(args.retry_delivery_path)
+    if wants_delivery:
+        check_publication_trust(trusted_self_hosted_runner=args.trusted_self_hosted_runner == "true")
     if args.execution_mode == "external" or wants_delivery:
         if not args.autograder_cloud_url or not args.autograder_cloud_token:
             raise ValueError("Cloud URL and token are required for cloud configuration or publication.")
@@ -149,13 +161,17 @@ def run(args):
         grading_config_id=args.grading_config_id, cloud_url=args.autograder_cloud_url,
         cloud_token=args.autograder_cloud_token, upload_to_cloud=wants_delivery,
         language=args.submission_language, locale=args.locale,
+        grading_config_revision=args.grading_config_revision,
     )
-    outcome = service.run_autograder(pipeline, args.student_name, collect_files(workspace_path(args.submission_root)))
+    identity = resolve_identity(args.submitter_id, args.submitter_name)
+    submission_root = workspace_path(args.submission_root)
+    provenance = run_provenance(submission_root)
+    outcome = service.run_autograder(pipeline, identity, collect_files(submission_root))
     value = outcome.model_dump(mode="json")
     result_path = retain_outcome(value)
     if value["status"] == "failed":
         logger.error("Grading failed: %s (%s)", value["error"]["message"], value["error"]["code"])
-    payload = service.delivery_payload(outcome, args.student_name)
+    payload = service.delivery_payload(outcome, identity, provenance)
     if payload is not None:
         write_json(result_path.with_name("delivery.json"), payload)
         try:
@@ -176,7 +192,7 @@ def main(argv=None):
     except DefinitionValidationError as exc:
         logger.error("Invalid grading definition: %s", json.dumps(exc.errors(), ensure_ascii=False))
         raise SystemExit(1) from exc
-    except (ValueError, OSError, RuntimeError, KeyError, CloudClientError, CloudConnectionError) as exc:
+    except (ValueError, OSError, RuntimeError, KeyError, CloudClientError, CloudConnectionError, TrustError) as exc:
         logger.error("%s", exc)
         raise SystemExit(1) from exc
 

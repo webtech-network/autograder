@@ -107,8 +107,10 @@ def test_metadata_inputs_are_forwarded_by_real_shell(tmp_path):
               "submission-root": "source with spaces", "grading-config-id": "7",
               "autograder-cloud-url": "https://cloud.invalid", "autograder-cloud-token": "secret",
               "upload-to-cloud": "true", "retry-delivery-path": "saved.json",
-              "submission-language": "python", "locale": "pt-br"}
-    env = dict(os.environ, PATH=str(tmp_path) + os.pathsep + os.environ["PATH"], CAPTURE=str(capture), GITHUB_ACTOR="alice")
+              "submission-language": "python", "locale": "pt-br", "submitter-id": "prisma-student-42",
+              "submitter-name": "Alice Example", "grading-config-revision": "3",
+              "trusted-self-hosted-runner": "false"}
+    env = dict(os.environ, PATH=str(tmp_path) + os.pathsep + os.environ["PATH"], CAPTURE=str(capture), GITHUB_ACTOR="bob")
     for variable, expression in metadata["runs"]["env"].items():
         name = expression.removeprefix("${{ inputs.").removesuffix(" }}")
         assert name in metadata["inputs"]
@@ -119,7 +121,9 @@ def test_metadata_inputs_are_forwarded_by_real_shell(tmp_path):
     parsed = vars(main.parser.parse_args(argv[2:]))
     for name, value in values.items():
         assert str(parsed[name.replace("-", "_")]) == value
-    assert parsed["student_name"] == "alice"
+    # The workflow actor is never forwarded as an identity.
+    assert parsed["student_name"] is None
+    assert "bob" not in argv
 
 
 def test_real_shell_grades_ordinary_checkout_and_retains_canonical_outcome(workspace):
@@ -200,6 +204,9 @@ def test_external_metadata_shell_cli_real_wire_outcome(workspace, delivery_fails
                     "schema_version": "1.0", "definition_hash": compiled.definition_hash,
                     "reference": "7", "revision": 3}
                 assert payload["external_user_id"] == "alice"
+                # The rerunning actor is provenance, never the owner of the grade.
+                assert payload["submission_metadata"]["github"]["actor"] == "bob-reran-it"
+                assert payload["submission_metadata"]["submitter_source"] == "input"
                 assert payload["language"] == "node"
                 assert "Relatório de Avaliação" in payload["outcome"]["feedback"]["content"]
                 uploaded.append(payload)
@@ -231,8 +238,9 @@ def test_external_metadata_shell_cli_real_wire_outcome(workspace, delivery_fails
         values.update({"execution-mode": "external", "submission-root": "source", "grading-config-id": "7",
             "autograder-cloud-url": f"http://127.0.0.1:{cloud.server_address[1]}",
             "autograder-cloud-token": "cloud-secret", "upload-to-cloud": "true",
-            "submission-language": "node", "locale": "pt-br"})
-        env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"], GITHUB_ACTOR="alice")
+            "submission-language": "node", "locale": "pt-br", "submitter-id": "alice"})
+        env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+                   GITHUB_ACTOR="bob-reran-it")
         for variable, expression in metadata["runs"]["env"].items():
             name = expression.removeprefix("${{ inputs.").removesuffix(" }}")
             env[variable] = values[name]
@@ -242,6 +250,10 @@ def test_external_metadata_shell_cli_real_wire_outcome(workspace, delivery_fails
         thread.join(timeout=5)
     assert not errors, errors
     assert result.returncode == (1 if delivery_fails else 0), result.stderr
+    # The credential never enters identity, artifacts, outputs or logs.
+    artifacts = [json.dumps(uploaded), result.stdout, result.stderr, (workspace / "outputs").read_text()]
+    artifacts += [path.read_text() for path in (workspace / ".autograder").iterdir()]
+    assert all("cloud-secret" not in text for text in artifacts)
     posts = 4 if delivery_fails else 1  # one attempt plus three bounded retries
     assert requests_seen == [("GET", "/api/v1/configs/id/7")] + [("POST", "/api/v1/submissions/external-results")] * posts
     assert len(uploaded) == posts

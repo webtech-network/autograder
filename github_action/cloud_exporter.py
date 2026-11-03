@@ -1,5 +1,4 @@
 """Publish a finished outcome without accessing mutable execution state."""
-import os
 
 
 class CloudPublisher:
@@ -8,20 +7,18 @@ class CloudPublisher:
         self.grading_config_id = grading_config_id
         self.definition = definition
 
-    def payload(self, outcome, user_name):
+    def payload(self, outcome, identity, provenance):
+        """Submitter identity and run provenance stay separate (INT-02)."""
         return {
             "grading_config_id": self.grading_config_id,
             "definition_snapshot": self.definition.model_dump(mode="json"),
-            "external_user_id": user_name,
-            "username": user_name,
+            "external_user_id": identity.submitter_id,
+            "username": identity.submitter_name,
             "language": outcome.language,
             "outcome": outcome.model_dump(mode="json"),
             "submission_metadata": {
-                "repository": os.getenv("GITHUB_REPOSITORY"),
-                "commit_sha": os.getenv("GITHUB_SHA"),
-                "run_id": os.getenv("GITHUB_RUN_ID"),
-                "actor": os.getenv("GITHUB_ACTOR"),
-                "ref": os.getenv("GITHUB_REF"),
+                "submitter_source": identity.source,
+                "github": provenance.metadata(),
             },
         }
 
