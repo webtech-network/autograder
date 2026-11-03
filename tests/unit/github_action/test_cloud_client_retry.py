@@ -149,7 +149,7 @@ def test_total_deadline_bounds_attempts_and_per_request_timeouts():
     clock = [100.0]
     seen = []
 
-    def respond(request, *, connect_timeout, read_timeout):
+    def respond(request, *, connect_timeout, read_timeout, **kwargs):
         seen.append((connect_timeout, read_timeout))
         clock[0] += 4
         raise urllib.error.URLError(ConnectionResetError("reset"))
@@ -280,3 +280,148 @@ def test_real_server_transient_failures_then_receipt():
         server.shutdown()
     assert receipt == {"submission_id": 5}
     assert calls == ["same", "same", "same"]
+
+
+# --- absolute deadline across headers and body (review on #399) ---------------------------
+
+
+class _DripServer:
+    """Accept one request at a time and answer with `chunks`, sleeping between them."""
+
+    def __init__(self, chunks, interval):
+        self.chunks, self.interval = chunks, interval
+        self.listener = socket.socket()
+        self.listener.bind(("127.0.0.1", 0))
+        self.listener.listen(8)
+        self.url = f"http://127.0.0.1:{self.listener.getsockname()[1]}"
+        threading.Thread(target=self._serve, daemon=True).start()
+
+    def _serve(self):
+        while True:
+            try:
+                connection, _ = self.listener.accept()
+            except OSError:
+                return
+            threading.Thread(target=self._drip, args=(connection,), daemon=True).start()
+
+    def _drip(self, connection):
+        with connection:
+            try:
+                connection.recv(65536)
+                for chunk in self.chunks:
+                    connection.sendall(chunk)
+                    time.sleep(self.interval)
+            except OSError:
+                pass  # the client gave up
+
+    def close(self):
+        self.listener.close()
+
+
+def _bytes(text):
+    return [bytes([value]) for value in text.encode()]
+
+
+def _assert_bounded(chunks, call, *, budget=0.1, limit=0.6):
+    server = _DripServer(chunks, 0.04)
+    started = time.monotonic()
+    try:
+        with pytest.raises((CloudConnectionError, CloudClientError)) as error:
+            call(CloudClient(server.url, "t", connect_timeout=budget, read_timeout=budget,
+                             total_timeout=budget, max_retries=0))
+    finally:
+        server.close()
+    assert time.monotonic() - started < limit
+    return error.value
+
+
+def test_slow_drip_body_cannot_outlive_the_total_deadline():
+    # The reviewer's reproduction: 8 bytes of {"id":1} at 40 ms intervals.
+    head = [b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 8\r\n\r\n"]
+    error = _assert_bounded(head + _bytes('{"id":1}'), lambda client: client.get_grading_config(1))
+    assert isinstance(error, CloudConnectionError)
+
+
+def test_close_delimited_body_is_not_accepted_truncated():
+    head = [b"HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n"]
+    error = _assert_bounded(head + _bytes('{"submission_id": 12345}'),
+                            lambda client: client.submit_external_result({}, idempotency_key="k"))
+    # Without the watchdog check this returned a truncated body as success.
+    assert isinstance(error, CloudConnectionError) and error.uncertain is True
+    assert isinstance(error.__cause__, TimeoutError)
+
+
+def test_trickled_headers_are_bounded():
+    _assert_bounded(_bytes("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}"),
+                    lambda client: client.get_grading_config(1))
+
+
+def test_trickled_error_body_is_bounded():
+    head = [b"HTTP/1.1 409 Conflict\r\nContent-Type: application/json\r\nContent-Length: 80\r\n\r\n"]
+    error = _assert_bounded(head + _bytes('{"detail": {"code": "IDEMPOTENCY_KEY_REUSED", "message": "x"}}' + " " * 20),
+                            lambda client: client.submit_external_result({}, idempotency_key="k"))
+    # The permanent status is still reported; the unread detail is simply omitted.
+    assert isinstance(error, CloudClientError) and error.status_code == 409
+
+
+def test_fast_response_within_deadline_is_unaffected():
+    head = [b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 8\r\n\r\n{\"id\":1}"]
+    server = _DripServer(head, 0)
+    try:
+        assert CloudClient(server.url, "t", total_timeout=5).get_grading_config(1) == {"id": 1}
+    finally:
+        server.close()
+
+
+def test_stalled_tls_handshake_is_bounded_by_the_total_deadline():
+    listener = socket.socket()  # accepts TCP but never answers the ClientHello
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    started = time.monotonic()
+    try:
+        with pytest.raises(CloudConnectionError):
+            CloudClient(f"https://127.0.0.1:{listener.getsockname()[1]}", "t", connect_timeout=5,
+                        read_timeout=5, total_timeout=0.3, max_retries=0).get_grading_config(1)
+    finally:
+        listener.close()
+    assert time.monotonic() - started < 1.5
+
+
+def test_real_tls_exchange_verifies_certificate_and_succeeds(tmp_path, monkeypatch):
+    import shutil
+    import ssl
+    import subprocess
+
+    if shutil.which("openssl") is None:
+        pytest.skip("openssl is required to create a test certificate")
+    cert, key = tmp_path / "cert.pem", tmp_path / "key.pem"
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                    "-subj", "/CN=127.0.0.1", "-addext", "subjectAltName=IP:127.0.0.1",
+                    "-keyout", str(key), "-out", str(cert)], check=True, capture_output=True)
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            data = b'{"id": 7}'
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert, key)
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"https://127.0.0.1:{server.server_address[1]}"
+    try:
+        # Untrusted certificate: verification is still enforced (permanent, no retry needed).
+        with pytest.raises(CloudConnectionError):
+            CloudClient(url, "t", max_retries=0).get_grading_config(7)
+        monkeypatch.setenv("SSL_CERT_FILE", str(cert))
+        assert CloudClient(url, "t", total_timeout=5).get_grading_config(7) == {"id": 7}
+    finally:
+        server.shutdown()
+        server.server_close()
