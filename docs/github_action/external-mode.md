@@ -39,8 +39,8 @@ can also publish: provide the cloud ID/URL/token and `upload-to-cloud: "true"`.
 The selected cloud revision must have the same normalized definition hash.
 
 The upload envelope contains `grading_config_id`, `definition_snapshot`, the
-exact finished `outcome`, opaque student identity, selected language, and GitHub
-metadata. Cloud credentials never appear in that artifact. The API validates
+exact finished `outcome`, the submitter identity, selected language, and GitHub
+run provenance kept separate from the actor ([identity and trust](trust.md)). Cloud credentials never appear in that artifact. The API validates
 provenance and outcome invariants as an authenticated host attestation.
 
 The result POST carries `Idempotency-Key: action-outcome:<execution_id>`. GET and

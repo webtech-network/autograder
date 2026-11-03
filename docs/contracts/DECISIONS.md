@@ -174,3 +174,15 @@ are retained with their submission. The Action derives its key from the saved
 outcome's execution ID, retries only keyed POSTs within a total deadline, honours
 `Retry-After`, and reports uncertain delivery without altering the grade. See
 [REPLAY.md](REPLAY.md).
+
+## Action identity and runner trust (INT-02)
+
+The Action separates the submitter (explicit opaque `submitter-id`, else the
+repository), the actor (provenance only) and the producer (the authenticated
+credential). Published metadata records repository, event, event SHA, the evaluated
+commit and whether graded files match it, run ID/attempt, workflow ref, actor and
+runner. Publication is refused for `pull_request_target`, `workflow_run`, fork pull
+requests, unknown events and unreviewed self-hosted runners. Restricted attestation
+tokens publish a named revision without reading configurations. Attestations remain
+producer claims; untrusted work is graded server-side through a trusted broker. See
+[the trust table](../github_action/trust.md).

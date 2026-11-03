@@ -2,6 +2,7 @@
 from unittest.mock import MagicMock
 
 from github_action.cloud_exporter import CloudPublisher
+from github_action.identity import RunProvenance, SubmissionIdentity
 
 
 def test_publisher_preserves_exact_outcome_and_has_no_engine_dependency():
@@ -12,10 +13,12 @@ def test_publisher_preserves_exact_outcome_and_has_no_engine_dependency():
     outcome.model_dump.return_value = value
     outcome.language = "python"
     publisher = CloudPublisher(client, 7, definition)
-    payload = publisher.payload(outcome, "alice")
+    provenance = RunProvenance(*([None] * len(RunProvenance.__dataclass_fields__)))
+    payload = publisher.payload(outcome, SubmissionIdentity("alice", "Alice", "input"), provenance)
     assert payload["outcome"] == value
     assert payload["definition_snapshot"] == {"schema_version": "1.0"}
-    assert payload["external_user_id"] == "alice"
+    assert payload["external_user_id"] == "alice" and payload["username"] == "Alice"
+    assert payload["submission_metadata"]["submitter_source"] == "input"
     publisher.publish(payload)
     publisher.publish(payload)
     assert client.submit_external_result.call_count == 2
