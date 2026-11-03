@@ -12,10 +12,12 @@ vector = outcome_score_vector(execution.outcome)  # completed outcomes only
 # {"imports": 100.0, "algorithm": 75.0}
 ```
 
-Internal `ResultTree.iter_test_results()` yields `(criterion_id, TestResultNode)`
-and `to_score_vector()` provides the same map. Missing or duplicate IDs raise an
-error rather than silently overwriting an assessment. Deserialization preserves
-IDs and evaluator identifiers.
+`score_vector(tree)` gives the same map for any `ResultOutcomeTree`, using the
+shared canonical traversal (`autograder.models.contracts.scoring.iter_tests`:
+categories in base/bonus/penalty order, nested subjects before direct tests).
+Criterion IDs are unique by the outcome contract, so no assessment can be
+overwritten. The tree is the one assessed-result model; JSON round trips preserve
+every field, including IDs, evaluator identifiers and file targets.
 
 The v1 outcome has one authoritative tree and no independent `score_vector`
 wire field. Hosts can derive and index vectors for their own query requirements.

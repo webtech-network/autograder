@@ -5,11 +5,10 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from pydantic import ValidationError
-
 from autograder.models.capabilities import HostCapabilities, requirements_for
 from autograder.models.contracts.definition import CompiledDefinition, compile_definition, select_language, DefinitionValidationError
-from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome, FeedbackOutcome, OutcomeError, ResultOutcomeTree
+from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome, FeedbackOutcome, OutcomeError
+from autograder.models.contracts.verification import OutcomeStructureError, verify_outcome_tree
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import Submission
 from autograder.models.diagnostics import DiagnosticEvent, DiagnosticObserver
@@ -17,7 +16,7 @@ from autograder.models.evaluation_error import EvaluationError
 from autograder.models.pipeline_execution import PipelineExecution
 from autograder.services.assessment import assess_criteria
 from autograder.services.focus_service import FocusService
-from autograder.services.grader.grader_service import GraderService
+from autograder.services.grading import grade
 from autograder.services.preparation import check_capabilities, prepare_session, validate_submission
 from autograder.services.report.reporter_service import ReporterService
 
@@ -95,12 +94,13 @@ class AutograderPipeline:
                                       session=session, ai=self.capabilities.ai)
             _observe(observer, execution_id, operation)
 
+            # The assessed tree is built once and passes the same structural
+            # check as an externally attested outcome.
             operation = "grade"
-            result_tree = GraderService().grade_from_tree(self.compiled.criteria_tree, results)
-            result_tree.calculate_final_score()
+            tree = grade(self.compiled.criteria_tree, results)
             try:
-                tree = ResultOutcomeTree.model_validate(result_tree.root.to_dict())
-            except (ValidationError, TypeError, ValueError) as exc:
+                verify_outcome_tree(self.compiled.criteria_tree, tree)
+            except OutcomeStructureError as exc:
                 raise EvaluationError("INVALID_EVALUATOR_RESULT", "The grading execution produced an invalid assessment.", "internal") from exc
             _observe(observer, execution_id, operation)
 
@@ -109,9 +109,9 @@ class AutograderPipeline:
             if definition.feedback.enabled:
                 operation = "feedback"
                 try:
-                    focus = FocusService().find(result_tree)
+                    focus = FocusService().find(tree)
                     content = ReporterService(feedback_mode=definition.feedback.mode).generate_feedback(
-                        grading_result=focus, result_tree=result_tree,
+                        grading_result=focus, result_tree=tree,
                         feedback_config=definition.feedback.preferences.model_dump(mode="json"),
                         locale=submission.locale,
                     )

@@ -68,7 +68,24 @@ and the root must equal the capped combination of its categories. Base weight is
 names and grouping are presentation. Serialization rounds scores to two decimal
 places, and validation allows only the resulting small arithmetic rounding
 error. `outcome_score_vector(completed)` derives an ID-to-score projection from
-the authoritative tree. No independently mutable vector is present on the wire.
+the authoritative tree.
+
+Scoring arithmetic has one definition (`autograder/models/contracts/scoring.py`):
+effective sibling weights are ratios scaled to 100 (all-zero siblings share
+equally; a mixed holder splits 100 by `subjects_weight`), holder scores are the
+weighted mean of unrounded child scores, the final score is
+`base + bonus/100*cap - (100-penalty)/100*cap` clamped to 0–100, every reported
+score is rounded to two decimals and effective weights are not rounded. The
+canonical criterion order is base, bonus, penalty and, inside a holder, nested
+subjects before direct tests.
+
+Every completed tree, locally produced or externally attested, passes the same
+structural check, `verify_outcome_tree(criteria, tree)`: categories, holder names
+and order, criterion IDs, evaluator types, labels and file targets must match the
+definition, and effective weights must equal its ratios (tolerance 1e-5).
+Reported `parameters` are optional on the wire; when present they must equal the
+canonical parameters. Arithmetic is validated separately, from the reported
+values, by the outcome model itself; neither check trusts the producer. No independently mutable vector is present on the wire.
 Comparison's existing `path` field now carries the criterion ID, never a display
 path. Tree parameters contain only normalized authoring parameters, never
 pipeline-injected resources or prompts. Trusted detail may contain private tests;

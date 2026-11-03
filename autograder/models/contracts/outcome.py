@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_validator, model_validator
 
 from autograder.models.contracts.provenance import DefinitionProvenance
+from autograder.models.contracts.scoring import final_score, holder_score, iter_tests
 
 Score = Annotated[float, Field(ge=0, le=100, allow_inf_nan=False, strict=True)]
 Weight = Annotated[float, Field(ge=0, allow_inf_nan=False, strict=True)]
@@ -110,10 +111,12 @@ class CategoryOutcome(ContractModel):
 
 
 def _validate_holder(holder):
+    # Recomputed from the reported (rounded) child values: arithmetic is checked
+    # independently of whichever producer built the tree.
     children = (*holder.subjects, *holder.tests)
     if not children or sum(child.weight for child in children) <= 0:
         raise ValueError("Result holders require positively weighted children")
-    score = sum(child.score * child.weight for child in children) / sum(child.weight for child in children)
+    score = holder_score([(child.score, child.weight) for child in children])
     if not isclose(holder.score, score, abs_tol=0.011):
         raise ValueError("Holder score is inconsistent with child scores and weights")
 
@@ -135,31 +138,24 @@ class ResultOutcomeTree(ContractModel):
                 raise ValueError("Category names must match their tree position")
         if self.base.weight != 100:
             raise ValueError("Base category weight must be 100")
-        score = self.base.score
-        if self.bonus:
-            score += self.bonus.score / 100 * self.bonus.weight
-        if self.penalty:
-            score -= (100 - self.penalty.score) / 100 * self.penalty.weight
-        if not isclose(self.score, min(100, max(0, score)), abs_tol=0.021):
+        score = final_score(self.base.score,
+                            (self.bonus.score, self.bonus.weight) if self.bonus else None,
+                            (self.penalty.score, self.penalty.weight) if self.penalty else None)
+        if not isclose(self.score, score, abs_tol=0.021):
             raise ValueError("Root score is inconsistent with category scores")
-        ids = [test.id for test in iter_outcome_tests(self)]
+        ids = [test.id for _, test in iter_tests(self)]
         if len(ids) != len(set(ids)):
             raise ValueError("Criterion IDs must be unique within a result tree")
         return self
 
 
-def iter_outcome_tests(tree: ResultOutcomeTree):
-    def walk(holder):
-        yield from holder.tests
-        for subject in holder.subjects:
-            yield from walk(subject)
-    for category in (tree.base, tree.bonus, tree.penalty):
-        if category:
-            yield from walk(category)
+def score_vector(tree: ResultOutcomeTree) -> dict[str, float]:
+    """Criterion-ID-keyed leaf scores; identities are unique by construction."""
+    return {test.id: test.score for _, test in iter_tests(tree)}
 
 
 def outcome_score_vector(outcome: "CompletedOutcome") -> dict[str, float]:
-    return {test.id: test.score for test in iter_outcome_tests(outcome.tree)}
+    return score_vector(outcome.tree)
 
 
 class FeedbackOutcome(ContractModel):

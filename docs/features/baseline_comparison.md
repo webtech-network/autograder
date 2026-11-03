@@ -1,19 +1,20 @@
 # Optional result comparison
 
-`ResultComparator.compare(baseline, head)` compares two internal `ResultTree`
-instances without regrading either submission. It joins their criterion IDs,
+`compare(baseline, head)` compares two authoritative `ResultOutcomeTree` values
+(for example two stored outcomes' `tree`) without regrading either submission
+and returns the contract's `ComparisonContent`. It joins their criterion IDs,
 computes overall score change, and reports improved/regressed/unchanged criteria
 plus introduced/removed criteria. Its existing `path` field now means criterion
 ID, never a display-name path.
 
 ```python
 from autograder.models.contracts.outcome import ComparisonOutcome, validate_outcome
-from autograder.services.result_comparator import ResultComparator
+from autograder.services.result_comparator import compare
 
-comparison = ResultComparator.compare(baseline_tree, head_tree)
+comparison = compare(baseline_outcome.tree, completed_outcome.tree)
 wire = completed_outcome.model_dump(mode="json")
 wire["comparison"] = ComparisonOutcome(
-    status="completed", content=comparison.to_dict()
+    status="completed", content=comparison
 ).model_dump(mode="json")
 enriched = validate_outcome(wire)
 ```

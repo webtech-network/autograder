@@ -10,8 +10,8 @@ The complete runtime order lives in `AutograderPipeline.run` in
 4. Assess every criterion with `assess_criteria`: ordinary evaluators run
    individually and selected AI criteria share one provider call; the results
    are keyed by criterion ID.
-5. Pass the compiled criteria and those results to
-   `GraderService.grade_from_tree`; calculate and validate the result tree.
+5. Pass the compiled criteria and those results to `grade`, which builds the
+   canonical `ResultOutcomeTree` once; verify it with `verify_outcome_tree`.
 6. If feedback is enabled, pass that result to focus selection and reporting.
 7. Close the owned session in `finally`, then construct the terminal outcome.
 

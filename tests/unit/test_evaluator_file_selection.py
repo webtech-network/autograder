@@ -39,7 +39,7 @@ def test_html_input_ignores_context_and_upload_order(reverse):
     submitted = files(*(reversed(values) if reverse else values))
     tree = CriteriaTree(base=CategoryNode("base", 100, tests=[criterion(HasTag(), parameters={"tag": "main", "required_count": 1})]))
     result = grade(tree, submitted)
-    assert result.calculate_final_score() == 100
+    assert result.score == 100
     assert select_files(tree.base.tests[0], submitted)[0].filename == "index.html"
 
 

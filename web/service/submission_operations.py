@@ -1,7 +1,7 @@
 """Concrete web operations own transactions; routes translate HTTP concerns."""
 from datetime import timezone
 from autograder.models.contracts.definition import compile_snapshot, select_language, DefinitionValidationError
-from autograder.services.weights import normalized_sibling_weights
+from autograder.models.contracts.verification import OutcomeStructureError, verify_outcome_tree
 from web.database.models.submission import SubmissionStatus
 from web.repositories import GradingConfigRepository, SubmissionRepository, ResultRepository
 from web.service.outcome_delivery import persist_outcome
@@ -107,58 +107,13 @@ def _compile_snapshot(value):
 
 
 def _check_attested_tree(outcome, compiled):
-    """Attestation may not change criterion placement or scoring ratios."""
-    from math import isclose
-
-    if outcome["status"] != "completed":
+    """Attestation may not change criterion placement or scoring ratios (core contract check)."""
+    if outcome.status != "completed":
         return
-
-    def mismatch():
-        raise OperationError(
-            422,
-            "Result tree structure, identities or scoring weights do not match its definition snapshot",
-        )
-
-    def holder(expected, actual):
-        if actual["name"] != expected.name:
-            mismatch()
-        for key in ("subjects", "tests"):
-            children = getattr(expected, key)
-            actual_children = actual.get(key) or []
-            if len(children) != len(actual_children):
-                mismatch()
-            factor = 100.0
-            if expected.subjects and expected.tests:
-                factor = (
-                    expected.subjects_weight
-                    if key == "subjects"
-                    else 100.0 - expected.subjects_weight
-                )
-            weights = normalized_sibling_weights([child.weight for child in children], factor / 100.0)
-            for child, result, normalized_weight in zip(children, actual_children, weights):
-                if not isclose(result["weight"], normalized_weight, abs_tol=0.00001):
-                    mismatch()
-                if key == "tests":
-                    if (
-                        result["id"] != child.criterion_id
-                        or result["evaluator"] != child.test_function.name
-                        or result["name"] != child.name
-                        or result.get("file_target") != (list(child.file_target) if child.file_target is not None else None)
-                    ):
-                        mismatch()
-                else:
-                    holder(child, result)
-
-    tree = outcome["tree"]
-    for category in ("base", "bonus", "penalty"):
-        expected = getattr(compiled.criteria_tree, category)
-        actual = tree.get(category)
-        if (expected is None) != (actual is None):
-            mismatch()
-        if expected:
-            if not isclose(expected.weight, actual["weight"], abs_tol=0.00001):
-                mismatch()
-            holder(expected, actual)
+    try:
+        verify_outcome_tree(compiled.criteria_tree, outcome.tree)
+    except OutcomeStructureError as exc:
+        raise OperationError(422, str(exc)) from exc
 
 
 async def accept_submission(session, submission):
@@ -261,7 +216,7 @@ async def _ingest_attested_outcome(session, payload):
         raise OperationError(
             422, "Outcome language does not match its definition snapshot"
         )
-    _check_attested_tree(outcome, compiled)
+    _check_attested_tree(payload.outcome, compiled)
     repo = SubmissionRepository(session)
     row = await repo.create(
         grading_config_id=config.id,

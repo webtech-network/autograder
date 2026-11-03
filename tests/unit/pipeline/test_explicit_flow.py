@@ -7,7 +7,6 @@ import pytest
 from autograder import build_pipeline, evaluate_submission
 from autograder.models.capabilities import HostCapabilities
 from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome, validate_outcome
-from autograder.models.result_tree import RootResultNode
 from sandbox_manager.models.sandbox_models import CommandResponse
 import autograder.autograder as coordinator
 from autograder.models.evaluation_error import EvaluationError
@@ -169,7 +168,7 @@ def test_invalid_result_snapshot_fails_before_feedback_and_still_closes():
     value = definition(feedback=True, preparation={"languages": {"python": {
         "setup_commands": [{"name": "prepare", "command": "prepare"}]}}})
     pipeline = build_pipeline(definition=value, capabilities=HostCapabilities(execution=lambda language: owned))
-    with patch.object(RootResultNode, "to_dict", return_value={"score": 100}), \
+    with patch("autograder.services.grading.final_score", return_value=101.0), \
          patch("autograder.autograder.FocusService") as focus:
         outcome = pipeline.run(submission()).outcome
     assert outcome.error.code == "INVALID_EVALUATOR_RESULT"

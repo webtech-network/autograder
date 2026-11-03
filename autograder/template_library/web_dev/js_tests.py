@@ -35,8 +35,7 @@ class CountGlobalVars(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"max_allowed": max_allowed}
+            report=report
         )
 
 class HasNoJsFramework(TestFunction):
@@ -137,8 +136,7 @@ class UsesForbiddenMethod(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"method": method}
+            report=report
         )
 
 class JsUsesFeature(TestFunction):
@@ -165,8 +163,7 @@ class JsUsesFeature(TestFunction):
         report = t("web_dev.js.js_uses_feature.report.found", locale=locale, feature=feature) if found else t("web_dev.js.js_uses_feature.report.not_found", locale=locale, feature=feature)
         return TestResult(
             test_name=self.name,
-            score=score, report=report,
-            parameters={"feature": feature}
+            score=score, report=report
         )
 
 class JsUsesDomManipulation(TestFunction):
@@ -200,8 +197,7 @@ class JsUsesDomManipulation(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"methods": methods, "required_count": required_count}
+            report=report
         )
 
 class JsHasJsonArrayWithId(TestFunction):
@@ -232,8 +228,7 @@ class JsHasJsonArrayWithId(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report=t("web_dev.js.js_has_json_array_with_id.report.no_data", locale=evaluation.locale),
-                parameters={"required_key": required_key, "min_items": min_items}
+                report=t("web_dev.js.js_has_json_array_with_id.report.no_data", locale=evaluation.locale)
             )
         array_content = match.group(1)
         # A simple heuristic: count how many times the required key appears as a key
@@ -244,6 +239,5 @@ class JsHasJsonArrayWithId(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"required_key": required_key, "min_items": min_items}
+            report=report
         )

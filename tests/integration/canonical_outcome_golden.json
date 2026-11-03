@@ -1,0 +1,1388 @@
+{
+  "good-en": {
+    "feedback": {
+      "content": "# Golden report\n\n---\n## GRADING SUMMARY\n- 📊 **Tests:** 8 total  \n  - ✅ 7 passed  \n  - ❌ 1 failed\n\n---\n## ✅ Essential Requirements\n\n### 🧪 Check / output ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `inputs=['2', '3'], expected_output=5, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Success: Output matches expected values.\n\n### 🧪 Check / output ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `inputs=['10', '20'], expected_output=30, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Success: Output matches expected values.\n\n### 🧪 Does not crash ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `user_input=4, program_command=python3 main.py`\n- 💬 **Error:** FAILURE: Your program crashed during execution.\nError:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 3, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n\n\n### 🧪 Check / output ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `forbidden_imports=['os']`\n- 💬 **Feedback:** No forbidden imports found.\n\n### 🧪 No loops ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `forbidden_keywords=['for_loop'], custom_ast_grep_rules=[]`\n- 💬 **Feedback:** No forbidden language constructs found.\n\n### 🧪 Writes result ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `inputs=['2', '3'], program_command=python3 main.py, artifact_path=out.txt, expected_content=sum=5, match_mode=exact, normalization=True`\n- 💬 **Feedback:** Success: Artifact 'out.txt' matches expected content.\n\n---\n## Penalties\n\n### 🧪 Avoid subprocess ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `forbidden_imports=['subprocess']`\n- 💬 **Feedback:** No forbidden imports found.\n\n---\n## ⭐ Extra Points\n\n### 🧪 Bonus / large ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `inputs=['100', '200'], expected_output=300, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Success: Output matches expected values.\n\n---\n## Final Score\n\n> **100.00 / 100**\n\n---\n## Learning Resources\n\n- 📘 [Always](https://example.com/all)",
+      "error": null,
+      "status": "completed"
+    },
+    "score": 100.0,
+    "tree": {
+      "base": {
+        "metadata": {},
+        "name": "base",
+        "score": 100.0,
+        "subjects": [
+          {
+            "metadata": {},
+            "name": "Program / IO",
+            "score": 100.0,
+            "subjects": [],
+            "tests": [
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Success: Output matches expected values.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 66.66666666666667
+              },
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum-large",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "30",
+                  "inputs": [
+                    "10",
+                    "20"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Success: Output matches expected values.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 33.333333333333336
+              },
+              {
+                "evaluator": "dont_fail",
+                "file_target": null,
+                "id": "no-crash",
+                "metadata": {},
+                "name": "Does not crash",
+                "parameters": {
+                  "program_command": "python3 main.py",
+                  "user_input": "4"
+                },
+                "report": "FAILURE: Your program crashed during execution.\nError:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 3, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n",
+                "score": 0.0,
+                "type": "test",
+                "weight": 0.0
+              }
+            ],
+            "type": "subject",
+            "weight": 75.0
+          },
+          {
+            "metadata": {},
+            "name": "Quality",
+            "score": 100.0,
+            "subjects": [
+              {
+                "metadata": {},
+                "name": "Imports",
+                "score": 100.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_import",
+                    "file_target": null,
+                    "id": "imports",
+                    "metadata": {},
+                    "name": "Check / output",
+                    "parameters": {
+                      "forbidden_imports": [
+                        "os"
+                      ]
+                    },
+                    "report": "No forbidden imports found.",
+                    "score": 100.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              },
+              {
+                "metadata": {},
+                "name": "Keywords",
+                "score": 100.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_keyword",
+                    "file_target": null,
+                    "id": "loops",
+                    "metadata": {},
+                    "name": "No loops",
+                    "parameters": {
+                      "custom_ast_grep_rules": [],
+                      "forbidden_keywords": [
+                        "for_loop"
+                      ]
+                    },
+                    "report": "No forbidden language constructs found.",
+                    "score": 100.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              }
+            ],
+            "tests": [
+              {
+                "evaluator": "expect_file_artifact",
+                "file_target": null,
+                "id": "artifact",
+                "metadata": {},
+                "name": "Writes result",
+                "parameters": {
+                  "artifact_path": "out.txt",
+                  "expected_content": "sum=5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "match_mode": "exact",
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Success: Artifact 'out.txt' matches expected content.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 40.0
+              }
+            ],
+            "type": "subject",
+            "weight": 24.999999999999996
+          }
+        ],
+        "tests": [],
+        "type": "category",
+        "weight": 100.0
+      },
+      "bonus": {
+        "metadata": {},
+        "name": "bonus",
+        "score": 100.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "expect_output",
+            "file_target": null,
+            "id": "bonus-sum",
+            "metadata": {},
+            "name": "Bonus / large",
+            "parameters": {
+              "expected_output": "300",
+              "inputs": [
+                "100",
+                "200"
+              ],
+              "normalization": true,
+              "program_command": "python3 main.py"
+            },
+            "report": "Success: Output matches expected values.",
+            "score": 100.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 10.0
+      },
+      "metadata": {},
+      "name": "root",
+      "penalty": {
+        "metadata": {},
+        "name": "penalty",
+        "score": 100.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "forbidden_import",
+            "file_target": null,
+            "id": "no-subprocess",
+            "metadata": {},
+            "name": "Avoid subprocess",
+            "parameters": {
+              "forbidden_imports": [
+                "subprocess"
+              ]
+            },
+            "report": "No forbidden imports found.",
+            "score": 100.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 20.0
+      },
+      "score": 100.0,
+      "type": "root"
+    }
+  },
+  "good-pt_br": {
+    "feedback": {
+      "content": "# Golden report\n\n---\n## RESUMO DA AVALIAÇÃO\n- 📊 **Testes:** 8 total  \n  - ✅ 7 aprovados  \n  - ❌ 1 reprovados\n\n---\n## ✅ Requisitos Essenciais\n\n### 🧪 Check / output ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `inputs=['2', '3'], expected_output=5, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Sucesso: A saída corresponde aos valores esperados.\n\n### 🧪 Check / output ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `inputs=['10', '20'], expected_output=30, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Sucesso: A saída corresponde aos valores esperados.\n\n### 🧪 Does not crash ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `user_input=4, program_command=python3 main.py`\n- 💬 **Erro:** FALHA: O programa falhou durante a execução (crash).\nErro:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 3, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n\n\n### 🧪 Check / output ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `forbidden_imports=['os']`\n- 💬 **Feedback:** Nenhuma importação proibida encontrada.\n\n### 🧪 No loops ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `forbidden_keywords=['for_loop'], custom_ast_grep_rules=[]`\n- 💬 **Feedback:** Nenhuma construção de linguagem proibida encontrada.\n\n### 🧪 Writes result ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `inputs=['2', '3'], program_command=python3 main.py, artifact_path=out.txt, expected_content=sum=5, match_mode=exact, normalization=True`\n- 💬 **Feedback:** Sucesso: O artefato 'out.txt' corresponde ao conteúdo esperado.\n\n---\n## Penalties\n\n### 🧪 Avoid subprocess ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `forbidden_imports=['subprocess']`\n- 💬 **Feedback:** Nenhuma importação proibida encontrada.\n\n---\n## ⭐ Pontos Extras\n\n### 🧪 Bonus / large ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `inputs=['100', '200'], expected_output=300, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Sucesso: A saída corresponde aos valores esperados.\n\n---\n## Nota Final\n\n> **100.00 / 100**\n\n---\n## Recursos de Aprendizado\n\n- 📘 [Always](https://example.com/all)",
+      "error": null,
+      "status": "completed"
+    },
+    "score": 100.0,
+    "tree": {
+      "base": {
+        "metadata": {},
+        "name": "base",
+        "score": 100.0,
+        "subjects": [
+          {
+            "metadata": {},
+            "name": "Program / IO",
+            "score": 100.0,
+            "subjects": [],
+            "tests": [
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Sucesso: A saída corresponde aos valores esperados.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 66.66666666666667
+              },
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum-large",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "30",
+                  "inputs": [
+                    "10",
+                    "20"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Sucesso: A saída corresponde aos valores esperados.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 33.333333333333336
+              },
+              {
+                "evaluator": "dont_fail",
+                "file_target": null,
+                "id": "no-crash",
+                "metadata": {},
+                "name": "Does not crash",
+                "parameters": {
+                  "program_command": "python3 main.py",
+                  "user_input": "4"
+                },
+                "report": "FALHA: O programa falhou durante a execução (crash).\nErro:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 3, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n",
+                "score": 0.0,
+                "type": "test",
+                "weight": 0.0
+              }
+            ],
+            "type": "subject",
+            "weight": 75.0
+          },
+          {
+            "metadata": {},
+            "name": "Quality",
+            "score": 100.0,
+            "subjects": [
+              {
+                "metadata": {},
+                "name": "Imports",
+                "score": 100.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_import",
+                    "file_target": null,
+                    "id": "imports",
+                    "metadata": {},
+                    "name": "Check / output",
+                    "parameters": {
+                      "forbidden_imports": [
+                        "os"
+                      ]
+                    },
+                    "report": "Nenhuma importação proibida encontrada.",
+                    "score": 100.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              },
+              {
+                "metadata": {},
+                "name": "Keywords",
+                "score": 100.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_keyword",
+                    "file_target": null,
+                    "id": "loops",
+                    "metadata": {},
+                    "name": "No loops",
+                    "parameters": {
+                      "custom_ast_grep_rules": [],
+                      "forbidden_keywords": [
+                        "for_loop"
+                      ]
+                    },
+                    "report": "Nenhuma construção de linguagem proibida encontrada.",
+                    "score": 100.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              }
+            ],
+            "tests": [
+              {
+                "evaluator": "expect_file_artifact",
+                "file_target": null,
+                "id": "artifact",
+                "metadata": {},
+                "name": "Writes result",
+                "parameters": {
+                  "artifact_path": "out.txt",
+                  "expected_content": "sum=5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "match_mode": "exact",
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Sucesso: O artefato 'out.txt' corresponde ao conteúdo esperado.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 40.0
+              }
+            ],
+            "type": "subject",
+            "weight": 24.999999999999996
+          }
+        ],
+        "tests": [],
+        "type": "category",
+        "weight": 100.0
+      },
+      "bonus": {
+        "metadata": {},
+        "name": "bonus",
+        "score": 100.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "expect_output",
+            "file_target": null,
+            "id": "bonus-sum",
+            "metadata": {},
+            "name": "Bonus / large",
+            "parameters": {
+              "expected_output": "300",
+              "inputs": [
+                "100",
+                "200"
+              ],
+              "normalization": true,
+              "program_command": "python3 main.py"
+            },
+            "report": "Sucesso: A saída corresponde aos valores esperados.",
+            "score": 100.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 10.0
+      },
+      "metadata": {},
+      "name": "root",
+      "penalty": {
+        "metadata": {},
+        "name": "penalty",
+        "score": 100.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "forbidden_import",
+            "file_target": null,
+            "id": "no-subprocess",
+            "metadata": {},
+            "name": "Avoid subprocess",
+            "parameters": {
+              "forbidden_imports": [
+                "subprocess"
+              ]
+            },
+            "report": "Nenhuma importação proibida encontrada.",
+            "score": 100.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 20.0
+      },
+      "score": 100.0,
+      "type": "root"
+    }
+  },
+  "mixed-en": {
+    "feedback": {
+      "content": "# Golden report\n\n---\n## GRADING SUMMARY\n- 📊 **Tests:** 8 total  \n  - ✅ 4 passed  \n  - ❌ 4 failed\n\n---\n## ✅ Essential Requirements\n\n### 🧪 Check / output ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `forbidden_imports=['os']`\n- 💬 **Error:** FAILURE: Forbidden imports detected:\n  - 'os' found in 'main.py'\n\n### 🧪 Check / output ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `inputs=['2', '3'], expected_output=5, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Success: Output matches expected values.\n\n### 🧪 Check / output ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `inputs=['10', '20'], expected_output=30, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Success: Output matches expected values.\n\n### 🧪 Does not crash ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `user_input=4, program_command=python3 main.py`\n- 💬 **Error:** FAILURE: Your program crashed during execution.\nError:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 5, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n\n\n### 🧪 No loops ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `forbidden_keywords=['for_loop'], custom_ast_grep_rules=[]`\n- 💬 **Feedback:** No forbidden language constructs found.\n\n### 🧪 Writes result ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `inputs=['2', '3'], program_command=python3 main.py, artifact_path=out.txt, expected_content=sum=5, match_mode=exact, normalization=True`\n- 💬 **Feedback:** Success: Artifact 'out.txt' matches expected content.\n\n---\n## Penalties\n\n### 🧪 Avoid subprocess ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `forbidden_imports=['subprocess']`\n- 💬 **Error:** FAILURE: Forbidden imports detected:\n  - 'subprocess' found in 'main.py'\n\n---\n## ⭐ Extra Points\n\n### 🧪 Bonus / large ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `inputs=['100', '200'], expected_output=300, program_command=python3 main.py, normalization=True`\n- 💬 **Error:** FAILURE: Output Mismatch.\nExpected: '300'\nActual: '301'\n\n---\n## Final Score\n\n> **72.50 / 100**\n\n---\n## Learning Resources\n\n- 📘 [Always](https://example.com/all)",
+      "error": null,
+      "status": "completed"
+    },
+    "score": 72.5,
+    "tree": {
+      "base": {
+        "metadata": {},
+        "name": "base",
+        "score": 92.5,
+        "subjects": [
+          {
+            "metadata": {},
+            "name": "Program / IO",
+            "score": 100.0,
+            "subjects": [],
+            "tests": [
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Success: Output matches expected values.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 66.66666666666667
+              },
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum-large",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "30",
+                  "inputs": [
+                    "10",
+                    "20"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Success: Output matches expected values.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 33.333333333333336
+              },
+              {
+                "evaluator": "dont_fail",
+                "file_target": null,
+                "id": "no-crash",
+                "metadata": {},
+                "name": "Does not crash",
+                "parameters": {
+                  "program_command": "python3 main.py",
+                  "user_input": "4"
+                },
+                "report": "FAILURE: Your program crashed during execution.\nError:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 5, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n",
+                "score": 0.0,
+                "type": "test",
+                "weight": 0.0
+              }
+            ],
+            "type": "subject",
+            "weight": 75.0
+          },
+          {
+            "metadata": {},
+            "name": "Quality",
+            "score": 70.0,
+            "subjects": [
+              {
+                "metadata": {},
+                "name": "Imports",
+                "score": 0.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_import",
+                    "file_target": null,
+                    "id": "imports",
+                    "metadata": {},
+                    "name": "Check / output",
+                    "parameters": {
+                      "forbidden_imports": [
+                        "os"
+                      ]
+                    },
+                    "report": "FAILURE: Forbidden imports detected:\n  - 'os' found in 'main.py'",
+                    "score": 0.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              },
+              {
+                "metadata": {},
+                "name": "Keywords",
+                "score": 100.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_keyword",
+                    "file_target": null,
+                    "id": "loops",
+                    "metadata": {},
+                    "name": "No loops",
+                    "parameters": {
+                      "custom_ast_grep_rules": [],
+                      "forbidden_keywords": [
+                        "for_loop"
+                      ]
+                    },
+                    "report": "No forbidden language constructs found.",
+                    "score": 100.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              }
+            ],
+            "tests": [
+              {
+                "evaluator": "expect_file_artifact",
+                "file_target": null,
+                "id": "artifact",
+                "metadata": {},
+                "name": "Writes result",
+                "parameters": {
+                  "artifact_path": "out.txt",
+                  "expected_content": "sum=5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "match_mode": "exact",
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Success: Artifact 'out.txt' matches expected content.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 40.0
+              }
+            ],
+            "type": "subject",
+            "weight": 24.999999999999996
+          }
+        ],
+        "tests": [],
+        "type": "category",
+        "weight": 100.0
+      },
+      "bonus": {
+        "metadata": {},
+        "name": "bonus",
+        "score": 0.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "expect_output",
+            "file_target": null,
+            "id": "bonus-sum",
+            "metadata": {},
+            "name": "Bonus / large",
+            "parameters": {
+              "expected_output": "300",
+              "inputs": [
+                "100",
+                "200"
+              ],
+              "normalization": true,
+              "program_command": "python3 main.py"
+            },
+            "report": "FAILURE: Output Mismatch.\nExpected: '300'\nActual: '301'",
+            "score": 0.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 10.0
+      },
+      "metadata": {},
+      "name": "root",
+      "penalty": {
+        "metadata": {},
+        "name": "penalty",
+        "score": 0.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "forbidden_import",
+            "file_target": null,
+            "id": "no-subprocess",
+            "metadata": {},
+            "name": "Avoid subprocess",
+            "parameters": {
+              "forbidden_imports": [
+                "subprocess"
+              ]
+            },
+            "report": "FAILURE: Forbidden imports detected:\n  - 'subprocess' found in 'main.py'",
+            "score": 0.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 20.0
+      },
+      "score": 72.5,
+      "type": "root"
+    }
+  },
+  "mixed-pt_br": {
+    "feedback": {
+      "content": "# Golden report\n\n---\n## RESUMO DA AVALIAÇÃO\n- 📊 **Testes:** 8 total  \n  - ✅ 4 aprovados  \n  - ❌ 4 reprovados\n\n---\n## ✅ Requisitos Essenciais\n\n### 🧪 Check / output ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `forbidden_imports=['os']`\n- 💬 **Erro:** FALHA: Importações proibidas detectadas:\n  - 'os' encontrado em 'main.py'\n\n### 🧪 Check / output ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `inputs=['2', '3'], expected_output=5, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Sucesso: A saída corresponde aos valores esperados.\n\n### 🧪 Check / output ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `inputs=['10', '20'], expected_output=30, program_command=python3 main.py, normalization=True`\n- 💬 **Feedback:** Sucesso: A saída corresponde aos valores esperados.\n\n### 🧪 Does not crash ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `user_input=4, program_command=python3 main.py`\n- 💬 **Erro:** FALHA: O programa falhou durante a execução (crash).\nErro:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 5, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n\n\n### 🧪 No loops ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `forbidden_keywords=['for_loop'], custom_ast_grep_rules=[]`\n- 💬 **Feedback:** Nenhuma construção de linguagem proibida encontrada.\n\n### 🧪 Writes result ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `inputs=['2', '3'], program_command=python3 main.py, artifact_path=out.txt, expected_content=sum=5, match_mode=exact, normalization=True`\n- 💬 **Feedback:** Sucesso: O artefato 'out.txt' corresponde ao conteúdo esperado.\n\n---\n## Penalties\n\n### 🧪 Avoid subprocess ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `forbidden_imports=['subprocess']`\n- 💬 **Erro:** FALHA: Importações proibidas detectadas:\n  - 'subprocess' encontrado em 'main.py'\n\n---\n## ⭐ Pontos Extras\n\n### 🧪 Bonus / large ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `inputs=['100', '200'], expected_output=300, program_command=python3 main.py, normalization=True`\n- 💬 **Erro:** FALHA: Saída Incorreta.\nEsperado: '300'\nObtido: '301'\n\n---\n## Nota Final\n\n> **72.50 / 100**\n\n---\n## Recursos de Aprendizado\n\n- 📘 [Always](https://example.com/all)",
+      "error": null,
+      "status": "completed"
+    },
+    "score": 72.5,
+    "tree": {
+      "base": {
+        "metadata": {},
+        "name": "base",
+        "score": 92.5,
+        "subjects": [
+          {
+            "metadata": {},
+            "name": "Program / IO",
+            "score": 100.0,
+            "subjects": [],
+            "tests": [
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Sucesso: A saída corresponde aos valores esperados.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 66.66666666666667
+              },
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum-large",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "30",
+                  "inputs": [
+                    "10",
+                    "20"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Sucesso: A saída corresponde aos valores esperados.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 33.333333333333336
+              },
+              {
+                "evaluator": "dont_fail",
+                "file_target": null,
+                "id": "no-crash",
+                "metadata": {},
+                "name": "Does not crash",
+                "parameters": {
+                  "program_command": "python3 main.py",
+                  "user_input": "4"
+                },
+                "report": "FALHA: O programa falhou durante a execução (crash).\nErro:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 5, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n",
+                "score": 0.0,
+                "type": "test",
+                "weight": 0.0
+              }
+            ],
+            "type": "subject",
+            "weight": 75.0
+          },
+          {
+            "metadata": {},
+            "name": "Quality",
+            "score": 70.0,
+            "subjects": [
+              {
+                "metadata": {},
+                "name": "Imports",
+                "score": 0.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_import",
+                    "file_target": null,
+                    "id": "imports",
+                    "metadata": {},
+                    "name": "Check / output",
+                    "parameters": {
+                      "forbidden_imports": [
+                        "os"
+                      ]
+                    },
+                    "report": "FALHA: Importações proibidas detectadas:\n  - 'os' encontrado em 'main.py'",
+                    "score": 0.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              },
+              {
+                "metadata": {},
+                "name": "Keywords",
+                "score": 100.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_keyword",
+                    "file_target": null,
+                    "id": "loops",
+                    "metadata": {},
+                    "name": "No loops",
+                    "parameters": {
+                      "custom_ast_grep_rules": [],
+                      "forbidden_keywords": [
+                        "for_loop"
+                      ]
+                    },
+                    "report": "Nenhuma construção de linguagem proibida encontrada.",
+                    "score": 100.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              }
+            ],
+            "tests": [
+              {
+                "evaluator": "expect_file_artifact",
+                "file_target": null,
+                "id": "artifact",
+                "metadata": {},
+                "name": "Writes result",
+                "parameters": {
+                  "artifact_path": "out.txt",
+                  "expected_content": "sum=5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "match_mode": "exact",
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "Sucesso: O artefato 'out.txt' corresponde ao conteúdo esperado.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 40.0
+              }
+            ],
+            "type": "subject",
+            "weight": 24.999999999999996
+          }
+        ],
+        "tests": [],
+        "type": "category",
+        "weight": 100.0
+      },
+      "bonus": {
+        "metadata": {},
+        "name": "bonus",
+        "score": 0.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "expect_output",
+            "file_target": null,
+            "id": "bonus-sum",
+            "metadata": {},
+            "name": "Bonus / large",
+            "parameters": {
+              "expected_output": "300",
+              "inputs": [
+                "100",
+                "200"
+              ],
+              "normalization": true,
+              "program_command": "python3 main.py"
+            },
+            "report": "FALHA: Saída Incorreta.\nEsperado: '300'\nObtido: '301'",
+            "score": 0.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 10.0
+      },
+      "metadata": {},
+      "name": "root",
+      "penalty": {
+        "metadata": {},
+        "name": "penalty",
+        "score": 0.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "forbidden_import",
+            "file_target": null,
+            "id": "no-subprocess",
+            "metadata": {},
+            "name": "Avoid subprocess",
+            "parameters": {
+              "forbidden_imports": [
+                "subprocess"
+              ]
+            },
+            "report": "FALHA: Importações proibidas detectadas:\n  - 'subprocess' encontrado em 'main.py'",
+            "score": 0.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 20.0
+      },
+      "score": 72.5,
+      "type": "root"
+    }
+  },
+  "partial-en": {
+    "feedback": {
+      "content": "# Golden report\n\n---\n## GRADING SUMMARY\n- 📊 **Tests:** 8 total  \n  - ✅ 1 passed  \n  - ❌ 7 failed\n\n---\n## ✅ Essential Requirements\n\n### 🧪 Check / output ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `inputs=['2', '3'], expected_output=5, program_command=python3 main.py, normalization=True`\n- 💬 **Error:** FAILURE: Output Mismatch.\nExpected: '5'\nActual: '6'\n\n### 🧪 Check / output ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `inputs=['10', '20'], expected_output=30, program_command=python3 main.py, normalization=True`\n- 💬 **Error:** FAILURE: Output Mismatch.\nExpected: '30'\nActual: '31'\n\n### 🧪 Check / output ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `forbidden_imports=['os']`\n- 💬 **Error:** FAILURE: Forbidden imports detected:\n  - 'os' found in 'main.py'\n\n### 🧪 No loops ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `forbidden_keywords=['for_loop'], custom_ast_grep_rules=[]`\n- 💬 **Error:** FAILURE: Forbidden language constructs detected:\n  - Forbidden construct 'for_statement' found in 'main.py'\n\n### 🧪 Writes result ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `inputs=['2', '3'], program_command=python3 main.py, artifact_path=out.txt, expected_content=sum=5, match_mode=exact, normalization=True`\n- 💬 **Error:** FAILURE: Content mismatch in artifact 'out.txt'.\nExpected:\nsum=5\nActual:\nsum=6\n\n### 🧪 Does not crash ✅\n- 🟢 **Score:** 100.0/100\n- ⚙️ **Parameters:** `user_input=4, program_command=python3 main.py`\n- 💬 **Feedback:** Success: Program executed without errors.\n\n---\n## Penalties\n\n### 🧪 Avoid subprocess ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `forbidden_imports=['subprocess']`\n- 💬 **Error:** FAILURE: Forbidden imports detected:\n  - 'subprocess' found in 'main.py'\n\n---\n## ⭐ Extra Points\n\n### 🧪 Bonus / large ❌\n- 🔴 **Score:** 0.0/100\n- ⚙️ **Parameters:** `inputs=['100', '200'], expected_output=300, program_command=python3 main.py, normalization=True`\n- 💬 **Error:** FAILURE: Output Mismatch.\nExpected: '300'\nActual: '301'\n\n---\n## Final Score\n\n> **0.00 / 100**\n\n---\n## Learning Resources\n\n- 📘 [Reading input](https://example.com/io)\n- 📘 [Style](https://example.com/style)\n- 📘 [Always](https://example.com/all)",
+      "error": null,
+      "status": "completed"
+    },
+    "score": 0.0,
+    "tree": {
+      "base": {
+        "metadata": {},
+        "name": "base",
+        "score": 0.0,
+        "subjects": [
+          {
+            "metadata": {},
+            "name": "Program / IO",
+            "score": 0.0,
+            "subjects": [],
+            "tests": [
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "FAILURE: Output Mismatch.\nExpected: '5'\nActual: '6'",
+                "score": 0.0,
+                "type": "test",
+                "weight": 66.66666666666667
+              },
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum-large",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "30",
+                  "inputs": [
+                    "10",
+                    "20"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "FAILURE: Output Mismatch.\nExpected: '30'\nActual: '31'",
+                "score": 0.0,
+                "type": "test",
+                "weight": 33.333333333333336
+              },
+              {
+                "evaluator": "dont_fail",
+                "file_target": null,
+                "id": "no-crash",
+                "metadata": {},
+                "name": "Does not crash",
+                "parameters": {
+                  "program_command": "python3 main.py",
+                  "user_input": "4"
+                },
+                "report": "Success: Program executed without errors.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 0.0
+              }
+            ],
+            "type": "subject",
+            "weight": 75.0
+          },
+          {
+            "metadata": {},
+            "name": "Quality",
+            "score": 0.0,
+            "subjects": [
+              {
+                "metadata": {},
+                "name": "Imports",
+                "score": 0.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_import",
+                    "file_target": null,
+                    "id": "imports",
+                    "metadata": {},
+                    "name": "Check / output",
+                    "parameters": {
+                      "forbidden_imports": [
+                        "os"
+                      ]
+                    },
+                    "report": "FAILURE: Forbidden imports detected:\n  - 'os' found in 'main.py'",
+                    "score": 0.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              },
+              {
+                "metadata": {},
+                "name": "Keywords",
+                "score": 0.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_keyword",
+                    "file_target": null,
+                    "id": "loops",
+                    "metadata": {},
+                    "name": "No loops",
+                    "parameters": {
+                      "custom_ast_grep_rules": [],
+                      "forbidden_keywords": [
+                        "for_loop"
+                      ]
+                    },
+                    "report": "FAILURE: Forbidden language constructs detected:\n  - Forbidden construct 'for_statement' found in 'main.py'",
+                    "score": 0.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              }
+            ],
+            "tests": [
+              {
+                "evaluator": "expect_file_artifact",
+                "file_target": null,
+                "id": "artifact",
+                "metadata": {},
+                "name": "Writes result",
+                "parameters": {
+                  "artifact_path": "out.txt",
+                  "expected_content": "sum=5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "match_mode": "exact",
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "FAILURE: Content mismatch in artifact 'out.txt'.\nExpected:\nsum=5\nActual:\nsum=6",
+                "score": 0.0,
+                "type": "test",
+                "weight": 40.0
+              }
+            ],
+            "type": "subject",
+            "weight": 24.999999999999996
+          }
+        ],
+        "tests": [],
+        "type": "category",
+        "weight": 100.0
+      },
+      "bonus": {
+        "metadata": {},
+        "name": "bonus",
+        "score": 0.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "expect_output",
+            "file_target": null,
+            "id": "bonus-sum",
+            "metadata": {},
+            "name": "Bonus / large",
+            "parameters": {
+              "expected_output": "300",
+              "inputs": [
+                "100",
+                "200"
+              ],
+              "normalization": true,
+              "program_command": "python3 main.py"
+            },
+            "report": "FAILURE: Output Mismatch.\nExpected: '300'\nActual: '301'",
+            "score": 0.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 10.0
+      },
+      "metadata": {},
+      "name": "root",
+      "penalty": {
+        "metadata": {},
+        "name": "penalty",
+        "score": 0.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "forbidden_import",
+            "file_target": null,
+            "id": "no-subprocess",
+            "metadata": {},
+            "name": "Avoid subprocess",
+            "parameters": {
+              "forbidden_imports": [
+                "subprocess"
+              ]
+            },
+            "report": "FAILURE: Forbidden imports detected:\n  - 'subprocess' found in 'main.py'",
+            "score": 0.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 20.0
+      },
+      "score": 0.0,
+      "type": "root"
+    }
+  },
+  "partial-pt_br": {
+    "feedback": {
+      "content": "# Golden report\n\n---\n## RESUMO DA AVALIAÇÃO\n- 📊 **Testes:** 8 total  \n  - ✅ 1 aprovados  \n  - ❌ 7 reprovados\n\n---\n## ✅ Requisitos Essenciais\n\n### 🧪 Check / output ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `inputs=['2', '3'], expected_output=5, program_command=python3 main.py, normalization=True`\n- 💬 **Erro:** FALHA: Saída Incorreta.\nEsperado: '5'\nObtido: '6'\n\n### 🧪 Check / output ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `inputs=['10', '20'], expected_output=30, program_command=python3 main.py, normalization=True`\n- 💬 **Erro:** FALHA: Saída Incorreta.\nEsperado: '30'\nObtido: '31'\n\n### 🧪 Check / output ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `forbidden_imports=['os']`\n- 💬 **Erro:** FALHA: Importações proibidas detectadas:\n  - 'os' encontrado em 'main.py'\n\n### 🧪 No loops ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `forbidden_keywords=['for_loop'], custom_ast_grep_rules=[]`\n- 💬 **Erro:** FALHA: Construções de linguagem proibidas detectadas:\n  - Construção proibida 'for_statement' encontrada em 'main.py'\n\n### 🧪 Writes result ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `inputs=['2', '3'], program_command=python3 main.py, artifact_path=out.txt, expected_content=sum=5, match_mode=exact, normalization=True`\n- 💬 **Erro:** FALHA: Conteúdo divergente no artefato 'out.txt'.\nEsperado:\nsum=5\nObtido:\nsum=6\n\n### 🧪 Does not crash ✅\n- 🟢 **Nota:** 100.0/100\n- ⚙️ **Parâmetros:** `user_input=4, program_command=python3 main.py`\n- 💬 **Feedback:** Sucesso: O programa foi executado sem erros.\n\n---\n## Penalties\n\n### 🧪 Avoid subprocess ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `forbidden_imports=['subprocess']`\n- 💬 **Erro:** FALHA: Importações proibidas detectadas:\n  - 'subprocess' encontrado em 'main.py'\n\n---\n## ⭐ Pontos Extras\n\n### 🧪 Bonus / large ❌\n- 🔴 **Nota:** 0.0/100\n- ⚙️ **Parâmetros:** `inputs=['100', '200'], expected_output=300, program_command=python3 main.py, normalization=True`\n- 💬 **Erro:** FALHA: Saída Incorreta.\nEsperado: '300'\nObtido: '301'\n\n---\n## Nota Final\n\n> **0.00 / 100**\n\n---\n## Recursos de Aprendizado\n\n- 📘 [Reading input](https://example.com/io)\n- 📘 [Style](https://example.com/style)\n- 📘 [Always](https://example.com/all)",
+      "error": null,
+      "status": "completed"
+    },
+    "score": 0.0,
+    "tree": {
+      "base": {
+        "metadata": {},
+        "name": "base",
+        "score": 0.0,
+        "subjects": [
+          {
+            "metadata": {},
+            "name": "Program / IO",
+            "score": 0.0,
+            "subjects": [],
+            "tests": [
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "FALHA: Saída Incorreta.\nEsperado: '5'\nObtido: '6'",
+                "score": 0.0,
+                "type": "test",
+                "weight": 66.66666666666667
+              },
+              {
+                "evaluator": "expect_output",
+                "file_target": null,
+                "id": "sum-large",
+                "metadata": {},
+                "name": "Check / output",
+                "parameters": {
+                  "expected_output": "30",
+                  "inputs": [
+                    "10",
+                    "20"
+                  ],
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "FALHA: Saída Incorreta.\nEsperado: '30'\nObtido: '31'",
+                "score": 0.0,
+                "type": "test",
+                "weight": 33.333333333333336
+              },
+              {
+                "evaluator": "dont_fail",
+                "file_target": null,
+                "id": "no-crash",
+                "metadata": {},
+                "name": "Does not crash",
+                "parameters": {
+                  "program_command": "python3 main.py",
+                  "user_input": "4"
+                },
+                "report": "Sucesso: O programa foi executado sem erros.",
+                "score": 100.0,
+                "type": "test",
+                "weight": 0.0
+              }
+            ],
+            "type": "subject",
+            "weight": 75.0
+          },
+          {
+            "metadata": {},
+            "name": "Quality",
+            "score": 0.0,
+            "subjects": [
+              {
+                "metadata": {},
+                "name": "Imports",
+                "score": 0.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_import",
+                    "file_target": null,
+                    "id": "imports",
+                    "metadata": {},
+                    "name": "Check / output",
+                    "parameters": {
+                      "forbidden_imports": [
+                        "os"
+                      ]
+                    },
+                    "report": "FALHA: Importações proibidas detectadas:\n  - 'os' encontrado em 'main.py'",
+                    "score": 0.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              },
+              {
+                "metadata": {},
+                "name": "Keywords",
+                "score": 0.0,
+                "subjects": [],
+                "tests": [
+                  {
+                    "evaluator": "forbidden_keyword",
+                    "file_target": null,
+                    "id": "loops",
+                    "metadata": {},
+                    "name": "No loops",
+                    "parameters": {
+                      "custom_ast_grep_rules": [],
+                      "forbidden_keywords": [
+                        "for_loop"
+                      ]
+                    },
+                    "report": "FALHA: Construções de linguagem proibidas detectadas:\n  - Construção proibida 'for_statement' encontrada em 'main.py'",
+                    "score": 0.0,
+                    "type": "test",
+                    "weight": 100.0
+                  }
+                ],
+                "type": "subject",
+                "weight": 30.0
+              }
+            ],
+            "tests": [
+              {
+                "evaluator": "expect_file_artifact",
+                "file_target": null,
+                "id": "artifact",
+                "metadata": {},
+                "name": "Writes result",
+                "parameters": {
+                  "artifact_path": "out.txt",
+                  "expected_content": "sum=5",
+                  "inputs": [
+                    "2",
+                    "3"
+                  ],
+                  "match_mode": "exact",
+                  "normalization": true,
+                  "program_command": "python3 main.py"
+                },
+                "report": "FALHA: Conteúdo divergente no artefato 'out.txt'.\nEsperado:\nsum=5\nObtido:\nsum=6",
+                "score": 0.0,
+                "type": "test",
+                "weight": 40.0
+              }
+            ],
+            "type": "subject",
+            "weight": 24.999999999999996
+          }
+        ],
+        "tests": [],
+        "type": "category",
+        "weight": 100.0
+      },
+      "bonus": {
+        "metadata": {},
+        "name": "bonus",
+        "score": 0.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "expect_output",
+            "file_target": null,
+            "id": "bonus-sum",
+            "metadata": {},
+            "name": "Bonus / large",
+            "parameters": {
+              "expected_output": "300",
+              "inputs": [
+                "100",
+                "200"
+              ],
+              "normalization": true,
+              "program_command": "python3 main.py"
+            },
+            "report": "FALHA: Saída Incorreta.\nEsperado: '300'\nObtido: '301'",
+            "score": 0.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 10.0
+      },
+      "metadata": {},
+      "name": "root",
+      "penalty": {
+        "metadata": {},
+        "name": "penalty",
+        "score": 0.0,
+        "subjects": [],
+        "tests": [
+          {
+            "evaluator": "forbidden_import",
+            "file_target": null,
+            "id": "no-subprocess",
+            "metadata": {},
+            "name": "Avoid subprocess",
+            "parameters": {
+              "forbidden_imports": [
+                "subprocess"
+              ]
+            },
+            "report": "FALHA: Importações proibidas detectadas:\n  - 'subprocess' encontrado em 'main.py'",
+            "score": 0.0,
+            "type": "test",
+            "weight": 100.0
+          }
+        ],
+        "type": "category",
+        "weight": 20.0
+      },
+      "score": 0.0,
+      "type": "root"
+    }
+  }
+}

@@ -143,6 +143,7 @@ class TestEvaluationScopeIntegration:
                 tests=[
                     TestNode(
                         name="context_capture",
+                        criterion_id="context_capture",
                         test_function=capturing_test,
                         file_target=["main.py"],
                     )
@@ -202,6 +203,7 @@ class TestEvaluationScopeIntegration:
                 tests=[
                     TestNode(
                         name="context_capture",
+                        criterion_id="context_capture",
                         test_function=capturing_test,
                     )
                 ],
@@ -314,6 +316,7 @@ class TestFileMetadataIntegration:
                 tests=[
                     TestNode(
                         name="context_capture",
+                        criterion_id="context_capture",
                         test_function=capturing_test,
                         file_target=["main.py"],
                     )
@@ -346,6 +349,7 @@ class TestFileMetadataIntegration:
                 tests=[
                     TestNode(
                         name="context_capture",
+                        criterion_id="context_capture",
                         test_function=capturing_test,
                         file_target=["main.py"],
                     )
@@ -371,6 +375,7 @@ class TestFileMetadataIntegration:
                 tests=[
                     TestNode(
                         name="context_capture",
+                        criterion_id="context_capture",
                         test_function=capturing_test,
                         file_target=["main.py"],
                     )

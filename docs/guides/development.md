@@ -60,7 +60,7 @@ autograder/
 │   │   ├── result_tree.py
 │   │   └── pipeline_execution.py
 │   ├── services/           # Business logic
-│   │   ├── grader/                 # Grading engine\n│   │   │   ├── grader_service.py   # Coordinator\n│   │   │   └── criteria_grader.py  # Stateful processor
+│   │   ├── assessment.py           # Evaluator execution and the AI batch\n│   │   ├── grading.py              # Builds the canonical result tree
 │   │   ├── focus_service.py        # Focus-based feedback
 │   │   ├── criteria_tree_service.py # Tree construction
 │   │   └── template_library_service.py
@@ -162,10 +162,10 @@ pytest tests/unit/
 pytest tests/integration/
 
 # Specific test file
-pytest tests/unit/test_grader_service.py
+pytest tests/unit/services/test_grading.py
 
 # Specific test function
-pytest tests/unit/test_grader_service.py::test_grade_simple_submission
+pytest tests/unit/services/test_grading.py::test_balance_nodes_only_subjects
 ```
 
 ### With Coverage
@@ -577,7 +577,7 @@ docker-compose logs
 pytest --cache-clear
 
 # Run single test with verbose output
-pytest -vv tests/unit/test_grader_service.py::test_specific_test
+pytest -vv tests/unit/services/test_grading.py::test_specific_test
 ```
 
 **Issue**: Import errors

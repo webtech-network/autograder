@@ -25,7 +25,8 @@ The criteria tree is where educational policy becomes executable logic:
 1. Tests produce scores in the 0-100 range.
 2. Subjects aggregate child tests/subjects by weight.
 3. Categories aggregate their children by weight.
-4. Final score is computed in `ResultTree` root:
+4. Final score is computed at the root of the assessed `ResultOutcomeTree`
+   (`autograder/models/contracts/scoring.py` holds the one arithmetic definition):
 
 ```text
 final = base + bonus_contribution - penalty_contribution

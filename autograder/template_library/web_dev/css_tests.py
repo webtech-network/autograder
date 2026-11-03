@@ -70,13 +70,7 @@ class CountUnusedCssClasses(TestFunction):
             return TestResult(
                 self.name, 
                 0, 
-                t("web_dev.css.count_unused_css_classes.report.no_files", locale=evaluation.locale), 
-                {
-                    "html_file": html_file, 
-                    "css_file": css_file, 
-                    "unused_count": 0,
-                    "category": "none"
-                }
+                t("web_dev.css.count_unused_css_classes.report.no_files", locale=evaluation.locale)
             )
 
         css_classes = self._extract_css_classes(css_content)
@@ -112,13 +106,7 @@ class CountUnusedCssClasses(TestFunction):
                 else t("web_dev.css.count_unused_css_classes.report.css_unused.unused", locale=locale, unused_count=unused_count, unused_classes=unused_classes)
             )
         
-        return TestResult(self.name, score, report, {
-            "html_file": html_file, 
-            "css_file": css_file, 
-            "unused_count": unused_count, 
-            "category": category,
-            "unused_classes_sample": unused_classes[:20]
-        })
+        return TestResult(self.name, score, report)
 
 class CheckFlexboxUsage(TestFunction):
     """Checks for Flexbox usage in CSS."""
@@ -176,8 +164,7 @@ class CountOverUsage(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"text": text, "max_allowed": max_allowed}
+            report=report
         )
 
 class UsesRelativeUnits(TestFunction):
@@ -258,7 +245,7 @@ class CheckIdSelectorOverUsage(TestFunction):
         score = 100 if found_count <= max_allowed else 0
         locale = evaluation.locale
         report = t("web_dev.css.check_id_selector_over_usage.report.over", locale=locale, found_count=found_count, max_allowed=max_allowed) if score == 0 else t("web_dev.css.check_id_selector_over_usage.report.ok", locale=locale)
-        return TestResult(self.name, score, report, {"max_allowed": max_allowed})
+        return TestResult(self.name, score, report)
 
 class HasStyle(TestFunction):
     """Checks if a specific CSS style rule appears."""
@@ -287,8 +274,7 @@ class HasStyle(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"style": style, "required_count": count}
+            report=report
         )
 
 class CheckMediaQueries(TestFunction):
@@ -348,6 +334,5 @@ class CssUsesProperty(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"prop": prop, "value": value}
+            report=report
         )

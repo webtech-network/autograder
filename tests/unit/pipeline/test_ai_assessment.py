@@ -20,8 +20,7 @@ from autograder.models.criteria_tree import CategoryNode, CriteriaTree, TestNode
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.execution import AssessmentRequest
 from autograder.services.assessment import assess_many, prepare_criteria
-from autograder.services.grader.criteria_grader import SubmissionGrader
-from autograder.services.grader.grader_service import GraderService
+from autograder.services.grading import grade
 from execution_host.openai_provider import AIResponseModel, AiExecutor, TestOutput
 from tests.grading import FakeProvider
 
@@ -259,20 +258,19 @@ def test_ai_evaluators_are_never_executed_individually():
 # --- No AI cache transport through generic layers -----------------------------
 
 def test_generic_grader_has_no_ai_parameters_and_executes_no_evaluator():
-    assert list(inspect.signature(SubmissionGrader).parameters) == ["results"]
-    assert list(inspect.signature(GraderService.grade_from_tree).parameters) == ["self", "criteria_tree", "results"]
+    assert list(inspect.signature(grade).parameters) == ["criteria", "results"]
     function = MagicMock(spec=Static)
     function.name = "static"
     tree = CriteriaTree(base=CategoryNode("base", 100, tests=[TestNode("S", function, criterion_id="s")]))
-    result = GraderService().grade_from_tree(tree, {"s": TestResult("static", 40, "r")})
-    assert result.calculate_final_score() == 40
+    assert grade(tree, {"s": TestResult("static", 40, "r")}).score == 40
     function.execute.assert_not_called()
     with pytest.raises(EvaluationError) as error:
-        GraderService().grade_from_tree(tree, {})
+        grade(tree, {})
     assert error.value.code == "MISSING_EVALUATOR_RESULT"
 
 
-@pytest.mark.parametrize("module", ["autograder.services.ai_batch", "autograder.utils.executors.ai_executor"])
+@pytest.mark.parametrize("module", ["autograder.services.ai_batch", "autograder.utils.executors.ai_executor",
+                                    "autograder.services.grader.grader_service"])
 def test_global_batch_stage_and_untyped_inputs_are_removed(module):
     with pytest.raises(ModuleNotFoundError):
         importlib.import_module(module)
