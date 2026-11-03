@@ -5,8 +5,9 @@ configuration storage and external-result snapshots. [Decision record](DECISIONS
 and [terminal outcomes](OUTCOMES.md) describe the integration boundaries.
 
 [JSON Schema](v1/grading-definition.schema.json) describes built-in authoring.
-`compile_definition` adds registry, uniqueness, command-coverage, AST-rule grammar,
-learning-reference and weighted-group checks that JSON Schema cannot fully express.
+`compile_definition` adds registry, uniqueness, learning-reference and weighted-group
+checks that JSON Schema cannot fully express, plus each evaluator's own semantic
+checks (`validate_parameters`), such as built-in command coverage and AST-rule grammar.
 Its normalized return value is the stored definition and the source of its hash.
 Evaluator normalization is applied once, to raw authoring input. A stored canonical
 snapshot is reloaded with `compile_snapshot`, which validates it (including every
@@ -56,10 +57,14 @@ parameters must list every contract field explicitly (`NON_CANONICAL_PARAMETERS`
   There is no `test_library`, positional parameter list, extra-key parameter
   encoding or type fallback to a display name.
 * Evaluator contracts validate strict types, required values and defaults. The
-  implementation's signature or `config_schema` generates discovery and parameter
-  validation. Known runtime context (`files`, `sandbox`, language, locale, AI
-  precomputed results, structural analysis, evaluation scope and file metadata)
-  is forbidden in authored parameters, including trusted custom schemas.
+  annotated keyword-only parameters of the evaluator's `execute` (or an explicit
+  `config_schema`) generate discovery and parameter validation. Constraints come
+  only from the evaluator (`Annotated[..., Field(...)]`); a plain `int` accepts
+  negatives and a plain `str` accepts empty strings. The generic compiler never
+  interprets a parameter name: equal names in different evaluators are unrelated.
+  Known runtime names (`files`, `sandbox`, `session`, `evaluation`, language,
+  locale, AI precomputed results, structural analysis, evaluation scope, file
+  metadata, criterion ID) are rejected as authored parameters and as contract fields.
 * Weights are finite nonnegative numbers, never booleans/strings. Group/category
   weights lie in 0–100, relative test weights can exceed 100. Base weight is 100;
   optional bonus/penalty weights cap their contribution. All-zero sibling weights

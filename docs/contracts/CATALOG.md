@@ -40,7 +40,8 @@ The executable offline example is
 python -m examples.contracts.custom_evaluator
 ```
 
-It compiles a local `contains_text` evaluator, infers the single language, and
+It compiles a local `contains_text` evaluator (implementation, `Annotated`
+contract and registration only), infers the single language, and
 returns a completed score of 100 for `<h1>Hello</h1>`. No Docker, credentials or
 network are needed. Missing text is an assessed zero, not an infrastructure failure.
 
@@ -60,7 +61,8 @@ network access or credentials and is not an availability/health endpoint.
 
 `identifier` is the actual registry key accepted as a template or criterion `type`.
 `parameters_schema` is generated from the evaluator's `config_schema` (explicit
-or signature-derived), with unknown top-level parameters forbidden exactly as
+or derived from the annotated keyword-only parameters of `execute`/`build_prompt`),
+including each field's `description`, with unknown top-level parameters forbidden exactly as
 in compilation. Samples include normalized defaults and must validate through
 that same contract. Simple required values are generated from the schema;
 evaluators with domain-specific constraints provide `example_parameters` on their

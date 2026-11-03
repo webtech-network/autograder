@@ -14,34 +14,23 @@ class MockTestFunction(TestFunction):
     @property
     def description(self) -> str:
         return "mock description"
-    @property
-    def parameter_description(self) -> list:
-        return []
-    def execute(self, files=None, sandbox=None, **kwargs):
-        return TestResult(test_name="mock_test", score=kwargs.get('score', 100.0), report="OK")
+    def execute(self, evaluation, *, score: float = 100.0):
+        return TestResult(test_name="mock_test", score=score, report="OK")
 
 
 class CapturingTestFunction(MockTestFunction):
     """Test function that records the pipeline context passed to execute."""
 
     def __init__(self):
-        self.files = None
-        self.kwargs = {}
+        self.evaluation = None
 
-    def execute(self, files=None, sandbox=None, **kwargs):
-        self.files = files
-        self.kwargs = kwargs
-        return super().execute(files=files, sandbox=sandbox, **kwargs)
+    def execute(self, evaluation, *, score: float = 100.0):
+        self.evaluation = evaluation
+        return super().execute(evaluation, score=score)
 
 @pytest.fixture
 def grader():
-    command_resolver = MagicMock()
-    # Mock command_resolver.resolve_command just in case tests have program_command
-    command_resolver.resolve_command.side_effect = lambda c, lang: c
-    return SubmissionGrader(
-        submission_files={},
-        command_resolver=command_resolver
-    )
+    return SubmissionGrader(submission_files={})
 
 def test_balance_nodes_only_subjects(grader):
     # Need tests inside subjects to have real scores
@@ -125,30 +114,35 @@ def test_balance_nodes_empty(grader):
     result = grader.process_category(cat)
     assert result.score == 0.0
 
-def test_process_test_program_command_resolution():
-    command_resolver = MagicMock()
-    command_resolver.resolve_command.return_value = "python3 main.py"
-    
-    grader = SubmissionGrader(
-        submission_files={},
-        command_resolver=command_resolver,
-        submission_language="python"
-    )
-    
-    tf = MockTestFunction()
-    t1 = TestNode(name="T1", test_function=tf, weight=100, parameters={'program_command': 'python {main}'})
-    
-    cat = CategoryNode(name="base", weight=100, tests=[t1])
-    grader.process_category(cat)
-    
-    command_resolver.resolve_command.assert_called_once_with('python {main}', 'python')
+def test_generic_grader_does_not_interpret_parameter_names():
+    """program_command is passed verbatim; resolution belongs to the execution evaluators."""
+    received = []
+
+    class Recording(MockTestFunction):
+        def execute(self, evaluation, *, program_command: str):
+            received.append(program_command)
+            return TestResult("mock_test", 100, "OK")
+
+    grader = SubmissionGrader(submission_files={}, submission_language="python")
+    grader.process_test(TestNode(name="T1", test_function=Recording(), parameters={'program_command': 'CMD'}))
+    assert received == ['CMD']
+
+
+def test_session_is_bound_only_to_evaluators_declaring_execution():
+    session = MagicMock()
+    grader = SubmissionGrader(submission_files={}, sandbox=session)
+    static, executing = CapturingTestFunction(), CapturingTestFunction()
+    grader.process_test(TestNode(name="static", test_function=static))
+    grader.process_test(TestNode(name="run", test_function=executing, capabilities=frozenset({"sandbox_execution"})))
+    assert static.evaluation.session is None
+    assert executing.evaluation.session is session
+
 
 def test_get_file_target_all():
     file1 = SubmissionFile(filename="file1.py", content="")
     file2 = SubmissionFile(filename="file2.py", content="")
     grader = SubmissionGrader(
-        submission_files={"file1.py": file1, "file2.py": file2},
-        command_resolver=MagicMock()
+        submission_files={"file1.py": file1, "file2.py": file2}
     )
     
     tf = MockTestFunction()
@@ -165,8 +159,7 @@ def test_get_file_target_specific():
     file1 = SubmissionFile(filename="file1.py", content="")
     file2 = SubmissionFile(filename="file2.py", content="")
     grader = SubmissionGrader(
-        submission_files={"file1.py": file1, "file2.py": file2},
-        command_resolver=MagicMock()
+        submission_files={"file1.py": file1, "file2.py": file2}
     )
     
     tf = MockTestFunction()
@@ -177,7 +170,7 @@ def test_get_file_target_specific():
     assert target_files[0] is file1
 
 
-def test_process_test_passes_scope_and_target_file_metadata():
+def test_process_test_passes_selected_files_with_their_metadata():
     scope = EvaluationScope(scoped_files=["file1.py"])
     file1 = SubmissionFile(
         filename="file1.py",
@@ -191,7 +184,6 @@ def test_process_test_passes_scope_and_target_file_metadata():
     )
     grader = SubmissionGrader(
         submission_files={"file1.py": file1, "file2.py": file2},
-        command_resolver=MagicMock(),
         evaluation_scope=scope,
     )
     test_function = CapturingTestFunction()
@@ -203,16 +195,15 @@ def test_process_test_passes_scope_and_target_file_metadata():
 
     grader.process_test(test_node)
 
-    assert test_function.files == [file1]
-    assert test_function.kwargs["evaluation_scope"] is scope
-    assert test_function.kwargs["file_metadata"] == {
-        "file1.py": {"change_status": "modified"},
-    }
+    # The selected files carry their own metadata; scope only shapes selection.
+    assert test_function.evaluation.files == (file1,)
+    assert test_function.evaluation.files[0].metadata == {"change_status": "modified"}
+    assert not hasattr(test_function.evaluation, "evaluation_scope")
 
 
 def test_literal_file_named_all_does_not_select_other_files():
     filename = SubmissionFile(filename="all", content="")
-    grader = SubmissionGrader(submission_files={"all": filename, "other.py": SubmissionFile("other.py", "")}, command_resolver=MagicMock())
+    grader = SubmissionGrader(submission_files={"all": filename, "other.py": SubmissionFile("other.py", "")})
     target = TestNode(name="Literal filename", test_function=MockTestFunction(), file_target=["all"])
     assert grader.get_file_target(target) == [filename]
 

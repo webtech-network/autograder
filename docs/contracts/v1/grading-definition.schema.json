@@ -546,6 +546,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "class_names": {
+                    "description": "A list of class names to search for. Wildcards (*) are supported (e.g., 'col-*').",
                     "items": {
                       "type": "string"
                     },
@@ -554,6 +555,7 @@
                   },
                   "required_count": {
                     "default": 0,
+                    "description": "The minimum total number of times the classes must appear.",
                     "minimum": 0,
                     "title": "Required Count",
                     "type": "integer"
@@ -605,6 +607,7 @@
                 "properties": {
                   "required_count": {
                     "default": 0,
+                    "description": "O número mínimo de links válidos.",
                     "minimum": 0,
                     "title": "Required Count",
                     "type": "integer"
@@ -633,12 +636,14 @@
                 "additionalProperties": false,
                 "properties": {
                   "tag": {
+                    "description": "The HTML tag to search for (e.g., 'div').",
                     "minLength": 1,
                     "title": "Tag",
                     "type": "string"
                   },
                   "required_count": {
                     "default": 0,
+                    "description": "The minimum number of times the tag must appear.",
                     "minimum": 0,
                     "title": "Required Count",
                     "type": "integer"
@@ -670,6 +675,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "tag": {
+                    "description": "The forbidden HTML tag to search for.",
                     "minLength": 1,
                     "title": "Tag",
                     "type": "string"
@@ -701,12 +707,14 @@
                 "additionalProperties": false,
                 "properties": {
                   "attribute": {
+                    "description": "The attribute to search for (e.g., 'alt').",
                     "minLength": 1,
                     "title": "Attribute",
                     "type": "string"
                   },
                   "required_count": {
                     "default": 0,
+                    "description": "The minimum number of times the attribute must appear.",
                     "minimum": 0,
                     "title": "Required Count",
                     "type": "integer"
@@ -826,11 +834,13 @@
                 "additionalProperties": false,
                 "properties": {
                   "prop": {
+                    "description": "The CSS property.",
                     "minLength": 1,
                     "title": "Prop",
                     "type": "string"
                   },
                   "value": {
+                    "description": "The expected value.",
                     "minLength": 1,
                     "title": "Value",
                     "type": "string"
@@ -863,12 +873,14 @@
                 "additionalProperties": false,
                 "properties": {
                   "text": {
+                    "description": "The text to be counted.",
                     "minLength": 1,
                     "title": "Text",
                     "type": "string"
                   },
                   "max_allowed": {
                     "default": 0,
+                    "description": "The maximum number of allowed occurrences.",
                     "minimum": 0,
                     "title": "Max Allowed",
                     "type": "integer"
@@ -900,6 +912,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "feature": {
+                    "description": "The feature to search for.",
                     "minLength": 1,
                     "title": "Feature",
                     "type": "string"
@@ -931,6 +944,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "method": {
+                    "description": "The name of the forbidden method.",
                     "minLength": 1,
                     "title": "Method",
                     "type": "string"
@@ -963,6 +977,7 @@
                 "properties": {
                   "max_allowed": {
                     "default": 0,
+                    "description": "The maximum number of allowed global variables.",
                     "minimum": 0,
                     "title": "Max Allowed",
                     "type": "integer"
@@ -1057,11 +1072,13 @@
                 "additionalProperties": false,
                 "properties": {
                   "child_tag": {
+                    "description": "The child tag.",
                     "minLength": 1,
                     "title": "Child Tag",
                     "type": "string"
                   },
                   "parent_tag": {
+                    "description": "The parent tag.",
                     "minLength": 1,
                     "title": "Parent Tag",
                     "type": "string"
@@ -1095,6 +1112,7 @@
                 "properties": {
                   "required_count": {
                     "default": 0,
+                    "description": "O número mínimo de links válidos.",
                     "minimum": 0,
                     "title": "Required Count",
                     "type": "integer"
@@ -1123,12 +1141,14 @@
                 "additionalProperties": false,
                 "properties": {
                   "style": {
+                    "description": "The style rule.",
                     "minLength": 1,
                     "title": "Style",
                     "type": "string"
                   },
                   "count": {
                     "default": 0,
+                    "description": "The minimum number of occurrences.",
                     "minimum": 0,
                     "title": "Count",
                     "type": "integer"
@@ -1160,6 +1180,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "detail_tag": {
+                    "description": "The tag to be checked.",
                     "minLength": 1,
                     "title": "Detail Tag",
                     "type": "string"
@@ -1191,16 +1212,19 @@
                 "additionalProperties": false,
                 "properties": {
                   "tag": {
+                    "description": "The tag.",
                     "minLength": 1,
                     "title": "Tag",
                     "type": "string"
                   },
                   "attribute": {
+                    "description": "The attribute.",
                     "minLength": 1,
                     "title": "Attribute",
                     "type": "string"
                   },
                   "value": {
+                    "description": "The expected value.",
                     "minLength": 1,
                     "title": "Value",
                     "type": "string"
@@ -1234,6 +1258,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "dir_path": {
+                    "description": "The directory path.",
                     "minLength": 1,
                     "title": "Dir Path",
                     "type": "string"
@@ -1265,6 +1290,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "expected_structure": {
+                    "description": "The expected file path.",
                     "minLength": 1,
                     "title": "Expected Structure",
                     "type": "string"
@@ -1297,6 +1323,7 @@
                 "properties": {
                   "max_allowed": {
                     "default": 0,
+                    "description": "Maximum number of allowed ID selectors.",
                     "minimum": 0,
                     "title": "Max Allowed",
                     "type": "integer"
@@ -1413,17 +1440,20 @@
                 "additionalProperties": false,
                 "properties": {
                   "target_page": {
+                    "description": "The expected destination page (e.g., 'details.html').",
                     "minLength": 1,
                     "title": "Target Page",
                     "type": "string"
                   },
                   "query_param": {
+                    "description": "The name of the query string parameter to check (e.g., 'id').",
                     "minLength": 1,
                     "title": "Query Param",
                     "type": "string"
                   },
                   "required_count": {
                     "default": 0,
+                    "description": "The minimum number of valid links.",
                     "minimum": 0,
                     "title": "Required Count",
                     "type": "integer"
@@ -1478,12 +1508,14 @@
                 "additionalProperties": false,
                 "properties": {
                   "required_key": {
+                    "description": "The key that must exist in each object (e.g., 'id').",
                     "minLength": 1,
                     "title": "Required Key",
                     "type": "string"
                   },
                   "min_items": {
                     "default": 0,
+                    "description": "The minimum number of items expected in the array.",
                     "minimum": 0,
                     "title": "Min Items",
                     "type": "integer"
@@ -1515,6 +1547,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "methods": {
+                    "description": "A list of methods to search for (e.g., ['createElement', 'appendChild']).",
                     "items": {
                       "type": "string"
                     },
@@ -1523,6 +1556,7 @@
                   },
                   "required_count": {
                     "default": 0,
+                    "description": "Total minimum number of times these methods must appear.",
                     "minimum": 0,
                     "title": "Required Count",
                     "type": "integer"
@@ -1551,11 +1585,13 @@
                 "additionalProperties": false,
                 "properties": {
                   "html_file": {
+                    "description": "The name of the HTML file to analyze.",
                     "minLength": 1,
                     "title": "Html File",
                     "type": "string"
                   },
                   "js_file": {
+                    "description": "The name of the JavaScript file to analyze.",
                     "minLength": 1,
                     "title": "Js File",
                     "type": "string"
@@ -1588,11 +1624,13 @@
                 "additionalProperties": false,
                 "properties": {
                   "html_file": {
+                    "description": "Name of the HTML file to analyze (e.g., 'index.html').",
                     "minLength": 1,
                     "title": "Html File",
                     "type": "string"
                   },
                   "css_file": {
+                    "description": "Name of the CSS file to analyze (e.g., 'styles.css').",
                     "minLength": 1,
                     "title": "Css File",
                     "type": "string"
@@ -1625,6 +1663,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "endpoint": {
+                    "description": "The endpoint to be tested (e.g., '/health').",
                     "minLength": 1,
                     "title": "Endpoint",
                     "type": "string"
@@ -1656,17 +1695,20 @@
                 "additionalProperties": false,
                 "properties": {
                   "endpoint": {
+                    "description": "The API endpoint to be tested (e.g., '/api/data').",
                     "minLength": 1,
                     "title": "Endpoint",
                     "type": "string"
                   },
                   "expected_key": {
+                    "description": "The JSON key to check.",
                     "minLength": 1,
                     "title": "Expected Key",
                     "type": "string"
                   },
                   "expected_value": {
                     "default": null,
+                    "description": "The expected value for the specified key.",
                     "title": "Expected Value"
                   }
                 },
@@ -1697,6 +1739,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "inputs": {
+                    "description": "List of strings to be sent to the program, each on a new line.",
                     "items": {
                       "type": "string"
                     },
@@ -1704,6 +1747,7 @@
                     "type": "array"
                   },
                   "expected_output": {
+                    "description": "The single string the program must print to standard output.",
                     "title": "Expected Output",
                     "type": "string"
                   },
@@ -1730,10 +1774,12 @@
                         "type": "object"
                       }
                     ],
+                    "description": "Command that runs the program: a nonempty string, a map with a command for every allowed language, or 'CMD' for the conventional per-language default.",
                     "title": "Program Command"
                   },
                   "normalization": {
                     "default": true,
+                    "description": "Strip trailing whitespace from each line and normalize line endings",
                     "title": "Normalization",
                     "type": "boolean"
                   }
@@ -1766,6 +1812,7 @@
                 "properties": {
                   "user_input": {
                     "default": "",
+                    "description": "Single line sent to the program's standard input; empty sends nothing.",
                     "title": "User Input",
                     "type": "string"
                   },
@@ -1792,6 +1839,7 @@
                         "type": "object"
                       }
                     ],
+                    "description": "Command that runs the program: a nonempty string, a map with a command for every allowed language, or 'CMD' for the conventional per-language default.",
                     "title": "Program Command"
                   }
                 },
@@ -1821,6 +1869,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "inputs": {
+                    "description": "List of strings to be sent to the program via stdin.",
                     "items": {
                       "type": "string"
                     },
@@ -1850,19 +1899,23 @@
                         "type": "object"
                       }
                     ],
+                    "description": "Command that runs the program: a nonempty string, a map with a command for every allowed language, or 'CMD' for the conventional per-language default.",
                     "title": "Program Command"
                   },
                   "artifact_path": {
+                    "description": "Relative path (under /app) of the file the program must generate (e.g. 'output.txt').",
                     "minLength": 1,
                     "title": "Artifact Path",
                     "type": "string"
                   },
                   "expected_content": {
+                    "description": "The expected file content or pattern to match against.",
                     "title": "Expected Content",
                     "type": "string"
                   },
                   "match_mode": {
                     "default": "exact",
+                    "description": "Comparison mode: 'exact' (default), 'contains', or 'regex'.",
                     "enum": [
                       "exact",
                       "contains",
@@ -1873,6 +1926,7 @@
                   },
                   "normalization": {
                     "default": true,
+                    "description": "Whether to normalize line endings and trim trailing whitespace (default: true).",
                     "title": "Normalization",
                     "type": "boolean"
                   }
@@ -1905,6 +1959,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "forbidden_imports": {
+                    "description": "List of library/module names whose import is forbidden.",
                     "items": {
                       "type": "string"
                     },
@@ -1935,6 +1990,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "forbidden_keywords": {
+                    "description": "List of predefined constructs to forbid (e.g., 'for_loop', 'while_loop', 'eval_call').",
                     "items": {
                       "type": "string"
                     },
@@ -1942,6 +1998,7 @@
                     "type": "array"
                   },
                   "custom_ast_grep_rules": {
+                    "description": "List of custom ast-grep rules to apply.",
                     "items": {
                       "additionalProperties": true,
                       "type": "object"
@@ -1973,6 +2030,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "algorithm_name": {
+                    "description": "Name of the algorithm the submission must implement.",
                     "minLength": 1,
                     "title": "Algorithm Name",
                     "type": "string"
@@ -2004,6 +2062,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "algorithm_name": {
+                    "description": "Name of the algorithm the submission must implement.",
                     "minLength": 1,
                     "title": "Algorithm Name",
                     "type": "string"
@@ -2035,6 +2094,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "algorithm_name": {
+                    "description": "Name of the algorithm the submission must implement.",
                     "minLength": 1,
                     "title": "Algorithm Name",
                     "type": "string"

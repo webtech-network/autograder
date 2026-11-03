@@ -86,9 +86,8 @@ class EmptyParameters(BaseModel):
 class Review(AiTestFunction):
     name = 'review'
     description = 'review'
-    parameter_description = []
     config_schema = EmptyParameters
-    def build_prompt(self, files, **kwargs):
+    def build_prompt(self, evaluation):
         return 'Review this criterion'
 
 
@@ -98,8 +97,6 @@ class ReviewTemplate(Template):
     requires_sandbox = False
     def __init__(self):
         self.tests = {'review':Review()}
-    def get_test(self, name):
-        return self.tests[name]
 
 
 def ai_definition():

@@ -35,27 +35,31 @@ When the engine reaches a `TestNode`, it calls `process_test()`:
 
 ```python
 def process_test(self, test: TestNode) -> TestResultNode:
-    file_target = self.get_file_target(test)
-    test_params = test.parameters or {}
-    if self._submission_language:
-        test_params['__submission_language__'] = self._submission_language
-
-    test_result = test.test_function.execute(
-        files=file_target, sandbox=self._sandbox, **test_params
-    )
-    return TestResultNode(
-        name=test.name,
-        test_node=test,
-        score=test_result.score,
-        report=test_result.report,
-        parameters=test_result.parameters,
-    )
+    files = self.get_file_target(test)
+    if isinstance(test.test_function, AiTestFunction):
+        result = assessments[test.criterion_id]          # from the provider batch
+    else:
+        evaluation = EvaluationInput(files=tuple(files), language=self.submission_language,
+                                     locale=self.locale,
+                                     session=self.sandbox if declares_execution else None)
+        result = test.test_function.execute(evaluation, **thaw(test.parameters))
+    return TestResultNode(criterion_id=test.criterion_id, evaluator=test.test_function.name,
+                          name=test.name, score=result.score, report=result.report,
+                          file_target=..., parameters=thaw(test.parameters), weight=test.weight)
 ```
 
 Key details:
-- **File targeting**: If the `TestNode` specifies a `file_target`, only matching submission files are passed to the test function. Otherwise, `None` is passed and the test operates on the sandbox or all files.
-- **Language injection**: The submission language is injected as `__submission_language__` into the test parameters, enabling multi-language command resolution inside test functions (e.g., choosing `python3 main.py` vs `java Main`).
-- **Sandbox**: The sandbox container (if any) is passed to every test function. Templates that require sandbox execution (like `input_output`) use it to run student code.
+- **One call shape**: `execute(self, evaluation, *, <configuration>)`. Keyword-only
+  parameters are exactly the normalized contract fields; the signature is
+  validated when a template is registered or compiled.
+- **File targeting**: `evaluation.files` holds the files selected by the
+  [file contract](../contracts/FILES.md), each with its metadata and changed lines.
+- **Language**: `evaluation.language` is the selected submission language. The I/O
+  evaluators resolve their own `program_command`; the grader interprets no
+  parameter names.
+- **Session**: only evaluators declaring `sandbox_execution` or `http_network`
+  receive the execution session. AI results never reach ordinary evaluators.
+- **Isolation**: every call receives a fresh copy of the frozen canonical parameters.
 
 Each `TestFunction.execute()` returns a `TestResult` with:
 - `score` (0–100)
@@ -155,8 +159,9 @@ AI assessment is an explicit function call before grading:
 `evaluate_ai_batch(criteria, submission, provider)` resolves selected files,
 builds prompts and returns assessments keyed by criterion ID.
 
-`GraderService` receives these values as `pre_computed_results`.
-`AiTestFunction.execute` retrieves its criterion ID's assessment. There is no
+`GraderService` receives these values as `assessments` and uses the result for
+each AI criterion ID directly; AI evaluators are never executed individually and
+ordinary evaluators never receive AI results. There is no
 journal lookup, provider retry or standalone provider fallback. Missing required
 assessments fail the grade; repeated display labels remain independent.
 

@@ -8,7 +8,6 @@ from autograder.models.result_tree import (
     ResultTree,
     RootResultNode,
 )
-from autograder.services.command_resolver import CommandResolver
 from .criteria_grader import SubmissionGrader
 
 
@@ -17,7 +16,6 @@ class GraderService:
 
     def __init__(self):
         self.logger = logging.getLogger("GraderService")
-        self._command_resolver = CommandResolver()
 
     def grade_from_tree(
         self,
@@ -26,17 +24,16 @@ class GraderService:
         sandbox=None,
         submission_language=None,
         locale: str = "en",
-        pre_computed_results: Optional[Dict[str, TestResult]] = None,
+        assessments: Optional[Dict[str, TestResult]] = None,
         evaluation_scope: Optional[EvaluationScope] = None,
     ) -> ResultTree:
         """Traverse the generic built criteria tree to resolve inputs, grades and report to ResultTree."""
         grader = SubmissionGrader(
             submission_files=submission_files,
-            command_resolver=self._command_resolver,
             sandbox=sandbox,
             submission_language=submission_language,
             locale=locale,
-            pre_computed_results=pre_computed_results,
+            assessments=assessments,
             evaluation_scope=evaluation_scope,
         )
 

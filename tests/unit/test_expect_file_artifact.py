@@ -7,14 +7,16 @@ Tests cover:
 - Regex match success
 - Content mismatch
 - Missing artifact file
-- Invalid regex pattern
-- Invalid artifact path (absolute, traversal)
-- Invalid match_mode
+- Invalid regex pattern, artifact path (absolute, traversal) and match_mode
+  are rejected by the parameter contract before any execution
 - Execution failure (timeout, runtime error)
 - Normalization behavior
 - Registration in InputOutputTemplate
 """
 
+from pydantic import ValidationError
+
+from tests.evaluator_calls import invoke
 import unittest
 from autograder.models.evaluation_error import EvaluationError
 from unittest.mock import MagicMock
@@ -61,7 +63,7 @@ class TestExpectFileArtifactExactMatch(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.read_artifact.return_value = _make_extracted("hello world")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="output.txt",
@@ -75,7 +77,7 @@ class TestExpectFileArtifactExactMatch(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.read_artifact.return_value = _make_extracted("line1  \r\nline2  \n")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="output.txt",
@@ -89,7 +91,7 @@ class TestExpectFileArtifactExactMatch(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.read_artifact.return_value = _make_extracted("wrong content")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="output.txt",
@@ -104,7 +106,7 @@ class TestExpectFileArtifactExactMatch(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.read_artifact.return_value = _make_extracted("hello ")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="output.txt",
@@ -127,7 +129,7 @@ class TestExpectFileArtifactContainsMatch(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.read_artifact.return_value = _make_extracted("result: PASSED with 100%")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="report.txt",
@@ -142,7 +144,7 @@ class TestExpectFileArtifactContainsMatch(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.read_artifact.return_value = _make_extracted("result: FAILED")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="report.txt",
@@ -165,7 +167,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.read_artifact.return_value = _make_extracted("comparacoes: 42\ntempo: 0.003s")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="metrics.txt",
@@ -180,7 +182,7 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.read_artifact.return_value = _make_extracted("no numbers here")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="metrics.txt",
@@ -194,20 +196,15 @@ class TestExpectFileArtifactRegexMatch(unittest.TestCase):
         """Test handling of an invalid regex pattern."""
         sandbox = _make_sandbox()
 
-        result = self.test.execute(
-            files=None, sandbox=sandbox,
-            program_command="python3 main.py",
-            artifact_path="output.txt",
-            expected_content="[invalid(regex",
-            match_mode="regex",
-        )
-
-        self.assertEqual(result.score, 0.0)
-        self.assertIn("regex", result.report.lower())
-
-
-class TestExpectFileArtifactErrors(unittest.TestCase):
-    """Tests for error handling in ExpectFileArtifactTest."""
+        with self.assertRaises(ValidationError):
+            invoke(self.test,
+                files=None, sandbox=sandbox,
+                program_command="python3 main.py",
+                artifact_path="output.txt",
+                expected_content="[invalid(regex",
+                match_mode="regex",
+            )
+        sandbox.run_commands.assert_not_called()
 
     def setUp(self):
         """Set up the test case."""
@@ -218,7 +215,7 @@ class TestExpectFileArtifactErrors(unittest.TestCase):
         sandbox = _make_sandbox()
         sandbox.read_artifact.side_effect = FileNotFoundError("File not found")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="output.txt",
@@ -234,7 +231,7 @@ class TestExpectFileArtifactErrors(unittest.TestCase):
         sandbox.read_artifact.side_effect = RuntimeError("tar stream corrupt")
 
         with self.assertRaises(EvaluationError) as error:
-            self.test.execute(
+            invoke(self.test,
                 files=None, sandbox=sandbox,
                 program_command="python3 main.py",
                 artifact_path="output.txt",
@@ -247,61 +244,54 @@ class TestExpectFileArtifactErrors(unittest.TestCase):
         """Test that absolute artifact paths are rejected."""
         sandbox = _make_sandbox()
 
-        result = self.test.execute(
-            files=None, sandbox=sandbox,
-            program_command="python3 main.py",
-            artifact_path="/etc/passwd",
-            expected_content="anything",
-        )
-
-        self.assertEqual(result.score, 0.0)
-        self.assertIn("Invalid", result.report)
+        with self.assertRaises(ValidationError):
+            invoke(self.test,
+                files=None, sandbox=sandbox,
+                program_command="python3 main.py",
+                artifact_path="/etc/passwd",
+                expected_content="anything",
+            )
+        sandbox.run_commands.assert_not_called()
 
     def test_traversal_path_rejected(self):
         """Test that directory traversal in artifact paths is rejected."""
         sandbox = _make_sandbox()
 
-        result = self.test.execute(
-            files=None, sandbox=sandbox,
-            program_command="python3 main.py",
-            artifact_path="../secret.txt",
-            expected_content="anything",
-        )
-
-        self.assertEqual(result.score, 0.0)
-        self.assertIn("Invalid", result.report)
+        with self.assertRaises(ValidationError):
+            invoke(self.test,
+                files=None, sandbox=sandbox,
+                program_command="python3 main.py",
+                artifact_path="../secret.txt",
+                expected_content="anything",
+            )
+        sandbox.run_commands.assert_not_called()
 
     def test_invalid_match_mode(self):
         """Test rejection of invalid match modes."""
         sandbox = _make_sandbox()
 
-        result = self.test.execute(
-            files=None, sandbox=sandbox,
-            program_command="python3 main.py",
-            artifact_path="output.txt",
-            expected_content="anything",
-            match_mode="fuzzy",
-        )
-
-        self.assertEqual(result.score, 0.0)
-        self.assertIn("fuzzy", result.report)
+        with self.assertRaises(ValidationError):
+            invoke(self.test,
+                files=None, sandbox=sandbox,
+                program_command="python3 main.py",
+                artifact_path="output.txt",
+                expected_content="anything",
+                match_mode="fuzzy",
+            )
+        sandbox.run_commands.assert_not_called()
 
     def test_empty_artifact_path(self):
         """Test rejection of empty artifact paths."""
         sandbox = _make_sandbox()
 
-        result = self.test.execute(
-            files=None, sandbox=sandbox,
-            program_command="python3 main.py",
-            artifact_path="",
-            expected_content="anything",
-        )
-
-        self.assertEqual(result.score, 0.0)
-
-
-class TestExpectFileArtifactExecutionFailures(unittest.TestCase):
-    """Tests for execution failure handling in ExpectFileArtifactTest."""
+        with self.assertRaises(ValidationError):
+            invoke(self.test,
+                files=None, sandbox=sandbox,
+                program_command="python3 main.py",
+                artifact_path="",
+                expected_content="anything",
+            )
+        sandbox.run_commands.assert_not_called()
 
     def setUp(self):
         """Set up the test case."""
@@ -315,7 +305,7 @@ class TestExpectFileArtifactExecutionFailures(unittest.TestCase):
             category=ResponseCategory.TIMEOUT,
         )
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="output.txt",
@@ -332,7 +322,7 @@ class TestExpectFileArtifactExecutionFailures(unittest.TestCase):
             category=ResponseCategory.RUNTIME_ERROR,
         )
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             program_command="python3 main.py",
             artifact_path="output.txt",
@@ -354,9 +344,10 @@ class TestExpectFileArtifactMetadata(unittest.TestCase):
         self.assertTrue(len(ExpectFileArtifactTest().description) > 0)
 
     def test_parameter_descriptions(self):
-        """Test the parameter_description property of the test."""
-        params = ExpectFileArtifactTest().parameter_description
-        names = [p.name for p in params]
+        """Parameter documentation comes from the contract's field descriptions."""
+        properties = ExpectFileArtifactTest().config_schema.model_json_schema()["properties"]
+        self.assertTrue(all(field["description"] for field in properties.values()))
+        names = list(properties)
         self.assertIn("artifact_path", names)
         self.assertIn("expected_content", names)
         self.assertIn("match_mode", names)

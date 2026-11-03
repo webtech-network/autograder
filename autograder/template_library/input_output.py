@@ -1,15 +1,69 @@
 import logging
 import re
-from typing import Optional
+from pathlib import PurePosixPath
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from autograder.models.abstract.template import Template
-from autograder.models.abstract.test_function import TestFunction
-from autograder.models.dataclass.param_description import ParamDescription
+from autograder.models.abstract.test_function import EvaluationInput, ParameterIssue, TestFunction
+from autograder.models.contracts.parameters import Command
 from autograder.models.dataclass.test_result import TestResult
+from autograder.services.command_resolver import CommandResolver
 from autograder.translations import t
 from autograder.models.execution import ExecutionSession
 from sandbox_manager.models.sandbox_models import ResponseCategory
 from autograder.models.evaluation_error import EvaluationError
+
+
+# ===============================================================
+# Evaluator-owned parameter contracts
+# ===============================================================
+
+PROGRAM_COMMAND = ("Command that runs the program: a nonempty string, a map with a command for every "
+                   "allowed language, or 'CMD' for the conventional per-language default.")
+
+
+STRICT = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
+
+
+class ExpectOutputParameters(BaseModel):
+    model_config = STRICT
+    inputs: List[str] = Field(default_factory=list, description=t("io.expect_output.params.inputs"))
+    expected_output: str = Field(description=t("io.expect_output.params.expected"))
+    program_command: Command = Field(description=PROGRAM_COMMAND)
+    normalization: bool = Field(default=True, description=t("io.expect_output.params.normalization_desc"))
+
+
+class DontFailParameters(BaseModel):
+    model_config = STRICT
+    user_input: str = Field(default="", description="Single line sent to the program's standard input; empty sends nothing.")
+    program_command: Command = Field(description=PROGRAM_COMMAND)
+
+
+class ArtifactParameters(BaseModel):
+    model_config = STRICT
+    inputs: List[str] = Field(default_factory=list, description=t("io.expect_file_artifact.params.inputs"))
+    program_command: Command = Field(description=PROGRAM_COMMAND)
+    artifact_path: str = Field(min_length=1, description=t("io.expect_file_artifact.params.artifact_path"))
+    expected_content: str = Field(description=t("io.expect_file_artifact.params.expected_content"))
+    match_mode: Literal["exact", "contains", "regex"] = Field(
+        default="exact", description=t("io.expect_file_artifact.params.match_mode"))
+    normalization: bool = Field(default=True, description=t("io.expect_file_artifact.params.normalization"))
+
+    @model_validator(mode="after")
+    def validate_artifact(self):
+        if (self.artifact_path.startswith('/') or self.artifact_path == '.'
+                or str(PurePosixPath(self.artifact_path)) != self.artifact_path
+                or '..' in PurePosixPath(self.artifact_path).parts
+                or '\\' in self.artifact_path or '\x00' in self.artifact_path):
+            raise ValueError("artifact_path must be a normalized relative path without traversal or control characters")
+        if self.match_mode == "regex":
+            try:
+                re.compile(self.expected_content)
+            except re.error as exc:
+                raise ValueError("expected_content must be a valid regular expression") from exc
+        return self
 
 
 # ===============================================================
@@ -23,6 +77,29 @@ class BaseExecutionTest(TestFunction):
     """
 
     uses_context_files = True
+    required_capabilities = ("sandbox_execution",)
+
+    def validate_parameters(self, parameters: Dict[str, Any], *,
+                            languages: Tuple[str, ...]) -> Iterable[ParameterIssue]:
+        """A language-keyed command map must cover every allowed language."""
+        command = parameters["program_command"]
+        if isinstance(command, dict) and not set(languages).issubset(command):
+            yield ParameterIssue("MISSING_LANGUAGE_COMMAND", ("program_command",),
+                                 "Command map must cover every allowed language")
+
+    @staticmethod
+    def resolve_command(program_command: Any, evaluation: EvaluationInput) -> Optional[str]:
+        """Resolve a command map or the CMD placeholder for the submission language."""
+        if evaluation.language is None:
+            return program_command
+        return CommandResolver().resolve_command(program_command, evaluation.language)
+
+    @staticmethod
+    def require_session(evaluation: EvaluationInput) -> ExecutionSession:
+        """The execution session bound to this evaluator by its capability declaration."""
+        if evaluation.session is None:
+            raise EvaluationError("CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.", "capability")
+        return evaluation.session
 
     def run_sandbox_execution(self, sandbox: ExecutionSession, inputs: list = None,
                               program_command: Optional[str] = None):
@@ -41,7 +118,7 @@ class BaseExecutionTest(TestFunction):
         command = ' '.join(inputs) if isinstance(inputs, list) else str(inputs)
         return sandbox.run_command(command)
 
-    def check_for_base_errors(self, output, **kwargs) -> TestResult:
+    def check_for_base_errors(self, output, locale: Optional[str] = None) -> Optional[TestResult]:
         """
         Checks for Timeout, Compilation Error, or Runtime Error in the sandbox output.
         Returns a TestResult with score 0.0 if an error is found, or None if successful.
@@ -50,21 +127,21 @@ class BaseExecutionTest(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=t("io.execution.timeout", locale=kwargs.get("locale"), time=output.execution_time)
+                report=t("io.execution.timeout", locale=locale, time=output.execution_time)
             )
 
         if output.category == ResponseCategory.COMPILATION_ERROR:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=t("io.execution.compilation_error", locale=kwargs.get("locale"), error=output.stderr)
+                report=t("io.execution.compilation_error", locale=locale, error=output.stderr)
             )
 
         if output.category == ResponseCategory.RUNTIME_ERROR:
             return TestResult(
                 test_name=self.name,
                 score=0.0,
-                report=t("io.execution.runtime_error", locale=kwargs.get("locale"), error=output.stderr)
+                report=t("io.execution.runtime_error", locale=locale, error=output.stderr)
             )
 
         if output.category == ResponseCategory.SYSTEM_ERROR:
@@ -95,10 +172,7 @@ class ExpectOutputTest(BaseExecutionTest):
     Supports multi-language submissions through dynamic command resolution.
     """
 
-    @property
-    def config_schema(self):
-        from autograder.models.contracts.parameters import ExpectOutputParameters
-        return ExpectOutputParameters
+    config_schema = ExpectOutputParameters
 
     @property
     def name(self):
@@ -108,34 +182,21 @@ class ExpectOutputTest(BaseExecutionTest):
     def description(self):
         return t("io.expect_output.description")
 
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("inputs", t("io.expect_output.params.inputs"), "list of strings"),
-            ParamDescription("expected_output", t("io.expect_output.params.expected"), "string"),
-            ParamDescription("program_command", t("io.expect_output.params.program_command"), "string or dict"),
-            ParamDescription("normalization", t("io.expect_output.params.normalization"), "boolean")
-        ]
-
-    def execute(self, files, sandbox: ExecutionSession, *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *, program_command: Any, expected_output: str,
+                inputs: Optional[List[str]] = None, normalization: bool = True) -> TestResult:
         """
         Execute the test by comparing program output with expected output.
         """
-        inputs = kwargs.get("inputs")
-        expected_output = kwargs.get("expected_output", "")
-        program_command = kwargs.get("program_command")
-        normalization = kwargs.get("normalization", True)
-        locale = kwargs.get("locale")
-
+        locale = evaluation.locale
         try:
             output = self.run_sandbox_execution(
-                sandbox=sandbox,
+                sandbox=self.require_session(evaluation),
                 inputs=inputs,
-                program_command=program_command,
+                program_command=self.resolve_command(program_command, evaluation),
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output, **kwargs)
+            error_result = self.check_for_base_errors(output, locale)
             if error_result:
                 return error_result
 
@@ -172,10 +233,7 @@ class DontFailTest(BaseExecutionTest):
     string when the program expects a number).
     """
 
-    @property
-    def config_schema(self):
-        from autograder.models.contracts.parameters import DontFailParameters
-        return DontFailParameters
+    config_schema = DontFailParameters
 
     @property
     def name(self):
@@ -185,33 +243,23 @@ class DontFailTest(BaseExecutionTest):
     def description(self):
         return t("io.dont_fail.description")
 
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("input", t("io.expect_output.params.inputs"), "string"),
-            ParamDescription("program_command", t("io.expect_output.params.program_command"), "string or dict")
-        ]
-
-    def execute(self, files, sandbox: ExecutionSession, *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *, program_command: Any, user_input: str = "") -> TestResult:
         """
         Execute the test by verifying the program doesn't crash with given input.
         """
-        user_input = kwargs.get("user_input", "")
-        program_command = kwargs.get("program_command")
-        locale = kwargs.get("locale")
-
+        locale = evaluation.locale
         try:
             # Reformat scalar input to standard list
-            inputs = [user_input] if user_input is not None and user_input != "" else []
+            inputs = [user_input] if user_input else []
 
             output = self.run_sandbox_execution(
-                sandbox=sandbox,
+                sandbox=self.require_session(evaluation),
                 inputs=inputs,
-                program_command=program_command,
+                program_command=self.resolve_command(program_command, evaluation),
             )
 
             # Check for generic execution failures
-            error_result = self.check_for_base_errors(output, **kwargs)
+            error_result = self.check_for_base_errors(output, locale)
             if error_result:
                 return error_result
 
@@ -236,13 +284,12 @@ class ExpectFileArtifactTest(BaseExecutionTest):
     Tests a command-line program by running it, then extracting a generated
     file from the sandbox and comparing its content against expected values.
 
-    Supports exact, contains, and regex matching modes.
+    Supports exact, contains, and regex matching modes. Path safety, match
+    modes and regular expressions are enforced by its parameter contract
+    before any execution.
     """
 
-    @property
-    def config_schema(self):
-        from autograder.models.contracts.parameters import ArtifactParameters
-        return ArtifactParameters
+    config_schema = ArtifactParameters
 
     @property
     def name(self):
@@ -252,26 +299,6 @@ class ExpectFileArtifactTest(BaseExecutionTest):
     def description(self):
         return t("io.expect_file_artifact.description")
 
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("program_command", t("io.expect_file_artifact.params.program_command"), "string or dict"),
-            ParamDescription("artifact_path", t("io.expect_file_artifact.params.artifact_path"), "string"),
-            ParamDescription("expected_content", t("io.expect_file_artifact.params.expected_content"), "string"),
-            ParamDescription("match_mode", t("io.expect_file_artifact.params.match_mode"), "string"),
-            ParamDescription("inputs", t("io.expect_file_artifact.params.inputs"), "list of strings"),
-            ParamDescription("normalization", t("io.expect_file_artifact.params.normalization"), "boolean"),
-        ]
-
-    @staticmethod
-    def _validate_artifact_path(artifact_path: str) -> Optional[str]:
-        """Return an error message if the path is unsafe, else None."""
-        if not artifact_path:
-            return "artifact_path is required"
-        if artifact_path.startswith("/") or ".." in artifact_path.split("/"):
-            return f"Invalid artifact_path (absolute or traversal): {artifact_path}"
-        return None
-
     @staticmethod
     def _match(actual: str, expected: str, mode: str) -> bool:
         if mode == "contains":
@@ -280,53 +307,24 @@ class ExpectFileArtifactTest(BaseExecutionTest):
             return bool(re.search(expected, actual))
         return actual == expected
 
-    def execute(self, files, sandbox: ExecutionSession, *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *, program_command: Any, artifact_path: str,
+                expected_content: str, match_mode: str = "exact", inputs: Optional[List[str]] = None,
+                normalization: bool = True) -> TestResult:
         """
         Execute the test by extracting a file from the sandbox and comparing its content.
         """
-        program_command = kwargs.get("program_command")
-        artifact_path = kwargs.get("artifact_path", "")
-        expected_content = kwargs.get("expected_content", "")
-        match_mode = kwargs.get("match_mode", "exact")
-        inputs = kwargs.get("inputs")
-        normalization = kwargs.get("normalization", True)
-        locale = kwargs.get("locale")
-
-        # 1. Validation
-        validation_error = self._validate_params(artifact_path, match_mode, expected_content, locale)
-        if validation_error:
-            return validation_error
-
-        # 2. Execution
+        locale = evaluation.locale
+        sandbox = self.require_session(evaluation)
         try:
-            output = self.run_sandbox_execution(sandbox=sandbox, inputs=inputs, program_command=program_command)
-            error_result = self.check_for_base_errors(output, locale=locale)
+            output = self.run_sandbox_execution(sandbox=sandbox, inputs=inputs,
+                                                program_command=self.resolve_command(program_command, evaluation))
+            error_result = self.check_for_base_errors(output, locale)
             if error_result:
                 return error_result
         except (ValueError, TimeoutError, RuntimeError) as e:
             raise EvaluationError("SANDBOX_ERROR", "The execution environment could not complete evaluation.", "capability", True) from e
 
-        # 3. Extraction and Comparison
         return self._extract_and_compare(sandbox, artifact_path, expected_content, match_mode, normalization, locale)
-
-    def _validate_params(self, artifact_path: str, match_mode: str, expected_content: str, locale: str) -> Optional[TestResult]:
-        """Validate input parameters for the test."""
-        path_error = self._validate_artifact_path(artifact_path)
-        if path_error:
-            return TestResult(test_name=self.name, score=0.0,
-                              report=t("io.expect_file_artifact.report.invalid_path", locale=locale, error=path_error))
-
-        if match_mode not in ("exact", "contains", "regex"):
-            return TestResult(test_name=self.name, score=0.0,
-                              report=t("io.expect_file_artifact.report.invalid_match_mode", locale=locale, mode=match_mode))
-
-        if match_mode == "regex":
-            try:
-                re.compile(expected_content)
-            except re.error as e:
-                return TestResult(test_name=self.name, score=0.0,
-                                  report=t("io.expect_file_artifact.report.invalid_regex", locale=locale, error=str(e)))
-        return None
 
     def _extract_and_compare(self, sandbox: ExecutionSession, path: str, expected: str,
                              mode: str, normalization: bool, locale: str) -> TestResult:
@@ -379,9 +377,3 @@ class InputOutputTemplate(Template):
     @property
     def requires_sandbox(self) -> bool:
         return True
-
-    def get_test(self, name: str) -> TestFunction:
-        test_function = self.tests.get(name)
-        if not test_function:
-            raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
-        return test_function

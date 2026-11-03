@@ -1,6 +1,6 @@
 """Evaluator parameter contracts are validated by compilation, not tree construction."""
 
-from typing import List, Optional, Type
+from typing import List, Type
 from pydantic import BaseModel, Field, ValidationError
 import pytest
 
@@ -26,10 +26,8 @@ class ValidatedTestFunction(TestFunction):
     @property
     def description(self): return "A test with validation"
     @property
-    def parameter_description(self): return []
-    @property
     def config_schema(self) -> Type[BaseModel]: return MockParams
-    def execute(self, files, sandbox, *args, **kwargs): pass
+    def execute(self, evaluation, *, required_str, optional_int=42, list_of_items=None): pass
 
 
 class MockTemplate(Template):
@@ -42,7 +40,6 @@ class MockTemplate(Template):
     def template_description(self): return "Mock"
     @property
     def requires_sandbox(self): return False
-    def get_test(self, name): return self.tests.get(name)
 
 
 def definition(parameters):
@@ -81,5 +78,5 @@ class TestCompilationValidation:
         """Building the tree consumes compiled values and never re-runs the contract."""
         compiled = compile_definition(definition({"required_str": "hello"}), templates={"mock": self.template})
         with patch.object(MockParams, "model_validate", side_effect=AssertionError("second validation")):
-            tree = build_criteria_tree(compiled.definition.criteria, {"validated_test": ValidatedTestFunction()})
+            tree = build_criteria_tree(compiled.definition.criteria, {"validated_test": (ValidatedTestFunction(), frozenset())})
         assert tree.base.tests[0].parameters["required_str"] == "hello"

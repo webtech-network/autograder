@@ -342,7 +342,6 @@
       "has_no_js_framework": {
         "description": "Verifica a presença de frameworks JavaScript proibidos (React, Vue, Angular).",
         "param": {
-          "submission_files": "O dicionário de arquivos enviados.",
           "html_file": "O nome do arquivo HTML a ser analisado.",
           "js_file": "O nome do arquivo JavaScript a ser analisado."
         },
@@ -402,7 +401,6 @@
       "check_project_structure": {
         "description": "Verifica se o caminho da estrutura esperada existe nos arquivos de envio.",
         "param": {
-          "submission_files": "O dicionário de arquivos enviados.",
           "expected_structure": "O caminho do arquivo esperado."
         },
         "report": {
@@ -413,7 +411,6 @@
       "check_dir_exists": {
         "description": "Verifica se um diretório específico existe no envio.",
         "param": {
-          "submission_files": "O dicionário de arquivos enviados.",
           "dir_path": "O caminho do diretório."
         },
         "report": {
@@ -435,8 +432,6 @@
       "params": {
         "inputs": "Lista de strings a serem enviadas para o programa, cada uma em uma nova linha.",
         "expected": "A única string que o programa deve imprimir na saída padrão.",
-        "program_command": "(Opcional) Comando para executar o programa. Pode ser uma string (legado), dict (multi-idioma), ou 'CMD' (auto-resolve).",
-        "normalization": "Normalizar espaços em branco (padrão: true)",
         "normalization_desc": "Remove espaços em branco no final de cada linha e normaliza quebras de linha"
       },
       "report": {
@@ -454,7 +449,6 @@
     "expect_file_artifact": {
       "description": "Executa o programa do aluno, extrai um arquivo gerado do sandbox e valida seu conteúdo contra os valores esperados.",
       "params": {
-        "program_command": "(Opcional) Comando para executar o programa. Pode ser uma string ou dict (multi-idioma).",
         "artifact_path": "Caminho relativo (sob /app) do arquivo que o programa deve gerar (ex: 'output.txt').",
         "expected_content": "O conteúdo esperado do arquivo ou padrão para comparação.",
         "match_mode": "Modo de comparação: 'exact' (padrão), 'contains' ou 'regex'.",
@@ -465,10 +459,7 @@
         "success": "Sucesso: O artefato '{path}' corresponde ao conteúdo esperado.",
         "mismatch": "FALHA: Conteúdo divergente no artefato '{path}'.\nEsperado:\n{expected}\nObtido:\n{actual}",
         "file_not_found": "FALHA: O artefato esperado '{path}' não foi encontrado. Verifique se o seu programa cria este arquivo.",
-        "extraction_error": "FALHA: Não foi possível ler o artefato do sandbox.\nDetalhes: {error}",
-        "invalid_path": "ERRO DE CONFIGURAÇÃO: Caminho de artefato inválido.\nDetalhes: {error}",
-        "invalid_match_mode": "ERRO DE CONFIGURAÇÃO: match_mode '{mode}' inválido. Deve ser 'exact', 'contains' ou 'regex'.",
-        "invalid_regex": "ERRO DE CONFIGURAÇÃO: Padrão regex inválido.\nDetalhes: {error}"
+        "extraction_error": "FALHA: Não foi possível ler o artefato do sandbox.\nDetalhes: {error}"
       }
     },
     "template": {
@@ -480,8 +471,7 @@
     "forbidden_import": {
       "description": "Analisa estaticamente os arquivos de submissão para verificar se alguma biblioteca proibida foi importada. Penaliza a submissão caso alguma importação proibida seja encontrada.",
       "params": {
-        "libraries": "Lista de nomes de bibliotecas/módulos cuja importação é proibida.",
-        "language": "Linguagem da submissão (ex: 'python', 'java'). Necessária para identificar padrões de importação corretos."
+        "libraries": "Lista de nomes de bibliotecas/módulos cuja importação é proibida."
       },
       "report": {
         "no_imports": "Nenhuma importação proibida especificada — nada para verificar.",
@@ -509,22 +499,13 @@
       }
     },
     "ai_sorting_algorithm": {
-      "description": "Usa IA para verificar se a submissão implementa o algoritmo de ordenação solicitado, sem atalhos de biblioteca.",
-      "params": {
-        "algorithm_name": "Nome do algoritmo de ordenação a verificar (ex: 'Quick Sort')."
-      }
+      "description": "Usa IA para verificar se a submissão implementa o algoritmo de ordenação solicitado, sem atalhos de biblioteca."
     },
     "ai_search_algorithm": {
-      "description": "Usa IA para verificar se a submissão implementa o algoritmo de busca solicitado, sem atalhos de biblioteca.",
-      "params": {
-        "algorithm_name": "Nome do algoritmo de busca a verificar (ex: 'Binary Search')."
-      }
+      "description": "Usa IA para verificar se a submissão implementa o algoritmo de busca solicitado, sem atalhos de biblioteca."
     },
     "ai_graph_algorithm": {
-      "description": "Usa IA para verificar se a submissão implementa o algoritmo de grafos solicitado, sem atalhos de biblioteca.",
-      "params": {
-        "algorithm_name": "Nome do algoritmo de grafos a verificar (ex: 'Dijkstra')."
-      }
+      "description": "Usa IA para verificar se a submissão implementa o algoritmo de grafos solicitado, sem atalhos de biblioteca."
     },
     "template": {
       "name": "Análise Estática",

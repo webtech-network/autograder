@@ -3,24 +3,20 @@
 The demonstration provider returns canned assessments. Replace it with a trusted
 provider for real assessment; the engine never constructs a client implicitly.
 """
-from pydantic import BaseModel, ConfigDict
-
-from autograder import HostCapabilities, Submission, SubmissionFile, Template, TestResult, evaluate_submission
-from autograder.models.abstract.ai_test_function import AiTestFunction
-
-
-class Parameters(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+from autograder import (
+    AiTestFunction, EvaluationInput, HostCapabilities, Submission, SubmissionFile, Template,
+    TestResult, evaluate_submission,
+)
 
 
 class Review(AiTestFunction):
+    """AI evaluators declare build_prompt(evaluation, *, <parameters>); the host provider assesses."""
     name = "review"
     description = "Review code clarity."
-    parameter_description = []
-    config_schema = Parameters
 
-    def build_prompt(self, files, **kwargs):
-        return "Assess the clarity of the selected source code."
+    def build_prompt(self, evaluation: EvaluationInput) -> str:
+        names = ", ".join(file.filename for file in evaluation.files)
+        return f"Assess the clarity of the selected source code: {names}."
 
 
 class ReviewTemplate(Template):
@@ -30,9 +26,6 @@ class ReviewTemplate(Template):
 
     def __init__(self):
         self.tests = {"review": Review()}
-
-    def get_test(self, name):
-        return self.tests[name]
 
 
 class DemonstrationProvider:

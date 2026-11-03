@@ -342,7 +342,6 @@
       "has_no_js_framework": {
         "description": "Checks for the presence of forbidden JavaScript frameworks (React, Vue, Angular).",
         "param": {
-          "submission_files": "The dictionary of submitted files.",
           "html_file": "The name of the HTML file to analyze.",
           "js_file": "The name of the JavaScript file to analyze."
         },
@@ -402,7 +401,6 @@
       "check_project_structure": {
         "description": "Checks if the expected structure path exists in the submission files.",
         "param": {
-          "submission_files": "The dictionary of submitted files.",
           "expected_structure": "The expected file path."
         },
         "report": {
@@ -413,7 +411,6 @@
       "check_dir_exists": {
         "description": "Checks if a specific directory exists in the submission.",
         "param": {
-          "submission_files": "The dictionary of submitted files.",
           "dir_path": "The directory path."
         },
         "report": {
@@ -435,8 +432,6 @@
       "params": {
         "inputs": "List of strings to be sent to the program, each on a new line.",
         "expected": "The single string the program must print to standard output.",
-        "program_command": "(Optional) Command to run the program. Can be string (legacy), dict (multi-lang), or 'CMD' (auto-resolve).",
-        "normalization": "Normalize whitespace (default: true)",
         "normalization_desc": "Strip trailing whitespace from each line and normalize line endings"
       },
       "report": {
@@ -454,7 +449,6 @@
     "expect_file_artifact": {
       "description": "Executes the student program, then extracts a generated file from the sandbox and validates its content against expected values.",
       "params": {
-        "program_command": "(Optional) Command to run the program. Can be a string or dict (multi-lang).",
         "artifact_path": "Relative path (under /app) of the file the program must generate (e.g. 'output.txt').",
         "expected_content": "The expected file content or pattern to match against.",
         "match_mode": "Comparison mode: 'exact' (default), 'contains', or 'regex'.",
@@ -465,10 +459,7 @@
         "success": "Success: Artifact '{path}' matches expected content.",
         "mismatch": "FAILURE: Content mismatch in artifact '{path}'.\nExpected:\n{expected}\nActual:\n{actual}",
         "file_not_found": "FAILURE: Expected artifact '{path}' was not found. Make sure your program creates this file.",
-        "extraction_error": "FAILURE: Could not read artifact from sandbox.\nDetails: {error}",
-        "invalid_path": "CONFIGURATION ERROR: Invalid artifact path.\nDetails: {error}",
-        "invalid_match_mode": "CONFIGURATION ERROR: Invalid match_mode '{mode}'. Must be 'exact', 'contains', or 'regex'.",
-        "invalid_regex": "CONFIGURATION ERROR: Invalid regex pattern.\nDetails: {error}"
+        "extraction_error": "FAILURE: Could not read artifact from sandbox.\nDetails: {error}"
       }
     },
     "template": {
@@ -480,8 +471,7 @@
     "forbidden_import": {
       "description": "Statically analyzes submission files to check if any forbidden libraries were imported. Penalizes the submission if any forbidden imports are found.",
       "params": {
-        "libraries": "List of library/module names whose import is forbidden.",
-        "language": "Submission language (e.g., 'python', 'java'). Required to identify correct import patterns."
+        "libraries": "List of library/module names whose import is forbidden."
       },
       "report": {
         "no_imports": "No forbidden imports specified — nothing to check.",
@@ -509,22 +499,13 @@
       }
     },
     "ai_sorting_algorithm": {
-      "description": "Uses AI to verify that the submission implements the requested sorting algorithm rather than a library shortcut.",
-      "params": {
-        "algorithm_name": "Name of the sorting algorithm to verify (e.g., 'Quick Sort')."
-      }
+      "description": "Uses AI to verify that the submission implements the requested sorting algorithm rather than a library shortcut."
     },
     "ai_search_algorithm": {
-      "description": "Uses AI to verify that the submission implements the requested search algorithm rather than a library shortcut.",
-      "params": {
-        "algorithm_name": "Name of the search algorithm to verify (e.g., 'Binary Search')."
-      }
+      "description": "Uses AI to verify that the submission implements the requested search algorithm rather than a library shortcut."
     },
     "ai_graph_algorithm": {
-      "description": "Uses AI to verify that the submission implements the requested graph algorithm rather than a library shortcut.",
-      "params": {
-        "algorithm_name": "Name of the graph algorithm to verify (e.g., 'Dijkstra')."
-      }
+      "description": "Uses AI to verify that the submission implements the requested graph algorithm rather than a library shortcut."
     },
     "template": {
       "name": "Static Analysis",

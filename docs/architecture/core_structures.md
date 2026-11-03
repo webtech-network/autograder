@@ -293,10 +293,9 @@ Evaluation context is deliberately split by responsibility:
 | API `metadata` / database `submission_metadata` | Never read by the core pipeline | Preserve submission-level provenance and audit context |
 
 Platform- or domain-specific data belongs in the open-ended metadata fields,
-not in new typed core model fields. Test functions receive `evaluation_scope`
-and a filename-keyed `file_metadata` mapping through `execute(**kwargs)`. They
-also receive the original `SubmissionFile` objects, including `changed_lines`
-and `metadata`, through the `files` argument.
+not in new typed core model fields. Evaluators receive the selected original
+`SubmissionFile` objects, including `changed_lines` and `metadata`, as
+`evaluation.files`. Scope only shapes that selection; it is not passed to them.
 
 ## Template
 
@@ -306,24 +305,26 @@ Template provides test functions for a specific assignment type.
 
 ```python
 class Template:
-    name: str                           # Template identifier
-    tests: dict[str, TestFunction]      # Available test functions
-    requires_sandbox: bool              # Whether code execution needed
-    supported_languages: list[str]      # Compatible languages
+    template_name: str                  # Display name
+    template_description: str
+    tests: dict[str, TestFunction]      # Registry; lookup is implemented by the base class
+    requires_sandbox: bool              # Whether code execution is needed
 ```
 
 ### Test Function
 
 ```python
 class TestFunction:
-    name: str                          # Function identifier
-    
-    def execute(
-        self,
-        files: dict[str, str],
-        sandbox: SandboxContainer | None,
-        **kwargs
-    ) -> TestResult:
-        """Execute the test and return result"""
-        pass
+    name: str                           # Registry identifier
+    description: str
+
+    def execute(self, evaluation: EvaluationInput, *, <configuration>) -> TestResult:
+        """Assess one criterion; keyword-only parameters are the normalized configuration."""
+
+    def validate_parameters(self, parameters, *, languages) -> Iterable[ParameterIssue]:
+        """Optional pure definition check (command coverage, AST rules, ...)."""
 ```
+
+`EvaluationInput` holds `files`, `language`, `locale` and `session` (only for
+evaluators declaring `sandbox_execution`/`http_network`). See
+[DECISIONS.md](../contracts/DECISIONS.md#evaluator-owned-contracts-arc-03).

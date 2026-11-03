@@ -1,13 +1,12 @@
 import re
-from typing import Optional, List
+from typing import Annotated, List
 from bs4 import BeautifulSoup
 
-from autograder.models.abstract.test_function import TestFunction
-from autograder.models.dataclass.param_description import ParamDescription
-from autograder.models.dataclass.submission import SubmissionFile
+from pydantic import Field
+
+from autograder.models.abstract.test_function import EvaluationInput, TestFunction
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from autograder.models.execution import ExecutionSession
 
 
 class CountUnusedCssClasses(TestFunction):
@@ -20,13 +19,6 @@ class CountUnusedCssClasses(TestFunction):
     @property
     def description(self):
         return t("web_dev.css.count_unused_css_classes.description")
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("html_file", t("web_dev.css.count_unused_css_classes.param.html_file"), "string"),
-            ParamDescription("css_file", t("web_dev.css.count_unused_css_classes.param.css_file"), "string")
-        ]
-
     def _extract_css_classes(self, css_content: str) -> set:
         """Extracts class names from the CSS content."""
         if not css_content:
@@ -64,8 +56,12 @@ class CountUnusedCssClasses(TestFunction):
                     used_classes.add(cls)
         return used_classes
 
-    def execute(self, files, sandbox, *args, html_file: str = "", css_file: str = "", **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                html_file: Annotated[str, Field(min_length=1, description=t("web_dev.css.count_unused_css_classes.param.html_file"))],
+                css_file: Annotated[str, Field(min_length=1, description=t("web_dev.css.count_unused_css_classes.param.css_file"))],
+                ) -> TestResult:
         """Executes the unused CSS class verification."""
+        files = evaluation.files
         submission_files = {file.filename: file.content for file in files or []}
         html_content = submission_files.get(html_file, "")
         css_content = submission_files.get(css_file, "")
@@ -74,7 +70,7 @@ class CountUnusedCssClasses(TestFunction):
             return TestResult(
                 self.name, 
                 0, 
-                t("web_dev.css.count_unused_css_classes.report.no_files", locale=kwargs.get("locale")), 
+                t("web_dev.css.count_unused_css_classes.report.no_files", locale=evaluation.locale), 
                 {
                     "html_file": html_file, 
                     "css_file": css_file, 
@@ -102,7 +98,7 @@ class CountUnusedCssClasses(TestFunction):
         unused_count = len(unused_classes)
         score = 100 if unused_count == 0 else 0
         
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         if category == "html_classes_without_css":
             report = (
                 t("web_dev.css.count_unused_css_classes.report.html_no_css.none", locale=locale)
@@ -135,18 +131,16 @@ class CheckFlexboxUsage(TestFunction):
     file_extensions = (".css",)
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the search for Flexbox properties."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
         css_content = files[0].content
         found = re.search(r"\b(display\s*:\s*flex|flex-)", css_content) is not None
         score = 100 if found else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.css.check_flexbox_usage.report.found", locale=locale) if found else t("web_dev.css.check_flexbox_usage.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
@@ -165,21 +159,19 @@ class CountOverUsage(TestFunction):
     file_extensions = (".css",)
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("text", t("web_dev.css.count_over_usage.param.text"), "string"),
-            ParamDescription("max_allowed", t("web_dev.css.count_over_usage.param.max_allowed"), "integer")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, text: str = "", max_allowed: int = 0, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                text: Annotated[str, Field(min_length=1, description=t("web_dev.css.count_over_usage.param.text"))],
+                max_allowed: Annotated[int, Field(ge=0, description=t("web_dev.css.count_over_usage.param.max_allowed"))] = 0,
+                ) -> TestResult:
         """Executes the excess count verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
         css_content = files[0].content
         found_count = css_content.count(text)
         score = 100 if found_count <= max_allowed else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.css.count_over_usage.report.over", locale=locale, text=text, found_count=found_count, max_allowed=max_allowed) if score == 0 else t("web_dev.css.count_over_usage.report.ok", locale=locale, text=text)
         return TestResult(
             test_name=self.name,
@@ -199,18 +191,16 @@ class UsesRelativeUnits(TestFunction):
     file_extensions = (".css",)
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the search for relative units."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
         css_content = files[0].content
         found = re.search(r"\b(em|rem|%|vh|vw)\b", css_content) is not None
         score = 100 if found else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.css.uses_relative_units.report.found", locale=locale) if found else t("web_dev.css.uses_relative_units.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
@@ -229,12 +219,6 @@ class CheckIdSelectorOverUsage(TestFunction):
     file_extensions = (".css",)
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("max_allowed", t("web_dev.css.check_id_selector_over_usage.param.max_allowed"), "integer")
-        ]
-
     def _get_id_selectors(self, css_content: str) -> List[str]:
         """Helper to extract ID selectors from CSS."""
         token_pattern = re.compile(
@@ -262,14 +246,17 @@ class CheckIdSelectorOverUsage(TestFunction):
                 selectors.append(groups[6])
         return selectors
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, max_allowed: int = 0, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                max_allowed: Annotated[int, Field(ge=0, description=t("web_dev.css.check_id_selector_over_usage.param.max_allowed"))] = 0,
+                ) -> TestResult:
         """Executes the ID selector verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
         selectors = self._get_id_selectors(files[0].content)
         found_count = len(selectors)
         score = 100 if found_count <= max_allowed else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.css.check_id_selector_over_usage.report.over", locale=locale, found_count=found_count, max_allowed=max_allowed) if score == 0 else t("web_dev.css.check_id_selector_over_usage.report.ok", locale=locale)
         return TestResult(self.name, score, report, {"max_allowed": max_allowed})
 
@@ -284,21 +271,19 @@ class HasStyle(TestFunction):
     file_extensions = (".css",)
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("style", t("web_dev.css.has_style.param.style"), "string"),
-            ParamDescription("count", t("web_dev.css.has_style.param.count"), "integer")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, style: str = "", count: int = 0, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                style: Annotated[str, Field(min_length=1, description=t("web_dev.css.has_style.param.style"))],
+                count: Annotated[int, Field(ge=0, description=t("web_dev.css.has_style.param.count"))] = 0,
+                ) -> TestResult:
         """Executes the search for style rules."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
         css_content = files[0].content
         found_count = len(re.findall(rf"{re.escape(style)}\s*:\s*[^;]+;", css_content, re.IGNORECASE))
         score = min(100, int((found_count / count) * 100)) if count > 0 else 100
-        report = t("web_dev.css.has_style.report", locale=kwargs.get("locale"), found_count=found_count, count=count, style=style)
+        report = t("web_dev.css.has_style.report", locale=evaluation.locale, found_count=found_count, count=count, style=style)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -317,18 +302,16 @@ class CheckMediaQueries(TestFunction):
     file_extensions = (".css",)
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the search for media queries."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
         css_content = files[0].content
         found = re.search(r"@media\s+[^{]+\{", css_content) is not None
         score = 100 if found else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.css.check_media_queries.report.found", locale=locale) if found else t("web_dev.css.check_media_queries.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
@@ -347,14 +330,12 @@ class CssUsesProperty(TestFunction):
     file_extensions = (".css",)
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("prop", t("web_dev.css.css_uses_property.param.prop"), "string"),
-            ParamDescription("value", t("web_dev.css.css_uses_property.param.value"), "string")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, prop: str = "", value: str = "", **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                prop: Annotated[str, Field(min_length=1, description=t("web_dev.css.css_uses_property.param.prop"))],
+                value: Annotated[str, Field(min_length=1, description=t("web_dev.css.css_uses_property.param.value"))],
+                ) -> TestResult:
         """Executes the search for a CSS property/value pair."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No CSS file provided.")
 
@@ -362,7 +343,7 @@ class CssUsesProperty(TestFunction):
         pattern = re.compile(rf"{re.escape(prop)}\s*:\s*.*{re.escape(value)}", re.IGNORECASE)
         found = pattern.search(css_content) is not None
         score = 100 if found else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.css.css_uses_property.report.found", locale=locale, prop=prop, value=value) if found else t("web_dev.css.css_uses_property.report.not_found", locale=locale, prop=prop, value=value)
         return TestResult(
             test_name=self.name,

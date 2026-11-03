@@ -74,7 +74,9 @@ The Actions container can use an accessible sandbox service through
 `SANDBOX_MODE=remote` and `SANDBOX_API_URL`; this avoids requiring a nested Docker
 daemon. Local Docker hosts use `mode="local"` and a sandbox configuration file.
 Custom runner implementations implement the same session operations; evaluators
-receive no manager or provider identity. There is no unrestricted runner profile
+receive no manager or provider identity. Only evaluators declaring `sandbox_execution`
+or `http_network` receive the session, as `evaluation.session`; every other
+evaluator receives `None`, and AI evaluators never receive the provider. There is no unrestricted runner profile
 shipped by this change.
 
 AI providers implement `run(tests, submission_files, locale)` and return exactly

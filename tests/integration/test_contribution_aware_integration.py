@@ -68,11 +68,10 @@ def _static_analysis_criteria(forbidden_imports: list) -> dict:
 
 
 class ContextCapturingTest(TestFunction):
-    """Test function that captures files, evaluation_scope, and file_metadata."""
+    """Test function that captures its typed evaluation input."""
 
     def __init__(self):
-        self.files = None
-        self.kwargs = None
+        self.evaluation = None
 
     @property
     def name(self) -> str:
@@ -82,13 +81,8 @@ class ContextCapturingTest(TestFunction):
     def description(self) -> str:
         return "Capture contribution-aware context."
 
-    @property
-    def parameter_description(self) -> list:
-        return []
-
-    def execute(self, files, sandbox, *args, **kwargs) -> TestResult:
-        self.files = files
-        self.kwargs = kwargs
+    def execute(self, evaluation) -> TestResult:
+        self.evaluation = evaluation
         return TestResult(
             test_name=self.name,
             score=100.0,
@@ -139,8 +133,8 @@ class TestEvaluationScopeIntegration:
         assert execution.outcome.score == 0
         assert "helper.py" not in execution.outcome.tree.base.tests[0].report
 
-    def test_grading_with_evaluation_scope_passes_to_test_functions(self):
-        """Verify evaluation_scope is propagated as kwarg to test functions via GraderService."""
+    def test_grading_with_evaluation_scope_selects_files_for_test_functions(self):
+        """Scope shapes the selected files; evaluators receive files, not scope fields."""
         capturing_test = ContextCapturingTest()
         criteria_tree = CriteriaTree(
             base=CategoryNode(
@@ -167,8 +161,9 @@ class TestEvaluationScopeIntegration:
             evaluation_scope=scope,
         )
 
-        assert capturing_test.kwargs is not None
-        assert capturing_test.kwargs["evaluation_scope"] is scope
+        assert capturing_test.evaluation is not None
+        assert [file.filename for file in capturing_test.evaluation.files] == ["main.py"]
+        assert not hasattr(capturing_test.evaluation, "evaluation_scope")
 
     def test_grading_without_evaluation_scope_processes_all_files(self):
         """Without scope, all submission files are processed normally."""
@@ -201,8 +196,8 @@ class TestEvaluationScopeIntegration:
         assert execution.outcome.status == "completed"
         assert execution.outcome.score == 100
 
-    def test_evaluation_scope_none_passed_to_test_functions(self):
-        """When evaluation_scope is None, test functions receive None."""
+    def test_without_scope_test_functions_receive_all_relevant_files(self):
+        """Without a scope, an untargeted criterion receives every relevant file."""
         capturing_test = ContextCapturingTest()
         criteria_tree = CriteriaTree(
             base=CategoryNode(
@@ -217,7 +212,8 @@ class TestEvaluationScopeIntegration:
             )
         )
 
-        files = {"main.py": SubmissionFile(filename="main.py", content="x = 1")}
+        files = {"main.py": SubmissionFile(filename="main.py", content="x = 1"),
+                 "util.py": SubmissionFile(filename="util.py", content="y = 2")}
 
         GraderService().grade_from_tree(
             criteria_tree=criteria_tree,
@@ -225,7 +221,7 @@ class TestEvaluationScopeIntegration:
             evaluation_scope=None,
         )
 
-        assert capturing_test.kwargs["evaluation_scope"] is None
+        assert [file.filename for file in capturing_test.evaluation.files] == ["main.py", "util.py"]
 
 
 # ---------------------------------------------------------------------------
@@ -314,10 +310,10 @@ class TestChangedLinesIntegration:
 
 
 class TestFileMetadataIntegration:
-    """Verify file_metadata is available in test functions via file_metadata kwarg."""
+    """Verify per-file metadata reaches test functions on their selected files."""
 
     def test_file_metadata_available_in_test_function(self):
-        """Test function receives file_metadata dict keyed by filename."""
+        """Each selected file carries its own opaque metadata object."""
         capturing_test = ContextCapturingTest()
         criteria_tree = CriteriaTree(
             base=CategoryNode(
@@ -347,12 +343,12 @@ class TestFileMetadataIntegration:
             submission_files=files,
         )
 
-        assert capturing_test.kwargs is not None
-        assert capturing_test.kwargs["file_metadata"] == {"main.py": metadata}
-        assert capturing_test.kwargs["file_metadata"]["main.py"] is metadata
+        [selected] = capturing_test.evaluation.files
+        assert selected.filename == "main.py"
+        assert selected.metadata is metadata
 
     def test_file_metadata_none_when_not_provided(self):
-        """Test function receives file_metadata with None values when metadata is absent."""
+        """Absent metadata stays None on the selected file."""
         capturing_test = ContextCapturingTest()
         criteria_tree = CriteriaTree(
             base=CategoryNode(
@@ -377,10 +373,10 @@ class TestFileMetadataIntegration:
             submission_files=files,
         )
 
-        assert capturing_test.kwargs["file_metadata"] == {"main.py": None}
+        assert [file.metadata for file in capturing_test.evaluation.files] == [None]
 
     def test_file_metadata_multi_file_only_targeted_files(self):
-        """file_metadata contains only the files targeted by file_target."""
+        """Only files targeted by file_target (with their metadata) are selected."""
         capturing_test = ContextCapturingTest()
         criteria_tree = CriteriaTree(
             base=CategoryNode(
@@ -414,9 +410,9 @@ class TestFileMetadataIntegration:
             submission_files=files,
         )
 
-        # Only main.py should be in file_metadata (file_target = ["main.py"])
-        assert "main.py" in capturing_test.kwargs["file_metadata"]
-        assert "helper.py" not in capturing_test.kwargs["file_metadata"]
+        # Only main.py is selected (file_target = ["main.py"])
+        assert {file.filename: file.metadata for file in capturing_test.evaluation.files} == {
+            "main.py": {"change_status": "modified"}}
 
 
 # ---------------------------------------------------------------------------

@@ -1,63 +1,30 @@
+"""Evaluators whose assessment is delegated to the host AI provider."""
 from abc import abstractmethod
-from typing import Dict, List, Optional
 
-from autograder.models.abstract.test_function import TestFunction
-from autograder.models.dataclass.submission import SubmissionFile
+from autograder.models.abstract.test_function import EvaluationInput, TestFunction
 from autograder.models.dataclass.test_result import TestResult
-
-from autograder.models.execution import ExecutionSession
 from autograder.models.evaluation_error import EvaluationError
 
 
 class AiTestFunction(TestFunction):
-    """
-    Abstract base class for test functions whose evaluation is delegated to an AI model.
+    """An AI evaluator declares ``build_prompt(self, evaluation, *, <parameters>)``.
 
-    Subclasses must implement ``build_prompt()`` to describe what the AI should evaluate.
-    Subclasses must NOT override ``execute()``; the base implementation handles both the
-    normal grading path with pre-computed results supplied by the host assessment provider.
+    ``evaluate_ai_batch`` calls ``build_prompt`` for every selected AI criterion and
+    sends one batch to the host-supplied provider. The grader then uses the
+    provider's assessment for the criterion ID; AI evaluators are never executed
+    individually and receive no provider client.
     """
 
     required_capabilities = ("ai_provider",)
 
+    @property
+    def entrypoint(self):
+        return self.build_prompt
+
     @abstractmethod
-    def build_prompt(self, files: Optional[List[SubmissionFile]], **kwargs) -> str:
-        """
-        Build the AI evaluation prompt for this test.
+    def build_prompt(self, evaluation: EvaluationInput, /, **parameters) -> str:
+        """Return the prompt describing what the provider must assess."""
 
-        Args:
-            files: The submission files relevant to this test (already filtered by
-                ``file_target``), or ``None`` if the test does not require file content.
-            **kwargs: Any test parameters declared in the criteria configuration.
-
-        Returns:
-            The prompt text that will be sent to the AI model.
-        """
-
-    def execute(
-        self,
-        files: Optional[List[SubmissionFile]],
-        sandbox: Optional[ExecutionSession],
-        *args,
-        **kwargs,
-    ) -> TestResult:
-        """
-        Return the required pre-computed AI result.
-
-        After ``evaluate_ai_batch`` returns assessments, ``GraderService`` injects
-        them as the ``pre_computed_results`` kwarg. This method looks up its own
-        criterion ID in that dict and returns the result directly. If the dict is
-        absent (standalone usage), assessment fails without a provider fallback.
-        """
-        # args is not used in AI tests as parameters are in kwargs
-        _ = args
-        pre_computed: Optional[Dict[str, TestResult]] = kwargs.get("pre_computed_results")
-        criterion_id = kwargs.get("criterion_id")
-        if not criterion_id:
-            raise EvaluationError("INVALID_DEFINITION", "An AI criterion has no identity.", "definition")
-        if pre_computed is not None:
-            if criterion_id not in pre_computed:
-                raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
-            return pre_computed[criterion_id]
-
+    def execute(self, evaluation: EvaluationInput, /, **parameters) -> TestResult:
+        """AI criteria are assessed only through the provider batch."""
         raise EvaluationError("PROVIDER_UNAVAILABLE", "An AI assessment requires a host-supplied provider.", "provider")

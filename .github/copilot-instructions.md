@@ -49,8 +49,8 @@ Route prefix chain: `app → /api/v1 → /{router_prefix}`
 ## How To: Add a New Grading Template
 
 1. **Create template file** in `autograder/template_library/` (e.g., `my_template.py`)
-2. **Implement `Template` ABC**: define `template_name`, `template_description`, `requires_sandbox`, `get_test(name)`
-3. **Implement test classes** extending `TestFunction` ABC: define `name`, `description`, `parameter_description`, `execute()`
+2. **Implement `Template` ABC**: define `template_name`, `template_description`, `requires_sandbox` and a `tests` dict (lookup is inherited)
+3. **Implement test classes** extending `TestFunction` ABC: define `name`, `description` and `execute(self, evaluation, *, <annotated parameters>)`; see AGENTS.md "Adding an evaluator"
 4. **Register in `__init__.py`**: add to `TEMPLATE_REGISTRY` dict
 5. **Add to `TemplateLibraryService`**: it auto-loads from `TEMPLATE_REGISTRY` at startup
 

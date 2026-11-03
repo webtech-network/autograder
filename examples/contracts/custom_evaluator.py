@@ -1,26 +1,26 @@
-"""Trusted Python extension example; run with ``python -m examples.contracts.custom_evaluator``."""
+"""Trusted Python extension example; run with ``python -m examples.contracts.custom_evaluator``.
 
-from pydantic import BaseModel, Field
+A new evaluator is a local change: its implementation, its parameter contract
+(the annotated keyword-only parameters of ``execute``) and its registration.
+"""
+from typing import Annotated
+
+from pydantic import Field
 
 from autograder import (
-    compile_definition, evaluate_submission, Template, TestFunction,
+    compile_definition, evaluate_submission, EvaluationInput, Template, TestFunction,
     Submission, SubmissionFile, TestResult,
 )
-from autograder.models.dataclass.param_description import ParamDescription
-
-
-class ContainsTextParameters(BaseModel):
-    needle: str = Field(min_length=1)
 
 
 class ContainsText(TestFunction):
+    """Stateless: everything about one submission arrives in the call."""
     name = "contains_text"
     description = "Check whether any selected file contains a literal string."
-    parameter_description = [ParamDescription("needle", "Text to find", "string")]
-    config_schema = ContainsTextParameters
 
-    def execute(self, files, sandbox, *, needle: str, **kwargs) -> TestResult:
-        found = any(needle in file.content for file in (files or []))
+    def execute(self, evaluation: EvaluationInput, *,
+                needle: Annotated[str, Field(min_length=1, description="Text to find")]) -> TestResult:
+        found = any(needle in file.content for file in evaluation.files)
         return TestResult(self.name, 100 if found else 0, "Found" if found else "Missing")
 
 
@@ -29,9 +29,6 @@ class TrustedTextTemplate(Template):
     template_name = "Trusted text"
     template_description = "One local, trusted evaluator"
     requires_sandbox = False
-
-    def get_test(self, name):
-        return self.tests[name]
 
 
 DEFINITION = {

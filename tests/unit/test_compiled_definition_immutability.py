@@ -33,13 +33,12 @@ class RecordingLabel(TestFunction):
     """Records what it executes and then mutates every mutable input it got."""
     name = "label"
     description = "Record the executed label."
-    parameter_description = []
     config_schema = LabelParameters
 
     def __init__(self):
         self.executed = []
 
-    def execute(self, files, sandbox, *, label, items, nested, **kwargs):
+    def execute(self, evaluation, *, label, items, nested):
         self.executed.append({"label": label, "items": list(items), "nested": {k: list(v) for k, v in nested.items()}})
         items.append("mutated")
         nested.setdefault("a", []).append(99)
@@ -55,8 +54,6 @@ class LabelTemplate(Template):
     def __init__(self):
         self.tests = {"label": RecordingLabel()}
 
-    def get_test(self, name):
-        return self.tests[name]
 
 
 def raw_definition():

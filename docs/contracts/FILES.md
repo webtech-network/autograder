@@ -108,5 +108,7 @@ Defaults allow zero or more scoped files without a type restriction. Set
 `maximum_files = 0` for endpoint-only checks; set matching extensions and minimum
 and maximum of one for single-file checks. Avoid implementing declarations that
 an evaluator does not need. The former internal structural pipeline step,
-result container and accessor have been removed; static evaluators use the local
-lazy cache. The version 1 JSON shape is unchanged.
+result container and accessor have been removed; the structural evaluator parses
+its own selected sources. Selected files arrive as `evaluation.files` (with their
+`metadata` and `changed_lines`); scope and a separate file-metadata mapping are
+not passed to evaluators. The version 1 JSON shape is unchanged.

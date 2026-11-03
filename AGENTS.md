@@ -100,11 +100,20 @@ See [OUTCOMES.md](docs/contracts/OUTCOMES.md) for the failure matrix and invaria
 
 ## Adding an evaluator
 
-1. Implement `TestFunction` (or `AiTestFunction`) locally.
-2. Provide a parameter contract. Annotated `execute` keyword signatures derive a
-   strict contract; implementations reading `**kwargs` supply `config_schema`.
-3. Register the instance under its explicit `name` in a trusted `Template`.
+1. Implement `TestFunction` with `execute(self, evaluation, *, <parameters>)`
+   (`AiTestFunction`: `build_prompt` with the same shape). `evaluation` is the typed
+   `EvaluationInput` (`files`, `language`, `locale`, `session`); keyword-only
+   parameters are the normalized configuration. No `*args`/`**kwargs`.
+2. The annotated keyword-only parameters are the contract (or supply an explicit
+   `config_schema` with the same fields). Declare constraints and descriptions with
+   `Annotated[..., Field(...)]`; primitive types imply none. Put cross-field or
+   language-dependent semantics in the pure `validate_parameters` hook.
+3. Register the instance under its explicit `name` in a trusted `Template`'s
+   `tests` dict (lookup is inherited). Invalid signatures fail at registration.
 4. Reference the registry key as criterion `type`, with a distinct instance `id`.
+
+Evaluators are shared and must be stateless; keep per-submission state in the call.
+Only evaluators declaring `sandbox_execution`/`http_network` receive a session.
 
 Do not add adapter vocabulary or a new pipeline framework for one evaluator.
 Provider/system failure raises `EvaluationError` with a fixed safe public message;

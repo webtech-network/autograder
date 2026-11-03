@@ -1,4 +1,5 @@
 """Executable shared outcome/failure matrix, using the real engine boundary."""
+from tests.evaluator_calls import invoke
 from copy import deepcopy
 from unittest.mock import Mock, patch
 
@@ -15,6 +16,8 @@ from autograder.models.dataclass.test_result import TestResult
 from autograder.models.evaluation_error import EvaluationError
 from autograder.template_library.input_output import ExpectOutputTest
 from sandbox_manager.models.sandbox_models import CommandResponse, Language, ResponseCategory
+
+API_PARAMETERS = {"health_check": {}, "check_response_json": {"expected_key": "status"}}
 
 
 def definition(*, feedback=False, preparation=None):
@@ -61,7 +64,7 @@ def test_student_execution_failure_is_assessed_zero(category):
     evaluator = ExpectOutputTest()
     sandbox = Mock()
     sandbox.run_commands.return_value = response
-    result = evaluator.execute([], sandbox, program_command='python main.py', expected_output='hello')
+    result = invoke(evaluator, [], sandbox, program_command='python main.py', expected_output='hello')
     assert result.score == 0
 
 
@@ -74,7 +77,7 @@ def test_sandbox_infrastructure_failure_is_not_an_assessment(failure):
     else:
         sandbox.run_commands.return_value = CommandResponse(stdout='', stderr='secret', exit_code=-1, execution_time=0, category=failure)
     with pytest.raises(EvaluationError) as error:
-        evaluator.execute([], sandbox, program_command='python main.py', expected_output='hello')
+        invoke(evaluator, [], sandbox, program_command='python main.py', expected_output='hello')
     assert error.value.category == 'capability'
     assert 'secret' not in error.value.message
 
@@ -191,7 +194,7 @@ def test_api_request_failure_is_not_an_assessed_zero(evaluator):
     sandbox = Mock()
     sandbox.make_request.side_effect = requests.RequestException('secret')
     with pytest.raises(EvaluationError) as error:
-        ApiTestingTemplate().get_test(evaluator).execute([], sandbox, endpoint='/')
+        invoke(ApiTestingTemplate().get_test(evaluator), [], sandbox, endpoint='/', **API_PARAMETERS[evaluator])
     assert error.value.category == 'capability'
     assert 'secret' not in error.value.message
 
@@ -201,4 +204,4 @@ def test_assessed_api_failure_is_zero(evaluator):
     from autograder.template_library.api_testing import ApiTestingTemplate
     sandbox = Mock()
     sandbox.make_request.return_value.status_code = 500
-    assert ApiTestingTemplate().get_test(evaluator).execute([], sandbox, endpoint='/').score == 0
+    assert invoke(ApiTestingTemplate().get_test(evaluator), [], sandbox, endpoint='/', **API_PARAMETERS[evaluator]).score == 0

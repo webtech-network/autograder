@@ -10,6 +10,7 @@ Tests cover:
 - Registration in InputOutputTemplate
 """
 
+from tests.evaluator_calls import invoke
 import unittest
 from unittest.mock import MagicMock
 
@@ -42,7 +43,7 @@ class TestExpectOutputNormalization(unittest.TestCase):
         """Test success when output exactly matches expected output."""
         sandbox = _make_sandbox(stdout="hello world\n")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=[], expected_output="hello world",
             program_command="echo hello world",
@@ -54,7 +55,7 @@ class TestExpectOutputNormalization(unittest.TestCase):
         """Test that normalization removes trailing spaces on each line."""
         sandbox = _make_sandbox(stdout="line1  \nline2  \n")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=[], expected_output="line1\nline2",
             program_command="python3 main.py",
@@ -67,7 +68,7 @@ class TestExpectOutputNormalization(unittest.TestCase):
         """Test that normalization converts CRLF to LF."""
         sandbox = _make_sandbox(stdout="line1\r\nline2\r\n")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=[], expected_output="line1\nline2",
             program_command="python3 main.py",
@@ -80,7 +81,7 @@ class TestExpectOutputNormalization(unittest.TestCase):
         """Test that normalization converts CR to LF."""
         sandbox = _make_sandbox(stdout="line1\rline2\r")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=[], expected_output="line1\nline2",
             program_command="python3 main.py",
@@ -93,7 +94,7 @@ class TestExpectOutputNormalization(unittest.TestCase):
         """Test that normalization preserves intentional blank lines."""
         sandbox = _make_sandbox(stdout="line1\n\nline2\n")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=[], expected_output="line1\n\nline2",
             program_command="python3 main.py",
@@ -106,7 +107,7 @@ class TestExpectOutputNormalization(unittest.TestCase):
         """Test that without normalization, trailing spaces matter."""
         sandbox = _make_sandbox(stdout="hello ")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=[], expected_output="hello",
             program_command="echo hello",
@@ -119,7 +120,7 @@ class TestExpectOutputNormalization(unittest.TestCase):
         """Test that normalization defaults to True."""
         sandbox = _make_sandbox(stdout="hello  \n")
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=[], expected_output="hello",
             program_command="echo hello",
@@ -138,7 +139,7 @@ class TestExpectOutputNormalization(unittest.TestCase):
 
         sandbox = _make_sandbox(stdout=student_output)
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=[], expected_output=expected,
             program_command="python3 main.py",
@@ -162,7 +163,7 @@ class TestExpectOutputErrors(unittest.TestCase):
             category=ResponseCategory.TIMEOUT,
         )
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=["test"], expected_output="expected",
             program_command="python3 main.py",
@@ -177,7 +178,7 @@ class TestExpectOutputErrors(unittest.TestCase):
             category=ResponseCategory.COMPILATION_ERROR,
         )
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=["test"], expected_output="expected",
             program_command="java Main",
@@ -192,7 +193,7 @@ class TestExpectOutputErrors(unittest.TestCase):
             category=ResponseCategory.RUNTIME_ERROR,
         )
 
-        result = self.test.execute(
+        result = invoke(self.test,
             files=None, sandbox=sandbox,
             inputs=["test"], expected_output="expected",
             program_command="python3 main.py",
@@ -210,9 +211,8 @@ class TestExpectOutputMetadata(unittest.TestCase):
 
     def test_normalization_in_parameter_descriptions(self):
         """Test that normalization parameter is documented."""
-        params = ExpectOutputTest().parameter_description
-        names = [p.name for p in params]
-        self.assertIn("normalization", names)
+        properties = ExpectOutputTest().config_schema.model_json_schema()["properties"]
+        self.assertTrue(properties["normalization"]["description"])
 
     def test_registered_in_template(self):
         """Test that the test is registered in InputOutputTemplate."""
