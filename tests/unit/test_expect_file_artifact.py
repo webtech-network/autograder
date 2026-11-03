@@ -23,7 +23,7 @@ from unittest.mock import MagicMock
 
 from autograder.template_library.input_output import ExpectFileArtifactTest, InputOutputTemplate
 from autograder.models.process import ProcessResult, ProcessStatus
-from sandbox_manager.models.sandbox_models import ExtractedFile
+from autograder.models.execution import ExtractedFile
 
 
 def _make_sandbox(stdout="", stderr="", exit_code=0, timed_out=False):
