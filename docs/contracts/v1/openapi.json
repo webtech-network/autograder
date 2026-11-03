@@ -118,15 +118,43 @@
         ],
         "summary": "Ingest External Result",
         "operationId": "ingest_external_result_api_v1_submissions_external_results_post",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255,
+                  "pattern": "^[\\x21-\\x7e]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Caller-generated key (1-255 visible ASCII characters). Repeating a key with the same request returns the original receipt without creating or grading anything; the same key with a different request is 409 IDEMPOTENCY_KEY_REUSED.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Caller-generated key (1-255 visible ASCII characters). Repeating a key with the same request returns the original receipt without creating or grading anything; the same key with a different request is 409 IDEMPOTENCY_KEY_REUSED."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ExternalResultCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -148,6 +176,9 @@
           "503": {
             "description": "Authentication is not configured on this host"
           },
+          "409": {
+            "description": "Idempotency-Key reused with a different request"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -158,12 +189,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "IntegrationBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/configs/validate": {
@@ -634,6 +660,29 @@
             "IntegrationBearer": []
           }
         ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255,
+                  "pattern": "^[\\x21-\\x7e]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Caller-generated key (1-255 visible ASCII characters). Repeating a key with the same request returns the original receipt without creating or grading anything; the same key with a different request is 409 IDEMPOTENCY_KEY_REUSED.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Caller-generated key (1-255 visible ASCII characters). Repeating a key with the same request returns the original receipt without creating or grading anything; the same key with a different request is 409 IDEMPOTENCY_KEY_REUSED."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -663,6 +712,9 @@
           },
           "503": {
             "description": "Authentication is not configured on this host"
+          },
+          "409": {
+            "description": "Idempotency-Key reused with a different request"
           },
           "422": {
             "description": "Validation Error",

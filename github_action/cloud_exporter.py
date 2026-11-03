@@ -27,4 +27,14 @@ class CloudPublisher:
 
     def publish(self, payload):
         # The same saved payload may be explicitly retried without rerunning grading.
-        return self.client.submit_external_result(payload)
+        return self.client.submit_external_result(payload, idempotency_key=delivery_key(payload))
+
+
+def delivery_key(payload):
+    """One grading execution is one attestation operation (INT-04).
+
+    The key derives from the saved outcome, so retrying delivery.json (even one
+    written before keys existed) reuses it, while a new workflow attempt grades
+    again and receives a new execution ID and key.
+    """
+    return "action-outcome:" + payload["outcome"]["execution_id"]

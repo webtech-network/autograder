@@ -7,7 +7,7 @@ from github_action.cloud_exporter import CloudPublisher
 def test_publisher_preserves_exact_outcome_and_has_no_engine_dependency():
     client, definition, outcome = MagicMock(), MagicMock(), MagicMock()
     definition.model_dump.return_value = {"schema_version": "1.0"}
-    value = {"status": "completed", "score": 100, "tree": {"base": {}},
+    value = {"execution_id": "run-1", "status": "completed", "score": 100, "tree": {"base": {}},
              "comparison": {"status": "completed", "content": {"score_delta": 5}}}
     outcome.model_dump.return_value = value
     outcome.language = "python"
@@ -19,4 +19,7 @@ def test_publisher_preserves_exact_outcome_and_has_no_engine_dependency():
     publisher.publish(payload)
     publisher.publish(payload)
     assert client.submit_external_result.call_count == 2
+    # Retrying the same saved payload reuses one attestation key.
+    keys = {call.kwargs["idempotency_key"] for call in client.submit_external_result.call_args_list}
+    assert keys == {"action-outcome:run-1"}
     outcome.get_grade_step_result.assert_not_called()

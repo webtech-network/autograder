@@ -89,7 +89,8 @@ cover the single-definition-file and scalar output changes.
 
 The definition and outcome schemas do not provide durable scheduling,
 distributed sandbox provisioning, submission idempotency, or retention policy.
-Those are hosting responsibilities.
+Those are hosting responsibilities; the HTTP host provides replay-safe operation
+keys ([REPLAY.md](REPLAY.md)).
 
 ## Discovery and trusted Python extensions
 
@@ -161,3 +162,15 @@ needs the `integration` scope. All integration principals share all resources;
 caller-supplied user identifiers never authorize. Restricted attestation tokens
 let a producer publish without reading data. A missing credential configuration
 fails closed (503) and readiness reports it. See [AUTH.md](AUTH.md).
+
+## Replay-safe acceptance and publication (INT-04)
+
+`Idempotency-Key` on acceptance and attestation is scoped by authenticated
+principal and operation. The key, request fingerprint and created submission ID
+commit in the resource's transaction; equal retries (including concurrent ones and
+retries after a lost response or a later revision) return the original receipt
+without regrading, and a changed request is 409 `IDEMPOTENCY_KEY_REUSED`. Receipts
+are retained with their submission. The Action derives its key from the saved
+outcome's execution ID, retries only keyed POSTs within a total deadline, honours
+`Retry-After`, and reports uncertain delivery without altering the grade. See
+[REPLAY.md](REPLAY.md).

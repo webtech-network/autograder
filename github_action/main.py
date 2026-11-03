@@ -10,6 +10,7 @@ from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.contracts.definition import DefinitionValidationError
 from autograder.models.contracts.outcome import validate_outcome
 from github_action.cloud_client import CloudClient, CloudClientError, CloudConnectionError
+from github_action.cloud_exporter import delivery_key
 from github_action.github_action_service import GithubActionService
 from submission_contract import (
     MAX_FILE_BYTES,
@@ -112,6 +113,16 @@ def retain_outcome(value):
     return result_path
 
 
+def _delivery_failure(exc, retained):
+    """Describe delivery trouble honestly without changing the retained grade."""
+    output("delivery-status", "uncertain" if getattr(exc, "uncertain", False) else "failed")
+    if getattr(exc, "uncertain", False):
+        return (f"Result delivery is uncertain: the server may have stored it; {retained}. "
+                "Retrying delivery.json is safe and returns the original receipt.")
+    detail = f" ({exc})" if isinstance(exc, (CloudClientError, CloudConnectionError)) else ""
+    return f"Result delivery failed{detail}; {retained}."
+
+
 def run(args):
     wants_delivery = args.upload_to_cloud == "true" or bool(args.retry_delivery_path)
     if args.execution_mode == "external" or wants_delivery:
@@ -125,9 +136,10 @@ def run(args):
         retain_outcome(payload["outcome"])
         client = CloudClient(args.autograder_cloud_url, args.autograder_cloud_token)
         try:
-            response = client.submit_external_result(payload)
+            response = client.submit_external_result(payload, idempotency_key=delivery_key(payload))
         except Exception as exc:
-            raise RuntimeError("Result delivery failed; the grading artifact is retained.") from exc
+            raise RuntimeError(_delivery_failure(exc, "the grading artifact is retained")) from exc
+        output("delivery-status", "delivered")
         if response.get("submission_id") is not None:
             output("submission-id", response["submission_id"])
         return payload["outcome"]["status"] == "completed"
@@ -149,7 +161,8 @@ def run(args):
         try:
             response = service.publish(payload)
         except Exception as exc:
-            raise RuntimeError("Result delivery failed; the grading artifact and delivery.json are retained.") from exc
+            raise RuntimeError(_delivery_failure(exc, "the grading artifact and delivery.json are retained")) from exc
+        output("delivery-status", "delivered")
         if response.get("submission_id") is not None:
             output("submission-id", response["submission_id"])
     return value["status"] == "completed"

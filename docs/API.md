@@ -95,5 +95,7 @@ input is 422, unavailable infrastructure is 503, and the response deadline is
 Grading publication retains a private local receipt on DB failure;
 [receipt replay](contracts/OUTCOMES.md#publication-receipts) retries publication without running evaluators.
 Bounded workers use persisted PostgreSQL jobs, lease identities and fenced
-publication. Submission idempotency remains separate work; replaying a finalized
-outcome does not regrade it.
+publication. Both POST endpoints accept an `Idempotency-Key`: a repeated request
+returns the original receipt (`Idempotent-Replayed: true`), a changed request under
+the same key is 409 `IDEMPOTENCY_KEY_REUSED`. See [replay safety](contracts/REPLAY.md).
+Replaying a finalized outcome does not regrade it.
