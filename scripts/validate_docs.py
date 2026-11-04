@@ -95,7 +95,7 @@ def check_api_endpoints():
 
     # Extract actual routes from web/api/v1/ source files
     route_pattern = re.compile(
-        r'@router\.(get|post|put|delete|patch)\(\s*["\']([^"\']*)["\']'
+        r'@\w*router\.(get|post|put|delete|patch)\(\s*["\']([^"\']*)["\']'
     )
     registered = set()
 

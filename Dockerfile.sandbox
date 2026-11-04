@@ -21,8 +21,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 6. Copy the rest of the application code
 COPY . .
 
-# 7. Expose the port the Sandbox Manager API runs on
+# 7. The private control API port. Do not publish it; keep it on an internal
+#    network and set SANDBOX_API_TOKEN (the service refuses to start without it).
 EXPOSE 8001
 
-# 8. Define the command to run the Sandbox Manager API
-CMD ["uvicorn", "sandbox_manager.api:app", "--host", "0.0.0.0", "--port", "8001"]
+# 8. Exactly one worker: sandbox handles live in this process's memory.
+CMD ["uvicorn", "sandbox_manager.api:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

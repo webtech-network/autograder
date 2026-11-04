@@ -39,9 +39,12 @@ markdown_extensions:
 nav:
   - Integration Contracts:
       - Executable Examples: contracts/CONFORMANCE.md
+      - HTTP Trust Boundary: contracts/AUTH.md
+      - Replay Safety: contracts/REPLAY.md
       - Submission Input: contracts/SUBMISSIONS.md
       - Evaluator Files: contracts/FILES.md
       - Host Capabilities: contracts/CAPABILITIES.md
+      - Sandbox Ownership: contracts/SANDBOX.md
       - Durable Jobs: contracts/JOBS.md
       - Definitions: contracts/DEFINITIONS.md
       - Catalog and Python API: contracts/CATALOG.md
@@ -65,6 +68,7 @@ nav:
       - Quick Start Guide: github_action/quick-start.md
       - Configuration Reference: github_action/configuration.md
       - External Mode: github_action/external-mode.md
+      - Identity and Trust: github_action/trust.md
   - Grading Operations:
       - Overview: pipeline/README.md
       - Compile Templates: pipeline/01-load-template.md

@@ -14,9 +14,22 @@ inputs:
     description: "Directory of UTF-8 submission files, relative to the workspace or absolute."
     required: false
     default: "."
+  submitter-id:
+    description: "Authoritative opaque ID of the owner of the graded work (e.g. Prisma's student ID). Defaults to the repository (github-repository:<id>), never the workflow actor."
+    required: false
+  submitter-name:
+    description: "Display name of the submitter. Defaults to submitter-id, or the repository name."
+    required: false
   grading-config-id:
     description: "Positive cloud configuration ID. Required for external mode or cloud publication."
     required: false
+  grading-config-revision:
+    description: "Positive configuration revision for repo-mode publication. Lets a restricted attestation token publish without reading the configuration."
+    required: false
+  trusted-self-hosted-runner:
+    description: "Allow cloud publication from a self-hosted runner you have reviewed as trusted (see trust table)."
+    required: false
+    default: "false"
   autograder-cloud-url:
     description: "Cloud base URL. Required for external mode, cloud publication, or delivery retry."
     required: false
@@ -46,6 +59,8 @@ outputs:
     description: "Workspace-relative canonical outcome JSON path, retained even when delivery fails."
   submission-id:
     description: "Cloud submission ID, present only after successful publication."
+  delivery-status:
+    description: "delivered, failed or uncertain when publication was requested. Uncertain means the server may have stored it; retrying delivery.json is safe."
 runs:
   using: docker
   image: "Dockerfile.actions"
@@ -53,7 +68,11 @@ runs:
     EXECUTION_MODE: ${{ inputs.execution-mode }}
     DEFINITION_PATH: ${{ inputs.definition-path }}
     SUBMISSION_ROOT: ${{ inputs.submission-root }}
+    SUBMITTER_ID: ${{ inputs.submitter-id }}
+    SUBMITTER_NAME: ${{ inputs.submitter-name }}
     GRADING_CONFIG_ID: ${{ inputs.grading-config-id }}
+    GRADING_CONFIG_REVISION: ${{ inputs.grading-config-revision }}
+    TRUSTED_SELF_HOSTED_RUNNER: ${{ inputs.trusted-self-hosted-runner }}
     AUTOGRADER_CLOUD_URL: ${{ inputs.autograder-cloud-url }}
     AUTOGRADER_CLOUD_TOKEN: ${{ inputs.autograder-cloud-token }}
     UPLOAD_TO_CLOUD: ${{ inputs.upload-to-cloud }}
