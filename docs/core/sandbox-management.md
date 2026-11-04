@@ -17,8 +17,10 @@ It is implemented by `SandboxManager`, which coordinates per-language `LanguageP
 1. The host (web API, sandbox control API, GitHub Action) constructs the manager
    and owns its shutdown; the library installs no signal handlers.
 2. Startup reclaims containers whose owner is provably dead on this host.
-3. Each pool pre-warms `pool_size` containers.
-4. Grading requests acquire an idle sandbox or scale up until `scale_limit`.
+3. Each pool pre-warms `pool_size` idle containers.
+4. Every acquisition (grading or deliberate execution, any language) first takes a
+   slot of the one host budget `max_sandboxes`, waiting in arrival order when all
+   slots are held, then takes an idle container or creates one outside any lock.
 5. Every used container is disposed (never reused). Docker must confirm removal;
    failed removals are quarantined, reported and retried.
 6. The monitor thread enforces timeouts, retries quarantined removals and replenishes.
@@ -40,8 +42,7 @@ Runtime prefers gVisor (`runsc`) when available and falls back to default runtim
 | Goal | Main knobs |
 |------|------------|
 | Faster first response | Increase `pool_size` |
-| Higher concurrency | Increase `scale_limit` |
-| Lower idle resource usage | Lower `idle_timeout` |
+| Higher concurrency (up to the CPU knee) | Increase `max_sandboxes` |
 | Faster stuck-process recovery | Lower `running_timeout` |
 
 These values are defined in `sandbox_config.yml`.

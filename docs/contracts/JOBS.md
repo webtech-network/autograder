@@ -75,6 +75,37 @@ does not prevent durable acceptance. Execution providers are acquired only when
 selected tests need them. Readiness is not a guarantee that every provider is
 currently available.
 
+## Sandbox capacity
+
+One number bounds execution on a host: the sandbox budget N,
+`general.max_sandboxes` in `sandbox_config.yml`, read by whichever process owns
+the sandbox manager (the API in local mode, the sandbox service in remote mode).
+Grading and `POST /execute` of every language share it; see
+[SANDBOX.md](SANDBOX.md#one-host-wide-sandbox-budget). Workers are not capacity:
+`WEB_WORKER_COUNT` may exceed N (and several API processes may share one remote
+sandbox service). A grading that finds every slot held waits for one while its
+lease keeps renewing; it is never failed for capacity. The wait is bounded by
+`GRADING_CAPACITY_WAIT_SECONDS` (600 s); expiry is a retryable
+`CAPABILITY_UNAVAILABLE` with no score (re-queuing it is COR-03 (#418)). Sandbox
+clocks start when the slot is granted. A deliberate run waits 10 s, then answers
+`503 EXECUTION_BUSY` with `Retry-After: 5`.
+
+**Sizing rule.** N is a CPU budget. Each sandbox may use 0.5 CPU and 128 MiB
+(`docker_profile.py`); gVisor, Docker and the API need the rest of the machine.
+Start with N ≈ 2/3 of the host's logical CPUs and raise it only while measured
+throughput still rises (the PRF-07 (#439) benchmark): beyond the CPU knee a
+larger N only adds latency. Memory must cover N × 128 MiB plus `pool_size` warm
+containers per language. **Reference:** 12 logical CPUs, gVisor, PostgreSQL 17 →
+**about 8**. In the investigation behind this budget (#435: 200 five-test Python
+bursts on a shared machine) waiting plus creation outside the lock completed
+181 / 199 / 198 gradings per minute with 8 / 16 / 24 workers and no failures,
+against 106–114 per minute and up to 188 of 200 capacity failures before.
+
+`tests/e2e/test_sandbox_budget.py` runs a real API process with PostgreSQL and
+Docker, six workers and `max_sandboxes: 2`: every submission of a burst, mixed
+with deliberate runs, completes; saturated deliberate runs answer
+`EXECUTION_BUSY`; shutdown leaves no container of the API's owner lease.
+
 ## Deployment and migration
 
 Migrations in `web/migrations` are the only owner of the database schema. Apply

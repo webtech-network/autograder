@@ -46,7 +46,7 @@ unexpected failure in the engine and in every host.
 | AI criterion identities are not unique | Failed, no score | definition / `INVALID_DEFINITION` |
 | Program command is malformed (reached only outside a compiled plan) | Failed, no score | definition / `INVALID_COMMAND` |
 | No program command is defined for the selected language | Failed, no score | submission / `MISSING_LANGUAGE_COMMAND` |
-| Required sandbox cannot be provisioned | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
+| Required sandbox cannot be provisioned, or no sandbox budget slot frees up within the grading wait (retryable) | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
 | Host cannot start and reach an assessed server | Failed, no score | capability / `SERVER_CAPABILITY_UNAVAILABLE` |
 | Sandbox system/transport or artifact extraction failure | Failed, no score | capability / `SANDBOX_ERROR` |
 | The assessed program cannot be started | Failed, no score | capability / `PROCESS_START_FAILED` |
