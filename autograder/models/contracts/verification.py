@@ -9,18 +9,15 @@ Arithmetic invariants (holder and final scores) are validated independently by
 the outcome models themselves.
 
 The definition also fixes the worst-case serialized size of any of its outcomes
-(``max_outcome_bytes``); compilation keeps definition plus outcome within
-``MAX_ATTESTATION_BYTES`` and attestations above the bound are rejected.
+(``CompiledDefinition.max_outcome_bytes``, measured by ``grading``); compilation
+keeps definition plus outcome within ``MAX_ATTESTATION_BYTES`` and attestations
+above the bound are rejected.
 """
 from math import isclose
 
-from autograder.models.contracts.outcome import (
-    JSON_EXPANSION, MAX_FEEDBACK_BYTES, MAX_REPORT_BYTES, CompletedOutcome, FailedOutcome, ResultOutcomeTree,
-    wire_bytes,
-)
-from autograder.models.contracts.scoring import CATEGORIES, child_weights, iter_tests
+from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome, ResultOutcomeTree, wire_bytes
+from autograder.models.contracts.scoring import CATEGORIES, child_weights
 from autograder.models.criteria_tree import CriteriaTree
-from autograder.models.dataclass.test_result import TestResult
 from autograder.models.frozen import thaw
 
 WEIGHT_TOLERANCE = 0.00001
@@ -28,12 +25,6 @@ WEIGHT_TOLERANCE = 0.00001
 #: Definition snapshot plus worst-case outcome: what every attestation carries.
 #: Hosts accept requests of at least this size plus their own envelope.
 MAX_ATTESTATION_BYTES = 24 * 1024 * 1024
-#: Outcome fields outside the tree and feedback text: identifiers, provenance,
-#: timestamps, status objects and a structured error.
-OUTCOME_ENVELOPE_BYTES = 16 * 1024
-#: Per result-tree node: score digits beyond the measured skeleton and one
-#: attested comparison delta.
-NODE_OVERHEAD_BYTES = 1024
 
 
 class OutcomeTooLargeError(ValueError):
@@ -79,28 +70,6 @@ def _verify_holder(expected, actual) -> None:
                 # Parameters are optional on the v1 wire; reported ones must be canonical.
                 or (result.parameters and thaw(result.parameters) != thaw(test.parameters))):
             raise OutcomeStructureError()
-
-
-def max_outcome_bytes(criteria: CriteriaTree) -> int:
-    """Worst-case serialized size of any outcome of ``criteria`` (see ``wire_bytes``).
-
-    The tree skeleton (identities, names, targets, weights and canonical
-    parameters, with empty reports) is measured exactly; each report and the
-    feedback add their bound at maximal JSON escaping. The result is a function
-    of the criteria count and of definition-authored text only, never of a
-    submission.
-    """
-    # Measured from the producer's own output, so the bound cannot drift from it.
-    from autograder.services.grading import grade  # pylint: disable=import-outside-toplevel
-    skeleton = grade(criteria, {test.criterion_id: TestResult("", 0.0) for test in criteria.get_all_tests()})
-    tests = sum(1 for _ in iter_tests(skeleton))
-    nodes = tests + sum(_holders(getattr(skeleton, name)) for name in CATEGORIES) + 1
-    return (wire_bytes(skeleton.model_dump(mode="json")) + OUTCOME_ENVELOPE_BYTES
-            + JSON_EXPANSION * (MAX_FEEDBACK_BYTES + tests * MAX_REPORT_BYTES) + nodes * NODE_OVERHEAD_BYTES)
-
-
-def _holders(holder) -> int:
-    return 0 if holder is None else 1 + sum(_holders(subject) for subject in holder.subjects)
 
 
 def verify_outcome_size(limit: int, outcome: CompletedOutcome | FailedOutcome) -> None:

@@ -337,7 +337,8 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         raise DefinitionValidationError(errors)
     from autograder.services.criteria_tree_service import build_criteria_tree
     from autograder.models.contracts.outcome import wire_bytes
-    from autograder.models.contracts.verification import MAX_ATTESTATION_BYTES, max_outcome_bytes
+    from autograder.models.contracts.verification import MAX_ATTESTATION_BYTES
+    from autograder.services.grading import max_outcome_bytes
     snapshot = definition.model_dump(mode='json')
     tree = build_criteria_tree(definition.criteria, registry)
     # Every outcome travels with its definition snapshot; both must fit in one

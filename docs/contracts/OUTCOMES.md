@@ -147,8 +147,12 @@ Here `S` is the measured tree with empty reports: IDs, labels, targets, weights
 and canonical parameters. `N` is the number of criteria, and `nodes` counts
 criteria, groups, categories and the root. The factor 6 is the largest JSON
 escaping of one UTF-8 byte (`\u0001`). The per-node allowance covers score digits
-and an attested comparison delta. The 16 KiB covers identifiers, provenance,
-timestamps, statuses and a structured error.
+and one attested comparison delta for each criterion of this definition. Deltas
+for criteria `removed` since the baseline name criteria that are not nodes of
+this definition and have no allowance. An attestation whose comparison lists
+enough of them to exceed the bound is rejected with `OUTCOME_TOO_LARGE`. The
+16 KiB covers identifiers, provenance, timestamps, statuses and a structured
+error.
 
 An attestation carries the definition snapshot and the outcome. Compilation
 (`compile_definition` and `compile_snapshot`) therefore rejects with
@@ -161,6 +165,15 @@ definition-authored text lowers the number. The HTTP host also rejects an
 attested outcome larger than its snapshot's `max_outcome_bytes` (for example
 because of oversized `metadata`) with 422 `OUTCOME_TOO_LARGE`. Storage and UI can
 size for these bounds.
+
+Outcomes this host stored before the bounds existed are upgraded, never
+rejected when they are read. Alembic revision `008_bound_outcome_text` rewrites
+every stored `submission_results.outcome` with the same excerpt
+(`bound_outcome_text`). Scores, identities and text within a bound are
+unchanged, and the upgrade is idempotent. Publication receipts written before
+the deployment are excerpted the same way when they are read, so their delivery
+retry still completes and still equals the migrated row. Neither path applies to
+incoming attestations.
 
 ## Publication receipts
 

@@ -2,6 +2,7 @@
 import argparse
 import asyncio
 import hashlib
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,7 +11,7 @@ import tempfile
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
-from autograder.models.contracts.outcome import TerminalOutcome, validate_outcome
+from autograder.models.contracts.outcome import TerminalOutcome, bound_outcome_text, validate_outcome
 from web.database.models.submission import Submission, SubmissionStatus
 from web.database.models.grading_attempt import GradingAttempt
 from web.database.models.submission_result import PipelineStatus
@@ -72,7 +73,16 @@ def write_receipt(submission_id, outcome, *, directory=None, attempt_id=None):
 
 
 def read_receipt(path):
-    return OutcomeReceipt.model_validate_json(Path(path).read_text(encoding="utf-8"))
+    """Load a receipt; one fsynced before COR-06 gets the excerpts the engine now makes.
+
+    Receipts hold outcomes this host finalized, never attestations, so bounding
+    their text is the same step ``grade`` performs. It is idempotent, so a retry
+    after commit ambiguity still equals the stored (migrated) outcome.
+    """
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(data, dict) and "outcome" in data:
+        data = {**data, "outcome": bound_outcome_text(data["outcome"])}
+    return OutcomeReceipt.model_validate(data)
 
 
 def check_receipt(row, receipt):

@@ -68,6 +68,40 @@ def _marker(omitted: int, total: int) -> str:
     return f"\n[... {omitted} of {total} bytes omitted ...]\n"
 
 
+def bound_outcome_text(data: Any) -> Any:
+    """Excerpt the reports and feedback of a stored outcome's wire JSON to the bounds.
+
+    Upgrades outcomes this host finalized before the bounds existed (stored rows
+    and publication receipts) with the same ``bound_text`` the engine applies
+    now. Text within its bound and every other value are returned unchanged, so
+    the function is idempotent. It is never applied to an incoming attestation.
+    """
+    if not isinstance(data, dict):
+        return data
+    data = dict(data)
+    feedback = data.get("feedback")
+    if isinstance(feedback, dict) and isinstance(feedback.get("content"), str):
+        data["feedback"] = {**feedback, "content": bound_text(feedback["content"], MAX_FEEDBACK_BYTES)}
+    if isinstance(data.get("tree"), dict):
+        data["tree"] = {key: _bound_holder(value) if key in ("base", "bonus", "penalty") else value
+                        for key, value in data["tree"].items()}
+    return data
+
+
+def _bound_holder(holder: Any) -> Any:
+    if not isinstance(holder, dict):
+        return holder
+    holder = dict(holder)
+    if isinstance(holder.get("subjects"), list):
+        holder["subjects"] = [_bound_holder(subject) for subject in holder["subjects"]]
+    if isinstance(holder.get("tests"), list):
+        holder["tests"] = [
+            {**test, "report": bound_text(test["report"], MAX_REPORT_BYTES)}
+            if isinstance(test, dict) and isinstance(test.get("report"), str) else test
+            for test in holder["tests"]]
+    return holder
+
+
 def _bounded(limit: int):
     def check(text: str) -> str:
         if text_bytes(text) > limit:
