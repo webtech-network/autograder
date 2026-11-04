@@ -95,7 +95,7 @@ jobs:
     name: Deploy API
     needs: [core, postgres, images, docker]
     # THROWAWAY: the event condition is true here so only `needs` can stop this job.
-    if: github.event_name == 'pull_request'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - run: echo "THROWAWAY - a real deploy would run now"
