@@ -57,6 +57,21 @@ def test_template_contract_rejects_evaluators_that_are_not_a_tuple():
         template.validate_contract()
 
 
+class OverriddenRegistry(Template):
+    """Calls the base constructor but serves a registry that differs from ``evaluators``."""
+
+    def __init__(self):
+        super().__init__("Local", "Local evaluators", [DummyTest()])
+
+    def get_tests(self):
+        return {"renamed": self.evaluators[0]}
+
+
+def test_template_contract_rejects_a_registry_that_differs_from_its_evaluators():
+    with pytest.raises(TypeError, match="get_tests"):
+        OverriddenRegistry().validate_contract()
+
+
 def test_template_contract_rejects_non_test_function_values():
     with pytest.raises(TypeError, match="TestFunction"):
         Template("Local", "Local evaluators", [object()]).validate_contract()

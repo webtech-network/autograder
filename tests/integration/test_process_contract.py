@@ -20,7 +20,7 @@ from httpx import ASGITransport, AsyncClient
 from autograder import Submission, SubmissionFile, build_pipeline
 from autograder.models.language import Language
 from autograder.models.process import ProcessRequest, ProcessStatus, lines_to_stdin
-from autograder.template_library import input_output
+from autograder.models.abstract import execution_test
 from execution_host.docker import DockerHost, DockerSession
 from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.errors import ArtifactReadError
@@ -293,7 +293,7 @@ def test_exit_one_with_empty_stderr_is_an_assessed_zero(docker_host):
 
 
 def test_timeout_is_terminated_before_the_next_criterion_runs(docker_host, monkeypatch):
-    monkeypatch.setattr(input_output, "RUN_TIMEOUT_SECONDS", 2)
+    monkeypatch.setattr(execution_test, "RUN_TIMEOUT_SECONDS", 2)
     outcome = grade(docker_host, [dont_fail("hangs", "python3 hang.py"), dont_fail("alone", "python3 check.py")],
                     ["hang.py", "check.py"])
     assert outcome.status == "completed", outcome.error

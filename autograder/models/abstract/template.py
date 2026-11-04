@@ -45,3 +45,8 @@ class Template:
                 raise ValueError(f"Duplicate evaluator identifier in template: {evaluator.name}")
             seen.add(evaluator.name)
             check_invocation(evaluator)
+        # Compilation and discovery read get_tests(); it must be exactly the evaluators by name.
+        registry = self.get_tests()
+        if registry.keys() != seen or any(registry[e.name] is not e for e in self.evaluators):
+            raise TypeError("A template's get_tests() must return {evaluator.name: evaluator} for its "
+                            "evaluators; do not override it.")
