@@ -4,25 +4,29 @@ Limits agree with the operations behind them:
 
 * submissions use the shared host limits from ``submission_contract``;
 * fixtures are bounded by the sandbox ``/tmp`` tmpfs size;
-* a batch's stdin is sent as one ``argv`` string, which Linux caps at 128 KiB;
+* a process request is the shared ``autograder.models.process`` contract
+  (stdin is base64 on the wire and staged in chunks, so it is not limited by
+  the kernel's per-argument size); its timeout is further bounded by the
+  pool's ``running_timeout`` and each output stream by ``max_output_bytes``;
 * artifact reads use the local ``extract_file`` default of 1 MiB;
-* command timeouts are bounded; the client's transport deadline is the command
-  timeout plus :data:`TRANSPORT_MARGIN_SECONDS`.
+* the client's transport deadline for a process is its timeout plus
+  :data:`TRANSPORT_MARGIN_SECONDS`.
 """
-from typing import Dict, List, Optional
+import base64
+import binascii
+from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from autograder.models.process import (
+    DEFAULT_MAX_OUTPUT_BYTES, DEFAULT_TIMEOUT_SECONDS, MAX_OUTPUT_BYTES, MAX_STDIN_BYTES, MAX_TIMEOUT_SECONDS,
+    ProcessRequest, ProcessResult, ProcessStatus,
+)
 from sandbox_manager.docker_profile import FIXTURE_TMPFS_BYTES
-from sandbox_manager.models.sandbox_models import ResponseCategory
 from submission_contract import MAX_FILE_BYTES, MAX_FILES, MAX_PATH_BYTES, MAX_TOTAL_FILE_BYTES
 
 MAX_FIXTURES = 100
 MAX_FIXTURE_BYTES = FIXTURE_TMPFS_BYTES
-MAX_COMMAND_BYTES = 64 * 1024
-MAX_BATCH_INPUT_BYTES = 96 * 1024
-MAX_COMMAND_TIMEOUT_SECONDS = 300
-MAX_OUTPUT_BYTES = 1024 * 1024          # Per stream; longer output is truncated.
 MAX_ARTIFACT_BYTES = 1024 * 1024
 # Base64 fixtures (4/3) plus JSON framing; larger bodies are rejected with 413.
 MAX_BODY_BYTES = 48 * 1024 * 1024
@@ -86,47 +90,54 @@ class InjectAssetsRequest(BaseModel):
         return value
 
 
-class RunCommandRequest(BaseModel):
-    command: str = Field(min_length=1)
-    timeout: int = Field(default=30, ge=1, le=MAX_COMMAND_TIMEOUT_SECONDS)
-    workdir: str = Field(default="/app", max_length=4096)
+class ProcessRequestModel(BaseModel):
+    """Wire form of ``autograder.models.process.ProcessRequest`` (stdin is base64)."""
+    model_config = ConfigDict(extra="forbid")
+    argv: Optional[List[str]] = None
+    shell: Optional[str] = None
+    stdin: str = Field(default="", max_length=(MAX_STDIN_BYTES // 3 + 1) * 4)
+    cwd: str = Field(default="/app", max_length=4096)
+    timeout: float = Field(default=DEFAULT_TIMEOUT_SECONDS, gt=0, le=MAX_TIMEOUT_SECONDS)
+    max_output_bytes: int = Field(default=DEFAULT_MAX_OUTPUT_BYTES, ge=1, le=MAX_OUTPUT_BYTES)
 
-    @field_validator("command")
     @classmethod
-    def bounded_command(cls, value: str) -> str:
-        if _utf8_size(value) > MAX_COMMAND_BYTES:
-            raise ValueError(f"command exceeds {MAX_COMMAND_BYTES} bytes")
-        return value
+    def from_request(cls, request: ProcessRequest) -> "ProcessRequestModel":
+        return cls(argv=list(request.argv) if request.argv is not None else None, shell=request.shell,
+                   stdin=base64.b64encode(request.stdin).decode("ascii"), cwd=request.cwd,
+                   timeout=request.timeout, max_output_bytes=request.max_output_bytes)
+
+    def to_request(self) -> ProcessRequest:
+        """Validate with the shared contract; raises ValueError for any violation."""
+        try:
+            stdin = base64.b64decode(self.stdin, validate=True)
+        except binascii.Error as exc:
+            raise ValueError("stdin must be base64") from exc
+        return ProcessRequest(argv=tuple(self.argv) if self.argv is not None else None, shell=self.shell,
+                              stdin=stdin, cwd=self.cwd, timeout=self.timeout,
+                              max_output_bytes=self.max_output_bytes)
 
 
-class RunBatchRequest(BaseModel):
-    commands: List[str]
-    program_command: Optional[str] = None
-    timeout: int = Field(default=30, ge=1, le=MAX_COMMAND_TIMEOUT_SECONDS)
-    workdir: str = Field(default="/app", max_length=4096)
+class ProcessResultModel(BaseModel):
+    """Wire form of ``ProcessResult``; outputs are already bounded by the service."""
+    status: Literal["exited", "timed_out", "not_started"]
+    exit_code: Optional[int] = None
+    stdout: str = ""
+    stderr: str = ""
+    stdout_truncated: bool = False
+    stderr_truncated: bool = False
+    duration: float = 0.0
+    missing_executable: Optional[str] = None
 
-    @field_validator("commands")
     @classmethod
-    def bounded_input(cls, value: List[str]) -> List[str]:
-        if _utf8_size("\n".join(value)) > MAX_BATCH_INPUT_BYTES:
-            raise ValueError(f"batch input exceeds {MAX_BATCH_INPUT_BYTES} bytes")
-        return value
+    def from_result(cls, result: ProcessResult) -> "ProcessResultModel":
+        return cls(status=result.status.value, exit_code=result.exit_code, stdout=result.stdout,
+                   stderr=result.stderr, stdout_truncated=result.stdout_truncated,
+                   stderr_truncated=result.stderr_truncated, duration=result.duration,
+                   missing_executable=result.missing_executable)
 
-    @field_validator("program_command")
-    @classmethod
-    def bounded_command(cls, value: Optional[str]) -> Optional[str]:
-        if value is not None and _utf8_size(value) > MAX_COMMAND_BYTES:
-            raise ValueError(f"command exceeds {MAX_COMMAND_BYTES} bytes")
-        return value
-
-
-class CommandResponseModel(BaseModel):
-    stdout: str
-    stderr: str
-    exit_code: int
-    execution_time: float
-    category: ResponseCategory
-    truncated: bool = False
+    def to_result(self) -> ProcessResult:
+        return ProcessResult(ProcessStatus(self.status), self.exit_code, self.stdout, self.stderr,
+                             self.stdout_truncated, self.stderr_truncated, self.duration, self.missing_executable)
 
 
 class ExtractedFileResponse(BaseModel):

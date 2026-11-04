@@ -385,9 +385,8 @@
   "io": {
     "execution": {
       "timeout": "FAILURE: Program timed out. Ensure you don't have infinite loops. [Time: {time:.2f}s]",
-      "compilation_error": "FAILURE: Compilation Error.\nDetails:\n{error}",
       "runtime_error": "FAILURE: Your program crashed during execution.\nError:\n{error}",
-      "system_error": "SYSTEM ERROR: An infrastructure error occurred during execution.\nDetails:\n{error}"
+      "exit_code": "Exit code {code} (no error output)"
     },
     "expect_output": {
       "description": "Executes the student program, providing a series of line-separated inputs and verifying if the final output is correct.",

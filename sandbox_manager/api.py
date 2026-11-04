@@ -31,21 +31,24 @@ from fastapi.responses import JSONResponse
 
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.dataclass.submission import SubmissionFile
-from sandbox_manager.errors import RuntimeUnavailableError
+from sandbox_manager.errors import (
+    ArtifactReadError,
+    ArtifactTooLargeError,
+    RuntimeUnavailableError,
+    SandboxInvalidatedError,
+)
 from sandbox_manager.language_pool import SandboxUnavailableError
 from sandbox_manager.models.api_models import (
     MAX_ARTIFACT_BYTES,
     MAX_BODY_BYTES,
-    MAX_OUTPUT_BYTES,
     AcquireSandboxRequest,
     AcquireSandboxResponse,
-    CommandResponseModel,
     DisposeResponse,
     ExtractedFileResponse,
     InjectAssetsRequest,
     PrepareWorkdirRequest,
-    RunBatchRequest,
-    RunCommandRequest,
+    ProcessRequestModel,
+    ProcessResultModel,
 )
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
 from autograder.models.language import Language
@@ -342,22 +345,11 @@ def _registry(request: Request) -> HandleRegistry:
     return request.app.state.registry
 
 
-def _bounded(text: str):
-    data = text.encode("utf-8")
-    if len(data) <= MAX_OUTPUT_BYTES:
-        return text, False
-    return data[:MAX_OUTPUT_BYTES].decode("utf-8", errors="ignore"), True
-
-
-def _command_model(response) -> CommandResponseModel:
-    stdout, out_cut = _bounded(response.stdout)
-    stderr, err_cut = _bounded(response.stderr)
-    return CommandResponseModel(stdout=stdout, stderr=stderr, exit_code=response.exit_code,
-                                execution_time=response.execution_time, category=response.category,
-                                truncated=out_cut or err_cut)
-
-
 def _sandbox_error(exc: Exception) -> ControlError:
+    if isinstance(exc, SandboxInvalidatedError):
+        # The sandbox cannot be trusted any more; only DELETE remains useful.
+        return ControlError(status.HTTP_409_CONFLICT, "SANDBOX_INVALIDATED",
+                            "The sandbox was invalidated; dispose it.")
     logger.error("Sandbox operation failed: %s", exc, exc_info=True)
     return ControlError(status.HTTP_500_INTERNAL_SERVER_ERROR, "SANDBOX_ERROR", "The sandbox operation failed.")
 
@@ -400,25 +392,22 @@ def inject_assets(sandbox_id: str, body: InjectAssetsRequest, request: Request):
     return {"status": "success"}
 
 
-@router.post("/sandboxes/{sandbox_id}/run", response_model=CommandResponseModel)
-def run_command(sandbox_id: str, body: RunCommandRequest, request: Request):
+@router.post("/sandboxes/{sandbox_id}/process", response_model=ProcessResultModel)
+def run_process(sandbox_id: str, body: ProcessRequestModel, request: Request):
+    """Run one process with the shared contract. Clients never replay it."""
+    try:
+        process = body.to_request()
+    except ValueError as exc:
+        raise ControlError(422, "INVALID_REQUEST", str(exc)) from exc
     with _registry(request).use(sandbox_id) as handle:
+        lease = request.app.state.manager.language_pools[handle.language].config.running_timeout
+        if process.timeout > lease:
+            raise ControlError(422, "INVALID_REQUEST", f"timeout exceeds the {lease}s sandbox lease")
         try:
-            response = handle.sandbox.run_command(command=body.command, timeout=body.timeout, workdir=body.workdir)
+            result = handle.sandbox.run_process(process)
         except Exception as exc:
             raise _sandbox_error(exc) from exc
-    return _command_model(response)
-
-
-@router.post("/sandboxes/{sandbox_id}/run-batch", response_model=CommandResponseModel)
-def run_batch(sandbox_id: str, body: RunBatchRequest, request: Request):
-    with _registry(request).use(sandbox_id) as handle:
-        try:
-            response = handle.sandbox.run_commands(commands=body.commands, program_command=body.program_command,
-                                                   timeout=body.timeout, workdir=body.workdir)
-        except Exception as exc:
-            raise _sandbox_error(exc) from exc
-    return _command_model(response)
+    return ProcessResultModel.from_result(result)
 
 
 @router.get("/sandboxes/{sandbox_id}/files", response_model=ExtractedFileResponse)
@@ -429,7 +418,11 @@ def extract_file(sandbox_id: str, request: Request, path: str = Query(max_length
             extracted = handle.sandbox.extract_file(path=path, max_bytes=max_bytes)
         except FileNotFoundError as exc:
             raise ControlError(status.HTTP_404_NOT_FOUND, "ARTIFACT_NOT_FOUND", "Artifact not found.") from exc
-        except ValueError as exc:
+        except ArtifactReadError as exc:
+            logger.error("Artifact readback failed: %s", exc, exc_info=True)
+            raise ControlError(status.HTTP_500_INTERNAL_SERVER_ERROR, "ARTIFACT_READ_FAILED",
+                               "The artifact exists but could not be read back.") from exc
+        except (ArtifactTooLargeError, ValueError) as exc:
             raise ControlError(422, "ARTIFACT_INVALID", str(exc)) from exc
         except Exception as exc:
             raise _sandbox_error(exc) from exc

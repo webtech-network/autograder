@@ -8,10 +8,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from sandbox_manager.api import ControlSettings, HandleRegistry, create_app
-from sandbox_manager.errors import RuntimeUnavailableError
+from sandbox_manager.errors import ArtifactReadError, RuntimeUnavailableError, SandboxInvalidatedError
 from sandbox_manager.language_pool import SandboxUnavailableError
-from sandbox_manager.models.api_models import MAX_BODY_BYTES, MAX_OUTPUT_BYTES
-from sandbox_manager.models.sandbox_models import CommandResponse, DisposalStatus, ExtractedFile, ResponseCategory, SandboxState
+from autograder.models.process import MAX_STDIN_BYTES, ProcessRequest, ProcessResult, ProcessStatus
+from sandbox_manager.models.api_models import MAX_BODY_BYTES
+from sandbox_manager.models.sandbox_models import DisposalStatus, ExtractedFile, SandboxState
 from autograder.models.language import Language
 from tests.unit.sandbox.fakes import Clock
 
@@ -24,8 +25,7 @@ class FakeSandbox:
         self.language = language
         self.state = SandboxState.ACTIVE
         self.files = {}
-        self.run_command = Mock(return_value=CommandResponse("out", "", 0, 0.1, ResponseCategory.SUCCESS))
-        self.run_commands = Mock(return_value=CommandResponse("batch", "", 0, 0.1, ResponseCategory.SUCCESS))
+        self.run_process = Mock(return_value=ProcessResult(ProcessStatus.EXITED, 0, "out", "", duration=0.1))
         self.prepare_workdir = Mock()
         self.inject_assets = Mock()
 
@@ -40,7 +40,7 @@ class FakeSandbox:
 
 class FakeManager:
     def __init__(self, scale_limit=3):
-        self.language_pools = {Language.PYTHON: SimpleNamespace(config=SimpleNamespace(scale_limit=scale_limit))}
+        self.language_pools = {Language.PYTHON: SimpleNamespace(config=SimpleNamespace(scale_limit=scale_limit, running_timeout=120))}
         self.acquired = []
         self.disposed = []
         self.dispose_result = None
@@ -105,7 +105,7 @@ def code(response):
 def test_health_is_public_and_everything_else_needs_the_token(api):
     assert api.get("/health").json() == {"status": "ok"}
     for method, path in [("get", "/stats"), ("post", "/sandboxes/python"), ("delete", "/sandboxes/x"),
-                         ("post", "/sandboxes/x/run"), ("get", "/sandboxes/x/files?path=/a")]:
+                         ("post", "/sandboxes/x/process"), ("get", "/sandboxes/x/files?path=/a")]:
         response = getattr(api, method)(path)
         assert response.status_code == 401, path
         assert code(response) == "UNAUTHORIZED"
@@ -218,15 +218,15 @@ def test_operations_reach_the_owned_sandbox(api, manager):
     assert api.post(f"/sandboxes/{handle}/prepare", json={"submission_files": files}, headers=AUTH).status_code == 200
     asset = {"target": "/tmp/app/x", "content": base64.b64encode(b"data").decode()}
     assert api.post(f"/sandboxes/{handle}/inject", json={"resolved_assets": [asset]}, headers=AUTH).status_code == 200
-    run = api.post(f"/sandboxes/{handle}/run", json={"command": "python main.py", "timeout": 5}, headers=AUTH)
-    assert run.json()["stdout"] == "out" and run.json()["truncated"] is False
-    batch = api.post(f"/sandboxes/{handle}/run-batch", json={"commands": ["1"], "program_command": "p"},
-                     headers=AUTH)
-    assert batch.json()["stdout"] == "batch"
+    run = api.post(f"/sandboxes/{handle}/process", headers=AUTH, json={
+        "argv": ["python", "main.py"], "stdin": base64.b64encode(b"1\n").decode(), "timeout": 5})
+    assert run.json() == {"status": "exited", "exit_code": 0, "stdout": "out", "stderr": "",
+                          "stdout_truncated": False, "stderr_truncated": False, "duration": 0.1,
+                          "missing_executable": None}
     sandbox = manager.acquired[0]
     sandbox.prepare_workdir.assert_called_once()
     assert sandbox.inject_assets.call_args.args[0][0].content == b"data"
-    sandbox.run_command.assert_called_once_with(command="python main.py", timeout=5, workdir="/app")
+    sandbox.run_process.assert_called_once_with(ProcessRequest(argv=("python", "main.py"), stdin=b"1\n", timeout=5))
 
 
 def test_unknown_handle_and_missing_artifact_are_distinct(api, manager):
@@ -251,36 +251,61 @@ def test_artifact_size_is_bounded(api, manager):
 
 def test_execution_failure_is_a_sandbox_error(api, manager):
     handle = acquire(api).json()["sandbox_id"]
-    manager.acquired[0].run_command.side_effect = RuntimeError("docker exploded: secret detail")
-    response = api.post(f"/sandboxes/{handle}/run", json={"command": "x"}, headers=AUTH)
+    manager.acquired[0].run_process.side_effect = RuntimeError("docker exploded: secret detail")
+    response = api.post(f"/sandboxes/{handle}/process", json={"argv": ["x"]}, headers=AUTH)
     assert response.status_code == 500 and code(response) == "SANDBOX_ERROR"
     assert "secret" not in response.text
 
 
-def test_output_is_truncated_at_the_limit(api, manager):
+def test_invalidated_sandbox_and_failed_readback_are_distinct_errors(api, manager):
     handle = acquire(api).json()["sandbox_id"]
-    manager.acquired[0].run_command.return_value = CommandResponse(
-        "x" * (MAX_OUTPUT_BYTES + 10), "", 0, 0.1, ResponseCategory.SUCCESS)
-    data = api.post(f"/sandboxes/{handle}/run", json={"command": "x"}, headers=AUTH).json()
-    assert len(data["stdout"]) == MAX_OUTPUT_BYTES and data["truncated"] is True
+    sandbox = manager.acquired[0]
+    sandbox.run_process.side_effect = SandboxInvalidatedError("survivors")
+    response = api.post(f"/sandboxes/{handle}/process", json={"argv": ["x"]}, headers=AUTH)
+    assert response.status_code == 409 and code(response) == "SANDBOX_INVALIDATED"
+    sandbox.extract_file = Mock(side_effect=ArtifactReadError("short read"))
+    response = api.get(f"/sandboxes/{handle}/files", params={"path": "/app/out.txt"}, headers=AUTH)
+    assert response.status_code == 500 and code(response) == "ARTIFACT_READ_FAILED"
+    assert "short read" not in response.text
+
+
+def test_output_bound_is_forwarded_and_truncation_reported(api, manager):
+    handle = acquire(api).json()["sandbox_id"]
+    manager.acquired[0].run_process.return_value = ProcessResult(
+        ProcessStatus.EXITED, 0, "x" * 16, "", stdout_truncated=True)
+    data = api.post(f"/sandboxes/{handle}/process", json={"argv": ["x"], "max_output_bytes": 16},
+                    headers=AUTH).json()
+    assert data["stdout"] == "x" * 16 and data["stdout_truncated"] is True
+    assert manager.acquired[0].run_process.call_args.args[0].max_output_bytes == 16
 
 
 @pytest.mark.parametrize("payload", [
-    {"command": "x", "timeout": 0},
-    {"command": "x", "timeout": 10_000},
-    {"command": ""},
-    {"command": "x" * (64 * 1024 + 1)},
+    {"argv": ["x"], "timeout": 0},
+    {"argv": ["x"], "timeout": 10_000},
+    {"argv": ["x"], "timeout": 121},                 # above the pool's running_timeout lease
+    {"argv": []},
+    {"argv": [""]},
+    {"argv": ["x"], "shell": "x"},                   # exactly one command mode
+    {},
+    {"shell": "   "},
+    {"argv": ["x" * (64 * 1024 + 1)]},
+    {"argv": ["x"], "cwd": "app"},
+    {"argv": ["x"], "cwd": "/app/../etc"},
+    {"argv": ["x"], "stdin": "not base64!"},
+    {"argv": ["x"], "max_output_bytes": 0},
+    {"argv": ["x"], "workdir": "/app"},              # unknown fields are rejected
 ])
-def test_command_limits(api, payload):
+def test_process_limits(api, payload):
     handle = acquire(api).json()["sandbox_id"]
-    response = api.post(f"/sandboxes/{handle}/run", json=payload, headers=AUTH)
+    response = api.post(f"/sandboxes/{handle}/process", json=payload, headers=AUTH)
     assert response.status_code == 422 and code(response) == "INVALID_REQUEST"
     assert "xxxx" not in response.text  # Input is not echoed.
 
 
-def test_batch_and_submission_limits(api):
+def test_stdin_and_submission_limits(api):
     handle = acquire(api).json()["sandbox_id"]
-    response = api.post(f"/sandboxes/{handle}/run-batch", json={"commands": ["x" * (97 * 1024)]}, headers=AUTH)
+    stdin = base64.b64encode(b"x" * (MAX_STDIN_BYTES + 1)).decode()
+    response = api.post(f"/sandboxes/{handle}/process", json={"argv": ["cat"], "stdin": stdin}, headers=AUTH)
     assert response.status_code == 422
     files = {str(i): {"filename": str(i), "content": ""} for i in range(101)}
     assert api.post(f"/sandboxes/{handle}/prepare", json={"submission_files": files},
@@ -302,7 +327,7 @@ def test_delete_disposes_then_forgets_and_repeats_succeed(api, manager):
     second = api.delete(f"/sandboxes/{handle}", headers=AUTH)
     assert second.status_code == 200 and second.json() == {"status": "already_disposed"}
     assert len(manager.disposed) == 1
-    response = api.post(f"/sandboxes/{handle}/run", json={"command": "x"}, headers=AUTH)
+    response = api.post(f"/sandboxes/{handle}/process", json={"argv": ["x"]}, headers=AUTH)
     assert response.status_code == 410 and code(response) == "HANDLE_CLOSED"
 
 
@@ -317,7 +342,7 @@ def test_delete_failure_keeps_a_closing_record_for_retry(api, manager):
     response = api.delete(f"/sandboxes/{handle}", headers=AUTH)
     assert response.status_code == 500 and code(response) == "DISPOSAL_FAILED"
     assert api.get("/stats", headers=AUTH).json()["handles"]["closing"] == 1
-    response = api.post(f"/sandboxes/{handle}/run", json={"command": "x"}, headers=AUTH)
+    response = api.post(f"/sandboxes/{handle}/process", json={"argv": ["x"]}, headers=AUTH)
     assert response.status_code == 410  # Closing: no new work.
     retry = api.delete(f"/sandboxes/{handle}", headers=AUTH)
     assert retry.status_code == 200 and retry.json()["status"] == "disposed"
@@ -336,13 +361,13 @@ def test_idle_handles_expire_through_the_reaper(api, manager, clock):
     handle = acquire(api).json()["sandbox_id"]
     registry = api.app.state.registry
     clock.now += 30
-    api.post(f"/sandboxes/{handle}/run", json={"command": "x"}, headers=AUTH)  # Touch.
+    api.post(f"/sandboxes/{handle}/process", json={"argv": ["x"]}, headers=AUTH)  # Touch.
     clock.now += 45
     assert registry.reap() == 0
     clock.now += 20
     assert registry.reap() == 1
     assert manager.acquired[0].state is SandboxState.DISPOSED
-    response = api.post(f"/sandboxes/{handle}/run", json={"command": "x"}, headers=AUTH)
+    response = api.post(f"/sandboxes/{handle}/process", json={"argv": ["x"]}, headers=AUTH)
     assert response.status_code == 410 and code(response) == "HANDLE_EXPIRED"
     assert api.delete(f"/sandboxes/{handle}", headers=AUTH).json()["status"] == "already_disposed"
 
@@ -350,7 +375,7 @@ def test_idle_handles_expire_through_the_reaper(api, manager, clock):
 def test_pool_disposed_sandbox_reports_expired_and_is_reaped(api, manager):
     handle = acquire(api).json()["sandbox_id"]
     manager.acquired[0].state = SandboxState.DISPOSED  # Pool running timeout.
-    response = api.post(f"/sandboxes/{handle}/run", json={"command": "x"}, headers=AUTH)
+    response = api.post(f"/sandboxes/{handle}/process", json={"argv": ["x"]}, headers=AUTH)
     assert response.status_code == 410 and code(response) == "HANDLE_EXPIRED"
     assert api.app.state.registry.reap() == 1
     assert api.app.state.registry.stats()["handles"] == 0

@@ -3321,12 +3321,10 @@
         "enum": [
           "success",
           "runtime_error",
-          "timeout",
-          "system_error",
-          "compilation_error"
+          "timeout"
         ],
         "title": "ResponseCategory",
-        "description": "Classification of the execution result."
+        "description": "Student-facing classification of a started process (deliberate execution wire values)."
       },
       "ResultOutcomeTree-Input": {
         "properties": {
@@ -3456,7 +3454,8 @@
           "command": {
             "type": "string",
             "minLength": 1,
-            "title": "Command"
+            "title": "Command",
+            "description": "Executable and arguments, split with POSIX quoting and run without a shell. Use an explicit `sh -c '...'` command for shell operators."
           }
         },
         "additionalProperties": false,

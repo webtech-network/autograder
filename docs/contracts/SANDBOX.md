@@ -134,7 +134,7 @@ timeout); handles with an operation in flight are never reaped.
 | `POST /sandboxes/{language}` `{"request_id"}` | acquire; replay-safe |
 | `POST /sandboxes/{id}/prepare` | stage submission files in `/app` |
 | `POST /sandboxes/{id}/inject` | stage base64 fixtures under `/tmp` |
-| `POST /sandboxes/{id}/run`, `/run-batch` | run one command / stdin batch |
+| `POST /sandboxes/{id}/process` | run one process ([PROCESSES.md](PROCESSES.md)); never replayed |
 | `GET /sandboxes/{id}/files?path=` | read one artifact |
 | `DELETE /sandboxes/{id}` | dispose |
 | `GET /stats` | pool stats (including quarantine) and handle counts |
@@ -155,6 +155,8 @@ Errors use `{"detail": {"code", "message"}}` and never echo request input:
 | No runtime profile for a valid language (absent from `runtimes:`) | 501 | `RUNTIME_UNAVAILABLE` | `RuntimeUnavailableError` (same as the local manager) |
 | Unknown language identifier | 422 | `INVALID_REQUEST` | `RemoteSandboxError` |
 | Execution infrastructure failure | 500 | `SANDBOX_ERROR` | `RemoteSandboxError` |
+| Sandbox invalidated (termination or readback not confirmed) | 409 | `SANDBOX_INVALIDATED` | `SandboxInvalidatedError` (same as the local sandbox) |
+| Artifact exists but readback failed | 500 | `ARTIFACT_READ_FAILED` | `ArtifactReadError` (same as the local sandbox) |
 | Disposal raised unexpectedly | 500 | `DISPOSAL_FAILED` | `RemoteSandboxError` |
 | Schema or limit violation | 422 | `INVALID_REQUEST` | `RemoteSandboxError` |
 | Body too large | 413 | `REQUEST_TOO_LARGE` | `RemoteSandboxError` |
@@ -173,7 +175,7 @@ looks like a missing `output.txt`. All other client exceptions are
 | `DELETE` response lost | `DELETE` is idempotent: the handle is marked `closing`, disposed, then forgotten into a tombstone (1 hour, at most 10 000 entries), so a retried `DELETE` returns `already_disposed`. The client retries transport failures (3 attempts). |
 | Disposal raises | The handle stays `closing` (500 `DISPOSAL_FAILED`); a repeated `DELETE` or the reaper retries. |
 | Docker cannot remove the container | `DELETE` returns `quarantined`; the pool owns the retry record and reports it. |
-| Run response lost | Never replayed automatically; the caller gets `RemoteSandboxError`. |
+| `/process` response lost | Never replayed automatically: the outcome is unknown and the caller gets `RemoteSandboxError` (`TRANSPORT_ERROR`), never a process result. |
 | Control service restarts | Handles are lost (later calls get `HANDLE_NOT_FOUND`); the restarted manager reclaims the previous process's containers through its owner lease. |
 
 The client closes each handle's HTTP session in `finally`, including when
@@ -197,10 +199,10 @@ Wire limits agree with the operations they guard (`sandbox_manager/models/api_mo
 | --- | --- | --- |
 | Submission files | 100 files, 1 MiB each, 5 MiB total | shared `submission_contract` limits |
 | Fixtures | 100, 32 MiB decoded total | `/tmp` tmpfs size |
-| Command / program command | 64 KiB | below the Linux 128 KiB per-argument limit |
-| Batch stdin | 96 KiB | sent as one shell argument |
-| Command timeout | 1–300 s | client read deadline is timeout + 15 s |
-| Output | 1 MiB per stream, then truncated (`truncated: true`) | bounded responses |
+| Process `argv` / `shell` text | 64 KiB | below the Linux 128 KiB per-argument limit |
+| Process `stdin` | 1 MiB (base64 on the wire) | staged in chunks, not as one argument |
+| Process `timeout` | (0, 600] s and at most the pool's `running_timeout` | client read deadline is timeout + 15 s |
+| Process output | `max_output_bytes` per stream, 1 B–8 MiB (default 1 MiB), with `stdout_truncated`/`stderr_truncated` | bounded where the process runs, never after transfer |
 | Artifact read | 1 MiB | same as local `extract_file` default |
 | Request body | 48 MiB | base64 fixtures plus framing |
 
@@ -210,6 +212,11 @@ server have no hard deadline beyond docker-py's own client timeout.
 
 ## Migration
 
+* **Process route (ARC-08).** `POST /sandboxes/{id}/run` and `/run-batch`
+  are replaced by `POST /sandboxes/{id}/process`, whose body and response are
+  the shared process contract (`ProcessRequestModel`/`ProcessResultModel`, see
+  [PROCESSES.md](PROCESSES.md)). Clients of the old routes must upgrade
+  together with the control service.
 * **New required setting.** Set `SANDBOX_API_TOKEN` (a long random secret, for
   example `python -c "import secrets; print(secrets.token_urlsafe(32))"`) for the
   control service and every remote client (`web` settings and the GitHub Action

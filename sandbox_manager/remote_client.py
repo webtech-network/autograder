@@ -7,11 +7,14 @@ Recovery rules:
   container;
 * disposal (``DELETE``) is idempotent and retried on transport failures; the
   handle's HTTP session is closed in ``finally`` whatever happens;
-* commands are never replayed automatically: a lost run response surfaces as
-  :class:`RemoteSandboxError`;
+* processes are never replayed automatically: a lost ``/process`` response is
+  an unknown outcome and surfaces as :class:`RemoteSandboxError`;
 * an unknown handle (:class:`SandboxHandleNotFound`), a closed or expired one
   (:class:`SandboxHandleGone`) and a missing artifact (:class:`ArtifactNotFound`,
-  a ``FileNotFoundError``) are distinct exceptions;
+  a ``FileNotFoundError``), an artifact that exists but could not be read back
+  (:class:`~sandbox_manager.errors.ArtifactReadError`) and an invalidated
+  sandbox (:class:`~sandbox_manager.errors.SandboxInvalidatedError`) are
+  distinct exceptions, the last two shared with the local implementation;
 * a language this host has no runtime for raises
   :class:`~sandbox_manager.errors.RuntimeUnavailableError`, as the local manager does.
 """
@@ -22,10 +25,11 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 import requests
 
-from sandbox_manager.errors import RuntimeUnavailableError
-from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS
-from sandbox_manager.models.sandbox_models import CommandResponse, DisposalStatus, ExtractedFile, ResponseCategory
 from autograder.models.language import Language
+from autograder.models.process import ProcessRequest, ProcessResult
+from sandbox_manager.errors import ArtifactReadError, RuntimeUnavailableError, SandboxInvalidatedError
+from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS, ProcessRequestModel, ProcessResultModel
+from sandbox_manager.models.sandbox_models import DisposalStatus, ExtractedFile
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
@@ -80,6 +84,10 @@ def _checked(response: requests.Response, *, artifact_path: Optional[str] = None
     text = f"Sandbox control API error {response.status_code} ({code or 'UNKNOWN'}): {message}"
     if code == "ARTIFACT_NOT_FOUND" and artifact_path is not None:
         raise ArtifactNotFound(f"File not found in container: {artifact_path}")
+    if code == "ARTIFACT_READ_FAILED":
+        raise ArtifactReadError(text)
+    if code == "SANDBOX_INVALIDATED":
+        raise SandboxInvalidatedError(text)
     if code == "ARTIFACT_INVALID":
         raise ValueError(message)
     if code == "HANDLE_NOT_FOUND":
@@ -99,11 +107,6 @@ def _new_session(token: Optional[str]) -> requests.Session:
     if token:
         session.headers["Authorization"] = f"Bearer {token}"
     return session
-
-
-def _command(data: dict) -> CommandResponse:
-    return CommandResponse(stdout=data["stdout"], stderr=data["stderr"], exit_code=data["exit_code"],
-                           execution_time=data["execution_time"], category=ResponseCategory(data["category"]))
 
 
 class RemoteSandboxContainer:
@@ -145,19 +148,12 @@ class RemoteSandboxContainer:
         _checked(self._send("POST", "/inject", json={"resolved_assets": assets},
                             read_timeout=TRANSFER_TIMEOUT_SECONDS))
 
-    def run_command(self, command: str, timeout: int = 30, workdir: str = "/app") -> CommandResponse:
-        """Run once. Never replayed: a lost response raises RemoteSandboxError."""
-        response = self._send("POST", "/run", json={"command": command, "timeout": timeout, "workdir": workdir},
-                              read_timeout=timeout + TRANSPORT_MARGIN_SECONDS)
-        return _command(_checked(response))
-
-    def run_commands(self, commands: List[str], program_command: str = None, timeout: int = 30,
-                     workdir: str = "/app") -> CommandResponse:
-        """Run once. Never replayed: a lost response raises RemoteSandboxError."""
-        payload = {"commands": commands, "program_command": program_command, "timeout": timeout,
-                   "workdir": workdir}
-        response = self._send("POST", "/run-batch", json=payload, read_timeout=timeout + TRANSPORT_MARGIN_SECONDS)
-        return _command(_checked(response))
+    def run_process(self, request: ProcessRequest) -> ProcessResult:
+        """Run one process. Never replayed: a lost response is an unknown outcome (RemoteSandboxError)."""
+        body = ProcessRequestModel.from_request(request).model_dump(mode="json")
+        response = self._send("POST", "/process", json=body,
+                              read_timeout=request.timeout + TRANSPORT_MARGIN_SECONDS)
+        return ProcessResultModel.model_validate(_checked(response)).to_result()
 
     def extract_file(self, path: str, max_bytes: int = 1_048_576) -> ExtractedFile:
         """Read one artifact; a missing file raises ArtifactNotFound."""

@@ -11,6 +11,7 @@ import docker
 import pytest
 
 from autograder.models.language import Language
+from autograder.models.process import ProcessRequest
 from sandbox_manager.language_pool import LABEL_LANGUAGE, LABEL_POOL_ID
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
@@ -69,7 +70,7 @@ def test_acquire_run_dispose_removes_container_and_is_idempotent(client):
     with SandboxManager([config()], client) as manager:
         sandbox = manager.get_sandbox(Language.PYTHON)
         assert sandbox.state is SandboxState.ACTIVE
-        result = sandbox.run_command("python -c 'print(2+2)'")
+        result = sandbox.run_process(ProcessRequest(argv=("python", "-c", "print(2+2)")))
         assert result.exit_code == 0 and "4" in result.stdout
         sandbox.container_ref.reload()
         labels = sandbox.container_ref.labels
@@ -92,8 +93,8 @@ def test_workspace_is_a_bounded_writable_tmpfs_under_the_active_runtime(client):
         with manager.acquire_sandbox(Language.PYTHON) as sandbox:
             from autograder.models.dataclass.submission import SubmissionFile
             sandbox.prepare_workdir({"pkg/main.py": SubmissionFile("pkg/main.py", "print('hi')")})
-            assert sandbox.run_command("python3 pkg/main.py").stdout.strip() == "hi"
-            mounts = sandbox.run_command("cat /proc/mounts").stdout
+            assert sandbox.run_process(ProcessRequest.command("python3 pkg/main.py")).stdout.strip() == "hi"
+            mounts = sandbox.run_process(ProcessRequest.command("cat /proc/mounts")).stdout
             assert re.search(r"^\S+ /app tmpfs ", mounts, re.M), mounts
             assert re.search(r"^\S+ /tmp tmpfs \S*noexec", mounts, re.M), mounts
             sandbox.container_ref.reload()
@@ -177,7 +178,7 @@ def test_two_live_owners_never_reclaim_each_other(client):
         assert wait_until(lambda: len(owned(client, second.owner.owner_id)) == 1)
         assert len(owned(client, first.owner.owner_id)) == 1
         with first.acquire_sandbox(Language.PYTHON) as sandbox:
-            assert sandbox.run_command("echo alive").stdout.strip() == "alive"
+            assert sandbox.run_process(ProcessRequest.command("echo alive")).stdout.strip() == "alive"
         # Explicit operator reclamation also refuses a live local owner.
         assert reclaim_selected(client, owner=second.owner.owner_id) == []
         assert len(owned(client, second.owner.owner_id)) >= 1

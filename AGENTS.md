@@ -103,7 +103,11 @@ preferences, locale)` (focus + the one `default` Markdown report, reading the
 canonical preferences); disabled feedback does no work and stays `disabled`.
 
 Required failures produce null score/tree. Student compilation/runtime/timeout
-reported during evaluator assessment can produce a valid zero. Preparation
+reported during evaluator assessment can produce a valid zero. Every process runs
+through `ExecutionSession.run_process(ProcessRequest)`: explicit argv or explicit
+shell, exact stdin bytes, a deadline that kills the process tree, and
+classification by exit status only. Infrastructure failures are exceptions, not
+results. See [PROCESSES.md](docs/contracts/PROCESSES.md). Preparation
 failures stop before assessment. Optional focus/feedback/comparison failures
 preserve the completed grade with a separate enrichment status.
 

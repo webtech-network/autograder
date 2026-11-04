@@ -26,9 +26,12 @@ Save this JSON as `execute.json` and send it with
 `curl -H "Authorization: Bearer $AUTOGRADER_INTEGRATION_TOKEN" -H "Content-Type: application/json" --data-binary @execute.json http://localhost:8000/api/v1/execute`.
 
 `test_cases` is an optional, nonempty array of stdin cases. Each case is an
-array of **lines** joined with newline and delivered to a fresh process in the
-same sandbox workspace. Omit `test_cases` for one run with empty stdin. These
-strings are stdin, never command arguments. A process can leave files in the
+array of **lines**. Every line is followed by a newline, and the resulting bytes
+go to a fresh process in the same sandbox workspace exactly as written:
+`["-n", "a\\b"]` sends `-n\na\\b\n`. An empty case `[]`, or an omitted
+`test_cases`, means empty stdin (EOF); `[""]` sends one empty line. These
+strings are stdin, never command arguments. Grading uses the same
+[process contract](../contracts/PROCESSES.md). A process can leave files in the
 workspace for a later case; the sandbox is destroyed after the request. The
 command is parsed into an executable and arguments, without an implicit shell.
 Use an explicit `sh -c '...'` command for compilation chains or shell syntax.
@@ -72,14 +75,21 @@ are valid) and injects the bytes at `target` before the first case. This does no
 }
 ```
 
-`results` follows request order. `success`, `runtime_error`,
-`compilation_error`, and `timeout` are process outcomes (HTTP 200).
+`results` follows request order. `success`, `runtime_error` and `timeout` are
+process outcomes (HTTP 200), classified by exit status alone. Any nonzero exit is
+`runtime_error`, even with empty stderr, and exit code 137 is not a timeout.
+A timed-out process is reported with `exit_code: 124` for wire compatibility.
+The process, and anything it started, is killed before the next case runs.
+`compilation_error` and `system_error` are no longer produced. Compile with an
+explicit `sh -c 'javac Main.java && java Main'`, and a failed compilation is a
+`runtime_error`. A `program_command` whose executable does not exist returns
+503, because the process could not be started.
 A timed-out process ends the batch, and `stopped_early: true` means the results
 are a prefix of the requested cases. `output` is a display field: nonempty
 stdout then stderr joined by a newline. Clients should use `stdout`,
 `stderr`, and `exit_code` when they need the exact process outcome.
-Each stream is capped at 16 KiB UTF-8 on the wire; `truncated` indicates a
-cut. `execution_time` is seconds.
+Each stream is capped at 16 KiB by the host that runs the process; `truncated`
+indicates a cut, which never splits a UTF-8 character. `execution_time` is seconds.
 
 ## Limits and lifecycle
 
