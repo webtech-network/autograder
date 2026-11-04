@@ -6,7 +6,8 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-      - 'requirements-docs.txt'
+      - 'pyproject.toml'
+      - 'uv.lock'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
 
@@ -31,8 +32,16 @@ jobs:
         with:
           python-version-file: .tool-versions
 
-      - name: Install docs dependencies
-        run: pip install -r requirements-docs.txt
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.11.15"
+
+      - name: Install docs dependencies from the lock
+        # --locked fails when pyproject.toml and uv.lock disagree.
+        run: |
+          uv sync --locked --only-group docs
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Build site
         run: mkdocs build --strict

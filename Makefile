@@ -1,9 +1,9 @@
 # Development and verification commands. CI runs these same targets
 # (.github/workflows/verify.yml); `make help` lists them.
 
-PYTHON ?= python
-# Tests import `tests` and `examples` from the repository root.
-export PYTHONPATH := $(CURDIR)$(if $(PYTHONPATH),:$(PYTHONPATH))
+# Commands run in the locked .venv (`make install`); override PYTHON to use
+# another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
+PYTHON ?= uv run --locked python
 
 .PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-clean docs-serve start-autograder examples-demo
 
@@ -13,15 +13,15 @@ help: ## Show this list
 
 ##@ Setup
 
-install: ## Install runtime, test, docs and lint dependencies
-	$(PYTHON) -m pip install -r requirements.txt -r requirements-docs.txt "pylint~=4.1.3"
+install: ## Create .venv from uv.lock: the project with its server extra, test, lint and docs tools
+	uv sync --locked
 
 ##@ Verification paths
 
 verify: lint contracts docs test test-web ## Hermetic core/library path (no Docker, no database)
 
 lint: ## Pylint the shipped packages, scripts and examples, serially (.pylintrc)
-	$(PYTHON) -m pylint autograder web sandbox_manager execution_host github_action scripts examples submission_contract.py
+	$(PYTHON) -m pylint autograder web sandbox_manager execution_host github_action scripts examples
 
 contracts: ## Check that checked-in JSON Schemas match the models
 	$(PYTHON) scripts/generate_contract_schemas.py --check
