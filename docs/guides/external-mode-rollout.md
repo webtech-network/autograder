@@ -17,7 +17,10 @@ removed; use the explicit offline converter and review its output first.
    Ordinary checkout no longer requires `path: submission`. Use an explicit
    `submission-root` and `definition-path` if retaining that layout.
 5. Configure cloud URL and authentication token as workflow variables/secrets.
-   The token must match the server's `AUTOGRADER_INTEGRATION_TOKEN`.
+   Prefer a restricted producer token from the server's
+   `AUTOGRADER_ATTESTATION_TOKENS`; it can publish outcomes but cannot read
+   source code or other grades. External mode (fetching the definition) needs the
+   integration token. See the [HTTP trust boundary](../contracts/AUTH.md).
 6. Choose `execution-mode: external` to fetch the definition, and separately
    choose `upload-to-cloud: "true"` to publish the finalized outcome. Local
    artifacts remain available with either configuration source.

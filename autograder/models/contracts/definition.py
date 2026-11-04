@@ -337,9 +337,14 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         raise DefinitionValidationError(errors)
     from autograder.services.criteria_tree_service import build_criteria_tree
     snapshot = definition.model_dump(mode='json')
-    payload = json.dumps(snapshot, sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
     tree = build_criteria_tree(definition.criteria, registry)
-    return CompiledDefinition._create(snapshot, hashlib.sha256(payload).hexdigest(), tree, selected)  # pylint: disable=protected-access
+    return CompiledDefinition._create(snapshot, definition_hash(definition), tree, selected)  # pylint: disable=protected-access
+
+
+def definition_hash(definition: GradingDefinition) -> str:
+    """SHA-256 over sorted, compact UTF-8 JSON of an already normalized definition."""
+    payload = json.dumps(definition.model_dump(mode='json'), sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
+    return hashlib.sha256(payload).hexdigest()
 
 
 def select_language(definition: GradingDefinition | CompiledDefinition, supplied=None) -> Language:

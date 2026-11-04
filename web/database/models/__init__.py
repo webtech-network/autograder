@@ -6,3 +6,4 @@ from web.database.models.submission_result import SubmissionResult
 
 __all__ = ["GradingConfiguration", "Submission", "SubmissionResult"]
 from web.database.models.grading_attempt import GradingAttempt
+from web.database.models.operation_receipt import OperationReceipt

@@ -88,11 +88,11 @@ class TestGetGradingConfig:
 
         captured_req = []
 
-        def fake_urlopen(req, timeout=None):
+        def fake_urlopen(req, **kwargs):
             captured_req.append(req)
             return mock_resp
 
-        with patch("urllib.request.urlopen", side_effect=fake_urlopen), patch(
+        with patch("github_action.cloud_client._urlopen", side_effect=fake_urlopen), patch(
             "time.sleep"
         ):
             client.get_grading_config(42)
@@ -106,7 +106,7 @@ class TestGetGradingConfig:
         config = {"template_name": "python", "criteria": {"base": {}}}
         mock_resp = _mock_response(config)
 
-        with patch("urllib.request.urlopen", return_value=mock_resp), patch(
+        with patch("github_action.cloud_client._urlopen", return_value=mock_resp), patch(
             "time.sleep"
         ):
             result = client.get_grading_config("cfg-1")
@@ -119,11 +119,11 @@ class TestGetGradingConfig:
         mock_resp = _mock_response({})
         captured = []
 
-        def fake_urlopen(req, timeout=None):
+        def fake_urlopen(req, **kwargs):
             captured.append(req)
             return mock_resp
 
-        with patch("urllib.request.urlopen", side_effect=fake_urlopen), patch(
+        with patch("github_action.cloud_client._urlopen", side_effect=fake_urlopen), patch(
             "time.sleep"
         ):
             client.get_grading_config("cfg-1")
@@ -134,7 +134,7 @@ class TestGetGradingConfig:
         """Asserts the bearer token is not leaked in 4xx error messages."""
         client = CloudClient("https://cloud.example.com", "super-secret-token")
 
-        with patch("urllib.request.urlopen", side_effect=_http_error(404)), patch(
+        with patch("github_action.cloud_client._urlopen", side_effect=_http_error(404)), patch(
             "time.sleep"
         ):
             with pytest.raises(CloudClientError) as exc_info:
@@ -153,11 +153,11 @@ class TestSubmitExternalResult:
         mock_resp = _mock_response({})
         captured = []
 
-        def fake_urlopen(req, timeout=None):
+        def fake_urlopen(req, **kwargs):
             captured.append(req)
             return mock_resp
 
-        with patch("urllib.request.urlopen", side_effect=fake_urlopen), patch(
+        with patch("github_action.cloud_client._urlopen", side_effect=fake_urlopen), patch(
             "time.sleep"
         ):
             client.submit_external_result({"score": 90.0})
@@ -172,13 +172,13 @@ class TestSubmitExternalResult:
         mock_resp = _mock_response({})
         captured = []
 
-        def fake_urlopen(req, timeout=None):
+        def fake_urlopen(req, **kwargs):
             captured.append(req)
             return mock_resp
 
         payload = {"score": 75.5, "status": "success"}
 
-        with patch("urllib.request.urlopen", side_effect=fake_urlopen), patch(
+        with patch("github_action.cloud_client._urlopen", side_effect=fake_urlopen), patch(
             "time.sleep"
         ):
             client.submit_external_result(payload)
@@ -191,7 +191,7 @@ class TestSubmitExternalResult:
         client = _make_client()
         mock_resp = _mock_response("")
 
-        with patch("urllib.request.urlopen", return_value=mock_resp), patch(
+        with patch("github_action.cloud_client._urlopen", return_value=mock_resp), patch(
             "time.sleep"
         ):
             result = client.submit_external_result({"score": 0.0})
@@ -209,7 +209,7 @@ class TestFourXxErrors:
         client = _make_client(max_retries=3)
 
         with patch(
-            "urllib.request.urlopen", side_effect=_http_error(code)
+            "github_action.cloud_client._urlopen", side_effect=_http_error(code)
         ) as mock_open, patch("time.sleep") as mock_sleep:
             with pytest.raises(CloudClientError) as exc_info:
                 client.get_grading_config("cfg-1")
@@ -223,7 +223,7 @@ class TestFourXxErrors:
         """Asserts the 4xx error message instructs the user to check their configuration."""
         client = _make_client()
 
-        with patch("urllib.request.urlopen", side_effect=_http_error(404)), patch(
+        with patch("github_action.cloud_client._urlopen", side_effect=_http_error(404)), patch(
             "time.sleep"
         ):
             with pytest.raises(CloudClientError) as exc_info:
@@ -243,7 +243,7 @@ class TestFiveXxRetry:
         client = _make_client(max_retries=2)
 
         with patch(
-            "urllib.request.urlopen", side_effect=_http_error(503)
+            "github_action.cloud_client._urlopen", side_effect=_http_error(503)
         ) as mock_open, patch("time.sleep"):
             with pytest.raises(CloudConnectionError):
                 client.get_grading_config("cfg-1")
@@ -258,13 +258,13 @@ class TestFiveXxRetry:
 
         call_count = [0]
 
-        def flaky_urlopen(req, timeout=None):
+        def flaky_urlopen(req, **kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
                 raise _http_error(500)
             return mock_resp
 
-        with patch("urllib.request.urlopen", side_effect=flaky_urlopen), patch(
+        with patch("github_action.cloud_client._urlopen", side_effect=flaky_urlopen), patch(
             "time.sleep"
         ):
             result = client.get_grading_config("cfg-1")
@@ -276,7 +276,7 @@ class TestFiveXxRetry:
         """Asserts CloudConnectionError is raised after all retries are exhausted."""
         client = _make_client(max_retries=1)
 
-        with patch("urllib.request.urlopen", side_effect=_http_error(500)), patch(
+        with patch("github_action.cloud_client._urlopen", side_effect=_http_error(500)), patch(
             "time.sleep"
         ):
             with pytest.raises(CloudConnectionError):
@@ -288,12 +288,14 @@ class TestFiveXxRetry:
         sleep_calls = []
 
         with patch(
-            "urllib.request.urlopen", side_effect=_http_error(502)
-        ), patch("time.sleep", side_effect=lambda s: sleep_calls.append(s)):
+            "github_action.cloud_client._urlopen", side_effect=_http_error(502)
+        ), patch("time.sleep", side_effect=lambda s: sleep_calls.append(s)), patch(
+            "random.random", return_value=1.0
+        ):
             with pytest.raises(CloudConnectionError):
                 client.get_grading_config("cfg-1")
 
-        # 3 retries → 3 sleep calls with delays 1, 2, 4
+        # 3 retries → 3 sleep calls with jitter ceilings 1, 2, 4
         assert sleep_calls == [1.0, 2.0, 4.0]
 
 # ---------------------------------------------------------------------------
@@ -307,7 +309,7 @@ class TestNetworkErrors:
         network_err = urllib.error.URLError("Connection refused")
 
         with patch(
-            "urllib.request.urlopen", side_effect=network_err
+            "github_action.cloud_client._urlopen", side_effect=network_err
         ) as mock_open, patch("time.sleep"):
             with pytest.raises(CloudConnectionError):
                 client.get_grading_config("cfg-1")
@@ -319,7 +321,7 @@ class TestNetworkErrors:
         client = CloudClient("https://cloud.example.com", "leak-me-not", max_retries=0)
         network_err = urllib.error.URLError("timeout")
 
-        with patch("urllib.request.urlopen", side_effect=network_err), patch(
+        with patch("github_action.cloud_client._urlopen", side_effect=network_err), patch(
             "time.sleep"
         ):
             with pytest.raises(CloudConnectionError) as exc_info:
@@ -334,13 +336,13 @@ class TestNetworkErrors:
         mock_resp = _mock_response(config)
         call_count = [0]
 
-        def flaky(req, timeout=None):
+        def flaky(req, **kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
                 raise urllib.error.URLError("temporary")
             return mock_resp
 
-        with patch("urllib.request.urlopen", side_effect=flaky), patch("time.sleep"):
+        with patch("github_action.cloud_client._urlopen", side_effect=flaky), patch("time.sleep"):
             result = client.get_grading_config("cfg-1")
 
         assert result == config
@@ -355,7 +357,7 @@ class TestJsonParsing:
         client = _make_client()
         mock_resp = _mock_response("not-json")
 
-        with patch("urllib.request.urlopen", return_value=mock_resp), patch(
+        with patch("github_action.cloud_client._urlopen", return_value=mock_resp), patch(
             "time.sleep"
         ):
             with pytest.raises(CloudConnectionError, match="invalid JSON"):
@@ -366,7 +368,7 @@ class TestJsonParsing:
         client = _make_client()
         mock_resp = _mock_response("   ")
 
-        with patch("urllib.request.urlopen", return_value=mock_resp), patch(
+        with patch("github_action.cloud_client._urlopen", return_value=mock_resp), patch(
             "time.sleep"
         ):
             result = client.get_grading_config("cfg-1")
@@ -376,7 +378,7 @@ class TestJsonParsing:
 
 def test_external_result_post_is_not_automatically_retried():
     client = _make_client(max_retries=3)
-    with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("lost response")) as request, patch("time.sleep") as sleep:
+    with patch("github_action.cloud_client._urlopen", side_effect=urllib.error.URLError("lost response")) as request, patch("time.sleep") as sleep:
         with pytest.raises(CloudConnectionError, match="1 attempt"):
             client.submit_external_result({"outcome": {"status": "completed"}})
     assert request.call_count == 1

@@ -59,10 +59,32 @@ must match current definition; an older revision is a trusted host attestation,
 not cryptographic proof of server execution. Known inactive configurations can
 receive historical results. No private files are required in an attestation.
 
-Configure `AUTOGRADER_INTEGRATION_TOKEN` for protected endpoints. Missing server
-configuration gives 503; absent/incorrect bearer token gives 401. Configuration
-mutation/ordinary submission routes retain their existing deployment access policy;
-broader authentication changes are tracked separately.
+Authenticated `GET /api/v1/submissions/{submission_id}/comparison`, with the required
+query parameter `baseline_submission_id`, compares the stored canonical outcome of
+`submission_id` (head) with an earlier stored submission (baseline) of the same
+configuration resource. It is read-only
+and deterministic: nothing is graded or stored, and retrying means calling again.
+The response states `compatibility` (`same_definition` or `cross_revision`), both
+sides' submission ID, `source` (`executed` or `attested`), execution ID, score and
+provenance, an overall `score_delta` (null across revisions) with `explanation`,
+`changed_definition_sections`, and per-criterion rows keyed by `criterion_id` with
+both labels, scores, categories, effective weights, `delta` and `status`
+(`improved`, `regressed`, `unchanged`, `reweighted`, `redefined`, `introduced`,
+`removed`). Different configurations give 422 `NOT_COMPARABLE`; pending or failed
+outcomes 409 `OUTCOME_NOT_COMPLETED`; unsnapshotted legacy history 409
+`LEGACY_UNVERIFIED`; unknown submissions 404. See the
+[baseline comparison contract](features/baseline_comparison.md) for the full
+compatibility table and an example.
+
+## Authentication
+
+Every route except `/health`, `/ready` and the template catalog requires
+`Authorization: Bearer <token>`. `AUTOGRADER_INTEGRATION_TOKEN` grants every
+operation; restricted `AUTOGRADER_ATTESTATION_TOKENS` producers may only call
+`POST /api/v1/submissions/external-results`. Missing server configuration gives
+503, an absent/incorrect token gives 401 and a token without the route's scope
+gives 403. All integration principals share all resources. See the
+[HTTP trust boundary](contracts/AUTH.md).
 
 ## Discovery and operations
 
@@ -90,5 +112,7 @@ input is 422, unavailable infrastructure is 503, and the response deadline is
 Grading publication retains a private local receipt on DB failure;
 [receipt replay](contracts/OUTCOMES.md#publication-receipts) retries publication without running evaluators.
 Bounded workers use persisted PostgreSQL jobs, lease identities and fenced
-publication. Submission idempotency remains separate work; replaying a finalized
-outcome does not regrade it.
+publication. Both POST endpoints accept an `Idempotency-Key`: a repeated request
+returns the original receipt (`Idempotent-Replayed: true`), a changed request under
+the same key is 409 `IDEMPOTENCY_KEY_REUSED`. See [replay safety](contracts/REPLAY.md).
+Replaying a finalized outcome does not regrade it.

@@ -38,8 +38,9 @@ field, receive 422.
 `assets` is an optional list of `{source, target, read_only}` references. It
 is for a trusted host to forward assignment assets from its own authorization
 checks. `source` is a normalized relative provider key; `target` is a
-normalized path under `/tmp`. The service resolves and injects these before
-the first case. This does not make arbitrary callers trusted.
+normalized path under `/tmp`. The service retrieves each `source` through the
+host's fixture provider (the same uncached provider grading uses; empty objects
+are valid) and injects the bytes at `target` before the first case. This does not make arbitrary callers trusted.
 
 ## Process response
 
@@ -92,11 +93,10 @@ cut. `execution_time` is seconds.
 | Response output | 16 KiB per stream per case |
 
 The host acquires one sandbox for the request, prepares files and assets, then
-runs cases sequentially. Acquisition, preparation, execution, and release stay
+runs cases sequentially. Acquisition, preparation, execution, and disposal stay
 in one worker. When the HTTP request is cancelled or reaches 45 seconds, the
 caller receives no result (or 504 for a connected caller); the worker continues
-to completion and releases or destroys the sandbox. A timed-out process's
-sandbox is destroyed. Cleanup failure is logged and never replaces a known
+to completion and disposes the sandbox (sandboxes are never reused). Cleanup failure is logged and never replaces a known
 process result. This is a bounded *response* deadline, not a hard stop for a
 blocked Docker call or asset provider. No job ID or later status query exists.
 

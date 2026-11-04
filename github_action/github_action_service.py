@@ -23,11 +23,13 @@ class GithubActionService:
         self.assignment_id = "local"
 
     def configure(self, *, definition_path, execution_mode, grading_config_id,
-                  cloud_url, cloud_token, upload_to_cloud, language, locale):
+                  cloud_url, cloud_token, upload_to_cloud, language, locale, grading_config_revision=None):
         client = None
         config = None
         if execution_mode == "external" or upload_to_cloud:
             client = CloudClient(cloud_url, cloud_token)
+        if execution_mode == "external" or (upload_to_cloud and grading_config_revision is None):
+            # Reading a configuration needs the integration scope.
             config = client.get_grading_config(grading_config_id)
         if execution_mode == "external":
             # A cloud configuration is a stored canonical snapshot.
@@ -46,16 +48,24 @@ class GithubActionService:
                 definition_hash=compiled.definition_hash,
                 reference=self.assignment_id, revision=config["version"],
             )
+        elif upload_to_cloud:
+            # A restricted attestation credential cannot read configurations: the
+            # workflow names the revision and the server verifies hash and revision.
+            self.assignment_id = str(grading_config_id)
+            provenance = DefinitionProvenance(
+                definition_hash=compiled.definition_hash,
+                reference=self.assignment_id, revision=grading_config_revision,
+            )
         if upload_to_cloud:
-            self.publisher = CloudPublisher(client, config["id"], compiled.definition)
+            self.publisher = CloudPublisher(client, int(self.assignment_id), compiled.definition)
         from execution_host.docker import DockerHost
         self.host = DockerHost.from_environment()
         return build_pipeline(definition=compiled, locale=locale, provenance=provenance,
                               capabilities=self.host.capabilities)
 
-    def run_autograder(self, pipeline, user_name, submission_files):
+    def run_autograder(self, pipeline, identity, submission_files):
         submission = Submission(
-            username=user_name, user_id=user_name, assignment_id=self.assignment_id,
+            username=identity.submitter_name, user_id=identity.submitter_id, assignment_id=self.assignment_id,
             submission_files=submission_files, language=self.language, locale=self.locale,
         )
         try:
@@ -67,10 +77,10 @@ class GithubActionService:
                 except Exception:
                     logger.exception("Actions host cleanup failed after grading")
 
-    def delivery_payload(self, outcome, user_name):
+    def delivery_payload(self, outcome, identity, provenance):
         if self.publisher is None:
             return None
-        return self.publisher.payload(outcome, user_name)
+        return self.publisher.payload(outcome, identity, provenance)
 
     def publish(self, payload):
         return self.publisher.publish(payload)
