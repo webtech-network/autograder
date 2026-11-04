@@ -212,7 +212,8 @@ def test_snapshot_structure_and_registry_are_validated():
 def test_snapshot_validation_is_pure_and_hash_stable():
     snapshot = builtin_snapshot()
     with patch("boto3.client", side_effect=AssertionError("provider")), \
-            patch("sandbox_manager.manager.get_sandbox_manager", side_effect=AssertionError("sandbox")):
+            patch("docker.from_env", side_effect=AssertionError("docker")), \
+            patch("sandbox_manager.manager.SandboxManager.acquire_sandbox", side_effect=AssertionError("sandbox")):
         loaded = compile_snapshot(snapshot)
     assert loaded.definition_hash == compile_definition(snapshot).definition_hash
     assert loaded.definition.model_dump(mode="json") == snapshot

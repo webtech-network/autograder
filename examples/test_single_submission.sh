@@ -4,10 +4,12 @@
 
 API_URL="${API_URL:-http://localhost:8000}"
 ASSIGNMENT_ID="${ASSIGNMENT_ID:-calc-multi-lang}"
+TOKEN="${AUTOGRADER_INTEGRATION_TOKEN:?set AUTOGRADER_INTEGRATION_TOKEN}"
 
 submit_python() {
     echo "🐍 Submitting Python..."
     RESPONSE=$(curl -s -X POST "$API_URL/api/v1/submissions" \
+      -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: application/json" \
       -d '{
         "external_assignment_id": "'$ASSIGNMENT_ID'",
@@ -25,7 +27,7 @@ submit_python() {
     SUBMISSION_ID=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])" 2>/dev/null)
     if [ -n "$SUBMISSION_ID" ]; then
         echo "✅ Python submitted - ID: $SUBMISSION_ID"
-        echo "   Check: curl $API_URL/api/v1/submissions/$SUBMISSION_ID"
+        echo "   Check: curl -H \"Authorization: Bearer \$AUTOGRADER_INTEGRATION_TOKEN\" $API_URL/api/v1/submissions/$SUBMISSION_ID"
     else
         echo "❌ Python submission failed"
         echo "$RESPONSE"
@@ -35,6 +37,7 @@ submit_python() {
 submit_java() {
     echo "☕ Submitting Java..."
     RESPONSE=$(curl -s -X POST "$API_URL/api/v1/submissions" \
+      -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: application/json" \
       -d '{
         "external_assignment_id": "'$ASSIGNMENT_ID'",
@@ -52,7 +55,7 @@ submit_java() {
     SUBMISSION_ID=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])" 2>/dev/null)
     if [ -n "$SUBMISSION_ID" ]; then
         echo "✅ Java submitted - ID: $SUBMISSION_ID"
-        echo "   Check: curl $API_URL/api/v1/submissions/$SUBMISSION_ID"
+        echo "   Check: curl -H \"Authorization: Bearer \$AUTOGRADER_INTEGRATION_TOKEN\" $API_URL/api/v1/submissions/$SUBMISSION_ID"
     else
         echo "❌ Java submission failed"
         echo "$RESPONSE"
@@ -62,6 +65,7 @@ submit_java() {
 submit_node() {
     echo "📗 Submitting Node.js..."
     RESPONSE=$(curl -s -X POST "$API_URL/api/v1/submissions" \
+      -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: application/json" \
       -d '{
         "external_assignment_id": "'$ASSIGNMENT_ID'",
@@ -79,7 +83,7 @@ submit_node() {
     SUBMISSION_ID=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])" 2>/dev/null)
     if [ -n "$SUBMISSION_ID" ]; then
         echo "✅ Node.js submitted - ID: $SUBMISSION_ID"
-        echo "   Check: curl $API_URL/api/v1/submissions/$SUBMISSION_ID"
+        echo "   Check: curl -H \"Authorization: Bearer \$AUTOGRADER_INTEGRATION_TOKEN\" $API_URL/api/v1/submissions/$SUBMISSION_ID"
     else
         echo "❌ Node.js submission failed"
         echo "$RESPONSE"
@@ -89,6 +93,7 @@ submit_node() {
 submit_cpp() {
     echo "⚡ Submitting C++..."
     RESPONSE=$(curl -s -X POST "$API_URL/api/v1/submissions" \
+      -H "Authorization: Bearer $TOKEN" \
       -H "Content-Type: application/json" \
       -d '{
         "external_assignment_id": "'$ASSIGNMENT_ID'",
@@ -106,7 +111,7 @@ submit_cpp() {
     SUBMISSION_ID=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])" 2>/dev/null)
     if [ -n "$SUBMISSION_ID" ]; then
         echo "✅ C++ submitted - ID: $SUBMISSION_ID"
-        echo "   Check: curl $API_URL/api/v1/submissions/$SUBMISSION_ID"
+        echo "   Check: curl -H \"Authorization: Bearer \$AUTOGRADER_INTEGRATION_TOKEN\" $API_URL/api/v1/submissions/$SUBMISSION_ID"
     else
         echo "❌ C++ submission failed"
         echo "$RESPONSE"

@@ -31,6 +31,9 @@ from web.service.worker import DurableWorker
 from tests.web.test_contracts_v1 import definition
 
 
+PG_TOKEN = "postgres-worker-test-token"
+
+
 @pytest.fixture
 async def postgres_sessions():
     url = os.getenv("TEST_POSTGRES_URL")
@@ -54,7 +57,7 @@ async def postgres_sessions():
 
 @pytest.fixture
 async def pg_app(postgres_sessions, tmp_path):
-    app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts"), WORKER_COUNT=2,
+    app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts"), WORKER_COUNT=2, INTEGRATION_TOKEN=PG_TOKEN,
                               LEASE_SECONDS=0.6, POLL_SECONDS=0.01, MAX_ATTEMPTS=2),
                      session_factory=postgres_sessions, capabilities=HostCapabilities(), start_workers=False)
     app.state.host.ready = True
@@ -64,7 +67,8 @@ async def pg_app(postgres_sessions, tmp_path):
 
 @pytest.fixture
 async def pg_client(pg_app):
-    async with AsyncClient(transport=ASGITransport(app=pg_app), base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=pg_app), base_url="http://test",
+                           headers={"Authorization": f"Bearer {PG_TOKEN}"}) as client:
         yield client
 
 

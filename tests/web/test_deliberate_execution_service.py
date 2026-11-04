@@ -22,6 +22,7 @@ from web.schemas.execution import (
 )
 from web.service import deliberate_execution_service as service
 from web.service.deliberate_execution_service import execute_code
+from tests.fake_object_store import fake_s3_provider
 
 
 REQUEST = {
@@ -41,11 +42,11 @@ def integration_token(monkeypatch, application):
 
 
 @contextmanager
-def manager_profile(return_value=None, side_effect=None):
+def manager_profile(return_value=None, side_effect=None, fixtures=None):
     factory = Mock(return_value=return_value, side_effect=side_effect)
     previous = app.state.host.capabilities
     app.state.host.capabilities = HostCapabilities(
-        execution=lambda language: DockerSession(factory(), language))
+        execution=lambda language: DockerSession(factory(), language), fixtures=fixtures)
     try:
         yield factory
     finally:
@@ -104,7 +105,7 @@ async def test_cases_send_stdin_and_receive_process_details():
     assert sandbox.run_commands.call_args_list[0].args == (["Alice"],)
     assert sandbox.run_commands.call_args_list[0].kwargs["program_command"] == "python main.py"
     assert sandbox.run_commands.call_args_list[1].args == (["Bob"],)
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -158,7 +159,7 @@ async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
     with manager_profile(return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 503
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
     manager, sandbox = manager_with_sandbox()
     sandbox.prepare_workdir.side_effect = RuntimeError("Docker unavailable")
@@ -166,7 +167,7 @@ async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
         response = await post(REQUEST)
     assert response.status_code == 503
     assert "Docker unavailable" not in response.text
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -180,8 +181,7 @@ async def test_timeout_stops_batch_and_destroys_sandbox():
     assert response.json()["results"][0]["category"] == "timeout"
     assert response.json()["stopped_early"] is True
     assert len(response.json()["results"]) == 1
-    manager.destroy_sandbox.assert_called_once()
-    manager.release_sandbox.assert_not_called()
+    manager.dispose.assert_called_once_with(manager.get_sandbox.return_value)
 
 
 @pytest.mark.asyncio
@@ -189,7 +189,7 @@ async def test_cleanup_failure_does_not_erase_known_execution_result():
     manager, _ = manager_with_sandbox(
         command_result(stdout="one"), command_result(stdout="two")
     )
-    manager.destroy_sandbox.side_effect = RuntimeError("destroy failed")
+    manager.dispose.side_effect = RuntimeError("destroy failed")
     with manager_profile(return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 200
@@ -197,23 +197,54 @@ async def test_cleanup_failure_does_not_erase_known_execution_result():
 
 
 @pytest.mark.asyncio
-async def test_trusted_assets_are_injected_before_execution():
+async def test_quarantined_disposal_is_logged_without_erasing_result(caplog):
+    from sandbox_manager.models.sandbox_models import DisposalStatus
+    manager, _ = manager_with_sandbox(command_result(stdout="one"), command_result(stdout="two"))
+    manager.dispose.return_value = DisposalStatus.QUARANTINED
+    with manager_profile(return_value=manager):
+        response = await post(REQUEST)
+    assert response.status_code == 200
+    assert len(response.json()["results"]) == 2
+    assert "Deliberate execution session cleanup failed" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_trusted_assets_are_retrieved_by_reference_and_injected_before_execution():
     manager, sandbox = manager_with_sandbox(command_result(), command_result())
-    payload = dict(REQUEST, assets=[{
-        "source": "datasets/sample.txt", "target": "/tmp/sample.txt", "read_only": True,
-    }])
-    asset = ResolvedAsset(target="/tmp/sample.txt", content=b"sample", read_only=True)
-    with manager_profile(return_value=manager), \
-         patch("web.service.deliberate_execution_service.AssetSourceResolver") as resolver:
-        resolver.return_value.resolve_assets.return_value = [asset]
+    payload = dict(REQUEST, assets=[
+        {"source": "datasets/a/b", "target": "/tmp/slash.txt", "read_only": True},
+        {"source": "datasets/a_b", "target": "/tmp/under.txt", "read_only": False},
+        {"source": "datasets/empty", "target": "/tmp/empty.txt", "read_only": True},
+    ])
+    provider, store = fake_s3_provider({
+        "datasets/a/b": b"slash", "datasets/a_b": b"underscore", "datasets/empty": b""})
+    with manager_profile(return_value=manager, fixtures=provider):
         response = await post(payload)
     assert response.status_code == 200
-    resolver.return_value.resolve_assets.assert_called_once()
-    assert resolver.return_value.resolve_assets.call_args.args[0][0].source == "datasets/sample.txt"
-    sandbox.inject_assets.assert_called_once_with([asset])
+    assert [key for _, key in store.requests] == ["datasets/a/b", "datasets/a_b", "datasets/empty"]
+    sandbox.inject_assets.assert_called_once_with([
+        ResolvedAsset(target="/tmp/slash.txt", content=b"slash", read_only=True),
+        ResolvedAsset(target="/tmp/under.txt", content=b"underscore", read_only=False),
+        ResolvedAsset(target="/tmp/empty.txt", content=b"", read_only=True),
+    ])
     calls = [call[0] for call in sandbox.mock_calls]
     assert calls.index("prepare_workdir") < calls.index("inject_assets") < calls.index("run_commands")
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("compose", ["missing", "absent_provider"])
+async def test_unresolvable_assets_are_unavailable_and_release_the_sandbox(compose):
+    manager, sandbox = manager_with_sandbox(command_result())
+    payload = dict(REQUEST, assets=[{"source": "datasets/missing", "target": "/tmp/x", "read_only": True}])
+    provider = fake_s3_provider({})[0] if compose == "missing" else None
+    with manager_profile(return_value=manager, fixtures=provider):
+        response = await post(payload)
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
+    sandbox.inject_assets.assert_not_called()
+    sandbox.run_commands.assert_not_called()
+    manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -235,10 +266,10 @@ async def test_deadline_and_disconnect_leave_worker_to_release_sandbox(monkeypat
         unblock.set()
         await asyncio.to_thread(lambda: None)
         for _ in range(100):
-            if manager.destroy_sandbox.called:
+            if manager.dispose.called:
                 break
             await asyncio.sleep(0.01)
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
     started.clear()
     unblock.clear()
@@ -251,10 +282,10 @@ async def test_deadline_and_disconnect_leave_worker_to_release_sandbox(monkeypat
             await task
         unblock.set()
         for _ in range(100):
-            if manager.destroy_sandbox.called:
+            if manager.dispose.called:
                 break
             await asyncio.sleep(0.01)
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -294,6 +325,6 @@ async def test_shutdown_after_response_deadline_drains_thread_before_closing_pro
             unblock.set()
         with pytest.raises(asyncio.CancelledError):
             await closing
-    manager.destroy_sandbox.assert_called_once()
+    manager.dispose.assert_called_once()
     owner.close.assert_called_once()
     assert not host.execution_tasks

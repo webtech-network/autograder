@@ -9,7 +9,7 @@ These tests require Docker to be running and sandbox images to be built.
 
 import unittest
 import time
-from sandbox_manager.manager import initialize_sandbox_manager, get_sandbox_manager
+from tests.integration.sandbox_support import current_manager, start_manager, wait_for_idle
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import Language, SandboxState
 from autograder.models.dataclass.submission import SubmissionFile
@@ -51,13 +51,13 @@ class TestSandboxManagerIntegration(unittest.TestCase):
                 running_timeout=60
             )
         ]
-        cls.manager = initialize_sandbox_manager(pool_configs)
+        cls.manager = start_manager(pool_configs)
         # Give containers time to start
         time.sleep(2)
 
     def test_01_manager_initialization(self):
         """Test that manager initializes all language pools correctly."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         self.assertIsNotNone(manager)
         self.assertEqual(len(manager.language_pools), 4)
         self.assertIn(Language.PYTHON, manager.language_pools)
@@ -67,7 +67,7 @@ class TestSandboxManagerIntegration(unittest.TestCase):
 
     def test_02_pool_initial_state(self):
         """Test that pools are initialized with correct number of containers."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
 
         # Python pool should have 2 idle sandboxes
         py_pool = manager.language_pools[Language.PYTHON]
@@ -81,13 +81,13 @@ class TestSandboxManagerIntegration(unittest.TestCase):
 
     def test_03_acquire_and_release_python(self):
         """Test acquiring and releasing a Python sandbox."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
 
         # Acquire a sandbox
         sandbox = manager.get_sandbox(Language.PYTHON)
         self.assertIsNotNone(sandbox)
         self.assertEqual(sandbox.language, Language.PYTHON)
-        self.assertEqual(sandbox.state, SandboxState.BUSY)
+        self.assertEqual(sandbox.state, SandboxState.ACTIVE)
 
         # Check pool state
         py_pool = manager.language_pools[Language.PYTHON]
@@ -95,18 +95,15 @@ class TestSandboxManagerIntegration(unittest.TestCase):
         self.assertIn(sandbox, py_pool.active_sandboxes)
 
         # Release the sandbox
-        manager.release_sandbox(Language.PYTHON, sandbox)
+        manager.dispose(sandbox)
 
-        # Give time for replenishment
-        time.sleep(1)
-
-        # Check that pool replenished
-        self.assertEqual(len(py_pool.idle_sandboxes), 2)
+        # The pool monitor replenishes asynchronously.
+        self.assertEqual(wait_for_idle(py_pool, 2), 2)
         self.assertEqual(len(py_pool.active_sandboxes), 0)
 
     def test_04_python_hello_world(self):
         """Test executing a simple Python program."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox = manager.get_sandbox(Language.PYTHON)
 
         try:
@@ -124,11 +121,11 @@ class TestSandboxManagerIntegration(unittest.TestCase):
             self.assertEqual(response.stderr, "")
 
         finally:
-            manager.release_sandbox(Language.PYTHON, sandbox)
+            manager.dispose(sandbox)
 
     def test_05_python_calculator_interactive(self):
         """Test Python interactive program with multiple inputs."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox = manager.get_sandbox(Language.PYTHON)
 
         try:
@@ -162,11 +159,11 @@ elif operation == 'DIV':
             self.assertIn("30", response.stdout)
 
         finally:
-            manager.release_sandbox(Language.PYTHON, sandbox)
+            manager.dispose(sandbox)
 
     def test_06_python_with_directory_structure(self):
         """Test Python program with nested directory structure."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox = manager.get_sandbox(Language.PYTHON)
 
         try:
@@ -197,11 +194,11 @@ class UserService:
             self.assertIn("Service working!", response.stdout)
 
         finally:
-            manager.release_sandbox(Language.PYTHON, sandbox)
+            manager.dispose(sandbox)
 
     def test_07_java_hello_world(self):
         """Test executing a simple Java program."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox = manager.get_sandbox(Language.JAVA)
 
         try:
@@ -228,11 +225,11 @@ public class Hello {
             self.assertIn("Hello from Java!", run_response.stdout)
 
         finally:
-            manager.release_sandbox(Language.JAVA, sandbox)
+            manager.dispose(sandbox)
 
     def test_08_javascript_hello_world(self):
         """Test executing a simple JavaScript program."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox = manager.get_sandbox(Language.NODE)
 
         try:
@@ -250,11 +247,11 @@ public class Hello {
             self.assertIn("Hello from Node.js!", response.stdout)
 
         finally:
-            manager.release_sandbox(Language.NODE, sandbox)
+            manager.dispose(sandbox)
 
     def test_09_cpp_hello_world(self):
         """Test compiling and executing a simple C++ program."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox = manager.get_sandbox(Language.CPP)
 
         try:
@@ -282,11 +279,11 @@ int main() {
             self.assertIn("Hello from C++!", run_response.stdout)
 
         finally:
-            manager.release_sandbox(Language.CPP, sandbox)
+            manager.dispose(sandbox)
 
     def test_10_concurrent_sandbox_acquisition(self):
         """Test acquiring multiple sandboxes concurrently."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
 
         # Acquire two Python sandboxes
         sandbox1 = manager.get_sandbox(Language.PYTHON)
@@ -298,20 +295,20 @@ int main() {
             self.assertNotEqual(sandbox1.container_ref.id, sandbox2.container_ref.id)
 
             # Both should be in BUSY state
-            self.assertEqual(sandbox1.state, SandboxState.BUSY)
-            self.assertEqual(sandbox2.state, SandboxState.BUSY)
+            self.assertEqual(sandbox1.state, SandboxState.ACTIVE)
+            self.assertEqual(sandbox2.state, SandboxState.ACTIVE)
 
             # Pool should have 2 active sandboxes
             py_pool = manager.language_pools[Language.PYTHON]
             self.assertEqual(len(py_pool.active_sandboxes), 2)
 
         finally:
-            manager.release_sandbox(Language.PYTHON, sandbox1)
-            manager.release_sandbox(Language.PYTHON, sandbox2)
+            manager.dispose(sandbox1)
+            manager.dispose(sandbox2)
 
     def test_11_error_handling_invalid_code(self):
         """Test that sandbox handles invalid code gracefully."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox = manager.get_sandbox(Language.PYTHON)
 
         try:
@@ -329,11 +326,11 @@ int main() {
             self.assertNotEqual(response.stderr, "")
 
         finally:
-            manager.release_sandbox(Language.PYTHON, sandbox)
+            manager.dispose(sandbox)
 
     def test_12_timeout_handling(self):
         """Test that execution respects timeout."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox = manager.get_sandbox(Language.PYTHON)
 
         try:
@@ -353,11 +350,11 @@ int main() {
             self.assertIsNotNone(response)
 
         finally:
-            manager.release_sandbox(Language.PYTHON, sandbox)
+            manager.dispose(sandbox)
 
     def test_13_resource_isolation(self):
         """Test that sandboxes are isolated from each other."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox1 = manager.get_sandbox(Language.PYTHON)
 
         try:
@@ -372,7 +369,7 @@ int main() {
             self.assertIn("secret data", response1.stdout)
 
         finally:
-            manager.release_sandbox(Language.PYTHON, sandbox1)
+            manager.dispose(sandbox1)
 
         # Get a new sandbox (could be the same container after cleanup)
         sandbox2 = manager.get_sandbox(Language.PYTHON)
@@ -385,28 +382,25 @@ int main() {
             self.assertEqual(response2.stdout.strip(), "")
 
         finally:
-            manager.release_sandbox(Language.PYTHON, sandbox2)
+            manager.dispose(sandbox2)
 
     def test_14_pool_replenishment(self):
         """Test that pools automatically replenish after releases."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         py_pool = manager.language_pools[Language.PYTHON]
 
-        initial_idle = len(py_pool.idle_sandboxes)
+        wait_for_idle(py_pool)
 
-        # Acquire and release a sandbox
+        # Acquire and dispose a sandbox
         sandbox = manager.get_sandbox(Language.PYTHON)
-        manager.release_sandbox(Language.PYTHON, sandbox)
+        manager.dispose(sandbox)
 
-        # Wait for replenishment
-        time.sleep(2)
-
-        # Pool should be back to initial state
-        self.assertEqual(len(py_pool.idle_sandboxes), initial_idle)
+        # The monitor replenishes back to pool_size
+        self.assertEqual(wait_for_idle(py_pool), py_pool.config.pool_size)
 
     def test_15_multiple_files_execution(self):
         """Test executing programs with multiple interdependent files."""
-        manager = get_sandbox_manager()
+        manager = current_manager()
         sandbox = manager.get_sandbox(Language.PYTHON)
 
         try:
@@ -438,7 +432,7 @@ def multiply(a, b):
             self.assertIn("Multiply: 28", response.stdout)
 
         finally:
-            manager.release_sandbox(Language.PYTHON, sandbox)
+            manager.dispose(sandbox)
 
 
 class TestSandboxSecurityConstraints(unittest.TestCase):
@@ -447,7 +441,7 @@ class TestSandboxSecurityConstraints(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Get the already initialized sandbox manager."""
-        cls.manager = get_sandbox_manager()
+        cls.manager = current_manager()
 
     def test_network_isolation(self):
         """Test that sandboxes cannot access the network."""
@@ -475,7 +469,7 @@ except Exception as e:
             self.assertIn("Network blocked", response.stdout)
 
         finally:
-            self.manager.release_sandbox(Language.PYTHON, sandbox)
+            self.manager.dispose(sandbox)
 
     def test_file_system_limits(self):
         """Test that file system has size limits."""
@@ -507,7 +501,7 @@ except Exception as e:
             )
 
         finally:
-            self.manager.release_sandbox(Language.PYTHON, sandbox)
+            self.manager.dispose(sandbox)
 
     def test_process_isolation(self):
         """Test that processes run as non-root user."""
@@ -522,7 +516,7 @@ except Exception as e:
             self.assertNotIn("root", response.stdout)
 
         finally:
-            self.manager.release_sandbox(Language.PYTHON, sandbox)
+            self.manager.dispose(sandbox)
 
 
 if __name__ == '__main__':

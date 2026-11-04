@@ -59,7 +59,7 @@ The regression coverage uses the replacement interfaces directly:
 | Close before terminal construction on success and failures; visible cleanup errors | `test_explicit_flow.py` and `test_host_capabilities.py` |
 | Invalid assessment, completed zero, optional feedback failure | `test_terminal_outcome.py` and `test_explicit_flow.py` |
 | Trusted compiled evaluators and repeated runs | `test_compiled_execution.py` and `test_explicit_flow.py` |
-| AI coverage and direct assessment propagation | `test_ai_batch.py` and `tests/integration/test_result_comparator_integration.py` |
+| AI coverage and direct assessment propagation | `test_ai_batch.py` and `tests/integration/test_outcome_comparison_integration.py` |
 | Static parsing, scoped files and normalized commands | `tests/unit/test_evaluator_file_selection.py` and contribution/command integration tests |
 | Host wire contracts and publication retries | `tests/web/` and `tests/unit/github_action/` |
 

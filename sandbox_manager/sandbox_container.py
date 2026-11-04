@@ -3,7 +3,6 @@ import os
 import shlex
 import threading
 import time
-from datetime import datetime
 from typing import Dict, List, Optional, TYPE_CHECKING
 from docker.models.containers import Container
 import requests
@@ -29,19 +28,22 @@ class SandboxContainer:
         self.container_ref = container_ref
         self.port = port
         self.state = SandboxState.IDLE
-        self.last_updated = datetime.now()
-        self.created_at = datetime.now()
+        self.created_at = time.monotonic()
+        self.activated_at: Optional[float] = None
         self._workdir_prepared = False
+        # Disposal bookkeeping, owned by the pool under its lock.
+        self.disposal_attempts = 0
+        self.next_disposal_at = 0.0
+        self.last_disposal_error: Optional[str] = None
 
-    def pickup(self):
-        """Mark sandbox as busy and update timestamp."""
-        self.state = SandboxState.BUSY
-        self.last_updated = datetime.now()
+    def activate(self, now: Optional[float] = None) -> None:
+        """Hand the sandbox to one caller; it is disposed after this use."""
+        self.state = SandboxState.ACTIVE
+        self.activated_at = time.monotonic() if now is None else now
 
-    def release(self):
-        """Mark sandbox as idle and update timestamp."""
-        self.state = SandboxState.IDLE
-        self.last_updated = datetime.now()
+    @property
+    def short_id(self) -> str:
+        return (self.container_ref.id or "")[:12]
 
     @staticmethod
     def _normalize_relative_path(path: str) -> str:

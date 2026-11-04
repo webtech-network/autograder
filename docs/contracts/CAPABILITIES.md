@@ -8,6 +8,8 @@ returns, before file staging. The pipeline closes that session once on every
 subsequent path, then constructs its immutable terminal outcome. Failed
 acquisition transfers nothing. Cleanup errors are logged and preserve a completed
 grade; hosts can inspect their infrastructure logs and dispose their manager.
+The Docker session's `close()` raises when sandbox removal is not confirmed; the
+sandbox stays quarantined in its pool for bounded retry and pool statistics.
 Never publish until the pipeline has returned.
 
 The engine first selects the language, validates required preparation files and
@@ -26,6 +28,34 @@ path. Fixture references remain logical and the supplied resolver returns bytes,
 including empty bytes. Core does not select S3 credentials, Docker managers,
 OpenAI clients, secrets or provider models. Concrete shared host composition lives
 under `execution_host/`.
+
+## Fixture providers
+
+`HostCapabilities.fixtures` is a callable `reference -> bytes`. It receives only
+the logical reference: destination path and read-only mode are placement and are
+applied by `ExecutionSession.stage_fixture`. `b""` is valid content. A provider
+raises `autograder.models.capabilities.FixtureNotFound` when the reference has no
+object; any other exception is a provider failure. Both stop preparation with the
+same safe `capability / PREPARATION_ERROR` outcome; a missing fixture is not
+retryable, a provider failure is. Raw provider errors stay in host logs.
+
+The Docker host composes `execution_host.fixtures.S3FixtureProvider` from
+`EXTERNAL_ASSETS_BUCKET_NAME`, `S3_ENDPOINT_URL`, `AWS_REGION` and
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (`AWS_ACCESS_ID` is accepted as a
+legacy alias). Configuration is captured at host construction; one SDK client is
+created on the first selected fixture and reused. Missing keys (`NoSuchKey`/404)
+are `FixtureNotFound`; missing buckets, access denials, transport errors and an
+unset bucket are provider failures. Deliberate execution `assets` use the same
+host provider.
+
+There is no fixture cache. Every run reads the current object for each reference,
+so distinct references (for example `a/b` and `a_b`) cannot alias, replacing an
+object needs no invalidation, and no process writes cache files. The former
+in-memory/disk cache (`EXTERNAL_ASSETS_IN_MEMORY_CACHE_LIMIT`,
+`/tmp/autograder_assets_cache`) was removed because no measurement established a
+latency or cost benefit; a host that needs one must key it by full provider
+identity (endpoint, bucket, key and object version), write atomically, and
+document invalidation, size and lifetime.
 
 The public `Preparation` model is consumed directly. `runtime_setup` and the
 permissive parallel `SetupConfig` parser have been removed. Definitions continue
@@ -71,8 +101,10 @@ Use it as the HTTP configuration's `definition` and as the Action's
 its submission endpoint; Actions collects it from `submission-root`.
 
 The Actions container can use an accessible sandbox service through
-`SANDBOX_MODE=remote` and `SANDBOX_API_URL`; this avoids requiring a nested Docker
-daemon. Local Docker hosts use `mode="local"` and a sandbox configuration file.
+`SANDBOX_MODE=remote`, `SANDBOX_API_URL` and `SANDBOX_API_TOKEN`; this avoids
+requiring a nested Docker daemon. The control service is private and token
+protected; see [SANDBOX.md](SANDBOX.md) for its lifecycle, owner leases,
+worker model and recovery rules. Local Docker hosts use `mode="local"` and a sandbox configuration file.
 Custom runner implementations implement the same session operations; evaluators
 receive no manager or provider identity. Only evaluators declaring `sandbox_execution`
 or `http_network` receive the session, as `evaluation.session`; every other

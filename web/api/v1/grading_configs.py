@@ -3,7 +3,7 @@
 from datetime import timezone
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from sqlalchemy.exc import IntegrityError
-from web.api.deps import get_db_session, require_integration_token
+from web.api.deps import get_db_session
 from web.repositories import GradingConfigRepository
 from web.schemas.assignment import (
     GradingConfigCreate,
@@ -87,11 +87,7 @@ async def _get(repo, config_id=None, external_id=None):
     return row
 
 
-@router.get(
-    "/id/{config_id}",
-    response_model=GradingConfigResponse,
-    dependencies=[Depends(require_integration_token)],
-)
+@router.get("/id/{config_id}", response_model=GradingConfigResponse)
 async def get_grading_config_by_id(
     config_id: int, response: Response, session=Depends(get_db_session)
 ):

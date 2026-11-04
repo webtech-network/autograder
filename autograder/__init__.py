@@ -6,7 +6,8 @@ from autograder.models.contracts.definition import (
     CompiledDefinition, DefinitionValidationError, GradingDefinition,
     compile_definition, compile_snapshot, grading_definition_json_schema, select_language,
 )
-from autograder.models.contracts.outcome import validate_outcome, outcome_json_schema
+from autograder.models.contracts.outcome import validate_outcome, outcome_json_schema, outcome_score_vector
+from autograder.models.contracts.comparison import ComparisonError, OutcomeComparison, compare_outcomes
 from autograder.models.contracts.catalog import describe_templates
 from autograder.facade import evaluate_submission
 from autograder.models.abstract.template import Template
@@ -21,4 +22,5 @@ __all__ = ["build_pipeline", "compile_definition", "compile_snapshot", "select_l
            "evaluate_submission", "Template", "TestFunction", "AiTestFunction",
            "EvaluationInput", "ParameterIssue", "Submission",
            "SubmissionFile", "TestResult", "HostCapabilities", "ExecutionSession",
-           "ServerSession", "AssessmentProvider"]
+           "ServerSession", "AssessmentProvider", "outcome_score_vector", "compare_outcomes",
+           "OutcomeComparison", "ComparisonError"]
