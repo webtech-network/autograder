@@ -52,6 +52,6 @@ High-quality reports should:
 
 ## Continue reading
 
-- [Pipeline Step: Feedback](../pipeline/07-feedback.md)
+- [Requested feedback](../pipeline/07-feedback.md)
 - [Focus Feature](../features/focus_feature.md)
 - [Educational Criteria Design](../guides/criteria-tree-educational-standards.md)

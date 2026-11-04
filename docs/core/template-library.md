@@ -52,14 +52,9 @@ This means template validation is front-loaded, not deferred to scoring time.
 
 ## Extending templates
 
-To add a built-in template:
-
-1. Implement template and test functions under `autograder/template_library/`.
-2. Register it in `TemplateLibraryService._TEMPLATE_REGISTRY`.
-3. Declare `execute(self, evaluation, *, <parameters>)`. The annotated keyword-only
-   parameters (constraints only via `Annotated[..., Field(...)]`) or an explicit
-   `config_schema` are the contract; field descriptions document the catalog.
-   Evaluator-specific semantic checks go in `validate_parameters`.
+The one recipe for a new evaluator, with runnable static and execution examples,
+is [Adding an evaluator](../architecture/extending.md). A new built-in template
+class is additionally listed in `TemplateLibraryService._TEMPLATE_REGISTRY`.
 
 ## Trusted Python extensions and discovery
 
@@ -84,7 +79,8 @@ for migration, deployment limits and the runnable offline example.
 
 ## Continue reading
 
-- [Pipeline Step: Load Template](../pipeline/01-load-template.md)
+- [Adding an evaluator](../architecture/extending.md)
+- [Compile templates](../pipeline/01-load-template.md)
 - [Input/Output Template](../template-library/input_output.md)
 - [API Testing Template](../template-library/api_testing.md)
 - [Web Development Template](../template-library/web_dev.md)

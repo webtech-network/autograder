@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 from sandbox_manager.errors import ArtifactReadError, ArtifactTooLargeError
 from sandbox_manager.sandbox_container import READ, SandboxContainer
-from sandbox_manager.models.sandbox_models import ExtractedFile
+from autograder.models.execution import ExtractedFile
 from autograder.models.language import Language
 
 

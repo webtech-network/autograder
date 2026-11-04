@@ -12,7 +12,8 @@ from sandbox_manager.errors import ArtifactReadError, RuntimeUnavailableError, S
 from sandbox_manager.language_pool import SandboxUnavailableError
 from autograder.models.process import MAX_STDIN_BYTES, ProcessRequest, ProcessResult, ProcessStatus
 from sandbox_manager.models.api_models import MAX_BODY_BYTES
-from sandbox_manager.models.sandbox_models import DisposalStatus, ExtractedFile, SandboxState
+from autograder.models.execution import ExtractedFile
+from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
 from autograder.models.language import Language
 from tests.unit.sandbox.fakes import Clock
 

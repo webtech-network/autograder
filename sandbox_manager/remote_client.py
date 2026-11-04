@@ -29,7 +29,8 @@ from autograder.models.language import Language
 from autograder.models.process import ProcessRequest, ProcessResult
 from sandbox_manager.errors import ArtifactReadError, RuntimeUnavailableError, SandboxInvalidatedError
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS, ProcessRequestModel, ProcessResultModel
-from sandbox_manager.models.sandbox_models import DisposalStatus, ExtractedFile
+from autograder.models.execution import ExtractedFile
+from sandbox_manager.models.sandbox_models import DisposalStatus
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset

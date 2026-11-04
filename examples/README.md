@@ -16,10 +16,13 @@ cover C, artifacts, AI/static analysis and invalid authoring examples. Old split
 criteria/setup/feedback files were retired; use the explicit offline converter.
 
 Trusted Python examples run offline from the repository root:
-`python -m examples.contracts.custom_evaluator` (a local evaluator),
+`python -m examples.contracts.custom_evaluator` (a static evaluator),
+`python -m examples.contracts.execution_evaluator` (an evaluator that runs the
+program, taught with a fake execution session),
 `python -m examples.contracts.host_provider` (an AI evaluator with a
 host-supplied provider) and `python -m examples.contracts.requested_feedback`
-(the same grade with feedback disabled and enabled).
+(the same grade with feedback disabled and enabled). The recipe they follow is
+[Adding an evaluator](../docs/architecture/extending.md).
 
 For the browser demo, start the API (`uvicorn web.main:app`) and run
 `python examples/demo/serve_demo.py`. Open `http://localhost:8080/demo/`. The demo

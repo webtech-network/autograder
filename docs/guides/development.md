@@ -1,608 +1,186 @@
 # Development Guide
 
-This guide covers everything you need to know to contribute to the Autograder project.
+How to set up, run and test the repository. What each package owns, and which
+package may import which, is described once in
+[Responsibilities and Dependencies](../architecture/overview.md); the
+contributor rules are in `AGENTS.md` at the repository root.
 
-## Table of Contents
+## Prerequisites
 
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Development Setup](#development-setup)
-- [Running Tests](#running-tests)
-- [Adding Features](#adding-features)
-- [Code Style](#code-style)
-- [Contributing](#contributing)
-
-## Getting Started
-
-### Prerequisites
-
-- **Python 3.9+**: Core runtime
-- **Docker & Docker Compose**: For sandbox environments
-- **PostgreSQL**: For web API database (optional)
-- **Git**: Version control
-
-### Clone and Install
+- **Python 3.13** (the version CI uses)
+- **Docker** (sandbox images, integration and end-to-end tests)
+- **PostgreSQL** (web API and `tests/web/`; `docker compose up -d postgres` is enough locally)
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/autograder.git
-cd autograder
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# Install dev dependencies
-pip install pytest pytest-cov black ruff mypy
+make sandbox-build-all        # one image per runtime listed in sandbox_config.yml
 ```
 
-### Build Sandbox Images
-
-```bash
-make build-sandboxes
-```
-
-This builds Docker images for each supported language (Python, Java, JavaScript, C++).
-
-## Project Structure
+## Project structure
 
 ```
-autograder/
-├── autograder/              # Core grading logic
-│   ├── models/             # Data models
-│   │   ├── abstract/       # Abstract base classes
-│   │   ├── config/         # Configuration models
-│   │   ├── dataclass/      # Data classes
-│   │   ├── criteria_tree.py
-│   │   ├── result_tree.py
-│   │   └── pipeline_execution.py
-│   ├── services/           # Business logic
-│   │   ├── assessment.py           # Evaluator execution and the AI batch\n│   │   ├── grading.py              # Builds the canonical result tree
-│   │   ├── focus_service.py        # Focus-based feedback
-│   │   ├── criteria_tree_service.py # Tree construction
-│   │   └── template_library_service.py
-│   │   ├── load_template_step.py
-│   │   ├── build_tree_step.py
-│   │   ├── pre_flight_step.py
-│   │   ├── grade_step.py
-│   │   ├── focus_step.py
-│   │   ├── feedback_step.py
-│   │   └── export_step.py
-│   ├── template_library/   # Built-in templates
-│   │   ├── input_output.py
-│   │   ├── api_testing.py
-│   │   ├── web_dev.py
-│   │   └── custom.py
-│   └── utils/              # Utilities
-│       ├── executors/      # Code execution helpers
-│       ├── formatters/     # Output formatting
-│       └── printers/       # Console output
-├── sandbox_manager/         # Sandbox management
-│   ├── images/             # Dockerfiles for each language
-│   ├── models/             # Sandbox models
-│   ├── manager.py          # Global manager
-│   ├── language_pool.py    # Language-specific pools
-│   └── sandbox_container.py # Container wrapper
-├── web/                     # FastAPI web service
-│   ├── database/           # Database models
-│   ├── repositories/       # Data access layer
-│   ├── schemas/            # API schemas
-│   ├── services/           # Web services
-│   └── main.py             # FastAPI app
-├── github_action/           # GitHub Action integration
-├── tests/                   # Test suite
-│   ├── unit/               # Unit tests
-│   ├── integration/        # Integration tests
-│   └── assets/             # Test fixtures
-└── docs/                    # Documentation
+autograder/          core: contracts, compilation, assessment, grading, feedback
+├── autograder.py         AutograderPipeline.run (the explicit run order)
+├── facade.py             evaluate_submission
+├── models/               contracts/ (definition, outcome, scoring, verification,
+│                         comparison, catalog), abstract/ (TestFunction, Template),
+│                         capabilities, execution and process protocols, language,
+│                         criteria tree
+├── services/             assessment, grading, preparation, file selection,
+│                         feedback/focus/report, template registry
+├── template_library/     built-in evaluators
+└── translations/         en and pt_br messages
+sandbox_manager/     container pools, owner leases, run_process, reclaim, private control API
+execution_host/      HostCapabilities composition (Docker, S3 fixtures, OpenAI)
+web/                 HTTP host: auth, configs, durable jobs, delivery, deliberate execution
+github_action/       Actions host
+examples/            runnable definitions and trusted Python examples
+tests/               unit/, web/, integration/ (Docker), e2e/ (Docker + API process)
+docs/                documentation (contracts/ are normative)
+archive/             historical designs and roadmaps, not current guidance
 ```
 
-## Development Setup
-
-### Environment Variables
-
-Create a `.env` file in the project root:
+## Running the API locally
 
 ```bash
 # Database
-DATABASE_URL=postgresql://user:password@localhost:5432/autograder
+export DATABASE_URL=postgresql+asyncpg://autograder:autograder_password@localhost:5432/autograder
+alembic -c web/alembic.ini upgrade head
 
-# OpenAI (for AI feedback mode)
-OPENAI_API_KEY=your_openai_key_here
+# HTTP trust boundary (docs/contracts/AUTH.md): every protected route needs a bearer token
+export AUTOGRADER_INTEGRATION_TOKEN=change-me-to-a-long-random-secret
 
+# AI evaluators (optional)
+export OPENAI_API_KEY=your_openai_key_here
 
-# Sandbox Configuration (limits live in sandbox_config.yml and
-# sandbox_manager/docker_profile.py)
-SANDBOX_MODE=local
-# Remote mode / docker compose: shared secret for the private control API
-SANDBOX_API_TOKEN=change-me-to-a-long-random-secret
+# Local mode (the web default): the API process owns its sandbox pools directly.
+# Images per language come from the runtimes: map in sandbox_config.yml.
+SANDBOX_MODE=local uvicorn web.main:app --reload --port 8000
 ```
 
-### Database Setup (for Web API)
+Remote mode runs the private sandbox control API as a separate single-worker
+process and requires its shared token ([SANDBOX.md](../contracts/SANDBOX.md)):
 
 ```bash
-# Start PostgreSQL
-docker-compose up -d postgres
-
-# Run migrations
-alembic upgrade head
-
-# Create test data (optional)
-python -m web.scripts.seed_data
+export SANDBOX_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+python -m sandbox_manager &                 # 127.0.0.1:8001, one worker
+SANDBOX_MODE=remote SANDBOX_API_URL=http://127.0.0.1:8001 uvicorn web.main:app --port 8000
 ```
 
-### Start Development Server
+`docker compose up -d --build` (or `make start-autograder`) starts PostgreSQL,
+the API on port 8000 and the sandbox manager on the internal network only.
+API docs are served at http://localhost:8000/docs.
+
+## Running tests
+
+These are the commands CI runs (`.github/workflows/`), from the repository root
+with `PYTHONPATH=.`:
 
 ```bash
-# Start sandbox manager
-docker-compose up -d
-
-# Start FastAPI server
-uvicorn web.main:app --reload --port 8000
+python scripts/generate_contract_schemas.py --check   # checked-in JSON Schemas match the models
+pytest tests/unit/                                    # make test
+TEST_POSTGRES_URL=postgresql+asyncpg://... pytest tests/web/
+make test-integration                                 # real Docker sandboxes
+make test-e2e                                         # API process + Docker
+python scripts/validate_docs.py && mkdocs build --strict   # documentation (requirements-docs.txt)
+pylint <changed .py files>                            # CI lints the files a push changes
 ```
 
-Access API docs at: http://localhost:8000/docs
+`tests/unit/test_architecture.py` checks dependency direction, that discovery and
+the documented examples agree with the registry, and the extension path.
 
-## Running Tests
+## Making changes
 
-### All Tests
+### Adding an evaluator
 
-```bash
-pytest
-```
+Follow [Adding an evaluator](../architecture/extending.md): implementation,
+parameter contract, registration and tests, with runnable static and execution
+examples. A built-in evaluator is registered in its template under
+`autograder/template_library/` (new built-in templates are added to
+`autograder/services/template_library_service.py`); trusted callers pass
+`templates={identifier: instance}` instead.
 
-### Specific Test Categories
+### Adding a language or runtime
 
-```bash
-# Unit tests only
-pytest tests/unit/
+Follow "Change surface" in [LANGUAGES.md](../contracts/LANGUAGES.md): the
+language list lives only in `autograder/models/language.py`; images are host
+configuration (`sandbox_config.yml` `runtimes:`).
 
-# Integration tests only
-pytest tests/integration/
-
-# Specific test file
-pytest tests/unit/services/test_grading.py
-
-# Specific test function
-pytest tests/unit/services/test_grading.py::test_balance_nodes_only_subjects
-```
-
-### With Coverage
-
-```bash
-# Generate coverage report
-pytest --cov=autograder --cov=sandbox_manager --cov=web tests/
-
-# Generate HTML coverage report
-pytest --cov=autograder --cov-report=html tests/
-# Open htmlcov/index.html in browser
-```
-
-### Watch Mode
-
-```bash
-# Install pytest-watch
-pip install pytest-watch
-
-# Run tests on file changes
-ptw
-```
-
-## Adding Features
-
-### Adding a New Template
-
-1. **Create template file** in `autograder/template_library/`:
-
-```python
-# autograder/template_library/my_template.py
-from typing import Annotated
-
-from pydantic import Field
-
-from autograder.models.abstract.template import Template
-from autograder.models.abstract.test_function import EvaluationInput, TestFunction
-from autograder.models.dataclass.test_result import TestResult
-
-
-class MyTestFunction(TestFunction):
-    """Stateless: per-submission state stays in the call."""
-    name = "my_test"
-    description = "Check that the selected file mentions a word."
-
-    def execute(self, evaluation: EvaluationInput, *,
-                word: Annotated[str, Field(min_length=1, description="Word to find")]) -> TestResult:
-        found = any(word in file.content for file in evaluation.files)
-        return TestResult(test_name=self.name, score=100 if found else 0,
-                          report="Found" if found else "Missing")
-
-
-class MyTemplate(Template):
-    template_name = "My template"
-    template_description = "Example template"
-    requires_sandbox = False  # True if code execution is needed
-
-    def __init__(self):
-        self.tests = {"my_test": MyTestFunction()}
-```
-
-2. **Register template** in `TemplateLibraryService`:
-
-```python
-# autograder/services/template_library_service.py
-from autograder.template_library.my_template import MyTemplate
-
-class TemplateLibraryService:
-    def __init__(self):
-        self.templates = {
-            # ...existing templates...
-            "my_template": MyTemplate(),
-        }
-```
-
-3. **Write tests**:
-
-```python
-# tests/unit/test_my_template.py
-from autograder.models.abstract.test_function import EvaluationInput
-from autograder.template_library.my_template import MyTestFunction
-
-def test_my_test_function():
-    test_func = MyTestFunction()
-    result = test_func.execute(EvaluationInput(), word="hello")
-    
-    assert result.score >= 0
-    assert result.report is not None
-```
-
-### Extending grading behavior
-
-Ordinary evaluators implement `TestFunction` or `AiTestFunction`, declare a
-parameter contract, and register in a trusted template. They need no coordinator,
-diagnostic-name or serializer changes.
+### Changing the run order
 
 For cross-cutting execution changes, update the explicit call sequence in
 `autograder/autograder.py`. Pass typed inputs and return values directly.
 Keep required assessment failures separate from optional enrichment failures,
 and close owned sessions before constructing the terminal outcome.
 Do not add step registries or store intermediate artifacts in diagnostic events.
+See [the grading flow](../core/pipeline-architecture.md).
 
-See [the execution architecture and internal migration](../core/pipeline-architecture.md).
+### Changing an HTTP route
 
-### Adding a New API Endpoint
+Routes live in `web/api/v1/`, request/response schemas in `web/schemas/`, and
+the operations they call in `web/service/`. Routes translate HTTP envelopes and
+errors only ([JOBS.md](../contracts/JOBS.md)); every route outside the explicit
+public set (health, readiness, the static catalog) goes through the trust boundary in [AUTH.md](../contracts/AUTH.md). Update
+[API.md](../API.md); `scripts/validate_docs.py` checks it against the routes.
 
-1. **Create route** in `web/`:
+### Commit messages
 
-```python
-# web/routes/my_routes.py
-from fastapi import APIRouter, Depends
-from web.schemas.my_schema import MyRequest, MyResponse
-from web.services.my_service import MyService
-
-router = APIRouter(prefix="/api/v1/my-endpoint", tags=["my-endpoint"])
-
-@router.post("/", response_model=MyResponse)
-async def create_something(
-    request: MyRequest,
-    service: MyService = Depends()
-):
-    result = await service.create(request)
-    return result
-```
-
-2. **Create schema** in `web/schemas/`:
-
-```python
-# web/schemas/my_schema.py
-from pydantic import BaseModel
-
-class MyRequest(BaseModel):
-    name: str
-    value: int
-
-class MyResponse(BaseModel):
-    id: int
-    name: str
-    value: int
-```
-
-3. **Register route** in `web/main.py`:
-
-```python
-# web/main.py
-from web.routes import my_routes
-
-app.include_router(my_routes.router)
-```
-
-## Code Style
-
-### Python Style Guide
-
-We follow PEP 8 with some modifications:
-
-- **Line length**: 100 characters
-- **Quotes**: Double quotes for strings
-- **Type hints**: Required for all functions
-- **Docstrings**: Google style
-
-### Formatting
-
-Use Black for automatic formatting:
-
-```bash
-# Format all files
-black autograder/ sandbox_manager/ web/ tests/
-
-# Check formatting without changes
-black --check autograder/
-```
-
-### Linting
-
-Use Ruff for fast linting:
-
-```bash
-# Lint all files
-ruff check autograder/ sandbox_manager/ web/ tests/
-
-# Auto-fix issues
-ruff check --fix autograder/
-```
-
-### Type Checking
-
-Use mypy for type checking:
-
-```bash
-# Type check all files
-mypy autograder/ sandbox_manager/ web/
-
-# Ignore specific errors
-mypy --ignore-missing-imports autograder/
-```
-
-### Pre-commit Hooks
-
-Install pre-commit hooks:
-
-```bash
-# Install pre-commit
-pip install pre-commit
-
-# Install hooks
-pre-commit install
-
-# Run manually
-pre-commit run --all-files
-```
-
-`.pre-commit-config.yaml`:
-```yaml
-repos:
-  - repo: https://github.com/psf/black
-    rev: 23.3.0
-    hooks:
-      - id: black
-  
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.270
-    hooks:
-      - id: ruff
-        args: [--fix]
-  
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.3.0
-    hooks:
-      - id: mypy
-```
-
-## Contributing
-
-### Contribution Workflow
-
-1. **Fork the repository**
-2. **Create a feature branch**:
-   ```bash
-   git checkout -b feature/my-amazing-feature
-   ```
-3. **Make your changes**
-4. **Write tests**
-5. **Run tests and linting**:
-   ```bash
-   pytest
-   black autograder/
-   ruff check autograder/
-   ```
-6. **Commit with meaningful message**:
-   ```bash
-   git commit -m "feat: add amazing feature"
-   ```
-7. **Push to your fork**:
-   ```bash
-   git push origin feature/my-amazing-feature
-   ```
-8. **Open a Pull Request**
-
-### Commit Message Convention
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-- `feat:` New feature
-- `fix:` Bug fix
-- `docs:` Documentation changes
-- `style:` Code style changes (formatting)
-- `refactor:` Code refactoring
-- `test:` Adding tests
-- `chore:` Build process or tooling changes
-
-Examples:
-```
-feat: add support for Ruby sandbox
-fix: resolve timeout issue in sandbox manager
-docs: update API documentation
-test: add integration tests for grading pipeline
-```
-
-### Pull Request Guidelines
-
-- **Title**: Clear and descriptive
-- **Description**: Explain what and why
-- **Tests**: Include tests for new features
-- **Documentation**: Update docs if needed
-- **Small PRs**: Keep changes focused
-
-### Code Review Process
-
-1. Automated checks must pass (tests, linting)
-2. At least one maintainer approval required
-3. Address review comments
-4. Squash commits if needed
-5. Merge when approved
+Follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`,
+`fix:`, `docs:`, `refactor:`, `test:`, `chore:`). See
+[CONTRIBUTING.md](https://github.com/webtech-network/autograder/blob/main/CONTRIBUTING.md)
+for the issue and pull request workflow.
 
 ## Debugging
 
-### Debug Pipeline Execution
+### Grading runs
 
-```python
-# Add debug logging
-import logging
-logging.basicConfig(level=logging.DEBUG)
+`evaluate_submission(..., observer=events.append)` and `pipeline.run(submission,
+observer=...)` accept an optional observer that receives frozen [diagnostic observations](../architecture/pipeline_execution_tracking.md)
+(no grading data). The terminal outcome's `error` carries a safe code and
+message for failed runs.
 
-# Run pipeline with debug mode
-pipeline = build_pipeline(...)
-result = pipeline.run(submission, debug=True)
-```
-
-### Debug Sandbox Issues
+### Sandboxes
 
 ```bash
-# Check running containers
-docker ps
+# Control API pools, quarantined removals and handle counts (remote mode)
+curl -H "Authorization: Bearer $SANDBOX_API_TOKEN" http://127.0.0.1:8001/stats
 
-# View container logs
+# Sandbox containers with their owner leases and liveness
+python -m sandbox_manager.reclaim
+
+# Logs of one container
 docker logs <container_id>
-
-# Execute commands in container
-docker exec -it <container_id> bash
-
-# Check sandbox manager status
-python -c "
-from sandbox_manager.manager import SandboxManager
-manager = SandboxManager.get_instance()
-print(manager.get_status())
-"
 ```
 
-### Debug Database Issues
+Containers whose owner is not provably dead are never removed automatically;
+see "Owner leases and orphan reclamation" in [SANDBOX.md](../contracts/SANDBOX.md).
+
+### Database
 
 ```bash
-# Connect to database
-docker-compose exec postgres psql -U autograder
-
-# View tables
-\dt
-
-# Query submissions
-SELECT * FROM submissions ORDER BY created_at DESC LIMIT 10;
+docker compose exec postgres psql -U autograder
 ```
 
-## Performance Tips
-
-### Optimize Sandbox Pools
+## Sandbox pool tuning
 
 ```yaml
 # sandbox_config.yml
 general:
-  pool_size: 5          # Increase for high load (per language)
-  scale_limit: 20       # Maximum containers per language
-  idle_timeout: 300     # Keep warm longer
+  pool_size: 5          # warm containers per language
+  scale_limit: 20       # maximum containers per language (quarantined ones count)
+  idle_timeout: 300
 runtimes:               # only listed languages get a pool
   python: sandbox-py:latest
 ```
 
-### Profile Code
-
-```python
-import cProfile
-import pstats
-
-profiler = cProfile.Profile()
-profiler.enable()
-
-# Your code here
-pipeline.run(submission)
-
-profiler.disable()
-stats = pstats.Stats(profiler)
-stats.sort_stats('cumtime')
-stats.print_stats(20)
-```
-
-### Database Query Optimization
-
-```python
-# Use eager loading
-submissions = db.query(Submission)\
-    .options(joinedload(Submission.results))\
-    .all()
-
-# Add indexes
-class Submission(Base):
-    __tablename__ = "submissions"
-    __table_args__ = (
-        Index('idx_assignment_username', 'assignment_id', 'username'),
-    )
-```
-
 ## Troubleshooting
 
-### Common Issues
-
-**Issue**: Sandbox containers won't start
-```bash
-# Check Docker
-docker info
-
-# Rebuild images
-make build-sandboxes
-
-# Check logs
-docker-compose logs
-```
-
-**Issue**: Tests failing
-```bash
-# Clear pytest cache
-pytest --cache-clear
-
-# Run single test with verbose output
-pytest -vv tests/unit/services/test_grading.py::test_specific_test
-```
-
-**Issue**: Import errors
-```bash
-# Reinstall dependencies
-pip install -r requirements.txt --force-reinstall
-
-# Check Python path
-python -c "import sys; print('\n'.join(sys.path))"
-```
-
-## Resources
-
-- **FastAPI Documentation**: https://fastapi.tiangolo.com/
-- **Docker Documentation**: https://docs.docker.com/
-- **Pydantic Documentation**: https://docs.pydantic.dev/
-- **Pytest Documentation**: https://docs.pytest.org/
-
-## Getting Help
-
-- **GitHub Issues**: Report bugs or request features
-- **GitHub Discussions**: Ask questions or share ideas
-- **Code Review**: Request help in pull requests
-- **Documentation**: Check docs/ folder for detailed guides
-
+- **Sandbox containers will not start**: check `docker info`, rebuild images
+  with `make sandbox-build-all`, and confirm the language is listed under
+  `runtimes:` (an unlisted language fails with `RUNTIME_UNAVAILABLE`).
+- **401 from the API**: set `AUTOGRADER_INTEGRATION_TOKEN` and send
+  `Authorization: Bearer <token>`.
+- **Remote sandbox manager refuses to start**: set `SANDBOX_API_TOKEN` (or
+  `SANDBOX_API_ALLOW_UNAUTHENTICATED=true` for local development only).

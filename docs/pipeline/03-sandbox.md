@@ -12,4 +12,9 @@ Cleanup precedes terminal outcome construction. A cleanup exception is logged
 and exposed to an optional diagnostic observer without replacing the grade.
 There is no session reference in the returned envelope or outcome.
 
-See [host capabilities](../contracts/CAPABILITIES.md).
+With the shipped Docker host the session is one sandbox lease: `close` disposes
+it, and an unconfirmed removal is quarantined: the host's manager keeps tracking it
+and retries, while the close error reaches logs and the observer without
+changing the grade.
+See [host capabilities](../contracts/CAPABILITIES.md) and
+[sandbox ownership](../contracts/SANDBOX.md).

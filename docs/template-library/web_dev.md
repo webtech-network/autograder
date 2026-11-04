@@ -19,7 +19,7 @@ Checks if a specific HTML tag appears a minimum number of times.
 | `required_count` | integer | Minimum number of occurrences required |
 
 ```json
-{ "name": "has_tag", "parameters": { "tag": "header", "required_count": 1 }, "weight": 50 }
+{"id": "has-tag", "type": "has_tag", "name": "Has tag", "parameters": {"tag": "header", "required_count": 1}, "weight": 50}
 ```
 
 ---
@@ -33,7 +33,7 @@ Checks for CSS classes in the HTML, with **wildcard support** (e.g., `col-*` mat
 | `required_count` | integer | Minimum total number of matching class occurrences |
 
 ```json
-{ "name": "has_class", "parameters": { "class_names": ["col-*", "container"], "required_count": 3 }, "weight": 50 }
+{"id": "has-class", "type": "has_class", "name": "Has class", "parameters": {"class_names": ["col-*", "container"], "required_count": 3}, "weight": 50}
 ```
 
 ---
@@ -47,7 +47,7 @@ Checks if a specific HTML attribute is present on any tag a minimum number of ti
 | `required_count` | integer | Minimum number of occurrences required |
 
 ```json
-{ "name": "has_attribute", "parameters": { "attribute": "alt", "required_count": 3 }, "weight": 30 }
+{"id": "has-attribute", "type": "has_attribute", "name": "Has attribute", "parameters": {"attribute": "alt", "required_count": 3}, "weight": 30}
 ```
 
 ---
@@ -60,7 +60,7 @@ Checks for a **forbidden** HTML tag and penalizes if found.
 | `tag` | string | The forbidden tag (e.g., `"marquee"`, `"blink"`) |
 
 ```json
-{ "name": "has_forbidden_tag", "parameters": { "tag": "marquee" }, "weight": 100 }
+{"id": "has-forbidden-tag", "type": "has_forbidden_tag", "name": "Has forbidden tag", "parameters": {"tag": "marquee"}, "weight": 100}
 ```
 
 ---
@@ -71,7 +71,7 @@ Verifies that the Bootstrap framework (CSS or JS) is linked in the HTML file.
 *No parameters.*
 
 ```json
-{ "name": "check_bootstrap_linked", "parameters": {}, "weight": 100 }
+{"id": "check-bootstrap-linked", "type": "check_bootstrap_linked", "name": "Check bootstrap linked", "parameters": {}, "weight": 100}
 ```
 
 ---
@@ -159,7 +159,7 @@ Verifies a specific tag is NOT nested inside another specific tag.
 | `parent_tag` | string | The parent tag to check inside |
 
 ```json
-{ "name": "check_tag_not_inside", "parameters": { "child_tag": "div", "parent_tag": "span" }, "weight": 50 }
+{"id": "check-tag-not-inside", "type": "check_tag_not_inside", "name": "Check tag not inside", "parameters": {"child_tag": "div", "parent_tag": "span"}, "weight": 50}
 ```
 
 ---
@@ -183,7 +183,7 @@ Checks if a tag has a specific attribute with a specific value.
 | `value` | string | The expected attribute value |
 
 ```json
-{ "name": "check_attribute_and_value", "parameters": { "tag": "html", "attribute": "lang", "value": "pt-BR" }, "weight": 30 }
+{"id": "check-attribute-and-value", "type": "check_attribute_and_value", "name": "Check attribute and value", "parameters": {"tag": "html", "attribute": "lang", "value": "pt-BR"}, "weight": 30}
 ```
 
 ---
@@ -210,7 +210,7 @@ Checks if a specific CSS property-value pair exists in the stylesheet.
 | `value` | string | Expected value (e.g., `"flex"`) |
 
 ```json
-{ "name": "css_uses_property", "parameters": { "prop": "display", "value": "flex" }, "weight": 50 }
+{"id": "css-uses-property", "type": "css_uses_property", "name": "Css uses property", "parameters": {"prop": "display", "value": "flex"}, "weight": 50}
 ```
 
 ---
@@ -275,7 +275,7 @@ Performs a simple string search to check if a JavaScript feature/keyword is pres
 | `feature` | string | The string to search for (e.g., `"addEventListener"`) |
 
 ```json
-{ "name": "js_uses_feature", "parameters": { "feature": "addEventListener" }, "weight": 50 }
+{"id": "js-uses-feature", "type": "js_uses_feature", "name": "Js uses feature", "parameters": {"feature": "addEventListener"}, "weight": 50}
 ```
 
 ---
@@ -324,7 +324,7 @@ Checks for DOM manipulation method calls in the JavaScript code.
 | `required_count` | integer | Minimum total occurrences |
 
 ```json
-{ "name": "js_uses_dom_manipulation", "parameters": { "methods": ["createElement", "appendChild", "textContent"], "required_count": 5 }, "weight": 60 }
+{"id": "js-uses-dom-manipulation", "type": "js_uses_dom_manipulation", "name": "Js uses dom manipulation", "parameters": {"methods": ["createElement", "appendChild", "textContent"], "required_count": 5}, "weight": 60}
 ```
 
 ---
@@ -371,53 +371,5 @@ Finds CSS classes defined in the stylesheet but not used in HTML, or vice versa.
 
 ## Usage Example
 
-```json
-{
-  "external_assignment_id": "web-portfolio",
-  "template_name": "web_dev",
-  "languages": ["python"],
-  "criteria_config": {
-    "base": {
-      "weight": 100,
-      "subjects": [
-        {
-          "subject_name": "HTML Structure",
-          "weight": 40,
-          "tests": [
-            { "name": "has_tag", "parameters": { "tag": "header", "required_count": 1 }, "weight": 30 },
-            { "name": "has_tag", "parameters": { "tag": "nav", "required_count": 1 }, "weight": 20 },
-            { "name": "uses_semantic_tags", "parameters": {}, "weight": 20 },
-            { "name": "check_all_images_have_alt", "parameters": {}, "weight": 30 }
-          ]
-        },
-        {
-          "subject_name": "CSS Styling",
-          "weight": 35,
-          "tests": [
-            { "name": "check_css_linked", "parameters": {}, "weight": 20 },
-            { "name": "check_flexbox_usage", "parameters": {}, "weight": 30 },
-            { "name": "check_media_queries", "parameters": {}, "weight": 30 },
-            { "name": "uses_relative_units", "parameters": {}, "weight": 20 }
-          ]
-        },
-        {
-          "subject_name": "JavaScript",
-          "weight": 25,
-          "tests": [
-            { "name": "js_uses_feature", "parameters": { "feature": "addEventListener" }, "weight": 50 },
-            { "name": "js_uses_dom_manipulation", "parameters": { "methods": ["createElement", "appendChild"], "required_count": 3 }, "weight": 50 }
-          ]
-        }
-      ]
-    },
-    "penalty": {
-      "weight": -20,
-      "tests": [
-        { "name": "check_no_inline_styles", "parameters": {}, "weight": 50 },
-        { "name": "has_no_js_framework", "parameters": { "html_file": "index.html", "js_file": "script.js" }, "weight": 50 }
-      ]
-    }
-  }
-}
-```
+A complete, schema-checked definition using this template is [`docs/contracts/v1/examples/webdev.json`](../contracts/v1/examples/webdev.json). Bonus and penalty weights are nonnegative caps, and either category may contain subjects as well as tests. Over HTTP, send the definition as `definition` in the configuration envelope (`POST /api/v1/configs`, see [API.md](../API.md)). A snippet above is one criterion; [DEFINITIONS.md](../contracts/DEFINITIONS.md) describes the whole object.
 
