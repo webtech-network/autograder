@@ -379,3 +379,20 @@ other in real containers. `POST /process` replaces `/run` and `/run-batch`, and
 process requests are never replayed. Output and artifact readback are bounded
 where the process runs. See [PROCESSES.md](PROCESSES.md), which also gives the
 migration from the old newline and shell behaviour.
+
+## Bounded outcome text (COR-06)
+
+Process output is bounded where the program runs, but the terminal artifact was
+not. I/O reports copied whole streams, so a flooding program produced about
+1 MiB per criterion. Student behaviour could then deny an Action's publication
+(413) and enlarge HTTP storage. Reports (8 KiB) and feedback (256 KiB) are now
+bounded in UTF-8 bytes by the outcome contract. Local text is excerpted once:
+reports in `grade` and feedback in `render_feedback`. The excerpt is a
+deterministic head and tail with a marker stating the full byte count. Attested
+text above a bound is a typed validation error, never truncated. The worst-case
+outcome is `CompiledDefinition.max_outcome_bytes`, a function of the criteria
+count and of definition-authored text. Compilation keeps snapshot plus outcome
+within 24 MiB. Assessment, scores and schema shape are unchanged; only report
+text above a bound changes. Definitions above the budget (more than about 465
+criteria) now fail with `DEFINITION_TOO_LARGE`, including stored ones when they
+are loaded. See [OUTCOMES.md](OUTCOMES.md#size-bounds).
