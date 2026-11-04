@@ -4,12 +4,16 @@ The assessed tree is the terminal ``ResultOutcomeTree``: every leaf owns its
 criterion ID, evaluator ID, label, file target, canonical parameters, score and
 report as data, with no reference to compiled nodes or evaluator instances.
 Focus, feedback, score vectors and comparison derive from this tree.
+
+This is the one place where locally produced reports are bounded: whatever an
+evaluator (or AI provider) returns, the tree keeps a deterministic excerpt of at
+most ``MAX_REPORT_BYTES``. The score is never affected.
 """
 from typing import Mapping
 
 from pydantic import ValidationError
 
-from autograder.models.contracts.outcome import ResultOutcomeTree
+from autograder.models.contracts.outcome import MAX_REPORT_BYTES, ResultOutcomeTree, bound_text
 from autograder.models.contracts.scoring import (
     categories, child_weights, final_score, holder_score, report_score,
 )
@@ -31,7 +35,8 @@ def grade(criteria: CriteriaTree, results: Mapping[str, TestResult]) -> ResultOu
         result = results[test.criterion_id]
         return result.score, {
             "id": test.criterion_id, "evaluator": test.test_function.name, "type": "test", "name": test.name,
-            "score": report_score(result.score), "weight": weight, "report": result.report,
+            "score": report_score(result.score), "weight": weight,
+            "report": bound_text(result.report, MAX_REPORT_BYTES),
             "file_target": list(test.file_target) if test.file_target is not None else None,
             "parameters": thaw(test.parameters), "metadata": {},
         }
