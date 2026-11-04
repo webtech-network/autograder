@@ -21,7 +21,7 @@ from autograder.models.language import Language
 from autograder.models.locale import Locale
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus, lines_to_stdin, split_command
-from autograder.template_library.input_output import BaseExecutionTest
+from autograder.models.abstract.execution_test import BaseExecutionTest
 
 __all__ = ["build_pipeline", "compile_definition", "compile_snapshot", "select_language", "validate_outcome",
            "grading_definition_json_schema", "outcome_json_schema", "GradingDefinition",

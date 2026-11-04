@@ -20,7 +20,7 @@ fails with `MISSING_LANGUAGE_COMMAND` at `parameters.program_command`. Keys are
 the canonical identifiers only (`python`, `java`, `node`, `cpp`, `c`).
 
 `CMD` uses the one documented default table (`DEFAULT_COMMANDS` in
-`autograder/template_library/input_output.py`):
+`autograder/models/abstract/execution_test.py`, next to `BaseExecutionTest`):
 
 | Language | `CMD` runs |
 | --- | --- |

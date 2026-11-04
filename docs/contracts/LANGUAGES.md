@@ -8,7 +8,7 @@ command or a grammar. Each of those belongs to the component that uses it:
 | Supported identifiers (`python`, `java`, `node`, `cpp`, `c`) | Domain | `autograder/models/language.py` (`Language`, `LANGUAGE_IDS`, `LanguageId`) |
 | Definition schema, submission binding, outcome serialization | Domain contracts | derived from `LanguageId`/`LANGUAGE_IDS`; no other list exists |
 | Language → sandbox image | Host | `runtimes:` in `sandbox_config.yml` (`SandboxPoolConfig.image`) |
-| I/O command (`program_command` string, map or `CMD`) | I/O evaluators | `autograder/template_library/input_output.py` (`DEFAULT_COMMANDS`) |
+| I/O command (`program_command` string, map or `CMD`) | I/O evaluators | `autograder/models/abstract/execution_test.py` (`DEFAULT_COMMANDS`) |
 | Preparation commands | Definition | `preparation.languages.<language>.setup_commands`, selected once per run |
 | File type → grammar, runtime → grammar | Analysis | `autograder/services/structural_analysis.py` (`SOURCE_GRAMMARS`, `RUNTIME_GRAMMARS`) |
 | Which files an evaluator assesses | The evaluator | `TestFunction.accepts_file(filename, language)` |

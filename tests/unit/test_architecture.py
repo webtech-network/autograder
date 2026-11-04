@@ -181,6 +181,14 @@ def test_public_surface_exports_everything_an_evaluator_author_needs():
     assert autograder.BaseExecutionTest.required_capabilities == ("sandbox_execution",)
 
 
+def test_importing_autograder_does_not_build_the_builtin_templates():
+    """``BaseExecutionTest`` is public without importing the template library (a fresh interpreter)."""
+    probe = ("import sys, autograder; "
+             "print(sorted(m for m in sys.modules if m.startswith('autograder.template_library') or m == 'bs4'))")
+    result = subprocess.run([sys.executable, "-c", probe], cwd=ROOT, capture_output=True, text=True, check=True)
+    assert result.stdout.strip() == "[]"
+
+
 @pytest.mark.parametrize("module", [custom_evaluator, execution_evaluator, host_provider], ids=lambda m: m.__name__)
 def test_examples_import_only_from_the_public_autograder_package(module):
     imports = example_imports(module)

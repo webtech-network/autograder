@@ -112,7 +112,13 @@ now report `["http_network"]` instead of `["http_network", "sandbox_execution"]`
 Trusted Python callers build templates as `Template(name, description,
 [evaluator, ...])` instead of subclassing with `tests`, `template_name`,
 `template_description` and `requires_sandbox`, and import authoring types from
-`autograder`. `TemplateLibraryService` is replaced by the read-only
+`autograder`. A subclass that still sets `tests` without calling
+`super().__init__` is rejected as `INVALID_TEMPLATE` by compilation and
+evaluation (discovery raises `TypeError`). Known external readers of the removed
+field: `prisma-infrastructure/docs/grading-contract/v1/build_artifacts.py` and
+`validate_definition.py` read `template.requires_sandbox`; they target the
+legacy deployed image and must switch to evaluator `required_capabilities`
+before they run against this version. `TemplateLibraryService` is replaced by the read-only
 `autograder.template_library.BUILTIN_TEMPLATES` mapping; the package no longer
 re-exports template classes. Definitions, stored snapshots and their hashes are
 unchanged, so no database migration is needed.

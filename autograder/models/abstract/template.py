@@ -31,6 +31,10 @@ class Template:
     def validate_contract(self) -> None:
         """Validate evaluator types, unique identifiers and each evaluator's call shape."""
         from autograder.models.contracts.parameter_contract import check_invocation
+        if not isinstance(getattr(self, "evaluators", None), tuple):
+            # e.g. a subclass written the pre-ONB-08 way: sets ``self.tests`` and skips super().__init__.
+            raise TypeError("Templates must be built with Template(name, description, evaluators); "
+                            "a subclass must call super().__init__ instead of setting a tests dict.")
         seen = set()
         for evaluator in self.evaluators:
             if not isinstance(evaluator, TestFunction):

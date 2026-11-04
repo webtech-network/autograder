@@ -36,6 +36,27 @@ def test_evaluators_are_registered_under_their_own_name():
         template.get_test("missing")
 
 
+class PreOnb08Template(Template):
+    """A subclass written the old way: a ``tests`` dict and no ``super().__init__``."""
+
+    def __init__(self):  # pylint: disable=super-init-not-called
+        self.template_name = "old"
+        self.template_description = "old"
+        self.tests = {"dummy": DummyTest()}
+
+
+def test_template_contract_rejects_a_subclass_that_skips_the_base_constructor():
+    with pytest.raises(TypeError, match=r"super\(\)\.__init__"):
+        PreOnb08Template().validate_contract()
+
+
+def test_template_contract_rejects_evaluators_that_are_not_a_tuple():
+    template = Template("Local", "Local evaluators", [DummyTest()])
+    template.evaluators = [DummyTest()]
+    with pytest.raises(TypeError, match="Template\\(name, description, evaluators\\)"):
+        template.validate_contract()
+
+
 def test_template_contract_rejects_non_test_function_values():
     with pytest.raises(TypeError, match="TestFunction"):
         Template("Local", "Local evaluators", [object()]).validate_contract()

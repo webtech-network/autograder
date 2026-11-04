@@ -146,7 +146,10 @@ capability and supplies the shared steps: `run_program(evaluation,
 program_command, inputs)` runs the bound language's command (a string, a
 language map or `CMD`, checked at compilation) with exact stdin lines, and
 `assessed_failure(result, locale)` returns the assessed zero for a timeout or
-nonzero exit. The built-in I/O evaluators use the same base.
+nonzero exit. The built-in I/O evaluators use the same base. It is defined in
+`autograder/models/abstract/execution_test.py`, so `import autograder` does not
+build the built-in templates. It checks `program_command` at compilation only
+when the evaluator takes that parameter.
 
 `examples/contracts/execution_evaluator.py` teaches this with `FakeSession`, a
 few lines implementing the `ExecutionSession` protocol that answer every process
