@@ -6,6 +6,12 @@ as a positional parameter; nothing supplied by a caller is ever interpolated
 into shell text. The process itself is ``exec``-ed with its exact argument
 vector, its stdin from a staged file and its outputs redirected to files, so
 output is bounded when it is read back rather than buffered by Docker.
+
+Who ended a run is decided from host-side evidence, never from an exit code
+(see ``docs/contracts/PROCESSES.md``): the container's own limit counters, the
+pool's disposal record and Docker's record of how the container stopped. A
+submission that exhausts the sandbox raises :class:`SandboxExhausted`; a host
+that stops or removes it raises :class:`ProcessExecutionError`.
 """
 import base64
 import os
@@ -15,10 +21,14 @@ import uuid
 from typing import Dict, List, Optional, TYPE_CHECKING
 
 import requests
+import docker
 from docker.models.containers import Container
 
 from autograder.models.language import Language
-from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus, decode_output
+from autograder.models.process import (
+    ProcessRequest, ProcessResult, ProcessStatus, SandboxExhausted, decode_output,
+)
+from sandbox_manager.docker_profile import CONTROL_USER
 from sandbox_manager.errors import (
     ArtifactReadError, ArtifactTooLargeError, ProcessExecutionError, SandboxInvalidatedError,
 )
@@ -29,46 +39,63 @@ if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
     from autograder.models.dataclass.submission import SubmissionFile
 
-USER = "sandbox"
+USER = "sandbox"                    # the submission's processes; control runs as CONTROL_USER
 RUN_ROOT = "/tmp/.autograder-run"
 WRITE_CHUNK_BYTES = 48 * 1024       # 64 KiB of base64: well below the kernel's per-argument limit
 INLINE_STDIN_BYTES = 48 * 1024
 CONTROL_TIMEOUT_SECONDS = 60        # staging, termination and readback execs
 KILL_GRACE_SECONDS = 10             # wait for the killed process's exec to return
+STOP_SETTLE_SECONDS = 10            # wait for Docker to record a container that stopped
 DEFAULT_ARTIFACT_BYTES = 1_048_576
 
 # $1 run dir, $2 base64 stdin or "-" when staged; the rest is the exact argv.
+# Runs as the submission's user. Its processes are the kernel's first choice
+# when the container's memory runs out, so control execs are never starved.
 RUNNER = r'''
 d=$1; data=$2; shift 2
 if [ "$data" != - ]; then
   mkdir -p "$d" && printf %s "$data" | base64 -d > "$d/in" || { printf 'autograder:staging-failed\n'; exit 125; }
 fi
+{ printf 1000 > /proc/self/oom_score_adj; } 2>/dev/null
 command -v "$1" >/dev/null 2>&1 || { printf 'autograder:not-found\n'; exit 127; }
 printf 'autograder:started\n'
 exec "$@" < "$d/in" > "$d/out" 2> "$d/err"
 '''
 
-# Terminates every process of the sandbox user except PID 1 (the container's
-# keep-alive) and itself, waits until none is left (zombies are already dead),
-# then reads back at most $2 bytes of each output and removes the run dir.
+# Runs as root, which the submission cannot signal. Kills every non-root
+# process (all of them are the submission's) and waits until none is left
+# (zombies are already dead; PID 1 reaps them). The sweep and the counters
+# below need no fork (a refused ``sleep`` only shortens the wait), so this works
+# even when the submission used up the pids limit. Reports the cgroup's own
+# count of OOM kills and refused forks
+# (cgroup v2 under runc; gVisor has none, and its container stops instead),
+# reads back at most $2 bytes of each output and removes the run dir.
 COLLECT = r'''
 d=$1; n=$2; me=$$
 sweep() {
   left=0
   for p in /proc/[0-9]*; do
     p=${p#/proc/}
-    if [ "$p" = 1 ] || [ "$p" = "$me" ]; then continue; fi
-    read -r s < "/proc/$p/stat" 2>/dev/null || continue
-    s=${s##*) }; s=${s%% *}
-    [ "$s" = Z ] && continue
+    [ "$p" = "$me" ] && continue
+    s=; u=
+    while read -r k v _; do
+      case $k in State:) s=$v ;; Uid:) u=$v; break ;; esac
+    done 2>/dev/null < "/proc/$p/status"
+    if [ -z "$u" ] || [ "$u" = 0 ] || [ "$s" = Z ]; then continue; fi
     kill -9 "$p" 2>/dev/null
     left=$((left + 1))
   done
 }
+count() {
+  c=0
+  while read -r k v; do [ "$k" = "$2" ] && c=$v; done 2>/dev/null < "$1"
+}
 i=0
 sweep
 while [ "$left" -gt 0 ] && [ "$i" -lt 50 ]; do sleep 0.1; sweep; i=$((i + 1)); done
-printf 'survivors %s\n' "$left"
+count /sys/fs/cgroup/memory.events oom_kill; oom=$c
+count /sys/fs/cgroup/pids.events max; forks=$c
+printf 'survivors %s\nlimits %s %s\n' "$left" "$oom" "$forks"
 for s in out err; do
   f="$d/$s"
   if [ -f "$f" ] && [ ! -L "$f" ]; then
@@ -142,6 +169,8 @@ class SandboxContainer:
         self.last_disposal_error: Optional[str] = None
         # Set when the sandbox can no longer be trusted; every later operation fails.
         self.invalidated: Optional[str] = None
+        # Set when the submission exhausted a limit; every later operation raises SandboxExhausted.
+        self.exhausted = False
 
     def activate(self, now: Optional[float] = None) -> None:
         """Hand the sandbox to one caller; it is disposed after this use."""
@@ -154,6 +183,8 @@ class SandboxContainer:
 
     # ----- integrity -----------------------------------------------------------------
     def _check_usable(self) -> None:
+        if self.exhausted:
+            raise SandboxExhausted("The submission exhausted the sandbox's memory or process limit")
         if self.invalidated is not None:
             raise SandboxInvalidatedError(f"The sandbox was invalidated: {self.invalidated}")
 
@@ -161,7 +192,7 @@ class SandboxContainer:
         if self.invalidated is None:
             self.invalidated = reason
 
-    def _control(self, cmd: List[str], *, user: str = USER, workdir: str = "/") -> tuple:
+    def _control(self, cmd: List[str], *, user: str = CONTROL_USER, workdir: str = "/") -> tuple:
         """A bounded internal exec. Failure to complete it invalidates the sandbox."""
         call = _Call(lambda: self.container_ref.exec_run(cmd=cmd, user=user, workdir=workdir, demux=False,
                                                          stdout=True, stderr=True, stdin=False)).start()
@@ -194,7 +225,7 @@ class SandboxContainer:
             raise ValueError(f"Asset target must be under /tmp: {path}")
         return normalized
 
-    def _write_file(self, path: str, content: bytes, *, user: str = USER) -> None:
+    def _write_file(self, path: str, content: bytes, *, user: str) -> None:
         """Write exact bytes in bounded chunks (no size limit from argument length)."""
         chunks = [content[i:i + WRITE_CHUNK_BYTES] for i in range(0, len(content), WRITE_CHUNK_BYTES)] or [b""]
         for index, chunk in enumerate(chunks):
@@ -210,7 +241,7 @@ class SandboxContainer:
         try:
             for submission_file in (submission_files or {}).values():
                 path = self._normalize_relative_path(submission_file.filename)
-                self._write_file(f"/app/{path}", submission_file.content.encode("utf-8"))
+                self._write_file(f"/app/{path}", submission_file.content.encode("utf-8"), user=USER)
         except Exception as e:
             raise RuntimeError(f"Error preparing workdir: {str(e)}") from e
 
@@ -241,11 +272,16 @@ class SandboxContainer:
         before this returns, so nothing from this run reaches the next one; the
         same sweep also ends background processes left by a run that exited.
         If termination cannot be confirmed the sandbox is invalidated.
+
+        Raises :class:`SandboxExhausted` when the submission reached the
+        container's memory or process limit during this run (or an earlier
+        one), and :class:`ProcessExecutionError` when the host stopped or
+        removed the container or could not complete an operation.
         """
         self._check_usable()
         run_dir = f"{RUN_ROOT}-{uuid.uuid4().hex}"
         if len(request.stdin) > INLINE_STDIN_BYTES:
-            self._write_file(f"{run_dir}/in", request.stdin)
+            self._write_file(f"{run_dir}/in", request.stdin, user=USER)
             data = "-"
         else:
             data = base64.b64encode(request.stdin).decode("ascii")
@@ -260,10 +296,8 @@ class SandboxContainer:
         try:
             survivors, outputs = self._collect(run_dir, request.max_output_bytes)
         except ProcessExecutionError:
-            stopped = self._stopped_result(call, finished, duration)
-            if stopped is None:
-                raise
-            return stopped
+            self._attribute_failed_control()
+            raise
         if not finished and not call.join(KILL_GRACE_SECONDS):
             self._invalidate("a timed-out process did not terminate")
             raise ProcessExecutionError("A timed-out process could not be confirmed terminated")
@@ -285,36 +319,61 @@ class SandboxContainer:
         return ProcessResult(ProcessStatus.EXITED, call.result.exit_code, decode_output(stdout, stdout_cut),
                              decode_output(stderr, stderr_cut), stdout_cut, stderr_cut, duration)
 
-    def _stopped_result(self, call: _Call, finished: bool, duration: float) -> Optional[ProcessResult]:
-        """The process's own exit when the whole container stopped under it.
+    def _attribute_failed_control(self) -> None:
+        """Decide from host-side evidence who ended a sandbox whose control exec failed.
 
-        A program can take the container down with it (for example by exhausting
-        the memory limit). Every process is then gone and the sandbox is
-        invalidated, but the exit code the process returned is still its result;
-        its outputs are lost with the container.
+        The pool disposed it (running timeout, shutdown), Docker no longer has it,
+        or a signal stopped its PID 1 (``docker kill``/``stop``): the host ended
+        it, an infrastructure failure. Otherwise Docker reports that the
+        container stopped by itself: the kernel's OOM killer stopped it, or the
+        runtime itself (gVisor's Sentry) could not continue within the
+        container's limits. The submission, which cannot signal PID 1, exhausted
+        it. A container that is still running had a control operation fail.
         """
+        if self.state in (SandboxState.CLOSING, SandboxState.QUARANTINED, SandboxState.DISPOSED):
+            self._invalidate("the host disposed the sandbox")
+            return
         try:
+            self.container_ref.wait(timeout=STOP_SETTLE_SECONDS)
             self.container_ref.reload()
-            running = self.container_ref.status == "running"
+            state = self.container_ref.attrs.get("State") or {}
+        except docker.errors.NotFound:
+            self._invalidate("the sandbox was removed")
+            return
         except Exception:  # pylint: disable=broad-exception-caught
-            running = False  # removed: nothing can still run in it
-        if running or not finished or call.error is not None or call.result is None:
-            return None
-        marker = call.result.output or b""
-        if b"autograder:started" not in marker or call.result.exit_code in (None, 0):
-            return None
-        self._invalidate("the sandbox stopped during a process")
-        return ProcessResult(ProcessStatus.EXITED, call.result.exit_code, duration=duration)
+            self._invalidate("an internal sandbox operation failed")  # still running, or no answer
+            return
+        if state.get("Running", True):
+            self._invalidate("an internal sandbox operation failed")
+            return
+        if not state.get("OOMKilled") and (state.get("ExitCode") or 0) > 128:
+            self._invalidate("the host stopped the sandbox")
+            return
+        self._exhaust()
+
+    def _exhaust(self) -> None:
+        self.exhausted = True
+        raise SandboxExhausted("The submission exhausted the sandbox's memory or process limit")
 
     def _collect(self, run_dir: str, limit: int):
         code, output = self._control(["/bin/sh", "-c", COLLECT, "autograder-collect", run_dir, str(limit)])
         lines = output.decode("ascii", "replace").split("\n")
         try:
-            if code != 0 or not lines[0].startswith("survivors "):
+            if len(lines) < 2 or not lines[0].startswith("survivors ") or not lines[1].startswith("limits "):
                 raise ValueError("unexpected collector output")
             survivors = int(lines[0].split()[1])
+            oom_kills, refused_forks = (int(value) for value in lines[1].split()[1:])
+        except (ValueError, IndexError) as exc:
+            self._invalidate("process output readback failed")
+            raise ProcessExecutionError("Process output could not be read back") from exc
+        if oom_kills or refused_forks:
+            # The container's cgroup recorded the limit; outputs may be unreadable now.
+            self._exhaust()
+        try:
+            if code != 0:
+                raise ValueError("unexpected collector output")
             streams = []
-            for index, name in ((1, "out"), (3, "err")):
+            for index, name in ((2, "out"), (4, "err")):
                 label, size = lines[index].split()
                 if label != name:
                     raise ValueError("unexpected collector output")

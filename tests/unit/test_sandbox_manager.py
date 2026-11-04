@@ -11,11 +11,15 @@ import unittest
 from unittest.mock import Mock, MagicMock, patch
 import base64
 
-from autograder.models.process import ProcessRequest, ProcessStatus
+import docker
+import pytest
+import requests as http
+
+from autograder.models.process import ProcessRequest, ProcessStatus, SandboxExhausted
 from sandbox_manager.errors import (
     ArtifactReadError, ArtifactTooLargeError, ProcessExecutionError, SandboxInvalidatedError,
 )
-from sandbox_manager.sandbox_container import COLLECT, RUNNER, WRITE, SandboxContainer
+from sandbox_manager.sandbox_container import COLLECT, READ, RUNNER, WRITE, SandboxContainer
 from sandbox_manager.models.sandbox_models import SandboxState, HttpResponse
 from autograder.models.language import Language
 from tests.sandbox_profiles import TEST_IMAGES
@@ -48,11 +52,25 @@ class ScriptedContainer:
     """A docker container double that answers the sandbox's fixed scripts."""
 
     def __init__(self, exit_code=0, stdout=b"", stderr=b"", marker=b"autograder:started\n", survivors=0,
-                 run_error=None, hang=False):
+                 run_error=None, hang=False, limits=(0, 0), collect_error=None, state=None, wait_error=None):
         self.exit_code, self.stdout, self.stderr, self.marker = exit_code, stdout, stderr, marker
         self.survivors, self.run_error, self.hang = survivors, run_error, hang
+        self.limits, self.collect_error, self.wait_error = limits, collect_error, wait_error
+        # Docker's record of the container (``State``), consulted only when a control exec fails.
+        self.attrs = {"State": state or {"Status": "running", "Running": True, "OOMKilled": False, "ExitCode": 0}}
         self.calls = []
+        self.waited = 0
         self.id, self.name = "abc123def456", "fake"
+
+    def wait(self, timeout=None):
+        self.waited += 1
+        if self.wait_error:
+            raise self.wait_error
+        return {"StatusCode": self.attrs["State"]["ExitCode"]}
+
+    def reload(self):
+        if isinstance(self.wait_error, docker.errors.NotFound):
+            raise self.wait_error
 
     def exec_run(self, cmd, user=None, workdir=None, **kwargs):
         self.calls.append((cmd, user, workdir))
@@ -65,11 +83,87 @@ class ScriptedContainer:
                 time.sleep(2)
             return Mock(exit_code=self.exit_code, output=self.marker)
         if script == COLLECT:
+            if self.collect_error:
+                raise self.collect_error
+
             def stream(name, data):
                 return f"{name} {len(data)}\n".encode() + base64.b64encode(data[:int(cmd[5])]) + b"\n"
-            return Mock(exit_code=0, output=f"survivors {self.survivors}\n".encode()
-                        + stream("out", self.stdout) + stream("err", self.stderr))
+            header = f"survivors {self.survivors}\nlimits {self.limits[0]} {self.limits[1]}\n".encode()
+            return Mock(exit_code=0, output=header + stream("out", self.stdout) + stream("err", self.stderr))
         return Mock(exit_code=0, output=b"")
+
+
+# ----- who ended the run: host-side evidence, never an exit code (COR-01) -------------
+
+STOPPED = {"Status": "exited", "Running": False}
+
+
+def _run(container, state=SandboxState.ACTIVE):
+    sandbox = SandboxContainer(Language.PYTHON, container)
+    sandbox.state = state
+    try:
+        return sandbox, sandbox.run_process(ProcessRequest(argv=("python3", "main.py")))
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        return sandbox, exc
+
+
+@pytest.mark.parametrize("container, state, outcome", [
+    # The container's cgroup recorded the limit while it kept running (runc).
+    (ScriptedContainer(exit_code=137, limits=(1, 0)), SandboxState.ACTIVE, SandboxExhausted),
+    (ScriptedContainer(hang=True, survivors=3, limits=(0, 12)), SandboxState.ACTIVE, SandboxExhausted),
+    # The container stopped by itself under the submission: OOM, or the runtime (gVisor) could not continue.
+    (ScriptedContainer(exit_code=128, collect_error=OSError("not running"),
+                       state={**STOPPED, "OOMKilled": True, "ExitCode": 137}), SandboxState.ACTIVE, SandboxExhausted),
+    (ScriptedContainer(exit_code=128, collect_error=OSError("not running"),
+                       state={**STOPPED, "OOMKilled": False, "ExitCode": 2}), SandboxState.ACTIVE, SandboxExhausted),
+    # The host ended it: pool disposal (reaper, shutdown), removal, a signal to PID 1, or no answer.
+    (ScriptedContainer(exit_code=137, collect_error=OSError("not running"),
+                       state={**STOPPED, "OOMKilled": True, "ExitCode": 137}), SandboxState.CLOSING, ProcessExecutionError),
+    (ScriptedContainer(exit_code=137, collect_error=OSError("gone"), wait_error=docker.errors.NotFound("gone")),
+     SandboxState.ACTIVE, ProcessExecutionError),
+    (ScriptedContainer(exit_code=137, collect_error=OSError("not running"),
+                       state={**STOPPED, "OOMKilled": False, "ExitCode": 137}), SandboxState.ACTIVE, ProcessExecutionError),
+    (ScriptedContainer(exit_code=137, collect_error=OSError("not running"),
+                       state={**STOPPED, "OOMKilled": False, "ExitCode": 143}), SandboxState.ACTIVE, ProcessExecutionError),
+    (ScriptedContainer(collect_error=OSError("daemon error"), wait_error=http.ReadTimeout("still running")),
+     SandboxState.ACTIVE, ProcessExecutionError),
+], ids=["cgroup-oom-kill", "cgroup-refused-fork", "stopped-oom", "runtime-stopped-itself", "pool-disposed",
+        "removed", "docker-kill", "docker-stop", "running-control-failed"])
+def test_who_ended_the_run_is_decided_from_host_evidence(container, state, outcome):
+    sandbox, raised = _run(container, state)
+    assert type(raised) is outcome, raised  # pylint: disable=unidiomatic-typecheck
+    if outcome is SandboxExhausted:
+        assert sandbox.exhausted and not isinstance(raised, RuntimeError)
+        for later in (lambda: sandbox.run_process(ProcessRequest(argv=("p",))),
+                      lambda: sandbox.extract_file("/app/out.txt"),
+                      lambda: sandbox.prepare_workdir({"a.py": SubmissionFile("a.py", "")})):
+            with pytest.raises(SandboxExhausted):
+                later()
+    else:
+        assert not sandbox.exhausted and sandbox.invalidated is not None
+        with pytest.raises(SandboxInvalidatedError):
+            sandbox.run_process(ProcessRequest(argv=("p",)))
+    if state is not SandboxState.ACTIVE:
+        assert container.waited == 0  # the pool's own disposal record decides first
+
+
+def test_an_exit_code_alone_never_decides():
+    """137 with no limit recorded and a running container is the program's own exit."""
+    sandbox, result = _run(ScriptedContainer(exit_code=137))
+    assert (result.status, result.exit_code) == (ProcessStatus.EXITED, 137)
+    assert not sandbox.exhausted and sandbox.invalidated is None
+
+
+def test_control_execs_run_as_root_and_the_submission_as_sandbox():
+    container = ScriptedContainer()
+    sandbox = SandboxContainer(Language.PYTHON, container)
+    sandbox.prepare_workdir({"a.py": SubmissionFile("a.py", "x")})
+    sandbox.run_process(ProcessRequest(argv=("p",), stdin=b"x" * 60_000))
+    with pytest.raises(ArtifactReadError):  # the double answers READ with nothing
+        sandbox.extract_file("/app/a.py")
+    users = [(call[0][2] if call[0][:2] == ["/bin/sh", "-c"] else call[0][0], call[1]) for call in container.calls]
+    assert users == [(WRITE, "sandbox"), (WRITE, "sandbox"), (WRITE, "sandbox"), (RUNNER, "sandbox"),
+                     (COLLECT, "root"), (READ, "root")]
 
 
 class TestSandboxContainer(unittest.TestCase):
@@ -174,24 +268,6 @@ class TestSandboxContainer(unittest.TestCase):
     def test_unparseable_readback_is_an_execution_error(self):
         container = ScriptedContainer()
         container.exec_run = lambda cmd, **kwargs: Mock(exit_code=0, output=b"autograder:started\n" if cmd[2] == RUNNER else b"garbage")
-        with self.assertRaises(ProcessExecutionError):
-            SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(argv=("p",)))
-
-    def test_container_stopped_under_the_process_keeps_its_exit_and_invalidates(self):
-        container = ScriptedContainer(exit_code=137)
-        container.exec_run_orig = container.exec_run
-
-        def exec_run(cmd, **kwargs):
-            if cmd[2] == COLLECT:
-                raise OSError("container is not running")
-            return container.exec_run_orig(cmd, **kwargs)
-        container.exec_run, container.status, container.reload = exec_run, "exited", lambda: None
-        sandbox = SandboxContainer(Language.PYTHON, container)
-        result = sandbox.run_process(ProcessRequest(argv=("p",)))
-        self.assertEqual((result.status, result.exit_code, result.stdout), (ProcessStatus.EXITED, 137, ""))
-        with self.assertRaises(SandboxInvalidatedError):
-            sandbox.run_process(ProcessRequest(argv=("p",)))
-        container.status = "running"  # a live container whose readback failed is an execution error
         with self.assertRaises(ProcessExecutionError):
             SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(argv=("p",)))
 

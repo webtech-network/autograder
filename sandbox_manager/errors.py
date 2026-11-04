@@ -37,7 +37,9 @@ class SandboxInvalidatedError(RuntimeError):
     """The sandbox can no longer be trusted.
 
     A timed-out process could not be confirmed terminated, an internal exec did
-    not complete, or output readback failed. Every later operation on the
+    not complete, output readback failed, or the host stopped or removed the
+    container. A submission that exhausted the sandbox raises the core
+    ``SandboxExhausted`` instead, never this error. Every later operation on the
     sandbox raises this error until it is disposed. The control API answers
     ``409 SANDBOX_INVALIDATED``.
     """
