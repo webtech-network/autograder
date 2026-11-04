@@ -127,24 +127,43 @@ def test_cleanup_failure_is_observable_without_replacing_the_grade(required_fail
 
 
 def test_feedback_disabled_opens_no_optional_work():
-    with patch("autograder.autograder.FocusService") as focus, \
-         patch("autograder.autograder.ReporterService") as reporter:
-        outcome = build_pipeline(definition=definition()).run(submission()).outcome
+    unavailable = {"side_effect": ImportError("feedback services unavailable")}
+    with patch("autograder.services.feedback.find_focus", **unavailable) as focus, \
+         patch("autograder.services.feedback.render_default_report", **unavailable) as reporter, \
+         patch("autograder.autograder.render_feedback", **unavailable) as render:
+        events = []
+        outcome = build_pipeline(definition=definition()).run(submission(), observer=events.append).outcome
     focus.assert_not_called()
     reporter.assert_not_called()
+    render.assert_not_called()
     assert outcome.feedback.status == "disabled"
+    assert outcome.feedback.content is None and outcome.feedback.error is None
     assert outcome.status == "completed" and outcome.score == 0
+    assert "feedback" not in [event.operation for event in events]
 
 
-@pytest.mark.parametrize("failure", ["focus", "reporter", "empty_content"])
+@pytest.mark.parametrize("failure", ["focus", "reporter", "empty_content", "blank_content", "evaluation_error"])
 def test_optional_feedback_failures_preserve_the_validated_grade(failure):
     pipeline = build_pipeline(definition=definition(feedback=True))
-    target = "autograder.autograder.FocusService.find" if failure == "focus" else "autograder.autograder.ReporterService.generate_feedback"
-    with patch(target, **({"return_value": None} if failure == "empty_content" else {"side_effect": RuntimeError("secret")})):
-        outcome = pipeline.run(submission("print(1)")).outcome
+    target, effect = {
+        "focus": ("autograder.services.feedback.find_focus", {"side_effect": RuntimeError("secret")}),
+        "reporter": ("autograder.services.feedback.render_default_report", {"side_effect": RuntimeError("secret")}),
+        "empty_content": ("autograder.services.feedback.render_default_report", {"return_value": None}),
+        "blank_content": ("autograder.services.feedback.render_default_report", {"return_value": "  "}),
+        "evaluation_error": ("autograder.services.feedback.find_focus", {"side_effect": EvaluationError(
+            "SECRET_CODE", "secret", "provider", True)}),
+    }[failure]
+    events = []
+    with patch(target, **effect):
+        outcome = pipeline.run(submission("print(1)"), observer=events.append).outcome
     assert outcome.status == "completed" and outcome.score == 100
-    assert outcome.feedback.status == "failed"
-    assert "secret" not in outcome.model_dump_json()
+    assert outcome.tree.base.tests[0].score == 100
+    assert outcome.feedback.status == "failed" and outcome.feedback.content is None
+    assert outcome.feedback.error.code == "FEEDBACK_ERROR"
+    assert outcome.feedback.error.message == "Feedback could not be generated."
+    assert outcome.feedback.error.correlation_id == outcome.execution_id
+    assert "secret" not in outcome.model_dump_json().lower()
+    assert (events[-1].operation, events[-1].status) == ("feedback", "failed")
 
 
 def test_repeated_runs_do_not_retain_artifacts_or_rebuild_the_compiled_tree():
@@ -169,7 +188,7 @@ def test_invalid_result_snapshot_fails_before_feedback_and_still_closes():
         "setup_commands": [{"name": "prepare", "command": "prepare"}]}}})
     pipeline = build_pipeline(definition=value, capabilities=HostCapabilities(execution=lambda language: owned))
     with patch("autograder.services.grading.final_score", return_value=101.0), \
-         patch("autograder.autograder.FocusService") as focus:
+         patch("autograder.autograder.render_feedback") as focus:
         outcome = pipeline.run(submission()).outcome
     assert outcome.error.code == "INVALID_EVALUATOR_RESULT"
     assert outcome.score is None and outcome.tree is None

@@ -318,3 +318,21 @@ The previous focus traversal applied a mixed group's `subjects_weight` twice
 when ranking feedback; the shared share calculation corrects that ordering.
 Tree, scores and v1 wire shape are unchanged (real-container golden in
 `tests/integration/test_canonical_outcome_golden.py`).
+
+## Requested feedback (ARC-12)
+
+Feedback is an optional derivation of a completed grade. The coordinator calls
+`render_feedback(tree, definition.feedback.preferences, locale)` only when
+`feedback.enabled` is true; disabled feedback performs no focus or report work
+and stays `disabled` even if those services are unavailable. Any exception or
+empty content becomes `failed` with `FEEDBACK_ERROR`, preserving the grade.
+
+Rendering uses the definition's canonical `FeedbackPreferences` directly: there is
+no second preference dataclass, no `online_content` rewriting and no stored
+locale-dependent defaults, so repeated rendering is pure. The impact-ordering
+helper (`find_focus`) and formatter are kept; the reporter factory
+(`ReporterService`), the unimplemented AI reporter and its preferences, the
+unused `PreflightError` and the unused report translation keys are removed. The
+legacy pre-flight feedback generator and pipeline execution serializer were
+already deleted with the step framework (#396) and had no remaining callers.
+Feedback `mode` stays `"default"` in the v1 schema.

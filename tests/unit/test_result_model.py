@@ -242,13 +242,13 @@ def test_traversal_order_is_shared():
 
 def test_focus_impact_applies_each_effective_weight_once():
     """Regression: the old focus traversal applied a mixed group's subjects_weight twice."""
-    from autograder.services.focus_service import FocusService  # pylint: disable=import-outside-toplevel
+    from autograder.services.focus_service import find_focus  # pylint: disable=import-outside-toplevel
     _, outcome = run({"subjects": [
         s("Program", 3, tests=[t("program", 0)]),
         s("Quality", 1, subjects_weight=60, subjects=[s("Imports", 1, tests=[t("imports", 0)])],
           tests=[t("artifact", 0)]),
     ]})
-    focus = FocusService().find(outcome.tree)
+    focus = find_focus(outcome.tree)
     # Shares of the final score: 75, 25*0.6 = 15 and 25*0.4 = 10 (previously 9 and 4).
     assert [(item.test_result.id, pytest.approx(item.diff_score)) for item in focus.base] == [
         ("program", 75), ("imports", 15), ("artifact", 10)]

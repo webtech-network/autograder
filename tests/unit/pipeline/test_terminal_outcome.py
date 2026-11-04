@@ -103,7 +103,7 @@ def test_invalid_language_becomes_explicit_failed_outcome(language,languages,cod
 
 def test_feedback_failure_preserves_completed_grade_and_sanitizes_message():
     pipeline = build_pipeline(definition=definition(feedback=True))
-    with patch('autograder.services.report.reporter_service.ReporterService.generate_feedback', side_effect=RuntimeError('secret')):
+    with patch('autograder.services.feedback.render_default_report', side_effect=RuntimeError('secret')):
         execution = pipeline.run(submission('print(1)'))
     assert execution.outcome.score == 100
     assert execution.outcome.status == 'completed'

@@ -94,6 +94,10 @@ IDs. There is no provider retry fallback or silent zero for missing assessments.
 `assess_many` (one `AssessmentProvider.assess` call, ID-keyed, shared validation for
 any group size); the grader only aggregates the merged ID-keyed results.
 
+Feedback is requested: only `feedback.enabled` calls `render_feedback(tree,
+preferences, locale)` (focus + the one `default` Markdown report, reading the
+canonical preferences); disabled feedback does no work and stays `disabled`.
+
 Required failures produce null score/tree. Student compilation/runtime/timeout
 reported during evaluator assessment can produce a valid zero. Preparation
 failures stop before assessment. Optional focus/feedback/comparison failures

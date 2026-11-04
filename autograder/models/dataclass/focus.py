@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional, Tuple
 
 from autograder.models.contracts.outcome import TestOutcome
 
@@ -13,7 +13,7 @@ class FocusedTest:
 
 @dataclass(frozen=True)
 class Focus:
-    """Prioritized criteria by category (base, penalty, bonus)."""
-    base: List[FocusedTest]
-    penalty: Optional[List[FocusedTest]]
-    bonus: Optional[List[FocusedTest]]
+    """Criteria per category (base, penalty, bonus), most points lost first."""
+    base: Tuple[FocusedTest, ...]
+    penalty: Optional[Tuple[FocusedTest, ...]]
+    bonus: Optional[Tuple[FocusedTest, ...]]

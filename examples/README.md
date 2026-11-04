@@ -15,6 +15,12 @@ The [contract fixtures](../docs/contracts/DEFINITIONS.md#examples-and-errors) al
 cover C, artifacts, AI/static analysis and invalid authoring examples. Old split
 criteria/setup/feedback files were retired; use the explicit offline converter.
 
+Trusted Python examples run offline from the repository root:
+`python -m examples.contracts.custom_evaluator` (a local evaluator),
+`python -m examples.contracts.host_provider` (an AI evaluator with a
+host-supplied provider) and `python -m examples.contracts.requested_feedback`
+(the same grade with feedback disabled and enabled).
+
 For the browser demo, start the API (`uvicorn web.main:app`) and run
 `python examples/demo/serve_demo.py`. Open `http://localhost:8080/demo/`. The demo
 loads the same checked-in definitions, creates canonical configuration envelopes,

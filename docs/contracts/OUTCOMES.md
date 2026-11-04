@@ -42,6 +42,7 @@ pipeline diagnostics are not public result fields.
 | Evaluator returns an invalid numeric grade | Failed, no score | internal / INVALID_EVALUATOR_RESULT |
 | Unexpected required operation exception | Failed, no score | internal / EXECUTION_ERROR |
 | Optional focus or feedback fails | Completed, original grade preserved | feedback.error / FEEDBACK_ERROR |
+| Feedback disabled (even if feedback services would fail) | Completed; no focus or report work | feedback.status = disabled |
 | Externally attested comparison enrichment fails | Completed, original grade preserved | host-attested comparison.error |
 | On-demand baseline comparison cannot be computed | Stored outcomes unchanged | HTTP 409/422 response only (see below) |
 | Persistence/publication fails after finalization | Original artifact remains completed or failed | Adapter delivery failure, outside the grading outcome |
