@@ -6,6 +6,12 @@ The Web Development template provides test functions for validating HTML, CSS, a
 > **Requires sandbox:** No  
 > **File types:** HTML, CSS, JavaScript
 
+Each selected HTML file is parsed once per grading and the tree is shared by
+every criterion over that file (`web_dev/documents.py`). The tree lives only as
+long as the grading's submission file; nothing is cached across submissions.
+Evaluators that read HTML call `parsed_html(file)` and must treat the result as
+read-only.
+
 ---
 
 ## HTML Tests

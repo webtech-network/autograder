@@ -1,11 +1,12 @@
 import re
-from typing import Annotated, List
-from bs4 import BeautifulSoup
+from typing import Annotated, List, Optional
 
 from pydantic import Field
 
 from autograder.models.abstract.test_function import EvaluationInput, TestFunction
+from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
+from autograder.template_library.web_dev.documents import parsed_html
 from autograder.translations import t
 
 
@@ -46,11 +47,11 @@ class CountUnusedCssClasses(TestFunction):
                 css_classes.add(groups[5][1:])
         return css_classes
 
-    def _extract_html_classes(self, html_content: str) -> set:
-        """Extracts class names from the HTML content."""
+    def _extract_html_classes(self, html: Optional[SubmissionFile]) -> set:
+        """Extracts class names from the HTML file."""
         used_classes = set()
-        if html_content:
-            soup = BeautifulSoup(html_content, "html.parser")
+        if html is not None and html.content:
+            soup = parsed_html(html)
             for el in soup.find_all(class_=True):
                 for cls in el.get("class", []):
                     used_classes.add(cls)
@@ -62,9 +63,10 @@ class CountUnusedCssClasses(TestFunction):
                 ) -> TestResult:
         """Executes the unused CSS class verification."""
         files = evaluation.files
-        submission_files = {file.filename: file.content for file in files or []}
-        html_content = submission_files.get(html_file, "")
-        css_content = submission_files.get(css_file, "")
+        submission_files = {file.filename: file for file in files or []}
+        html = submission_files.get(html_file)
+        html_content = html.content if html is not None else ""
+        css_content = submission_files[css_file].content if css_file in submission_files else ""
         
         if not html_content and not css_content:
             return TestResult(
@@ -74,7 +76,7 @@ class CountUnusedCssClasses(TestFunction):
             )
 
         css_classes = self._extract_css_classes(css_content)
-        used_classes = self._extract_html_classes(html_content)
+        used_classes = self._extract_html_classes(html)
         
         html_found, css_found = bool(html_content), bool(css_content)
         if html_found and css_found:
