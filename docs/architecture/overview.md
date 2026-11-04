@@ -3,7 +3,7 @@
 This is the one current map of who owns what. It describes the code as
 implemented; the [integration contracts](../contracts/DECISIONS.md) are the
 normative versions of each boundary, and this page links to them instead of
-repeating their schemas. Pages under `archive/` are historical.
+repeating their schemas.
 
 ## Dependency direction
 
@@ -115,6 +115,3 @@ implemented and must not be described as current behavior:
 - Feedback has one mode (`default`); there is no AI report mode.
 - Fixtures are not cached; any future cache must meet the identity and
   invalidation rules in [CAPABILITIES.md](../contracts/CAPABILITIES.md).
-
-Older designs (step pipelines, pre-flight steps, result wrappers, serializer
-outputs, roadmaps) are kept under `archive/` as history only.

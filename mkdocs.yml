@@ -54,7 +54,7 @@ nav:
       - Decisions: contracts/DECISIONS.md
   - Home: index.md
   - Getting Started:
-      - Run Your First Grading Workflow: getting-started/mkdocs-local-development.md
+      - Run Your First Grading Workflow: getting-started/first-grading-workflow.md
       - Development Guide: guides/development.md
   - Core Concepts:
       - Pipeline Architecture: core/pipeline-architecture.md
@@ -106,7 +106,5 @@ nav:
       - Program Commands: features/program_commands.md
       - Localization: features/localization.md
   - Guides:
-      - Development Guide: guides/development.md
-      - Docs Site Development: guides/docs-site-development.md
       - Criteria Configuration Examples: guides/criteria_configuration_examples.md
       - GitHub Module (legacy): guides/github_module.md
