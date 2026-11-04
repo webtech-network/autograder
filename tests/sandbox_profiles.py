@@ -1,7 +1,7 @@
 """Host runtime profiles used by tests that start a real sandbox host."""
 from autograder.models.language import Language
 
-#: Images built by the repository's sandbox Dockerfiles (``make build-sandboxes``).
+#: Images built by the repository's sandbox Dockerfiles (``make sandbox-build-all``).
 TEST_IMAGES = {Language.PYTHON: "sandbox-py:latest", Language.JAVA: "sandbox-java:latest",
                Language.NODE: "sandbox-node:latest", Language.CPP: "sandbox-cpp:latest",
                Language.C: "sandbox-cpp:latest"}
