@@ -52,3 +52,5 @@ This documentation is organized to be both practical for first-time users and de
 | Integration contracts | [contracts/DECISIONS.md](contracts/DECISIONS.md) |
 | Features | [features/grading_engine.md](features/grading_engine.md) |
 | Development setup | [guides/development.md](guides/development.md) |
+
+See the [missing page](does-not-exist.md).

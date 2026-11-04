@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 7. Expose the port the API runs on
+RUN false  # THROWAWAY broken image build
 EXPOSE 8000
 
 # 8. Define the command to run the API
