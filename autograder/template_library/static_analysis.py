@@ -24,6 +24,7 @@ class ForbiddenImportTest(TestFunction):
     Performs static analysis on submission file contents using language-aware
     regex patterns. Supports Python, Java, JavaScript/Node, C and C++.
     """
+    absence_check = "Prohibition: passes while none of the forbidden libraries is imported."
 
     minimum_files = 1
 
@@ -89,17 +90,11 @@ class ForbiddenImportTest(TestFunction):
                     break
         return violations
 
-    def execute(self, evaluation: EvaluationInput, *, forbidden_imports: Annotated[List[str], Field(
-            default_factory=list, description=t("static_analysis.forbidden_import.params.libraries"))]) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *, forbidden_imports: Annotated[
+            List[Annotated[str, Field(min_length=1)]],
+            Field(min_length=1, description=t("static_analysis.forbidden_import.params.libraries"))]) -> TestResult:
         locale = evaluation.locale
         files = evaluation.files
-        if not forbidden_imports:
-            return TestResult(
-                test_name=self.name,
-                score=100.0,
-                report=t("static_analysis.forbidden_import.report.no_imports", locale=locale)
-            )
-
         language = evaluation.language
 
         if language is None:
@@ -160,6 +155,7 @@ class ForbiddenKeywordTest(TestFunction):
     Tests that a submission does NOT use any of the specified forbidden
     keywords or language constructs.
     """
+    absence_check = "Prohibition: passes while none of the forbidden constructs is used."
 
     minimum_files = 1
 
@@ -196,6 +192,7 @@ class ForbiddenKeywordTest(TestFunction):
     }
     supported_languages = [language.value for language in PREDEFINED_RULES]
     required_capabilities = ("structural_analysis",)
+    example_parameters = {"forbidden_keywords": ["for_loop"]}
 
     @property
     def name(self):
@@ -211,7 +208,10 @@ class ForbiddenKeywordTest(TestFunction):
 
     def validate_parameters(self, parameters: Dict[str, Any], *,
                             languages: Tuple[str, ...]) -> Iterable[ParameterIssue]:
-        """Keywords and custom rules must work for every allowed language."""
+        """At least one keyword or custom rule, each working for every allowed language."""
+        if not parameters['forbidden_keywords'] and not parameters['custom_ast_grep_rules']:
+            yield ParameterIssue('EMPTY_FORBIDDEN_LIST', ('forbidden_keywords',),
+                                 'Name at least one forbidden keyword or custom ast-grep rule')
         for index, keyword in enumerate(parameters['forbidden_keywords']):
             if any(keyword not in self.PREDEFINED_RULES.get(Language(language), {}) for language in languages):
                 yield ParameterIssue('UNSUPPORTED_KEYWORD', ('forbidden_keywords', index),
@@ -233,13 +233,6 @@ class ForbiddenKeywordTest(TestFunction):
         locale = evaluation.locale
         files = evaluation.files
         submission_language = evaluation.language
-
-        if not forbidden_keywords and not custom_ast_grep_rules:
-            return TestResult(
-                test_name=self.name,
-                score=100.0,
-                report=t("static_analysis.forbidden_keyword.report.no_rules", locale=locale)
-            )
 
         if submission_language is None:
             raise EvaluationError("LANGUAGE_REQUIRED", "A language is required for structural assessment.", "submission")

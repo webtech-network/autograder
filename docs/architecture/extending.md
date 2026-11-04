@@ -57,6 +57,12 @@ at compilation and returns `ParameterIssue`s. File needs are class attributes
 (`file_extensions`, `minimum_files`, `uses_context_files`, `accepts_file`); see
 [FILES.md](../contracts/FILES.md).
 
+A criterion must not pass a submission just because the author omitted a
+parameter: give presence thresholds a default of at least 1 (`ge=1`) and make
+lists of things to find or forbid nonempty (`min_length=1`). A prohibition or
+limit check, which passes when what it looks for is absent, sets the class
+attribute `absence_check` to the reason; the catalog publishes it.
+
 ## 3. Register it
 
 Put the instance in a trusted `Template`'s `tests` dict under its `name`, then
@@ -71,7 +77,9 @@ supported. Reference the evaluator as a criterion `type`, with a distinct `id`.
 Test the evaluator by calling `execute` with an explicit `EvaluationInput`, and
 test the registration by compiling and grading a definition, as the examples'
 tests do. For built-in evaluators, `tests/unit/test_catalog.py` already checks
-that discovery and compilation agree; nothing else needs registering.
+that discovery and compilation agree, and `tests/unit/test_non_vacuous_criteria.py`
+checks that, with only its required parameters, no presence check passes an
+irrelevant project; nothing else needs registering.
 
 ## Evaluators that run code
 

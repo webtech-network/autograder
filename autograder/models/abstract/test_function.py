@@ -76,6 +76,11 @@ class TestFunction(ABC):
     supported_languages: Optional[List[str]] = None
     #: Optional catalog example; otherwise required fields are synthesized from config_schema.
     example_parameters: Optional[Dict[str, Any]] = None
+    #: Why a prohibition or limit check passes when what it looks for is absent.
+    #: ``None`` declares a presence check: with only its required parameters it
+    #: must not pass an irrelevant submission, so presence thresholds default to
+    #: at least one and lists of things to find or forbid are nonempty.
+    absence_check: Optional[str] = None
 
     @property
     def config_schema(self) -> Type[BaseModel]:

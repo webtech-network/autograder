@@ -60,7 +60,7 @@ network access or credentials and is not an availability/health endpoint.
 | Model | Fields |
 | --- | --- |
 | TemplateDescription | `identifier`, display `name`, `description`, `requires_sandbox`, `evaluators` |
-| EvaluatorDescription | `identifier`, `description`, `parameters_schema`, `sample_parameters`, `required_capabilities`, `supported_languages`, `requires_sandbox` |
+| EvaluatorDescription | `identifier`, `description`, `parameters_schema`, `sample_parameters`, `required_capabilities`, `supported_languages`, `requires_sandbox`, `absence_check` |
 
 `identifier` is the actual registry key accepted as a template or criterion `type`.
 `parameters_schema` is generated from the evaluator's `config_schema` (explicit
@@ -79,6 +79,12 @@ contains known canonical language constraints (`python`, `java`, `node`, `cpp`,
 `c`), derived from the static evaluators' language maps. Null means no declared
 evaluator-specific restriction; it does not promise host execution support.
 There is no duplicate evaluator prose or parameter-schema registry.
+
+`absence_check` is the evaluator's `absence_check` attribute: for a prohibition
+or limit check (`has_forbidden_tag`, `forbidden_import`, `count_global_vars`, ...)
+it says why the evaluator passes when what it looks for is absent. It is null
+for presence checks, which cannot pass an irrelevant submission with only their
+required parameters (see [DEFINITIONS.md](DEFINITIONS.md)).
 
 The finite built-in catalog is returned in full; there is no pagination or
 user-uploaded catalog storage. Python discovery may merge trusted local instances
