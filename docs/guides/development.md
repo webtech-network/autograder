@@ -24,8 +24,11 @@ make verify                   # hermetic check: no Docker, no database
 
 CI ([`verify.yml`](https://github.com/webtech-network/autograder/blob/main/.github/workflows/verify.yml))
 runs exactly these targets on every pull request and on `main`, and deploys the
-API only after all of them pass for that commit. Run the same command locally
-before opening a pull request.
+API only after all of them pass for that commit and only while it is still
+the head of `main`. Run the same command locally
+before opening a pull request. `make verify` stops at the first failing step;
+`make -k verify` runs every step and reports all failures. `make lint` fails on
+any pylint error (`fail-on` in `.pylintrc`), whatever the repository score.
 
 | Command | Needs | Runs |
 | --- | --- | --- |

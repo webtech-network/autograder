@@ -4,9 +4,10 @@ The source of truth for HTTP requests and responses is the [generated OpenAPI
 document](v1/openapi.json). The [definition](v1/grading-definition.schema.json)
 and [terminal outcome](v1/terminal-outcome.schema.json) schemas are generated from
 the same typed Python models. All three use contract version `1.0`; run
-`PYTHONPATH=. python scripts/generate_contract_schemas.py --check` after changing
-their models. CI runs this check and the conformance tests. Regenerate with the
-same command without `--check` when a model intentionally changes.
+`make contracts` after changing their models. CI runs this check and the
+conformance tests. Regenerate with
+`PYTHONPATH=. python scripts/generate_contract_schemas.py` when a model
+intentionally changes.
 
 ## HTTP: validate, create, submit, poll
 
