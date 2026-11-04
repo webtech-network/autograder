@@ -16,13 +16,14 @@ from pathlib import Path
 
 import pytest
 
+import autograder
 from autograder import (
     DefinitionValidationError, HostCapabilities, Submission, SubmissionFile, compile_definition,
     describe_templates, evaluate_submission,
 )
 from autograder.models.process import ProcessResult, ProcessStatus
-from autograder.services.template_library_service import TemplateLibraryService
-from examples.contracts import custom_evaluator, execution_evaluator
+from autograder.template_library import BUILTIN_TEMPLATES
+from examples.contracts import custom_evaluator, execution_evaluator, host_provider
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -78,8 +79,8 @@ def test_importing_every_core_module_loads_no_host_or_provider_package():
 
 # --- Discovery and the documented examples agree with the registry ---------------
 
-EXAMPLE_TEMPLATES = {"trusted_text": custom_evaluator.TrustedTextTemplate(),
-                     "program_checks": execution_evaluator.ProgramTemplate()}
+EXAMPLE_TEMPLATES = {"trusted_text": custom_evaluator.TEMPLATE,
+                     "program_checks": execution_evaluator.TEMPLATE}
 
 
 def test_catalog_describes_the_example_evaluators_from_their_own_contracts():
@@ -149,13 +150,33 @@ def example_imports(module):
         if isinstance(node, ast.ImportFrom) and node.module}
 
 
-@pytest.mark.parametrize("module", [custom_evaluator, execution_evaluator], ids=lambda m: m.__name__)
-def test_examples_use_only_public_contracts_and_no_engine_internals(module):
+#: What an evaluator author needs, importable from ``autograder`` alone (ONB-08).
+AUTHORING_SURFACE = {
+    "Template", "TestFunction", "AiTestFunction", "EvaluationInput", "ParameterIssue", "TestResult",
+    "Submission", "SubmissionFile", "Language", "HostCapabilities", "ExecutionSession", "ServerSession",
+    "EvaluationError", "ProcessRequest", "ProcessResult", "ProcessStatus", "lines_to_stdin", "split_command",
+    "BaseExecutionTest",
+}
+
+
+def test_public_surface_exports_everything_an_evaluator_author_needs():
+    assert AUTHORING_SURFACE <= set(autograder.__all__)
+    assert len(autograder.__all__) == len(set(autograder.__all__))
+    for name in autograder.__all__:
+        assert getattr(autograder, name) is not None, name
+    assert autograder.BaseExecutionTest.required_capabilities == ("sandbox_execution",)
+
+
+@pytest.mark.parametrize("module", [custom_evaluator, execution_evaluator, host_provider], ids=lambda m: m.__name__)
+def test_examples_import_only_from_the_public_autograder_package(module):
     imports = example_imports(module)
     assert not imports & HOST_AND_PROVIDER_MODULES
-    internal = {name for name in imports
-                if name.startswith(("autograder.services", "autograder.autograder", "autograder.template_library"))}
-    assert internal == set()
+    # Nothing under autograder.models, autograder.services, autograder.template_library or any other submodule.
+    assert {name for name in imports if name.startswith("autograder.")} == set()
+    tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
+    names = {alias.name for node in ast.walk(tree)
+             if isinstance(node, ast.ImportFrom) and node.module == "autograder" for alias in node.names}
+    assert names and names <= set(autograder.__all__)
 
 
 def test_static_evaluator_needs_no_capability_and_opens_no_session():
@@ -164,13 +185,13 @@ def test_static_evaluator_needs_no_capability_and_opens_no_session():
     acquired = []
     outcome = evaluate_submission(
         Submission("local", "local", "x", {"index.html": SubmissionFile("index.html", "Hello")}),
-        definition=custom_evaluator.DEFINITION, templates={"trusted_text": custom_evaluator.TrustedTextTemplate()},
+        definition=custom_evaluator.DEFINITION, templates={"trusted_text": custom_evaluator.TEMPLATE},
         capabilities=HostCapabilities(execution=acquired.append))
     assert outcome.status == "completed" and not acquired
     bad = deepcopy(custom_evaluator.DEFINITION)
     bad["criteria"]["base"]["tests"][0]["parameters"] = {"needle": ""}
     with pytest.raises(DefinitionValidationError):
-        compile_definition(bad, templates={"trusted_text": custom_evaluator.TrustedTextTemplate()})
+        compile_definition(bad, templates={"trusted_text": custom_evaluator.TEMPLATE})
 
 
 def test_execution_evaluator_runs_through_one_owned_fake_session():
@@ -204,25 +225,22 @@ def test_execution_evaluator_without_a_host_capability_fails_before_acquisition(
     outcome = evaluate_submission(
         Submission("local", "local", "x", {"main.py": SubmissionFile("main.py", "pass")}),
         definition=execution_evaluator.DEFINITION,
-        templates={"program_checks": execution_evaluator.ProgramTemplate()},
+        templates={"program_checks": execution_evaluator.TEMPLATE},
         capabilities=HostCapabilities())
     assert outcome.status == "failed" and outcome.error.code == "CAPABILITY_UNAVAILABLE"
 
 
 def test_execution_evaluator_rejects_malformed_commands_at_compilation():
     bad = deepcopy(execution_evaluator.DEFINITION)
-    bad["criteria"]["base"]["tests"][0]["parameters"]["command"] = "python3 'main.py"
+    bad["criteria"]["base"]["tests"][0]["parameters"]["program_command"] = "python3 'main.py"
     with pytest.raises(DefinitionValidationError) as caught:
-        compile_definition(bad, templates={"program_checks": execution_evaluator.ProgramTemplate()})
+        compile_definition(bad, templates={"program_checks": execution_evaluator.TEMPLATE})
     assert caught.value.errors()[0]["code"] == "INVALID_COMMAND"
 
 
 def test_registration_is_local_and_needs_no_engine_change():
     """Adding the examples changed no built-in registry or generic dispatch."""
-    service = TemplateLibraryService.get_instance()
-    for identifier in EXAMPLE_TEMPLATES:
-        with pytest.raises(Exception):
-            service.start_template(identifier)
+    assert not set(EXAMPLE_TEMPLATES) & set(BUILTIN_TEMPLATES)
 
 
 def test_readme_template_tables_name_registered_evaluators_and_parameters():

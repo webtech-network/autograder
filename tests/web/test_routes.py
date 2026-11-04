@@ -47,8 +47,8 @@ class TestTemplateEndpoints:
         with patch.object(application.state.host, "templates") as mock_service:
             mock_service.get_all_templates_info = Mock(
                 return_value=[
-                    {"identifier": "webdev", "name": "Web dev", "description": "Web dev", "requires_sandbox": False, "evaluators": []},
-                    {"identifier": "api", "name": "API testing", "description": "API testing", "requires_sandbox": True, "evaluators": []},
+                    {"identifier": "webdev", "name": "Web dev", "description": "Web dev", "evaluators": []},
+                    {"identifier": "api", "name": "API testing", "description": "API testing", "evaluators": []},
                 ]
             )
             response = await client.get("/api/v1/templates")
@@ -66,7 +66,6 @@ class TestTemplateEndpoints:
                     "identifier": "webdev",
                     "name": "webdev",
                     "description": "Web development",
-                    "requires_sandbox": False,
                     "evaluators": [],
                 }
             )

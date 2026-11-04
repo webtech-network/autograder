@@ -24,11 +24,9 @@ class ContainsText(TestFunction):
         return TestResult(self.name, 100 if found else 0, "Found" if found else "Missing")
 
 
-class TrustedTextTemplate(Template):
-    tests = {"contains_text": ContainsText()}
-    template_name = "Trusted text"
-    template_description = "One local, trusted evaluator"
-    requires_sandbox = False
+#: Registration: a template is a named collection of evaluator instances, each
+#: registered under its own ``name``.
+TEMPLATE = Template("Trusted text", "One local, trusted evaluator", [ContainsText()])
 
 
 DEFINITION = {
@@ -53,7 +51,7 @@ DEFINITION = {
 def grade(content: str):
     compiled = compile_definition(
         DEFINITION,
-        templates={"trusted_text": TrustedTextTemplate()},
+        templates={"trusted_text": TEMPLATE},
     )
     submission = Submission(
         username="local",

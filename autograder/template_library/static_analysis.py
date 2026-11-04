@@ -1,4 +1,3 @@
-import logging
 import re
 from typing import Annotated, Any, Dict, Iterable, List, Tuple, Type
 
@@ -361,33 +360,11 @@ class AiGraphAlgorithmTest(AiAlgorithmTestBase):
 
 
 class StaticAnalysisTemplate(Template):
-    """
-    A template for static analysis of code submissions.
-    """
+    """Static analysis of code submissions."""
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
-
-        self.tests = {
-            "forbidden_import": ForbiddenImportTest(),
-            "forbidden_keyword": ForbiddenKeywordTest(),
-            "ai_sorting_algorithm": AiSortingAlgorithmTest(),
-            "ai_search_algorithm": AiSearchAlgorithmTest(),
-            "ai_graph_algorithm": AiGraphAlgorithmTest(),
-        }
-
-    @property
-    def template_name(self):
-        return t("static_analysis.template.name")
-
-    @property
-    def template_description(self):
-        return t("static_analysis.template.description")
-
-    @property
-    def requires_sandbox(self) -> bool:
-        # Static analysis tests usually don't require execution, 
-        # but structural analysis (ast-grep) might need a sandbox in some future versions.
-        # Currently, they run on the server side using the files content.
-        return False
+        super().__init__(t("static_analysis.template.name"), t("static_analysis.template.description"), [
+            ForbiddenImportTest(), ForbiddenKeywordTest(), AiSortingAlgorithmTest(),
+            AiSearchAlgorithmTest(), AiGraphAlgorithmTest(),
+        ])
 

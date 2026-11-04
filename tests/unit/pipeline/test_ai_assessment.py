@@ -57,14 +57,7 @@ class Static(TestFunction):
 
 
 def template(*evaluators):
-    class Local(Template):
-        template_name = "Local"
-        template_description = "Local evaluators."
-        requires_sandbox = False
-
-        def __init__(self):
-            self.tests = {evaluator.name: evaluator for evaluator in evaluators}
-    return Local()
+    return Template("Local", "Local evaluators.", evaluators)
 
 
 def ai(criterion_id, focus, name="Review"):

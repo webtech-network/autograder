@@ -6,9 +6,9 @@ import pytest
 
 from autograder import (
     compile_definition, describe_templates, evaluate_submission,
-    DefinitionValidationError, Submission,
+    DefinitionValidationError, Submission, Template,
 )
-from examples.contracts.custom_evaluator import DEFINITION, TrustedTextTemplate, grade
+from examples.contracts.custom_evaluator import DEFINITION, TEMPLATE, ContainsText, grade
 
 
 def test_documented_custom_evaluator_and_catalog_need_no_external_capabilities(monkeypatch):
@@ -26,7 +26,7 @@ def test_documented_custom_evaluator_and_catalog_need_no_external_capabilities(m
 
 
 def test_injected_template_contract_is_checked():
-    template = TrustedTextTemplate()
+    template = Template("Trusted text", "One local, trusted evaluator", [ContainsText()])
     template.validate_contract = Mock(side_effect=ValueError("broken contract"))
     with pytest.raises(DefinitionValidationError) as error:
         compile_definition(DEFINITION, templates={"trusted_text": template})
@@ -38,7 +38,7 @@ def test_facade_returns_failed_outcome_for_execution_error():
     submission = Submission(username="local", user_id="local", assignment_id="local",
                             language="python", submission_files={})
     outcome = evaluate_submission(submission, definition=DEFINITION,
-                                  templates={"trusted_text": TrustedTextTemplate()})
+                                  templates={"trusted_text": TEMPLATE})
     assert outcome.status == "failed"
     assert outcome.score is None and outcome.tree is None
     assert outcome.error.code == "LANGUAGE_NOT_ALLOWED"

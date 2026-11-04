@@ -19,13 +19,7 @@ class Review(AiTestFunction):
         return f"Assess the clarity of the selected source code: {names}."
 
 
-class ReviewTemplate(Template):
-    template_name = "review"
-    template_description = "Trusted review example."
-    requires_sandbox = False
-
-    def __init__(self):
-        self.tests = {"review": Review()}
+TEMPLATE = Template("Review", "Trusted review example.", [Review()])
 
 
 class DemonstrationProvider:
@@ -42,7 +36,7 @@ DEFINITION = {"schema_version": "1.0", "templates": ["review"], "languages": ["p
 def run_example():
     return evaluate_submission(
         Submission("example", "example", "example", {"main.py": SubmissionFile("main.py", "print('hello')")}),
-        definition=DEFINITION, templates={"review": ReviewTemplate()},
+        definition=DEFINITION, templates={"review": TEMPLATE},
         capabilities=HostCapabilities(ai=DemonstrationProvider()),
     )
 

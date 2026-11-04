@@ -151,9 +151,10 @@ def test_generic_grader_does_not_interpret_parameter_names():
 def test_session_is_bound_only_to_evaluators_declaring_execution():
     session = MagicMock()
     static, executing = CapturingTestFunction(), CapturingTestFunction()
+    executing.required_capabilities = ("sandbox_execution",)
     grade(CategoryNode(name="base", weight=100, tests=[
         TestNode(name="static", criterion_id="static", test_function=static),
-        TestNode(name="run", criterion_id="run", test_function=executing, capabilities=frozenset({"sandbox_execution"})),
+        TestNode(name="run", criterion_id="run", test_function=executing),
     ]), session=session)
     assert static.evaluation.session is None
     assert executing.evaluation.session is session

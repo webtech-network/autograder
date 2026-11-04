@@ -1,4 +1,3 @@
-import logging
 import re
 from pathlib import PurePosixPath
 from typing import Annotated, Any, Dict, Iterable, List, Literal, Optional, Tuple
@@ -93,9 +92,13 @@ class ArtifactParameters(BaseModel):
 # ===============================================================
 
 class BaseExecutionTest(TestFunction):
-    """
-    Abstract base class for tests that involve running a student's code
-    in a sandbox and handling basic execution results (timeouts, crashes).
+    """Public base for evaluators that run the student's program (``from autograder import BaseExecutionTest``).
+
+    It declares ``sandbox_execution`` and needs every submitted file. Subclasses
+    call ``run_program`` (the bound language's command, exact stdin lines, one
+    deadline) and ``assessed_failure`` (a timeout or nonzero exit is an assessed
+    zero). A ``program_command`` parameter is checked at compilation: quoting,
+    no shell operators, and language-map/``CMD`` coverage of every allowed language.
     """
 
     uses_context_files = True
@@ -105,7 +108,9 @@ class BaseExecutionTest(TestFunction):
                             languages: Tuple[str, ...]) -> Iterable[ParameterIssue]:
         """Each command is a well-quoted argument vector without shell operators, and a
         language map or ``CMD`` names a command for every allowed language."""
-        command = parameters["program_command"]
+        command = parameters.get("program_command")
+        if command is None:
+            return
         candidates = command.items() if isinstance(command, dict) else ((None, command),)
         for key, text in candidates:
             if text == DEFAULT_COMMAND:
@@ -360,28 +365,8 @@ class ExpectFileArtifactTest(BaseExecutionTest):
 
 
 class InputOutputTemplate(Template):
-    """
-    A template for command-line I/O assignments. It uses the SandboxExecutor
-    to securely run student programs and validate their console output.
-    """
+    """Command-line I/O: evaluators that run the student program."""
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
-
-        self.tests = {
-            "expect_output": ExpectOutputTest(),
-            "dont_fail": DontFailTest(),
-            "expect_file_artifact": ExpectFileArtifactTest(),
-        }
-
-    @property
-    def template_name(self):
-        return t("io.template.name")
-
-    @property
-    def template_description(self):
-        return t("io.template.description")
-
-    @property
-    def requires_sandbox(self) -> bool:
-        return True
+        super().__init__(t("io.template.name"), t("io.template.description"),
+                         [ExpectOutputTest(), DontFailTest(), ExpectFileArtifactTest()])

@@ -15,7 +15,7 @@ from autograder.models.language import LANGUAGE_IDS, Language
 from autograder.models.diagnostics import DiagnosticEvent, DiagnosticObserver
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.services.assessment import assess_criteria
+from autograder.services.assessment import EXECUTION_CAPABILITIES, assess_criteria
 from autograder.services.grading import grade
 from autograder.services.preparation import check_capabilities, prepare_session, validate_submission
 from autograder.services.feedback import render_feedback
@@ -73,7 +73,8 @@ class AutograderPipeline:
             check_capabilities(requirements.capabilities, self.capabilities)
             _observe(observer, execution_id, operation)
 
-            if "sandbox_execution" in requirements.capabilities:
+            # Only selected evaluators (and preparation) that declare execution acquire a session.
+            if requirements.capabilities & EXECUTION_CAPABILITIES:
                 operation = "open_session"
                 acquire = (self.capabilities.server_execution if "http_network" in requirements.capabilities
                            else self.capabilities.execution)
