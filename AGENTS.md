@@ -69,6 +69,11 @@ penalty subtracts `(100-score)/100 * cap`; final score clamps to 0–100.
 `TestNode` embeds an evaluator implementation, normalized parameters, file target,
 weight and criterion ID. Display names may repeat or contain slashes: they never
 identify AI batch outputs, result leaves, score vectors, or comparison deltas.
+The assessed result is the frozen `ResultOutcomeTree` built once by
+`grade(criteria, results)`; leaves own their data and never reference compiled
+nodes. Traversal, effective weights and score arithmetic live only in
+`models/contracts/scoring.py`; `verify_outcome_tree` checks local and attested
+trees against the definition alike.
 
 The runtime order lives in `AutograderPipeline.run` as explicit calls:
 

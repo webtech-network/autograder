@@ -5,6 +5,7 @@ from autograder.services.assessment import prepare_criteria
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.dataclass.submission import Submission
 from tests.grading import grade
+from autograder.models.evaluation_error import EvaluationError
 from autograder.models.criteria_tree import CategoryNode, SubjectNode, TestNode
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.submission import EvaluationScope, SubmissionFile
@@ -35,7 +36,7 @@ class _Grader:
     """Assess and aggregate one category, as the pipeline does."""
     @staticmethod
     def process_category(category):
-        return grade(category).root.base
+        return grade(category).base
 
 
 @pytest.fixture
@@ -57,7 +58,7 @@ def test_balance_nodes_only_subjects(grader):
     # Weights should be balanced to 50/50 because original sum was 60
     assert result.subjects[0].weight == 50.0
     assert result.subjects[1].weight == 50.0
-    assert result.calculate_score() == 100.0
+    assert result.score == 100.0
 
 def test_balance_nodes_with_subjects_weight(grader):
     # Scenario: subjects_weight = 80
@@ -74,7 +75,7 @@ def test_balance_nodes_with_subjects_weight(grader):
     assert result.tests[0].weight == pytest.approx(20.0)
     
     # Final score should be 100 if both are 100
-    assert result.calculate_score() == pytest.approx(100.0)
+    assert result.score == pytest.approx(100.0)
 
 def test_balance_nodes_with_subjects_weight_and_scores(grader):
     # Scenario: subjects_weight = 80
@@ -91,7 +92,7 @@ def test_balance_nodes_with_subjects_weight_and_scores(grader):
     assert result.tests[0].weight == pytest.approx(20.0)
     
     # Score = 100 * 0.8 + 0 * 0.2 = 80
-    assert result.calculate_score() == pytest.approx(80.0)
+    assert result.score == pytest.approx(80.0)
 
 def test_balance_nodes_zero_weights(grader):
     # If all weights are zero, they should be equal and sum to 100 * factor
@@ -107,7 +108,7 @@ def test_balance_nodes_zero_weights(grader):
     
     assert result.subjects[0].weight == 50.0
     assert result.subjects[1].weight == 50.0
-    assert result.calculate_score() == 100.0
+    assert result.score == 100.0
 
 def test_balance_nodes_subjects_and_tests_missing_subjects_weight(grader):
     tf = MockTestFunction()
@@ -118,11 +119,11 @@ def test_balance_nodes_subjects_and_tests_missing_subjects_weight(grader):
     with pytest.raises(ValueError, match="missing 'subjects_weight' for base"):
         grader.process_category(cat)
 
-def test_balance_nodes_empty(grader):
-    # Should not break if there are no subjects/tests
-    cat = CategoryNode(name="base", weight=100)
-    result = grader.process_category(cat)
-    assert result.score == 0.0
+def test_empty_category_is_an_invalid_assessment(grader):
+    # Compilation rejects empty categories; the canonical tree never contains one.
+    with pytest.raises(EvaluationError) as error:
+        grader.process_category(CategoryNode(name="base", weight=100))
+    assert error.value.code == "INVALID_EVALUATOR_RESULT"
 
 def _single(test, files=None, **kwargs):
     return grade(CategoryNode(name="base", weight=100, tests=[test]), files, **kwargs)
@@ -217,4 +218,4 @@ def test_finite_large_sibling_weights_preserve_ratio(grader):
     ])
     result = grader.process_category(category)
     assert [test.weight for test in result.tests] == [50, 50]
-    assert result.calculate_score() == 50
+    assert result.score == 50

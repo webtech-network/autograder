@@ -30,7 +30,7 @@ Load Template → Build Tree → Pre-Flight → Grade → Focus → Feedback
 - **`Step`** (`autograder/models/abstract/step.py`) — ABC for pipeline steps. Each step implements `execute(pipeline_exec) -> PipelineExecution`.
 - **`Template`** (`autograder/models/abstract/template.py`) — ABC for grading templates. Contains test function collections.
 - **`TestFunction`** (`autograder/models/abstract/test_function.py`) — ABC for individual test logic. Implements `execute(files, sandbox, **kwargs) -> TestResult`.
-- **`CriteriaTree`** / **`ResultTree`** (`autograder/models/`) — Tree structures for grading rubrics and their scored results.
+- **`CriteriaTree`** (`autograder/models/`) / **`ResultOutcomeTree`** (`autograder/models/contracts/outcome.py`) — the compiled rubric and its self-contained assessed result.
 
 ---
 
@@ -96,7 +96,7 @@ Submission
   → TemplateLoaderStep    → StepResult.data = Template
   → BuildTreeStep         → StepResult.data = CriteriaTree
   → PreFlightStep         → StepResult.data = SandboxContainer (or None)
-  → GradeStep             → StepResult.data = GradeStepResult (final_score + ResultTree)
+  → assess + grade        → ResultOutcomeTree (built once by services/grading.py)
   → FocusStep             → StepResult.data = Focus (sorted failed tests by impact)
   → FeedbackStep          → StepResult.data = feedback string
   → Finalize terminal outcome; adapters own publication after cleanup

@@ -1,34 +1,19 @@
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
-from autograder.models.result_tree import TestResultNode
+from autograder.models.contracts.outcome import TestOutcome
 
 
-@dataclass
+@dataclass(frozen=True)
 class FocusedTest:
-    """Represents a test result that has been prioritized for feedback."""
-    test_result: TestResultNode
+    """An assessed criterion and the points it cost on the final score."""
+    test_result: TestOutcome
     diff_score: float
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert FocusedTest to dictionary for JSON serialization."""
-        return {
-            "test_result": self.test_result.to_dict() if self.test_result else None,
-            "diff_score": self.diff_score
-        }
 
-
-@dataclass
+@dataclass(frozen=True)
 class Focus:
-    """Organizes prioritized tests by category (base, penalty, bonus)."""
+    """Prioritized criteria by category (base, penalty, bonus)."""
     base: List[FocusedTest]
     penalty: Optional[List[FocusedTest]]
     bonus: Optional[List[FocusedTest]]
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert Focus to dictionary for JSON serialization."""
-        return {
-            "base": [test.to_dict() for test in self.base] if self.base else [],
-            "penalty": [test.to_dict() for test in self.penalty] if self.penalty else None,
-            "bonus": [test.to_dict() for test in self.bonus] if self.bonus else None
-        }

@@ -33,8 +33,7 @@ class CheckProjectStructure(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"expected_structure": expected_structure}
+            report=report
         )
 
 class CheckDirExists(TestFunction):
@@ -63,6 +62,5 @@ class CheckDirExists(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"dir_path": dir_path}
+            report=report
         )

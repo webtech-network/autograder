@@ -146,7 +146,9 @@ The migration adds a nullable `focus` JSON column to the `submission_results` ta
 - **FocusService** (`autograder/services/focus_service.py`): Service that calculates impact scores and generates Focus objects
 - **Coordinator** (`autograder/autograder.py`): Calls focus only for requested feedback
 
-### Serialization
+### Data
 
-Both Focus and FocusedTest implement `to_dict()` methods for JSON serialization, recursively converting nested TestResultNode objects.
+`Focus` and `FocusedTest` are frozen, in-process values derived from the
+canonical `ResultOutcomeTree`; each `FocusedTest.test_result` is the tree's own
+`TestOutcome`. They are not part of the terminal outcome.
 

@@ -12,6 +12,7 @@ from autograder.models.contracts.comparison import compare_outcomes
 from autograder.models.contracts.definition import compile_definition
 from autograder.models.contracts.outcome import outcome_score_vector, validate_outcome
 from autograder.models.execution import ProviderAssessment
+from autograder.models.contracts.outcome import ResultOutcomeTree, score_vector
 from tests.grading import FakeProvider
 from tests.unit.pipeline.test_terminal_outcome import definition, submission
 
@@ -28,6 +29,9 @@ def test_comparison_of_real_runs(before, after, delta):
     assert {row.criterion_id: row.head_score for row in comparison.criteria} == outcome_score_vector(head.outcome)
     # Comparison is a separate use of completed grades; the frozen grade is unchanged.
     assert head.outcome.comparison.status == 'disabled'
+    head_tree = ResultOutcomeTree.model_validate(head.outcome.tree.model_dump(mode='json'))
+    assert head_tree == head.outcome.tree
+    assert outcome_score_vector(head.outcome) == score_vector(head_tree)
 
 
 def test_renamed_label_across_revisions_preserves_join_identity():

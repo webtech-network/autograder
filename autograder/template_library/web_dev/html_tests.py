@@ -39,8 +39,7 @@ class CheckHeadDetails(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"detail_tag": detail_tag}
+            report=report
         )
 
 class HasForbiddenTag(TestFunction):
@@ -71,8 +70,7 @@ class HasForbiddenTag(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"tag": tag}
+            report=report
         )
 
 class HasAttribute(TestFunction):
@@ -103,8 +101,7 @@ class HasAttribute(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"attribute": attribute, "required_count": required_count}
+            report=report
         )
 
 class CheckAttributeAndValue(TestFunction):
@@ -137,8 +134,7 @@ class CheckAttributeAndValue(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"tag": tag, "attribute": attribute, "value": value}
+            report=report
         )
 
 class CheckNoInlineStyles(TestFunction):
@@ -190,8 +186,7 @@ class CheckInternalLinks(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report=t("web_dev.html.check_internal_links.report.no_content", locale=evaluation.locale),
-                parameters={"required_count": required_count}
+                report=t("web_dev.html.check_internal_links.report.no_content", locale=evaluation.locale)
             )
 
         html_content = files[0].content
@@ -199,8 +194,7 @@ class CheckInternalLinks(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report=t("web_dev.html.check_internal_links.report.no_content", locale=evaluation.locale),
-                parameters={"required_count": required_count}
+                report=t("web_dev.html.check_internal_links.report.no_content", locale=evaluation.locale)
             )
         soup = BeautifulSoup(html_content, 'html.parser')
         links = soup.select('a[href^="#"]')
@@ -217,8 +211,7 @@ class CheckInternalLinks(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"required_count": required_count}
+            report=report
         )
 
 class CheckNoUnclosedTags(TestFunction):
@@ -316,8 +309,7 @@ class LinkPointsToPageWithQueryParam(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"target_page": target_page, "query_param": query_param, "required_count": required_count}
+            report=report
         )
 
 class CheckInternalLinksToArticle(TestFunction):
@@ -340,8 +332,7 @@ class CheckInternalLinksToArticle(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=evaluation.locale),
-                parameters={"required_count": required_count}
+                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=evaluation.locale)
             )
 
         html_content = files[0].content
@@ -349,8 +340,7 @@ class CheckInternalLinksToArticle(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=evaluation.locale),
-                parameters={"required_count": required_count}
+                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=evaluation.locale)
             )
         soup = BeautifulSoup(html_content, 'html.parser')
         links = soup.select('a[href^="#"]')
@@ -367,8 +357,7 @@ class CheckInternalLinksToArticle(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"required_count": required_count}
+            report=report
         )
 
 class CheckTagNotInside(TestFunction):
@@ -401,8 +390,7 @@ class CheckTagNotInside(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"child_tag": child_tag, "parent_tag": parent_tag}
+            report=report
         )
 
 class CheckHeadingsSequential(TestFunction):
@@ -479,8 +467,7 @@ class HasTag(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"tag": tag, "required_count": required_count}
+            report=report
         )
 
 class CheckBootstrapLinked(TestFunction):
@@ -672,8 +659,7 @@ class HasClass(TestFunction):
         return TestResult(
             test_name=self.name,
             score=score,
-            report=report,
-            parameters={"class_names": class_names, "required_count": required_count})
+            report=report)
 
 class CheckHtmlDirectChildren(TestFunction):
     """Ensures that <html> has only <head> and <body> as first-level children."""

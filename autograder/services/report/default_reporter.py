@@ -1,4 +1,5 @@
 from typing import Optional
+from autograder.models.contracts.scoring import iter_tests
 from autograder.utils.formatters.result_tree import ResultTreeFormatter
 from autograder.translations import t
 
@@ -29,11 +30,11 @@ class DefaultReporter:
 
         # 4. Final Score (if requested)
         if preferences and preferences.general.show_score and result_tree:
-            lines.extend(self._add_final_score(result_tree.root.score, locale=locale))
+            lines.extend(self._add_final_score(result_tree.score, locale=locale))
 
         # 5. Online Resources
         if preferences and preferences.general.online_content:
-            failed_ids = {test_node.criterion_id for test_node in result_tree.get_failed_tests()} if result_tree else set()
+            failed_ids = {test.id for _, test in iter_tests(result_tree) if test.score < 100} if result_tree else set()
             lines.extend(self._add_online_resources(preferences.general.online_content, failed_ids, locale=locale))
 
         return "\n".join(lines)
@@ -47,8 +48,6 @@ class DefaultReporter:
     def _add_summary(self, result_tree, locale: Optional[str] = None):
         summary_header = t("feedback.report.summary_header", locale=locale) or "📊 SUMMARY"
         lines = [self._formatter.main_divisor(), f"## {summary_header}"]
-        if result_tree.template_name:
-            lines.append(self._formatter.template_name(result_tree.template_name, locale=locale))
         lines.append(self._formatter.resume(result_tree, locale=locale))
         return lines
 

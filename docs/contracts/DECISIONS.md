@@ -295,3 +295,26 @@ grade without retry or zero. There is no AI pipeline stage, no
 `assessments`/AI parameter on the grader, no `TestInput`/`test_name` transport and
 no result cache on any evaluator. Provider, model, credentials and deadline remain
 host capabilities (`HostCapabilities.ai`, #376).
+
+## Self-contained results and one scoring definition (ARC-11)
+
+The assessed result is the terminal `ResultOutcomeTree`, built once per run by
+`grade(criteria, results)`. Each `TestOutcome` owns its criterion ID, evaluator
+ID, label, file target, canonical parameters, effective weight, score and report
+as data; no result references a `TestNode` or evaluator. The duplicate mutable
+`ResultTree`/`*ResultNode` model, its `from_dict` reconstruction (which lost data),
+`GraderService`/`SubmissionGrader`, `CriteriaTreeProcesser`, the comparison
+dataclasses and the unused printers are removed. `TestResult` is a frozen
+`(test_name, score, report)` evaluator return value.
+
+`autograder/models/contracts/scoring.py` is the only definition of traversal,
+effective weights and score arithmetic, used by grading, outcome validation,
+`verify_outcome_tree`, focus and comparison. Definition-versus-outcome structure
+is checked by core contract code (`verification.py`) for local and attested
+outcomes alike; the HTTP host only supplies the snapshot and translates the error
+to 422. Arithmetic stays independently validated by the outcome models.
+
+The previous focus traversal applied a mixed group's `subjects_weight` twice
+when ranking feedback; the shared share calculation corrects that ordering.
+Tree, scores and v1 wire shape are unchanged (real-container golden in
+`tests/integration/test_canonical_outcome_golden.py`).

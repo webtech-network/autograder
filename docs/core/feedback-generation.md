@@ -6,7 +6,7 @@ Feedback generation transforms grading data into student-facing guidance.
 
 In this architecture, feedback is generated from:
 
-- `ResultTree` (full scoring structure)
+- the canonical `ResultOutcomeTree` (full scoring structure)
 - `Focus` (tests ranked by score impact)
 - `FeedbackPreferences` (report configuration)
 

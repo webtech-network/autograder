@@ -126,7 +126,7 @@ def test_invalid_required_evaluator_score_invalidates_grade(score):
 def test_required_exception_has_safe_diagnostics():
     pipeline = build_pipeline(definition=definition())
     events = []
-    with patch('autograder.autograder.GraderService.grade_from_tree', side_effect=RuntimeError('secret')):
+    with patch('autograder.autograder.grade', side_effect=RuntimeError('secret')):
         execution = pipeline.run(submission(), observer=events.append)
     assert execution.outcome.status == 'failed'
     assert events[-1].operation == 'grade'

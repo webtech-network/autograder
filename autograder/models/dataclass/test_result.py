@@ -1,30 +1,15 @@
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class TestResult:
-    """Stores the outcome of a single test execution from the test library."""
+    """An evaluator's assessment of one criterion: a 0-100 score and a report.
+
+    ``test_name`` is informational (conventionally the evaluator name). The
+    result tree takes the criterion ID, evaluator ID, label, file target and
+    canonical parameters from the compiled criterion, never from this value.
+    """
 
     test_name: str
     score: float
-    report: str
-    subject_name: str = ""
-    parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
-
-    def get_result(self):
-        """Return test result as a list for compatibility with multi-result interfaces."""
-        return [self]
-
-    def to_dict(self) -> dict:
-        """Convert TestResult to dictionary for JSON serialization."""
-        return {
-            "test_name": self.test_name,
-            "score": self.score,
-            "subject_name": self.subject_name,
-            "report": self.report,
-            "parameters": self.parameters
-        }
-
-    def __repr__(self):
-        return f"TestResult(subject='{self.subject_name}', name='{self.test_name}', score={self.score})"
+    report: str = ""

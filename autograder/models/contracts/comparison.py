@@ -25,10 +25,10 @@ from pydantic import Field, ValidationError, model_validator
 
 from autograder.models.contracts.definition import CompiledDefinition, GradingDefinition, definition_hash
 from autograder.models.contracts.outcome import (
-    CompletedOutcome, ContractModel, FailedOutcome, Score, iter_outcome_tests, validate_outcome,
+    CompletedOutcome, ContractModel, FailedOutcome, Score, validate_outcome,
 )
 from autograder.models.contracts.provenance import DefinitionProvenance
-from autograder.services.weights import normalized_sibling_weights
+from autograder.models.contracts.scoring import iter_tests, normalized_sibling_weights
 
 Delta = Annotated[float, Field(ge=-100, le=100, allow_inf_nan=False, strict=True)]
 Category = Literal["base", "bonus", "penalty"]
@@ -222,7 +222,7 @@ def _bind(side, outcome_value, definition_value) -> _Bound:
                               f"The {side} definition is not the normalized definition bound to its outcome",
                               side=side)
     declared = {test.id: (test, category, weight) for test, category, weight in _definition_criteria(definition)}
-    results = list(iter_outcome_tests(outcome.tree))
+    results = [test for _, test in iter_tests(outcome.tree)]
     if {result.id for result in results} != set(declared) or any(
             result.evaluator != declared[result.id][0].type for result in results):
         raise ComparisonError("DEFINITION_MISMATCH",

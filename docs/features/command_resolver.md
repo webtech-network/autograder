@@ -82,7 +82,7 @@ For standard executions where the entry point is typical or explicitly clear fro
 
 ## How Configurations are Processed
 
-When a student submits code, it enters an execution pipeline managed by the Autograder's `GraderService`, supported by the `CommandResolver`:
+When a student submits code, it enters an execution pipeline managed by the Autograder's assessment step (`assess_criteria`), supported by the `CommandResolver`:
 
 1. **Language Association:** The API or Web layer identifies the submitted language and supplies it on `Submission`.
 2. **Configuration Load:** The pipeline loads the standard criteria (e.g., weight, number of tests, configurations like `setup_config` to compile `.java` or `.cpp`).
@@ -106,7 +106,7 @@ When a student submits code, it enters an execution pipeline managed by the Auto
               │
               ▼
 ┌──────────────────────────────────────┐
-│ GraderService                        │
+│ assess_criteria                      │
 │ - Sets submission language           │
 └─────────────┬────────────────────────┘
               │
@@ -133,7 +133,7 @@ When a student submits code, it enters an execution pipeline managed by the Auto
 
 ### Code Flow
 
-1. **Grader** (`criteria_grader.py`):
+1. **Assessment** (`autograder/services/assessment.py`):
    - Builds `EvaluationInput(files, language, locale, session)`
    - Calls `test_function.execute(evaluation, **canonical_parameters)`
 

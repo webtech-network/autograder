@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from autograder import ComparisonError, OutcomeComparison, compare_outcomes, compile_definition
 from autograder.models.contracts.comparison import CriterionComparison
 from autograder.models.contracts.outcome import outcome_score_vector, validate_outcome
-from autograder.services.weights import normalized_sibling_weights
+from autograder.models.contracts.scoring import normalized_sibling_weights
 
 
 def criterion(identity, *, name=None, imports=("os",), weight=100, file=None, type_="forbidden_import"):

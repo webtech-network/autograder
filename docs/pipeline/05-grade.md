@@ -1,13 +1,16 @@
 # Calculate the grade
 
-`GraderService.grade_from_tree(criteria_tree, results)` combines the ID-keyed
-results produced by [assessment](04.5-ai-batch.md) with the compiled tree's
-weights and returns a `ResultTree`. It executes no evaluator and receives no
-session, provider or AI-specific value; a missing criterion result is a
-required `MISSING_EVALUATOR_RESULT` failure.
+`grade(criteria_tree, results)` (`autograder/services/grading.py`) combines the
+ID-keyed results produced by [assessment](04.5-ai-batch.md) with the compiled
+tree's effective weights and builds the frozen canonical `ResultOutcomeTree`
+once. It executes no evaluator and receives no session, provider or AI-specific
+value; a missing criterion result is a required `MISSING_EVALUATOR_RESULT`
+failure. Weights, traversal and score arithmetic come from
+`autograder/models/contracts/scoring.py`.
 
-The coordinator calculates the final score and validates a frozen
-`ResultOutcomeTree` snapshot before optional reporting. Required evaluator errors
+The coordinator then applies `verify_outcome_tree(criteria, tree)`, the same
+structural check the HTTP host applies to externally attested outcomes, before
+optional reporting. Required evaluator errors
 and invalid results fail the entire grade with null score/tree. Student
 compilation/runtime/timeout responses during assessment can be valid zero scores.
 
