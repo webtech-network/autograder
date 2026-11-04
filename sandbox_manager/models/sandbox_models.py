@@ -19,10 +19,24 @@ class Language(Enum):
         return obj
 
 class SandboxState(Enum):
-    """Current state of a sandbox instance."""
+    """Lifecycle: idle -> active -> closing -> (disposed | quarantined).
+
+    A used sandbox is never returned to the pool. ``quarantined`` means Docker
+    did not confirm removal; the pool keeps tracking it and retries disposal.
+    """
     IDLE = "idle"
-    BUSY = "busy"
-    STOPPED = "stopped"
+    ACTIVE = "active"
+    CLOSING = "closing"
+    QUARANTINED = "quarantined"
+    DISPOSED = "disposed"
+
+
+class DisposalStatus(Enum):
+    """Defined result of disposing a sandbox; repeated disposal is safe."""
+    DISPOSED = "disposed"                  # Docker confirmed removal by this call.
+    ALREADY_DISPOSED = "already_disposed"  # Removal was confirmed earlier.
+    CLOSING = "closing"                    # Another caller is disposing it now.
+    QUARANTINED = "quarantined"            # Removal failed; retained for bounded retry.
 
 class ResponseCategory(Enum):
     """Classification of the execution result."""

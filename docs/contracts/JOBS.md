@@ -7,8 +7,9 @@ objects, locale, scope, definition snapshot and finalized outcome.
 
 The acceptance transaction saves the canonical definition/hash/revision, selected
 language, locale, scope, files and host audit metadata. Later configuration edits
-or deactivation do not change accepted work. Caller retry keys remain separate
-work under #366: repeating a successful POST creates another submission.
+or deactivation do not change accepted work. A repeated POST with
+the same `Idempotency-Key` returns the original submission; without a key every
+POST is new work. See [replay-safe acceptance](REPLAY.md).
 
 ## Ownership
 

@@ -32,9 +32,10 @@ def test_repo_mode_selects_single_language_and_locale_without_github_or_secrets(
     assert build.call_args.kwargs["definition"].definition.templates == ["webdev"]
     assert build.call_args.kwargs["locale"] == "pt-br"
     pipeline = MagicMock()
-    service.run_autograder(pipeline, "alice", {})
+    from github_action.identity import SubmissionIdentity
+    service.run_autograder(pipeline, SubmissionIdentity("alice", "Alice", "input"), {})
     submission = pipeline.run.call_args.args[0]
-    assert submission.user_id == "alice"
+    assert submission.user_id == "alice" and submission.username == "Alice"
     assert submission.assignment_id == "local"
     assert submission.locale == "pt-br"
 
@@ -69,3 +70,19 @@ def test_local_cloud_publication_requires_matching_revision(tmp_path):
         with pytest.raises(ValueError, match="does not match"):
             configure(GithubActionService(), path, upload_to_cloud=True, grading_config_id=7,
                       cloud_url="https://cloud.invalid", cloud_token="secret")
+
+
+def test_restricted_producer_publishes_named_revision_without_reading_configuration(tmp_path):
+    path = tmp_path / "definition.json"
+    path.write_text(json.dumps(definition()))
+    compiled = compile_definition(definition())
+    service = GithubActionService()
+    with patch("github_action.github_action_service.CloudClient") as client, \
+            patch("github_action.github_action_service.build_pipeline") as build:
+        configure(service, path, upload_to_cloud=True, grading_config_id=7, grading_config_revision=3,
+                  cloud_url="https://cloud.invalid", cloud_token="attestation-only")
+    client.return_value.get_grading_config.assert_not_called()
+    provenance = build.call_args.kwargs["provenance"]
+    assert (provenance.reference, provenance.revision) == ("7", 3)
+    assert provenance.definition_hash == compiled.definition_hash
+    assert service.publisher.grading_config_id == 7

@@ -1,6 +1,6 @@
 """Integration test for multi-language command resolution in the pipeline."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from tests.integration.definition_fixtures import build_migrated_fixture_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
@@ -10,13 +10,11 @@ from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 class TestMultiLanguageCommandResolution:
     """Test that the pipeline correctly resolves commands based on submission language."""
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
-    def test_pipeline_resolves_python_command(self, mock_get_manager):
+    def test_pipeline_resolves_python_command(self):
         """Test that Python submissions get Python command."""
         # Mock sandbox
         mock_manager = Mock()
         mock_sandbox = Mock()
-        mock_get_manager.return_value = mock_manager
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 
@@ -29,6 +27,7 @@ class TestMultiLanguageCommandResolution:
 
         # Create pipeline
         pipeline = build_migrated_fixture_pipeline(
+            manager=mock_manager,
             template_name="input_output",
             languages=["python", "java", "node", "cpp"],
             include_feedback=False,
@@ -84,13 +83,11 @@ class TestMultiLanguageCommandResolution:
         call_args = mock_sandbox.run_commands.call_args
         assert call_args[1]['program_command'] == "python3 calculator.py"
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
-    def test_pipeline_resolves_java_command(self, mock_get_manager):
+    def test_pipeline_resolves_java_command(self):
         """Test that Java submissions get Java command."""
         # Mock sandbox
         mock_manager = Mock()
         mock_sandbox = Mock()
-        mock_get_manager.return_value = mock_manager
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 
@@ -103,6 +100,7 @@ class TestMultiLanguageCommandResolution:
 
         # Create pipeline
         pipeline = build_migrated_fixture_pipeline(
+            manager=mock_manager,
             template_name="input_output",
             languages=["python", "java", "node", "cpp"],
             include_feedback=False,
@@ -158,13 +156,11 @@ class TestMultiLanguageCommandResolution:
         call_args = mock_sandbox.run_commands.call_args
         assert call_args[1]['program_command'] == "java Calculator"
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
-    def test_pipeline_resolves_cmd_placeholder(self, mock_get_manager):
+    def test_pipeline_resolves_cmd_placeholder(self):
         """Test that CMD placeholder auto-resolves based on language."""
         # Mock sandbox
         mock_manager = Mock()
         mock_sandbox = Mock()
-        mock_get_manager.return_value = mock_manager
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 
@@ -177,6 +173,7 @@ class TestMultiLanguageCommandResolution:
 
         # Create pipeline with CMD placeholder
         pipeline = build_migrated_fixture_pipeline(
+            manager=mock_manager,
             template_name="input_output",
             languages=["python", "java", "node", "cpp"],
             include_feedback=False,
@@ -225,13 +222,11 @@ class TestMultiLanguageCommandResolution:
         # CMD should auto-resolve to default Node command
         assert "node" in call_args[1]['program_command']
 
-    @patch('sandbox_manager.manager.get_sandbox_manager')
-    def test_pipeline_grading_with_multi_language_commands(self, mock_get_manager):
+    def test_pipeline_grading_with_multi_language_commands(self):
         """Test full grading flow with multi-language commands."""
         # Mock sandbox
         mock_manager = Mock()
         mock_sandbox = Mock()
-        mock_get_manager.return_value = mock_manager
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
 
@@ -250,6 +245,7 @@ class TestMultiLanguageCommandResolution:
 
         # Create pipeline with multiple tests
         pipeline = build_migrated_fixture_pipeline(
+            manager=mock_manager,
             template_name="input_output",
             languages=["python", "java", "node", "cpp"],
             include_feedback=False,

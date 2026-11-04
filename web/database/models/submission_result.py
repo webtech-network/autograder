@@ -40,12 +40,10 @@ class SubmissionResult(Base):
     focus: Mapped[Optional[dict]] = mapped_column(
         JSON, nullable=True
     )  # Focus object with test impacts
-    score_vector: Mapped[Optional[dict]] = mapped_column(
-        JSON, nullable=True
-    )  # Flat path-keyed score map
-    comparison: Mapped[Optional[dict]] = mapped_column(
-        JSON, nullable=True
-    )  # Baseline comparison output
+    # Legacy, unused: never read or written. Historical values are path-keyed and
+    # never used for comparison; comparisons are computed on demand from `outcome`.
+    score_vector: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    comparison: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     pipeline_execution: Mapped[Optional[dict]] = mapped_column(
         JSON, nullable=True
     )  # NEW: Pipeline step details

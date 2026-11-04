@@ -89,7 +89,8 @@ cover the single-definition-file and scalar output changes.
 
 The definition and outcome schemas do not provide durable scheduling,
 distributed sandbox provisioning, submission idempotency, or retention policy.
-Those are hosting responsibilities.
+Those are hosting responsibilities; the HTTP host provides replay-safe operation
+keys ([REPLAY.md](REPLAY.md)).
 
 ## Discovery and trusted Python extensions
 
@@ -114,7 +115,7 @@ coordination; internal pipeline classes are not a compatibility promise.
 The web adapter provides a bounded synchronous `POST /api/v1/execute` for
 pre-submission runs. It uses `test_cases` as stdin lines and `results` as an
 ordered list, separate from grading-tree orchestration.
-Authentication uses the existing host integration token. The shared sandbox
+Authentication uses the host integration token (see [AUTH.md](AUTH.md)). The shared sandbox
 manager's per-language pool is the current common admission limit for grading
 and deliberate runs. A process failure is a 200 result with stdout, stderr,
 exit status and category; an infrastructure failure is 503, and a connected
@@ -150,3 +151,76 @@ precedes terminal outcome construction; cleanup errors reach host logging and an
 optional observer without replacing the grade. Disabled feedback calls neither
 focus nor reporting. The supported facades and v1 wire schemas are unchanged.
 See [Python migration and execution order](../core/pipeline-architecture.md).
+
+## HTTP trust boundary (INT-01)
+
+The web API is a trusted application-to-application boundary. Authentication is
+declared once per router: health, readiness and the static template catalog are
+public; external-result attestation needs the `attest` scope; every other route,
+including all configuration aliases, submission reads and deliberate execution,
+needs the `integration` scope. All integration principals share all resources;
+caller-supplied user identifiers never authorize. Restricted attestation tokens
+let a producer publish without reading data. A missing credential configuration
+fails closed (503) and readiness reports it. See [AUTH.md](AUTH.md).
+
+## Replay-safe acceptance and publication (INT-04)
+
+`Idempotency-Key` on acceptance and attestation is scoped by authenticated
+principal and operation. The key, request fingerprint and created submission ID
+commit in the resource's transaction; equal retries (including concurrent ones and
+retries after a lost response or a later revision) return the original receipt
+without regrading, and a changed request is 409 `IDEMPOTENCY_KEY_REUSED`. Receipts
+are retained with their submission. The Action derives its key from the saved
+outcome's execution ID, retries only keyed POSTs within a total deadline, honours
+`Retry-After`, and reports uncertain delivery without altering the grade. See
+[REPLAY.md](REPLAY.md).
+
+## Action identity and runner trust (INT-02)
+
+The Action separates the submitter (explicit opaque `submitter-id`, else the
+repository), the actor (provenance only) and the producer (the authenticated
+credential). Published metadata records repository, event, event SHA, the evaluated
+commit and whether graded files match it, run ID/attempt, workflow ref, actor and
+runner. Publication is refused for `pull_request_target`, `workflow_run`, fork pull
+requests, unknown events and unreviewed self-hosted runners. Restricted attestation
+tokens publish a named revision without reading configurations. Attestations remain
+producer claims; untrusted work is graded server-side through a trusted broker. See
+[the trust table](../github_action/trust.md).
+
+## Baseline comparison (INT-13)
+
+Consumer: Prisma shows progress between two stored submissions of one
+assignment. Owner: the authenticated read-only HTTP operation
+`GET /api/v1/submissions/{submission_id}/comparison?baseline_submission_id={id}`,
+computed on demand from the two stored canonical outcomes and their bound
+definition snapshots; Python consumers use the pure facade function
+`compare_outcomes`. No caller-supplied tree, vector or baseline content is
+accepted. Comparison is never a grading stage, is never persisted and never
+regrades; the outcome's `comparison` enrichment remains `disabled` for normal
+grading. Same definition hash permits an overall delta; any other revision
+pairing reports per-criterion results by criterion ID (`reweighted` and
+`redefined` mark changed meaning) and a null overall delta. Different
+configuration resources, incomplete outcomes and unsnapshotted legacy history are
+rejected with explained codes. Attested outcomes are compared under the same
+rules and labelled `attested`, without claiming local execution. The legacy
+`ResultComparator`, its dataclasses, `ResultTree` vector helpers and unused web
+comparison schemas are removed; the `score_vector`/`comparison` result columns
+are unused legacy storage. See [baseline comparison](../features/baseline_comparison.md).
+
+## Sandbox ownership and private control (INT-15/ARC-09)
+
+One host-owned manager owns a sandbox from acquisition to Docker-confirmed
+removal. Release and destroy are one idempotent `dispose` with a defined
+status; a used sandbox is never reused. Failed removal quarantines the sandbox:
+it stays tracked, counts against capacity, is reported in pool statistics and
+is retried a bounded number of times. Timeouts use the same path. Hosts own
+signals and call `shutdown()`; the library installs no handlers. Orphan
+reclamation is scoped to owner leases (owner id, hostname, boot/pid/start time)
+and removes only provably dead local owners; an explicit operator command
+handles remote and legacy owners. One Docker profile declares all limits; the
+gVisor fallback only drops the runtime argument. The control API is private
+(Compose `expose`), requires a bearer token, uses random bounded expiring
+handles in one worker process, makes acquisition replay-safe by request id,
+tombstones disposed handles, and distinguishes unknown handles from missing
+artifacts. See [SANDBOX.md](SANDBOX.md) for the recovery matrix, limits and
+migration.

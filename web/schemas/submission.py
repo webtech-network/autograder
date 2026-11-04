@@ -2,9 +2,10 @@
 
 from datetime import datetime
 from autograder.models.contracts.definition import GradingDefinition
+from autograder.models.contracts.comparison import ComparedOutcome, OutcomeComparison
 from autograder.models.contracts.outcome import TerminalOutcome, OutcomeError
 from autograder.models.contracts.provenance import DefinitionProvenance
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Literal, Optional, Any
 from enum import Enum
 
 from pydantic import BaseModel, Field, ConfigDict, StrictInt, field_validator, model_validator
@@ -77,31 +78,6 @@ class EvaluationScopeData(BaseModel):
             validate_filename(name)
         validate_filenames(value)
         return value
-
-
-class TestDeltaResponse(BaseModel):
-    """Schema for a single test delta in a baseline comparison."""
-
-    path: str = Field(
-        ..., description="Stable test path string (category/subject/.../test_name)"
-    )
-    status: str = Field(
-        ...,
-        description="Status transition: improved, regressed, unchanged, introduced, or removed",
-    )
-    baseline_score: Optional[float] = Field(None, description="Score in baseline run")
-    head_score: Optional[float] = Field(None, description="Score in head run")
-    delta: Optional[float] = Field(None, description="Score change (head - baseline)")
-
-
-class ComparisonResultResponse(BaseModel):
-    """Schema for baseline comparison results."""
-
-    score_delta: float = Field(..., description="Overall final score change")
-    improved: bool = Field(..., description="True if score_delta > 0")
-    test_deltas: List[TestDeltaResponse] = Field(
-        default_factory=list, description="Per-test deltas"
-    )
 
 
 class SubmissionCreate(BaseModel):
@@ -242,3 +218,20 @@ class ExternalResultResponse(BaseModel):
     provenance: DefinitionProvenance
     graded_at: datetime
     execution_time_ms: int
+
+
+class ComparedSubmission(ComparedOutcome):
+    """One stored side of an on-demand comparison."""
+
+    submission_id: int
+    source: Literal["executed", "attested"] = Field(
+        description="executed: graded by this server from accepted source files; attested: "
+                    "an authenticated external host attestation that this server did not execute",
+    )
+
+
+class SubmissionComparisonResponse(OutcomeComparison):
+    """Read-only comparison of two stored canonical outcomes; never stored or regraded."""
+
+    baseline: ComparedSubmission
+    head: ComparedSubmission

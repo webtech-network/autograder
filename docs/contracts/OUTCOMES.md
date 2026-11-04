@@ -42,7 +42,8 @@ pipeline diagnostics are not public result fields.
 | Evaluator returns an invalid numeric grade | Failed, no score | internal / INVALID_EVALUATOR_RESULT |
 | Unexpected required operation exception | Failed, no score | internal / EXECUTION_ERROR |
 | Optional focus or feedback fails | Completed, original grade preserved | feedback.error / FEEDBACK_ERROR |
-| Optional comparison fails | Completed, original grade preserved | adapter-supplied comparison.error |
+| Externally attested comparison enrichment fails | Completed, original grade preserved | host-attested comparison.error |
+| On-demand baseline comparison cannot be computed | Stored outcomes unchanged | HTTP 409/422 response only (see below) |
 | Persistence/publication fails after finalization | Original artifact remains completed or failed | Adapter delivery failure, outside the grading outcome |
 
 There is no partial grading policy: every configured evaluator is required,
@@ -69,8 +70,8 @@ names and grouping are presentation. Serialization rounds scores to two decimal
 places, and validation allows only the resulting small arithmetic rounding
 error. `outcome_score_vector(completed)` derives an ID-to-score projection from
 the authoritative tree. No independently mutable vector is present on the wire.
-Comparison's existing `path` field now carries the criterion ID, never a display
-path. Tree parameters contain only normalized authoring parameters, never
+The embedded `comparison` enrichment's `path` field carries a criterion ID, never
+a display path. Tree parameters contain only normalized authoring parameters, never
 pipeline-injected resources or prompts. Trusted detail may contain private tests;
 student-facing visibility policy belongs to the hosting adapter.
 
@@ -107,3 +108,27 @@ Replay validates its bound submission provenance, publishes the existing outcome
 and removes the receipt only after success. Ambiguous commit recovery verifies an
 identical persisted outcome; it never runs the pipeline. These receipts preserve
 finished grading and do not provide a durable submission scheduler.
+
+
+## Baseline comparison
+
+Comparison is a separate, read-only use of two completed outcomes, never part
+of grading. `compare_outcomes(baseline, head, baseline_definition, head_definition)`
+is pure; the HTTP host exposes it as authenticated
+`GET /api/v1/submissions/{submission_id}/comparison?baseline_submission_id={id}`
+over two stored submissions of the same grading configuration. Nothing is
+stored or regraded; a retry is another call. The grading outcome's `comparison`
+enrichment stays `disabled` for normal grading and is never rewritten.
+
+Each definition must hash to its outcome's provenance. Criteria join only by ID.
+Same hash gives `same_definition` with an overall delta. Different hashes give
+`cross_revision` with a null overall delta; per criterion, identical evaluator
+type, normalized parameters, file target and effective weight/category compare
+normally, changed effective weight/category is `reweighted` (with criterion
+delta), changed type/parameters/target is `redefined` (no delta), and one-sided
+criteria are `introduced`/`removed`. Failed or pending outcomes are
+`OUTCOME_NOT_COMPLETED`; history without a bound snapshot or canonical outcome is
+`LEGACY_UNVERIFIED`; different configuration resources are `NOT_COMPARABLE`.
+Attested and executed outcomes follow identical rules and are labelled by
+`source`. See [baseline comparison](../features/baseline_comparison.md) for the
+complete table, example and migration notes.
