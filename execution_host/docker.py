@@ -8,14 +8,19 @@ from autograder.models.dataclass.asset import ResolvedAsset
 from execution_host.fixtures import S3FixtureProvider
 from sandbox_manager.models.sandbox_models import DisposalStatus
 
+#: How long a grading waits for a slot of the host sandbox budget before it fails
+#: as a retryable capability error. Waiting happens while the HTTP lease is renewed
+#: and before any sandbox clock starts; deliberate execution passes a short wait.
+GRADING_CAPACITY_WAIT_SECONDS = 600.0
+
 
 class DockerSession:
     fixture_root = "/tmp/app"
 
-    def __init__(self, manager, language):
+    def __init__(self, manager, language, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS):
         self.manager = manager
         self.language = language
-        self.sandbox = manager.get_sandbox(language)
+        self.sandbox = manager.get_sandbox(language, wait_seconds=wait_seconds)
         self._closed = False
 
     def prepare_workdir(self, files):
@@ -78,7 +83,8 @@ class DockerHost:
         self.capabilities = HostCapabilities(execution=self.acquire,
             fixtures=S3FixtureProvider.from_environment(), ai=ConfiguredAssessmentProvider())
 
-    def acquire(self, language):
+    def acquire(self, language, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS):
+        """An owned session; waits up to ``wait_seconds`` for a slot of the sandbox budget."""
         with self._lock:
             if self._manager is None:
                 if self.mode == "remote":
@@ -86,13 +92,13 @@ class DockerHost:
                     self._manager = RemoteSandboxManager(api_url=self.api_url, token=self.api_token)
                 elif self.mode == "local":
                     from sandbox_manager.manager import SandboxManager
-                    from sandbox_manager.models.pool_config import SandboxPoolConfig
+                    from sandbox_manager.models.pool_config import SandboxHostConfig
                     # Reclaims containers of provably dead owners, then starts the pools.
-                    self._manager = SandboxManager(SandboxPoolConfig.load_from_yaml(self.config_file))
+                    self._manager = SandboxManager.from_config(SandboxHostConfig.load_from_yaml(self.config_file))
                 else:
                     raise ValueError("Unsupported sandbox host mode")
             manager = self._manager
-        return DockerSession(manager, language)
+        return DockerSession(manager, language, wait_seconds)
 
     def close(self):
         """Shut down the manager this host created. Safe to call repeatedly."""

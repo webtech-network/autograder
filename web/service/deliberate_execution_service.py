@@ -8,6 +8,7 @@ from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.process import ProcessRequest, ProcessStatus, ResponseCategory, lines_to_stdin
 from autograder.models.language import Language
+from sandbox_manager.errors import SandboxCapacityTimeout
 from web.schemas.execution import (
     CASE_TIMEOUT_SECONDS,
     MAX_OUTPUT_BYTES,
@@ -31,6 +32,8 @@ class ExecutionServiceError(Exception):
 
 UNAVAILABLE = ("EXECUTION_UNAVAILABLE", "Execution service is unavailable.", 503)
 DEADLINE = ("EXECUTION_DEADLINE_EXCEEDED", "Execution deadline exceeded.", 504)
+# The shared sandbox budget stayed full for the whole capacity wait; retry later.
+BUSY = ("EXECUTION_BUSY", "All execution sandboxes are busy; retry later.", 503)
 
 
 TIMEOUT_EXIT_CODE = 124  # the wire needs an integer for a stopped process; `category` is authoritative
@@ -71,7 +74,10 @@ def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: flo
     language = Language(request.language)
     sandbox = None
     try:
-        sandbox = capabilities.execution(language)
+        try:
+            sandbox = capabilities.execution(language)
+        except SandboxCapacityTimeout as exc:
+            raise ExecutionServiceError(*BUSY) from exc
         if monotonic() >= deadline_at:
             raise ExecutionServiceError(*DEADLINE)
         files = {

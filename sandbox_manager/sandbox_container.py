@@ -134,7 +134,9 @@ class SandboxContainer:
         self.state = SandboxState.IDLE
         self.created_at = time.monotonic()
         self.activated_at: Optional[float] = None
-        # Disposal bookkeeping, owned by the pool under its lock.
+        # Pool bookkeeping, owned by the pool under its lock. A sandbox holds a
+        # host budget slot from its acquisition until Docker confirms removal.
+        self.holds_slot = False
         self.disposal_attempts = 0
         self.next_disposal_at = 0.0
         self.last_disposal_error: Optional[str] = None

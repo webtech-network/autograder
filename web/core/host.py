@@ -1,11 +1,14 @@
 """Construct one web host with isolated database, providers and worker state."""
 import asyncio
+from dataclasses import replace
+from functools import partial
 
 from autograder import describe_templates
 from web.config.logging import get_logger
 from web.core.config import Settings
 from web.database.schema import require_current_schema
 from web.database.session import create_database
+from web.schemas.execution import CAPACITY_WAIT_SECONDS
 from web.service.worker import DurableWorker
 
 
@@ -52,6 +55,18 @@ class WebHost:
         self.ready = False
         self.execution_tasks = set()
         self._closing = None
+
+    @property
+    def deliberate_capabilities(self):
+        """Grading's capabilities, but sandboxes of the owner's shared budget are waited for only briefly.
+
+        A deliberate run that cannot get a slot within ``CAPACITY_WAIT_SECONDS``
+        answers 503 EXECUTION_BUSY instead of waiting as long as a grading would.
+        """
+        acquire = getattr(self.resource_owner, "acquire", None)
+        if acquire is not None and self.capabilities.execution == acquire:
+            return replace(self.capabilities, execution=partial(acquire, wait_seconds=CAPACITY_WAIT_SECONDS))
+        return self.capabilities
 
     async def start(self):
         from web.api.deps import configured_principals

@@ -8,11 +8,11 @@ from sandbox_manager.manager import SandboxManager
 _manager = None
 
 
-def start_manager(pool_configs):
+def start_manager(pool_configs, max_sandboxes):
     """Replace the shared manager (shutting the previous one down)."""
     global _manager
     shutdown_manager()
-    _manager = SandboxManager(pool_configs)
+    _manager = SandboxManager(pool_configs, max_sandboxes=max_sandboxes)
     return _manager
 
 

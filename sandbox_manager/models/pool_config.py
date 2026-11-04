@@ -1,4 +1,4 @@
-"""Host runtime profiles: language -> image, and pool sizing.
+"""Host runtime profiles (language -> image), warm-pool size and the host sandbox budget.
 
 The domain language (``autograder.models.language.Language``) carries no image.
 This host maps each language it can execute to a sandbox image in the
@@ -6,6 +6,11 @@ This host maps each language it can execute to a sandbox image in the
 no pool, and acquiring it is a capability failure (``RuntimeUnavailableError``).
 Isolation and limits stay in the single Docker profile
 (``sandbox_manager.docker_profile``).
+
+Capacity is one host-wide number, ``general.max_sandboxes`` (N): sandboxes being
+created, in use, being removed or quarantined never exceed N across all
+languages, for grading and deliberate execution alike. ``general.pool_size`` warm
+idle containers per language are kept outside N.
 """
 import os
 from dataclasses import dataclass
@@ -15,25 +20,36 @@ import yaml
 
 from autograder.models.language import Language
 
+GENERAL_KEYS = {"max_sandboxes", "pool_size", "running_timeout", "disposal_attempts"}
+REMOVED_KEYS = {
+    "scale_limit": "per-language scale_limit was replaced by the host-wide general.max_sandboxes",
+    "idle_timeout": "idle_timeout was removed: warm containers never exceed pool_size, so none expire",
+}
+
 
 @dataclass
 class SandboxPoolConfig:
-    """One runtime profile: the image this host runs for a language, and its pool sizing."""
+    """One runtime profile: the image this host runs for a language and its warm-pool size."""
     language: Language
     image: str
-    pool_size: int
-    scale_limit: int
-    idle_timeout: int
-    running_timeout: int
+    pool_size: int        # Warm idle containers kept for this language (outside the budget).
+    running_timeout: int  # Seconds a handed-out sandbox may live, counted from the grant.
     # Bounded attempts to remove a quarantined container before it stays
-    # quarantined (still counted against scale_limit) for an operator.
+    # quarantined (still holding its budget slot) for an operator.
     disposal_attempts: int = 5
 
-    @classmethod
-    def load_from_yaml(cls, config_path: str = "sandbox_config.yml") -> List['SandboxPoolConfig']:
-        """Load one pool configuration per runtime listed in the YAML ``runtimes`` map.
 
-        A relative path is resolved from the project root.
+@dataclass(frozen=True)
+class SandboxHostConfig:
+    """Everything ``sandbox_config.yml`` configures: the budget N and one pool per runtime."""
+    max_sandboxes: int
+    pools: List[SandboxPoolConfig]
+
+    @classmethod
+    def load_from_yaml(cls, config_path: str = "sandbox_config.yml") -> "SandboxHostConfig":
+        """Load and validate the host sandbox configuration. A relative path is resolved from the project root.
+
+        Unknown, removed or unworkable settings are rejected at startup.
         """
         if not os.path.isabs(config_path):
             project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
@@ -45,19 +61,39 @@ class SandboxPoolConfig:
         with open(config_path, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f)
 
-        if not config_data or 'general' not in config_data:
+        if not config_data or not isinstance(config_data.get('general'), dict):
             raise ValueError("Invalid sandbox configuration: 'general' section not found")
 
         general = config_data['general']
-        return [cls(
+        for key in general:
+            if key in REMOVED_KEYS:
+                raise ValueError(f"Invalid sandbox configuration: {REMOVED_KEYS[key]}; remove general.{key}")
+            if key not in GENERAL_KEYS:
+                raise ValueError(f"Invalid sandbox configuration: unknown setting general.{key}")
+        if 'max_sandboxes' not in general:
+            raise ValueError("Invalid sandbox configuration: general.max_sandboxes (the host sandbox budget) "
+                             "is required")
+        max_sandboxes = _integer(general, 'max_sandboxes', minimum=1)
+        pool_size = _integer(general, 'pool_size', default=2, minimum=0)
+        if pool_size > max_sandboxes:
+            raise ValueError(f"Invalid sandbox configuration: pool_size ({pool_size}) cannot exceed "
+                             f"max_sandboxes ({max_sandboxes}); warm containers beyond N can never be used")
+        running_timeout = _integer(general, 'running_timeout', default=60, minimum=1)
+        disposal_attempts = _integer(general, 'disposal_attempts', default=5, minimum=1)
+        return cls(max_sandboxes=max_sandboxes, pools=[SandboxPoolConfig(
             language=language,
             image=image,
-            pool_size=general.get('pool_size', 2),
-            scale_limit=general.get('scale_limit', 5),
-            idle_timeout=general.get('idle_timeout', 300),
-            running_timeout=general.get('running_timeout', 60),
-            disposal_attempts=general.get('disposal_attempts', 5),
-        ) for language, image in runtime_images(config_data.get('runtimes')).items()]
+            pool_size=pool_size,
+            running_timeout=running_timeout,
+            disposal_attempts=disposal_attempts,
+        ) for language, image in runtime_images(config_data.get('runtimes')).items()])
+
+
+def _integer(general: dict, key: str, *, minimum: int, default=None) -> int:
+    value = general.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"Invalid sandbox configuration: general.{key} must be an integer >= {minimum}")
+    return value
 
 
 def runtime_images(runtimes) -> Dict[Language, str]:

@@ -24,6 +24,15 @@ class RuntimeImageError(RuntimeError):
     """
 
 
+class SandboxCapacityTimeout(RuntimeError):
+    """No slot of the host sandbox budget became free within the caller's wait.
+
+    Saturation is transient: grading reports it as a retryable capability
+    failure, never as an assessed result, and deliberate execution answers
+    ``503 EXECUTION_BUSY``. The control API answers ``503 CAPACITY_TIMEOUT``.
+    """
+
+
 class SandboxInvalidatedError(RuntimeError):
     """The sandbox can no longer be trusted.
 

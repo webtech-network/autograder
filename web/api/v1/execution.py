@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from web.api.deps import get_host
 from web.schemas.execution import (
+    BUSY_RETRY_AFTER_SECONDS,
     DeliberateCodeExecutionRequest,
     DeliberateCodeExecutionResponse,
     ExecutionErrorResponse,
@@ -42,9 +43,11 @@ async def execute_code_endpoint(request: DeliberateCodeExecutionRequest, host=De
     if not host.ready:
         raise HTTPException(503, "Execution service is shutting down")
     try:
-        return await execute_code(request, capabilities=host.capabilities, tasks=host.execution_tasks)
+        return await execute_code(request, capabilities=host.deliberate_capabilities, tasks=host.execution_tasks)
     except ExecutionServiceError as exc:
+        headers = {"Retry-After": str(BUSY_RETRY_AFTER_SECONDS)} if exc.code == "EXECUTION_BUSY" else None
         raise HTTPException(
             status_code=exc.status_code,
             detail={"code": exc.code, "message": exc.message},
+            headers=headers,
         ) from exc

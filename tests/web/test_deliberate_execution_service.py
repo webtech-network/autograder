@@ -15,8 +15,12 @@ from autograder.models.process import ProcessRequest, ProcessResult, ProcessStat
 from contextlib import contextmanager
 from dataclasses import replace
 from autograder.models.capabilities import HostCapabilities
-from execution_host.docker import DockerSession
+from execution_host.docker import GRADING_CAPACITY_WAIT_SECONDS, DockerHost, DockerSession
+from autograder.models.language import Language
+from sandbox_manager.errors import SandboxCapacityTimeout
+from web.core.host import WebHost
 from web.schemas.execution import (
+    CAPACITY_WAIT_SECONDS,
     MAX_OUTPUT_BYTES,
     DeliberateCodeExecutionRequest,
 )
@@ -146,6 +150,34 @@ async def test_invalid_requests_are_rejected_before_acquisition(change):
     assert response.status_code == 422
     assert response.json()["detail"]
     manager.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_saturated_sandbox_budget_answers_the_defined_busy_status():
+    manager = Mock()
+    manager.get_sandbox.side_effect = SandboxCapacityTimeout("every slot is held")
+    with manager_profile(return_value=manager):
+        response = await post(REQUEST)
+    assert response.status_code == 503
+    assert response.json()["detail"] == {"code": "EXECUTION_BUSY",
+                                         "message": "All execution sandboxes are busy; retry later."}
+    assert response.headers["Retry-After"] == "5"
+    manager.dispose.assert_not_called()  # Nothing was acquired.
+
+
+def test_deliberate_runs_share_the_grading_budget_but_wait_only_briefly(session_factory):
+    owner = DockerHost(mode="local")
+    owner._manager = Mock()  # pylint: disable=protected-access
+    host = WebHost(session_factory=session_factory, capabilities=owner.capabilities, resource_owner=owner,
+                   start_workers=False)
+    host.capabilities.execution(Language.PYTHON)
+    host.deliberate_capabilities.execution(Language.PYTHON)
+    assert [call.kwargs["wait_seconds"] for call in owner._manager.get_sandbox.call_args_list] == [
+        GRADING_CAPACITY_WAIT_SECONDS, CAPACITY_WAIT_SECONDS]
+    assert CAPACITY_WAIT_SECONDS < GRADING_CAPACITY_WAIT_SECONDS
+    injected = HostCapabilities(execution=Mock())
+    assert WebHost(session_factory=session_factory, capabilities=injected,
+                   start_workers=False).deliberate_capabilities is injected
 
 
 @pytest.mark.asyncio

@@ -1,11 +1,21 @@
-"""One language's sandbox pool: idle -> active -> closing -> (disposed | quarantined).
+"""One language's sandbox pool under the host-wide sandbox budget.
 
-A used sandbox is never reused. :meth:`LanguagePool.dispose` is the only way a
-tracked sandbox leaves the pool, and it forgets a sandbox only after Docker
-confirms removal (``NotFound`` counts as confirmation). When Docker fails to
-remove it, the sandbox is quarantined: it stays tracked, counts against
-``scale_limit``, is reported in :meth:`get_stats`, and the monitor retries its
-removal a bounded number of times with backoff.
+Lifecycle: idle -> active -> closing -> (disposed | quarantined). A used
+sandbox is never reused. :meth:`LanguagePool.dispose` is the only way a tracked
+sandbox leaves the pool, and it forgets a sandbox only after Docker confirms
+removal (``NotFound`` counts as confirmation). When Docker fails to remove it,
+the sandbox is quarantined: it stays tracked, keeps its budget slot, is reported
+in :meth:`get_stats`, and the monitor retries its removal a bounded number of
+times with backoff.
+
+Every pool of one manager shares a :class:`SandboxBudget` of ``N`` slots and its
+lock. A slot is held from the moment an acquisition (or warm-up) starts creating
+a container until Docker confirms the container's removal, so at every instant
+``creating + active + closing + quarantined <= N``. Warm idle containers (at most
+``pool_size`` per language) hold no slot; taking one takes a slot. Acquisition
+waits in FIFO order for a slot up to the caller's ``wait_seconds`` and raises
+:class:`~sandbox_manager.errors.SandboxCapacityTimeout` on expiry. Docker
+create and remove calls never run under the lock.
 """
 from datetime import datetime
 import logging
@@ -19,6 +29,7 @@ import docker
 from docker.client import DockerClient
 
 from sandbox_manager.docker_profile import GVISOR_RUNTIME, container_options, is_missing_runtime_error
+from sandbox_manager.errors import SandboxCapacityTimeout
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
 from autograder.models.language import Language
@@ -38,23 +49,81 @@ logger = logging.getLogger(__name__)
 
 
 class SandboxUnavailableError(ValueError):
-    """The pool cannot hand out a sandbox now (capacity, shutdown or creation failure)."""
+    """The pool cannot hand out a sandbox (shut down, or container creation failed)."""
+
+
+class SandboxBudget:
+    """``limit`` execution slots shared by every pool of one host, with FIFO waiters.
+
+    ``condition`` is also each pool's lock, so pool state and slot accounting
+    change together. It is only held for bookkeeping, never for Docker calls.
+    """
+
+    def __init__(self, limit: int):
+        if limit < 1:
+            raise ValueError("The sandbox budget must allow at least one sandbox")
+        self.limit = limit
+        self.held = 0
+        self.condition = threading.Condition()
+        self._waiters: deque = deque()
+
+    def take(self, wait_seconds: float, closed: Callable[[], bool]) -> None:
+        """Take one slot, waiting in FIFO order. Call with ``condition`` held."""
+        deadline = time.monotonic() + max(0.0, wait_seconds)
+        ticket = object()
+        self._waiters.append(ticket)
+        self.condition.notify_all()  # Joining the queue is a state change others may wait on.
+        try:
+            while True:
+                if closed():
+                    raise SandboxUnavailableError("The sandbox pool is shut down")
+                if self._waiters[0] is ticket and self.held < self.limit:
+                    self.held += 1
+                    return
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise SandboxCapacityTimeout(
+                        f"No sandbox slot became free within {wait_seconds:g}s (max_sandboxes: {self.limit})")
+                self.condition.wait(remaining)
+        finally:
+            self._waiters.remove(ticket)
+            self.condition.notify_all()  # The next waiter may now be first in line.
+
+    def try_take_unwaited(self) -> bool:
+        """Take a slot only when nobody is waiting (warm-up yields to acquisitions)."""
+        if self._waiters or self.held >= self.limit:
+            return False
+        self.held += 1
+        return True
+
+    def release(self) -> None:
+        """Return one slot. Call with ``condition`` held."""
+        self.held -= 1
+        self.condition.notify_all()
+
+    def stats(self) -> dict:
+        """The limit, slots held and acquisitions waiting."""
+        with self.condition:
+            return {"max_sandboxes": self.limit, "held": self.held, "waiting": len(self._waiters)}
 
 
 class LanguagePool:
     """Warm containers for one language, each used once and then disposed."""
 
     def __init__(self, language: Language, config: SandboxPoolConfig, client: DockerClient = None,
-                 owner: Optional[OwnerIdentity] = None, clock: Callable[[], float] = time.monotonic):
+                 owner: Optional[OwnerIdentity] = None, clock: Callable[[], float] = time.monotonic, *,
+                 budget: SandboxBudget):
         self.language = language
         self.config = config
         self.client = client
         self.owner = owner or OwnerIdentity.current()
         self.pool_id = str(uuid.uuid4())
+        self.budget = budget
         self._sandbox_seq = 0
         self._clock = clock
         self._gvisor_available = True
         self._closed = False
+        self._creating = 0
 
         self.idle_sandboxes: deque[SandboxContainer] = deque()
         self.active_sandboxes: Set[SandboxContainer] = set()
@@ -62,11 +131,11 @@ class LanguagePool:
         self.quarantined_sandboxes: Set[SandboxContainer] = set()
         self._monitor_counter = 0
 
-        # Only blocks this pool; Docker removal always happens outside the lock.
-        self.lock = threading.Lock()
+        # The budget's lock: shared by the host's pools; Docker calls always happen outside it.
+        self.lock = budget.condition
 
-        logger.info("[%s] POOL INITIALIZED - pool_size: %s, scale_limit: %s, pool_id: %s, owner: %s",
-                    language, config.pool_size, config.scale_limit, self.pool_id[:8], self.owner.owner_id[:8])
+        logger.info("[%s] POOL INITIALIZED - pool_size: %s, max_sandboxes: %s, pool_id: %s, owner: %s",
+                    language, config.pool_size, budget.limit, self.pool_id[:8], self.owner.owner_id[:8])
 
     # ------------------------------------------------------------------ capacity
     def _tracked_count(self) -> int:
@@ -74,53 +143,74 @@ class LanguagePool:
         return (len(self.idle_sandboxes) + len(self.active_sandboxes)
                 + len(self.closing_sandboxes) + len(self.quarantined_sandboxes))
 
-    def acquire(self) -> SandboxContainer:
-        """Hand out an idle sandbox or create one within ``scale_limit``."""
+    def acquire(self, wait_seconds: float = 0.0) -> SandboxContainer:
+        """Take a budget slot (waiting up to ``wait_seconds``), then an idle sandbox or a new one.
+
+        Raises :class:`SandboxCapacityTimeout` when no slot frees up in time and
+        :class:`SandboxUnavailableError` when the pool is shut down or creation fails.
+        """
         with self.lock:
-            if self._closed:
-                raise SandboxUnavailableError(f"Sandbox pool for {self.language.value} is shut down")
+            self.budget.take(wait_seconds, lambda: self._closed)
             if self.idle_sandboxes:
                 sandbox = self.idle_sandboxes.popleft()
+                sandbox.holds_slot = True
                 sandbox.activate(self._clock())
                 self.active_sandboxes.add(sandbox)
                 logger.info("[%s] ACQUIRED from idle pool - sandbox_id: %s", self.language, sandbox.short_id)
                 return sandbox
+            self._creating += 1
+            name = self._build_container_name()
+        sandbox = self._create_outside_lock(name, keep_slot=True)
+        logger.info("[%s] CREATED for acquisition - sandbox_id: %s", self.language, sandbox.short_id)
+        return sandbox
 
-            total = self._tracked_count()
-            if total < self.config.scale_limit:
-                logger.info("[%s] NO IDLE SANDBOXES - Attempting scale-up...", self.language)
-                try:
-                    sandbox = self._create_sandbox()
-                except Exception as e:
-                    logger.exception("[%s] SCALE-UP FAILED - Error: %s", self.language, e)
-                    raise SandboxUnavailableError(
-                        f"Failed to create sandbox for language {self.language.value}") from e
-                sandbox.activate(self._clock())
-                self.active_sandboxes.add(sandbox)
-                logger.info("[%s] SCALE-UP SUCCESS - created sandbox_id: %s", self.language, sandbox.short_id)
+    def _create_outside_lock(self, name: str, *, keep_slot: bool) -> SandboxContainer:
+        """Create a reserved container; a failure or a shutdown meanwhile releases its slot."""
+        try:
+            sandbox = self._create_sandbox(name)
+        except Exception as exc:
+            with self.lock:
+                self._creating -= 1
+                self.budget.release()
+            logger.exception("[%s] SANDBOX CREATION FAILED - Error: %s", self.language, exc)
+            raise SandboxUnavailableError(f"Failed to create sandbox for language {self.language.value}") from exc
+        sandbox.holds_slot = True
+        with self.lock:
+            if not self._closed:
+                self._creating -= 1
+                if keep_slot:
+                    sandbox.activate(self._clock())
+                    self.active_sandboxes.add(sandbox)
+                else:
+                    sandbox.holds_slot = False
+                    self.budget.release()
+                    self.idle_sandboxes.append(sandbox)
                 return sandbox
-
-            logger.warning("[%s] BOTTLENECK DETECTED - %s sandboxes tracked (scale_limit: %s, quarantined: %s)",
-                           self.language, total, self.config.scale_limit, len(self.quarantined_sandboxes))
-            raise SandboxUnavailableError(
-                f"No idle sandboxes available for language {self.language.value}. "
-                f"All {total} sandboxes are busy or awaiting disposal (scale_limit: {self.config.scale_limit})"
-            )
+            # Shut down while Docker was creating it: remove it before shutdown completes.
+            sandbox.state = SandboxState.CLOSING
+            self.closing_sandboxes.add(sandbox)
+        try:
+            self._remove_container(sandbox)
+        finally:
+            with self.lock:
+                self._creating -= 1
+                self.lock.notify_all()
+        raise SandboxUnavailableError(f"Sandbox pool for {self.language.value} is shut down")
 
     def replenish(self):
-        """Keep ``pool_size`` idle sandboxes without exceeding ``scale_limit`` tracked ones."""
-        with self.lock:
-            if self._closed:
-                return
-            while (len(self.idle_sandboxes) < self.config.pool_size
-                   and self._tracked_count() < self.config.scale_limit):
-                try:
-                    sandbox = self._create_sandbox()
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    logger.exception("[%s] REPLENISH FAILED - Error: %s", self.language, e)
-                    break
-                self.idle_sandboxes.append(sandbox)
-                logger.info("[%s] REPLENISH SUCCESS - sandbox_id: %s", self.language, sandbox.short_id)
+        """Warm up to ``pool_size`` idle sandboxes using only slots no acquisition is waiting for."""
+        while True:
+            with self.lock:
+                if (self._closed or len(self.idle_sandboxes) + self._creating >= self.config.pool_size
+                        or not self.budget.try_take_unwaited()):
+                    return
+                self._creating += 1
+                name = self._build_container_name()
+            try:
+                sandbox = self._create_outside_lock(name, keep_slot=False)
+            except SandboxUnavailableError:
+                return  # Logged; the monitor tries again on its next pass.
+            logger.info("[%s] REPLENISH SUCCESS - sandbox_id: %s", self.language, sandbox.short_id)
 
     # ------------------------------------------------------------------ disposal
     def dispose(self, sandbox: SandboxContainer) -> DisposalStatus:
@@ -161,6 +251,9 @@ class LanguagePool:
                 self.quarantined_sandboxes.discard(sandbox)
                 sandbox.state = SandboxState.DISPOSED
                 sandbox.last_disposal_error = None
+                if sandbox.holds_slot:
+                    sandbox.holds_slot = False
+                    self.budget.release()
                 logger.info("[%s] SANDBOX DISPOSED - container_id: %s", self.language, sandbox_id)
                 return DisposalStatus.DISPOSED
             sandbox.state = SandboxState.QUARANTINED
@@ -199,22 +292,17 @@ class LanguagePool:
 
     # ------------------------------------------------------------------ monitoring
     def check_ttls(self):
-        """Dispose active sandboxes past ``running_timeout`` and surplus idle ones past ``idle_timeout``."""
+        """Dispose active sandboxes past ``running_timeout`` (measured from the grant)."""
         now = self._clock()
         with self.lock:
-            expired_active = [sandbox for sandbox in self.active_sandboxes
-                              if now - (sandbox.activated_at or sandbox.created_at) > self.config.running_timeout]
-            surplus = len(self.idle_sandboxes) - self.config.pool_size
-            expired_idle = [sandbox for sandbox in self.idle_sandboxes
-                            if now - sandbox.created_at > self.config.idle_timeout][:max(0, surplus)]
-        for sandbox in expired_active:
+            expired = [sandbox for sandbox in self.active_sandboxes
+                       if now - (sandbox.activated_at or sandbox.created_at) > self.config.running_timeout]
+        for sandbox in expired:
             logger.warning("[%s] Sandbox %s exceeded running timeout, disposing...", self.language, sandbox.short_id)
-            self.dispose(sandbox)
-        for sandbox in expired_idle:
             self.dispose(sandbox)
 
     def monitor(self):
-        """Called periodically by the manager: timeouts, quarantine retry, replenishment."""
+        """Called periodically by the manager: running timeouts, quarantine retry, warm-up."""
         self.check_ttls()
         self.retry_quarantined()
         self.replenish()
@@ -226,24 +314,18 @@ class LanguagePool:
             if stats["quarantined"]:
                 logger.error("[%s] %s sandbox(es) quarantined awaiting removal: %s", self.language,
                              stats["quarantined"], stats["quarantine"])
-            if stats["utilization"] >= 90:
-                logger.warning("[%s] HIGH LOAD - idle: %s, active: %s, total: %s/%s, utilization: %.1f%%",
-                               self.language, stats['idle'], stats['active'],
-                               stats['total'], stats['scale_limit'], stats["utilization"])
-            elif stats['active'] > 0:
-                logger.debug("[%s] STATS - idle: %s, active: %s, total: %s/%s, utilization: %.1f%%",
-                             self.language, stats['idle'], stats['active'],
-                             stats['total'], stats['scale_limit'], stats["utilization"])
+            if stats["active"]:
+                logger.debug("[%s] STATS - idle: %s, creating: %s, active: %s, closing: %s",
+                             self.language, stats["idle"], stats["creating"], stats["active"], stats["closing"])
 
     def get_stats(self) -> dict:
         """Counts per state, including quarantined containers and their errors."""
         with self.lock:
-            total = self._tracked_count()
-            active = len(self.active_sandboxes)
             return {
                 "language": self.language.value,
                 "idle": len(self.idle_sandboxes),
-                "active": active,
+                "creating": self._creating,
+                "active": len(self.active_sandboxes),
                 "closing": len(self.closing_sandboxes),
                 "quarantined": len(self.quarantined_sandboxes),
                 "quarantine": [
@@ -252,10 +334,8 @@ class LanguagePool:
                      "error": sandbox.last_disposal_error}
                     for sandbox in self.quarantined_sandboxes
                 ],
-                "total": total,
+                "total": self._tracked_count(),
                 "pool_size": self.config.pool_size,
-                "scale_limit": self.config.scale_limit,
-                "utilization": active / total * 100 if total else 0,
             }
 
     # ------------------------------------------------------------------ creation
@@ -268,9 +348,12 @@ class LanguagePool:
             LABEL_CREATED_AT: datetime.now().isoformat(),
         }
 
-    def _create_sandbox(self) -> SandboxContainer:
-        """Create one container from the single Docker profile (gVisor when available)."""
-        name = self._build_container_name()
+    def _create_sandbox(self, name: str) -> SandboxContainer:
+        """Create one container from the single Docker profile (gVisor when available).
+
+        Runs outside the lock. Concurrent creators may each discover a missing
+        gVisor runtime; each removes only its own uniquely named attempt.
+        """
         options = container_options(self.config.image, name, self._labels())
         container = None
         if self._gvisor_available:
@@ -299,26 +382,37 @@ class LanguagePool:
             logger.exception("[%s] Could not remove partially created container %s", self.language, name)
 
     def _build_container_name(self) -> str:
-        """Build deterministic container name: ag-sbx-{lang}-{pool8}-{seq4}"""
+        """Build deterministic container name: ag-sbx-{lang}-{pool8}-{seq4}. Call with the lock held."""
         self._sandbox_seq += 1
         return f"ag-sbx-{self.language.value}-{self.pool_id[:8]}-{self._sandbox_seq:04d}"
 
     # ------------------------------------------------------------------ shutdown
+    def close(self) -> None:
+        """Refuse new acquisitions and wake waiting ones (they raise SandboxUnavailableError)."""
+        with self.lock:
+            self._closed = True
+            self.lock.notify_all()
+
     def shutdown(self) -> int:
         """Stop handing out sandboxes and dispose every tracked one.
 
+        Waiting acquisitions fail with :class:`SandboxUnavailableError`; an
+        in-flight creation removes its container before this returns.
         Quarantined sandboxes get one more attempt. Returns how many remain
         quarantined; they carry this owner's labels, so the next manager on this
         host reclaims them once this process has exited.
         """
+        self.close()
         with self.lock:
-            self._closed = True
             pending = list(self.active_sandboxes) + list(self.idle_sandboxes)
         for sandbox in pending:
             try:
                 self.dispose(sandbox)
             except ValueError:
                 pass  # Disposed concurrently.
+        with self.lock:
+            while self._creating:
+                self.lock.wait()
         self.retry_quarantined(final=True)
         with self.lock:
             remaining = len(self.quarantined_sandboxes) + len(self.closing_sandboxes)
