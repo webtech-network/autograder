@@ -231,14 +231,14 @@ Each container is created with:
 - **CPU limit:** 0.5 CPU cores
 - **Process limit:** 64 PIDs
 - **Network:** Disabled (`network_mode="none"`)
-- **Capabilities:** All dropped (`cap_drop=["ALL"]`)
+- **Capabilities:** All dropped except `KILL` and `DAC_OVERRIDE` for `root` control processes; `no-new-privileges`
 - **File size limit:** 10 MB
 - **Filesystem:** tmpfs-based (`/app` 64 MB writable with mode 1777, `/tmp` 32 MB noexec) under both runtimes
 - **Runtime:** gVisor (`runsc`) when available, falls back to default `runc`; the fallback only drops the `runtime` argument
 - **Labels:** application label plus owner lease (see [ownership](../contracts/SANDBOX.md#owner-leases-and-orphan-reclamation))
 
 All options are declared once in `sandbox_manager/docker_profile.py`.
-- **User:** Runs as non-root `sandbox` user
+- **User:** Submission processes run as the non-root `sandbox` user; PID 1 (Docker's init) and control execs run as `root`, out of the submission's reach (see [who ended a run](../contracts/PROCESSES.md#who-ended-a-run))
 
 ---
 

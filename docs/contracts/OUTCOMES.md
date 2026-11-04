@@ -37,6 +37,8 @@ unexpected failure in the engine and in every host.
 | --- | --- | --- |
 | An assessed criterion genuinely scores zero | Completed, score 0 | No top-level error |
 | Student compilation/runtime failure or student execution timeout reported by an I/O evaluator | Completed, criterion scores 0 | No top-level error |
+| Submission exhausts the sandbox's memory or process limit (`SandboxExhausted`) | Completed; that criterion and every later one in the sandbox score 0, the same under gVisor and runc | No top-level error |
+| Workspace program (`./a.out`) missing or not executable | Completed, criterion scores 0 | No top-level error |
 | Required preparation or assessment file missing | Failed, no score | submission / `REQUIRED_FILE_MISSING` |
 | Preparation command fails because the submission does not satisfy it | Failed, no score | submission / `PREPARATION_FAILED` |
 | Language omitted for a multilingual definition or disallowed language selected | Failed, no score | submission / `LANGUAGE_REQUIRED` or `LANGUAGE_NOT_ALLOWED` |
@@ -48,8 +50,8 @@ unexpected failure in the engine and in every host.
 | No program command is defined for the selected language | Failed, no score | submission / `MISSING_LANGUAGE_COMMAND` |
 | Required sandbox cannot be provisioned, or no sandbox budget slot frees up within the grading wait (retryable) | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
 | Host cannot start and reach an assessed server | Failed, no score | capability / `SERVER_CAPABILITY_UNAVAILABLE` |
-| Sandbox system/transport or artifact extraction failure | Failed, no score | capability / `SANDBOX_ERROR` |
-| The assessed program cannot be started | Failed, no score | capability / `PROCESS_START_FAILED` |
+| Sandbox system/transport or artifact extraction failure, or a host/operator that stopped or removed the sandbox (running timeout, `docker kill`/`rm`) | Failed, no score, retryable | capability / `SANDBOX_ERROR` |
+| Runtime command (`python3`) cannot be started | Failed, no score | capability / `PROCESS_START_FAILED` |
 | Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / `PREPARATION_ERROR` |
 | Required fixture provider is not supplied by the host | Failed, no score | capability / `FIXTURE_PROVIDER_UNAVAILABLE` |
 | Required structural analysis unavailable | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
@@ -73,7 +75,10 @@ There is no partial grading policy: every configured evaluator is required,
 including zero-weight criteria. A required evaluator failure makes the entire
 numeric grade unauthoritative. Student timeout is determined by a sandbox's
 explicit `TIMEOUT` assessment response; an exception while communicating with
-the sandbox is an infrastructure failure. API evaluators assess returned HTTP
+the sandbox is an infrastructure failure. Who ended a sandbox is decided from
+host-side evidence, never from an exit code ([PROCESSES.md](PROCESSES.md#who-ended-a-run)),
+and the submission cannot signal or starve the control processes, so it cannot
+turn an assessed result into a retryable failure. API evaluators assess returned HTTP
 status/content; inability to obtain a response is a capability failure. These
 conservative classifications avoid claiming that unavailable infrastructure
 proved student code incorrect.
