@@ -20,8 +20,8 @@ install: ## Install runtime, test, docs and lint dependencies
 
 verify: lint contracts docs test test-web ## Hermetic core/library path (no Docker, no database)
 
-lint: ## Pylint the shipped packages, scripts and examples (.pylintrc)
-	$(PYTHON) -m pylint -j 0 autograder web sandbox_manager execution_host github_action scripts examples submission_contract.py
+lint: ## Pylint the shipped packages, scripts and examples, serially (.pylintrc)
+	$(PYTHON) -m pylint autograder web sandbox_manager execution_host github_action scripts examples submission_contract.py
 
 contracts: ## Check that checked-in JSON Schemas match the models
 	$(PYTHON) scripts/generate_contract_schemas.py --check

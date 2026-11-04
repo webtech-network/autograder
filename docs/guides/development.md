@@ -28,7 +28,11 @@ API only after all of them pass for that commit and only while it is still
 the head of `main`. Run the same command locally
 before opening a pull request. `make verify` stops at the first failing step;
 `make -k verify` runs every step and reports all failures. `make lint` fails on
-any pylint error (`fail-on` in `.pylintrc`), whatever the repository score.
+any pylint error (`fail-on` in `.pylintrc`), whatever the repository score. It
+runs in one process: parallel pylint (`-j`) reports spurious `E1136` errors on
+the SQLAlchemy models depending on how modules are split across workers. It
+covers the shipped packages, `scripts/` and `examples/`, not `tests/`, which still
+has pylint false positives to resolve first.
 
 | Command | Needs | Runs |
 | --- | --- | --- |

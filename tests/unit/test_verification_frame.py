@@ -183,3 +183,13 @@ def test_lint_fails_on_any_error_whatever_the_repository_score(tmp_path):
             cwd=tmp_path, capture_output=True, text=True, check=False, timeout=120)
         assert re.search(r": E\d{4}: ", result.stdout), result.stdout
         assert result.returncode != 0, f"{filename} passed lint:\n{result.stdout}"
+
+
+def test_lint_runs_in_one_process():
+    # Parallel pylint splits modules across workers differently per CPU count,
+    # and astroid's inference of SQLAlchemy `Mapped[...]` depends on what a
+    # worker loaded first: spurious E1136 errors then fail the gate at random.
+    recipe = make("-n", "lint").stdout
+    assert not re.search(r"(^|\s)(-j|--jobs)", recipe), recipe
+    settings = (ROOT / ".pylintrc").read_text(encoding="utf-8")
+    assert re.findall(r"^jobs\s*=\s*(\S+)", settings, re.M) == ["1"]
