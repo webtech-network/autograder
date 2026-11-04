@@ -10,7 +10,7 @@ from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.frozen import freeze, thaw
 from autograder.models.language import Language, LanguageId
-from autograder.models.process import split_command
+from autograder.models.process import SHELL_OPERATOR_MESSAGE, shell_operator, split_command
 
 
 class StrictModel(BaseModel):
@@ -28,7 +28,8 @@ class SetupCommand(StrictModel):
     name: str = Field(min_length=1)
     command: str = Field(min_length=1, description=(
         "Executable and arguments, split with POSIX quoting and run without a shell. "
-        "Use an explicit `sh -c '...'` command for shell operators."))
+        "Standalone shell operators (&&, |, ;, >, ...) are rejected: use one setup command per step, "
+        "and an explicit `sh -c '...'` command only for a real pipeline."))
 
     @field_validator('command')
     @classmethod
@@ -330,6 +331,12 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
             errors.append(_error('INVALID_PARAMETER_CONTRACT', (*path, 'parameters'), str(exc)))
             continue
         errors.extend(_error(issue.code, (*path, 'parameters', *issue.path), issue.message) for issue in issues)
+    for language, preparation in definition.preparation.languages.items():
+        for index, setup in enumerate(preparation.setup_commands):
+            operator = shell_operator(setup.command)
+            if operator is not None:
+                errors.append(_error('SHELL_OPERATOR', ('preparation', 'languages', language, 'setup_commands', index, 'command'),
+                                     SHELL_OPERATOR_MESSAGE.format(operator=operator)))
     for resource_index, resource in enumerate(definition.feedback.preferences.general.online_content):
         if not set(resource.linked_tests).issubset(seen):
             errors.append(_error('UNKNOWN_CRITERION_REFERENCE', ('feedback','preferences','general','online_content',resource_index,'linked_tests'), 'Learning resources must reference criterion IDs'))

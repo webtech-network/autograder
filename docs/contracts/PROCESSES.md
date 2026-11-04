@@ -27,9 +27,13 @@ A request has exactly one of `argv` or `shell`. `ProcessRequest.command(text)`
 builds `argv` with POSIX splitting: quotes group words, and a backslash escapes
 the next character. Malformed quoting (`python3 'main.py`) is a `ValueError`.
 The process is never retried through a shell. Definitions are checked when they
-are compiled: an I/O `program_command` fails with `INVALID_COMMAND`, and a
-preparation `setup_commands[].command` fails with a validation error. To use
-shell syntax, write it explicitly, for example `sh -c 'javac *.java && java Main'`.
+are compiled: malformed quoting in an I/O `program_command` fails with
+`INVALID_COMMAND`, and in a preparation `setup_commands[].command` with a
+validation error. A standalone unquoted shell operator (`&&`, `|`, `;`, `>`,
+`2>&1`, ...) in either fails with `SHELL_OPERATOR` (`shell_operator(text)`), since
+it would silently become an argument. Compile in setup commands, one step each;
+write an explicit shell only for a real pipeline, for example
+`sh -c 'python3 gen.py | sort'`. Quoted operators stay literal arguments.
 
 `lines_to_stdin(lines)` turns line-oriented inputs into exact bytes. Each line
 is followed by `\n`, so `[]` gives no bytes at all and `[""]` gives one empty
@@ -144,7 +148,7 @@ Definitions that depended on the old behaviour need these changes:
   gets EOF. Add `[""]` if the program must read an empty line.
 * A `program_command` or setup command that relied on shell syntax never ran
   through a shell before (it was split into arguments) unless its quoting was
-  malformed. Write `sh -c '...'` explicitly. Malformed quoting is now rejected
-  when the definition is compiled or loaded.
+  malformed. Write `sh -c '...'` explicitly. Malformed quoting and standalone
+  shell operators are now rejected when the definition is compiled or loaded.
 * Assignments that expected `compilation_error` from an I/O run should compile
   in `preparation.languages.<language>.setup_commands`.

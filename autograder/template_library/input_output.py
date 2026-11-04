@@ -11,7 +11,9 @@ from autograder.models.dataclass.test_result import TestResult
 from autograder.models.language import Language, LanguageId
 from autograder.translations import t
 from autograder.models.execution import ExecutionSession
-from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus, lines_to_stdin, split_command
+from autograder.models.process import (
+    SHELL_OPERATOR_MESSAGE, ProcessRequest, ProcessResult, ProcessStatus, lines_to_stdin, shell_operator, split_command,
+)
 from autograder.models.evaluation_error import EvaluationError
 
 
@@ -20,7 +22,9 @@ from autograder.models.evaluation_error import EvaluationError
 # ===============================================================
 
 PROGRAM_COMMAND = ("Command that runs the program: a nonempty string, a map with a command for every "
-                   "allowed language, or 'CMD' for the conventional per-language default.")
+                   "allowed language, or 'CMD' for the conventional per-language default. It runs without a "
+                   "shell for every test: compile in preparation.setup_commands, never here; standalone shell "
+                   "operators (&&, |, ;, >, ...) are rejected.")
 
 Nonempty = Annotated[str, Field(min_length=1)]
 Command = Nonempty | dict[LanguageId, Nonempty]
@@ -99,18 +103,23 @@ class BaseExecutionTest(TestFunction):
 
     def validate_parameters(self, parameters: Dict[str, Any], *,
                             languages: Tuple[str, ...]) -> Iterable[ParameterIssue]:
-        """A language map or ``CMD`` must name a command for every allowed language."""
+        """Each command is a well-quoted argument vector without shell operators, and a
+        language map or ``CMD`` names a command for every allowed language."""
         command = parameters["program_command"]
         candidates = command.items() if isinstance(command, dict) else ((None, command),)
         for key, text in candidates:
             if text == DEFAULT_COMMAND:
                 continue
+            path = ("program_command",) if key is None else ("program_command", key)
             try:
                 split_command(text)
             except ValueError:
-                path = ("program_command",) if key is None else ("program_command", key)
                 yield ParameterIssue("INVALID_COMMAND", path,
                                      "Command quoting is malformed; use explicit sh -c '...' for shell syntax")
+                continue
+            operator = shell_operator(text)
+            if operator is not None:
+                yield ParameterIssue("SHELL_OPERATOR", path, SHELL_OPERATOR_MESSAGE.format(operator=operator))
         if isinstance(command, dict):
             covered = set(command)
         elif command == DEFAULT_COMMAND:
