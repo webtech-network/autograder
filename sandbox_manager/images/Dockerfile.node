@@ -1,0 +1,21 @@
+# Student runtime for `node`: Node.js 24 (LTS) on Alpine 3.24.
+# Built without a build context (see scripts/sandbox_images.py); never COPY or ADD.
+FROM node:24-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
+
+LABEL autograder.runtime.languages="node"
+
+# Students get the runtime only: no npm/npx/corepack/yarn or other package
+# managers and downloaders, no setuid binaries, and an unprivileged user.
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx \
+        /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-* \
+    && rm -rf /sbin/apk /etc/apk /lib/apk /usr/share/apk /var/cache/apk \
+    && rm -f /usr/bin/wget /usr/bin/curl /usr/bin/nc \
+    && find / -xdev -perm /6000 -type f -exec chmod a-s {} + \
+    && addgroup -S sandbox && adduser -S sandbox -G sandbox \
+    && mkdir -p /app && chown sandbox:sandbox /app
+
+WORKDIR /app
+# Pools always mount a bounded tmpfs here (sandbox_manager/docker_profile.py).
+VOLUME ["/app"]
+USER sandbox
+CMD ["node"]

@@ -34,12 +34,16 @@ general:
 # sandbox image this host runs for it. Replacing an image changes only this map.
 # A language left out has no pool: grading or deliberate execution in that language
 # fails as an unavailable capability (never as an invalid language).
+# These are the versioned images built from sandbox_manager/images (see
+# `python scripts/sandbox_images.py list`). Images are never pulled implicitly: run
+# `docker pull <image>` (or `make sandbox-build-all`) first; a missing image, or one
+# whose autograder.runtime.languages label omits the language, stops the host at startup.
 runtimes:
-    python: sandbox-py:latest
-    java: sandbox-java:latest
-    node: sandbox-node:latest
-    cpp: sandbox-cpp:latest
-    c: sandbox-cpp:latest
+    python: ghcr.io/webtech-network/autograder-sandbox-python:c7739d3b1863
+    java: ghcr.io/webtech-network/autograder-sandbox-java:e6a8ea1c4e0c
+    node: ghcr.io/webtech-network/autograder-sandbox-node:4a0dc30f9c4d
+    cpp: ghcr.io/webtech-network/autograder-sandbox-cpp:bcbf4bab3f24
+    c: ghcr.io/webtech-network/autograder-sandbox-cpp:bcbf4bab3f24
 
 # SCALING BEHAVIOR (After Fix):
 # 1. ON HIGH DEMAND: When all idle sandboxes are busy, system automatically

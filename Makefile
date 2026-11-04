@@ -26,7 +26,8 @@ help:
 	@echo "  make sandbox-build-python- Build Python sandbox image"
 	@echo "  make sandbox-build-java  - Build Java sandbox image"
 	@echo "  make sandbox-build-node  - Build Node.js sandbox image"
-	@echo "  make sandbox-build-cpp   - Build C++ sandbox image"
+	@echo "  make sandbox-build-cpp   - Build C/C++ sandbox image"
+	@echo "  make sandbox-list        - Show the image each language uses"
 	@echo "  make sandbox-clean       - Remove all sandbox images"
 	@echo "  make sandbox-test        - Run sandbox integration tests"
 
@@ -99,32 +100,28 @@ start-autograder:
 	@echo "✅ Autograder API server is running at http://localhost:8000"
 
 
-# Sandbox Management
-sandbox-build-all: sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp
+# Sandbox Management: the versioned runtime images named in sandbox_config.yml
+SANDBOX_IMAGES = python scripts/sandbox_images.py
+
+sandbox-build-all:
+	$(SANDBOX_IMAGES) build
 	@echo "✅ All sandbox images built successfully!"
 
 sandbox-build-python:
-	@echo "Building Python sandbox image..."
-	docker build -t sandbox-py:latest -f sandbox_manager/images/Dockerfile.python sandbox_manager/images/
+	$(SANDBOX_IMAGES) build python
 
 sandbox-build-java:
-	@echo "Building Java sandbox image..."
-	docker build -t sandbox-java:latest -f sandbox_manager/images/Dockerfile.java sandbox_manager/images/
+	$(SANDBOX_IMAGES) build java
 
 sandbox-build-node:
-	@echo "Building Node.js sandbox image..."
-	docker build -t sandbox-node:latest -f sandbox_manager/images/Dockerfile.javascript sandbox_manager/images/
+	$(SANDBOX_IMAGES) build node
 
 sandbox-build-cpp:
-	@echo "Building C++ sandbox image..."
-	docker build -t sandbox-cpp:latest -f sandbox_manager/images/Dockerfile.cpp sandbox_manager/images/
+	$(SANDBOX_IMAGES) build cpp
 
 sandbox-clean:
 	@echo "Removing sandbox images..."
-	-docker rmi sandbox-py:latest
-	-docker rmi sandbox-java:latest
-	-docker rmi sandbox-node:latest
-	-docker rmi sandbox-cpp:latest
+	-docker rmi $$($(SANDBOX_IMAGES) list | cut -d' ' -f2 | sort -u)
 	@echo "✅ Sandbox images removed"
 
 # Testing
@@ -142,7 +139,6 @@ test-cov:
 
 sandbox-test: test-integration
 sandbox-list:
-	@echo "Sandbox images:"
-	@docker images | grep sandbox- || echo "No sandbox images found"
+	@$(SANDBOX_IMAGES) list
 
 
