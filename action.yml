@@ -47,7 +47,7 @@ inputs:
     description: "Allowed language ID. May be omitted only when the definition has one language."
     required: false
   locale:
-    description: "Feedback locale: en or pt-br. Applies in both configuration modes."
+    description: "Feedback locale: en or pt-br (case-insensitive; pt_br is accepted). Applies in both configuration modes."
     required: false
     default: "en"
 outputs:

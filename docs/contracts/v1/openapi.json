@@ -3850,17 +3850,13 @@
             "description": "Optional language override"
           },
           "locale": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 32
-              },
-              {
-                "type": "null"
-              }
+            "type": "string",
+            "enum": [
+              "en",
+              "pt-br"
             ],
             "title": "Locale",
-            "description": "Optional locale for feedback (e.g., 'en', 'pt_br')",
+            "description": "Feedback locale. Case-insensitive; '_' is accepted for '-' (e.g. 'pt_BR' is 'pt-br').",
             "default": "en"
           },
           "metadata": {
@@ -4025,6 +4021,10 @@
           },
           "locale": {
             "type": "string",
+            "enum": [
+              "en",
+              "pt-br"
+            ],
             "title": "Locale",
             "default": "en"
           },

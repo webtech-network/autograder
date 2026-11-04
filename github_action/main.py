@@ -10,6 +10,7 @@ import stat
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.contracts.definition import DefinitionValidationError
 from autograder.models.contracts.outcome import validate_outcome
+from autograder.models.locale import DEFAULT_LOCALE, LOCALE_IDS, parse_locale
 from github_action.cloud_client import CloudClient, CloudClientError, CloudConnectionError
 from github_action.cloud_exporter import delivery_key
 from github_action.github_action_service import GithubActionService
@@ -23,6 +24,13 @@ from sandbox_manager.submission_contract import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def locale(value):
+    """The core locale set, normalized exactly as the HTTP host does."""
+    return parse_locale(value)
+
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--execution-mode", choices=("repo", "external"), default="repo")
 parser.add_argument("--definition-path", default=".github/autograder/definition.json")
@@ -31,7 +39,7 @@ parser.add_argument("--submitter-id", help="Authoritative opaque submitter ID (e
 parser.add_argument("--submitter-name", help="Display name for the submitter")
 parser.add_argument("--student-name", help=argparse.SUPPRESS)  # removed; fails with migration guidance
 parser.add_argument("--submission-language")
-parser.add_argument("--locale", choices=("en", "pt-br"), default="en")
+parser.add_argument("--locale", type=locale, default=DEFAULT_LOCALE, metavar="{" + ",".join(LOCALE_IDS) + "}")
 parser.add_argument("--grading-config-id", type=int)
 parser.add_argument("--grading-config-revision", type=int)
 parser.add_argument("--trusted-self-hosted-runner", choices=("true", "false"), default="false")

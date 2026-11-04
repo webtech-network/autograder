@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
 from autograder.models.language import Language
+from autograder.models.locale import DEFAULT_LOCALE, Locale, parse_locale
 
 
 @dataclass
@@ -38,5 +39,9 @@ class Submission:
     assignment_id: int
     submission_files: Dict[str, SubmissionFile]
     language: Optional[Language] = None
-    locale: str = "en"
+    locale: Locale = DEFAULT_LOCALE
     evaluation_scope: Optional[EvaluationScope] = None
+
+    def __post_init__(self):
+        # The only accepted locales are the published set; see autograder.models.locale.
+        self.locale = parse_locale(self.locale)

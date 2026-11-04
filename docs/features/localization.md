@@ -34,7 +34,7 @@ report = t(
 ### Key Features
 - **Nested Lookup**: Supports dot-notation (e.g., `a.b.c`) to traverse hierarchical dictionaries.
 - **Graceful Fallback**: If a key is missing in the target locale (e.g., `pt-br`), it automatically falls back to the default locale (`en`).
-- **Locale Normalization**: Common formats like `pt-br` are automatically normalized to `pt_br` to match Python module naming conventions.
+- **Closed Locale Set**: Supported locales are declared once in `autograder/models/locale.py` (`en`, `pt-br`). `Submission`, the HTTP API (422) and the GitHub Action (argument error) accept exactly that set through `parse_locale`, which ignores case and treats `_` like `-` (`pt_BR` → `pt-br`). Anything else is rejected, never replaced by English, and never used to build a file path.
 - **Variable Interpolation**: Uses standard Python `.format()` syntax for dynamic values.
 
 ---
@@ -74,9 +74,9 @@ We use a nested structure to organize strings by domain and feature:
 
 ## Adding a New Language
 
-1.  Create a new file in `autograder/translations/` named after the ISO 639-1 code + region, using **snake_case** for the filename (e.g., `pt_br.json`).
-2.  Define the JSON structure by copying it from `en.json`.
-3.  The new language will be automatically available via `t(..., locale="pt-br")`.
+1.  Add the identifier to `Locale` in `autograder/models/locale.py` (e.g., `PT_BR = "pt-br"`).
+2.  Create its catalog in `autograder/translations/`, using **snake_case** for the filename (e.g., `pt_br.json`), by copying `en.json`.
+3.  Regenerate the wire schemas (`python scripts/generate_contract_schemas.py`). Both hosts accept the new locale from the same declaration; a missing catalog fails at import.
 
 ## Best Practices
 

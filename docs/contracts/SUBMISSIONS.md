@@ -71,6 +71,12 @@ Per-file `file_metadata` is opaque evaluator context, exposed as
 audit data and is stored as `submission_metadata`; the grader never interprets
 it. Locale and evaluation scope are separate persisted execution inputs.
 
+`locale` is one of the closed core set `autograder.models.locale.LOCALE_IDS`
+(`en`, `pt-br`; default `en`). Case is ignored and `_` is read as `-`, so `pt_BR`
+is stored as `pt-br`. Any other value, including `null`, is a 422 before
+acceptance; it is never replaced by English. The Action's `locale` input and the
+Python `Submission` apply the same `parse_locale` rule.
+
 For example, submit both Python source files and a README as context:
 
 ```json
