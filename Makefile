@@ -5,7 +5,7 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-clean docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -68,6 +68,26 @@ sandbox-build-cpp: ## Build the C/C++ sandbox image
 
 sandbox-clean: ## Remove the sandbox images
 	-docker rmi sandbox-py:latest sandbox-java:latest sandbox-node:latest sandbox-cpp:latest
+
+##@ Database migrations (DATABASE_URL selects the database)
+
+ALEMBIC = $(PYTHON) -m alembic -c web/alembic.ini
+
+db-upgrade: ## Apply all pending migrations (the API never creates tables)
+	$(ALEMBIC) upgrade head
+
+db-downgrade: ## Roll back the last migration
+	$(ALEMBIC) downgrade -1
+
+db-current: ## Show the current migration revision
+	$(ALEMBIC) current
+
+db-history: ## Show the migration history
+	$(ALEMBIC) history --verbose
+
+db-migrate: ## Autogenerate a migration against head: make db-migrate MSG="describe the change"
+	@if [ -z "$(MSG)" ]; then echo 'Usage: make db-migrate MSG="describe the change"'; exit 1; fi
+	$(ALEMBIC) revision --autogenerate -m "$(MSG)"
 
 ##@ Running locally
 

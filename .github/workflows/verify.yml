@@ -197,6 +197,12 @@ jobs:
             # 4. Pull and Restart
             echo "🚀 Deploying $SERVICE_NAME..."
             docker compose -f docker-compose.yml pull "$SERVICE_NAME"
+            # The new image refuses to serve an unmigrated database: migrate with
+            # it first, and keep the running API if the migration fails.
+            echo "🗄️ Migrating database schema..."
+            docker compose -f docker-compose.yml run --rm --no-deps "$SERVICE_NAME" \
+              alembic -c web/alembic.ini upgrade head \
+              || { echo "❌ ERROR: Migration failed; the running API was not replaced."; docker logout ghcr.io; exit 1; }
             docker compose -f docker-compose.yml up -d --no-deps "$SERVICE_NAME"
               
             # 5. Cleanup
