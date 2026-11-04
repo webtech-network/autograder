@@ -4,7 +4,7 @@ from unittest.mock import Mock
 from autograder import build_pipeline
 from autograder.models.capabilities import HostCapabilities
 from execution_host.docker import DockerSession
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from tests.unit.pipeline.test_host_capabilities import definition, submission
 
 

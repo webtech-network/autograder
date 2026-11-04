@@ -336,3 +336,21 @@ unused `PreflightError` and the unused report translation keys are removed. The
 legacy pre-flight feedback generator and pipeline execution serializer were
 already deleted with the step framework (#396) and had no remaining callers.
 Feedback `mode` stays `"default"` in the v1 schema.
+
+## Language identity and its consumers (ARC-05)
+
+`autograder.models.language.Language` is the only declaration of supported
+language identifiers. It carries no image and imports no infrastructure. The
+definition and outcome schemas, submission and deliberate-execution validation,
+and the outcome's `language` derive from it, and wire identifiers are unchanged.
+The host owns runtime images in the `runtimes:` map of `sandbox_config.yml`; an
+allowed language without a profile is an unavailable capability
+(`RuntimeUnavailableError`, control API `501 RUNTIME_UNAVAILABLE`, grading
+`CAPABILITY_UNAVAILABLE`), never an invalid language. I/O evaluators own
+`program_command` selection, with one documented `CMD` table; the
+`CommandResolver`, its unused default table and its alias and file-name fallbacks
+are removed. Analysis owns grammar selection (`structural_analysis.py`), and
+evaluators decide their assessable files through `accepts_file`, so mixed
+HTML/CSS/JavaScript submissions are parsed per file type. The HTTP submission
+adapter still lower-cases its input language before binding. No plugin framework
+was introduced. See [LANGUAGES.md](LANGUAGES.md) for the change surface.

@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from tests.evaluator_calls import invoke
 from autograder.template_library.static_analysis import ForbiddenImportTest, StaticAnalysisTemplate
 from autograder.models.dataclass.submission import SubmissionFile
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 
 class TestForbiddenImportRegistration:
@@ -45,7 +45,8 @@ class TestForbiddenImportMetadata:
 
     def test_selects_source_files(self):
         """Test that no specific file is required."""
-        assert self.test_fn.source_files_only is True
+        assert self.test_fn.accepts_file("main.py", Language.PYTHON)
+        assert not self.test_fn.accepts_file("README.md", Language.PYTHON)
 
 
 class TestForbiddenImportEdgeCases:

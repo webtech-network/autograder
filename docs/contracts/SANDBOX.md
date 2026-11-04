@@ -49,6 +49,11 @@ write; `/app` then fell back to an anonymous, unbounded image volume that was
 leaked on removal. `/app` is now `rw,size=64m,exec,mode=1777` under both
 runtimes, and removal passes `v=True`.
 
+The image is not part of the profile or of the language: the `runtimes:` map
+of `sandbox_config.yml` is the host's only language-to-image table
+(`SandboxPoolConfig.image`). A pool exists only for listed languages; acquiring
+another language raises `RuntimeUnavailableError` (see [LANGUAGES.md](LANGUAGES.md)).
+
 ## Host-owned lifetime and signals
 
 Library code installs no signal handlers and no `atexit` hooks. The host that
@@ -147,7 +152,8 @@ Errors use `{"detail": {"code", "message"}}` and never echo request input:
 | Handle expired or sandbox timed out | 410 | `HANDLE_EXPIRED` | `SandboxHandleGone` |
 | Request id reused for another language | 409 | `REQUEST_ID_CONFLICT` | `RemoteSandboxError` |
 | Too many handles / no sandbox | 429 / 503 | `HANDLE_LIMIT` / `SANDBOX_UNAVAILABLE` | `SandboxUnavailable` |
-| Unconfigured language | 400 | `LANGUAGE_UNAVAILABLE` | `RemoteSandboxError` |
+| No runtime profile for a valid language (absent from `runtimes:`) | 501 | `RUNTIME_UNAVAILABLE` | `RuntimeUnavailableError` (same as the local manager) |
+| Unknown language identifier | 422 | `INVALID_REQUEST` | `RemoteSandboxError` |
 | Execution infrastructure failure | 500 | `SANDBOX_ERROR` | `RemoteSandboxError` |
 | Disposal raised unexpectedly | 500 | `DISPOSAL_FAILED` | `RemoteSandboxError` |
 | Schema or limit violation | 422 | `INVALID_REQUEST` | `RemoteSandboxError` |

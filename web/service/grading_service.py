@@ -9,7 +9,7 @@ from autograder.autograder import build_pipeline
 from autograder.models.contracts.definition import compile_snapshot
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import EvaluationScope, Submission, SubmissionFile
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from web.config.logging import get_logger
 
 logger = get_logger(__name__)

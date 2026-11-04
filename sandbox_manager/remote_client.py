@@ -11,7 +11,9 @@ Recovery rules:
   :class:`RemoteSandboxError`;
 * an unknown handle (:class:`SandboxHandleNotFound`), a closed or expired one
   (:class:`SandboxHandleGone`) and a missing artifact (:class:`ArtifactNotFound`,
-  a ``FileNotFoundError``) are distinct exceptions.
+  a ``FileNotFoundError``) are distinct exceptions;
+* a language this host has no runtime for raises
+  :class:`~sandbox_manager.errors.RuntimeUnavailableError`, as the local manager does.
 """
 import base64
 import uuid
@@ -20,14 +22,10 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 
 import requests
 
+from sandbox_manager.errors import RuntimeUnavailableError
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS
-from sandbox_manager.models.sandbox_models import (
-    CommandResponse,
-    DisposalStatus,
-    ExtractedFile,
-    Language,
-    ResponseCategory,
-)
+from sandbox_manager.models.sandbox_models import CommandResponse, DisposalStatus, ExtractedFile, ResponseCategory
+from autograder.models.language import Language
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
@@ -88,6 +86,8 @@ def _checked(response: requests.Response, *, artifact_path: Optional[str] = None
         raise SandboxHandleNotFound(text, status_code=response.status_code, code=code)
     if response.status_code == 410:
         raise SandboxHandleGone(text, status_code=response.status_code, code=code)
+    if code == "RUNTIME_UNAVAILABLE":
+        raise RuntimeUnavailableError(f"The sandbox service has no runtime for this language: {message}")
     if code in ("SANDBOX_UNAVAILABLE", "HANDLE_LIMIT"):
         raise SandboxUnavailable(text, status_code=response.status_code, code=code)
     raise RemoteSandboxError(text, status_code=response.status_code, code=code)

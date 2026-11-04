@@ -4,20 +4,6 @@ from typing import Any, Dict
 import requests
 
 
-class Language(Enum):
-    """Supported programming languages in the sandbox."""
-    PYTHON = ("python", "sandbox-py:latest")
-    JAVA = ("java", "sandbox-java:latest")
-    NODE = ("node", "sandbox-node:latest")
-    CPP = ("cpp", "sandbox-cpp:latest")
-    C = ("c", "sandbox-cpp:latest")
-
-    def __new__(cls, value, image):
-        obj = object.__new__(cls)
-        obj._value_ = value
-        obj.image = image
-        return obj
-
 class SandboxState(Enum):
     """Lifecycle: idle -> active -> closing -> (disposed | quarantined).
 

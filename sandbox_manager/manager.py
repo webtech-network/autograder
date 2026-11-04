@@ -12,9 +12,11 @@ from typing import Dict, Iterable, Optional
 
 import docker
 
+from sandbox_manager.errors import RuntimeUnavailableError
 from sandbox_manager.language_pool import LanguagePool
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import DisposalStatus, Language
+from sandbox_manager.models.sandbox_models import DisposalStatus
+from autograder.models.language import Language
 from sandbox_manager.ownership import OwnerIdentity, reclaim_dead_owners
 from sandbox_manager.sandbox_container import SandboxContainer
 
@@ -55,7 +57,7 @@ class SandboxManager:
     def _pool(self, lang: Language) -> LanguagePool:
         pool = self.language_pools.get(lang)
         if pool is None:
-            raise ValueError(f"Unsupported language: {lang}")
+            raise RuntimeUnavailableError(f"No sandbox runtime is configured for {lang.value}")
         return pool
 
     def get_sandbox(self, lang: Language) -> SandboxContainer:
@@ -64,7 +66,10 @@ class SandboxManager:
 
     def dispose(self, sandbox: SandboxContainer) -> DisposalStatus:
         """Destroy a used sandbox. Idempotent; see :class:`DisposalStatus`."""
-        return self._pool(sandbox.language).dispose(sandbox)
+        pool = self.language_pools.get(sandbox.language)
+        if pool is None:
+            raise ValueError("Sandbox does not belong to this manager")
+        return pool.dispose(sandbox)
 
     @contextmanager
     def acquire_sandbox(self, lang: Language):

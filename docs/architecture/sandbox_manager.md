@@ -90,7 +90,17 @@ general:
     # Removal attempts for a quarantined container before it stays
     # quarantined for an operator (default 5)
     disposal_attempts: 5
+
+runtimes:           # host runtime profiles: language identifier -> sandbox image
+    python: sandbox-py:latest
+    java: sandbox-java:latest
+    node: sandbox-node:latest
+    cpp: sandbox-cpp:latest
+    c: sandbox-cpp:latest
 ```
+
+A language missing from `runtimes:` has no pool; acquiring it raises
+`RuntimeUnavailableError` (control API `501 RUNTIME_UNAVAILABLE`).
 
 ### Sizing Guidelines
 

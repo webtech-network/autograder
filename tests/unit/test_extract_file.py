@@ -17,7 +17,8 @@ import unittest
 from unittest.mock import MagicMock
 
 from sandbox_manager.sandbox_container import SandboxContainer
-from sandbox_manager.models.sandbox_models import Language, ExtractedFile
+from sandbox_manager.models.sandbox_models import ExtractedFile
+from autograder.models.language import Language
 
 
 def _exec_run_result(exit_code: int, output: bytes) -> MagicMock:

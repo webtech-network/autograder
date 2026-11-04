@@ -12,9 +12,11 @@ from autograder.models.dataclass.submission import SubmissionFile
 from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import DisposalStatus, Language
+from sandbox_manager.models.sandbox_models import DisposalStatus
+from autograder.models.language import Language
 from sandbox_manager.ownership import APP_LABEL_VALUE, LABEL_APP, LABEL_OWNER
 from sandbox_manager.remote_client import ArtifactNotFound, RemoteSandboxManager, SandboxHandleGone
+from tests.sandbox_profiles import TEST_IMAGES
 
 TOKEN = "integration-token"
 
@@ -23,14 +25,14 @@ TOKEN = "integration-token"
 def service():
     try:
         client = docker.from_env()
-        client.images.get(Language.PYTHON.image)
+        client.images.get(TEST_IMAGES[Language.PYTHON])
     except Exception as exc:  # pragma: no cover - environment guard
-        pytest.skip(f"Docker or {Language.PYTHON.image} unavailable: {exc}")
+        pytest.skip(f"Docker or {TEST_IMAGES[Language.PYTHON]} unavailable: {exc}")
     holder = {}
 
     def factory():
         holder["manager"] = SandboxManager([SandboxPoolConfig(
-            language=Language.PYTHON, pool_size=0, scale_limit=3, idle_timeout=300, running_timeout=120)], client)
+            language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0, scale_limit=3, idle_timeout=300, running_timeout=120)], client)
         return holder["manager"]
 
     settings = ControlSettings(token=TOKEN, handle_ttl_seconds=3, reaper_interval_seconds=0.5)
@@ -54,7 +56,8 @@ def service():
 
 
 def owned(client, manager):
-    return client.containers.list(all=True, filters={"label": [
+    # sparse: listing must not inspect each container, which races a concurrent removal.
+    return client.containers.list(all=True, sparse=True, filters={"label": [
         f"{LABEL_APP}={APP_LABEL_VALUE}", f"{LABEL_OWNER}={manager.owner.owner_id}"]})
 
 

@@ -6,8 +6,8 @@ import time
 from typing import Dict, List, Optional, TYPE_CHECKING
 from docker.models.containers import Container
 import requests
-from sandbox_manager.models.sandbox_models import Language, SandboxState, CommandResponse, HttpResponse, \
-    ResponseCategory, ExtractedFile
+from sandbox_manager.models.sandbox_models import SandboxState, CommandResponse, HttpResponse, ResponseCategory, ExtractedFile
+from autograder.models.language import Language
 from sandbox_manager.utils.classify_output import classify_output
 
 if TYPE_CHECKING:

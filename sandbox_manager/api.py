@@ -31,6 +31,7 @@ from fastapi.responses import JSONResponse
 
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.dataclass.submission import SubmissionFile
+from sandbox_manager.errors import RuntimeUnavailableError
 from sandbox_manager.language_pool import SandboxUnavailableError
 from sandbox_manager.models.api_models import (
     MAX_ARTIFACT_BYTES,
@@ -46,7 +47,8 @@ from sandbox_manager.models.api_models import (
     RunBatchRequest,
     RunCommandRequest,
 )
-from sandbox_manager.models.sandbox_models import DisposalStatus, Language, SandboxState
+from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
+from autograder.models.language import Language
 
 logger = logging.getLogger(__name__)
 
@@ -186,9 +188,10 @@ class HandleRegistry:
             except SandboxUnavailableError as exc:
                 raise ControlError(status.HTTP_503_SERVICE_UNAVAILABLE, "SANDBOX_UNAVAILABLE",
                                    "No sandbox is available now.") from exc
-            except ValueError as exc:
-                raise ControlError(status.HTTP_400_BAD_REQUEST, "LANGUAGE_UNAVAILABLE",
-                                   "This language is not configured.") from exc
+            except RuntimeUnavailableError as exc:
+                # A permanent host gap, distinct from transient capacity (503).
+                raise ControlError(status.HTTP_501_NOT_IMPLEMENTED, "RUNTIME_UNAVAILABLE",
+                                   "This host has no runtime for the language.") from exc
             handle = Handle(secrets.token_urlsafe(32), request_id, language, sandbox, self.clock())
             with self._lock:
                 self._handles[handle.handle_id] = handle

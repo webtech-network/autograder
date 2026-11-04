@@ -6,7 +6,8 @@ from time import monotonic
 
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.asset import ResolvedAsset
-from sandbox_manager.models.sandbox_models import Language, ResponseCategory
+from sandbox_manager.models.sandbox_models import ResponseCategory
+from autograder.models.language import Language
 from web.schemas.execution import (
     CASE_TIMEOUT_SECONDS,
     MAX_OUTPUT_BYTES,

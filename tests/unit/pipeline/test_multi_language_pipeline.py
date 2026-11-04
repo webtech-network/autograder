@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock
 
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 
 class TestSubmissionLanguageHandling:

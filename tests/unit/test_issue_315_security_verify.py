@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 from sandbox_manager.sandbox_container import SandboxContainer
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 class TestIssue315Security(unittest.TestCase):
     def setUp(self):

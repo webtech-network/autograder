@@ -10,6 +10,7 @@ import requests
 from github_action import main as action_main
 from github_action.identity import TrustError
 from tests.e2e.contracts import create_config
+from tests.sandbox_profiles import sandbox_config
 
 DEFINITION = json.loads((Path(__file__).resolve().parents[2] / "examples/contracts/input_output.json").read_text())
 
@@ -32,7 +33,7 @@ def checkout(tmp_path, monkeypatch, isolated_api):
     head = subprocess.run(["git", "-C", str(workspace), "rev-parse", "HEAD"], capture_output=True,
                           text=True, check=True).stdout.strip()
     sandbox = tmp_path / "sandbox.yml"
-    sandbox.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
+    sandbox.write_text(sandbox_config())
     monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
     monkeypatch.setenv("SANDBOX_MODE", "local")
     monkeypatch.setenv("SANDBOX_CONFIG_FILE", str(sandbox))

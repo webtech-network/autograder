@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from github_action import main
+from tests.sandbox_profiles import sandbox_config
 
 PROBE = r'''
 import json, os, socket
@@ -48,7 +49,7 @@ def action_workspace(tmp_path, monkeypatch):
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps(definition))
     config = tmp_path / "sandbox.yml"
-    config.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
+    config.write_text(sandbox_config())
     monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
     monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "outputs"))
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)

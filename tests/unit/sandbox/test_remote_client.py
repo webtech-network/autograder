@@ -6,8 +6,10 @@ import pytest
 import requests
 
 from execution_host.docker import DockerSession
+from sandbox_manager.errors import RuntimeUnavailableError
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS
-from sandbox_manager.models.sandbox_models import DisposalStatus, Language
+from sandbox_manager.models.sandbox_models import DisposalStatus
+from autograder.models.language import Language
 from sandbox_manager.remote_client import (
     ArtifactNotFound,
     RemoteSandboxContainer,
@@ -75,6 +77,13 @@ def test_acquire_http_errors_are_not_retried(manager):
     manager._session.post = Mock(return_value=error(503, "SANDBOX_UNAVAILABLE"))  # pylint: disable=protected-access
     with pytest.raises(SandboxUnavailable):
         manager.get_sandbox(Language.PYTHON)
+    assert manager._session.post.call_count == 1  # pylint: disable=protected-access
+
+
+def test_missing_runtime_raises_the_local_capability_error(manager):
+    manager._session.post = Mock(return_value=error(501, "RUNTIME_UNAVAILABLE"))  # pylint: disable=protected-access
+    with pytest.raises(RuntimeUnavailableError):
+        manager.get_sandbox(Language.C)
     assert manager._session.post.call_count == 1  # pylint: disable=protected-access
 
 

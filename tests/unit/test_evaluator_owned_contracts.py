@@ -19,7 +19,8 @@ from autograder import (
     describe_templates, evaluate_submission,
 )
 from autograder.models.contracts import definition as definition_module
-from sandbox_manager.models.sandbox_models import CommandResponse, Language, ResponseCategory
+from sandbox_manager.models.sandbox_models import CommandResponse, ResponseCategory
+from autograder.models.language import Language
 from tests.grading import FakeProvider
 
 
