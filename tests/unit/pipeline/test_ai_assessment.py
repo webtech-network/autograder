@@ -222,9 +222,16 @@ def test_provider_exceptions_map_to_one_safe_error(count):
 
 def test_provider_evaluation_errors_pass_through_unchanged():
     def unavailable(requests):
-        raise EvaluationError("PROVIDER_TIMEOUT", "The assessment provider timed out.", "provider", True)
+        raise EvaluationError("PROVIDER_UNAVAILABLE", "The assessment provider timed out.", "provider", True)
     outcome = run(FakeProvider(unavailable), ai("a", "x"))
-    assert (outcome.error.code, outcome.error.message) == ("PROVIDER_TIMEOUT", "The assessment provider timed out.")
+    assert (outcome.error.code, outcome.error.message) == ("PROVIDER_UNAVAILABLE", "The assessment provider timed out.")
+
+
+def test_provider_cannot_invent_an_unpublished_code():
+    def invented(requests):
+        raise EvaluationError("PROVIDER_TIMEOUT", "The assessment provider timed out.", "provider", True)
+    outcome = run(FakeProvider(invented), ai("a", "x"))
+    assert outcome.error.code == "PROVIDER_ERROR"
 
 
 def test_missing_provider_fails_before_assessment():

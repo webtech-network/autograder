@@ -157,8 +157,27 @@ class ContractModel(BaseModel):
         return self
 
 
+#: Codes the engine (and a host-supplied provider or evaluator) may raise. The
+#: OUTCOMES.md matrix documents each one; EXECUTION_ERROR is the single code for
+#: any unexpected failure, in the engine and in every host.
+ENGINE_ERROR_CODES: tuple[str, ...] = (
+    "REQUIRED_FILE_MISSING", "PREPARATION_FAILED", "LANGUAGE_REQUIRED", "LANGUAGE_NOT_ALLOWED",
+    "FILE_TARGET_CONFLICT", "UNSUPPORTED_FILE_TYPE", "AMBIGUOUS_FILE_TARGET",
+    "INVALID_DEFINITION", "INVALID_COMMAND", "MISSING_LANGUAGE_COMMAND",
+    "CAPABILITY_UNAVAILABLE", "SERVER_CAPABILITY_UNAVAILABLE", "SANDBOX_ERROR", "PROCESS_START_FAILED",
+    "PREPARATION_ERROR", "FIXTURE_PROVIDER_UNAVAILABLE",
+    "PROVIDER_UNAVAILABLE", "PROVIDER_ERROR", "MISSING_EVALUATOR_RESULT", "INVALID_EVALUATOR_RESULT",
+    "EXECUTION_ERROR", "FEEDBACK_ERROR", "CLEANUP_ERROR",
+)
+#: Codes only a hosting adapter records, for work the engine never finalized.
+HOST_ERROR_CODES: tuple[str, ...] = ("RECOVERY_EXHAUSTED", "RECOVERY_INPUT_UNAVAILABLE", "LEGACY_UNVERIFIED")
+#: The closed outcome error vocabulary shared by every producer and consumer.
+OUTCOME_ERROR_CODES: tuple[str, ...] = ENGINE_ERROR_CODES + HOST_ERROR_CODES
+OutcomeErrorCode = Literal[OUTCOME_ERROR_CODES]  # type: ignore[valid-type]
+
+
 class OutcomeError(ContractModel):
-    code: str = Field(min_length=1, pattern=r"^[A-Z][A-Z0-9_]*$")
+    code: OutcomeErrorCode
     message: str = Field(min_length=1)
     category: Literal["definition", "submission", "capability", "provider", "internal"]
     retryable: bool = Field(strict=True)
