@@ -33,7 +33,7 @@ The **Autograder** is an advanced educational tool designed to efficiently and a
 - **Multiple Assignment Types**: Native support for Web Development, APIs, Command-Line Programs, and Custom Templates
 - **Secure Code Execution**: Isolated sandbox environments for safe remote code execution
 - **Proven Engagement**: Students treat assignments as iterative learning challenges
-- **High Performance**: Warm container pools and pipeline architecture enable rapid grading at scale
+- **Measured Capacity**: One [benchmark command](docs/contracts/JOBS.md#capacity-benchmark) reports throughput and failures on your hardware
 - **Intelligent Feedback**: Focus-based feedback generation that highlights the most impactful improvements
 
 ---
@@ -344,14 +344,10 @@ Full documentation available at [GitHub Pages](https://webtech-network.github.io
 
 ## Performance
 
-- **Warm Containers**: Pre-started sandboxes eliminate cold-start delays
-- **Async Processing**: FastAPI enables high concurrency
-- **Configurable Pools**: Scale sandbox pools based on demand
-
-**Typical Performance:**
-- Grade submission: 1-3 seconds (with warm sandbox)
-- Cold start: 5-8 seconds (first request per language)
-- Concurrent submissions: 400+ with proper pool sizing
+Capacity depends on hardware, configuration and assignments, so the project
+publishes measurements rather than typical numbers. Run the
+[capacity benchmark](docs/contracts/JOBS.md#capacity-benchmark) against your own
+stack; JOBS.md holds the reference result with its hardware and workload.
 
 ---
 

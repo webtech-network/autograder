@@ -160,3 +160,90 @@ source file, using one shared small definition. Workers were disabled so this
 measures durable acceptance independently from sandbox/AI execution; it is not
 an execution throughput or production capacity promise. The regression repeats
 the 200-request burst without a timing gate and records elapsed time and hardware.
+It runs in-process with workers disabled, so it does not measure HTTP serving,
+grading throughput, sandbox capacity or acceptance latency under grading load;
+the capacity benchmark below measures those.
+
+## Capacity benchmark
+
+`scripts/capacity_benchmark.py` measures an already running stack through its
+public HTTP API with an integration token. It never starts, migrates or configures
+the stack, so the same command works for the compose stack and a production-like
+deployment. Against `docker compose up` (synthetic token `e2e-test-token`):
+
+```sh
+AUTOGRADER_INTEGRATION_TOKEN=e2e-test-token python scripts/capacity_benchmark.py \
+  --url http://localhost:8000 --workload python-io \
+  --api-pid "$(docker inspect -f '{{.State.Pid}}' autograder-api)" \
+  --sandbox-label autograder.sandbox.owner_host=autograder-sandbox-manager > result.json
+```
+
+Each run fires one burst (`--submissions`, default 200) of concurrent submissions
+and waits, by polling the run's history, until every accepted submission is
+terminal. Workloads expand the checked-in v1 examples:
+
+| `--workload` | Definition | Submission | Executes in |
+| --- | --- | --- | --- |
+| `python-io` | `python-io.json` with `--tests` (5) stdin/stdout tests | distinct correct `main.py` | one sandbox per grading |
+| `webdev` | `webdev.json` with `--criteria` (30) `has_tag` checks | distinct correct page of `--page-kb` (20) KiB | the API process |
+| `mix` | both, alternating, plus `--executions` (12) concurrent `POST /execute` | as above | shared sandbox pools |
+
+JSON on stdout reports, per run: acceptance latency percentiles and status codes;
+drain time (first acceptance to last `graded_at`) and completed gradings per
+minute; failures by code and completed scores; queue wait (acceptance to outcome
+`started_at`) and grading-duration percentiles; deliberate-execution statuses;
+sandbox containers before, at peak and after the run; API resident memory
+(`--api-pid`, including children); load average; and the client and Docker host
+hardware. `--runs N` repeats the burst and adds min/median/max. A short summary
+goes to stderr.
+
+The exit status gates correctness, never timing: **0** when every submission was
+accepted and terminated with no failure code outside `--allow-failure`; **1** when
+a submission was rejected, did not terminate before `--timeout`, failed with an
+unexpected code (for example `CAPABILITY_UNAVAILABLE` at saturation), or a
+deliberate execution answered other than 200/429/503; **2** when the stack is not
+ready or the benchmark configuration is rejected.
+
+Re-running leaves nothing behind: configurations are upserted under the aliases
+`capacity-benchmark-python-io` and `capacity-benchmark-webdev` and deactivated
+afterwards; requests carry no `Idempotency-Key`, so no operation receipts are
+stored; outcome receipts are deleted by the host on publication. Submissions stay
+as durable history under `external_user_id` `capacity-benchmark-<run id>`.
+Sandbox leftovers are the labelled containers above the pre-run count once
+disposal settles (`--settle-timeout`). The first burst on a cold stack creates the
+warm pools (`pool_size` per language), which then count as leftovers; read
+leftovers from a warmed stack. On a shared Docker host, narrow `--sandbox-label`
+to this stack's owner (`python -m sandbox_manager.reclaim` lists owners); the
+default app label counts every Autograder sandbox on the daemon.
+
+`tests/integration/test_capacity_benchmark.py` is the opt-in check: with
+`TEST_POSTGRES_URL` and the sandbox images it starts uvicorn on a private
+PostgreSQL database with local Docker sandboxes, runs 20-submission mixed bursts
+through the command and asserts termination, failure codes and cleanup, never time.
+
+### Reference result
+
+Recorded 2026-11-04 at commit `3a8abcc` on an Intel Core i5-12400 (6 cores,
+12 threads), 31 GiB RAM, Linux 7.2, Docker 29.9 with gVisor (`runsc`) sandboxes,
+PostgreSQL 17 in a container, Python 3.13, one uvicorn process in local sandbox
+mode, `WEB_WORKER_COUNT=2` and the shipped `sandbox_config.yml` (`pool_size` 1,
+`scale_limit` 3). The machine was shared with other jobs (load average 4–10), and
+another process removed sandbox containers during python-io run 3 and the mix run
+(Docker `404 No such container` in the API log); treat these numbers as an example
+of the report, not as capacity of dedicated hardware. Three runs, min / median / max:
+
+| 200-submission burst | python-io, 5 tests | webdev, 30 criteria, 20 KiB |
+| --- | --- | --- |
+| Acceptance p95 | 1.08 / 1.24 / 1.32 s | 1.69 / 1.86 / 1.86 s |
+| Drain | 159 / 210 / 235 s | 23.6 / 24.6 / 24.9 s |
+| Completed gradings per minute | 51 / 57 / 73 | 482 / 488 / 509 |
+| Queue wait p95 | 150 / 197 / 214 s | 20.9 / 21.5 / 21.8 s |
+| Grading duration p50 | 1.45 / 1.73 / 1.80 s | 0.16 / 0.16 / 0.16 s |
+| Peak sandboxes (5 idle warm + active) | 7 / 7 / 7 | 0 |
+| Peak API RSS | 110 / 115 / 115 MB | 126 / 128 / 129 MB |
+| Failures | 0, 0, 7 (5 `SANDBOX_ERROR` from the external removal, 2 `CAPABILITY_UNAVAILABLE`) | 0 |
+
+The same command reports the capacity defect of PRF-01 (#435) at this commit:
+`--workload mix` failed 15/200 submissions (7 `CAPABILITY_UNAVAILABLE`, 8
+`SANDBOX_ERROR`) and answered 11 of 12 deliberate executions with 503; python-io
+with `WEB_WORKER_COUNT=6` failed 183/200 with `CAPABILITY_UNAVAILABLE`. Both exit 1.
