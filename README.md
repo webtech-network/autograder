@@ -239,13 +239,13 @@ definitions cannot upload Python evaluator code.
 ## Quick Start
 
 Setup lives in one place, the [Development Guide](docs/guides/development.md).
-In short, with Python 3.13 and GNU Make:
+In short, with [uv](https://docs.astral.sh/uv/) (it provides Python 3.13, the
+only supported version) and GNU Make:
 
 ```bash
 git clone https://github.com/webtech-network/autograder.git
 cd autograder
-python3.13 -m venv .venv && source .venv/bin/activate
-make install
+make install           # .venv from the committed uv.lock
 make verify            # hermetic core/library check: no Docker, no database
 ```
 

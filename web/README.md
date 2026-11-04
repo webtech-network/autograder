@@ -10,8 +10,9 @@ validate/create/submit/poll smoke test and the generated OpenAPI reference.
 
 ## Operation
 
-Configure `DATABASE_URL` and `AUTOGRADER_INTEGRATION_TOKEN`, install the repository
-requirements, and start the server with `uvicorn web.main:app`. The existing
+Configure `DATABASE_URL` and `AUTOGRADER_INTEGRATION_TOKEN`, install the locked
+runtime and server dependencies (`uv sync --locked --no-dev --extra server`), and
+start the server with `uvicorn web.main:app`. The existing
 sandbox/provider deployment settings still apply. The integration token protects
 internal-ID definition fetch, external outcome ingestion, detailed submission
 retrieval, and deliberate execution. Other routes follow their documented
