@@ -12,6 +12,6 @@ Sibling weights are ratios; all-zero siblings share equal weight. Mixed groups
 use the explicit `subjects_weight` split. Base weight is 100; bonus and penalty
 weights are caps. See [criteria trees](../core/criteria-tree.md).
 
-The coordinator passes this already-built tree directly to AI batching and
+The coordinator passes this already-built tree directly to assessment and
 grading. There is no runtime tree-building or attachment wrapper.
 Invalid definitions fail compilation before any execution resource is opened.

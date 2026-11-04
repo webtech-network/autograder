@@ -8,7 +8,7 @@ import pytest
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.criteria_tree import CategoryNode, CriteriaTree, TestNode
 from autograder.models.dataclass.test_result import TestResult
-from autograder.services.grader.grader_service import GraderService
+from tests.grading import grade
 from web.service.grading_service import GradingRequest, _run_pipeline
 
 
@@ -110,6 +110,7 @@ async def test_rich_repository_metadata_survives_hydration_and_grader_passthroug
             tests=[
                 TestNode(
                     name="metadata_capture",
+                    criterion_id="metadata_capture",
                     test_function=capturing_test,
                     file_target=["service/payment.py"],
                 )
@@ -117,11 +118,7 @@ async def test_rich_repository_metadata_survives_hydration_and_grader_passthroug
         )
     )
 
-    GraderService().grade_from_tree(
-        criteria_tree=criteria_tree,
-        submission_files=hydrated_submission.submission_files,
-        evaluation_scope=hydrated_submission.evaluation_scope,
-    )
+    grade(criteria_tree, hydrated_submission.submission_files, scope=hydrated_submission.evaluation_scope)
 
     assert stored_submission_files == original_stored_data
     assert hydrated_submission.evaluation_scope.scoped_files == ["service/payment.py"]

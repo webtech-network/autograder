@@ -40,9 +40,11 @@ class TestNode:
 
 
 def _all_tests(holder) -> List[TestNode]:
-    tests = list(holder.tests)
+    """Nested subjects precede a holder's direct tests: the execution order."""
+    tests = []
     for subject in holder.subjects:
         tests.extend(_all_tests(subject))
+    tests.extend(holder.tests)
     return tests
 
 

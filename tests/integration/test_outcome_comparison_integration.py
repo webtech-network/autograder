@@ -1,7 +1,5 @@
 """Real grading runs and round trips retain criterion identity and weighted scores."""
 from copy import deepcopy
-from unittest.mock import Mock
-
 from autograder.models.capabilities import HostCapabilities
 
 import pytest
@@ -13,7 +11,8 @@ from autograder.models.abstract.template import Template
 from autograder.models.contracts.comparison import compare_outcomes
 from autograder.models.contracts.definition import compile_definition
 from autograder.models.contracts.outcome import outcome_score_vector, validate_outcome
-from autograder.models.dataclass.test_result import TestResult
+from autograder.models.execution import ProviderAssessment
+from tests.grading import FakeProvider
 from tests.unit.pipeline.test_terminal_outcome import definition, submission
 
 
@@ -108,25 +107,22 @@ def ai_definition():
 
 
 def test_repeated_ai_evaluator_outputs_are_bound_to_criterion_ids():
-    provider = Mock()
+    provider = FakeProvider(lambda requests: [ProviderAssessment('first', 100), ProviderAssessment('second', 0)])
     pipeline = build_pipeline(definition=ai_definition(), templates={'review':ReviewTemplate()}, capabilities=HostCapabilities(ai=provider))
-    provider.run.return_value={'first':TestResult('first',100,''),'second':TestResult('second',0,'')}
     execution = pipeline.run(submission('print(1)'))
     assert execution.outcome.status == 'completed' and execution.outcome.score == 50
     assert outcome_score_vector(execution.outcome) == {'first':100,'second':0}
-    inputs = provider.run.call_args.args[0]
-    assert [item.test_name for item in inputs] == ['first','second']
-    provider.run.assert_called_once()
+    [(inputs, _, _)] = provider.calls
+    assert [item.criterion_id for item in inputs] == ['first','second']
 
 
 def test_missing_ai_assessment_fails_once_without_fallback_or_zero_grade():
-    provider = Mock()
+    provider = FakeProvider(lambda requests: [ProviderAssessment('first', 100)])
     pipeline = build_pipeline(definition=ai_definition(), templates={'review':ReviewTemplate()}, capabilities=HostCapabilities(ai=provider))
-    provider.run.return_value={'first':TestResult('first',100,'')}
     execution = pipeline.run(submission('print(1)'))
     assert execution.outcome.status == 'failed' and execution.outcome.score is None
     assert execution.outcome.error.code == 'MISSING_EVALUATOR_RESULT'
-    provider.run.assert_called_once()
+    assert len(provider.calls) == 1
 
 
 @pytest.mark.parametrize('weights', [[0,0], [1e308,1e308], [1e-300,1e-300], [1,3]])

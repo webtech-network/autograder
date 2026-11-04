@@ -9,10 +9,11 @@ from autograder.models.evaluation_error import EvaluationError
 class AiTestFunction(TestFunction):
     """An AI evaluator declares ``build_prompt(self, evaluation, *, <parameters>)``.
 
-    ``evaluate_ai_batch`` calls ``build_prompt`` for every selected AI criterion and
-    sends one batch to the host-supplied provider. The grader then uses the
-    provider's assessment for the criterion ID; AI evaluators are never executed
-    individually and receive no provider client.
+    Adding one means writing the prompt builder, its parameter contract,
+    registration and tests. ``assess_many`` (``autograder.services.assessment``)
+    builds every selected AI criterion's prompt and sends the group to the
+    host-supplied provider in one call, keyed by criterion ID. AI evaluators are
+    never executed individually and receive no provider client.
     """
 
     required_capabilities = ("ai_provider",)

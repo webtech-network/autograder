@@ -4,8 +4,8 @@ The demonstration provider returns canned assessments. Replace it with a trusted
 provider for real assessment; the engine never constructs a client implicitly.
 """
 from autograder import (
-    AiTestFunction, EvaluationInput, HostCapabilities, Submission, SubmissionFile, Template,
-    TestResult, evaluate_submission,
+    AiTestFunction, EvaluationInput, HostCapabilities, ProviderAssessment, Submission, SubmissionFile,
+    Template, evaluate_submission,
 )
 
 
@@ -29,8 +29,9 @@ class ReviewTemplate(Template):
 
 
 class DemonstrationProvider:
-    def run(self, tests, submission_files, locale="en"):
-        return {test.test_name: TestResult(test.test_name, 100, "Demonstration assessment.") for test in tests}
+    """One call per batch; one assessment per requested criterion ID."""
+    def assess(self, requests, *, context_files, locale):
+        return [ProviderAssessment(request.criterion_id, 100, "Demonstration assessment.") for request in requests]
 
 
 DEFINITION = {"schema_version": "1.0", "templates": ["review"], "languages": ["python"],

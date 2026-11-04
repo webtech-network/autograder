@@ -8,44 +8,34 @@ This document covers the engine's internal mechanics: how it traverses the tree,
 
 ---
 
-## Tree Traversal
+## Assessment, then aggregation
 
-The `GraderService.grade_from_tree()` method is the entry point. It processes the criteria tree top-down:
+Grading has two explicit calls with one value between them:
+
+```python
+results = assess_criteria(criteria_tree, submission, session=session, ai=provider)  # {criterion_id: TestResult}
+result_tree = GraderService().grade_from_tree(criteria_tree, results)
+```
+
+`assess_criteria` (`autograder/services/assessment.py`) walks the compiled tree
+once, nested subjects before a holder's direct tests, and prepares every criterion:
+
+```python
+evaluation = EvaluationInput(files=tuple(select_files(test, ...)), language=submission.language,
+                             locale=submission.locale,
+                             session=session if declares_execution else None)
+result = test.test_function.execute(evaluation, **thaw(test.parameters))   # ordinary
+results.update(assess_many(ai_criteria, provider, ...))                     # all AI criteria, one call
+```
+
+`GraderService.grade_from_tree()` then processes the criteria tree top-down,
+placing each criterion's result and balancing weights:
 
 ```
 CriteriaTree
 ├── base (CategoryNode)    ──▶ process_category() ──▶ CategoryResultNode
 ├── bonus (CategoryNode)   ──▶ process_category() ──▶ CategoryResultNode
 └── penalty (CategoryNode) ──▶ process_category() ──▶ CategoryResultNode
-```
-
-Each `process_category()` call delegates to `__process_holder()`, a generic method that handles both `CategoryNode` and `SubjectNode` since they share the same structure (subjects + tests + optional `subjects_weight`).
-
-For each holder node:
-1. Process all child **subjects** recursively → list of `SubjectResultNode`
-2. Process all child **tests** → list of `TestResultNode`
-3. Balance weights for each group
-4. Return the corresponding result node
-
----
-
-## Test Execution
-
-When the engine reaches a `TestNode`, it calls `process_test()`:
-
-```python
-def process_test(self, test: TestNode) -> TestResultNode:
-    files = self.get_file_target(test)
-    if isinstance(test.test_function, AiTestFunction):
-        result = assessments[test.criterion_id]          # from the provider batch
-    else:
-        evaluation = EvaluationInput(files=tuple(files), language=self.submission_language,
-                                     locale=self.locale,
-                                     session=self.sandbox if declares_execution else None)
-        result = test.test_function.execute(evaluation, **thaw(test.parameters))
-    return TestResultNode(criterion_id=test.criterion_id, evaluator=test.test_function.name,
-                          name=test.name, score=result.score, report=result.report,
-                          file_target=..., parameters=thaw(test.parameters), weight=test.weight)
 ```
 
 Key details:
@@ -155,15 +145,15 @@ This allows tests to operate on specific files (e.g., a `has_tag` test targeting
 
 Some templates include AI-powered tests that delegate evaluation to an LLM. These tests extend the `AiTestFunction` ABC (instead of `TestFunction` directly) and implement a `build_prompt()` method that describes what the AI should evaluate.
 
-AI assessment is an explicit function call before grading:
-`evaluate_ai_batch(criteria, submission, provider)` resolves selected files,
-builds prompts and returns assessments keyed by criterion ID.
-
-`GraderService` receives these values as `assessments` and uses the result for
-each AI criterion ID directly; AI evaluators are never executed individually and
-ordinary evaluators never receive AI results. There is no
-journal lookup, provider retry or standalone provider fallback. Missing required
-assessments fail the grade; repeated display labels remain independent.
+Adding one changes only its prompt builder, parameter contract, registration
+and tests. `assess_criteria` gives every selected AI criterion to
+`assess_many`, which builds the prompts, makes **one** provider call for the
+group and returns results keyed by criterion ID; a single AI criterion is a
+group of one. `assess_many` validates exact coverage: unknown, duplicate,
+missing and invalid provider answers fail the required grade (no retry, no
+zero). The merged results reach the grader like any other result; AI evaluators
+are never executed individually, ordinary evaluators never receive AI results,
+and the grader has no AI parameter. See [assessment](../pipeline/04.5-ai-batch.md).
 
 ---
 
@@ -205,7 +195,9 @@ The `ResultTree` also provides utility methods:
 
 | File | Contents |
 |------|----------|
-| `autograder/services/grader/grader_service.py` | `GraderService` — coordinator for the grading process |\n| `autograder/services/grader/criteria_grader.py` | `SubmissionGrader` — stateful tree traversal, test execution, weight balancing |
+| `autograder/services/assessment.py` | `assess_criteria`, `assess_many` — criterion preparation, evaluator execution, the AI batch |
+| `autograder/services/grader/grader_service.py` | `GraderService` — aggregates ID-keyed results into a result tree |
+| `autograder/services/grader/criteria_grader.py` | `SubmissionGrader` — tree traversal and weight balancing (no evaluator calls) |
 | `autograder/models/result_tree.py` | `ResultTree`, `RootResultNode`, `CategoryResultNode`, `SubjectResultNode`, `TestResultNode` |
 | `autograder/models/criteria_tree.py` | `CriteriaTree`, `CategoryNode`, `SubjectNode`, `TestNode` |
 | `autograder/models/dataclass/test_result.py` | `TestResult` — individual test execution output |

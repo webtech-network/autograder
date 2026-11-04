@@ -1,7 +1,10 @@
 
 import pytest
 from unittest.mock import MagicMock
-from autograder.services.grader.criteria_grader import SubmissionGrader
+from autograder.services.assessment import prepare_criteria
+from autograder.models.criteria_tree import CriteriaTree
+from autograder.models.dataclass.submission import Submission
+from tests.grading import grade
 from autograder.models.criteria_tree import CategoryNode, SubjectNode, TestNode
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.dataclass.submission import EvaluationScope, SubmissionFile
@@ -28,15 +31,22 @@ class CapturingTestFunction(MockTestFunction):
         self.evaluation = evaluation
         return super().execute(evaluation, score=score)
 
+class _Grader:
+    """Assess and aggregate one category, as the pipeline does."""
+    @staticmethod
+    def process_category(category):
+        return grade(category).root.base
+
+
 @pytest.fixture
 def grader():
-    return SubmissionGrader(submission_files={})
+    return _Grader()
 
 def test_balance_nodes_only_subjects(grader):
     # Need tests inside subjects to have real scores
     tf = MockTestFunction()
-    t1 = TestNode(name="T1", test_function=tf, weight=100)
-    t2 = TestNode(name="T2", test_function=tf, weight=100)
+    t1 = TestNode(name="T1", criterion_id="T1", test_function=tf, weight=100)
+    t2 = TestNode(name="T2", criterion_id="T2", test_function=tf, weight=100)
     
     s1 = SubjectNode(name="S1", weight=30, tests=[t1])
     s2 = SubjectNode(name="S2", weight=30, tests=[t2])
@@ -52,9 +62,9 @@ def test_balance_nodes_only_subjects(grader):
 def test_balance_nodes_with_subjects_weight(grader):
     # Scenario: subjects_weight = 80
     tf = MockTestFunction()
-    t_sub = TestNode(name="T_Sub", test_function=tf, weight=100)
+    t_sub = TestNode(name="T_Sub", criterion_id="T_Sub", test_function=tf, weight=100)
     s1 = SubjectNode(name="S1", weight=100, tests=[t_sub])
-    t1 = TestNode(name="T1", test_function=tf, weight=100)
+    t1 = TestNode(name="T1", criterion_id="T1", test_function=tf, weight=100)
     cat = CategoryNode(name="base", weight=100, subjects=[s1], tests=[t1], subjects_weight=80)
     
     result = grader.process_category(cat)
@@ -70,9 +80,9 @@ def test_balance_nodes_with_subjects_weight_and_scores(grader):
     # Scenario: subjects_weight = 80
     # Subject score = 100, Test score = 0
     tf = MockTestFunction()
-    t_sub = TestNode(name="T_Sub", test_function=tf, weight=100, parameters={'score': 100.0})
+    t_sub = TestNode(name="T_Sub", criterion_id="T_Sub", test_function=tf, weight=100, parameters={'score': 100.0})
     s1 = SubjectNode(name="S1", weight=100, tests=[t_sub])
-    t1 = TestNode(name="T1", test_function=tf, weight=100, parameters={'score': 0.0})
+    t1 = TestNode(name="T1", criterion_id="T1", test_function=tf, weight=100, parameters={'score': 0.0})
     cat = CategoryNode(name="base", weight=100, subjects=[s1], tests=[t1], subjects_weight=80)
     
     result = grader.process_category(cat)
@@ -86,8 +96,8 @@ def test_balance_nodes_with_subjects_weight_and_scores(grader):
 def test_balance_nodes_zero_weights(grader):
     # If all weights are zero, they should be equal and sum to 100 * factor
     tf = MockTestFunction()
-    t1 = TestNode(name="T1", test_function=tf, weight=100)
-    t2 = TestNode(name="T2", test_function=tf, weight=100)
+    t1 = TestNode(name="T1", criterion_id="T1", test_function=tf, weight=100)
+    t2 = TestNode(name="T2", criterion_id="T2", test_function=tf, weight=100)
     
     s1 = SubjectNode(name="S1", weight=0, tests=[t1])
     s2 = SubjectNode(name="S2", weight=0, tests=[t2])
@@ -101,8 +111,8 @@ def test_balance_nodes_zero_weights(grader):
 
 def test_balance_nodes_subjects_and_tests_missing_subjects_weight(grader):
     tf = MockTestFunction()
-    s1 = SubjectNode(name="S1", weight=100, tests=[TestNode(name="T1", test_function=tf)])
-    t2 = TestNode(name="T2", test_function=tf)
+    s1 = SubjectNode(name="S1", weight=100, tests=[TestNode(name="T1", criterion_id="T1", test_function=tf)])
+    t2 = TestNode(name="T2", criterion_id="T2", test_function=tf)
     
     cat = CategoryNode(name="base", weight=100, subjects=[s1], tests=[t2], subjects_weight=None)
     with pytest.raises(ValueError, match="missing 'subjects_weight' for base"):
@@ -114,6 +124,15 @@ def test_balance_nodes_empty(grader):
     result = grader.process_category(cat)
     assert result.score == 0.0
 
+def _single(test, files=None, **kwargs):
+    return grade(CategoryNode(name="base", weight=100, tests=[test]), files, **kwargs)
+
+
+def _selected(test, files, scope=None):
+    submission = Submission("s", "s", "s", files, evaluation_scope=scope)
+    return list(prepare_criteria(CriteriaTree(base=CategoryNode(name="base", weight=100, tests=[test])), submission)[0].evaluation.files)
+
+
 def test_generic_grader_does_not_interpret_parameter_names():
     """program_command is passed verbatim; resolution belongs to the execution evaluators."""
     received = []
@@ -123,17 +142,18 @@ def test_generic_grader_does_not_interpret_parameter_names():
             received.append(program_command)
             return TestResult("mock_test", 100, "OK")
 
-    grader = SubmissionGrader(submission_files={}, submission_language="python")
-    grader.process_test(TestNode(name="T1", test_function=Recording(), parameters={'program_command': 'CMD'}))
+    _single(TestNode(name="T1", criterion_id="T1", test_function=Recording(), parameters={'program_command': 'CMD'}),
+            language="python")
     assert received == ['CMD']
 
 
 def test_session_is_bound_only_to_evaluators_declaring_execution():
     session = MagicMock()
-    grader = SubmissionGrader(submission_files={}, sandbox=session)
     static, executing = CapturingTestFunction(), CapturingTestFunction()
-    grader.process_test(TestNode(name="static", test_function=static))
-    grader.process_test(TestNode(name="run", test_function=executing, capabilities=frozenset({"sandbox_execution"})))
+    grade(CategoryNode(name="base", weight=100, tests=[
+        TestNode(name="static", criterion_id="static", test_function=static),
+        TestNode(name="run", criterion_id="run", test_function=executing, capabilities=frozenset({"sandbox_execution"})),
+    ]), session=session)
     assert static.evaluation.session is None
     assert executing.evaluation.session is session
 
@@ -141,31 +161,15 @@ def test_session_is_bound_only_to_evaluators_declaring_execution():
 def test_get_file_target_all():
     file1 = SubmissionFile(filename="file1.py", content="")
     file2 = SubmissionFile(filename="file2.py", content="")
-    grader = SubmissionGrader(
-        submission_files={"file1.py": file1, "file2.py": file2}
-    )
-    
-    tf = MockTestFunction()
-    t1 = TestNode(name="T1", test_function=tf, weight=100, file_target=None)
-    
-    cat = CategoryNode(name="base", weight=100, tests=[t1])
-    grader.process_category(cat)
-    # The MockTestFunction would need to record what files it received to assert it, 
-    # but process_test will just call it. Let's just assert get_file_target directly.
-    target_files = grader.get_file_target(t1)
-    assert len(target_files) == 2
+    t1 = TestNode(name="T1", criterion_id="T1", test_function=MockTestFunction(), weight=100, file_target=None)
+    assert len(_selected(t1, {"file1.py": file1, "file2.py": file2})) == 2
+
 
 def test_get_file_target_specific():
     file1 = SubmissionFile(filename="file1.py", content="")
     file2 = SubmissionFile(filename="file2.py", content="")
-    grader = SubmissionGrader(
-        submission_files={"file1.py": file1, "file2.py": file2}
-    )
-    
-    tf = MockTestFunction()
-    t1 = TestNode(name="T1", test_function=tf, weight=100, file_target=["file1.py"])
-    
-    target_files = grader.get_file_target(t1)
+    t1 = TestNode(name="T1", criterion_id="T1", test_function=MockTestFunction(), weight=100, file_target=["file1.py"])
+    target_files = _selected(t1, {"file1.py": file1, "file2.py": file2})
     assert len(target_files) == 1
     assert target_files[0] is file1
 
@@ -182,18 +186,15 @@ def test_process_test_passes_selected_files_with_their_metadata():
         content="",
         metadata={"change_status": "added"},
     )
-    grader = SubmissionGrader(
-        submission_files={"file1.py": file1, "file2.py": file2},
-        evaluation_scope=scope,
-    )
     test_function = CapturingTestFunction()
     test_node = TestNode(
         name="T1",
+        criterion_id="T1",
         test_function=test_function,
         file_target=["file1.py"],
     )
 
-    grader.process_test(test_node)
+    _single(test_node, {"file1.py": file1, "file2.py": file2}, scope=scope)
 
     # The selected files carry their own metadata; scope only shapes selection.
     assert test_function.evaluation.files == (file1,)
@@ -203,17 +204,16 @@ def test_process_test_passes_selected_files_with_their_metadata():
 
 def test_literal_file_named_all_does_not_select_other_files():
     filename = SubmissionFile(filename="all", content="")
-    grader = SubmissionGrader(submission_files={"all": filename, "other.py": SubmissionFile("other.py", "")})
-    target = TestNode(name="Literal filename", test_function=MockTestFunction(), file_target=["all"])
-    assert grader.get_file_target(target) == [filename]
+    target = TestNode(name="Literal filename", criterion_id="literal", test_function=MockTestFunction(), file_target=["all"])
+    assert _selected(target, {"all": filename, "other.py": SubmissionFile("other.py", "")}) == [filename]
 
 
 def test_finite_large_sibling_weights_preserve_ratio(grader):
     """Finite authored ratios remain meaningful even when their raw sum overflows."""
     function = MockTestFunction()
     category = CategoryNode(name="base", weight=100, tests=[
-        TestNode(name="Pass", test_function=function, weight=1e308, parameters={"score": 100}),
-        TestNode(name="Fail", test_function=function, weight=1e308, parameters={"score": 0}),
+        TestNode(name="Pass", criterion_id="Pass", test_function=function, weight=1e308, parameters={"score": 100}),
+        TestNode(name="Fail", criterion_id="Fail", test_function=function, weight=1e308, parameters={"score": 0}),
     ])
     result = grader.process_category(category)
     assert [test.weight for test in result.tests] == [50, 50]

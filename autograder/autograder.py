@@ -15,7 +15,7 @@ from autograder.models.dataclass.submission import Submission
 from autograder.models.diagnostics import DiagnosticEvent, DiagnosticObserver
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.pipeline_execution import PipelineExecution
-from autograder.services.ai_batch import evaluate_ai_batch
+from autograder.services.assessment import assess_criteria
 from autograder.services.focus_service import FocusService
 from autograder.services.grader.grader_service import GraderService
 from autograder.services.preparation import check_capabilities, prepare_session, validate_submission
@@ -88,19 +88,15 @@ class AutograderPipeline:
                 prepare_session(session, self.compiled, requirements, self.capabilities)
                 _observe(observer, execution_id, operation)
 
-            assessments = None
-            if "ai_provider" in requirements.capabilities:
-                operation = "evaluate_ai_batch"
-                assessments = evaluate_ai_batch(self.compiled.criteria_tree, submission, self.capabilities.ai)
-                _observe(observer, execution_id, operation)
+            # Ordinary evaluators run individually; selected AI criteria share
+            # one provider call inside the assessment implementation.
+            operation = "assess"
+            results = assess_criteria(self.compiled.criteria_tree, submission,
+                                      session=session, ai=self.capabilities.ai)
+            _observe(observer, execution_id, operation)
 
             operation = "grade"
-            result_tree = GraderService().grade_from_tree(
-                criteria_tree=self.compiled.criteria_tree,
-                submission_files=submission.submission_files, sandbox=session,
-                submission_language=submission.language, locale=submission.locale,
-                assessments=assessments, evaluation_scope=submission.evaluation_scope,
-            )
+            result_tree = GraderService().grade_from_tree(self.compiled.criteria_tree, results)
             result_tree.calculate_final_score()
             try:
                 tree = ResultOutcomeTree.model_validate(result_tree.root.to_dict())

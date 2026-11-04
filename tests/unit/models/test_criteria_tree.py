@@ -78,10 +78,8 @@ def test_subject_get_all_tests_recursive():
     base_sub = SubjectNode(name="base_sub", weight=100.0, tests=[t1], subjects=[sub1])
     
     tests = base_sub.get_all_tests()
-    assert len(tests) == 3
-    assert tests[0].name == "t1"
-    assert tests[1].name == "t2"
-    assert tests[2].name == "t3"
+    # Nested subjects precede direct tests: the order evaluators execute in.
+    assert [t.name for t in tests] == ["t3", "t2", "t1"]
 
 def test_category_get_all_tests_recursive():
     """Test CategoryNode.get_all_tests recursively."""
@@ -100,7 +98,7 @@ def test_category_get_all_tests_recursive():
     tests = cat.get_all_tests()
     assert len(tests) == 4
     names = [t.name for t in tests]
-    assert names == ["t1", "t2", "t3", "t4"]
+    assert names == ["t4", "t3", "t1", "t2"]
 
 def test_category_get_all_tests_no_tests():
     """Test CategoryNode.get_all_tests with no tests."""

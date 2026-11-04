@@ -1,9 +1,8 @@
 import json
 import logging
-from typing import Dict, List
+from typing import List, Mapping, Sequence
 from openai import OpenAI
-from autograder.models.dataclass.test_result import TestResult
-from autograder.utils.executors.ai_executor import TestInput
+from autograder.models.execution import AssessmentRequest, ProviderAssessment
 from autograder.translations import t
 from pydantic import BaseModel, Field
 from execution_host.secrets import fetch_secret
@@ -14,11 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 class TestOutput(BaseModel):
-    """Structure of a single test result returned by the AI model."""
+    """One assessment returned by the AI model for one requested criterion."""
 
-    title: str = Field(..., description="Title of the test being evaluated.")
+    criterion_id: str = Field(..., description="The criterion_id of the assessed test, copied exactly.")
     feedback: str = Field(..., description="Description of why and how this response was achieved, pinpointing specific parts of the prompt that lead you to that conclusion.")
-    subject: str = Field(..., description="The subject of the test, usually specified at the beginning of its title before a colon")
     score: float = Field(..., ge=0, le=100, strict=True, allow_inf_nan=False, description="Assessment from 0 to 100")
 
 
@@ -29,8 +27,10 @@ class AIResponseModel(BaseModel):
 
 
 class AiExecutor:
-    """
-    Stateless OpenAI communication wrapper.
+    """Stateless OpenAI ``AssessmentProvider``: one request per batch, no retries.
+
+    The engine validates exact criterion-ID coverage and scores of the returned
+    assessments; this adapter only translates the model's structured output.
     """
 
     def __init__(self, *, api_key, model, secret_name=None, region="us-east-1") -> None:
@@ -45,20 +45,19 @@ class AiExecutor:
             logger.exception("Assessment provider initialization failed")
             raise EvaluationError("PROVIDER_UNAVAILABLE", "The assessment provider is unavailable.", "provider") from exc
 
-    def run(
+    def assess(
         self,
-        tests: List[TestInput],
-        submission_files: Dict[str, str],
+        requests: Sequence[AssessmentRequest],
+        *,
+        context_files: Mapping[str, str],
         locale: str = "en",
-    ) -> Dict[str, TestResult]:
-        """
-        Send a batch of tests to the AI model and return their results.
-        """
-        if not tests:
-            return {}
+    ) -> List[ProviderAssessment]:
+        """Send one batch of criteria to the AI model and return its assessments."""
+        if not requests:
+            return []
 
-        test_batch_str = self._build_test_batch_string(tests)
-        files_str = self._build_submission_files_string(submission_files)
+        test_batch_str = self._build_test_batch_string(requests)
+        files_str = self._build_submission_files_string(context_files)
 
         system_prompt = t(
             "ai.system_prompt",
@@ -76,7 +75,7 @@ class AiExecutor:
         logger.debug("User Prompt:\n%s", user_prompt)
 
         try:
-            logger.info("Sending AI engine batch request (%d tests)…", len(tests))
+            logger.info("Sending AI engine batch request (%d criteria)…", len(requests))
             response = self.client.responses.parse(
                 model=self.model,
                 input=[
@@ -85,61 +84,27 @@ class AiExecutor:
                 ],
                 text_format=AIResponseModel,
             )
-
             parsed = response.output_parsed
-            if parsed is None:
-                raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
-            ai_outputs: List[TestOutput] = parsed.results
-            return self._outputs_to_results(tests, ai_outputs)
-
-        except EvaluationError:
-            raise
         except Exception as e:
             logger.error("AI batch request failed: %s", e)
             raise EvaluationError("PROVIDER_ERROR", "The assessment provider could not complete evaluation.", "provider", True) from e
-
+        if parsed is None:
+            raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
+        return [ProviderAssessment(criterion_id=output.criterion_id, score=output.score, report=output.feedback)
+                for output in parsed.results]
 
     @staticmethod
-    def _build_test_batch_string(tests: List[TestInput]) -> str:
-        """Serialise tests to a JSON string for the user prompt."""
+    def _build_test_batch_string(requests: Sequence[AssessmentRequest]) -> str:
+        """Serialise criteria to a JSON string for the user prompt."""
         return json.dumps(
-            [{"test": t.test_name, "prompt": t.prompt} for t in tests],
+            [{"criterion_id": request.criterion_id, "prompt": request.prompt} for request in requests],
             indent=4,
         )
 
     @staticmethod
-    def _build_submission_files_string(submission_files: Dict[str, str]) -> str:
+    def _build_submission_files_string(submission_files: Mapping[str, str]) -> str:
         """Format submission files as a readable block for the AI prompt."""
         parts = []
         for filename, content in submission_files.items():
             parts.append(f"{filename}:\n{content}\n{'_' * 30}")
         return "\n".join(parts)
-
-    @staticmethod
-    def _outputs_to_results(
-        tests: List[TestInput], outputs: List[TestOutput]
-    ) -> Dict[str, TestResult]:
-        """Convert AI outputs to TestResult objects, matched by test name."""
-        input_names = {t.test_name for t in tests}
-        if len(input_names) != len(tests):
-            raise EvaluationError("INVALID_DEFINITION", "AI criterion identities must be unique.", "definition")
-        results: Dict[str, TestResult] = {}
-
-        for output in outputs:
-            logger.debug("AI test result: %s", output)
-            if output.title in input_names:
-                if output.title in results:
-                    raise EvaluationError("INVALID_EVALUATOR_RESULT", "The assessment provider returned duplicate assessments.", "provider", True)
-                results[output.title] = TestResult(
-                    test_name=output.title,
-                    score=output.score,
-                    report=output.feedback,
-                    subject_name=output.subject,
-                    parameters={},
-                )
-            else:
-                raise EvaluationError("INVALID_EVALUATOR_RESULT", "The assessment provider returned an unknown assessment.", "provider", True)
-
-        if set(results) != input_names:
-            raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
-        return results

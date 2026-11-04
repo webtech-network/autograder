@@ -274,3 +274,24 @@ Evaluator instances are shared by every submission and thread that uses their
 template and must be stateless. Per-submission state lives in the call
 (`EvaluationInput`, parameters, locals) or in the grader that owns one traversal.
 
+
+## AI batching inside assessment (ARC-07)
+
+Grading is two explicit calls: `assess_criteria(criteria, submission, session=,
+ai=)` returns one validated `TestResult` per criterion ID, and
+`GraderService.grade_from_tree(criteria, results)` aggregates them. Assessment walks
+the compiled tree once (nested subjects before direct tests, the historical
+execution order) and prepares every criterion with the shared file-selection
+policy. Ordinary evaluators run individually. All selected AI criteria are given
+to `assess_many`, which builds their prompts and makes exactly one
+`AssessmentProvider.assess(requests, *, context_files, locale)` call; a single
+AI criterion is a group of one, so both sizes share validation and error mapping.
+
+Requests are `AssessmentRequest(criterion_id, prompt)` and answers are
+`ProviderAssessment(criterion_id, score, report)`; display labels and provider
+titles are never identities. Unknown, duplicate, missing and invalid answers, and
+non-`EvaluationError` provider exceptions (`PROVIDER_ERROR`), fail the required
+grade without retry or zero. There is no AI pipeline stage, no
+`assessments`/AI parameter on the grader, no `TestInput`/`test_name` transport and
+no result cache on any evaluator. Provider, model, credentials and deadline remain
+host capabilities (`HostCapabilities.ai`, #376).

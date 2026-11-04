@@ -20,6 +20,7 @@ from autograder import (
 )
 from autograder.models.contracts import definition as definition_module
 from sandbox_manager.models.sandbox_models import CommandResponse, Language, ResponseCategory
+from tests.grading import FakeProvider
 
 
 def template_with(*evaluators, sandbox=False):
@@ -276,9 +277,8 @@ class Review(AiTestFunction):
         return f"Review {focus}"
 
 
-class Provider:
-    def run(self, tests, submission_files, locale="en"):
-        return {test.test_name: TestResult(test.test_name, 50, "assessed") for test in tests}
+def Provider():  # pylint: disable=invalid-name
+    return FakeProvider(score=50)
 
 
 def test_ordinary_evaluators_receive_no_ai_results_provider_or_scope():

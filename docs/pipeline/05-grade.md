@@ -1,9 +1,10 @@
-# Assess criteria and calculate the grade
+# Calculate the grade
 
-`GraderService.grade_from_tree` receives the compiled criteria tree, submission
-files and language, optional session, AI assessments, locale and evaluation scope
-as ordinary arguments. Its per-run grader resolves inputs, invokes evaluators,
-and returns a `ResultTree`. Static structural parsing is lazy within that traversal.
+`GraderService.grade_from_tree(criteria_tree, results)` combines the ID-keyed
+results produced by [assessment](04.5-ai-batch.md) with the compiled tree's
+weights and returns a `ResultTree`. It executes no evaluator and receives no
+session, provider or AI-specific value; a missing criterion result is a
+required `MISSING_EVALUATOR_RESULT` failure.
 
 The coordinator calculates the final score and validates a frozen
 `ResultOutcomeTree` snapshot before optional reporting. Required evaluator errors
