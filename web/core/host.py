@@ -4,7 +4,8 @@ import asyncio
 from autograder import describe_templates
 from web.config.logging import get_logger
 from web.core.config import Settings
-from web.database.session import create_database, init_db
+from web.database.schema import require_current_schema
+from web.database.session import create_database
 from web.service.worker import DurableWorker
 
 
@@ -58,7 +59,8 @@ class WebHost:
             logger.error("authentication_not_configured: set AUTOGRADER_INTEGRATION_TOKEN; "
                          "protected routes return 503 and /ready reports not ready")
         if self.engine is not None:
-            await init_db(self.engine)
+            # Migrations own the schema; refuse to serve a database at another revision.
+            await require_current_schema(self.engine)
         self.ready = True
         if self.start_workers:
             self.worker.start()

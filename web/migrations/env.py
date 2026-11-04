@@ -14,8 +14,9 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
+# Keep loggers configured by the host process (or a test run) enabled.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -24,9 +25,10 @@ from web.database.models import *  # noqa - Import all models for autogenerate
 
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url with environment variable if set
+# The API's DATABASE_URL overrides the ini default. Percent signs (URL-encoded
+# passwords) are escaped for configparser interpolation.
 if os.getenv("DATABASE_URL"):
-    config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
+    config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"].replace("%", "%%"))
 
 
 def run_migrations_offline() -> None:
