@@ -47,10 +47,10 @@ def provider():
 @pytest.fixture
 async def ai_client(session_factory, tmp_path, provider):
     from web.main import create_app  # pylint: disable=import-outside-toplevel
-    app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts")), session_factory=session_factory,
+    app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts"), INTEGRATION_TOKEN="ai-token"), session_factory=session_factory,
                      capabilities=HostCapabilities(ai=provider), start_workers=False)
     app.state.host.ready = True
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", headers=HEADERS) as client:
         yield app, client
     await app.state.host.close()
 
