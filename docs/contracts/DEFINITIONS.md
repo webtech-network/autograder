@@ -74,7 +74,15 @@ parameters must list every contract field explicitly (`NON_CANONICAL_PARAMETERS`
 * A command is a nonempty string or a canonical language-keyed string map covering
   every allowed language. Existing `CMD` explicitly means conventional defaults:
   `python3 main.py`, `java Main`, `node index.js`, `./a.out` for C/C++; it does not
-  infer filenames. Prefer explicit commands. `dont_fail` uses `user_input`;
+  infer filenames. Prefer explicit commands. Commands run without a shell, so a
+  standalone unquoted shell operator (`&&`, `||`, `|`, `;`, `&`, `>`, `>>`, `<`,
+  `2>`, `2>&1`, ...) in a `program_command` (or any of its language entries) or
+  in a setup command fails with `SHELL_OPERATOR` at that exact path. Compile in
+  `preparation.languages.<language>.setup_commands`, one step per command, never
+  in `program_command`, which runs once per test (in gVisor, `javac` costs
+  roughly three times a `java` run). Quoted or escaped operators (`'>'`, `\|`)
+  are literal arguments; use `sh -c '...'` only for a real per-test pipeline.
+  `dont_fail` uses `user_input`;
   `input` is rejected. Artifact paths are normalized relative submission paths;
   modes are `exact`, `contains`, `regex`; invalid regex is rejected before execution.
 * A definition is rejected with `DEFINITION_TOO_LARGE` when its snapshot plus
@@ -84,6 +92,15 @@ parameters must list every contract field explicitly (`NON_CANONICAL_PARAMETERS`
 * AST keywords must be supported in every allowed language. Custom ast-grep rules
   must compile for each language before acceptance. AI algorithm names are stripped
   and must remain nonempty. Repeated AI evaluator uses have independent IDs.
+* No criterion's result may be independent of the submission because a parameter
+  was omitted. Presence thresholds (`required_count`, `min_items`, `has_style.count`)
+  default to 1 and reject 0; lists of things to find (`has_class.class_names`,
+  `js_uses_dom_manipulation.methods`) and `forbidden_import.forbidden_imports` name
+  at least one nonempty item; `forbidden_keyword` needs a keyword or a custom rule
+  (`EMPTY_FORBIDDEN_LIST`). Prohibition and limit checks, which pass when what they
+  look for is absent, publish the reason as `absence_check` in the
+  [catalog](CATALOG.md). A contract test runs every catalog evaluator with only its
+  required parameters on an irrelevant project and fails if a presence check passes.
 
 Defaults are explicit in compiled JSON: preparation has empty language/fixture
 collections; feedback is disabled with default mode/preferences; test weight is
@@ -120,10 +137,10 @@ The unimplemented AI reporter and unknown preferences are rejected.
 | Assignment | Valid example | Invalid example |
 |---|---|---|
 | Python I/O | [python-io](v1/examples/python-io.json) | [unknown input option](v1/examples/invalid/io-input-alias.json) |
-| Multilanguage I/O | [multi-language](v1/examples/multi-language-io.json) | [missing command](v1/examples/invalid/missing-command-language.json) |
+| Multilanguage I/O | [multi-language](v1/examples/multi-language-io.json) | [missing command](v1/examples/invalid/missing-command-language.json), [shell operator](v1/examples/invalid/shell-operator-command.json) |
 | Artifact | [file artifact](v1/examples/file-artifact.json) | Absolute/traversal artifact paths are invalid |
 | API | [API](v1/examples/api.json) | [endpoint type](v1/examples/invalid/api-invalid-endpoint.json) |
-| Web/static | [webdev](v1/examples/webdev.json), [import penalty](v1/examples/io-with-import-penalty.json) | [parameter typo](v1/examples/invalid/web-parameter-typo.json) |
+| Web/static | [webdev](v1/examples/webdev.json), [import penalty](v1/examples/io-with-import-penalty.json) | [parameter typo](v1/examples/invalid/web-parameter-typo.json), [zero threshold](v1/examples/invalid/zero-presence-threshold.json) |
 | AI/static | [AI algorithm](v1/examples/static-ai.json) | [empty algorithm](v1/examples/invalid/ai-empty-algorithm.json) |
 | Nested feedback | [weighted groups](v1/examples/nested-with-feedback.json) | [duplicate ID](v1/examples/invalid/duplicate-criterion-id.json) |
 
@@ -158,6 +175,31 @@ irreversible: back up first, drain old background executions, deploy the matchin
 engine/API/Action consumers together, run Alembic upgrade, inspect quarantined rows,
 then reactivate only corrected definitions. Rollback restores the pre-upgrade DB
 backup with the previous code. Automatic schema creation does not migrate a DB.
+
+### Definitions that compile no longer (ONB-01)
+
+Definitions that compiled before may now be rejected, intentionally: an explicit
+presence threshold of `0`, an empty forbid/find list, or a standalone shell
+operator in a command. Nothing else changes: a stored snapshot lists every
+parameter explicitly, so a valid snapshot keeps its meaning and hash, and a
+raw definition that omitted a threshold now gets 1 instead of an always-passing 0.
+There is no runtime fallback. A stored configuration that became invalid is
+rejected with the exact path (`422` on submission, a failed outcome for a job
+already bound to it) until it is corrected; nothing rewrites it silently.
+
+Before deploying, check every stored definition with the offline converter,
+which compiles v1 input unchanged and prints the precise errors:
+
+```sh
+python -m autograder.services.definition_migration stored.json checked.json
+```
+
+Then correct each rejected definition through the configuration API (`PATCH`
+creates a new revision): set the intended threshold, name the forbidden items or
+delete the criterion, and move compile steps such as `javac A.java && java A`
+into `setup_commands` (`javac A.java`) with `program_command: "java A"`. A
+legacy envelope carrying these values is rejected by the converter in the same
+way, so migration 005 would quarantine such a row.
 
 The old `test_library` envelope is unsupported. Multiple templates use an
 explicit list with collision-checked registry resolution. Evaluator parameters

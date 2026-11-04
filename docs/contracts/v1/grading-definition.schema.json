@@ -327,7 +327,7 @@
           "type": "string"
         },
         "command": {
-          "description": "Executable and arguments, split with POSIX quoting and run without a shell. Use an explicit `sh -c '...'` command for shell operators.",
+          "description": "Executable and arguments, split with POSIX quoting and run without a shell. Standalone shell operators (&&, |, ;, >, ...) are rejected: use one setup command per step, and an explicit `sh -c '...'` command only for a real pipeline.",
           "minLength": 1,
           "title": "Command",
           "type": "string"
@@ -549,19 +549,24 @@
                   "class_names": {
                     "description": "A list of class names to search for. Wildcards (*) are supported (e.g., 'col-*').",
                     "items": {
+                      "minLength": 1,
                       "type": "string"
                     },
+                    "minItems": 1,
                     "title": "Class Names",
                     "type": "array"
                   },
                   "required_count": {
-                    "default": 0,
+                    "default": 1,
                     "description": "The minimum total number of times the classes must appear.",
-                    "minimum": 0,
+                    "minimum": 1,
                     "title": "Required Count",
                     "type": "integer"
                   }
                 },
+                "required": [
+                  "class_names"
+                ],
                 "title": "HasClassParameters",
                 "type": "object"
               }
@@ -607,9 +612,9 @@
                 "additionalProperties": false,
                 "properties": {
                   "required_count": {
-                    "default": 0,
+                    "default": 1,
                     "description": "O número mínimo de links válidos.",
-                    "minimum": 0,
+                    "minimum": 1,
                     "title": "Required Count",
                     "type": "integer"
                   }
@@ -643,9 +648,9 @@
                     "type": "string"
                   },
                   "required_count": {
-                    "default": 0,
+                    "default": 1,
                     "description": "The minimum number of times the tag must appear.",
-                    "minimum": 0,
+                    "minimum": 1,
                     "title": "Required Count",
                     "type": "integer"
                   }
@@ -714,9 +719,9 @@
                     "type": "string"
                   },
                   "required_count": {
-                    "default": 0,
+                    "default": 1,
                     "description": "The minimum number of times the attribute must appear.",
-                    "minimum": 0,
+                    "minimum": 1,
                     "title": "Required Count",
                     "type": "integer"
                   }
@@ -1112,9 +1117,9 @@
                 "additionalProperties": false,
                 "properties": {
                   "required_count": {
-                    "default": 0,
+                    "default": 1,
                     "description": "O número mínimo de links válidos.",
-                    "minimum": 0,
+                    "minimum": 1,
                     "title": "Required Count",
                     "type": "integer"
                   }
@@ -1148,9 +1153,9 @@
                     "type": "string"
                   },
                   "count": {
-                    "default": 0,
+                    "default": 1,
                     "description": "The minimum number of occurrences.",
-                    "minimum": 0,
+                    "minimum": 1,
                     "title": "Count",
                     "type": "integer"
                   }
@@ -1453,9 +1458,9 @@
                     "type": "string"
                   },
                   "required_count": {
-                    "default": 0,
+                    "default": 1,
                     "description": "The minimum number of valid links.",
-                    "minimum": 0,
+                    "minimum": 1,
                     "title": "Required Count",
                     "type": "integer"
                   }
@@ -1515,9 +1520,9 @@
                     "type": "string"
                   },
                   "min_items": {
-                    "default": 0,
+                    "default": 1,
                     "description": "The minimum number of items expected in the array.",
-                    "minimum": 0,
+                    "minimum": 1,
                     "title": "Min Items",
                     "type": "integer"
                   }
@@ -1550,19 +1555,24 @@
                   "methods": {
                     "description": "A list of methods to search for (e.g., ['createElement', 'appendChild']).",
                     "items": {
+                      "minLength": 1,
                       "type": "string"
                     },
+                    "minItems": 1,
                     "title": "Methods",
                     "type": "array"
                   },
                   "required_count": {
-                    "default": 0,
+                    "default": 1,
                     "description": "Total minimum number of times these methods must appear.",
-                    "minimum": 0,
+                    "minimum": 1,
                     "title": "Required Count",
                     "type": "integer"
                   }
                 },
+                "required": [
+                  "methods"
+                ],
                 "title": "JsUsesDomManipulationParameters",
                 "type": "object"
               }
@@ -1775,7 +1785,7 @@
                         "type": "object"
                       }
                     ],
-                    "description": "Command that runs the program: a nonempty string, a map with a command for every allowed language, or 'CMD' for the conventional per-language default.",
+                    "description": "Command that runs the program: a nonempty string, a map with a command for every allowed language, or 'CMD' for the conventional per-language default. It runs without a shell for every test: compile in preparation.setup_commands, never here; standalone shell operators (&&, |, ;, >, ...) are rejected.",
                     "title": "Program Command"
                   },
                   "normalization": {
@@ -1840,7 +1850,7 @@
                         "type": "object"
                       }
                     ],
-                    "description": "Command that runs the program: a nonempty string, a map with a command for every allowed language, or 'CMD' for the conventional per-language default.",
+                    "description": "Command that runs the program: a nonempty string, a map with a command for every allowed language, or 'CMD' for the conventional per-language default. It runs without a shell for every test: compile in preparation.setup_commands, never here; standalone shell operators (&&, |, ;, >, ...) are rejected.",
                     "title": "Program Command"
                   }
                 },
@@ -1900,7 +1910,7 @@
                         "type": "object"
                       }
                     ],
-                    "description": "Command that runs the program: a nonempty string, a map with a command for every allowed language, or 'CMD' for the conventional per-language default.",
+                    "description": "Command that runs the program: a nonempty string, a map with a command for every allowed language, or 'CMD' for the conventional per-language default. It runs without a shell for every test: compile in preparation.setup_commands, never here; standalone shell operators (&&, |, ;, >, ...) are rejected.",
                     "title": "Program Command"
                   },
                   "artifact_path": {
@@ -1960,14 +1970,19 @@
                 "additionalProperties": false,
                 "properties": {
                   "forbidden_imports": {
-                    "description": "List of library/module names whose import is forbidden.",
+                    "description": "List of library/module names whose import is forbidden (at least one).",
                     "items": {
+                      "minLength": 1,
                       "type": "string"
                     },
+                    "minItems": 1,
                     "title": "Forbidden Imports",
                     "type": "array"
                   }
                 },
+                "required": [
+                  "forbidden_imports"
+                ],
                 "title": "ForbiddenImportTestParameters",
                 "type": "object"
               }
@@ -1991,7 +2006,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "forbidden_keywords": {
-                    "description": "List of predefined constructs to forbid (e.g., 'for_loop', 'while_loop', 'eval_call').",
+                    "description": "List of predefined constructs to forbid (e.g., 'for_loop', 'while_loop', 'eval_call'). At least one keyword or custom rule is required.",
                     "items": {
                       "type": "string"
                     },
