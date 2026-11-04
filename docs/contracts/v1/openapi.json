@@ -111,6 +111,87 @@
         }
       }
     },
+    "/api/v1/submissions/external-results": {
+      "post": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "Ingest External Result",
+        "operationId": "ingest_external_result_api_v1_submissions_external_results_post",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255,
+                  "pattern": "^[\\x21-\\x7e]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Caller-generated key (1-255 visible ASCII characters). Repeating a key with the same request returns the original receipt without creating or grading anything; the same key with a different request is 409 IDEMPOTENCY_KEY_REUSED.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Caller-generated key (1-255 visible ASCII characters). Repeating a key with the same request returns the original receipt without creating or grading anything; the same key with a different request is 409 IDEMPOTENCY_KEY_REUSED."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalResultCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalResultResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
+          "409": {
+            "description": "Idempotency-Key reused with a different request"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/configs/validate": {
       "post": {
         "tags": [
@@ -137,6 +218,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -147,7 +237,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ]
       }
     },
     "/api/v1/configs": {
@@ -157,6 +252,11 @@
         ],
         "summary": "Create Grading Config",
         "operationId": "create_grading_config_api_v1_configs_post",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -178,6 +278,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -196,6 +305,11 @@
         ],
         "summary": "List Grading Configs",
         "operationId": "list_grading_configs_api_v1_configs_get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "limit",
@@ -236,6 +350,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -258,7 +381,7 @@
         "operationId": "get_grading_config_by_id_api_v1_configs_id__config_id__get",
         "security": [
           {
-            "HTTPBearer": []
+            "IntegrationBearer": []
           }
         ],
         "parameters": [
@@ -282,6 +405,15 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
           },
           "422": {
             "description": "Validation Error",
@@ -303,6 +435,11 @@
         ],
         "summary": "Get Grading Config",
         "operationId": "get_grading_config_api_v1_configs__external_assignment_id__get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "external_assignment_id",
@@ -325,6 +462,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -345,6 +491,11 @@
         ],
         "summary": "Update Grading Config External",
         "operationId": "update_grading_config_external_api_v1_configs_external__external_assignment_id__patch",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "external_assignment_id",
@@ -393,6 +544,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -413,6 +573,11 @@
         ],
         "summary": "Update Grading Config",
         "operationId": "update_grading_config_api_v1_configs__config_id__patch",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "config_id",
@@ -461,6 +626,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -481,6 +655,34 @@
         ],
         "summary": "Create Submission",
         "operationId": "create_submission_api_v1_submissions_post",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255,
+                  "pattern": "^[\\x21-\\x7e]+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Caller-generated key (1-255 visible ASCII characters). Repeating a key with the same request returns the original receipt without creating or grading anything; the same key with a different request is 409 IDEMPOTENCY_KEY_REUSED.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Caller-generated key (1-255 visible ASCII characters). Repeating a key with the same request returns the original receipt without creating or grading anything; the same key with a different request is 409 IDEMPOTENCY_KEY_REUSED."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -502,6 +704,18 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
+          "409": {
+            "description": "Idempotency-Key reused with a different request"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -520,6 +734,11 @@
         ],
         "summary": "History",
         "operationId": "history_api_v1_submissions_get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "external_user_id",
@@ -609,6 +828,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -629,6 +857,11 @@
         ],
         "summary": "Get User Submissions",
         "operationId": "get_user_submissions_api_v1_submissions_user__external_user_id__get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "external_user_id",
@@ -678,6 +911,15 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -691,52 +933,6 @@
         }
       }
     },
-    "/api/v1/submissions/external-results": {
-      "post": {
-        "tags": [
-          "Submissions"
-        ],
-        "summary": "Ingest External Result",
-        "operationId": "ingest_external_result_api_v1_submissions_external_results_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ExternalResultCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalResultResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/api/v1/submissions/{submission_id}/details": {
       "get": {
         "tags": [
@@ -746,7 +942,7 @@
         "operationId": "get_submission_details_api_v1_submissions__submission_id__details_get",
         "security": [
           {
-            "HTTPBearer": []
+            "IntegrationBearer": []
           }
         ],
         "parameters": [
@@ -771,6 +967,82 @@
               }
             }
           },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/{submission_id}/comparison": {
+      "get": {
+        "tags": [
+          "Submissions"
+        ],
+        "summary": "Compare Submission",
+        "description": "Compare two stored canonical outcomes on demand; nothing is graded or stored.",
+        "operationId": "compare_submission_api_v1_submissions__submission_id__comparison_get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Submission Id"
+            }
+          },
+          {
+            "name": "baseline_submission_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "title": "Baseline Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionComparisonResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -791,6 +1063,11 @@
         ],
         "summary": "Get Submission",
         "operationId": "get_submission_api_v1_submissions__submission_id__get",
+        "security": [
+          {
+            "IntegrationBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "submission_id",
@@ -812,6 +1089,15 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Credential lacks the required scope"
+          },
+          "503": {
+            "description": "Authentication is not configured on this host"
           },
           "422": {
             "description": "Validation Error",
@@ -856,10 +1142,10 @@
             }
           },
           "401": {
-            "description": "Missing or invalid integration token"
+            "description": "Missing or invalid bearer token"
           },
-          "422": {
-            "description": "Invalid or over-limit request"
+          "403": {
+            "description": "Credential lacks the required scope"
           },
           "503": {
             "description": "Execution infrastructure unavailable",
@@ -870,6 +1156,9 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Invalid or over-limit request"
           },
           "504": {
             "description": "Request deadline exceeded",
@@ -884,7 +1173,7 @@
         },
         "security": [
           {
-            "HTTPBearer": []
+            "IntegrationBearer": []
           }
         ]
       }
@@ -1153,6 +1442,48 @@
           "weight"
         ],
         "title": "CategoryOutcome"
+      },
+      "ComparedSubmission": {
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Execution Id"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DefinitionProvenance"
+          },
+          "submission_id": {
+            "type": "integer",
+            "title": "Submission Id"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "executed",
+              "attested"
+            ],
+            "title": "Source",
+            "description": "executed: graded by this server from accepted source files; attested: an authenticated external host attestation that this server did not execute"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "execution_id",
+          "score",
+          "provenance",
+          "submission_id",
+          "source"
+        ],
+        "title": "ComparedSubmission",
+        "description": "One stored side of an on-demand comparison."
       },
       "ComparisonContent": {
         "properties": {
@@ -1520,6 +1851,156 @@
         ],
         "title": "CriteriaConfig",
         "description": "Root configuration for grading criteria."
+      },
+      "CriterionComparison": {
+        "properties": {
+          "criterion_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Criterion Id",
+            "description": "Stable criterion ID; display labels never identify criteria"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "improved",
+              "regressed",
+              "unchanged",
+              "reweighted",
+              "redefined",
+              "introduced",
+              "removed"
+            ],
+            "title": "Status"
+          },
+          "baseline_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Label"
+          },
+          "head_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Label"
+          },
+          "baseline_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Score"
+          },
+          "head_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Score"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -100.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta",
+            "description": "head_score - baseline_score; null when not comparable"
+          },
+          "baseline_category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "base",
+                  "bonus",
+                  "penalty"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Category"
+          },
+          "head_category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "base",
+                  "bonus",
+                  "penalty"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Category"
+          },
+          "baseline_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Weight",
+            "description": "Effective final-score points: category weight times normalized share within it"
+          },
+          "head_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Weight"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "criterion_id",
+          "status"
+        ],
+        "title": "CriterionComparison",
+        "description": "One criterion joined by ID; absent sides carry no label, score, category or weight."
       },
       "CriterionDelta": {
         "properties": {
@@ -3250,6 +3731,80 @@
         ],
         "title": "SubjectOutcome"
       },
+      "SubmissionComparisonResponse": {
+        "properties": {
+          "compatibility": {
+            "type": "string",
+            "enum": [
+              "same_definition",
+              "cross_revision"
+            ],
+            "title": "Compatibility"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/ComparedSubmission"
+          },
+          "head": {
+            "$ref": "#/components/schemas/ComparedSubmission"
+          },
+          "score_delta": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": -100.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Delta",
+            "description": "Overall head - baseline; null across revisions"
+          },
+          "improved": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Improved"
+          },
+          "explanation": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Explanation"
+          },
+          "changed_definition_sections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changed Definition Sections",
+            "default": []
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionComparison"
+            },
+            "type": "array",
+            "title": "Criteria",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "compatibility",
+          "baseline",
+          "head",
+          "explanation"
+        ],
+        "title": "SubmissionComparisonResponse",
+        "description": "Read-only comparison of two stored canonical outcomes; never stored or regraded."
+      },
       "SubmissionCreate": {
         "properties": {
           "external_assignment_id": {
@@ -4053,8 +4608,9 @@
       }
     },
     "securitySchemes": {
-      "HTTPBearer": {
+      "IntegrationBearer": {
         "type": "http",
+        "description": "Integration token (full access) or a restricted attestation token (POST /submissions/external-results only).",
         "scheme": "bearer"
       }
     }

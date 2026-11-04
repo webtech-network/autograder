@@ -36,13 +36,15 @@ services:
       SANDBOX_POOL_SIZE: 2
       SANDBOX_MODE: remote
       SANDBOX_API_URL: http://sandbox-manager:8001
+      # Shared secret for the private sandbox control API (required).
+      SANDBOX_API_TOKEN: ${SANDBOX_API_TOKEN:?Set SANDBOX_API_TOKEN to a long random secret}
       AUTOGRADER_INTEGRATION_TOKEN: e2e-test-token
 
       # API Configuration
       API_HOST: 0.0.0.0
       API_PORT: 8000
 
-      # S3 Assets Configuration
+      # S3 fixture store (read per run, uncached)
       EXTERNAL_ASSETS_BUCKET_NAME: autograder-assets
       AWS_ACCESS_ID: test
       AWS_SECRET_ACCESS_KEY: test
@@ -66,22 +68,30 @@ services:
       retries: 3
       start_period: 40s
 
-  # Sandbox Manager API
+  # Sandbox Manager control API: private. It is reachable only on the internal
+  # Compose network (expose, never ports) and requires the bearer token.
   sandbox-manager:
     build:
       context: .
       dockerfile: Dockerfile.sandbox
     container_name: autograder-sandbox-manager
+    # Stable hostname: a restarted manager recognises containers of its dead
+    # predecessor (owner lease) and reclaims them. Run exactly one replica.
+    hostname: autograder-sandbox-manager
     environment:
       SANDBOX_PORT: 8001
       SANDBOX_HOST: 0.0.0.0
-    ports:
-      - '8001:8001'
+      SANDBOX_API_TOKEN: ${SANDBOX_API_TOKEN:?Set SANDBOX_API_TOKEN to a long random secret}
+      # Handles live in process memory: exactly one worker process.
+      WEB_CONCURRENCY: 1
+    expose:
+      - '8001'
     volumes:
       # Mount Docker socket for sandbox management
       - /var/run/docker.sock:/var/run/docker.sock
+    stop_grace_period: 60s
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8001/stats']
+      test: ['CMD', 'curl', '-f', 'http://localhost:8001/health']
       interval: 10s
       timeout: 5s
       retries: 3

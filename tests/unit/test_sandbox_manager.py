@@ -87,16 +87,12 @@ class TestSandboxContainer(unittest.TestCase):
         self.assertEqual(self.sandbox.port, 5000)
         self.assertFalse(self.sandbox._workdir_prepared)
 
-    def test_pickup_marks_busy(self):
-        """Test pickup() changes state to BUSY."""
-        self.sandbox.pickup()
-        self.assertEqual(self.sandbox.state, SandboxState.BUSY)
-
-    def test_release_marks_idle(self):
-        """Test release() changes state to IDLE."""
-        self.sandbox.pickup()
-        self.sandbox.release()
-        self.assertEqual(self.sandbox.state, SandboxState.IDLE)
+    def test_activate_marks_active(self):
+        """A sandbox is activated once; it is never returned to idle."""
+        self.sandbox.activate()
+        self.assertEqual(self.sandbox.state, SandboxState.ACTIVE)
+        self.assertIsNotNone(self.sandbox.activated_at)
+        self.assertFalse(hasattr(self.sandbox, "release"))
 
     def test_prepare_workdir_with_simple_files(self):
         """Test preparing workdir with simple filenames."""

@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import json
+import os
 from pathlib import Path
 from uuid import uuid4
 
@@ -50,7 +51,9 @@ async def round_trip(client: httpx.AsyncClient, assignment_id: str) -> dict:
 
 
 async def main(base_url: str):
-    async with httpx.AsyncClient(base_url=base_url, timeout=10) as client:
+    # Every route except health/readiness/templates requires the integration token.
+    headers = {"Authorization": f"Bearer {os.environ['AUTOGRADER_INTEGRATION_TOKEN']}"}
+    async with httpx.AsyncClient(base_url=base_url, timeout=10, headers=headers) as client:
         result = await round_trip(client, f"walkthrough-{uuid4().hex}")
     print(json.dumps(result, indent=2))
     if result["status"] != "completed":

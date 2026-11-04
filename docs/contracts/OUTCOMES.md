@@ -33,7 +33,7 @@ pipeline diagnostics are not public result fields.
 | Language omitted for a multilingual definition or disallowed language selected | Failed, no score | submission / LANGUAGE_REQUIRED or LANGUAGE_NOT_ALLOWED |
 | Required sandbox cannot be provisioned | Failed, no score | capability / CAPABILITY_UNAVAILABLE |
 | Sandbox system/transport or artifact extraction failure | Failed, no score | capability / SANDBOX_ERROR |
-| Fixture preparation fails | Failed, no score | capability / PREPARATION_ERROR |
+| Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / PREPARATION_ERROR |
 | Required structural analysis unavailable | Failed, no score | capability / CAPABILITY_UNAVAILABLE |
 | Provider initialization fails | Failed, no score | provider / PROVIDER_UNAVAILABLE |
 | Provider request fails | Failed, no score | provider / PROVIDER_ERROR |
@@ -43,7 +43,8 @@ pipeline diagnostics are not public result fields.
 | Unexpected required operation exception | Failed, no score | internal / EXECUTION_ERROR |
 | Optional focus or feedback fails | Completed, original grade preserved | feedback.error / FEEDBACK_ERROR |
 | Feedback disabled (even if feedback services would fail) | Completed; no focus or report work | feedback.status = disabled |
-| Optional comparison fails | Completed, original grade preserved | adapter-supplied comparison.error |
+| Externally attested comparison enrichment fails | Completed, original grade preserved | host-attested comparison.error |
+| On-demand baseline comparison cannot be computed | Stored outcomes unchanged | HTTP 409/422 response only (see below) |
 | Persistence/publication fails after finalization | Original artifact remains completed or failed | Adapter delivery failure, outside the grading outcome |
 
 There is no partial grading policy: every configured evaluator is required,
@@ -87,8 +88,8 @@ definition, and effective weights must equal its ratios (tolerance 1e-5).
 Reported `parameters` are optional on the wire; when present they must equal the
 canonical parameters. Arithmetic is validated separately, from the reported
 values, by the outcome model itself; neither check trusts the producer. No independently mutable vector is present on the wire.
-Comparison's existing `path` field now carries the criterion ID, never a display
-path. Tree parameters contain only normalized authoring parameters, never
+The embedded `comparison` enrichment's `path` field carries a criterion ID, never
+a display path. Tree parameters contain only normalized authoring parameters, never
 pipeline-injected resources or prompts. Trusted detail may contain private tests;
 student-facing visibility policy belongs to the hosting adapter.
 
@@ -125,3 +126,27 @@ Replay validates its bound submission provenance, publishes the existing outcome
 and removes the receipt only after success. Ambiguous commit recovery verifies an
 identical persisted outcome; it never runs the pipeline. These receipts preserve
 finished grading and do not provide a durable submission scheduler.
+
+
+## Baseline comparison
+
+Comparison is a separate, read-only use of two completed outcomes, never part
+of grading. `compare_outcomes(baseline, head, baseline_definition, head_definition)`
+is pure; the HTTP host exposes it as authenticated
+`GET /api/v1/submissions/{submission_id}/comparison?baseline_submission_id={id}`
+over two stored submissions of the same grading configuration. Nothing is
+stored or regraded; a retry is another call. The grading outcome's `comparison`
+enrichment stays `disabled` for normal grading and is never rewritten.
+
+Each definition must hash to its outcome's provenance. Criteria join only by ID.
+Same hash gives `same_definition` with an overall delta. Different hashes give
+`cross_revision` with a null overall delta; per criterion, identical evaluator
+type, normalized parameters, file target and effective weight/category compare
+normally, changed effective weight/category is `reweighted` (with criterion
+delta), changed type/parameters/target is `redefined` (no delta), and one-sided
+criteria are `introduced`/`removed`. Failed or pending outcomes are
+`OUTCOME_NOT_COMPLETED`; history without a bound snapshot or canonical outcome is
+`LEGACY_UNVERIFIED`; different configuration resources are `NOT_COMPARABLE`.
+Attested and executed outcomes follow identical rules and are labelled by
+`source`. See [baseline comparison](../features/baseline_comparison.md) for the
+complete table, example and migration notes.

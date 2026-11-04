@@ -20,7 +20,7 @@ from autograder.models.contracts import scoring
 from autograder.models.contracts.outcome import ResultOutcomeTree, TestOutcome, score_vector
 from autograder.models.contracts.verification import OutcomeStructureError, verify_outcome_tree
 from autograder.models.criteria_tree import TestNode
-from autograder.services.result_comparator import compare
+from autograder.models.contracts.comparison import compare_outcomes
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -217,17 +217,21 @@ def test_duplicate_labels_and_slashes_stay_distinct_in_vectors_feedback_and_comp
     feedback = {"enabled": True, "preferences": {"general": {"show_passed_tests": True, "online_content": [
         {"url": "https://example.com/failing", "description": "For failing", "linked_tests": ["failing"]},
         {"url": "https://example.com/passing", "description": "For passing", "linked_tests": ["passing"]}]}}}
-    _, head = run({"subjects": [s("A / B", 1, tests=[t("failing", 0, name=label), t("passing", 100, name=label)]),
+    head_pipeline, head = run({"subjects": [s("A / B", 1, tests=[t("failing", 0, name=label), t("passing", 100, name=label)]),
                                 s("A / B", 1, tests=[t("other", 50, name=label)])]}, feedback=feedback)
     assert score_vector(head.tree) == {"failing": 0, "passing": 100, "other": 50}
     content = head.feedback.content
     assert content.count(f"### 🧪 {label}") == 3
     assert "https://example.com/failing" in content and "https://example.com/passing" not in content
-    _, baseline = run({"subjects": [s("A / B", 1, tests=[t("failing", 100, name=label), t("passing", 100, name=label)]),
+    baseline_pipeline, baseline = run({"subjects": [s("A / B", 1, tests=[t("failing", 100, name=label), t("passing", 100, name=label)]),
                                     s("A / B", 1, tests=[t("other", 50, name=label)])]})
-    deltas = compare(baseline.tree, head.tree).test_deltas
-    assert [(delta.path, delta.status) for delta in deltas] == [
-        ("failing", "regressed"), ("passing", "unchanged"), ("other", "unchanged")]
+    comparison = compare_outcomes(baseline, head, baseline_pipeline.compiled, head_pipeline.compiled)
+    # The fixture evaluator's score is a parameter, so "failing" is redefined across revisions;
+    # identity, labels and per-side scores still join strictly by criterion ID.
+    assert [(row.criterion_id, row.baseline_score, row.head_score, row.head_label) for row in comparison.criteria] == [
+        ("failing", 100, 0, label), ("passing", 100, 100, label), ("other", 50, 50, label)]
+    assert {row.criterion_id: row.status for row in comparison.criteria} == {
+        "failing": "redefined", "passing": "unchanged", "other": "unchanged"}
 
 
 def test_traversal_order_is_shared():

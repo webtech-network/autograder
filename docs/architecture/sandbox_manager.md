@@ -7,65 +7,65 @@ The Sandbox Manager provides secure, isolated Docker container environments for 
 ## Architecture
 
 ```
-SandboxManager
+SandboxManager (one owner lease: owner id + hostname + boot:pid:start)
 ├── LanguagePool (Python)
 │   ├── idle_sandboxes: deque[SandboxContainer]
-│   └── active_sandboxes: set[SandboxContainer]
-├── LanguagePool (Java)
-│   ├── idle_sandboxes
-│   └── active_sandboxes
-├── LanguagePool (Node.js)
-│   └── ...
-├── LanguagePool (C++)
-│   └── ...
-└── Monitor Thread (checks TTLs + replenishes every 1s)
+│   ├── active_sandboxes: set
+│   ├── closing_sandboxes: set        (removal in progress)
+│   └── quarantined_sandboxes: set    (removal failed, retried with backoff)
+├── LanguagePool (Java, Node.js, C/C++ …)
+└── Monitor thread (every 1 s: timeouts → quarantine retry → replenish)
 ```
 
-Each `LanguagePool` manages a set of Docker containers for one language. Containers are pre-started ("warm") and kept alive with `sleep infinity`, ready to execute commands instantly via `docker exec`.
+Each `LanguagePool` manages Docker containers for one language. Containers are
+pre-started ("warm") with `sleep infinity` and run commands through `docker exec`.
+The lifecycle, ownership and control API guarantees are specified in
+[Sandbox ownership and private control API](../contracts/SANDBOX.md); this page
+describes the internals.
 
 ---
 
 ## Lifecycle
 
-### Startup
+### Startup (host-owned)
 
-1. `initialize_sandbox_manager()` is called at application startup
-2. Orphaned containers from previous runs are cleaned up (identified by `autograder.sandbox.app` label)
-3. A `LanguagePool` is created for each configured language
-4. Each pool calls `replenish()` to create `pool_size` idle containers
-5. A background monitor thread starts (runs every 1 second)
-6. Signal handlers (`SIGTERM`, `SIGINT`) and `atexit` hooks are registered for cleanup
+1. The host constructs `SandboxManager(pool_configs, client=None)` — for example
+   `DockerHost` on first acquisition, or the control API lifespan.
+2. Containers of provably dead owners on this host are reclaimed
+   (`sandbox_manager.ownership.reclaim_dead_owners`). Other owners are untouched.
+3. A `LanguagePool` is created per configured language and replenishes
+   `pool_size` idle containers.
+4. The monitor thread starts. No signal handlers or `atexit` hooks are installed;
+   the host calls `shutdown()`.
 
-### Request Flow
+### Request flow
 
 ```
-get_sandbox_manager()
-    ↓
 manager.get_sandbox(Language.PYTHON)
     ↓
 LanguagePool.acquire()
-    ├── Idle sandbox available? → Move to active, return
-    ├── Below scale_limit? → Create new container on-demand, return
-    └── At scale_limit, all busy? → Raise ValueError (bottleneck)
+    ├── Idle sandbox available? → activate, return
+    ├── tracked (idle+active+closing+quarantined) < scale_limit? → create, return
+    └── otherwise → SandboxUnavailableError (a ValueError)
     ↓
-SandboxContainer
-    ├── prepare_workdir(submission_files)  → Copy files into /app
-    ├── run_command("python main.py")     → Execute single command
-    ├── run_commands(["input1", "input2"], program_command="python main.py")  → Execute with stdin
-    └── make_request("GET", "/api/data")  → HTTP request to containerized app
+SandboxContainer: prepare_workdir / inject_assets / run_command / run_commands / extract_file
     ↓
-manager.release_sandbox(Language.PYTHON, sandbox)
-    ↓
-LanguagePool.release()
-    ├── Below scale_limit? → Return to idle pool for reuse
-    └── Above scale_limit? → Destroy container (scale down)
+manager.dispose(sandbox) → LanguagePool.dispose()
+    ├── mark closing; container.remove(force=True, v=True) outside the lock
+    ├── removed or NotFound → disposed, forgotten
+    └── Docker error → quarantined (tracked, counted, retried by the monitor)
 ```
+
+A used sandbox is never reused. Replenishment is asynchronous (monitor thread),
+so `dispose` returns as soon as Docker confirms removal.
 
 ### Shutdown
 
-1. `shutdown()` is called (via signal handler, atexit, or context manager)
-2. Each pool destroys all containers (both active and idle)
-3. Docker containers are stopped and removed
+1. The host calls `shutdown()` (lifespan, `finally`, or `with SandboxManager(...)`).
+2. The monitor thread is stopped and joined; pools refuse new acquisitions.
+3. Every tracked container is disposed; quarantined ones get a final attempt.
+4. Containers that still cannot be removed are logged and keep their owner
+   labels, so the next manager on this host reclaims them.
 
 ---
 
@@ -86,6 +86,10 @@ general:
 
     # Maximum seconds a sandbox can be actively processing
     running_timeout: 120
+
+    # Removal attempts for a quarantined container before it stays
+    # quarantined for an operator (default 5)
+    disposal_attempts: 5
 ```
 
 ### Sizing Guidelines
@@ -116,7 +120,8 @@ The pool scales between `pool_size` (minimum) and `scale_limit` (maximum):
 - **Below `pool_size`:** Pool automatically replenishes idle containers
 - **Between `pool_size` and `scale_limit`:** New containers created on-demand when all are busy
 - **At `scale_limit`:** Requests fail with an error (bottleneck)
-- **Scale down:** Containers released above `pool_size` are destroyed if they exceed `idle_timeout`
+- **Scale down:** Idle containers above `pool_size` are disposed once older than `idle_timeout`
+- **Quarantine:** Containers whose removal failed still count toward `scale_limit`
 
 ---
 
@@ -154,13 +159,8 @@ result = sandbox.run_commands(["5", "3"], program_command="python calculator.py"
 # Sends "5\n3" to stdin of "python calculator.py"
 ```
 
-### `make_request(method, endpoint, data=None, json_data=None, headers=None, timeout=5)`
-Makes an HTTP request to a web application running inside the container. Used by the API Testing template.
-
-```python
-response = sandbox.make_request("GET", "/api/health")
-# response.status_code, response.json(), response.text
-```
+### `extract_file(path, max_bytes=1_048_576)`
+Reads one file from the container. Raises `FileNotFoundError` when it is missing.
 
 ---
 
@@ -180,9 +180,15 @@ response = sandbox.make_request("GET", "/api/health")
 
 | Value | Description |
 |-------|-------------|
-| `IDLE` | Waiting in pool for a request |
-| `BUSY` | Currently executing a submission |
-| `STOPPED` | Container has been stopped |
+| `IDLE` | Warm, waiting in the pool |
+| `ACTIVE` | Handed to one caller; disposed after use |
+| `CLOSING` | Removal in progress |
+| `QUARANTINED` | Removal failed; tracked and retried |
+| `DISPOSED` | Docker confirmed removal |
+
+### `DisposalStatus` Enum
+
+`dispose()` returns `DISPOSED`, `ALREADY_DISPOSED`, `CLOSING` or `QUARANTINED`.
 
 ### `ResponseCategory` Enum
 
@@ -221,7 +227,7 @@ Sandbox images are located in `sandbox_manager/images/`:
 
 Build all images:
 ```bash
-make build-sandboxes
+make sandbox-build-all
 ```
 
 ### Container Security
@@ -238,51 +244,46 @@ Each container is created with:
 - **Network:** Disabled (`network_mode="none"`)
 - **Capabilities:** All dropped (`cap_drop=["ALL"]`)
 - **File size limit:** 10 MB
-- **Filesystem:** tmpfs-based (`/app` 64 MB writable, `/tmp` 32 MB)
-- **Runtime:** gVisor (`runsc`) when available, falls back to default `runc`
+- **Filesystem:** tmpfs-based (`/app` 64 MB writable with mode 1777, `/tmp` 32 MB noexec) under both runtimes
+- **Runtime:** gVisor (`runsc`) when available, falls back to default `runc`; the fallback only drops the `runtime` argument
+- **Labels:** application label plus owner lease (see [ownership](../contracts/SANDBOX.md#owner-leases-and-orphan-reclamation))
+
+All options are declared once in `sandbox_manager/docker_profile.py`.
 - **User:** Runs as non-root `sandbox` user
 
 ---
 
 ## Usage Patterns
 
-### Direct Acquire/Release
+### Host-owned manager
 
 ```python
-manager = get_sandbox_manager()
-sandbox = manager.get_sandbox(Language.PYTHON)
+from sandbox_manager.manager import SandboxManager
+from sandbox_manager.models.pool_config import SandboxPoolConfig
+
+manager = SandboxManager(SandboxPoolConfig.load_from_yaml("sandbox_config.yml"))
 try:
-    sandbox.prepare_workdir(files)
-    result = sandbox.run_command("python main.py")
+    with manager.acquire_sandbox(Language.PYTHON) as sandbox:
+        sandbox.prepare_workdir(files)
+        result = sandbox.run_command("python main.py")
+    # Disposed on exit, even on exception or timeout.
 finally:
-    manager.release_sandbox(Language.PYTHON, sandbox)
+    manager.shutdown()
 ```
 
-### Context Manager (Recommended)
+### Explicit dispose
 
 ```python
-manager = get_sandbox_manager()
-with manager.acquire_sandbox(Language.PYTHON) as sandbox:
-    sandbox.prepare_workdir(files)
-    result = sandbox.run_command("python main.py")
-# Automatically released, even on exception
-```
-
-### Destroy on Fatal Error
-
-```python
-manager = get_sandbox_manager()
 sandbox = manager.get_sandbox(Language.PYTHON)
 try:
     result = sandbox.run_command("python main.py", timeout=30)
-    if result.category == ResponseCategory.TIMEOUT:
-        manager.destroy_sandbox(Language.PYTHON, sandbox)
-        return  # Don't release — it's already destroyed
-except Exception:
-    manager.destroy_sandbox(Language.PYTHON, sandbox)
-    raise
-manager.release_sandbox(Language.PYTHON, sandbox)
+finally:
+    status = manager.dispose(sandbox)  # safe to repeat; QUARANTINED means retrying
 ```
+
+Grading hosts normally use `execution_host.docker.DockerHost`, whose
+`DockerSession.close()` disposes the sandbox and raises when removal is not
+confirmed (the engine reports it as a cleanup error without changing the grade).
 
 ---
 
@@ -293,13 +294,13 @@ Get pool statistics:
 ```python
 stats = manager.get_pool_stats()
 # {
-#   "python": { "idle": 2, "active": 1, "total": 3, "pool_size": 3, "scale_limit": 10, "utilization": 33.3 },
+#   "python": { "idle": 2, "active": 1, "closing": 0, "quarantined": 0, "quarantine": [],
+#               "total": 3, "pool_size": 3, "scale_limit": 10, "utilization": 33.3 },
 #   "java":   { "idle": 3, "active": 0, "total": 3, "pool_size": 3, "scale_limit": 10, "utilization": 0.0 },
 #   ...
 # }
 ```
 
-The monitor thread logs load warnings automatically:
-- **≥90% utilization:** 🚨 `HIGH LOAD` warning
-- **≥70% utilization:** ⚠️ `MODERATE LOAD` warning
-- **Otherwise:** 📊 periodic stats
+The monitor thread logs quarantined containers at error level every ~10 s and a
+`HIGH LOAD` warning at ≥90% utilization. The control API exposes the same data
+at `GET /stats` (token required).

@@ -5,7 +5,7 @@ import logging
 from time import monotonic
 
 from autograder.models.dataclass.submission import SubmissionFile
-from execution_host.assets.resolver import AssetSourceResolver
+from autograder.models.dataclass.asset import ResolvedAsset
 from sandbox_manager.models.sandbox_models import Language, ResponseCategory
 from web.schemas.execution import (
     CASE_TIMEOUT_SECONDS,
@@ -83,7 +83,11 @@ def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: flo
         }
         sandbox.prepare_workdir(files)
         if request.assets:
-            resolved = AssetSourceResolver().resolve_assets(request.assets)
+            if capabilities.fixtures is None:
+                raise ExecutionServiceError(*UNAVAILABLE)
+            # Retrieval is by logical reference only; placement stays with the session.
+            resolved = [ResolvedAsset(target=asset.target, content=capabilities.fixtures(asset.source),
+                                      read_only=asset.read_only) for asset in request.assets]
             if sum(len(item.content) for item in resolved) > MAX_TOTAL_FILE_BYTES:
                 raise ExecutionServiceError(*UNAVAILABLE)
             sandbox.inject_assets(resolved)

@@ -24,7 +24,11 @@ Only the selected language's requirements and commands apply. Required source
 files are checked before any execution or provider acquisition. Commands or
 fixtures request an execution session even when every criterion is static.
 Fixtures are resolved by a host-supplied function returning bytes and staged
-under the session's declared fixture root before setup commands execute.
+under the session's declared fixture root before setup commands execute. An
+empty fixture is valid content; a missing reference or provider failure stops
+with `PREPARATION_ERROR`. The Docker host reads the current object from its
+configured bucket on every run, so replacing an object takes effect for the
+next submission.
 
 A failed required setup command stops assessment with null score/tree. A student
 compilation failure reported by an evaluator during assessment can instead be a

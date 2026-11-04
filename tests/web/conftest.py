@@ -1,4 +1,6 @@
 """Each HTTP test composes an isolated app and session factory."""
+import os
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -35,12 +37,20 @@ async def db_session(session_factory):
         await session.rollback()
 
 
+TEST_INTEGRATION_TOKEN = "web-test-integration-token"
+
+
+def _token():
+    """Modules may select their token through the environment before the app is composed."""
+    return os.getenv("AUTOGRADER_INTEGRATION_TOKEN") or TEST_INTEGRATION_TOKEN
+
+
 @pytest.fixture
 async def application(session_factory, tmp_path):
     """Compose an app after the test's environment fixtures have run."""
     from web.main import create_app
 
-    app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts")),
+    app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts"), INTEGRATION_TOKEN=_token()),
                      session_factory=session_factory, capabilities=HostCapabilities(), start_workers=False)
     app.state.host.ready = True
     yield app
@@ -49,7 +59,15 @@ async def application(session_factory, tmp_path):
 
 @pytest.fixture
 async def test_client(application):
-    """Send HTTP requests through the real application without a network server."""
+    """Send authenticated HTTP requests through the real application without a network server."""
+    async with AsyncClient(transport=ASGITransport(app=application), base_url="http://test",
+                           headers={"Authorization": f"Bearer {_token()}"}) as client:
+        yield client
+
+
+@pytest.fixture
+async def anonymous_client(application):
+    """Send requests without credentials to verify the trust boundary."""
     async with AsyncClient(transport=ASGITransport(app=application), base_url="http://test") as client:
         yield client
 
