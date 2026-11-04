@@ -17,8 +17,7 @@ def create_mock_test(name, score, report, file_targets=None):
     test_node.score = score
     test_node.report = report
     test_node.parameters = {"stdin": "input_val"}
-    test_node.test_node = MagicMock()
-    test_node.test_node.file_target = file_targets or ["main.py"]
+    test_node.file_target = file_targets or ["main.py"]
     return test_node
 
 def run_playroom():

@@ -1,15 +1,15 @@
-"""Tests for TestFunction parameter validation in CriteriaTreeService."""
+"""Evaluator parameter contracts are validated by compilation, not tree construction."""
 
 from typing import List, Optional, Type
 from pydantic import BaseModel, Field, ValidationError
 import pytest
 
-from autograder.services.criteria_tree_service import CriteriaTreeService
+from unittest.mock import patch
+
+from autograder.services.criteria_tree_service import build_criteria_tree
+from autograder.models.contracts.definition import DefinitionValidationError, compile_definition
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.abstract.template import Template
-from autograder.models.config.test import TestConfig
-from autograder.models.config.criteria import CriteriaConfig
-from autograder.models.config.category import CategoryConfig
 
 
 class MockParams(BaseModel):
@@ -45,74 +45,41 @@ class MockTemplate(Template):
     def get_test(self, name): return self.tests.get(name)
 
 
-class TestCriteriaTreeServiceValidation:
-    """Test suite for early validation logic in CriteriaTreeService."""
+def definition(parameters):
+    return {"schema_version": "1.0", "templates": ["mock"], "languages": ["python"],
+            "criteria": {"base": {"weight": 100, "tests": [{
+                "name": "Test 1", "type": "validated_test", "id": "validated-test", "parameters": parameters}]}}}
+
+
+class TestCompilationValidation:
+    """Evaluator contracts are enforced once, by compile_definition, never by tree construction."""
 
     def setup_method(self):
-        self.service = CriteriaTreeService()
         self.template = MockTemplate()
 
     def test_validation_success(self):
-        """Test that valid parameters pass validation during tree building."""
-        criteria_dict = {
-            "base": {
-                "weight": 100,
-                "tests": [
-                    {
-                        "name": "Test 1",
-                        "type": "validated_test",
-                        "id": "validated-test",
-                        "parameters": {'required_str': 'hello', 'optional_int': 100}
-                    }
-                ]
-            }
-        }
-        config = CriteriaConfig.from_dict(criteria_dict)
-        # Should NOT raise ValueError
-        tree = self.service.build_tree(config, [self.template])
-        assert tree is not None
-        assert tree.base.tests[0].parameters["required_str"] == "hello"
+        """Valid parameters compile and the tree carries the normalized values."""
+        compiled = compile_definition(definition({"required_str": "hello", "optional_int": 100}),
+                                      templates={"mock": self.template})
+        assert dict(compiled.criteria_tree.base.tests[0].parameters) == {
+            "required_str": "hello", "optional_int": 100, "list_of_items": ()}
 
     def test_validation_failure_missing_field(self):
-        """Test that missing required fields raise ValueError."""
-        criteria_dict = {
-            "base": {
-                "weight": 100,
-                "tests": [
-                    {
-                        "name": "Test Fail",
-                        "type": "validated_test",
-                        "id": "validated-test",
-                        "parameters": {'optional_int': 10}
-                    }
-                ]
-            }
-        }
-        config = CriteriaConfig.from_dict(criteria_dict)
-        with pytest.raises(ValueError) as excinfo:
-            self.service.build_tree(config, [self.template])
-        
-        assert "Invalid parameters" in str(excinfo.value)
-        assert "required_str" in str(excinfo.value)
+        """Missing required fields are reported at their JSON path."""
+        with pytest.raises(DefinitionValidationError) as excinfo:
+            compile_definition(definition({"optional_int": 10}), templates={"mock": self.template})
+        assert excinfo.value.errors()[0]["path"][-2:] == ["parameters", "required_str"]
 
     def test_validation_failure_wrong_type(self):
-        """Test that incorrect field types raise ValueError."""
-        criteria_dict = {
-            "base": {
-                "weight": 100,
-                "tests": [
-                    {
-                        "name": "Test Fail Type",
-                        "type": "validated_test",
-                        "id": "validated-test",
-                        "parameters": {'required_str': 'hello', 'optional_int': 'not-an-int'}
-                    }
-                ]
-            }
-        }
-        config = CriteriaConfig.from_dict(criteria_dict)
-        with pytest.raises(ValueError) as excinfo:
-            self.service.build_tree(config, [self.template])
-        
-        assert "Invalid parameters" in str(excinfo.value)
-        assert "optional_int" in str(excinfo.value)
+        """Incorrect field types are reported at their JSON path."""
+        with pytest.raises(DefinitionValidationError) as excinfo:
+            compile_definition(definition({"required_str": "hello", "optional_int": "not-an-int"}),
+                               templates={"mock": self.template})
+        assert excinfo.value.errors()[0]["path"][-2:] == ["parameters", "optional_int"]
+
+    def test_tree_construction_does_not_validate_again(self):
+        """Building the tree consumes compiled values and never re-runs the contract."""
+        compiled = compile_definition(definition({"required_str": "hello"}), templates={"mock": self.template})
+        with patch.object(MockParams, "model_validate", side_effect=AssertionError("second validation")):
+            tree = build_criteria_tree(compiled.definition.criteria, {"validated_test": ValidatedTestFunction()})
+        assert tree.base.tests[0].parameters["required_str"] == "hello"

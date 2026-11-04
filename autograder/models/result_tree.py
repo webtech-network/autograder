@@ -23,7 +23,6 @@ The final score flows up from test results through subjects and categories to th
 from dataclasses import dataclass, field
 from typing import Dict, Iterator, List, Optional, Any, Tuple
 
-from autograder.models.criteria_tree import TestNode
 
 
 @dataclass
@@ -36,7 +35,7 @@ class TestResultNode:
 
     Attributes:
         name: Name of the test
-        test_node: Reference to the original TestNode from the criteria tree
+        file_target: Explicit criterion file target, if any
         score: Test score (0-100)
         report: Human-readable feedback/report from the test execution
         weight: Weight of this test in its parent subject
@@ -47,7 +46,7 @@ class TestResultNode:
     name: str
     score: float
     report: str
-    test_node: Optional[TestNode] = None
+    file_target: Optional[List[str]] = None
     weight: float = 100.0
     parameters: Optional[Dict[str, Any]] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -61,14 +60,14 @@ class TestResultNode:
     def to_dict(self) -> dict:
         """Convert test result to dictionary representation."""
         return {
-            "id": self.criterion_id or (self.test_node.criterion_id if self.test_node else None),
-            "evaluator": self.evaluator or (self.test_node.test_function.name if self.test_node else None),
+            "id": self.criterion_id,
+            "evaluator": self.evaluator,
             "name": self.name,
             "type": "test",
             "score": round(self.score, 2),
             "weight": self.weight,
             "report": self.report,
-            "file_target": self.test_node.file_target if self.test_node else None,
+            "file_target": self.file_target,
             "parameters": self.parameters,
             "metadata": self.metadata,
         }
@@ -82,7 +81,7 @@ class TestResultNode:
             name=data.get("name", ""),
             score=float(data.get("score", 0.0)),
             report=data.get("report", ""),
-            test_node=None,
+            file_target=data.get("file_target"),
             weight=float(data.get("weight", 100.0)),
             parameters=data.get("parameters") or {},
             metadata=data.get("metadata") or {},

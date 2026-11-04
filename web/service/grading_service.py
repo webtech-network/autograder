@@ -6,6 +6,7 @@ from time import monotonic
 from uuid import uuid4
 
 from autograder.autograder import build_pipeline
+from autograder.models.contracts.definition import compile_snapshot
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import EvaluationScope, Submission, SubmissionFile
 from sandbox_manager.models.sandbox_models import Language
@@ -59,7 +60,8 @@ def failed_outcome(request, code="EXECUTION_FAILED", message="Grading execution 
 
 
 async def _run_pipeline(request, capabilities=None):
-    pipeline = build_pipeline(definition=request.definition, locale=request.locale,
+    # The bound snapshot is canonical: validate it without normalizing it again.
+    pipeline = build_pipeline(definition=compile_snapshot(request.definition), locale=request.locale,
                               provenance=request.provenance, capabilities=capabilities)
     files = {
         name: SubmissionFile(filename=value["filename"], content=value["content"],

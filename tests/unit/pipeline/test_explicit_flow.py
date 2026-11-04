@@ -150,7 +150,7 @@ def test_optional_feedback_failures_preserve_the_validated_grade(failure):
 
 def test_repeated_runs_do_not_retain_artifacts_or_rebuild_the_compiled_tree():
     pipeline = build_pipeline(definition=definition())
-    with patch("autograder.services.criteria_tree_service.CriteriaTreeService.build_tree", side_effect=AssertionError("runtime compilation")):
+    with patch("autograder.services.criteria_tree_service.build_criteria_tree", side_effect=AssertionError("runtime compilation")):
         before = pipeline.run(submission()).outcome
         after = pipeline.run(submission("print(1)")).outcome
     assert before.score == 0 and after.score == 100

@@ -11,7 +11,6 @@ from typing import List
 from autograder.models.abstract.template import Template
 from autograder.services.grader.criteria_grader import SubmissionGrader
 from autograder.services.command_resolver import CommandResolver
-from autograder.services.criteria_tree_service import CriteriaTreeService
 from autograder.services.grader.grader_service import GraderService
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import TestNode

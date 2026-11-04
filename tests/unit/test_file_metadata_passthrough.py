@@ -105,7 +105,7 @@ async def test_rich_repository_metadata_survives_hydration_and_grader_passthroug
     with patch(
         "web.service.grading_service.build_pipeline",
         return_value=pipeline,
-    ):
+    ), patch("web.service.grading_service.compile_snapshot"):
         hydrated_submission = await _run_pipeline(request)
 
     capturing_test = MetadataCapturingTest()

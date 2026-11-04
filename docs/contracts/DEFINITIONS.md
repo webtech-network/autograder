@@ -8,6 +8,11 @@ and [terminal outcomes](OUTCOMES.md) describe the integration boundaries.
 `compile_definition` adds registry, uniqueness, command-coverage, AST-rule grammar,
 learning-reference and weighted-group checks that JSON Schema cannot fully express.
 Its normalized return value is the stored definition and the source of its hash.
+Evaluator normalization is applied once, to raw authoring input. A stored canonical
+snapshot is reloaded with `compile_snapshot`, which validates it (including every
+evaluator contract and cross-field rule) without transforming its parameters, so a
+snapshot's meaning and hash cannot drift when it is loaded again. Snapshot
+parameters must list every contract field explicitly (`NON_CANONICAL_PARAMETERS`).
 
 ```json
 {

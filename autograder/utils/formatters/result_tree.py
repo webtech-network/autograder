@@ -90,9 +90,9 @@ class ResultTreeFormatter:
         result = []
         icon_score = self.icon_score(test.score)
 
-        if test.test_node.file_target:
+        if test.file_target:
             file_label = t("feedback.report.file_label", locale=locale) or "File"
-            result.append(f"- 📁 **{file_label}:** `{', '.join(test.test_node.file_target)}`")
+            result.append(f"- 📁 **{file_label}:** `{', '.join(test.file_target)}`")
 
         score_label = t("feedback.report.score_label", locale=locale) or "Score"
         result.append(f"- {icon_score} **{score_label}:** {test.score:.1f}/100")

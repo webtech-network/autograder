@@ -1,4 +1,5 @@
 """Assessment inputs are deterministic and parsing stays with static assessment."""
+from dataclasses import replace
 from unittest.mock import call, MagicMock, patch
 
 import pytest
@@ -80,11 +81,9 @@ def test_named_multi_file_inputs_are_required_and_respect_explicit_targets():
     submitted = files(("index.html", ""), ("site.css", ""), ("README.md", "docs"))
     test = criterion(CountUnusedCssClasses(), parameters={"html_file": "index.html", "css_file": "site.css"})
     assert [f.filename for f in select_files(test, submitted)] == ["index.html", "site.css"]
-    test.file_target = ["index.html"]
     with pytest.raises(EvaluationError) as error:
-        select_files(test, submitted)
+        select_files(replace(test, file_target=["index.html"]), submitted)
     assert error.value.code == "FILE_TARGET_CONFLICT"
-    test.file_target = None
     del submitted["site.css"]
     with pytest.raises(EvaluationError) as error:
         select_files(test, submitted)
@@ -104,7 +103,7 @@ def test_ai_and_ordinary_assessment_share_scoped_selection():
     selected = prompt.call_args.args[0]
     assert selected == select_files(test, submitted, scope, Language.PYTHON)
     assert [f.filename for f in selected] == ["a.py"]
-    test.file_target = ["b.py"]
+    tree = CriteriaTree(base=CategoryNode("base", 100, tests=[replace(test, file_target=["b.py"])]))
     with pytest.raises(EvaluationError) as error:
         evaluate_ai_batch(tree, submission(submitted, scope), provider)
     assert error.value.code == "FILE_TARGET_CONFLICT"

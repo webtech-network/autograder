@@ -108,3 +108,20 @@ async def test_known_config_required(test_client):
             "/api/v1/submissions/external-results", headers=HEADERS, json=payload
         )
     ).status_code == 404
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("attested,status", [(["main.py"], 200), (["other.py"], 422), (None, 422)])
+async def test_attested_file_targets_match_the_immutable_snapshot(test_client, attested, status):
+    """Compiled targets are frozen tuples; attestations still compare as JSON lists."""
+    from tests.web.test_contracts_v1 import definition
+
+    value = definition()
+    value["criteria"]["base"]["tests"][0]["file"] = "main.py"
+    response = await test_client.post("/api/v1/configs", json={"external_assignment_id": "targeted", "definition": value})
+    assert response.status_code == 200, response.text
+    config = response.json()
+    payload = external(config, score=100)
+    payload["outcome"]["tree"]["base"]["tests"][0]["file_target"] = attested
+    response = await test_client.post("/api/v1/submissions/external-results", headers=HEADERS, json=payload)
+    assert response.status_code == status, response.text

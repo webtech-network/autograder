@@ -1,140 +1,57 @@
-import logging
-from typing import List, Optional
+"""Build the immutable criteria tree from an already-compiled definition.
 
-from pydantic import ValidationError
+Parameters arriving here are the canonical values of the definition snapshot.
+Tree construction never validates or normalizes them again: evaluator
+normalization happens exactly once, in ``compile_definition``.
+"""
+from typing import List, Mapping
 
-from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.config.category import CategoryConfig
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.config.subject import SubjectConfig
 from autograder.models.config.test import TestConfig
-from autograder.models.criteria_tree import CriteriaTree, SubjectNode, TestNode, CategoryNode
+from autograder.models.criteria_tree import CategoryNode, CriteriaTree, SubjectNode, TestNode
 
 
-class CriteriaTreeService:
-    """
-    Service for building criteria trees from validated configuration.
-
-    The tree building process now:
-    1. Validates criteria config using Pydantic models
-    2. Matches test functions from template during building
-    3. Embeds test functions and parameters directly in TestNodes
-    4. Balances weights across siblings
-
-    This eliminates the need for pre-executed trees and improves error handling.
-    """
-
-    def __init__(self):
-        self.logger = logging.getLogger("CriteriaTreeService")
-        self.__templates: List[Template] = []
-
-    def build_tree(
-        self, criteria_config: CriteriaConfig, templates: List[Template]
-    ) -> CriteriaTree:
-        """
-        Build a complete criteria tree from validated configuration.
-
-        Args:
-            criteria_config: Validated criteria configuration
-            templates: List of templates containing test functions
-
-        Returns:
-            Complete CriteriaTree with embedded test functions
-
-        Raises:
-            ValueError: If test function not found in any template
-        """
-
-        self.__templates = templates
-
-        base_category = self.__parse_category("base", criteria_config.base)
-        tree = CriteriaTree(base_category)
-
-        if criteria_config.bonus:
-            tree.bonus = self.__parse_category("bonus", criteria_config.bonus)
-
-        if criteria_config.penalty:
-            tree.penalty = self.__parse_category("penalty", criteria_config.penalty)
-
-        return tree
-
-    def __parse_subjects(self, configs: List[SubjectConfig]) -> List[SubjectNode]:
-        subjects = [self.__parse_subject(config) for config in configs]
-        self.__balance_subject_weights(subjects)
-        return subjects
-
-    def __parse_subject(self, config: SubjectConfig) -> SubjectNode:
-        subject = SubjectNode(config.subject_name, config.weight)
-
-        subject.subjects_weight = config.subjects_weight
-
-        if config.subjects:
-            subject.subjects = self.__parse_subjects(config.subjects)
-
-        if config.tests:
-            subject.tests = self.__parse_tests(config.tests)
-
-        return subject
-
-    def __balance_subject_weights(self, subjects: List[SubjectNode]) -> None:
-        maximum = max((subject.weight for subject in subjects), default=0)
-        if maximum > 0:
-            scaled_total = sum(subject.weight / maximum for subject in subjects)
-            for subject in subjects:
-                subject.weight = (subject.weight / maximum) / scaled_total * 100
-
-    def __parse_tests(self, test_configs: List[TestConfig]) -> List[TestNode]:
-        return [self.__parse_test(test_item) for test_item in test_configs]
-
-    def __find_test_function(self, name: str) -> Optional[TestFunction]:
-        for template in self.__templates:
-            try:
-                return template.get_test(name)
-            except (AttributeError, KeyError):
-                continue
-        return None
-
-    def __parse_test(self, config: TestConfig) -> TestNode:
-        # Evaluator identity is explicit; display names never participate in lookup.
-        function_name = config.type
-        test_function = self.__find_test_function(function_name)
-        if not test_function:
-            raise ValueError(f"Couldn't find test function '{function_name}'")
-
-        file_target = [config.file] if config.file else None
-        test_params = dict(config.parameters)
-
-        # Perform early validation if the test function provides a schema.
-        if test_function.config_schema:
-            try:
-                # We use model_validate to leverage Pydantic's validation logic.
-                test_params = test_function.config_schema.model_validate(test_params).model_dump(mode="json")
-            except ValidationError as e:
-                raise ValueError(
-                    f"Invalid parameters for test '{config.name}' ({function_name}): {e}"
-                ) from e
-
-        test = TestNode(
-            config.name,
-            test_function,
-            test_params,
-            file_target,
-            config.weight,
+def build_criteria_tree(criteria: CriteriaConfig, registry: Mapping[str, TestFunction]) -> CriteriaTree:
+    """Embed each resolved evaluator with its canonical parameters."""
+    def test(config: TestConfig) -> TestNode:
+        return TestNode(
+            name=config.name,
+            test_function=registry[config.type],
+            parameters=config.parameters,
+            file_target=(config.file,) if config.file else None,
+            weight=config.weight,
             criterion_id=config.id,
         )
 
-        return test
+    def subjects(configs: List[SubjectConfig]) -> tuple:
+        # Subject weights are stored relative to their heaviest sibling.
+        maximum = max((config.weight for config in configs), default=0)
+        scaled_total = sum(config.weight / maximum for config in configs) if maximum > 0 else 0
+        return tuple(
+            SubjectNode(
+                name=config.subject_name,
+                weight=(config.weight / maximum) / scaled_total * 100 if maximum > 0 else config.weight,
+                subjects=subjects(config.subjects) if config.subjects else (),
+                tests=tuple(test(item) for item in config.tests or ()),
+                subjects_weight=config.subjects_weight,
+            )
+            for config in configs
+        )
 
-    def __parse_category(self, category_name, config: CategoryConfig) -> CategoryNode:
-        category = CategoryNode(category_name, config.weight)
+    def category(name: str, config: CategoryConfig) -> CategoryNode:
+        return CategoryNode(
+            name=name,
+            weight=config.weight,
+            subjects=subjects(config.subjects) if config.subjects else (),
+            tests=tuple(test(item) for item in config.tests or ()),
+            subjects_weight=config.subjects_weight,
+        )
 
-        category.subjects_weight = config.subjects_weight
-
-        if config.subjects:
-            category.add_subjects(self.__parse_subjects(config.subjects))
-
-        if config.tests:
-            category.tests = self.__parse_tests(config.tests)
-
-        return category
+    return CriteriaTree(
+        base=category("base", criteria.base),
+        bonus=category("bonus", criteria.bonus) if criteria.bonus else None,
+        penalty=category("penalty", criteria.penalty) if criteria.penalty else None,
+    )

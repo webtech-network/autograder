@@ -45,8 +45,8 @@ class AutograderPipeline:
 
     def __init__(self, compiled: CompiledDefinition, provenance: DefinitionProvenance,
                  capabilities: HostCapabilities):
+        # The compiled plan is deeply immutable, so runs cannot affect each other.
         self.compiled = compiled
-        self.definition = compiled.definition
         self.definition_provenance = provenance
         self.capabilities = capabilities
 
@@ -63,11 +63,12 @@ class AutograderPipeline:
         error = None
         feedback = FeedbackOutcome()
         operation = "bind_submission"
+        definition = self.compiled.definition
 
         # Required work has one failure boundary. The local session is owned as
         # soon as acquisition returns, even if staging immediately raises.
         try:
-            submission = replace(submission, language=select_language(self.definition, submission.language))
+            submission = replace(submission, language=select_language(definition, submission.language))
             requirements = requirements_for(self.compiled, submission.language)
             validate_submission(self.compiled, submission, requirements)
             check_capabilities(requirements.capabilities, self.capabilities)
@@ -109,13 +110,13 @@ class AutograderPipeline:
 
             # Optional enrichment receives the completed grade directly. It
             # cannot replace that grade, and disabled feedback performs no work.
-            if self.definition.feedback.enabled:
+            if definition.feedback.enabled:
                 operation = "feedback"
                 try:
                     focus = FocusService().find(result_tree)
-                    content = ReporterService(feedback_mode=self.definition.feedback.mode).generate_feedback(
+                    content = ReporterService(feedback_mode=definition.feedback.mode).generate_feedback(
                         grading_result=focus, result_tree=result_tree,
-                        feedback_config=self.definition.feedback.preferences.model_dump(mode="json"),
+                        feedback_config=definition.feedback.preferences.model_dump(mode="json"),
                         locale=submission.locale,
                     )
                     feedback = FeedbackOutcome(status="completed", content=content)
@@ -171,6 +172,8 @@ class AutograderPipeline:
 def build_pipeline(*, definition, locale="en", provenance=None, templates=None, capabilities=None) -> AutograderPipeline:  # pylint: disable=unused-argument
     """Compile without opening resources; retain trusted template instances.
 
+    A ``CompiledDefinition`` is reused as-is (it is immutable and already
+    normalized); raw input is normalized once by ``compile_definition``.
     locale remains accepted for facade compatibility; submission.locale
     selects the language of reports as before.
     """

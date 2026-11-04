@@ -36,17 +36,16 @@ class ExecutionRequirements:
 def requirements_for(compiled: CompiledDefinition, language: Language) -> ExecutionRequirements:
     """Use the same evaluator declaration as discovery, only for selected tests."""
     from autograder.models.contracts.catalog import required_capabilities
-    selected = {id(test.test_function) for category in (
-        compiled.criteria_tree.base, compiled.criteria_tree.bonus, compiled.criteria_tree.penalty
-    ) if category for test in category.get_all_tests()}
+    selected = {id(test.test_function) for test in compiled.criteria_tree.get_all_tests()}
     capabilities = set()
-    for template in compiled.templates:
+    for template in compiled.templates.values():
         for function in template.get_tests().values():
             if id(function) in selected:
                 capabilities.update(required_capabilities(template, function))
-    preparation = compiled.definition.preparation.languages.get(language.value, LanguagePreparation())
-    if preparation.setup_commands or compiled.definition.preparation.fixtures:
+    definition = compiled.definition
+    preparation = definition.preparation.languages.get(language.value, LanguagePreparation())
+    if preparation.setup_commands or definition.preparation.fixtures:
         capabilities.add("sandbox_execution")
-    if compiled.definition.preparation.fixtures:
+    if definition.preparation.fixtures:
         capabilities.add("fixture_provider")
     return ExecutionRequirements(frozenset(capabilities), preparation)

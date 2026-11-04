@@ -95,8 +95,7 @@ def test_category_get_all_tests_recursive():
     sub2 = SubjectNode(name="sub2", weight=50.0, tests=[t4])
     sub1 = SubjectNode(name="sub1", weight=100.0, tests=[t3], subjects=[sub2])
     
-    cat = CategoryNode(name="cat", weight=100.0, tests=[t1, t2])
-    cat.add_subjects([sub1])
+    cat = CategoryNode(name="cat", weight=100.0, tests=[t1, t2], subjects=[sub1])
     
     tests = cat.get_all_tests()
     assert len(tests) == 4
