@@ -92,11 +92,11 @@ general:
     disposal_attempts: 5
 
 runtimes:           # host runtime profiles: language identifier -> sandbox image
-    python: sandbox-py:latest
-    java: sandbox-java:latest
-    node: sandbox-node:latest
-    cpp: sandbox-cpp:latest
-    c: sandbox-cpp:latest
+    python: ghcr.io/webtech-network/autograder-sandbox-python:<tag>
+    java: ghcr.io/webtech-network/autograder-sandbox-java:<tag>
+    node: ghcr.io/webtech-network/autograder-sandbox-node:<tag>
+    cpp: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
+    c: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
 ```
 
 A language missing from `runtimes:` has no pool; acquiring it raises
@@ -208,16 +208,20 @@ Classification uses the exit status only; see
 
 Sandbox images are located in `sandbox_manager/images/`:
 
-| File | Language | Base |
-|------|----------|------|
-| `Dockerfile.python` | Python | Python runtime |
-| `Dockerfile.java` | Java | JDK |
-| `Dockerfile.javascript` | Node.js | Node runtime |
-| `Dockerfile.cpp` | C/C++ | GCC toolchain |
+| File | Languages | Runtime |
+|------|-----------|---------|
+| `Dockerfile.python` | `python` | CPython 3.13 |
+| `Dockerfile.java` | `java` | Temurin JDK 21 |
+| `Dockerfile.node` | `node` | Node.js 24 |
+| `Dockerfile.cpp` | `cpp`, `c` | GCC 15 |
 
-Build all images:
+Each image is published as a content-versioned reference that `sandbox_config.yml`
+names; the manager refuses to start with a missing or mismatched image. See
+[Runtime images](../contracts/LANGUAGES.md#runtime-images).
+
 ```bash
-make sandbox-build-all
+make sandbox-list        # language -> reference
+make sandbox-build-all   # build this checkout's images under those references
 ```
 
 ### Container Security

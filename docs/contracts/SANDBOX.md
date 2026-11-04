@@ -53,6 +53,10 @@ The image is not part of the profile or of the language: the `runtimes:` map
 of `sandbox_config.yml` is the host's only language-to-image table
 (`SandboxPoolConfig.image`). A pool exists only for listed languages; acquiring
 another language raises `RuntimeUnavailableError` (see [LANGUAGES.md](LANGUAGES.md)).
+A manager starts only when every configured image is present locally and its
+`autograder.runtime.languages` label declares the language; otherwise it raises
+`RuntimeImageError` before reclaiming or creating any container, and never pulls
+an image (see [Runtime images](LANGUAGES.md#runtime-images)).
 
 ## Host-owned lifetime and signals
 

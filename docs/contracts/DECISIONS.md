@@ -373,3 +373,18 @@ other in real containers. `POST /process` replaces `/run` and `/run-batch`, and
 process requests are never replayed. Output and artifact readback are bounded
 where the process runs. See [PROCESSES.md](PROCESSES.md), which also gives the
 migration from the old newline and shell behaviour.
+
+## Versioned runtime images (ENV-04, runtime part)
+
+The student runtimes are built from `sandbox_manager/images` on digest-pinned,
+supported bases (CPython 3.13, Temurin JDK 21, Node.js 24, GCC 15 on Alpine
+3.24) without a build context, and hold no package manager, downloader or setuid
+binary. Each image's reference is derived from its Dockerfile's content, CI
+publishes a reference once and never overwrites it, and `sandbox_config.yml`
+names exactly those references; floating local `:latest` tags are gone. A
+`SandboxManager` never pulls: it starts only when every configured image is
+present and declares its language in the `autograder.runtime.languages` label,
+and raises `RuntimeImageError` otherwise. Hosts therefore pull or build the
+configured images before starting; an old unlabelled image is rejected rather
+than silently used. Service and Action images are a later change. See
+[LANGUAGES.md](LANGUAGES.md#runtime-images).

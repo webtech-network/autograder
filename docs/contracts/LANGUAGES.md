@@ -40,16 +40,61 @@ deliberate execution returns `503 EXECUTION_UNAVAILABLE`. Neither is reported as
 an invalid language. Static-only definitions never touch runtimes.
 
 ```yaml
-runtimes:
-    python: sandbox-py:latest
-    java: sandbox-java:latest
-    node: sandbox-node:latest
-    cpp: sandbox-cpp:latest
-    c: sandbox-cpp:latest
+runtimes:   # `make sandbox-list` prints the current tags
+    python: ghcr.io/webtech-network/autograder-sandbox-python:<tag>
+    java: ghcr.io/webtech-network/autograder-sandbox-java:<tag>
+    node: ghcr.io/webtech-network/autograder-sandbox-node:<tag>
+    cpp: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
+    c: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
 ```
 
 Replacing an image changes only this map. Unknown keys and empty images are
 rejected when the configuration is loaded.
+
+## Runtime images
+
+The shipped runtimes are built from `sandbox_manager/images/Dockerfile.<name>`
+and are what students' code runs on:
+
+| Language | Image | Runtime | Base |
+| --- | --- | --- | --- |
+| `python` | `autograder-sandbox-python` | CPython 3.13 | `python:3.13-alpine3.24` |
+| `java` | `autograder-sandbox-java` | Eclipse Temurin JDK 21 (LTS) | `eclipse-temurin:21-jdk-alpine-3.24` |
+| `node` | `autograder-sandbox-node` | Node.js 24 (LTS) | `node:24-alpine3.24` |
+| `cpp`, `c` | `autograder-sandbox-cpp` | GCC 15 (`g++`, `gcc`, `make`, musl) | `alpine:3.24` |
+
+Each base is pinned by digest. An image holds its runtime and nothing to fetch
+or install more: no package manager (`apk`, `pip`, `npm`/`npx`/`yarn`/`corepack`),
+no downloader (`curl`, `wget`, `nc`), no setuid binary, and the process runs as
+the unprivileged `sandbox` user. `tests/integration/test_runtime_images.py`
+checks the versions above and these absences on the built images.
+
+**References are versioned by content.** An image's reference is
+`ghcr.io/webtech-network/autograder-sandbox-<name>:<tag>`, where `<tag>` is the
+first 12 hex digits of its Dockerfile's SHA-256 (`scripts/sandbox_images.py`).
+Editing a Dockerfile therefore produces a new reference, and a unit test fails
+until `sandbox_config.yml` names it. Images are built without a build context
+(the Dockerfile is sent on stdin), so nothing from a checkout can enter them.
+The `Sandbox runtime images` workflow builds every image from scratch, runs the
+image checks and the Docker integration suite (golden outcomes included)
+against those images, and on `main` pushes each reference the registry does not
+have yet. A published reference is never overwritten, so rebuilding cannot
+change the runtime a host already uses.
+
+**A host verifies its images at startup.** `SandboxManager` (the control API
+at startup, a local-mode host at its first acquisition) requires every
+configured image to be present on the Docker host and to list the language in
+its `autograder.runtime.languages` label (`cpp,c` for the C/C++ image). It never
+pulls: a missing image raises `RuntimeImageError` naming the image and the
+`docker pull` command, and an image whose label does not declare the language
+(for example an old unlabelled `sandbox-py:latest`, or the Java image mapped to
+`python`) raises `RuntimeImageError` before any container is created. A custom
+image only needs that label.
+
+Changing a student runtime (for example Node.js 24 to 26) is a release-noted
+change: edit the Dockerfile, update this table and the documented versions in
+`tests/integration/test_runtime_images.py`, put the new reference in
+`sandbox_config.yml`, and pass the golden outcomes.
 
 ## Program commands
 

@@ -172,14 +172,19 @@ general:
   scale_limit: 20       # maximum containers per language (quarantined ones count)
   idle_timeout: 300
 runtimes:               # only listed languages get a pool
-  python: sandbox-py:latest
+  python: ghcr.io/webtech-network/autograder-sandbox-python:<tag>   # make sandbox-list
 ```
 
 ## Troubleshooting
 
-- **Sandbox containers will not start**: check `docker info`, rebuild images
-  with `make sandbox-build-all`, and confirm the language is listed under
-  `runtimes:` (an unlisted language fails with `RUNTIME_UNAVAILABLE`).
+- **Sandbox containers will not start**: check `docker info`, and confirm the
+  language is listed under `runtimes:` (an unlisted language fails with
+  `RUNTIME_UNAVAILABLE`).
+- **`RuntimeImageError` at startup**: the configured image is not on this Docker
+  host, or its `autograder.runtime.languages` label does not list the language.
+  Run `docker pull <image>` for the published references, or
+  `make sandbox-build-all` to build this checkout's images under the same
+  references. Images are never pulled automatically.
 - **401 from the API**: set `AUTOGRADER_INTEGRATION_TOKEN` and send
   `Authorization: Bearer <token>`.
 - **Remote sandbox manager refuses to start**: set `SANDBOX_API_TOKEN` (or

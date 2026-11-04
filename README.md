@@ -277,17 +277,18 @@ general:
     # Prevents hanging processes from consuming resources
     running_timeout: 120
 
-# Host runtime profiles: language identifier -> sandbox image.
+# Host runtime profiles: language identifier -> versioned sandbox image.
 # A language left out has no pool and is reported as an unavailable capability.
 runtimes:
-    python: sandbox-py:latest
-    java: sandbox-java:latest
-    node: sandbox-node:latest
-    cpp: sandbox-cpp:latest
-    c: sandbox-cpp:latest
+    python: ghcr.io/webtech-network/autograder-sandbox-python:<tag>
+    java: ghcr.io/webtech-network/autograder-sandbox-java:<tag>
+    node: ghcr.io/webtech-network/autograder-sandbox-node:<tag>
+    cpp: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
+    c: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
 ```
 
-4. **Build sandbox images**
+4. **Get the sandbox images** named in `sandbox_config.yml` (`make sandbox-list`):
+pull the published ones with `docker pull`, or build them from this checkout:
 ```bash
 make sandbox-build-all
 ```
