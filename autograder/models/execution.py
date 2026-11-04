@@ -35,9 +35,10 @@ class ExecutionSession(Protocol):
 
     ``run_process`` is the only way to run a process (see ``models/process.py``):
     it returns a ``ProcessResult`` for any process it ran and raises for
-    infrastructure failures. ``read_artifact`` raises ``FileNotFoundError`` only
-    for a missing file; unknown or invalidated sessions and failed readback raise
-    other ``RuntimeError``s.
+    infrastructure failures, and raises ``SandboxExhausted`` (a student outcome)
+    once the submission exhausted the sandbox. ``read_artifact`` raises
+    ``FileNotFoundError`` only for a missing file; unknown or invalidated
+    sessions and failed readback raise other ``RuntimeError``s.
     """
     fixture_root: str
 

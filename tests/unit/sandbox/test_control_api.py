@@ -292,6 +292,14 @@ def test_invalidated_sandbox_and_failed_readback_are_distinct_errors(api, manage
     assert "short read" not in response.text
 
 
+def test_exhausted_sandbox_is_a_distinct_student_outcome(api, manager):
+    from autograder.models.process import SandboxExhausted
+    handle = acquire(api).json()["sandbox_id"]
+    manager.acquired[0].run_process.side_effect = SandboxExhausted("limit")
+    response = api.post(f"/sandboxes/{handle}/process", json={"argv": ["x"]}, headers=AUTH)
+    assert response.status_code == 409 and code(response) == "SANDBOX_EXHAUSTED"
+
+
 def test_output_bound_is_forwarded_and_truncation_reported(api, manager):
     handle = acquire(api).json()["sandbox_id"]
     manager.acquired[0].run_process.return_value = ProcessResult(

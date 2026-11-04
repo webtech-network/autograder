@@ -15,6 +15,8 @@ Recovery rules:
   (:class:`~sandbox_manager.errors.ArtifactReadError`) and an invalidated
   sandbox (:class:`~sandbox_manager.errors.SandboxInvalidatedError`) are
   distinct exceptions, the last two shared with the local implementation;
+* a submission that exhausted its sandbox raises the core
+  :class:`~autograder.models.process.SandboxExhausted`, as the local backend does;
 * a language this host has no runtime for raises
   :class:`~sandbox_manager.errors.RuntimeUnavailableError`, and a full sandbox
   budget after the requested wait raises
@@ -28,7 +30,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 import requests
 
 from autograder.models.language import Language
-from autograder.models.process import ProcessRequest, ProcessResult
+from autograder.models.process import ProcessRequest, ProcessResult, SandboxExhausted
 from sandbox_manager.errors import (
     ArtifactReadError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
 )
@@ -93,6 +95,8 @@ def _checked(response: requests.Response, *, artifact_path: Optional[str] = None
         raise ArtifactReadError(text)
     if code == "SANDBOX_INVALIDATED":
         raise SandboxInvalidatedError(text)
+    if code == "SANDBOX_EXHAUSTED":
+        raise SandboxExhausted(text)
     if code == "ARTIFACT_INVALID":
         raise ValueError(message)
     if code == "HANDLE_NOT_FOUND":

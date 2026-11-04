@@ -12,8 +12,8 @@ from autograder import HostCapabilities, Submission, SubmissionFile, build_pipel
 from autograder.models.execution import ExecutionSession
 from autograder.models.language import Language
 from autograder.models.process import (
-    MAX_STDIN_BYTES, ProcessRequest, ProcessResult, ProcessStatus, ResponseCategory, decode_output,
-    lines_to_stdin, split_command,
+    MAX_STDIN_BYTES, ProcessRequest, ProcessResult, ProcessStatus, ResponseCategory, SandboxExhausted,
+    decode_output, lines_to_stdin, split_command,
 )
 from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.models.api_models import ProcessRequestModel, ProcessResultModel
@@ -188,6 +188,66 @@ def test_returned_exit_and_status_reports():
         report = DontFailTest().execute(EvaluationInput(language=Language.PYTHON, session=session),
                                         program_command="python3 main.py").report
         assert text in report, report
+
+
+@pytest.mark.parametrize("effect, text", [
+    (SandboxExhausted("limit"), "memory or process limit"),
+    (not_started("./a.out"), "./a.out"),
+    (not_started("bin/run"), "bin/run"),
+    (not_started("/app/bin/run"), "/app/bin/run"),
+], ids=["exhausted", "relative-entry-point", "nested-entry-point", "absolute-workspace-entry-point"])
+def test_what_the_submission_did_to_its_own_sandbox_is_assessed(effect, text):
+    """COR-01: an exhausted sandbox or a missing/non-executable workspace program is the student's zero."""
+    from autograder.template_library.input_output import DontFailTest, ExpectFileArtifactTest, ExpectOutputTest
+    from autograder.models.abstract.test_function import EvaluationInput
+    for evaluator, parameters in ((DontFailTest(), {}), (ExpectOutputTest(), {"expected_output": "x"}),
+                                  (ExpectFileArtifactTest(), {"artifact_path": "o.txt", "expected_content": "x"})):
+        session = MagicMock()
+        if isinstance(effect, Exception):
+            session.run_process.side_effect = effect
+        else:
+            session.run_process.return_value = effect
+        result = evaluator.execute(EvaluationInput(language=Language.PYTHON, session=session),
+                                   program_command="./a.out", **parameters)
+        assert result.score == 0 and text in result.report, result.report
+        session.read_artifact.assert_not_called()
+
+
+@pytest.mark.parametrize("executable", ["python3", "/usr/bin/python3", "/application/run"])
+def test_a_runtime_command_that_cannot_start_is_a_capability_failure(executable):
+    from autograder.template_library.input_output import DontFailTest
+    from autograder.models.abstract.test_function import EvaluationInput
+    from autograder.models.evaluation_error import EvaluationError
+    session = MagicMock()
+    session.run_process.return_value = not_started(executable)
+    with pytest.raises(EvaluationError) as raised:
+        DontFailTest().execute(EvaluationInput(language=Language.PYTHON, session=session), program_command=executable)
+    assert (raised.value.code, raised.value.category) == ("PROCESS_START_FAILED", "capability")
+
+
+def test_artifact_readback_of_an_exhausted_sandbox_is_assessed():
+    from autograder.template_library.input_output import ExpectFileArtifactTest
+    from autograder.models.abstract.test_function import EvaluationInput
+    session = MagicMock()
+    session.run_process.return_value = exited()
+    session.read_artifact.side_effect = SandboxExhausted("limit")
+    result = ExpectFileArtifactTest().execute(EvaluationInput(language=Language.PYTHON, session=session),
+                                              program_command="python3 main.py", artifact_path="o.txt",
+                                              expected_content="x")
+    assert result.score == 0 and "memory or process limit" in result.report
+
+
+def test_a_setup_command_that_exhausts_the_sandbox_fails_the_submission():
+    session = MagicMock()
+    session.run_process.side_effect = SandboxExhausted("limit")
+    definition = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
+                  "preparation": {"languages": {"python": {"setup_commands": [{"name": "build", "command": "make"}]}}},
+                  "criteria": {"base": {"weight": 100, "tests": [
+                      {"id": "ok", "type": "dont_fail", "name": "ok", "parameters": {"program_command": "CMD"}}]}}}
+    outcome = build_pipeline(definition=definition, capabilities=HostCapabilities(execution=lambda _: session)).run(
+        Submission("s", "s", "a", {"main.py": SubmissionFile("main.py", "")}, language=Language.PYTHON)).outcome
+    assert outcome.status == "failed" and outcome.score is None
+    assert (outcome.error.code, outcome.error.category) == ("PREPARATION_FAILED", "submission")
 
 
 def test_definitions_reject_malformed_commands_at_compilation():

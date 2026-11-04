@@ -34,6 +34,7 @@ from fastapi.responses import JSONResponse
 
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.dataclass.submission import SubmissionFile
+from autograder.models.process import SandboxExhausted
 from sandbox_manager.errors import (
     ArtifactReadError,
     ArtifactTooLargeError,
@@ -372,6 +373,10 @@ def _registry(request: Request) -> HandleRegistry:
 
 
 def _sandbox_error(exc: Exception) -> ControlError:
+    if isinstance(exc, SandboxExhausted):
+        # The submission's own result: nothing more can run; only DELETE remains useful.
+        return ControlError(status.HTTP_409_CONFLICT, "SANDBOX_EXHAUSTED",
+                            "The submission exhausted the sandbox's memory or process limit.")
     if isinstance(exc, SandboxInvalidatedError):
         # The sandbox cannot be trusted any more; only DELETE remains useful.
         return ControlError(status.HTTP_409_CONFLICT, "SANDBOX_INVALIDATED",

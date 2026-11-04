@@ -7,7 +7,7 @@ import pytest
 import requests
 
 from execution_host.docker import DockerSession
-from autograder.models.process import ProcessRequest, ProcessStatus
+from autograder.models.process import ProcessRequest, ProcessStatus, SandboxExhausted
 from sandbox_manager.errors import (
     ArtifactReadError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
 )
@@ -183,6 +183,7 @@ def test_process_request_and_result_use_the_shared_wire_contract(manager):
 
 @pytest.mark.parametrize("reply,expected", [
     (error(409, "SANDBOX_INVALIDATED"), SandboxInvalidatedError),
+    (error(409, "SANDBOX_EXHAUSTED"), SandboxExhausted),
     (error(500, "SANDBOX_ERROR"), RemoteSandboxError),
     (error(410, "HANDLE_EXPIRED"), SandboxHandleGone),
     (error(404, "HANDLE_NOT_FOUND"), SandboxHandleNotFound),

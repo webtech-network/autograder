@@ -6,7 +6,9 @@ public ``BaseExecutionTest``, which declares ``sandbox_execution`` (so the run
 acquires a session and hands it to this evaluator in ``evaluation.session``) and
 supplies the shared steps: ``run_program`` runs the bound language's command with
 exact stdin and a deadline, and ``assessed_failure`` turns a timeout or nonzero
-exit into an assessed zero. A program that cannot start fails the run instead.
+exit into an assessed zero (as it does a missing workspace program or an
+exhausted sandbox, which ``run_program`` already assessed). A runtime command
+that cannot start fails the run instead.
 
 Everything here is imported from ``autograder``. This example teaches those
 semantics with a *fake* execution capability, so it needs no Docker. A real host
