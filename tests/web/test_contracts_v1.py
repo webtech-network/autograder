@@ -37,6 +37,7 @@ def integration_auth(monkeypatch):
 
 
 HEADERS = {"Authorization": "Bearer test-contract-token"}
+NO_AUTH = {"Authorization": ""}
 
 
 async def create(client, assignment="assignment"):
@@ -212,7 +213,7 @@ async def test_attestation_retains_historical_snapshot_and_consistent_reads(
     )
     assert history.json() == [poll]
     assert (
-        await test_client.get(f"/api/v1/submissions/{identity}/details")
+        await test_client.get(f"/api/v1/submissions/{identity}/details", headers=NO_AUTH)
     ).status_code == 401
     detail = (
         await test_client.get(

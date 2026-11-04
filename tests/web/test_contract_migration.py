@@ -140,3 +140,28 @@ def test_durable_migration_resolves_unreplayable_legacy_work(monkeypatch):
         assert rows == [("failed", "en", None, 0), ("failed", "en", None, 0), ("completed", "en", None, 0)]
         attempts = sa.Table("grading_attempts", sa.MetaData(), autoload_with=connection)
         assert set(attempts.c.keys()) == {"id", "submission_id", "number", "status", "started_at", "finished_at"}
+
+
+def test_operation_receipt_migration_enforces_scoped_uniqueness(monkeypatch):
+    engine = sa.create_engine("sqlite://")
+    metadata = sa.MetaData()
+    sa.Table("submissions", metadata, sa.Column("id", sa.Integer, primary_key=True))
+    metadata.create_all(engine)
+    with engine.begin() as connection:
+        connection.execute(sa.text("INSERT INTO submissions (id) VALUES (1), (2)"))
+        migration = importlib.import_module("web.migrations.versions.007_operation_receipts")
+        monkeypatch.setattr(migration, "op", Operations(MigrationContext.configure(connection)))
+        migration.upgrade()
+        insert = sa.text("INSERT INTO operation_receipts (principal, operation, idempotency_key, fingerprint, "
+                         "submission_id) VALUES (:p, :o, 'k', 'f', :s)")
+        connection.execute(insert, {"p": "integration", "o": "submission.accept", "s": 1})
+        connection.execute(insert, {"p": "attestation:actions", "o": "submission.accept", "s": 2})
+        connection.execute(insert, {"p": "integration", "o": "outcome.attest", "s": 2})
+        try:
+            with connection.begin_nested():
+                connection.execute(insert, {"p": "integration", "o": "submission.accept", "s": 2})
+            raise AssertionError("duplicate operation key was accepted")
+        except sa.exc.IntegrityError:
+            pass
+        migration.downgrade()
+        assert "operation_receipts" not in sa.inspect(connection).get_table_names()

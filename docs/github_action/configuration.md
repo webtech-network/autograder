@@ -7,7 +7,11 @@
 | `submission-root` | `.` | Workspace-relative or absolute readable directory of UTF-8 files |
 | `submission-language` | omitted | Allowed canonical language; required with multiple choices |
 | `locale` | `en` | `en` or `pt-br`; identical across modes |
+| `submitter-id` | repository | Opaque owner of the graded work (e.g. Prisma student ID); never the workflow actor |
+| `submitter-name` | ID / repository name | Display name of the submitter |
 | `grading-config-id` | omitted | Positive configuration ID; required for external mode or cloud upload |
+| `grading-config-revision` | omitted | Revision to attest in repo mode; lets a restricted attestation token publish without reading the configuration |
+| `trusted-self-hosted-runner` | `false` | Allow publication from a reviewed self-hosted runner |
 | `autograder-cloud-url` | omitted | Required for cloud fetch/upload/retry |
 | `autograder-cloud-token` | omitted | Required cloud authentication secret; never grading identity |
 | `upload-to-cloud` | `false` | Explicit post-grading cloud publication |
@@ -25,6 +29,10 @@ Configuration and preparation paths are relative to the selected submission root
 | `score` | Finite authoritative score 0–100, only when completed |
 | `result-path` | Workspace-relative `.autograder/outcome.json` |
 | `submission-id` | Cloud submission ID after successful publication |
+| `delivery-status` | `delivered`, `failed` or `uncertain` when publication was requested |
+
+Identity, run provenance and the event/runner trust table are documented in
+[identity and trust](trust.md). `student-name` was removed.
 
 The canonical outcome includes the tree, definition provenance, UTC timestamps,
 execution correlation ID, and separate feedback/comparison status. Public

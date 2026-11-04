@@ -8,41 +8,41 @@ from pydantic import BaseModel, ConfigDict
 from autograder.autograder import build_pipeline
 from autograder.models.abstract.ai_test_function import AiTestFunction
 from autograder.models.abstract.template import Template
-from autograder.models.contracts.outcome import (
-    ComparisonOutcome, outcome_score_vector, validate_outcome,
-)
+from autograder.models.contracts.comparison import compare_outcomes
+from autograder.models.contracts.definition import compile_definition
+from autograder.models.contracts.outcome import outcome_score_vector, validate_outcome
 from autograder.models.execution import ProviderAssessment
-from autograder.models.result_tree import ResultTree
-from autograder.services.result_comparator import ResultComparator
 from tests.grading import FakeProvider
 from tests.unit.pipeline.test_terminal_outcome import definition, submission
 
 
 @pytest.mark.parametrize('before,after,delta', [('import os','print(1)',100), ('print(1)','import os',-100), ('print(1)','print(1)',0)])
 def test_comparison_of_real_runs(before, after, delta):
-    pipeline = build_pipeline(definition=definition())
+    compiled = compile_definition(definition())
+    pipeline = build_pipeline(definition=compiled)
     baseline, head = pipeline.run(submission(before)), pipeline.run(submission(after))
-    baseline_tree = ResultTree.from_dict(baseline.outcome.tree.model_dump(mode="json"))
-    head_tree = ResultTree.from_dict(head.outcome.tree.model_dump(mode="json"))
-    comparison = ResultComparator.compare(baseline_tree, head_tree)
+    comparison = compare_outcomes(baseline.outcome, head.outcome, compiled.definition, compiled.definition)
+    assert comparison.compatibility == 'same_definition'
     assert comparison.score_delta == delta
-    assert comparison.test_deltas[0].path == 'imports'
-    enriched = head.outcome.model_copy(update={'comparison':ComparisonOutcome(status='completed', content=comparison.to_dict())})
-    assert validate_outcome(enriched.model_dump(mode='json')).comparison.content.score_delta == delta
-    assert outcome_score_vector(head.outcome) == head_tree.to_score_vector()
+    assert comparison.criteria[0].criterion_id == 'imports'
+    assert {row.criterion_id: row.head_score for row in comparison.criteria} == outcome_score_vector(head.outcome)
+    # Comparison is a separate use of completed grades; the frozen grade is unchanged.
+    assert head.outcome.comparison.status == 'disabled'
 
 
-def test_tree_roundtrip_and_renamed_groups_preserve_join_identity():
-    original = definition()
-    renamed = definition()
-    renamed['criteria']['base']['tests'][0]['name'] = 'Changed label'
+def test_renamed_label_across_revisions_preserves_join_identity():
+    original = compile_definition(definition())
+    changed = definition()
+    changed['criteria']['base']['tests'][0]['name'] = 'Changed label'
+    renamed = compile_definition(changed)
     baseline = build_pipeline(definition=original).run(submission('import os'))
     head = build_pipeline(definition=renamed).run(submission('print(1)'))
-    reconstructed = ResultTree.from_dict(baseline.outcome.tree.model_dump(mode='json'))
-    comparison = ResultComparator.compare(reconstructed, ResultTree.from_dict(head.outcome.tree.model_dump(mode="json")))
-    assert len(comparison.test_deltas) == 1
-    assert comparison.test_deltas[0].path == 'imports'
-    assert comparison.test_deltas[0].status == 'improved'
+    comparison = compare_outcomes(baseline.outcome, head.outcome, original.definition, renamed.definition)
+    assert comparison.compatibility == 'cross_revision' and comparison.score_delta is None
+    assert len(comparison.criteria) == 1
+    row = comparison.criteria[0]
+    assert (row.criterion_id, row.status, row.baseline_label, row.head_label) == (
+        'imports', 'improved', 'Imports', 'Changed label')
 
 
 @pytest.mark.parametrize('split,expected', [(0,100),(25,75),(100,0)])

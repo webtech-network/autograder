@@ -117,7 +117,7 @@ async def docker_application(session_factory, tmp_path, monkeypatch):
     config = tmp_path / "sandbox.yml"
     config.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
     owner = DockerHost(mode="local", config_file=str(config))
-    app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts")), session_factory=session_factory,
+    app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts"), INTEGRATION_TOKEN="io-token"), session_factory=session_factory,
                      capabilities=owner.capabilities, resource_owner=owner, start_workers=False)
     await app.state.host.start()
     yield app
@@ -127,7 +127,7 @@ async def docker_application(session_factory, tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_http_submissions_grade_io_evaluators_in_real_containers(docker_application):
     headers = {"Authorization": "Bearer io-token"}
-    async with AsyncClient(transport=ASGITransport(app=docker_application), base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=docker_application), base_url="http://test", headers=headers) as client:
         created = await client.post("/api/v1/configs", json={"external_assignment_id": "io-http", "definition": DEFINITION})
         assert created.status_code == 200, created.text
         expected = {("python", 0): 100, ("java", 1): pytest.approx(100 / 3, abs=0.01), ("node", 0): 100, ("cpp", 1): pytest.approx(100 / 3, abs=0.01)}

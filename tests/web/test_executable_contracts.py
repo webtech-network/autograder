@@ -1,5 +1,4 @@
 """Published examples cross the real definition, grader, adapter and SQL seams."""
-
 from copy import deepcopy
 from pathlib import Path
 import re
@@ -12,9 +11,11 @@ import yaml
 from examples.contracts.http_round_trip import DEFINITION, round_trip as published_round_trip
 from github_action.github_action_service import GithubActionService
 from autograder.models.dataclass.submission import SubmissionFile
+from github_action.identity import SubmissionIdentity, run_provenance
 from web.schemas.submission import ExternalResultCreate
 
 
+IDENTITY = SubmissionIdentity("walkthrough-student", "Walkthrough Student", "input")
 HEADERS = {"Authorization": "Bearer conformance-token"}
 
 
@@ -71,10 +72,10 @@ async def test_action_attestation_and_http_execution_have_the_same_polling_outco
         )
     action_outcome = service.run_autograder(
         pipeline,
-        "Walkthrough Student",
+        IDENTITY,
         {"index.html": SubmissionFile("index.html", "<h1>Hello</h1>")},
     )
-    payload = service.delivery_payload(action_outcome, "Walkthrough Student")
+    payload = service.delivery_payload(action_outcome, IDENTITY, run_provenance(Path(".")))
     ExternalResultCreate.model_validate(payload)
     uploaded = await test_client.post(
         "/api/v1/submissions/external-results", headers=HEADERS, json=payload
@@ -98,7 +99,7 @@ async def test_action_attestation_and_http_execution_have_the_same_polling_outco
     )
     assert rejected.status_code == 422
     assert (await test_client.post(
-        "/api/v1/submissions/external-results", json=payload
+        "/api/v1/submissions/external-results", json=payload, headers={"Authorization": ""}
     )).status_code == 401
 
 
@@ -125,10 +126,10 @@ async def test_failed_attestation_polls_as_failure_and_not_as_zero(test_client, 
             cloud_token="test-token", upload_to_cloud=True, language=None, locale="en",
         )
     completed = service.run_autograder(
-        pipeline, "Walkthrough Student",
+        pipeline, IDENTITY,
         {"index.html": SubmissionFile("index.html", "<h1>Hello</h1>")},
     )
-    payload = service.delivery_payload(completed, "Walkthrough Student")
+    payload = service.delivery_payload(completed, IDENTITY, run_provenance(Path(".")))
     failed = deepcopy(payload)
     outcome = failed["outcome"]
     outcome.update(

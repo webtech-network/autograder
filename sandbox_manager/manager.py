@@ -1,227 +1,118 @@
-import atexit
-import signal
+"""Local sandbox manager: per-language pools under one owner lease.
+
+The host that constructs a :class:`SandboxManager` owns its lifetime and must
+call :meth:`SandboxManager.shutdown` (for example in a ``finally`` block or an
+application lifespan). The library installs no signal handlers or ``atexit``
+hooks; hosts keep their own signal behaviour.
+"""
+import logging
 import threading
-import time
-from typing import Dict, List, Optional, Union
+from contextlib import contextmanager
+from typing import Dict, Iterable, Optional
+
 import docker
-from sandbox_manager.language_pool import LanguagePool, LABEL_APP
+
+from sandbox_manager.language_pool import LanguagePool
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import Language
+from sandbox_manager.models.sandbox_models import DisposalStatus, Language
+from sandbox_manager.ownership import OwnerIdentity, reclaim_dead_owners
 from sandbox_manager.sandbox_container import SandboxContainer
-from sandbox_manager.remote_client import RemoteSandboxManager
 
-_MANAGER_INSTANCE: Optional[Union['SandboxManager', RemoteSandboxManager]] = None
-_CLIENT: Optional[docker.DockerClient] = None
-_SHUTDOWN_REGISTERED = False
+logger = logging.getLogger(__name__)
 
-def _get_client() -> docker.DockerClient:
-    global _CLIENT
-    if _CLIENT is None:
-        _CLIENT = docker.from_env()
-    return _CLIENT
-
-def initialize_sandbox_manager(
-    pool_configs: Optional[List[SandboxPoolConfig]] = None,
-    mode: str = "local",
-    api_url: str = "http://localhost:8001"
-) -> Union['SandboxManager', RemoteSandboxManager]:
-    """
-    Should be called upon application startup.
-    Cleans up orphaned containers from previous runs and initializes pools.
-    """
-    global _MANAGER_INSTANCE
-
-    # If already initialized, shut down the previous one first
-    if _MANAGER_INSTANCE is not None:
-        print("[SandboxManager] Already initialized. Shutting down previous instance...")
-        try:
-            _MANAGER_INSTANCE.shutdown()
-        except Exception:
-            pass
-
-    if mode == "remote":
-        print(f"[SandboxManager] Initializing in REMOTE mode with API URL: {api_url}")
-        _MANAGER_INSTANCE = RemoteSandboxManager(api_url=api_url)
-        return _MANAGER_INSTANCE
-
-    if not pool_configs:
-        raise ValueError("pool_configs must be provided for local mode")
-
-    for config in pool_configs:
-        if config.language not in Language:
-            raise ValueError(f"Unsupported language: {config.language}")
-
-    # Clean up orphaned containers before initializing new pools
-    print("[SandboxManager] Cleaning up orphaned containers from previous runs...")
-    client = _get_client()
-    _cleanup_orphaned_containers(client)
-
-    language_pools = {config.language: LanguagePool(config.language, config, client) for config in pool_configs}
-    _MANAGER_INSTANCE = SandboxManager(language_pools)
-
-    # Register cleanup handlers
-    _register_shutdown_handlers(_MANAGER_INSTANCE)
-
-    return _MANAGER_INSTANCE
-
-def get_sandbox_manager() -> Union['SandboxManager', RemoteSandboxManager]:
-    """Retrieves the global instance of the SandboxManager."""
-    if _MANAGER_INSTANCE is None:
-        raise ValueError("SandboxManager has not been initialized. Call initialize_sandbox_manager() first.")
-    return _MANAGER_INSTANCE
-
-
-def _cleanup_orphaned_containers(client: docker.DockerClient):
-    """
-    Find and destroy all orphaned sandbox containers from previous runs.
-    Identifies containers by the autograder.sandbox.app label.
-    """
-    try:
-        # Find all containers with our app label
-        orphaned_containers = client.containers.list(
-            all=True,
-            filters={"label": f"{LABEL_APP}=autograder-sandbox"}
-        )
-
-        if orphaned_containers:
-            print(f"[SandboxManager] Found {len(orphaned_containers)} orphaned container(s)")
-            for container in orphaned_containers:
-                try:
-                    print(f"[SandboxManager] Removing orphaned container {container.name} ({container.id[:12]})...")
-                    container.remove(force=True)
-                except Exception as e:
-                    print(f"[SandboxManager] Failed to remove orphaned container {container.name} ({container.id[:12]}): {e}")
-            print("[SandboxManager] Orphan cleanup complete")
-        else:
-            print("[SandboxManager] No orphaned containers found")
-    except Exception as e:
-        print(f"[SandboxManager] Error during orphan cleanup: {e}")
-
-
-def _register_shutdown_handlers(manager: 'SandboxManager'):
-    """
-    Register signal handlers and atexit cleanup to ensure containers are destroyed
-    even on unexpected termination.
-    """
-    global _SHUTDOWN_REGISTERED
-
-    def shutdown_handler(signum=None, frame=None):
-        _ = signum
-        _ = frame
-        # Always use the current instance from global scope
-        current_manager = _MANAGER_INSTANCE
-        if current_manager:
-            print("\n[SandboxManager] Received shutdown signal, cleaning up...")
-            current_manager.shutdown()
-
-    if not _SHUTDOWN_REGISTERED:
-        # Register for common termination signals
-        signal.signal(signal.SIGTERM, shutdown_handler)
-        signal.signal(signal.SIGINT, shutdown_handler)
-
-        # Register atexit handler as last resort
-        atexit.register(shutdown_handler)
-        _SHUTDOWN_REGISTERED = True
 
 class SandboxManager:
-    """Manages local language pools for sandbox containers."""
-    def __init__(self, language_pools: Dict[Language, LanguagePool]):
-        self.language_pools = language_pools
-        self._shutdown_in_progress = False
+    """Owns the language pools, their monitor thread and this process's owner lease."""
+
+    def __init__(self, pool_configs: Iterable[SandboxPoolConfig], client: Optional[docker.DockerClient] = None,
+                 *, owner: Optional[OwnerIdentity] = None, reclaim_orphans: bool = True,
+                 monitor_interval: float = 1.0):
+        configs = list(pool_configs)
+        if not configs:
+            raise ValueError("pool_configs must not be empty")
+        for config in configs:
+            if not isinstance(config.language, Language):
+                raise ValueError(f"Unsupported language: {config.language}")
+        self._owns_client = client is None
+        self.client = client or docker.from_env()
+        self.owner = owner or OwnerIdentity.current()
+        if reclaim_orphans:
+            reclaim_dead_owners(self.client, self.owner)
+        self.language_pools: Dict[Language, LanguagePool] = {
+            config.language: LanguagePool(config.language, config, self.client, self.owner)
+            for config in configs
+        }
+        self._stop = threading.Event()
+        self._shutdown_lock = threading.Lock()
+        self._shut_down = False
+        self._monitor_interval = monitor_interval
         for pool in self.language_pools.values():
-            pool.replenish() # Initial creation of sandboxes in each pool
-        self.monitor_thread = threading.Thread(target=self.__pool_monitor, daemon=True)
+            pool.replenish()
+        self.monitor_thread = threading.Thread(target=self._pool_monitor, name="sandbox-pool-monitor",
+                                               daemon=True)
         self.monitor_thread.start()
 
+    def _pool(self, lang: Language) -> LanguagePool:
+        pool = self.language_pools.get(lang)
+        if pool is None:
+            raise ValueError(f"Unsupported language: {lang}")
+        return pool
+
     def get_sandbox(self, lang: Language) -> SandboxContainer:
-        """Acquires a sandbox from the specified language pool."""
-        if lang in self.language_pools:
-            return self.language_pools[lang].acquire()
-        raise ValueError(f"Unsupported language: {lang}")
+        """Acquire a fresh sandbox; the caller must :meth:`dispose` it."""
+        return self._pool(lang).acquire()
 
-    def release_sandbox(self, lang: Language, sandbox: SandboxContainer):
-        """Releases a sandbox back into its pool."""
-        if lang in self.language_pools:
-            self.language_pools[lang].release(sandbox)
+    def dispose(self, sandbox: SandboxContainer) -> DisposalStatus:
+        """Destroy a used sandbox. Idempotent; see :class:`DisposalStatus`."""
+        return self._pool(sandbox.language).dispose(sandbox)
 
-    def destroy_sandbox(self, lang: Language, sandbox: SandboxContainer):
-        """
-        Destroy a sandbox immediately without releasing it back to the pool.
-        Use this for sandboxes that timeout or encounter fatal errors.
-
-        Args:
-            lang: The language of the sandbox
-            sandbox: The sandbox to destroy
-        """
-        if lang in self.language_pools:
-            self.language_pools[lang].destroy_sandbox(sandbox)
-
+    @contextmanager
     def acquire_sandbox(self, lang: Language):
-        """
-        Context manager for safe sandbox acquisition and guaranteed release.
+        """Acquire a sandbox and dispose it when the block exits."""
+        sandbox = self.get_sandbox(lang)
+        try:
+            yield sandbox
+        finally:
+            self.dispose(sandbox)
 
-        Usage:
-            manager = get_sandbox_manager()
-            with manager.acquire_sandbox(Language.PYTHON) as sandbox:
-                result = sandbox.run_command("python script.py")
-            # Sandbox is automatically released even if an exception occurs
-        """
-        from contextlib import contextmanager
-
-        @contextmanager
-        def _sandbox_context():
-            sandbox = self.get_sandbox(lang)
-            try:
-                yield sandbox
-            finally:
-                self.release_sandbox(lang, sandbox)
-
-        return _sandbox_context()
-
-    def shutdown(self):
-        """
-        Gracefully shutdown all pools and destroy all containers.
-        Safe to call multiple times.
-        """
-        if self._shutdown_in_progress:
-            return
-
-        self._shutdown_in_progress = True
-        print("[SandboxManager] Initiating shutdown...")
-
-        # Destroy all containers in all pools
+    def shutdown(self) -> None:
+        """Stop the monitor, then dispose every container. Safe to call repeatedly."""
+        with self._shutdown_lock:
+            if self._shut_down:
+                return
+            self._shut_down = True
+        logger.info("[SandboxManager] Initiating shutdown (owner %s)...", self.owner.owner_id[:8])
+        self._stop.set()
+        if self.monitor_thread is not threading.current_thread():
+            self.monitor_thread.join(timeout=max(30.0, self._monitor_interval * 5))
+            if self.monitor_thread.is_alive():
+                logger.error("[SandboxManager] Pool monitor did not stop within the shutdown timeout")
         for language, pool in self.language_pools.items():
             try:
                 pool.shutdown()
-            except Exception as e:
-                print(f"[SandboxManager] Error shutting down {language} pool: {e}")
-
-        print("[SandboxManager] Shutdown complete")
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.exception("[SandboxManager] Error shutting down %s pool", language)
+        if self._owns_client:
+            self.client.close()
+        logger.info("[SandboxManager] Shutdown complete")
 
     def get_pool_stats(self) -> dict:
-        """
-        Get statistics for all language pools.
-        Useful for monitoring and debugging scaling behavior.
-        """
-        stats = {}
-        for language, pool in self.language_pools.items():
-            stats[language.value] = pool.get_stats()
-        return stats
+        """Per-language pool statistics, including quarantined containers."""
+        return {language.value: pool.get_stats() for language, pool in self.language_pools.items()}
 
     def __enter__(self):
-        """Context manager entry"""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - ensures cleanup"""
         self.shutdown()
-        return False  # Don't suppress exceptions
+        return False
 
-    def __pool_monitor(self):
-        while not self._shutdown_in_progress:
+    def _pool_monitor(self):
+        while not self._stop.wait(self._monitor_interval):
             for pool in self.language_pools.values():
+                if self._stop.is_set():
+                    return
                 try:
                     pool.monitor()
-                except Exception as e:
-                    print(f"Error monitoring pool for language {pool.language}: {e}")
-            time.sleep(1)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logger.exception("Error monitoring pool for language %s", pool.language)

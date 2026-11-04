@@ -114,9 +114,11 @@ DATABASE_URL=postgresql://user:password@localhost:5432/autograder
 OPENAI_API_KEY=your_openai_key_here
 
 
-# Sandbox Configuration
-SANDBOX_TIMEOUT=120
-SANDBOX_MEMORY_LIMIT=512m
+# Sandbox Configuration (limits live in sandbox_config.yml and
+# sandbox_manager/docker_profile.py)
+SANDBOX_MODE=local
+# Remote mode / docker compose: shared secret for the private control API
+SANDBOX_API_TOKEN=change-me-to-a-long-random-secret
 ```
 
 ### Database Setup (for Web API)

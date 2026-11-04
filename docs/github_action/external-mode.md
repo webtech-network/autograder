@@ -39,19 +39,22 @@ can also publish: provide the cloud ID/URL/token and `upload-to-cloud: "true"`.
 The selected cloud revision must have the same normalized definition hash.
 
 The upload envelope contains `grading_config_id`, `definition_snapshot`, the
-exact finished `outcome`, opaque student identity, selected language, and GitHub
-metadata. Cloud credentials never appear in that artifact. The API validates
+exact finished `outcome`, the submitter identity, selected language, and GitHub
+run provenance kept separate from the actor ([identity and trust](trust.md)). Cloud credentials never appear in that artifact. The API validates
 provenance and outcome invariants as an authenticated host attestation.
 
-GET configuration requests may retry transient errors. Result POST makes one
-attempt because automatic retries are unsafe until replay deduplication is
-implemented. Delivery failure fails the Action, retains `.autograder/outcome.json`
-and `.autograder/delivery.json`, and leaves the grading status intact. Failed
+The result POST carries `Idempotency-Key: action-outcome:<execution_id>`. GET and
+keyed POST requests retry transient failures (network, 408/425/429/5xx) with
+jittered exponential back-off and `Retry-After`, within a 120 s total deadline;
+other 4xx responses are permanent. Delivery failure fails the Action, retains
+`.autograder/outcome.json` and `.autograder/delivery.json`, leaves the grading
+status intact and sets `delivery-status` to `failed`, or `uncertain` when the server
+may already have stored the result. Failed
 evaluation also has a retained failed outcome with null score, which may be
 published through the same path.
 
-After checking whether an uncertain delivery was already accepted, download the
-saved artifact and add this step to a separate workflow to retry the attestation
+Retrying is always safe: the same saved outcome reuses its key, so an upload that
+was already accepted returns its original receipt. Download the saved artifact and add this step to a separate workflow to retry the attestation
 without reevaluation:
 
 ```yaml
