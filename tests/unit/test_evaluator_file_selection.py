@@ -19,7 +19,7 @@ from autograder.template_library.api_testing import HealthCheckTest
 from autograder.template_library.web_dev.html_tests import HasTag
 from autograder.template_library.web_dev.css_tests import CountUnusedCssClasses
 from autograder.template_library.web_dev.structure_tests import CheckProjectStructure
-from sandbox_manager.models.sandbox_models import CommandResponse
+from tests.process_results import exited
 from autograder.models.language import Language
 
 
@@ -173,7 +173,7 @@ def test_html_and_io_pipelines_do_no_structural_parsing():
                 "id": "html", "type": "has_tag", "name": "Main", "parameters": {"tag": "main", "required_count": 1}}]}}})
         assert html.run(submission(files(("index.html", "<main/>"), ("README.md", "docs")))).outcome.score == 100
         session = MagicMock()
-        session.run_commands.return_value = CommandResponse(stdout="", stderr="", exit_code=0, execution_time=0)
+        session.run_process.return_value = exited()
         io = build_pipeline(definition={"schema_version": "1.0", "templates": ["input_output"],
             "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [{
                 "id": "io", "type": "dont_fail", "name": "Run", "parameters": {"program_command": "python3 main.py"}}]}}},

@@ -1,4 +1,5 @@
 """Remote client: replay policy, session ownership and error mapping."""
+import base64
 import json
 from unittest.mock import Mock
 
@@ -6,7 +7,8 @@ import pytest
 import requests
 
 from execution_host.docker import DockerSession
-from sandbox_manager.errors import RuntimeUnavailableError
+from autograder.models.process import ProcessRequest, ProcessStatus
+from sandbox_manager.errors import ArtifactReadError, RuntimeUnavailableError, SandboxInvalidatedError
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS
 from sandbox_manager.models.sandbox_models import DisposalStatus
 from autograder.models.language import Language
@@ -134,25 +136,44 @@ def test_unknown_handle_on_dispose_is_not_a_missing_file(manager):
     assert not isinstance(caught.value, FileNotFoundError)
 
 
-def test_run_command_is_never_replayed(manager):
+def test_process_is_never_replayed(manager):
     sandbox = handle(manager)
     sandbox._session.request = Mock(side_effect=requests.ReadTimeout("lost"))  # pylint: disable=protected-access
-    with pytest.raises(RemoteSandboxError):
-        sandbox.run_command("python main.py", timeout=7)
+    with pytest.raises(RemoteSandboxError) as caught:
+        sandbox.run_process(ProcessRequest.command("python main.py", timeout=7))
+    assert caught.value.code == "TRANSPORT_ERROR"  # an unknown outcome, never a student result
     sandbox._session.request.assert_called_once()  # pylint: disable=protected-access
     assert sandbox._session.request.call_args.kwargs["timeout"] == (5, 7 + TRANSPORT_MARGIN_SECONDS)  # pylint: disable=protected-access
     sandbox._session.request = Mock(side_effect=requests.ConnectionError("x"))  # pylint: disable=protected-access
     with pytest.raises(RemoteSandboxError):
-        sandbox.run_commands(["1"], program_command="p", timeout=3)
+        sandbox.run_process(ProcessRequest(shell="echo 1", timeout=3))
     sandbox._session.request.assert_called_once()  # pylint: disable=protected-access
 
 
-def test_run_command_parses_response(manager):
+def test_process_request_and_result_use_the_shared_wire_contract(manager):
     sandbox = handle(manager)
     sandbox._session.request = Mock(return_value=response(200, {  # pylint: disable=protected-access
-        "stdout": "o", "stderr": "", "exit_code": 0, "execution_time": 0.1, "category": "success",
-        "truncated": False}))
-    assert sandbox.run_command("x").stdout == "o"
+        "status": "timed_out", "exit_code": None, "stdout": "o", "stderr": "", "stdout_truncated": True,
+        "stderr_truncated": False, "duration": 2.0, "missing_executable": None}))
+    result = sandbox.run_process(ProcessRequest(argv=("cat",), stdin=b"\x00-n\n", timeout=2, max_output_bytes=1))
+    assert (result.status, result.exit_code, result.stdout, result.truncated) == (ProcessStatus.TIMED_OUT, None, "o", True)
+    call = sandbox._session.request.call_args  # pylint: disable=protected-access
+    assert call.args[:2] == ("POST", "http://sandbox:8001/sandboxes/handle-1/process")
+    assert call.kwargs["json"] == {"argv": ["cat"], "shell": None, "stdin": base64.b64encode(b"\x00-n\n").decode(),
+                                   "cwd": "/app", "timeout": 2, "max_output_bytes": 1}
+
+
+@pytest.mark.parametrize("reply,expected", [
+    (error(409, "SANDBOX_INVALIDATED"), SandboxInvalidatedError),
+    (error(500, "SANDBOX_ERROR"), RemoteSandboxError),
+    (error(410, "HANDLE_EXPIRED"), SandboxHandleGone),
+    (error(404, "HANDLE_NOT_FOUND"), SandboxHandleNotFound),
+])
+def test_process_errors_are_distinct_exceptions(manager, reply, expected):
+    sandbox = handle(manager)
+    sandbox._session.request = Mock(return_value=reply)  # pylint: disable=protected-access
+    with pytest.raises(expected):
+        sandbox.run_process(ProcessRequest(argv=("id",)))
 
 
 @pytest.mark.parametrize("reply,expected", [
@@ -161,6 +182,7 @@ def test_run_command_parses_response(manager):
     (error(410, "HANDLE_EXPIRED"), SandboxHandleGone),
     (error(410, "HANDLE_CLOSED"), SandboxHandleGone),
     (error(422, "ARTIFACT_INVALID"), ValueError),
+    (error(500, "ARTIFACT_READ_FAILED"), ArtifactReadError),
     (error(500, "SANDBOX_ERROR"), RemoteSandboxError),
     (error(401, "UNAUTHORIZED"), RemoteSandboxError),
     (response(404, {"detail": "Not Found"}), RemoteSandboxError),  # e.g. wrong URL

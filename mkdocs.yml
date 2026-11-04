@@ -45,6 +45,7 @@ nav:
       - Evaluator Files: contracts/FILES.md
       - Host Capabilities: contracts/CAPABILITIES.md
       - Languages and Runtimes: contracts/LANGUAGES.md
+      - Process Contract: contracts/PROCESSES.md
       - Sandbox Ownership: contracts/SANDBOX.md
       - Durable Jobs: contracts/JOBS.md
       - Definitions: contracts/DEFINITIONS.md

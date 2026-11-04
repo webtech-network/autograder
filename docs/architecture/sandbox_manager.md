@@ -48,7 +48,7 @@ LanguagePool.acquire()
     ├── tracked (idle+active+closing+quarantined) < scale_limit? → create, return
     └── otherwise → SandboxUnavailableError (a ValueError)
     ↓
-SandboxContainer: prepare_workdir / inject_assets / run_command / run_commands / extract_file
+SandboxContainer: prepare_workdir / inject_assets / run_process / extract_file
     ↓
 manager.dispose(sandbox) → LanguagePool.dispose()
     ├── mark closing; container.remove(force=True, v=True) outside the lock
@@ -153,38 +153,33 @@ sandbox.inject_assets(resolved_assets)
 # Assets are now available in /tmp (or specified path)
 ```
 
-### `run_command(command, timeout=30, workdir="/app")`
-Executes a single shell command in the container. Returns a `CommandResponse`.
+### `run_process(request)`
+The only process operation (see [the process contract](../contracts/PROCESSES.md)).
+`request` is a `ProcessRequest` with an exact `argv` (or an explicit `shell`
+script), exact `stdin` bytes, `cwd`, a `timeout` and a per-stream output bound.
+It returns a `ProcessResult` (`exited`, `timed_out` or `not_started`) and raises
+for infrastructure failures.
 
 ```python
-result = sandbox.run_command("python main.py")
-# result.stdout, result.stderr, result.exit_code, result.execution_time, result.category
-```
-
-### `run_commands(commands, program_command=None, timeout=30)`
-Executes a program with stdin input streaming. Each item in `commands` is sent as a line to stdin.
-
-```python
-result = sandbox.run_commands(["5", "3"], program_command="python calculator.py")
-# Sends "5\n3" to stdin of "python calculator.py"
+from autograder.models.process import ProcessRequest, lines_to_stdin
+result = sandbox.run_process(ProcessRequest.command("python3 calculator.py", stdin=lines_to_stdin(["5", "3"])))
+# result.status, result.exit_code, result.stdout, result.stderr, result.duration
 ```
 
 ### `extract_file(path, max_bytes=1_048_576)`
-Reads one file from the container. Raises `FileNotFoundError` when it is missing.
+Reads back a regular file. It raises `FileNotFoundError` only when the file is
+missing, `ArtifactTooLargeError` above `max_bytes`, and `ArtifactReadError` when
+an existing file cannot be read.
 
 ---
 
 ## Models
 
-### `Language` Enum
+### Languages and images
 
-| Value | Docker Image |
-|-------|-------------|
-| `PYTHON` | `sandbox-py:latest` |
-| `JAVA` | `sandbox-java:latest` |
-| `NODE` | `sandbox-node:latest` |
-| `CPP` | `sandbox-cpp:latest` |
-| `C` | `sandbox-cpp:latest` (shares C++ image) |
+The domain `Language` (`autograder/models/language.py`) carries no image. The
+`runtimes:` map in `sandbox_config.yml` assigns each language its image (see
+[LANGUAGES.md](../contracts/LANGUAGES.md)).
 
 ### `SandboxState` Enum
 
@@ -200,27 +195,12 @@ Reads one file from the container. Raises `FileNotFoundError` when it is missing
 
 `dispose()` returns `DISPOSED`, `ALREADY_DISPOSED`, `CLOSING` or `QUARANTINED`.
 
-### `ResponseCategory` Enum
+### Process results
 
-| Value | Description |
-|-------|-------------|
-| `SUCCESS` | Program exited with code 0 |
-| `RUNTIME_ERROR` | Program crashed (exception, segfault) |
-| `COMPILATION_ERROR` | Compilation failed (Java/C++) |
-| `TIMEOUT` | Execution exceeded time limit |
-| `SYSTEM_ERROR` | Infrastructure failure (Docker error) |
-
-### `CommandResponse` Dataclass
-
-```python
-@dataclass
-class CommandResponse:
-    stdout: str               # Standard output
-    stderr: str               # Standard error
-    exit_code: int            # Process exit code
-    execution_time: float     # Execution time in seconds
-    category: ResponseCategory  # Classified result
-```
+`ProcessResult`, `ProcessStatus` and the deliberate-execution `ResponseCategory`
+(`success`, `runtime_error`, `timeout`) live in `autograder/models/process.py`.
+Classification uses the exit status only; see
+[PROCESSES.md](../contracts/PROCESSES.md).
 
 ---
 
@@ -275,8 +255,9 @@ manager = SandboxManager(SandboxPoolConfig.load_from_yaml("sandbox_config.yml"))
 try:
     with manager.acquire_sandbox(Language.PYTHON) as sandbox:
         sandbox.prepare_workdir(files)
-        result = sandbox.run_command("python main.py")
+        result = sandbox.run_process(ProcessRequest.command("python main.py"))
     # Disposed on exit, even on exception or timeout.
+    # A timed-out process and every process it started are killed before run_process returns.
 finally:
     manager.shutdown()
 ```
@@ -286,7 +267,7 @@ finally:
 ```python
 sandbox = manager.get_sandbox(Language.PYTHON)
 try:
-    result = sandbox.run_command("python main.py", timeout=30)
+    result = sandbox.run_process(ProcessRequest.command("python main.py", timeout=30))
 finally:
     status = manager.dispose(sandbox)  # safe to repeat; QUARANTINED means retrying
 ```

@@ -11,7 +11,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from autograder.models.dataclass.asset import ResolvedAsset
-from sandbox_manager.models.sandbox_models import CommandResponse, ResponseCategory
+from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus
 from contextlib import contextmanager
 from dataclasses import replace
 from autograder.models.capabilities import HostCapabilities
@@ -53,16 +53,14 @@ def manager_profile(return_value=None, side_effect=None, fixtures=None):
         app.state.host.capabilities = previous
 
 
-def command_result(category=ResponseCategory.SUCCESS, stdout="Hello\n", stderr="", exit_code=0):
-    return CommandResponse(
-        category=category, stdout=stdout, stderr=stderr,
-        exit_code=exit_code, execution_time=0.01,
-    )
+def command_result(stdout="Hello\n", stderr="", exit_code=0, status=ProcessStatus.EXITED, truncated=False):
+    return ProcessResult(status, exit_code if status is ProcessStatus.EXITED else None, stdout, stderr,
+                         stdout_truncated=truncated, duration=0.01)
 
 
 def manager_with_sandbox(*results):
     sandbox = Mock()
-    sandbox.run_commands.side_effect = results
+    sandbox.run_process.side_effect = results
     manager = Mock()
     manager.get_sandbox.return_value = sandbox
     return manager, sandbox
@@ -87,7 +85,7 @@ async def test_execute_requires_trusted_host_token():
 async def test_cases_send_stdin_and_receive_process_details():
     manager, sandbox = manager_with_sandbox(
         command_result(stdout="Alice\n"),
-        command_result(category=ResponseCategory.RUNTIME_ERROR, stdout="", stderr="bad input", exit_code=1),
+        command_result(stdout="", stderr="bad input", exit_code=1),
     )
     with manager_profile(return_value=manager):
         response = await post(REQUEST)
@@ -102,16 +100,17 @@ async def test_cases_send_stdin_and_receive_process_details():
     assert data["results"][1]["category"] == "runtime_error"
     assert data["results"][1]["stderr"] == "bad input"
     assert data["results"][1]["exit_code"] == 1
-    assert sandbox.run_commands.call_args_list[0].args == (["Alice"],)
-    assert sandbox.run_commands.call_args_list[0].kwargs["program_command"] == "python main.py"
-    assert sandbox.run_commands.call_args_list[1].args == (["Bob"],)
+    first, second = (call.args[0] for call in sandbox.run_process.call_args_list)
+    assert first == ProcessRequest(argv=("python", "main.py"), stdin=b"Alice\n", timeout=8, max_output_bytes=MAX_OUTPUT_BYTES)
+    assert second.stdin == b"Bob\n" and second.argv == first.argv
     manager.dispose.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_empty_stdin_runs_once_and_output_is_bounded():
     manager, sandbox = manager_with_sandbox()
-    sandbox.run_command.return_value = command_result(stdout="é" * MAX_OUTPUT_BYTES, stderr="err")
+    sandbox.run_process.side_effect = None
+    sandbox.run_process.return_value = command_result(stdout="é" * (MAX_OUTPUT_BYTES // 2), stderr="err", truncated=True)
     payload = {key: value for key, value in REQUEST.items() if key != "test_cases"}
     with manager_profile(return_value=manager):
         response = await post(payload)
@@ -119,7 +118,8 @@ async def test_empty_stdin_runs_once_and_output_is_bounded():
     result = response.json()["results"][0]
     assert len(result["stdout"].encode()) <= MAX_OUTPUT_BYTES
     assert result["truncated"] is True
-    sandbox.run_command.assert_called_once()
+    [call] = sandbox.run_process.call_args_list
+    assert call.args[0].stdin == b"" and call.args[0].max_output_bytes == MAX_OUTPUT_BYTES  # bounded by the host
 
 
 @pytest.mark.parametrize("change", [
@@ -155,11 +155,12 @@ async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
 
-    manager, _ = manager_with_sandbox(command_result(category=ResponseCategory.SYSTEM_ERROR))
-    with manager_profile(return_value=manager):
-        response = await post(REQUEST)
-    assert response.status_code == 503
-    manager.dispose.assert_called_once()
+    for failure in (RuntimeError("docker exec failed"), command_result(status=ProcessStatus.NOT_STARTED)):
+        manager, _ = manager_with_sandbox(failure)
+        with manager_profile(return_value=manager):
+            response = await post(REQUEST)
+        assert response.status_code == 503 and response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
+        manager.dispose.assert_called_once()
 
     manager, sandbox = manager_with_sandbox()
     sandbox.prepare_workdir.side_effect = RuntimeError("Docker unavailable")
@@ -173,12 +174,13 @@ async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
 @pytest.mark.asyncio
 async def test_timeout_stops_batch_and_destroys_sandbox():
     manager, _ = manager_with_sandbox(
-        command_result(category=ResponseCategory.TIMEOUT, stderr="Execution timed out", exit_code=124)
+        command_result(stderr="partial", status=ProcessStatus.TIMED_OUT)
     )
     with manager_profile(return_value=manager):
         response = await post(REQUEST)
     assert response.status_code == 200
     assert response.json()["results"][0]["category"] == "timeout"
+    assert response.json()["results"][0]["exit_code"] == 124  # wire compatibility; category is authoritative
     assert response.json()["stopped_early"] is True
     assert len(response.json()["results"]) == 1
     manager.dispose.assert_called_once_with(manager.get_sandbox.return_value)
@@ -228,7 +230,7 @@ async def test_trusted_assets_are_retrieved_by_reference_and_injected_before_exe
         ResolvedAsset(target="/tmp/empty.txt", content=b"", read_only=True),
     ])
     calls = [call[0] for call in sandbox.mock_calls]
-    assert calls.index("prepare_workdir") < calls.index("inject_assets") < calls.index("run_commands")
+    assert calls.index("prepare_workdir") < calls.index("inject_assets") < calls.index("run_process")
     manager.dispose.assert_called_once()
 
 
@@ -243,7 +245,7 @@ async def test_unresolvable_assets_are_unavailable_and_release_the_sandbox(compo
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
     sandbox.inject_assets.assert_not_called()
-    sandbox.run_commands.assert_not_called()
+    sandbox.run_process.assert_not_called()
     manager.dispose.assert_called_once()
 
 
@@ -255,7 +257,7 @@ async def test_deadline_and_disconnect_leave_worker_to_release_sandbox(monkeypat
         started.set()
         unblock.wait(timeout=2)
         return command_result()
-    sandbox.run_commands.side_effect = blocked
+    sandbox.run_process.side_effect = blocked
     request = DeliberateCodeExecutionRequest.model_validate(REQUEST)
     monkeypatch.setattr(service, "REQUEST_DEADLINE_SECONDS", 0.5)
     with manager_profile(return_value=manager):
@@ -302,7 +304,7 @@ async def test_shutdown_after_response_deadline_drains_thread_before_closing_pro
         owner.close.assert_not_called()
         return command_result()
 
-    sandbox.run_commands.side_effect = blocked
+    sandbox.run_process.side_effect = blocked
     monkeypatch.setattr(service, "REQUEST_DEADLINE_SECONDS", 0.5)
     with manager_profile(return_value=manager):
         request = asyncio.create_task(post(REQUEST))

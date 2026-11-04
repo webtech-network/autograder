@@ -6,7 +6,7 @@ Tests cover:
 - Exact match with normalization (trailing spaces)
 - Exact match without normalization
 - Mixed line endings (CRLF, LF, CR)
-- Timeout, compilation error, runtime error handling
+- Timeout and nonzero-exit handling
 - Registration in InputOutputTemplate
 """
 
@@ -15,20 +15,15 @@ import unittest
 from unittest.mock import MagicMock
 
 from autograder.template_library.input_output import ExpectOutputTest, InputOutputTemplate
-from sandbox_manager.models.sandbox_models import CommandResponse, ResponseCategory
+from autograder.models.process import ProcessResult, ProcessStatus
 
 
-def _make_sandbox(stdout="", stderr="", exit_code=0, category=ResponseCategory.SUCCESS):
-    """Return a mock sandbox whose run_commands returns the given CommandResponse."""
+def _make_sandbox(stdout="", stderr="", exit_code=0, timed_out=False):
+    """Return a mock session whose run_process returns the given process result."""
     sandbox = MagicMock()
-    sandbox.run_commands.return_value = CommandResponse(
-        stdout=stdout, stderr=stderr, exit_code=exit_code,
-        execution_time=0.1, category=category,
-    )
-    sandbox.run_command.return_value = CommandResponse(
-        stdout=stdout, stderr=stderr, exit_code=exit_code,
-        execution_time=0.1, category=category,
-    )
+    sandbox.run_process.return_value = (
+        ProcessResult(ProcessStatus.TIMED_OUT, None, stdout, stderr, duration=30) if timed_out
+        else ProcessResult(ProcessStatus.EXITED, exit_code, stdout, stderr, duration=0.1))
     return sandbox
 
 
@@ -160,7 +155,7 @@ class TestExpectOutputErrors(unittest.TestCase):
         """Test handling of program execution timeout."""
         sandbox = _make_sandbox(
             stderr="Execution timed out",
-            category=ResponseCategory.TIMEOUT,
+            timed_out=True,
         )
 
         result = invoke(self.test,
@@ -171,11 +166,11 @@ class TestExpectOutputErrors(unittest.TestCase):
 
         self.assertEqual(result.score, 0.0)
 
-    def test_compilation_error(self):
-        """Test handling of compilation errors."""
+    def test_nonzero_exit_whatever_stderr_says(self):
+        """A returned nonzero exit is an assessed zero; stderr wording is not classified."""
         sandbox = _make_sandbox(
             stderr="SyntaxError: invalid syntax",
-            category=ResponseCategory.COMPILATION_ERROR,
+            exit_code=1,
         )
 
         result = invoke(self.test,
@@ -190,7 +185,7 @@ class TestExpectOutputErrors(unittest.TestCase):
         """Test handling of runtime errors."""
         sandbox = _make_sandbox(
             stderr="ZeroDivisionError: division by zero",
-            category=ResponseCategory.RUNTIME_ERROR,
+            exit_code=1,
         )
 
         result = invoke(self.test,

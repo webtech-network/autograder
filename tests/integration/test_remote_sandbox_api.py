@@ -14,6 +14,7 @@ from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import DisposalStatus
 from autograder.models.language import Language
+from autograder.models.process import ProcessRequest
 from sandbox_manager.ownership import APP_LABEL_VALUE, LABEL_APP, LABEL_OWNER
 from sandbox_manager.remote_client import ArtifactNotFound, RemoteSandboxManager, SandboxHandleGone
 from tests.sandbox_profiles import TEST_IMAGES
@@ -68,7 +69,7 @@ def test_remote_acquire_run_artifact_dispose(service):
     try:
         sandbox.prepare_workdir({"main.py": SubmissionFile(
             "main.py", "open('out.txt','w').write(input()); print('done')")})
-        result = sandbox.run_commands(["hello"], program_command="python3 main.py", timeout=10)
+        result = sandbox.run_process(ProcessRequest.command("python3 main.py", stdin=b"hello\n", timeout=10))
         assert result.stdout.strip() == "done"
         assert sandbox.extract_file("/app/out.txt").content_text == "hello"
         with pytest.raises(ArtifactNotFound):
@@ -106,7 +107,7 @@ def test_abandoned_handle_expires_and_its_container_is_removed(service):
         time.sleep(0.25)
     assert owned(client, manager) == []
     with pytest.raises(SandboxHandleGone):
-        sandbox.run_command("echo late")
+        sandbox.run_process(ProcessRequest(argv=("echo", "late")))
     sandbox.close()
     remote.shutdown()
 

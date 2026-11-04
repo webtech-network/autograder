@@ -327,6 +327,7 @@
           "type": "string"
         },
         "command": {
+          "description": "Executable and arguments, split with POSIX quoting and run without a shell. Use an explicit `sh -c '...'` command for shell operators.",
           "minLength": 1,
           "title": "Command",
           "type": "string"

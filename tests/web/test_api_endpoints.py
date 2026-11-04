@@ -17,7 +17,7 @@ from web.schemas.execution import (
     DeliberateCodeExecutionResult,
 )
 from web.service.deliberate_execution_service import ExecutionServiceError
-from sandbox_manager.models.sandbox_models import ResponseCategory
+from autograder.models.process import ResponseCategory
 
 
 @pytest.mark.asyncio

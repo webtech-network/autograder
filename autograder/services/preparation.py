@@ -5,7 +5,9 @@ from autograder.models.dataclass.submission import Submission
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.execution import ExecutionSession
 from autograder.services.file_selection import select_files
-from sandbox_manager.models.sandbox_models import ResponseCategory
+from autograder.models.process import ProcessRequest, ProcessStatus
+
+SETUP_TIMEOUT_SECONDS = 30
 
 
 def validate_submission(compiled: CompiledDefinition, submission: Submission, requirements: ExecutionRequirements) -> None:
@@ -41,10 +43,11 @@ def prepare_session(
                 raise TypeError("Fixture providers must return bytes")
             session.stage_fixture(fixture.path, content, fixture.read_only)
         for command in requirements.preparation.setup_commands:
-            result = session.run_command(command.command)
-            if result.category == ResponseCategory.SYSTEM_ERROR:
-                raise EvaluationError("SANDBOX_ERROR", "The execution environment could not prepare the submission.", "capability", True)
-            if result.category != ResponseCategory.SUCCESS:
+            # Same process contract as assessment: argv (no implicit shell), empty stdin.
+            result = session.run_process(ProcessRequest.command(command.command, timeout=SETUP_TIMEOUT_SECONDS))
+            if result.status is ProcessStatus.NOT_STARTED:
+                raise EvaluationError("PREPARATION_ERROR", "A setup command could not be started.", "capability")
+            if not result.succeeded:
                 raise EvaluationError("PREPARATION_FAILED", "A required setup command failed.", "submission")
         if "http_network" in requirements.capabilities:
             session.start_server()

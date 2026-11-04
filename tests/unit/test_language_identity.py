@@ -120,10 +120,10 @@ def test_the_bound_language_reaches_the_evaluator_and_the_outcome():
         def prepare_workdir(self, files):
             pass
 
-        def run_commands(self, inputs, *, program_command):
-            from sandbox_manager.models.sandbox_models import CommandResponse
-            seen.append(program_command)
-            return CommandResponse("", "", 0, 0.01)
+        def run_process(self, request):
+            from tests.process_results import exited
+            seen.append(" ".join(request.argv))
+            return exited()
 
         def close(self):
             pass

@@ -1,11 +1,10 @@
 """Bounded, synchronous deliberate execution wire contract."""
 
 import posixpath
-import shlex
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, model_validator
 
-from sandbox_manager.models.sandbox_models import ResponseCategory
+from autograder.models.process import ResponseCategory, split_command
 
 from autograder.models.language import LANGUAGE_IDS
 
@@ -97,8 +96,7 @@ class DeliberateCodeExecutionRequest(BaseModel):
         if "\x00" in value or not value.strip():
             raise ValueError("program_command must be nonempty")
         try:
-            if not shlex.split(value):
-                raise ValueError("program_command must contain an executable")
+            split_command(value)
         except ValueError as exc:
             raise ValueError("program_command must be valid shell-style argument quoting") from exc
         return value

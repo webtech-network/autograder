@@ -13,6 +13,7 @@ from tests.integration.sandbox_support import current_manager, start_manager, wa
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import SandboxState
 from autograder.models.language import Language
+from autograder.models.process import ProcessRequest, ProcessStatus, lines_to_stdin
 from tests.sandbox_profiles import TEST_IMAGES
 from autograder.models.dataclass.submission import SubmissionFile
 
@@ -120,7 +121,7 @@ class TestSandboxManagerIntegration(unittest.TestCase):
             sandbox.prepare_workdir(files)
 
             # Run the program
-            response = sandbox.run_command("python3 hello.py")
+            response = sandbox.run_process(ProcessRequest.command("python3 hello.py"))
 
             self.assertEqual(response.exit_code, 0)
             self.assertIn("Hello, World!", response.stdout)
@@ -156,10 +157,8 @@ elif operation == 'DIV':
             sandbox.prepare_workdir(files)
 
             # Test addition
-            response = sandbox.run_commands(
-                commands=["ADD", "10", "20"],
-                program_command="python3 calc.py"
-            )
+            response = sandbox.run_process(ProcessRequest.command(
+                "python3 calc.py", stdin=lines_to_stdin(["ADD", "10", "20"])))
 
             self.assertEqual(response.exit_code, 0)
             self.assertIn("30", response.stdout)
@@ -194,7 +193,7 @@ class UserService:
             sandbox.prepare_workdir(files)
 
             # Run the program
-            response = sandbox.run_command("python3 main.py")
+            response = sandbox.run_process(ProcessRequest.command("python3 main.py"))
 
             self.assertEqual(response.exit_code, 0)
             self.assertIn("Service working!", response.stdout)
@@ -222,11 +221,11 @@ public class Hello {
             sandbox.prepare_workdir(files)
 
             # Compile
-            compile_response = sandbox.run_command("javac Hello.java")
+            compile_response = sandbox.run_process(ProcessRequest.command("javac Hello.java"))
             self.assertEqual(compile_response.exit_code, 0)
 
             # Run
-            run_response = sandbox.run_command("java Hello")
+            run_response = sandbox.run_process(ProcessRequest.command("java Hello"))
             self.assertEqual(run_response.exit_code, 0)
             self.assertIn("Hello from Java!", run_response.stdout)
 
@@ -247,7 +246,7 @@ public class Hello {
             sandbox.prepare_workdir(files)
 
             # Run
-            response = sandbox.run_command("node hello.js")
+            response = sandbox.run_process(ProcessRequest.command("node hello.js"))
 
             self.assertEqual(response.exit_code, 0)
             self.assertIn("Hello from Node.js!", response.stdout)
@@ -276,11 +275,11 @@ int main() {
             sandbox.prepare_workdir(files)
 
             # Compile
-            compile_response = sandbox.run_command("g++ hello.cpp -o hello")
+            compile_response = sandbox.run_process(ProcessRequest.command("g++ hello.cpp -o hello"))
             self.assertEqual(compile_response.exit_code, 0)
 
             # Run
-            run_response = sandbox.run_command("./hello")
+            run_response = sandbox.run_process(ProcessRequest.command("./hello"))
             self.assertEqual(run_response.exit_code, 0)
             self.assertIn("Hello from C++!", run_response.stdout)
 
@@ -325,7 +324,7 @@ int main() {
             sandbox.prepare_workdir(files)
 
             # Run the program
-            response = sandbox.run_command("python3 bad.py")
+            response = sandbox.run_process(ProcessRequest.command("python3 bad.py"))
 
             # Should have non-zero exit code
             self.assertNotEqual(response.exit_code, 0)
@@ -346,14 +345,15 @@ int main() {
             }
             sandbox.prepare_workdir(files)
 
-            # Run with short timeout (note: exec_run timeout is not enforced by Docker)
+            # The deadline stops the process; no output after the deadline exists.
             start_time = time.time()
-            response = sandbox.run_command("python3 sleep.py", timeout=1)
+            response = sandbox.run_process(ProcessRequest.command("python3 sleep.py", timeout=1))
             elapsed = time.time() - start_time
 
-            # The command should complete (Docker doesn't enforce timeout on exec_run)
-            # but we can at least verify it ran
-            self.assertIsNotNone(response)
+            self.assertIs(response.status, ProcessStatus.TIMED_OUT)
+            self.assertIsNone(response.exit_code)
+            self.assertNotIn("Done", response.stdout)
+            self.assertLess(elapsed, 5)
 
         finally:
             manager.dispose(sandbox)
@@ -371,7 +371,7 @@ int main() {
             sandbox1.prepare_workdir(files1)
 
             # Verify file exists in sandbox1
-            response1 = sandbox1.run_command("cat data.txt")
+            response1 = sandbox1.run_process(ProcessRequest.command("cat data.txt"))
             self.assertIn("secret data", response1.stdout)
 
         finally:
@@ -383,7 +383,7 @@ int main() {
         try:
             # The new sandbox should NOT have the file from before
             # (because we destroy and recreate containers on release)
-            response2 = sandbox2.run_command("ls /app")
+            response2 = sandbox2.run_process(ProcessRequest.command("ls /app"))
             # /app should be empty in a fresh container
             self.assertEqual(response2.stdout.strip(), "")
 
@@ -431,7 +431,7 @@ def multiply(a, b):
             sandbox.prepare_workdir(files)
 
             # Run the program
-            response = sandbox.run_command("python3 main.py")
+            response = sandbox.run_process(ProcessRequest.command("python3 main.py"))
 
             self.assertEqual(response.exit_code, 0)
             self.assertIn("Add: 8", response.stdout)
@@ -469,7 +469,7 @@ except Exception as e:
             }
             sandbox.prepare_workdir(files)
 
-            response = sandbox.run_command("python3 test_network.py")
+            response = sandbox.run_process(ProcessRequest.command("python3 test_network.py"))
 
             # Should indicate network is blocked
             self.assertIn("Network blocked", response.stdout)
@@ -487,9 +487,13 @@ except Exception as e:
             files = {
                 "test.py": SubmissionFile("test.py", """
 try:
+    chunk = 'x' * (1024 * 1024)
     with open('large.txt', 'w') as f:
-        # Try to write 100MB (should fail due to tmpfs limit)
-        f.write('x' * (100 * 1024 * 1024))
+        # Try to write 100MB in 1MB chunks (the file size and tmpfs limits stop it).
+        # One 100MB string would instead exhaust the 128MB memory limit and kill
+        # the whole container, which is a different limit (see test_process_contract).
+        for _ in range(100):
+            f.write(chunk)
     print('SUCCESS')
 except Exception as e:
     print(f'FAILED: {type(e).__name__}')
@@ -497,7 +501,7 @@ except Exception as e:
             }
             sandbox.prepare_workdir(files)
 
-            response = sandbox.run_command("python3 test.py")
+            response = sandbox.run_process(ProcessRequest.command("python3 test.py"))
 
             # Should fail due to space constraints
             # Either OSError or system limit reached
@@ -515,7 +519,7 @@ except Exception as e:
 
         try:
             # Check current user
-            response = sandbox.run_command("whoami")
+            response = sandbox.run_process(ProcessRequest.command("whoami"))
 
             self.assertEqual(response.exit_code, 0)
             self.assertIn("sandbox", response.stdout)

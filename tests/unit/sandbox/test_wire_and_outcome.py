@@ -9,6 +9,7 @@ import uvicorn
 
 from autograder import evaluate_submission
 from autograder.models.capabilities import HostCapabilities
+from autograder.models.process import ProcessRequest, ProcessStatus
 from execution_host.docker import DockerSession
 from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.manager import SandboxManager
@@ -50,14 +51,17 @@ def test_client_and_server_agree_on_the_wire(served):
     client = RemoteSandboxManager(url, token="wire-token")
     sandbox = client.get_sandbox(Language.PYTHON)
     sandbox.prepare_workdir({})
-    assert sandbox.run_command("echo", timeout=2).stdout == "out"
+    result = sandbox.run_process(ProcessRequest(argv=("echo",), stdin=b"a\nb", timeout=2))
+    assert (result.status, result.exit_code, result.stdout) == (ProcessStatus.EXITED, 0, "out")
+    assert manager.acquired[0].run_process.call_args.args[0] == ProcessRequest(argv=("echo",), stdin=b"a\nb",
+                                                                               timeout=2)
     with pytest.raises(ArtifactNotFound):
         sandbox.extract_file("/app/missing.txt")
     manager.acquired[0].files["/app/out.txt"] = b"data"
     assert sandbox.extract_file("/app/out.txt").content_bytes == b"data"
     assert client.dispose(sandbox) is DisposalStatus.DISPOSED
     with pytest.raises(SandboxHandleGone):
-        sandbox.run_command("echo")
+        sandbox.run_process(ProcessRequest(argv=("echo",)))
     stranger = type(sandbox)("never-issued", Language.PYTHON, url, token="wire-token")
     with pytest.raises(SandboxHandleNotFound):
         stranger.extract_file("/app/out.txt")
@@ -83,7 +87,7 @@ def test_unconfirmed_local_disposal_keeps_the_completed_grade(caplog):
         docker_session.sandbox.container_ref.remove_failures = [docker.errors.APIError("stuck")]
         # Commands are not under test: delegate execution to a scripted session.
         scripted = session()
-        docker_session.run_command = scripted.run_command
+        docker_session.run_process = scripted.run_process
         docker_session.prepare_workdir = scripted.prepare_workdir
         return docker_session
 
