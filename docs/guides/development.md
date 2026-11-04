@@ -58,7 +58,7 @@ has pylint false positives to resolve first.
 | Command | Needs | Runs |
 | --- | --- | --- |
 | `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas match the models), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Under a minute. |
-| `make test-postgres` | `TEST_POSTGRES_URL` | PostgreSQL claims, publication fencing and concurrent idempotency. Without the URL these tests **error**; they never skip. |
+| `make test-postgres` | `TEST_POSTGRES_URL` | PostgreSQL claims, publication fencing and concurrent idempotency. Without the URL these tests **error**; they never skip. The role must be able to `CREATE DATABASE` (migration tests). |
 | `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. |
 | `make test-e2e` | Docker | An API process with real sandboxes. |
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
@@ -122,7 +122,7 @@ make sandbox-build-all
 # Database
 docker compose up -d postgres
 export DATABASE_URL=postgresql+asyncpg://autograder:autograder_password@localhost:5432/autograder
-alembic -c web/alembic.ini upgrade head
+make db-upgrade               # the API never creates tables; see JOBS.md "Deployment and migration"
 
 # HTTP trust boundary (docs/contracts/AUTH.md): every protected route needs a bearer token
 export AUTOGRADER_INTEGRATION_TOKEN=change-me-to-a-long-random-secret
@@ -145,7 +145,8 @@ SANDBOX_MODE=remote SANDBOX_API_URL=http://127.0.0.1:8001 uvicorn web.main:app -
 ```
 
 `docker compose up -d --build` (or `make start-autograder`) starts PostgreSQL,
-the API on port 8000 and the sandbox manager on the internal network only.
+migrates it in the one-shot `migrate` service, then starts the API on port 8000
+and the sandbox manager on the internal network only.
 API docs are served at http://localhost:8000/docs.
 
 ## Making changes
@@ -173,6 +174,13 @@ Keep required assessment failures separate from optional enrichment failures,
 and close owned sessions before constructing the terminal outcome.
 Do not add step registries or store intermediate artifacts in diagnostic events.
 See [the grading flow](../core/pipeline-architecture.md).
+
+### Changing the database schema
+
+Change the model, then generate and review a revision against a database at
+head: `make db-migrate MSG="describe the change"`. `tests/web/test_migrations.py`
+fails until `upgrade head` from empty equals the models again, and checks the
+downgrade/upgrade round trip.
 
 ### Changing an HTTP route
 

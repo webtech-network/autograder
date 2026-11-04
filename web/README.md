@@ -11,22 +11,16 @@ validate/create/submit/poll smoke test and the generated OpenAPI reference.
 ## Operation
 
 Configure `DATABASE_URL` and `AUTOGRADER_INTEGRATION_TOKEN`, install the locked
-runtime and server dependencies (`uv sync --locked --no-dev --extra server`), and
-start the server with `uvicorn web.main:app`. The existing
-sandbox/provider deployment settings still apply. The integration token protects
-internal-ID definition fetch, external outcome ingestion, detailed submission
-retrieval, and deliberate execution. Other routes follow their documented
-access policy.
+runtime and server dependencies (`uv sync --locked --no-dev --extra server`), apply
+migrations, and start the server with `uvicorn web.main:app`
+([deployment and migration](../docs/contracts/JOBS.md#deployment-and-migration)).
+The API never creates tables and refuses to start on an unmigrated database. The
+existing sandbox/provider deployment settings still apply. The integration token
+protects internal-ID definition fetch, external outcome ingestion, detailed
+submission retrieval, and deliberate execution. Other routes follow their
+documented access policy.
 
-For an existing installation, back up the database and run the migration before
-starting the new service:
-
-```sh
-cd web
-alembic upgrade head
-```
-
-Migration `005` converts unambiguous valid configurations to the canonical
+Migration `005` (part of the squashed `007` baseline) converted unambiguous valid configurations to the canonical
 normalized definition/hash. Invalid configurations become inactive, with their
 old input and validation evidence retained under `migration_error`; instructors
 must provide a valid replacement before reactivation. Old definition columns are

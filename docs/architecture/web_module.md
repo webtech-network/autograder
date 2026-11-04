@@ -36,8 +36,9 @@ receipts, startup/shutdown and migration behavior.
 
 ## Deployment
 
-Configure `DATABASE_URL` and `AUTOGRADER_INTEGRATION_TOKEN`, apply migrations from
-`web/` with `alembic upgrade head`, then run `uvicorn web.main:app`. PostgreSQL is
+Configure `DATABASE_URL` and `AUTOGRADER_INTEGRATION_TOKEN`, apply migrations
+([deployment and migration](../contracts/JOBS.md#deployment-and-migration)), then
+run `uvicorn web.main:app`. PostgreSQL is
 the supported concurrent worker deployment; SQLite is for isolated operation and
 HTTP contract tests. Production workers must share the configured receipt
 storage and database. See the [capability profiles](../contracts/CAPABILITIES.md)

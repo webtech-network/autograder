@@ -92,6 +92,12 @@ distributed sandbox provisioning, submission idempotency, or retention policy.
 Those are hosting responsibilities; the HTTP host provides replay-safe operation
 keys ([REPLAY.md](REPLAY.md)).
 
+Migrations are the only owner of the HTTP database schema (ENV-02). The API
+checks the database revision at startup and refuses to serve any revision but its
+own head; it never creates tables. Revisions `001`-`007` are squashed into a
+baseline `007`, so empty databases migrate and databases at `007` upgrade
+unchanged. See [deployment and migration](JOBS.md#deployment-and-migration).
+
 ## Discovery and trusted Python extensions
 
 The typed template/evaluator catalog derives parameter schemas and validated
