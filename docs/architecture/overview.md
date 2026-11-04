@@ -38,7 +38,7 @@ SDK. It does not prescribe classes or folders.
 | Versioned definition, normalization, immutable compiled definition (`compile_definition`, `compile_snapshot`) | `models/contracts/definition.py` | [DEFINITIONS.md](../contracts/DEFINITIONS.md) |
 | Evaluator contract: `TestFunction`/`AiTestFunction`, parameter contracts derived from `execute`, `validate_parameters`, `accepts_file`; trusted `Template` registries | `models/abstract/`, `models/contracts/parameter_contract.py` | [CATALOG.md](../contracts/CATALOG.md), [Adding an evaluator](extending.md) |
 | Discovery (`describe_templates`) read from the same registry | `models/contracts/catalog.py` | [CATALOG.md](../contracts/CATALOG.md) |
-| Built-in evaluators and their registry | `template_library/`, `services/template_library_service.py` | [Template Library](../core/template-library.md) |
+| Built-in evaluators and their registry | `template_library/` (`BUILTIN_TEMPLATES`) | [Template Library](../core/template-library.md) |
 | Language identity (the only language list) | `models/language.py` | [LANGUAGES.md](../contracts/LANGUAGES.md) |
 | Submission input and evaluator file selection | `models/dataclass/submission.py`, `services/file_selection.py` | [SUBMISSIONS.md](../contracts/SUBMISSIONS.md), [FILES.md](../contracts/FILES.md) |
 | Host capability protocols: `ExecutionSession` (`run_process`), `ServerSession`, `AssessmentProvider`, fixture `reference -> bytes` | `models/capabilities.py`, `models/execution.py`, `models/process.py` | [CAPABILITIES.md](../contracts/CAPABILITIES.md), [PROCESSES.md](../contracts/PROCESSES.md) |

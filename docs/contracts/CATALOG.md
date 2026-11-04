@@ -22,11 +22,16 @@ finalizes cleanup and returns only the immutable terminal outcome. Invalid
 definitions raise `DefinitionValidationError`; execution failures return a failed
 outcome with null score/tree. `build_pipeline` remains available for existing
 callers. Pipeline classes, steps, registry and mutable execution state are internal,
-not a compatibility promise. Public extension types are `Template`, `TestFunction`,
-`TestResult`, `Submission` and `SubmissionFile`, importable from `autograder`.
+not a compatibility promise. Everything an evaluator author needs is importable
+from `autograder`: `Template`, `TestFunction`, `AiTestFunction`, `EvaluationInput`,
+`ParameterIssue`, `TestResult`, `Submission`, `SubmissionFile`, `EvaluationError`,
+`ProcessRequest`, `ProcessResult`, `ProcessStatus`, `lines_to_stdin`,
+`split_command` and `BaseExecutionTest` (ONB-08). The examples import nothing
+else from the engine, which `tests/unit/test_architecture.py` enforces.
 
-Injected values must be instantiated `Template` objects. Compilation calls
-`validate_contract()`, checks evaluator identifiers and validates parameters.
+Injected values must be `Template(name, description, evaluators)` instances;
+each evaluator is registered under its own `name`. Compilation calls
+`validate_contract()`, rejects duplicate identifiers and validates parameters.
 Injected identifiers override built-ins only for that call; they do not mutate
 the global library. Passing a `CompiledDefinition` reuses it unchanged, with its
 instances; adding `templates` revalidates its canonical snapshot without normalizing again.
@@ -44,8 +49,9 @@ It compiles a local `contains_text` evaluator (implementation, `Annotated`
 contract and registration only), infers the single language, and
 returns a completed score of 100 for `<h1>Hello</h1>`. No Docker, credentials or
 network are needed. Missing text is an assessed zero, not an infrastructure failure.
-`python -m examples.contracts.execution_evaluator` shows an evaluator that declares
-`sandbox_execution` and runs the program through a fake session. Both follow
+`python -m examples.contracts.execution_evaluator` shows an evaluator built on
+`BaseExecutionTest` (which declares `sandbox_execution`) running the program
+through a fake session. Both follow
 [Adding an evaluator](../architecture/extending.md).
 
 ## Catalog wire contract
@@ -59,8 +65,8 @@ network access or credentials and is not an availability/health endpoint.
 
 | Model | Fields |
 | --- | --- |
-| TemplateDescription | `identifier`, display `name`, `description`, `requires_sandbox`, `evaluators` |
-| EvaluatorDescription | `identifier`, `description`, `parameters_schema`, `sample_parameters`, `required_capabilities`, `supported_languages`, `requires_sandbox`, `absence_check` |
+| TemplateDescription | `identifier`, display `name`, `description`, `evaluators` |
+| EvaluatorDescription | `identifier`, `description`, `parameters_schema`, `sample_parameters`, `required_capabilities`, `supported_languages`, `absence_check` |
 
 `identifier` is the actual registry key accepted as a template or criterion `type`.
 `parameters_schema` is generated from the evaluator's `config_schema` (explicit
@@ -73,8 +79,11 @@ implementation. Invalid samples fail discovery rather than publishing misleading
 examples. Samples illustrate valid parameters, not runnable student programs.
 
 `required_capabilities` contains `sandbox_execution`, `http_network`, `ai_provider`
-or `structural_analysis`. Sandbox requirements inherit the current template flag;
-other requirements live on the evaluator implementation. `supported_languages`
+or `structural_analysis`, exactly as the evaluator implementation declares them;
+runtime acquisition reads the same declaration. A template adds nothing, so a
+static evaluator in an execution template requires nothing and acquires no
+session. API evaluators declare `http_network` alone: the assessed-server session
+it implies is the execution session for that run. `supported_languages`
 contains known canonical language constraints (`python`, `java`, `node`, `cpp`,
 `c`), derived from the static evaluators' language maps. Null means no declared
 evaluator-specific restriction; it does not promise host execution support.
@@ -92,6 +101,21 @@ using `describe_templates(templates={...})`. Custom examples remain author-owned
 compilation is authoritative for cross-field and language-specific checks.
 
 ## Deployment and migration
+
+ONB-08 removes the template-level `requires_sandbox` flag. The catalog wire
+models drop `TemplateDescription.requires_sandbox` and
+`EvaluatorDescription.requires_sandbox` (removed, not deprecated: the field
+duplicated, and for mixed templates contradicted, `required_capabilities`).
+Clients that read it use `"sandbox_execution" in required_capabilities` (or
+`http_network` for API evaluators). `health_check` and `check_response_json`
+now report `["http_network"]` instead of `["http_network", "sandbox_execution"]`.
+Trusted Python callers build templates as `Template(name, description,
+[evaluator, ...])` instead of subclassing with `tests`, `template_name`,
+`template_description` and `requires_sandbox`, and import authoring types from
+`autograder`. `TemplateLibraryService` is replaced by the read-only
+`autograder.template_library.BUILTIN_TEMPLATES` mapping; the package no longer
+re-exports template classes. Definitions, stored snapshots and their hashes are
+unchanged, so no database migration is needed.
 
 Static checks need no sandbox or AI setup. Execution still uses the configured
 host's sandbox manager and supported language pools. API evaluators need an HTTP

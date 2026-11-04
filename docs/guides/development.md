@@ -155,10 +155,10 @@ API docs are served at http://localhost:8000/docs.
 
 Follow [Adding an evaluator](../architecture/extending.md): implementation,
 parameter contract, registration and tests, with runnable static and execution
-examples. A built-in evaluator is registered in its template under
-`autograder/template_library/` (new built-in templates are added to
-`autograder/services/template_library_service.py`); trusted callers pass
-`templates={identifier: instance}` instead.
+examples. A built-in evaluator is added to its template under
+`autograder/template_library/` (new built-in templates are one entry in
+`BUILTIN_TEMPLATES` there) and follows the built-in checklist; trusted callers
+pass `templates={identifier: instance}` instead.
 
 ### Adding a language or runtime
 

@@ -15,8 +15,9 @@ Never publish until the pipeline has returned.
 The engine first selects the language, validates required preparation files and
 every criterion's file contract without provider calls, and computes one
 requirement set. This set uses selected evaluator instances and preparation for
-the selected language. Unused execution templates and another language's setup
-do not request resources. Fixtures apply to the definition's selected run.
+the selected language, read only from each evaluator's own declaration. Unused
+evaluators, static evaluators in an execution template and another language's
+setup do not request resources. Fixtures apply to the definition's selected run.
 Discovery uses the same evaluator capability declarations and never probes
 availability. Missing execution support has a capability error; a disallowed
 language has a separate submission error. A host that supports execution but has

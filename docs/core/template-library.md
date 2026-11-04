@@ -4,7 +4,9 @@
 
 Templates define the available test functions for a grading context (input/output, API, web development, etc.).
 
-The `TemplateLibraryService` loads and caches template instances from a registry.
+`BUILTIN_TEMPLATES` (`autograder/template_library/__init__.py`) is the only
+built-in registry: identifiers mapped to shared template instances, read by
+compilation, discovery and the definition JSON Schema.
 
 ## Why it matters
 
@@ -21,12 +23,10 @@ Current registry keys:
 - `webdev`
 - `static_analysis`
 
-Each key resolves to a template class with:
-
-- `template_name`
-- `template_description`
-- `requires_sandbox`
-- `tests` map of available `TestFunction` objects
+Each key resolves to a `Template(name, description, evaluators)`: a display
+name, a description and evaluator instances registered under their own `name`.
+Templates declare no requirements; each evaluator declares its own
+`required_capabilities`.
 
 ## Static Analysis Template (`static_analysis`)
 
@@ -53,14 +53,14 @@ This means template validation is front-loaded, not deferred to scoring time.
 ## Extending templates
 
 The one recipe for a new evaluator, with runnable static and execution examples,
-is [Adding an evaluator](../architecture/extending.md). A new built-in template
-class is additionally listed in `TemplateLibraryService._TEMPLATE_REGISTRY`.
+is [Adding an evaluator](../architecture/extending.md), including the built-in
+checklist. A new built-in template is one entry in `BUILTIN_TEMPLATES`.
 
 ## Trusted Python extensions and discovery
 
 Pass already-instantiated `Template` objects using
-`compile_definition(definition, templates={"local": MyTemplate()})` or
-`evaluate_submission(submission, definition=definition, templates={"local": MyTemplate()})`.
+`compile_definition(definition, templates={"local": template})` or
+`evaluate_submission(submission, definition=definition, templates={"local": template})`.
 Compilation calls `validate_contract()` and retains the injected instances when
 the compiled definition is passed to evaluation. No registry modification is needed.
 The former unimplemented `load_custom_template()` has been removed.
@@ -75,7 +75,7 @@ for migration, deployment limits and the runnable offline example.
 
 - Reusing test names with different semantics across templates
 - Skipping documentation for template parameters
-- Assuming sandbox availability in templates that declare `requires_sandbox = False`
+- Using `evaluation.session` in an evaluator that does not declare `sandbox_execution` or `http_network` (it receives `None`)
 
 ## Continue reading
 

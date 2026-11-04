@@ -142,6 +142,20 @@ def test_extension_recipe_table_matches_discovery():
         assert re.findall(r"`(\w+)`", capabilities) == evaluators[evaluator_id].required_capabilities
 
 
+def test_builtin_checklist_names_tests_that_ci_runs():
+    """Each checklist step names the test that enforces it; those tests must exist."""
+    recipe = (ROOT / "docs/architecture/extending.md").read_text(encoding="utf-8")
+    section = recipe[recipe.index("## Built-in evaluator checklist"):recipe.index("## Evaluators that run code")]
+    rows = re.findall(r"^\| (?!Step|---)(.+?) \| (.+?) \|$", section, re.M)
+    assert len(rows) >= 6
+    for step, enforced in rows:
+        references = re.findall(r"`(tests/(?:unit|web)/[\w/]+\.py)::(\w+)`", enforced)
+        assert references, step
+        for path, test in references:
+            source = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+            assert test in {node.name for node in ast.walk(source) if isinstance(node, ast.FunctionDef)}, (path, test)
+
+
 # --- The documented extension path ---------------------------------------------
 
 def example_imports(module):
