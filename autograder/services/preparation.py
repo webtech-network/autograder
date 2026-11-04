@@ -1,5 +1,5 @@
 """Validate inputs without resources, then prepare the host-owned session."""
-from autograder.models.capabilities import ExecutionRequirements, HostCapabilities
+from autograder.models.capabilities import ExecutionRequirements, FixtureNotFound, HostCapabilities
 from autograder.models.contracts.definition import CompiledDefinition
 from autograder.models.dataclass.submission import Submission
 from autograder.models.evaluation_error import EvaluationError
@@ -53,5 +53,8 @@ def prepare_session(
             session.wait_ready()
     except EvaluationError:
         raise
+    except FixtureNotFound as exc:
+        # Same safe outcome as other fixture failures, but retrying cannot help.
+        raise EvaluationError("PREPARATION_ERROR", "Assignment preparation could not complete.", "capability", False) from exc
     except Exception as exc:
         raise EvaluationError("PREPARATION_ERROR", "Assignment preparation could not complete.", "capability", True) from exc

@@ -22,6 +22,7 @@ from web.schemas.execution import (
 )
 from web.service import deliberate_execution_service as service
 from web.service.deliberate_execution_service import execute_code
+from tests.fake_object_store import fake_s3_provider
 
 
 REQUEST = {
@@ -41,11 +42,11 @@ def integration_token(monkeypatch, application):
 
 
 @contextmanager
-def manager_profile(return_value=None, side_effect=None):
+def manager_profile(return_value=None, side_effect=None, fixtures=None):
     factory = Mock(return_value=return_value, side_effect=side_effect)
     previous = app.state.host.capabilities
     app.state.host.capabilities = HostCapabilities(
-        execution=lambda language: DockerSession(factory(), language))
+        execution=lambda language: DockerSession(factory(), language), fixtures=fixtures)
     try:
         yield factory
     finally:
@@ -208,22 +209,41 @@ async def test_quarantined_disposal_is_logged_without_erasing_result(caplog):
 
 
 @pytest.mark.asyncio
-async def test_trusted_assets_are_injected_before_execution():
+async def test_trusted_assets_are_retrieved_by_reference_and_injected_before_execution():
     manager, sandbox = manager_with_sandbox(command_result(), command_result())
-    payload = dict(REQUEST, assets=[{
-        "source": "datasets/sample.txt", "target": "/tmp/sample.txt", "read_only": True,
-    }])
-    asset = ResolvedAsset(target="/tmp/sample.txt", content=b"sample", read_only=True)
-    with manager_profile(return_value=manager), \
-         patch("web.service.deliberate_execution_service.AssetSourceResolver") as resolver:
-        resolver.return_value.resolve_assets.return_value = [asset]
+    payload = dict(REQUEST, assets=[
+        {"source": "datasets/a/b", "target": "/tmp/slash.txt", "read_only": True},
+        {"source": "datasets/a_b", "target": "/tmp/under.txt", "read_only": False},
+        {"source": "datasets/empty", "target": "/tmp/empty.txt", "read_only": True},
+    ])
+    provider, store = fake_s3_provider({
+        "datasets/a/b": b"slash", "datasets/a_b": b"underscore", "datasets/empty": b""})
+    with manager_profile(return_value=manager, fixtures=provider):
         response = await post(payload)
     assert response.status_code == 200
-    resolver.return_value.resolve_assets.assert_called_once()
-    assert resolver.return_value.resolve_assets.call_args.args[0][0].source == "datasets/sample.txt"
-    sandbox.inject_assets.assert_called_once_with([asset])
+    assert [key for _, key in store.requests] == ["datasets/a/b", "datasets/a_b", "datasets/empty"]
+    sandbox.inject_assets.assert_called_once_with([
+        ResolvedAsset(target="/tmp/slash.txt", content=b"slash", read_only=True),
+        ResolvedAsset(target="/tmp/under.txt", content=b"underscore", read_only=False),
+        ResolvedAsset(target="/tmp/empty.txt", content=b"", read_only=True),
+    ])
     calls = [call[0] for call in sandbox.mock_calls]
     assert calls.index("prepare_workdir") < calls.index("inject_assets") < calls.index("run_commands")
+    manager.dispose.assert_called_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("compose", ["missing", "absent_provider"])
+async def test_unresolvable_assets_are_unavailable_and_release_the_sandbox(compose):
+    manager, sandbox = manager_with_sandbox(command_result())
+    payload = dict(REQUEST, assets=[{"source": "datasets/missing", "target": "/tmp/x", "read_only": True}])
+    provider = fake_s3_provider({})[0] if compose == "missing" else None
+    with manager_profile(return_value=manager, fixtures=provider):
+        response = await post(payload)
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
+    sandbox.inject_assets.assert_not_called()
+    sandbox.run_commands.assert_not_called()
     manager.dispose.assert_called_once()
 
 
