@@ -1,5 +1,8 @@
 # Issue 302 Implementation Spec: Split PreFlight into granular setup steps
 
+> **Historical document.** Superseded and kept for reference only; it does not
+> describe the current system. See [archive/README.md](../README.md).
+
 ## Goal
 
 Replace the current `PreFlightStep` "god step" with three single-purpose setup steps while keeping the rest of the grading pipeline behavior stable:

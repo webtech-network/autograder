@@ -1,330 +1,81 @@
-# Data Structures
+# Core values
 
-This document describes the core data structures used throughout the Autograder system.
+The values that pass between the core's operations, as implemented. Wire
+schemas are defined by the [contracts](../contracts/DECISIONS.md) and their
+checked-in JSON Schemas; this page explains how the Python values relate and
+does not repeat those schemas. Ownership of each module is in the
+[responsibility map](overview.md).
 
-## Criteria Tree
+## Definition, compiled definition and criteria tree
 
-The criteria tree represents the grading rubric structure. It mirrors how educators think about grading with hierarchical organization.
+A `GradingDefinition` v1 ([DEFINITIONS.md](../contracts/DEFINITIONS.md)) is
+authored JSON. `compile_definition` resolves trusted templates, normalizes every
+criterion's parameters once with its evaluator's contract and returns a deeply
+immutable `CompiledDefinition` (normalized definition, hash, templates and the
+executable `CriteriaTree`). Stored snapshots are reloaded with
+`compile_snapshot`, which validates without re-normalizing.
 
-### Structure
-
-```
+```text
 CriteriaTree
-├── Base (weight: 100)
-│   ├── Subject: Functionality (weight: 60)
-│   │   ├── Test: Correct Output (weight: 100)
-│   │   └── Test: Edge Cases (weight: 100)
-│   └── Subject: Code Quality (weight: 40)
-│       ├── Test: Proper Syntax (weight: 50)
-│       └── Test: Good Practices (weight: 50)
-├── Bonus (weight: 10)
-│   └── Test: Extra Features
-└── Penalty (weight: -20)
-    └── Test: Late Submission
+├── base     (weight 100)          subjects and/or tests
+├── bonus    (optional cap 0–100)  subjects and/or tests
+└── penalty  (optional cap 0–100)  subjects and/or tests
 ```
 
-### Categories
+- Every category may contain nested subjects, tests or both; a mixed group
+  splits its weight with an explicit `subjects_weight`.
+- Weights are nonnegative. Sibling weights are ratios, and all-zero siblings
+  share equally. Bonus and penalty weights are caps, never negative numbers.
+- The final score is `base + bonus/100 * bonus_cap - (100 - penalty)/100 *
+  penalty_cap`, clamped to 0–100. The arithmetic exists once, in
+  `models/contracts/scoring.py`.
+- A `TestNode` holds the criterion ID, evaluator, normalized parameters, file
+  target and weight. Display names may repeat or contain slashes; criterion IDs
+  identify results, score vectors and comparison deltas.
 
-#### Base Category
-- **Purpose**: Core grading criteria
-- **Weight**: Typically 100 (represents 100% of base grade)
-- **Contains**: Subjects and/or tests
-- **Required**: Yes
+## Evaluator result and assessed tree
 
-#### Bonus Category
-- **Purpose**: Extra credit opportunities
-- **Weight**: Additional percentage (e.g., 10 = up to 10% extra)
-- **Contains**: Tests only (no subject grouping)
-- **Required**: No
+An evaluator returns a frozen `TestResult(test_name, score, report)`.
+Assessment returns one result per criterion ID, and `grade(criteria, results)`
+builds the frozen `ResultOutcomeTree` once. Its leaves (`TestOutcome`) own their
+criterion ID, evaluator ID, label, file target, canonical parameters, effective
+weight, score and report as data. There is no `root` wrapper and no second,
+mutable result tree. `verify_outcome_tree` checks local and externally attested
+trees against the definition in the same way.
 
-#### Penalty Category
-- **Purpose**: Deductions from total score
-- **Weight**: Negative percentage (e.g., -20 = up to 20% deduction)
-- **Contains**: Tests only (no subject grouping)
-- **Required**: No
+## Terminal outcome
 
-### Subjects
-
-Subjects group related tests together with weighted importance.
-
-**Properties:**
-- `subject_name`: Human-readable name
-- `weight`: Relative importance (0-100)
-- `tests`: List of test configurations
-- `subjects`: Nested subjects (for hierarchical organization)
-
-**Example:**
-```json
-{
-  "subject_name": "HTML Structure",
-  "weight": 40,
-  "tests": [
-    {
-      "name": "has_tag",
-      "parameters": {"tag": "header"},
-      "weight": 50
-    }
-  ]
-}
-```
-
-### Tests
-
-Individual grading checks within subjects or categories.
-
-**Properties:**
-- `name`: Test function name from template library
-- `parameters`: Test-specific configuration
-- `weight`: Relative importance within parent (0-100)
-
-**Example:**
-```json
-{
-  "name": "expect_output",
-  "parameters": {
-    "inputs": ["Alice"],
-    "expected_output": "Hello, Alice!",
-    "program_command": "python3 greeting.py"
-  },
-  "weight": 100
-}
-```
-
-## Result Tree
-
-The result tree is the output structure after grading. It mirrors the criteria tree but includes actual scores and reports.
-
-### Structure
-
-```json
-{
-  "final_score": 85.5,
-  "root": {
-    "base": {
-      "name": "base",
-      "score": 85.5,
-      "weight": 100,
-      "max_score": 100,
-      "subjects": [
-        {
-          "name": "Functionality",
-          "score": 90,
-          "weight": 60,
-          "max_score": 60,
-          "tests": [
-            {
-              "name": "expect_output",
-              "score": 100,
-              "weight": 100,
-              "max_score": 100,
-              "report": "Test passed successfully!",
-              "passed": true
-            }
-          ]
-        },
-        {
-          "name": "Code Quality",
-          "score": 80,
-          "weight": 40,
-          "max_score": 40,
-          "tests": [
-            {
-              "name": "check_syntax",
-              "score": 80,
-              "weight": 100,
-              "max_score": 100,
-              "report": "Minor style issues detected",
-              "passed": false
-            }
-          ]
-        }
-      ]
-    },
-    "bonus": {
-      "name": "bonus",
-      "score": 5,
-      "weight": 10,
-      "max_score": 10,
-      "tests": [
-        {
-          "name": "extra_features",
-          "score": 50,
-          "weight": 100,
-          "max_score": 100,
-          "report": "Some extra features implemented",
-          "passed": false
-        }
-      ]
-    },
-    "penalty": {
-      "name": "penalty",
-      "score": 0,
-      "weight": -20,
-      "max_score": 0,
-      "tests": []
-    }
-  }
-}
-```
-
-### Score Calculation
-
-Scores are calculated hierarchically:
-
-1. **Test Level**: Raw score (0-100) based on test execution
-2. **Subject Level**: Weighted average of all tests within subject
-3. **Category Level**: Weighted average of all subjects (or direct tests)
-4. **Final Score**: `base_score + bonus_score - penalty_score`
-
-**Example Calculation:**
-
-```
-Test 1: 100 (weight: 50) = 50 points
-Test 2: 80 (weight: 50) = 40 points
-Subject Score: (50 + 40) / 100 = 90
-
-Subject 1: 90 (weight: 60) = 54 points
-Subject 2: 80 (weight: 40) = 32 points
-Base Score: (54 + 32) / 100 = 86
-
-Bonus Score: 5 (from 10 max)
-Penalty Score: 0
-
-Final Score: 86 + 5 - 0 = 91
-```
-
-## Terminal grading outcome
-
-The immutable [outcome v1](../contracts/OUTCOMES.md) contains execution identity,
-provenance, language, timestamps, score/tree, optional feedback/comparison status,
-and a safe error on required failure. A completed zero is distinct from a failed
-execution with null score/tree.
-
-`evaluate_submission` returns this artifact directly.
-`build_pipeline(...).run(...)` returns a frozen `PipelineExecution` envelope
-containing only `outcome`. Intermediate criteria, sessions, assessments and
-result trees are ordinary local values in the coordinator.
-
-Optional [diagnostic events](pipeline_execution_tracking.md) contain observations
-without artifact data or references to the execution. They never drive grading.
-
-## Test Result
-
-Individual test execution result.
-
-### Properties
-
-```python
-class TestResult:
-    test_name: str                            # Name of the test function
-    score: float                              # Score achieved (0-100)
-    report: str                               # Human-readable result message
-    subject_name: str = ""                    # Parent subject name
-    parameters: Optional[Dict[str, Any]]      # Test parameters used
-```
-
-### Example
-
-```json
-{
-  "test_name": "expect_output",
-  "score": 100,
-  "report": "Output matched expected value 'Hello, Alice!'",
-  "subject_name": "Functionality",
-  "parameters": {
-    "inputs": ["Alice"],
-    "expected_output": "Hello, Alice!",
-    "program_command": "python3 main.py"
-  }
-}
-```
+`evaluate_submission` returns the immutable [outcome v1](../contracts/OUTCOMES.md):
+execution identity, provenance, language, timestamps, score and tree (null on a
+required failure), feedback status and a safe error. A completed zero is
+distinct from a failed run. `build_pipeline(...).run(...)` returns a frozen
+envelope whose only field is that `outcome`. Optional
+[diagnostic events](pipeline_execution_tracking.md) carry no grading data and
+are not an API output.
 
 ## Submission
 
-Student submission data.
+`Submission` holds opaque submitter and assignment identifiers, files
+(`SubmissionFile(filename, content, changed_lines=None, metadata=None)`), an
+optional language, locale and optional `EvaluationScope(scoped_files)`. See
+[SUBMISSIONS.md](../contracts/SUBMISSIONS.md) and [FILES.md](../contracts/FILES.md).
 
-### Properties
+| Field | Core behavior | Intended use |
+|-------|---------------|--------------|
+| `EvaluationScope.scoped_files` | Shapes file selection | Files that are the primary subject of evaluation |
+| `SubmissionFile.changed_lines` | Available to evaluators; used by structural analysis | Added or modified lines |
+| `SubmissionFile.metadata` | Never interpreted; kept on the selected files | Opaque per-file context |
+| API `metadata` / database `submission_metadata` | Never read by the core | Submission-level provenance and audit context |
 
-```python
-class Submission:
-    username: str                                   # Student identifier
-    user_id: int                                    # Student ID
-    assignment_id: int                              # Assignment identifier
-    submission_files: Dict[str, SubmissionFile]     # Uploaded files keyed by filename
-    language: Optional[Language] = None             # Programming language
-    locale: str = "en"                              # Feedback locale
-    evaluation_scope: Optional[EvaluationScope] = None
-```
+Platform- or domain-specific data belongs in metadata, not in new typed core
+fields. Evaluators receive the selected original files as `evaluation.files`.
 
-### Submission File
+## Templates and evaluators
 
-```python
-class SubmissionFile:
-    filename: str                              # Name of file
-    content: str                               # Full file contents (text)
-    changed_lines: Optional[Set[int]] = None   # One-indexed added/modified lines
-    metadata: Optional[Dict[str, Any]] = None  # Opaque per-file context
-```
-
-`SubmissionFile.is_contribution_aware` is `True` when `changed_lines` was
-provided, including when the caller explicitly provides an empty set.
-
-### Evaluation Scope
-
-```python
-class EvaluationScope:
-    scoped_files: List[str]  # Files that are the primary evaluation subject
-```
-
-When a scope is present, scope-aware pipeline steps restrict their work to the
-listed filenames. Currently, structural analysis uses the scope to avoid
-parsing unrelated files. Omitting the scope preserves snapshot behavior and
-analyzes all eligible submission files.
-
-### Metadata Ownership
-
-Evaluation context is deliberately split by responsibility:
-
-| Field | Pipeline behavior | Intended use |
-|-------|-------------------|--------------|
-| `EvaluationScope.scoped_files` | Read by scope-aware steps | Select files that analysis should focus on |
-| `SubmissionFile.changed_lines` | Read by structural analysis and available to tests | Identify added or modified lines |
-| `SubmissionFile.metadata` | Never interpreted; forwarded to test functions | Carry arbitrary per-file context |
-| API `metadata` / database `submission_metadata` | Never read by the core pipeline | Preserve submission-level provenance and audit context |
-
-Platform- or domain-specific data belongs in the open-ended metadata fields,
-not in new typed core model fields. Evaluators receive the selected original
-`SubmissionFile` objects, including `changed_lines` and `metadata`, as
-`evaluation.files`. Scope only shapes that selection; it is not passed to them.
-
-## Template
-
-Template provides test functions for a specific assignment type.
-
-### Properties
-
-```python
-class Template:
-    template_name: str                  # Display name
-    template_description: str
-    tests: dict[str, TestFunction]      # Registry; lookup is implemented by the base class
-    requires_sandbox: bool              # Whether code execution is needed
-```
-
-### Test Function
-
-```python
-class TestFunction:
-    name: str                           # Registry identifier
-    description: str
-
-    def execute(self, evaluation: EvaluationInput, *, <configuration>) -> TestResult:
-        """Assess one criterion; keyword-only parameters are the normalized configuration."""
-
-    def validate_parameters(self, parameters, *, languages) -> Iterable[ParameterIssue]:
-        """Optional pure definition check (command coverage, AST rules, ...)."""
-```
-
-`EvaluationInput` holds `files`, `language`, `locale` and `session` (only for
-evaluators declaring `sandbox_execution`/`http_network`). See
-[DECISIONS.md](../contracts/DECISIONS.md#evaluator-owned-contracts-arc-03).
+A `Template` is a trusted registry `{identifier: TestFunction}`; lookup is
+implemented once by the base class. A `TestFunction` declares its parameter
+contract through the keyword-only parameters of `execute(evaluation, *, ...)`,
+and may add `validate_parameters` and file rules. `EvaluationInput` holds
+`files`, `language`, `locale` and `session` (only for evaluators declaring
+`sandbox_execution` or `http_network`). The recipe and runnable examples are in
+[Adding an evaluator](extending.md).

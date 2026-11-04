@@ -59,15 +59,18 @@ Use subject names that represent real learning objectives ("Input validation", "
         "subject_name": "Correctness",
         "weight": 70,
         "tests": [
-          {"name": "expect_output", "weight": 70, "parameters": {"expected_output": "42", "inputs": ["10"]}},
-          {"name": "dont_fail", "weight": 30, "parameters": {"user_input": "10"}}
+          {"id": "answer", "type": "expect_output", "name": "Prints the answer", "weight": 70,
+           "parameters": {"program_command": "python3 main.py", "inputs": ["10"], "expected_output": "42"}},
+          {"id": "no-crash", "type": "dont_fail", "name": "Does not crash", "weight": 30,
+           "parameters": {"program_command": "python3 main.py", "user_input": "10"}}
         ]
       },
       {
         "subject_name": "Code Quality",
         "weight": 30,
         "tests": [
-          {"name": "forbidden_import", "weight": 100, "parameters": {"forbidden_imports": ["os.system"]}}
+          {"id": "no-os", "type": "forbidden_import", "name": "Avoids os", "weight": 100,
+           "parameters": {"forbidden_imports": ["os"]}}
         ]
       }
     ]

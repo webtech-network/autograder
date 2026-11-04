@@ -10,6 +10,7 @@ We currently follow a **basic Git workflow** and coordinate work through GitHub 
 2. Use the issue templates when opening new issues (`Bug report`, `Feature proposal`, `Implementation task`, `Umbrella initiative`, `Hypothesis / RFC`).
 3. Check the open issues and pick one that matches your interest.
 4. Comment on the issue and tag a maintainer to request context and confirm alignment before implementation.
+5. Read [AGENTS.md](AGENTS.md), the [responsibility map](docs/architecture/overview.md) and, for a new evaluator, [Adding an evaluator](docs/architecture/extending.md). Documents under `archive/` are historical, not current guidance.
 
 ## Contribution Workflow
 

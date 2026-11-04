@@ -10,13 +10,29 @@ abstractions. Breaking contract changes require migration evidence.
 `autograder/` implements grading semantics. `web/` and `github_action/` are hosts:
 they collect files, authenticate, select configuration identity, accept work,
 persist/publish results and retry delivery. `sandbox_manager/` supplies execution
-infrastructure. Core must never import adapters or interpret platform identities,
-repository changes, database IDs, or workflow job names.
+infrastructure. `execution_host/` composes the concrete providers (`DockerHost`,
+`S3FixtureProvider`, the OpenAI provider) into `HostCapabilities`. Core must never
+import adapters, infrastructure or provider SDKs, or interpret platform identities,
+repository changes, database IDs, or workflow job names. Dependencies point
+hosts → `execution_host` → `sandbox_manager` → core;
+`tests/unit/test_architecture.py` enforces that direction. The one current
+responsibility map is [docs/architecture/overview.md](docs/architecture/overview.md).
 
 Hosts explicitly supply execution, fixture-byte and AI providers through
 `HostCapabilities`. Core validates selected files before acquisition, consumes
 typed preparation, and closes each owned session before returning its outcome.
 See [CAPABILITIES.md](docs/contracts/CAPABILITIES.md).
+
+With the Docker host a session is one sandbox owned by the run from
+`SandboxManager.get_sandbox(language)` to `dispose(sandbox)`. Used sandboxes are
+never returned to a pool; disposal forgets a sandbox only after Docker confirms
+removal, and a failed removal is quarantined (tracked, counted against capacity,
+retried) and surfaces as a cleanup error that never changes the grade. Containers
+carry owner leases; startup reclaims only provably dead owners and
+`python -m sandbox_manager.reclaim` handles the rest. The control API is private,
+bearer-authenticated and single-worker ([SANDBOX.md](docs/contracts/SANDBOX.md)). Fixtures are an uncached host
+`reference -> bytes` call; `FixtureNotFound` is a non-retryable
+`PREPARATION_ERROR`, other provider failures are retryable.
 
 ## Public Python and JSON contracts
 
@@ -102,8 +118,10 @@ Feedback is requested: only `feedback.enabled` calls `render_feedback(tree,
 preferences, locale)` (focus + the one `default` Markdown report, reading the
 canonical preferences); disabled feedback does no work and stays `disabled`.
 
-Required failures produce null score/tree. Student compilation/runtime/timeout
-reported during evaluator assessment can produce a valid zero. Every process runs
+Required failures produce null score/tree. A student program's nonzero exit or
+timeout during evaluator assessment produces a valid zero; compilation belongs in
+setup commands (`PREPARATION_FAILED`), and a program that cannot start is not a
+zero (`PROCESS_START_FAILED`). Every process runs
 through `ExecutionSession.run_process(ProcessRequest)`: explicit argv or explicit
 shell, exact stdin bytes, a deadline that kills the process tree, and
 classification by exit status only. Infrastructure failures are exceptions, not
@@ -120,6 +138,11 @@ See [OUTCOMES.md](docs/contracts/OUTCOMES.md) for the failure matrix and invaria
 
 ## Adding an evaluator
 
+The recipe is [docs/architecture/extending.md](docs/architecture/extending.md);
+`examples/contracts/custom_evaluator.py` (static) and
+`examples/contracts/execution_evaluator.py` (fake execution session, no Docker)
+are its runnable examples, executed by `tests/unit/test_architecture.py`.
+
 1. Implement `TestFunction` with `execute(self, evaluation, *, <parameters>)`
    (`AiTestFunction`: `build_prompt` with the same shape). `evaluation` is the typed
    `EvaluationInput` (`files`, `language`, `locale`, `session`); keyword-only
@@ -133,7 +156,8 @@ See [OUTCOMES.md](docs/contracts/OUTCOMES.md) for the failure matrix and invaria
 4. Reference the registry key as criterion `type`, with a distinct instance `id`.
 
 Evaluators are shared and must be stateless; keep per-submission state in the call.
-Only evaluators declaring `sandbox_execution`/`http_network` receive a session.
+Only evaluators declaring `sandbox_execution`/`http_network` receive a session;
+they run processes only through `session.run_process(ProcessRequest...)`.
 
 Do not add adapter vocabulary or a new pipeline framework for one evaluator.
 Provider/system failure raises `EvaluationError` with a fixed safe public message;
@@ -151,18 +175,42 @@ and history is bounded and deterministically ordered. External results are
 validated authenticated host attestations with the exact snapshot and provenance;
 they are not proof that this server executed the grader.
 
+Every non-public HTTP route requires a bearer token: the integration principal,
+or a per-producer attestation principal limited to publishing external results
+([AUTH.md](docs/contracts/AUTH.md)). Accepted submissions are durable PostgreSQL
+jobs claimed by leased, UUID-fenced workers ([JOBS.md](docs/contracts/JOBS.md)).
+An `Idempotency-Key` makes acceptance and attestation replay-safe per principal
+([REPLAY.md](docs/contracts/REPLAY.md)). The Action keeps submitter, actor and
+producer identities separate and refuses untrusted events and runners
+([trust.md](docs/github_action/trust.md)). Baseline comparison is the pure
+`compare_outcomes` over two stored completed outcomes and their bound
+definitions, joined by criterion ID; it is read-only and never a grading stage.
+
 The engine finalizes/cleans up before adapter publication. No exporter step, sink
 interface, Upstash, Classroom check mutation, or automatic feedback commit remains.
 Actions saves a canonical artifact before explicit optional cloud publication;
 HTTP saves a private publication receipt before database delivery. Delivery retry
 reuses the finalized outcome without grading again. Never report a completed
-grade as failed because a sink failed. Scheduling/idempotent submission acceptance
-remain separate work items; receipt replay is not a durable job queue.
+grade as failed because a sink failed.
+
+## Current behavior and plans
+
+This file describes implemented behavior. Not implemented (do not document or
+rely on them as current): a host supplying `server_execution` (API-testing
+criteria fail with `SERVER_CAPABILITY_UNAVAILABLE` on the shipped hosts), job
+scheduling beyond submission-order claiming (priority, fairness, quotas), a shared
+or distributed sandbox handle store, feedback modes other than `default`, and
+fixture caching. `archive/` holds historical designs and roadmaps only; refactor
+progress is tracked in GitHub issue #363.
 
 ## Verification
 
 Run meaningful tests for changed behavior. Contract tests cover compile purity,
 actual execution of normalized values, invalid paths, outcome invariants, snapshots,
 optimistic concurrency, migrations, adapter wire parity and publication retry.
-Docker integration tests exercise real grading isolation. Preserve unrelated work;
+Docker integration tests exercise real grading isolation. Architecture tests
+(`tests/unit/test_architecture.py`) protect dependency direction, catalog/example
+truthfulness and the extension path. Documentation changes run
+`python scripts/validate_docs.py` and `mkdocs build --strict`; contract changes run
+`PYTHONPATH=. python scripts/generate_contract_schemas.py --check`. Preserve unrelated work;
 use a clean worktree for delivery. Do not add co-author commit trailers.

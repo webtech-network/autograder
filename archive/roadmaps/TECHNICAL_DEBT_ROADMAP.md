@@ -1,5 +1,8 @@
 # Technical Debt Roadmap
 
+> **Historical document.** Superseded and kept for reference only; it does not
+> describe the current system. See [archive/README.md](../README.md).
+
 **Created:** March 13, 2026
 **Status:** Planning
 **Purpose:** Organize, refactor, and solidify the existing Autograder codebase into a cohesive, decoupled, and evolutionary architecture before adding new features.

@@ -23,8 +23,12 @@ Sends a GET request to an endpoint and verifies it returns HTTP status 200.
 **Example:**
 ```json
 {
-  "name": "health_check",
-  "parameters": { "endpoint": "/health" },
+  "id": "health-check",
+  "type": "health_check",
+  "name": "Health check",
+  "parameters": {
+    "endpoint": "/health"
+  },
   "weight": 100
 }
 ```
@@ -46,7 +50,9 @@ Sends a GET request to an endpoint and verifies the JSON response contains a spe
 **Example:**
 ```json
 {
-  "name": "check_response_json",
+  "id": "check-response-json",
+  "type": "check_response_json",
+  "name": "Check response json",
   "parameters": {
     "endpoint": "/api/info",
     "expected_key": "version",
@@ -60,56 +66,16 @@ Sends a GET request to an endpoint and verifies the JSON response contains a spe
 
 ## Usage Example
 
-```json
-{
-  "external_assignment_id": "rest-api-assignment",
-  "template_name": "api",
-  "languages": ["python", "node"],
-  "setup_config": {
-    "required_files": ["app.py"],
-    "setup_commands": [
-      { "name": "Install dependencies", "command": "pip install flask" },
-      { "name": "Start server", "command": "python app.py &" }
-    ]
-  },
-  "criteria_config": {
-    "base": {
-      "weight": 100,
-      "subjects": [
-        {
-          "subject_name": "API Endpoints",
-          "weight": 100,
-          "tests": [
-            {
-              "name": "health_check",
-              "parameters": { "endpoint": "/health" },
-              "weight": 30
-            },
-            {
-              "name": "check_response_json",
-              "parameters": {
-                "endpoint": "/api/data",
-                "expected_key": "status",
-                "expected_value": "ok"
-              },
-              "weight": 70
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
-```
+A complete, schema-checked definition is [`docs/contracts/v1/examples/api.json`](../contracts/v1/examples/api.json). Over HTTP, send the definition as `definition` in the configuration envelope (`POST /api/v1/configs`, see [API.md](../API.md)). A snippet above is one criterion; [DEFINITIONS.md](../contracts/DEFINITIONS.md) describes the whole object.
 
 ## How It Works
 
-Unlike the Input/Output and Web Dev templates, the API Testing template communicates with student code over HTTP:
+API criteria declare the `http_network` capability. The host must supply a
+`server_execution` capability (`ServerSession`) that starts the submission's
+server after staging and setup, waits until it is reachable, sends each request
+and stops the server when the run closes. Transport failures are execution
+failures, not student zeros; an HTTP error status is an ordinary assessment.
 
-1. The sandbox starts the student's web server (via setup commands or the program itself)
-2. The sandbox container exposes a port
-3. Test functions send HTTP requests to `http://localhost:{port}{endpoint}`
-4. Responses are validated against expected values
-
-This means the student's submission must be a runnable web server that listens on the expected port.
-
+**Current support:** the shipped Docker host supplies no server lifecycle, so an
+API definition fails with `SERVER_CAPABILITY_UNAVAILABLE` before any sandbox is
+acquired. See [CAPABILITIES.md](../contracts/CAPABILITIES.md).

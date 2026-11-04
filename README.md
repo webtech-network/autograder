@@ -60,11 +60,14 @@ Then open **http://localhost:8080** in your browser to:
 
 ## The Grading Pipeline
 
-Every submission flows through a sophisticated pipeline:
+A definition is compiled once; each submission then runs through explicit calls:
 
-![Pipeline Diagram](docs/pipeline_diagram.png)
+```
+validate submission → acquire/prepare session (only if needed) → assess (one AI batch)
+                    → grade → requested feedback → close session → terminal outcome
+```
 
-Each step is designed to maintain educational standards while providing maximum flexibility.
+See [Responsibilities and Dependencies](docs/architecture/overview.md) for who owns each part.
 
 ---
 
@@ -83,9 +86,9 @@ Each step is designed to maintain educational standards while providing maximum 
   - Template library for common assignment types
 
 - **Customizable Feedback**: Control how students receive feedback
-  - Default mode: Structured reports with test results
-  - AI mode: Intelligent, conversational feedback
-  - Focus-based feedback highlighting high-impact improvements
+  - Structured Markdown reports, generated only when feedback is enabled
+  - Focus-based ordering that highlights the highest-impact improvements
+  - Localized output (English and Brazilian Portuguese)
 
 ### For Students
 
@@ -99,8 +102,8 @@ Each step is designed to maintain educational standards while providing maximum 
 
 - **REST API**: Modern FastAPI-based web service
 - **GitHub Action**: One-submission CI grading with canonical result artifacts
-- **Extensible Architecture**: Pipeline-based design for easy customization
-- **Multiple Languages**: Python, Java, JavaScript/Node.js, C++ support
+- **Extensible Evaluators**: Add an evaluator with only its implementation, parameter contract and registration ([recipe](docs/architecture/extending.md))
+- **Multiple Languages**: Python, Java, JavaScript/Node.js, C and C++ support
 - **Custom Templates**: Supply trusted Python evaluator implementations
 
 ---
@@ -110,13 +113,13 @@ Read the [versioned definition contract](docs/contracts/DEFINITIONS.md) and
 
 ## Architecture
 
-The Autograder uses a **pipeline architecture** that processes submissions through choreographed steps, providing flexibility and excellent performance.
-
-### Core Components
-
-#### Pipeline Pattern
-
-The system is built around **AutograderPipeline** - a stateless, reusable grading workflow.
+The core (`autograder/`) owns grading semantics: the versioned definition, the
+evaluator contract, assessment, scoring and feedback. Hosts (`web/`,
+`github_action/`) collect files, authenticate, persist and publish. They pass
+execution, fixture and AI providers to the core as `HostCapabilities`, composed in
+`execution_host/` on top of `sandbox_manager/`. The core imports none of them, and
+a test enforces it. The full map is
+[Responsibilities and Dependencies](docs/architecture/overview.md).
 
 ```python
 from autograder import compile_definition, evaluate_submission
@@ -139,29 +142,33 @@ CriteriaTree
 │   └── Subject: Code Quality (weight: 40)
 │       ├── Test: Proper Syntax (weight: 50)
 │       └── Test: Good Practices (weight: 50)
-├── Bonus (weight: 10)
+├── Bonus (cap: 10)        adds score/100 × 10
 │   └── Test: Extra Features
-└── Penalty (weight: -20)
+└── Penalty (cap: 20)      subtracts (100 − score)/100 × 20
     └── Test: Late Submission
 ```
 
+Weights are nonnegative; bonus and penalty weights are caps, and every category
+may contain subjects as well as tests. See [Core Values](docs/architecture/core_structures.md).
+
 #### Sandbox Management
 
-The **SandboxManager** provides secure, isolated execution environments:
+The **SandboxManager** provides isolated execution environments:
 
-- **Container Pooling**: Pre-started warm containers ready to execute
-- **Multi-Language**: Python, Java, JavaScript, and C++ support
-- **Automatic Lifecycle**: TTL management, health checks, and cleanup
-- **Resource Control**: Memory limits, timeouts, and isolation
+- **Container Pooling**: Pre-started warm containers, one owned lease per run
+- **Multi-Language**: Python, Java, Node.js, C and C++ runtimes mapped by host configuration
+- **Confirmed Cleanup**: Every lease ends in confirmed removal; dead hosts' containers are reclaimed
+- **Resource Control**: Memory limits, process deadlines and bounded output
 
 #### Template Library
 
-Templates provide test functions for different assignment contexts:
+Templates provide evaluators for different assignment contexts:
 
 - **WebDev**: HTML, CSS, JavaScript validation
-- **API Testing**: HTTP request validation
+- **API Testing**: HTTP request validation (requires a server-capable host)
 - **Input/Output**: Command-line program testing
-- **Custom**: Register trusted Python evaluator instances
+- **Static Analysis**: Forbidden imports/keywords and AI algorithm review
+- **Custom**: Register trusted Python evaluator instances ([recipe](docs/architecture/extending.md))
 
 ---
 
@@ -194,8 +201,7 @@ Tests command-line programs by providing inputs and validating outputs.
 |--------------------|---------------------------------------------------------|----------------------------------------------|
 | `expect_output`    | Execute program with inputs and verify output           | `inputs`, `expected_output`, `program_command` |
 | `expect_file_artifact` | Execute program and validate a generated output file | `artifact_path`, `expected_content`, `program_command` |
-| `dont_fail`        | Validates that a program does not crash on a given input | `inputs`, `program_command`                 |
-| `forbidden_import` | Analyzes a file looking for specified libraries imports | `forbidden_imports`        |
+| `dont_fail`        | Validates that a program does not crash on a given input | `user_input`, `program_command`             |
 
 #### 2. API Testing Template
 Makes HTTP requests to student APIs and validates responses.
@@ -204,8 +210,10 @@ Makes HTTP requests to student APIs and validates responses.
 |-----------|-------------|----------------|
 | `health_check` | Verify endpoint returns 200 OK | `endpoint` |
 | `check_response_json` | Validate JSON response structure | `endpoint`, `expected_key`, `expected_value` |
-| `check_status_code` | Test specific HTTP status codes | `endpoint`, `method`, `expected_status` |
-| `validate_headers` | Check response headers | `endpoint`, `expected_headers` |
+
+API criteria need a host that can start the submission's server; the shipped
+Docker host does not supply one yet, so they fail with
+`SERVER_CAPABILITY_UNAVAILABLE` ([details](docs/template-library/api_testing.md#how-it-works)).
 
 #### 3. Web Development Template
 Validates HTML, CSS, and JavaScript files.
@@ -214,15 +222,18 @@ Validates HTML, CSS, and JavaScript files.
 |-----------|-------------|----------------|
 | `has_tag` | Check for HTML tags | `tag`, `required_count` |
 | `has_class` | Validate CSS classes (supports wildcards like `col-*`) | `class_names`, `required_count` |
-| `check_bootstrap_linked` | Verify framework inclusion | `framework` |
-| `has_attribute` | Check element attributes | `tag`, `attribute`, `required_count` |
-| `check_css_property` | Validate CSS rules | `selector`, `property`, `expected_value` |
+| `check_bootstrap_linked` | Verify Bootstrap is linked | none |
+| `has_attribute` | Check element attributes | `attribute`, `required_count` |
+| `css_uses_property` | Validate CSS rules | `prop`, `value` |
 
-And much more! Check the [WebDev Template Documentation](docs/templates/web_dev.md) for the full list of tests.
+And much more! Check the [WebDev Template Documentation](docs/template-library/web_dev.md) for the full list of tests.
 #### 4. Custom Templates
 Trusted Python callers can pass their own test functions through the `templates`
-argument to `compile_definition()` or `evaluate_submission()`. See the [runnable custom evaluator](examples/contracts/custom_evaluator.py)
-and [contract guide](docs/contracts/CONFORMANCE.md). HTTP and Actions JSON
+argument to `compile_definition()` or `evaluate_submission()`. Follow
+[Adding an evaluator](docs/architecture/extending.md) and its runnable
+[static](examples/contracts/custom_evaluator.py) and
+[execution](examples/contracts/execution_evaluator.py) examples (the latter uses a
+fake execution session, no Docker); see also the [contract guide](docs/contracts/CONFORMANCE.md). HTTP and Actions JSON
 definitions cannot upload Python evaluator code.
 
 ---

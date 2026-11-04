@@ -71,6 +71,7 @@ nav:
       - Configuration Reference: github_action/configuration.md
       - External Mode: github_action/external-mode.md
       - Identity and Trust: github_action/trust.md
+      - External Mode Rollout: guides/external-mode-rollout.md
   - Grading Operations:
       - Overview: pipeline/README.md
       - Compile Templates: pipeline/01-load-template.md
@@ -78,12 +79,15 @@ nav:
       - Execution Sessions: pipeline/03-sandbox.md
       - Preparation: pipeline/04-pre-flight.md
       - Assess (AI batch): pipeline/04.5-ai-batch.md
+      - Structural Analysis: pipeline/04.8-structural-analysis.md
       - Grade: pipeline/05-grade.md
       - Focus: pipeline/06-focus.md
       - Feedback: pipeline/07-feedback.md
       - Outcome Publication (adapters): pipeline/08-export.md
   - Architecture Reference:
-      - Core Structures: architecture/core_structures.md
+      - Responsibilities and Dependencies: architecture/overview.md
+      - Adding an Evaluator: architecture/extending.md
+      - Core Values: architecture/core_structures.md
       - Pipeline Execution Tracking: architecture/pipeline_execution_tracking.md
       - Sandbox Manager Internals: architecture/sandbox_manager.md
       - Web Module: architecture/web_module.md
@@ -91,6 +95,7 @@ nav:
       - Input Output Template: template-library/input_output.md
       - API Testing Template: template-library/api_testing.md
       - Web Development Template: template-library/web_dev.md
+      - Static Analysis Template: template-library/static_analysis.md
   - Features:
       - Grading Engine: features/grading_engine.md
       - Focus Feature: features/focus_feature.md

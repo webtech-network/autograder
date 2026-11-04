@@ -96,7 +96,7 @@ examples-demo:
 start-autograder:
 	@echo "🚀 Starting Autograder API server..."
 	make sandbox-build-all && docker compose up -d --build
-	@echo "✅ Autograder API server is running at http://localhost:8080"
+	@echo "✅ Autograder API server is running at http://localhost:8000"
 
 
 # Sandbox Management

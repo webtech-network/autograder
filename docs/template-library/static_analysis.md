@@ -17,17 +17,20 @@ Statically analyzes submission files to check if any forbidden libraries were im
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `forbidden_imports` | list[string] | ✓ | List of library/module names whose import is forbidden. |
-| `submission_language` | string | ✓ | Submission language (e.g., `python`, `java`). Required to identify correct import patterns. |
 
 **Scoring:** 100 if no forbidden imports are found, 0 if any violation is detected.
 
 **Example:**
 ```json
 {
-  "name": "forbidden_import",
+  "id": "forbidden-import",
+  "type": "forbidden_import",
+  "name": "Forbidden import",
   "parameters": {
-    "forbidden_imports": ["math", "numpy"],
-    "submission_language": "python"
+    "forbidden_imports": [
+      "math",
+      "numpy"
+    ]
   },
   "weight": 50
 }
@@ -58,9 +61,13 @@ Statically analyzes submission files using structural analysis (`ast-grep`) to d
 **Example:**
 ```json
 {
-  "name": "forbidden_keyword",
+  "id": "forbidden-keyword",
+  "type": "forbidden_keyword",
+  "name": "Forbidden keyword",
   "parameters": {
-    "forbidden_keywords": ["while_loop"]
+    "forbidden_keywords": [
+      "while_loop"
+    ]
   },
   "weight": 50
 }
@@ -83,7 +90,9 @@ Uses AI to verify that the submission correctly implements a specific algorithm 
 **Example:**
 ```json
 {
-  "name": "ai_sorting_algorithm",
+  "id": "ai-sorting-algorithm",
+  "type": "ai_sorting_algorithm",
+  "name": "Ai sorting algorithm",
   "parameters": {
     "algorithm_name": "Quick Sort"
   },
@@ -95,44 +104,4 @@ Uses AI to verify that the submission correctly implements a specific algorithm 
 
 ## Usage Example
 
-```json
-{
-  "external_assignment_id": "sorting-logic-assignment",
-  "template_name": "static_analysis",
-  "languages": ["python"],
-  "criteria_config": {
-    "base": {
-      "weight": 100,
-      "subjects": [
-        {
-          "subject_name": "Constraints",
-          "weight": 40,
-          "tests": [
-            {
-              "name": "forbidden_import",
-              "parameters": { "forbidden_imports": ["bisect"], "submission_language": "python" },
-              "weight": 50
-            },
-            {
-              "name": "forbidden_keyword",
-              "parameters": { "forbidden_keywords": ["for_loop"] },
-              "weight": 50
-            }
-          ]
-        },
-        {
-          "subject_name": "Implementation",
-          "weight": 60,
-          "tests": [
-            {
-              "name": "ai_sorting_algorithm",
-              "parameters": { "algorithm_name": "Recursive Merge Sort" },
-              "weight": 100
-            }
-          ]
-        }
-      ]
-    }
-  }
-}
-```
+Complete, schema-checked definitions are [`static-conformance.json`](../contracts/v1/examples/static-conformance.json) and [`static-ai.json`](../contracts/v1/examples/static-ai.json) (AI criteria need a host AI provider). Over HTTP, send the definition as `definition` in the configuration envelope (`POST /api/v1/configs`, see [API.md](../API.md)). A snippet above is one criterion; [DEFINITIONS.md](../contracts/DEFINITIONS.md) describes the whole object.
