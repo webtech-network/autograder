@@ -1,5 +1,4 @@
 from autograder.models.abstract.template import Template
-from autograder.models.abstract.test_function import TestFunction
 from autograder.template_library.web_dev.html_tests import (
     HasClass, CheckBootstrapLinked, CheckInternalLinks, HasTag, HasForbiddenTag,
     HasAttribute, CheckNoUnclosedTags, CheckNoInlineStyles, UsesSemanticTags,
@@ -76,12 +75,3 @@ class WebDevTemplate(Template):
             "has_no_js_framework": HasNoJsFramework(),
             "count_unused_css_classes": CountUnusedCssClasses()
         }
-
-    def get_test(self, name: str) -> TestFunction:
-        """
-        Retrieves a specific test function instance from the template.
-        """
-        test_function = self.tests.get(name)
-        if not test_function:
-            raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
-        return test_function

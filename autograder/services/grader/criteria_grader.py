@@ -2,7 +2,9 @@ import logging
 import math
 from typing import Dict, Optional, Sequence, List, overload
 
+from autograder.models.abstract.ai_test_function import AiTestFunction
 from autograder.models.abstract.criteria_tree_processer import CriteriaTreeProcesser
+from autograder.models.abstract.test_function import EvaluationInput
 from autograder.models.criteria_tree import (
     CategoryNode,
     SubjectNode,
@@ -15,38 +17,36 @@ from autograder.models.result_tree import (
     SubjectResultNode,
     TestResultNode,
 )
-from autograder.services.command_resolver import CommandResolver
 from autograder.models.frozen import thaw
 from autograder.models.evaluation_error import EvaluationError
 from autograder.services.file_selection import select_files
-from autograder.services.structural_analysis import StructuralAnalysisCache
 from autograder.services.weights import normalized_sibling_weights
+
+EXECUTION_CAPABILITIES = frozenset({"sandbox_execution", "http_network"})
 
 
 class SubmissionGrader(CriteriaTreeProcesser):
-    """
-    Stateful grader responsible for traversing a criteria tree for a single submission.
-    Implements the CriteriaTreeProcesser interface.
+    """Traverses a criteria tree for a single submission.
+
+    All per-submission state lives here (and in each call's EvaluationInput);
+    evaluator instances themselves are shared and stateless.
     """
 
     def __init__(
         self,
         submission_files: Dict[str, SubmissionFile],
-        command_resolver: CommandResolver,
         sandbox=None,
         submission_language=None,
         locale: str = "en",
-        pre_computed_results: Optional[Dict[str, TestResult]] = None,
+        assessments: Optional[Dict[str, TestResult]] = None,
         evaluation_scope: Optional[EvaluationScope] = None,
     ):
         self.logger = logging.getLogger("SubmissionGrader")
         self.submission_files = submission_files
-        self.command_resolver = command_resolver
         self.sandbox = sandbox
         self.submission_language = submission_language
         self.locale = locale
-        self.pre_computed_results = pre_computed_results
-        self.structural_analysis = StructuralAnalysisCache()
+        self.assessments = assessments
         self.evaluation_scope = evaluation_scope
 
     def __balance_nodes(
@@ -121,57 +121,28 @@ class SubmissionGrader(CriteriaTreeProcesser):
         return self.__process_holder(subject)
 
     def process_test(self, test: TestNode) -> TestResultNode:
-        """Execute a test and create a test result node."""
-        file_target = self.get_file_target(test)
-
-        # Each invocation receives an isolated copy of the canonical parameters.
-        test_params = thaw(test.parameters)
-
-        # Resolve program_command eagerly when the language is known.
-        if self.submission_language and 'program_command' in test_params:
-            raw_command = test_params['program_command']
-            resolved = self.command_resolver.resolve_command(
-                raw_command, self.submission_language
+        """Assess one criterion and create its result node."""
+        function = test.test_function
+        files = self.get_file_target(test)
+        if isinstance(function, AiTestFunction):
+            test_result = self.__assessment(test)
+        else:
+            evaluation = EvaluationInput(
+                files=tuple(files),
+                language=self.submission_language,
+                locale=self.locale,
+                # Only evaluators declaring execution receive the session.
+                session=self.sandbox if test.capabilities & EXECUTION_CAPABILITIES else None,
             )
-            test_params['program_command'] = resolved
-
-        # Ensure submission_language is passed only once.
-        # Runtime language always takes precedence over config-specified language.
-        config_submission_language = test_params.pop('submission_language', None)
-        effective_submission_language = (
-            self.submission_language
-            if self.submission_language is not None
-            else config_submission_language
-        )
-        test_params.pop("evaluation_scope", None)
-        test_params.pop("file_metadata", None)
-        test_params.pop("criterion_id", None)
-
-        file_metadata = {
-            sub_file.filename: sub_file.metadata
-            for sub_file in file_target or []
-        }
-
-        test_result = test.test_function.execute(
-            files=file_target,
-            sandbox=self.sandbox,
-            locale=self.locale,
-            pre_computed_results=self.pre_computed_results,
-            structural_analysis=self.structural_analysis,
-            submission_language=effective_submission_language,
-            evaluation_scope=self.evaluation_scope,
-            file_metadata=file_metadata,
-            context_files=[self.submission_files[name] for name in sorted(self.submission_files)],
-            criterion_id=test.criterion_id,
-            **test_params,
-        )
+            # Each invocation receives an isolated copy of the canonical parameters.
+            test_result = function.execute(evaluation, **thaw(test.parameters))
         if (not isinstance(test_result, TestResult) or isinstance(test_result.score, bool)
                 or not isinstance(test_result.score, (int, float))
                 or not math.isfinite(test_result.score) or not 0 <= test_result.score <= 100):
             raise EvaluationError("INVALID_EVALUATOR_RESULT", "An evaluator returned an invalid assessment.")
         return TestResultNode(
             criterion_id=test.criterion_id,
-            evaluator=test.test_function.name,
+            evaluator=function.name,
             name=test.name,
             score=test_result.score,
             report=test_result.report,
@@ -179,6 +150,14 @@ class SubmissionGrader(CriteriaTreeProcesser):
             parameters=thaw(test.parameters),
             weight=test.weight,
         )
+
+    def __assessment(self, test: TestNode) -> TestResult:
+        """AI criteria take the provider batch's assessment for their criterion ID."""
+        if self.assessments is None:
+            raise EvaluationError("PROVIDER_UNAVAILABLE", "An AI assessment requires a host-supplied provider.", "provider")
+        if test.criterion_id not in self.assessments:
+            raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
+        return self.assessments[test.criterion_id]
 
     def get_file_target(self, test_node: TestNode) -> List[SubmissionFile]:
         """Use the same selection contract as batched AI assessment."""

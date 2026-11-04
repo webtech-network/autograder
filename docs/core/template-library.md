@@ -56,7 +56,10 @@ To add a built-in template:
 
 1. Implement template and test functions under `autograder/template_library/`.
 2. Register it in `TemplateLibraryService._TEMPLATE_REGISTRY`.
-3. Supply an annotated parameter signature or `config_schema`; discovery derives JSON Schema from that same contract.
+3. Declare `execute(self, evaluation, *, <parameters>)`. The annotated keyword-only
+   parameters (constraints only via `Annotated[..., Field(...)]`) or an explicit
+   `config_schema` are the contract; field descriptions document the catalog.
+   Evaluator-specific semantic checks go in `validate_parameters`.
 
 ## Trusted Python extensions and discovery
 

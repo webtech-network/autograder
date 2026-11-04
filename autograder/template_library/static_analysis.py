@@ -1,19 +1,17 @@
-import logging 
-from typing import List, Optional, Dict, Any, Type
-from pydantic import BaseModel, Field
+import logging
+import re
+from typing import Annotated, Any, Dict, Iterable, List, Tuple, Type
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.ai_test_function import AiTestFunction
-from autograder.models.abstract.test_function import TestFunction
-from autograder.models.dataclass.param_description import ParamDescription
-from autograder.models.dataclass.submission import SubmissionFile
+from autograder.models.abstract.test_function import EvaluationInput, ParameterIssue, TestFunction
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from autograder.models.execution import ExecutionSession
 from sandbox_manager.models.sandbox_models import Language
 from autograder.models.evaluation_error import EvaluationError
-from autograder.services.structural_analysis import StructuralAnalysisCache
-import re
+from autograder.services.structural_analysis import parse_source
 
 # ===============================================================
 # TestFunction for Forbidden Import Detection
@@ -67,21 +65,6 @@ class ForbiddenImportTest(TestFunction):
     def description(self):
         return t("static_analysis.forbidden_import.description")
 
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription(
-                "forbidden_imports",
-                t("static_analysis.forbidden_import.params.libraries"),
-                "list of strings"
-            ),
-            ParamDescription(
-                "submission_language",
-                t("static_analysis.forbidden_import.params.language"),
-                "string or Language enum"
-            ),
-        ]
-
     def _build_patterns(self, library: str, language: Language) -> List[re.Pattern]:
         templates = self.IMPORT_PATTERNS.get(language, [])
         compiled: List[re.Pattern] = []
@@ -103,21 +86,10 @@ class ForbiddenImportTest(TestFunction):
                     break
         return violations
 
-    @staticmethod
-    def _resolve_language(submission_language=None) -> Optional[Language]:
-        if submission_language is None:
-            return None
-        if isinstance(submission_language, Language):
-            return submission_language
-        for lang in Language:
-            if lang.value == str(submission_language).lower():
-                return lang
-        return None
-
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession],
-                *args, forbidden_imports: List[str] = None,
-                submission_language=None, **kwargs) -> TestResult:
-        locale = kwargs.get("locale")
+    def execute(self, evaluation: EvaluationInput, *, forbidden_imports: Annotated[List[str], Field(
+            default_factory=list, description=t("static_analysis.forbidden_import.params.libraries"))]) -> TestResult:
+        locale = evaluation.locale
+        files = evaluation.files
         if not forbidden_imports:
             return TestResult(
                 test_name=self.name,
@@ -125,7 +97,7 @@ class ForbiddenImportTest(TestFunction):
                 report=t("static_analysis.forbidden_import.report.no_imports", locale=locale)
             )
 
-        language = self._resolve_language(submission_language)
+        language = evaluation.language
 
         if language is None:
             return TestResult(
@@ -170,10 +142,16 @@ class ForbiddenImportTest(TestFunction):
 # TestFunction for Forbidden Keyword/Construct Detection
 # ===============================================================
 
+AST_RULE_KEYS = frozenset({'kind', 'pattern', 'regex', 'all', 'any', 'not', 'has', 'inside', 'precedes', 'follows'})
+AST_GRAMMARS = {'node': 'javascript', 'python': 'python', 'java': 'java', 'cpp': 'cpp', 'c': 'c'}
+
+
 class ForbiddenKeywordConfig(BaseModel):
-    model_config = {"extra": "forbid", "strict": True}
-    forbidden_keywords: List[str] = Field(default_factory=list)
-    custom_ast_grep_rules: List[Dict[str, Any]] = Field(default_factory=list)
+    model_config = ConfigDict(extra="forbid", strict=True)
+    forbidden_keywords: List[str] = Field(
+        default_factory=list, description=t("static_analysis.forbidden_keyword.params.keywords"))
+    custom_ast_grep_rules: List[Dict[str, Any]] = Field(
+        default_factory=list, description=t("static_analysis.forbidden_keyword.params.custom_rules"))
 
 class ForbiddenKeywordTest(TestFunction):
     """
@@ -223,25 +201,33 @@ class ForbiddenKeywordTest(TestFunction):
         return t("static_analysis.forbidden_keyword.description")
 
     @property
-    def parameter_description(self):
-        return [
-            ParamDescription("forbidden_keywords", t("static_analysis.forbidden_keyword.params.keywords"), "list of strings"),
-            ParamDescription("custom_ast_grep_rules", t("static_analysis.forbidden_keyword.params.custom_rules"), "list of dicts"),
-        ]
-
-    @property
     def config_schema(self) -> Type[BaseModel]:
         return ForbiddenKeywordConfig
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession],
-                *args, forbidden_keywords: List[str] = None,
-                custom_ast_grep_rules: List[Dict[str, Any]] = None,
-                structural_analysis: Optional[StructuralAnalysisCache] = None,
-                submission_language: Optional[Language] = None,
-                **kwargs) -> TestResult:
-        locale = kwargs.get("locale")
-        forbidden_keywords = forbidden_keywords or []
-        custom_ast_grep_rules = custom_ast_grep_rules or []
+    def validate_parameters(self, parameters: Dict[str, Any], *,
+                            languages: Tuple[str, ...]) -> Iterable[ParameterIssue]:
+        """Keywords and custom rules must work for every allowed language."""
+        for index, keyword in enumerate(parameters['forbidden_keywords']):
+            if any(keyword not in self.PREDEFINED_RULES.get(Language(language), {}) for language in languages):
+                yield ParameterIssue('UNSUPPORTED_KEYWORD', ('forbidden_keywords', index),
+                                     'Keyword must be supported for every allowed language')
+        for index, rule in enumerate(parameters['custom_ast_grep_rules']):
+            if not rule or not set(rule).issubset(AST_RULE_KEYS):
+                yield ParameterIssue('INVALID_AST_RULE', ('custom_ast_grep_rules', index), 'Expected an ast-grep rule object')
+                continue
+            try:
+                from ast_grep_py import SgRoot  # pylint: disable=import-outside-toplevel
+                for language in languages:
+                    SgRoot('', AST_GRAMMARS[language]).root().find_all(**rule)
+            except Exception:  # pylint: disable=broad-exception-caught
+                yield ParameterIssue('INVALID_AST_RULE', ('custom_ast_grep_rules', index),
+                                     'Rule must compile for every allowed language')
+
+    def execute(self, evaluation: EvaluationInput, *, forbidden_keywords: List[str],
+                custom_ast_grep_rules: List[Dict[str, Any]]) -> TestResult:
+        locale = evaluation.locale
+        files = evaluation.files
+        submission_language = evaluation.language
 
         if not forbidden_keywords and not custom_ast_grep_rules:
             return TestResult(
@@ -249,9 +235,6 @@ class ForbiddenKeywordTest(TestFunction):
                 score=100.0,
                 report=t("static_analysis.forbidden_keyword.report.no_rules", locale=locale)
             )
-
-        if structural_analysis is None:
-            structural_analysis = StructuralAnalysisCache()
 
         if submission_language is None:
             raise EvaluationError("LANGUAGE_REQUIRED", "A language is required for structural assessment.", "submission")
@@ -280,7 +263,7 @@ class ForbiddenKeywordTest(TestFunction):
             )
 
         for sub_file in files:
-            root = structural_analysis.root_for(sub_file, submission_language)
+            root = parse_source(sub_file, submission_language)
 
             for rule in active_rules:
                 matches = root.root().find_all(**rule)
@@ -309,8 +292,8 @@ class ForbiddenKeywordTest(TestFunction):
 
 
 class AiAlgorithmConfig(BaseModel):
-    model_config = {"extra": "forbid", "strict": True, "str_strip_whitespace": True}
-    algorithm_name: str = Field(..., min_length=1)
+    model_config = ConfigDict(extra="forbid", strict=True, str_strip_whitespace=True)
+    algorithm_name: str = Field(..., min_length=1, description="Name of the algorithm the submission must implement.")
 
 
 class AiAlgorithmTestBase(AiTestFunction):
@@ -326,25 +309,12 @@ class AiAlgorithmTestBase(AiTestFunction):
         return t(f"static_analysis.{self.name}.description")
 
     @property
-    def parameter_description(self) -> List[ParamDescription]:
-        return [
-            ParamDescription(
-                "algorithm_name",
-                t(f"static_analysis.{self.name}.params.algorithm_name"),
-                "string",
-            )
-        ]
-
-    @property
     def config_schema(self) -> Type[BaseModel]:
         return AiAlgorithmConfig
 
-    def build_prompt(
-        self,
-        files: Optional[List[SubmissionFile]],
-        **kwargs,
-    ) -> str:
-        algorithm_name = (kwargs.get("algorithm_name") or "").strip()
+    def build_prompt(self, evaluation: EvaluationInput, *, algorithm_name: str) -> str:
+        files = evaluation.files
+        algorithm_name = algorithm_name.strip()
         file_names = ", ".join(f.filename for f in files) if files else ""
 
         if file_names:
@@ -423,8 +393,3 @@ class StaticAnalysisTemplate(Template):
         # Currently, they run on the server side using the files content.
         return False
 
-    def get_test(self, name: str) -> TestFunction:
-        test_function = self.tests.get(name)
-        if not test_function:
-            raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
-        return test_function

@@ -16,8 +16,7 @@ class MetadataCapturingTest(TestFunction):
     """Test function that records the files and context received by the grader."""
 
     def __init__(self):
-        self.files = None
-        self.kwargs = None
+        self.evaluation = None
 
     @property
     def name(self) -> str:
@@ -27,13 +26,8 @@ class MetadataCapturingTest(TestFunction):
     def description(self) -> str:
         return "Capture opaque per-file metadata."
 
-    @property
-    def parameter_description(self) -> list:
-        return []
-
-    def execute(self, files, sandbox, *args, **kwargs) -> TestResult:
-        self.files = files
-        self.kwargs = kwargs
+    def execute(self, evaluation) -> TestResult:
+        self.evaluation = evaluation
         return TestResult(
             test_name=self.name,
             score=100.0,
@@ -137,15 +131,8 @@ async def test_rich_repository_metadata_survives_hydration_and_grader_passthroug
     assert target_file.metadata == repository_file_metadata
     assert target_file.metadata is repository_file_metadata
 
-    assert capturing_test.files == [target_file]
-    assert (
-        capturing_test.kwargs["evaluation_scope"]
-        is hydrated_submission.evaluation_scope
-    )
-    assert capturing_test.kwargs["file_metadata"] == {
-        "service/payment.py": repository_file_metadata,
-    }
-    assert capturing_test.kwargs["file_metadata"]["service/payment.py"] is (
-        repository_file_metadata
-    )
-    assert "README.md" not in capturing_test.kwargs["file_metadata"]
+    # Selected files carry their own opaque metadata; no parallel kwargs exist.
+    assert capturing_test.evaluation.files == (target_file,)
+    assert capturing_test.evaluation.files[0].metadata is repository_file_metadata
+    assert capturing_test.evaluation.files[0].changed_lines == {1, 2}
+    assert all(file.filename != "README.md" for file in capturing_test.evaluation.files)

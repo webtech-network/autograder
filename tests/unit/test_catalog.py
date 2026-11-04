@@ -59,8 +59,13 @@ def test_explicit_examples_are_validated_and_normalized():
         needle: str = Field(pattern="^hello$")
         mode: Literal["literal"] = "literal"
 
-    evaluator = ContainsText()
-    evaluator.config_schema = Parameters
+    class ConstrainedText(ContainsText):
+        config_schema = Parameters
+
+        def execute(self, evaluation, *, needle, mode="literal"):  # pylint: disable=arguments-differ
+            return super().execute(evaluation, needle=needle)
+
+    evaluator = ConstrainedText()
     custom = TrustedTextTemplate()
     custom.tests = {evaluator.name: evaluator}
     with pytest.raises(ValueError, match="example_parameters"):

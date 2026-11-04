@@ -252,6 +252,7 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         definition = GradingDefinition.model_validate(value)
     except ValidationError as exc:
         raise DefinitionValidationError(_pydantic_errors(exc)) from exc
+    from autograder.models.contracts.catalog import required_capabilities
     from autograder.services.template_library_service import TemplateLibraryService
     library = TemplateLibraryService.get_instance()
     selected, registry, errors = {}, {}, []
@@ -272,7 +273,7 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         for name, function in template.get_tests().items():
             if name in registry:
                 errors.append(_error('AMBIGUOUS_EVALUATOR', ('templates', index), f'Duplicate evaluator identifier: {name}'))
-            registry[name] = function
+            registry[name] = (function, frozenset(required_capabilities(template, function)))
     seen = set()
     for test, path in walk_tests(definition.criteria):
         if test.id in seen:
@@ -283,20 +284,17 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
                 relative_path(test.file)
             except ValueError as exc:
                 errors.append(_error('INVALID_PATH', (*path, 'file'), str(exc)))
-        function = registry.get(test.type)
-        if function is None:
+        if test.type not in registry:
             errors.append(_error('UNKNOWN_EVALUATOR', (*path, 'type'), 'Evaluator is not registered in selected templates'))
             continue
+        function = registry[test.type][0]
         from autograder.models.contracts.parameter_contract import RUNTIME_PARAMETERS
         reserved = set(test.parameters) & RUNTIME_PARAMETERS
         if reserved:
             errors.append(_error("RESERVED_PARAMETER", (*path, "parameters", sorted(reserved)[0]), "Runtime context cannot be supplied by a definition"))
             continue
         try:
-            schema = function.config_schema
-            if schema is None:
-                raise ValueError('Evaluator must expose a parameter contract')
-            normalized = schema.model_validate(test.parameters, strict=True, extra="forbid").model_dump(mode='json')
+            normalized = function.config_schema.model_validate(test.parameters, strict=True, extra="forbid").model_dump(mode='json')
         except ValidationError as exc:
             errors.extend(_pydantic_errors(exc, (*path, 'parameters')))
             continue
@@ -311,25 +309,13 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
                 continue
         else:
             test.parameters = normalized
-        command = test.parameters.get('program_command')
-        if isinstance(command, dict) and not set(definition.languages).issubset(command):
-            errors.append(_error('MISSING_LANGUAGE_COMMAND', (*path, 'parameters', 'program_command'), 'Command map must cover every allowed language'))
-        if 'forbidden_keywords' in test.parameters:
-            from autograder.template_library.static_analysis import ForbiddenKeywordTest
-            for keyword_index, keyword in enumerate(test.parameters['forbidden_keywords']):
-                if any(keyword not in ForbiddenKeywordTest.PREDEFINED_RULES.get(Language(language), {}) for language in definition.languages):
-                    errors.append(_error('UNSUPPORTED_KEYWORD', (*path, 'parameters', 'forbidden_keywords', keyword_index), 'Keyword must be supported for every allowed language'))
-        for rule_index, rule in enumerate(test.parameters.get('custom_ast_grep_rules', [])):
-            if not isinstance(rule, dict) or not rule or not set(rule).issubset({'kind','pattern','regex','all','any','not','has','inside','precedes','follows'}):
-                errors.append(_error('INVALID_AST_RULE', (*path,'parameters','custom_ast_grep_rules',rule_index), 'Expected an ast-grep rule object'))
-                continue
-            from ast_grep_py import SgRoot
-            grammar_names = {'node': 'javascript', 'python': 'python', 'java': 'java', 'cpp': 'cpp', 'c': 'c'}
-            try:
-                for language in definition.languages:
-                    SgRoot('', grammar_names[language]).root().find_all(**rule)
-            except Exception:
-                errors.append(_error('INVALID_AST_RULE', (*path,'parameters','custom_ast_grep_rules',rule_index), 'Rule must compile for every allowed language'))
+        # Evaluator-owned semantics (command coverage, AST rules, ...) on an isolated copy.
+        try:
+            issues = list(function.validate_parameters(thaw(test.parameters), languages=tuple(definition.languages)))
+        except (TypeError, ValueError) as exc:
+            errors.append(_error('INVALID_PARAMETER_CONTRACT', (*path, 'parameters'), str(exc)))
+            continue
+        errors.extend(_error(issue.code, (*path, 'parameters', *issue.path), issue.message) for issue in issues)
     for resource_index, resource in enumerate(definition.feedback.preferences.general.online_content):
         if not set(resource.linked_tests).issubset(seen):
             errors.append(_error('UNKNOWN_CRITERION_REFERENCE', ('feedback','preferences','general','online_content',resource_index,'linked_tests'), 'Learning resources must reference criterion IDs'))

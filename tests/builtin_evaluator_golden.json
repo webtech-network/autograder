@@ -1,0 +1,316 @@
+{
+ "bad": {
+  "criteria": {
+   "article-links": [
+    0.0,
+    "Found 0 of 1 valid internal links to <article> tags."
+   ],
+   "attribute-value": [
+    0.0,
+    "Tag `<html>` with `lang='en'` was not found."
+   ],
+   "bootstrap-linked": [
+    0.0,
+    "No link to Bootstrap CSS or JS was found."
+   ],
+   "bootstrap-usage": [
+    100.0,
+    "You are not using Bootstrap in your project."
+   ],
+   "css-linked": [
+    0.0,
+    "The tag `<link rel='stylesheet'>` was not found in your HTML."
+   ],
+   "css-property": [
+    0.0,
+    "The CSS property `display: flex;` was not found."
+   ],
+   "dir-exists": [
+    0.0,
+    "The directory 'assets' does not exist."
+   ],
+   "dom-manipulation": [
+    0.0,
+    "Found 0 of 2 required DOM manipulation method calls."
+   ],
+   "flexbox": [
+    0.0,
+    "Flexbox properties were not found in your CSS."
+   ],
+   "forbidden-import": [
+    0.0,
+    "FAILURE: Forbidden imports detected:\n  - 'child_process' found in 'app.js'"
+   ],
+   "forbidden-keyword": [
+    0.0,
+    "FAILURE: Forbidden language constructs detected:\n  - Forbidden construct 'debugger' found in 'app.js'\n  - Forbidden construct 'while_statement' found in 'app.js'"
+   ],
+   "forbidden-method": [
+    0.0,
+    "Penalty: Forbidden method `eval()` detected."
+   ],
+   "forbidden-tag": [
+    0.0,
+    "The tag `<marquee>` was found and is forbidden."
+   ],
+   "global-vars": [
+    0.0,
+    "Warning: 4 global variables detected (maximum allowed: 3)."
+   ],
+   "has-attribute": [
+    0.0,
+    "The attribute `aria-label` was found 0 time(s) out of 1 required."
+   ],
+   "has-class": [
+    0.0,
+    "Found 0 of 2 required CSS classes. Classes found: []"
+   ],
+   "has-style": [
+    0.0,
+    "Found 0 of 2 `margin` styling rules."
+   ],
+   "has-tag": [
+    0.0,
+    "Found 0 of 2 required `<section>` tags."
+   ],
+   "head-details": [
+    0.0,
+    "The tag `<title>` was not found in the `<head>` section."
+   ],
+   "headings": [
+    0.0,
+    "The heading order (`<h1>`, `<h2>`, etc.) is not sequential. Avoid skipping levels."
+   ],
+   "html-children": [
+    0.0,
+    "The <html> tag must contain only <head> and <body> tags as direct children."
+   ],
+   "id-selectors": [
+    0.0,
+    "3 ID selectors detected (limit: 1)."
+   ],
+   "images-alt": [
+    0.0,
+    "0 of 1 images have the `alt` attribute filled."
+   ],
+   "inline-styles": [
+    0.0,
+    "Found 1 inline styles (`style='...'`). Move all style rules to your `.css` file."
+   ],
+   "internal-links": [
+    0.0,
+    "Found 0 of 1 valid internal links ('anchors')."
+   ],
+   "js-feature": [
+    0.0,
+    "The JavaScript feature `addEventListener` was not found in your code."
+   ],
+   "json-array": [
+    0.0,
+    "Data structure (array) in JSON format not found in your JavaScript file."
+   ],
+   "media-queries": [
+    0.0,
+    "No use of media queries was found in your CSS."
+   ],
+   "no-js-framework": [
+    0.0,
+    "JavaScript framework usage (React, Vue, Angular) detected. The use of frameworks is not allowed in this activity."
+   ],
+   "over-usage": [
+    0.0,
+    "Overuse of `!important` detected 2 times (maximum allowed: 1)."
+   ],
+   "project-structure": [
+    0.0,
+    "The file 'assets/logo.svg' does not exist."
+   ],
+   "query-param-links": [
+    0.0,
+    "Found 0 of 1 valid links for 'detail.html' with the query parameter 'id'."
+   ],
+   "query-string": [
+    0.0,
+    "The logic to read URL parameters (e.g., URLSearchParams) was not found in your JavaScript."
+   ],
+   "relative-units": [
+    0.0,
+    "Relative measures like (em, rem, %, vh, vw) were not used in your CSS."
+   ],
+   "semantic-tags": [
+    40.0,
+    "Did not use any semantic tags like (`<article>`, `<section>`, `<nav>`) in the HTML structure."
+   ],
+   "tag-not-inside": [
+    0.0,
+    "The tag `<div>` should not be used inside the tag `<p>`."
+   ],
+   "unclosed-tags": [
+    0.0,
+    "Unclosed HTML tags or incorrect structure identified in your file."
+   ],
+   "unused-css": [
+    0.0,
+    "1 unused CSS classes: ['ghost']"
+   ]
+  },
+  "score": 3.11
+ },
+ "good": {
+  "criteria": {
+   "article-links": [
+    100.0,
+    "Found 1 of 1 valid internal links to <article> tags."
+   ],
+   "attribute-value": [
+    100.0,
+    "Found tag `<html>` with `lang='en'`."
+   ],
+   "bootstrap-linked": [
+    100.0,
+    "Bootstrap framework found in your HTML."
+   ],
+   "bootstrap-usage": [
+    0.0,
+    "You are using Bootstrap in your project."
+   ],
+   "css-linked": [
+    100.0,
+    "CSS file is correctly linked to the HTML."
+   ],
+   "css-property": [
+    100.0,
+    "The property `display: flex;` was found."
+   ],
+   "dir-exists": [
+    100.0,
+    "The directory 'assets' exists."
+   ],
+   "dom-manipulation": [
+    100.0,
+    "Found 2 of 2 required DOM manipulation method calls."
+   ],
+   "flexbox": [
+    100.0,
+    "Flexbox properties are being used in the CSS."
+   ],
+   "forbidden-import": [
+    100.0,
+    "No forbidden imports found."
+   ],
+   "forbidden-keyword": [
+    100.0,
+    "No forbidden language constructs found."
+   ],
+   "forbidden-method": [
+    100.0,
+    "Great! The forbidden method `eval()` was not used."
+   ],
+   "forbidden-tag": [
+    100.0,
+    "The tag `<marquee>` was not found, great!"
+   ],
+   "global-vars": [
+    100.0,
+    "Good job keeping the global scope clean."
+   ],
+   "has-attribute": [
+    100.0,
+    "The attribute `aria-label` was found 1 time(s) out of 1 required."
+   ],
+   "has-class": [
+    100.0,
+    "Found 3 of 2 required CSS classes. Classes found: ['btn-primary', 'card']"
+   ],
+   "has-style": [
+    100.0,
+    "Found 2 of 2 `margin` styling rules."
+   ],
+   "has-tag": [
+    100.0,
+    "Found 2 of 2 required `<section>` tags."
+   ],
+   "head-details": [
+    100.0,
+    "The tag `<title>` was found in the `<head>` section."
+   ],
+   "headings": [
+    100.0,
+    "The heading hierarchy is well-structured."
+   ],
+   "html-children": [
+    100.0,
+    "Structure of the <html> tag is correct."
+   ],
+   "id-selectors": [
+    100.0,
+    "Controlled use of ID selectors."
+   ],
+   "images-alt": [
+    100.0,
+    "1 of 1 images have the `alt` attribute filled."
+   ],
+   "inline-styles": [
+    100.0,
+    "Excellent! No inline styles were found."
+   ],
+   "internal-links": [
+    100.0,
+    "Found 2 of 1 valid internal links ('anchors')."
+   ],
+   "js-feature": [
+    100.0,
+    "The feature `addEventListener` has been implemented."
+   ],
+   "json-array": [
+    100.0,
+    "Found data structure with 2 of 2 required items, all with the 'id' key."
+   ],
+   "media-queries": [
+    100.0,
+    "Media queries are being used in the CSS."
+   ],
+   "no-js-framework": [
+    100.0,
+    "Great! No forbidden JavaScript frameworks were detected."
+   ],
+   "over-usage": [
+    100.0,
+    "Overuse of `!important` not detected."
+   ],
+   "project-structure": [
+    100.0,
+    "The file 'assets/logo.svg' exists."
+   ],
+   "query-param-links": [
+    100.0,
+    "Found 1 of 1 valid links for 'detail.html' with the query parameter 'id'."
+   ],
+   "query-string": [
+    100.0,
+    "The JavaScript code implements reading URL parameters."
+   ],
+   "relative-units": [
+    100.0,
+    "Relative measures are being used in the CSS."
+   ],
+   "semantic-tags": [
+    100.0,
+    "Used semantic tags."
+   ],
+   "tag-not-inside": [
+    100.0,
+    "The tag `<div>` was not found inside the tag `<p>`."
+   ],
+   "unclosed-tags": [
+    100.0,
+    "You have a good HTML structure with no unclosed tags."
+   ],
+   "unused-css": [
+    100.0,
+    "No unused CSS classes found."
+   ]
+  },
+  "score": 97.78
+ }
+}

@@ -1,14 +1,13 @@
 import re
-from typing import Optional, List
+from typing import Annotated, List, Optional
 from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup
 
-from autograder.models.abstract.test_function import TestFunction
-from autograder.models.dataclass.param_description import ParamDescription
-from autograder.models.dataclass.submission import SubmissionFile
+from pydantic import Field
+
+from autograder.models.abstract.test_function import EvaluationInput, TestFunction
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from autograder.models.execution import ExecutionSession
 
 
 class CheckHeadDetails(TestFunction):
@@ -22,13 +21,11 @@ class CheckHeadDetails(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("detail_tag", t("web_dev.html.check_head.param.detail_tag"), "string")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, detail_tag: str = "", **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                detail_tag: Annotated[str, Field(min_length=1, description=t("web_dev.html.check_head.param.detail_tag"))],
+                ) -> TestResult:
         """Executes the detail tag verification test in the head."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -37,7 +34,7 @@ class CheckHeadDetails(TestFunction):
         head = soup.find('head')
         found = head is not None and head.find(detail_tag) is not None
         score = 100 if found else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.check_head.report.found", locale=locale, detail_tag=detail_tag) if found else t("web_dev.html.check_head.report.not_found", locale=locale, detail_tag=detail_tag)
         return TestResult(
             test_name=self.name,
@@ -57,13 +54,11 @@ class HasForbiddenTag(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("tag", t("web_dev.html.has_forbidden_tag.param.tag"), "string")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, tag: str = "", **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                tag: Annotated[str, Field(min_length=1, description=t("web_dev.html.has_forbidden_tag.param.tag"))],
+                ) -> TestResult:
         """Executes the forbidden tag verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -71,7 +66,7 @@ class HasForbiddenTag(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(tag) is not None
         score = 0 if found else 100
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.has_forbidden_tag.report.found", locale=locale, tag=tag) if found else t("web_dev.html.has_forbidden_tag.report.not_found", locale=locale, tag=tag)
         return TestResult(
             test_name=self.name,
@@ -91,14 +86,12 @@ class HasAttribute(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("attribute", t("web_dev.html.has_attribute.param.attribute"), "string"),
-            ParamDescription("required_count", t("web_dev.html.has_attribute.param.required_count"), "integer")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, attribute: str = "", required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                attribute: Annotated[str, Field(min_length=1, description=t("web_dev.html.has_attribute.param.attribute"))],
+                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.has_attribute.param.required_count"))] = 0,
+                ) -> TestResult:
         """Executes the search for specific attributes."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -106,7 +99,7 @@ class HasAttribute(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(attrs={attribute: True}))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
-        report = t("web_dev.html.has_attribute.report", locale=kwargs.get("locale"), attribute=attribute, found_count=found_count, required_count=required_count)
+        report = t("web_dev.html.has_attribute.report", locale=evaluation.locale, attribute=attribute, found_count=found_count, required_count=required_count)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -125,15 +118,13 @@ class CheckAttributeAndValue(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("tag", t("web_dev.html.check_attribute_and_value.param.tag"), "string"),
-            ParamDescription("attribute", t("web_dev.html.check_attribute_and_value.param.attribute"), "string"),
-            ParamDescription("value", t("web_dev.html.check_attribute_and_value.param.value"), "string")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, tag: str = "", attribute: str = "", value: str = "", **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                tag: Annotated[str, Field(min_length=1, description=t("web_dev.html.check_attribute_and_value.param.tag"))],
+                attribute: Annotated[str, Field(min_length=1, description=t("web_dev.html.check_attribute_and_value.param.attribute"))],
+                value: Annotated[str, Field(min_length=1, description=t("web_dev.html.check_attribute_and_value.param.value"))],
+                ) -> TestResult:
         """Executes the attribute and value verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -141,7 +132,7 @@ class CheckAttributeAndValue(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         elements = soup.find_all(tag, attrs={attribute: value})
         score = 100 if elements else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.check_attribute_and_value.report.found", locale=locale, tag=tag, attribute=attribute, value=value) if score == 100 else t("web_dev.html.check_attribute_and_value.report.not_found", locale=locale, tag=tag, attribute=attribute, value=value)
         return TestResult(
             test_name=self.name,
@@ -161,11 +152,9 @@ class CheckNoInlineStyles(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the search for inline styles."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -173,7 +162,7 @@ class CheckNoInlineStyles(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(style=True))
         score = 0 if found_count > 0 else 100
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.check_no_inline_styles.report.found", locale=locale, found_count=found_count) if found_count > 0 else t("web_dev.html.check_no_inline_styles.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
@@ -192,19 +181,16 @@ class CheckInternalLinks(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("required_count", "O número mínimo de links válidos.", "integer")
-        ]
-
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                required_count: Annotated[int, Field(ge=0, description="O número mínimo de links válidos.")] = 0,
+                ) -> TestResult:
         """Executes the internal link verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report=t("web_dev.html.check_internal_links.report.no_content", locale=kwargs.get("locale")),
+                report=t("web_dev.html.check_internal_links.report.no_content", locale=evaluation.locale),
                 parameters={"required_count": required_count}
             )
 
@@ -213,7 +199,7 @@ class CheckInternalLinks(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report=t("web_dev.html.check_internal_links.report.no_content", locale=kwargs.get("locale")),
+                report=t("web_dev.html.check_internal_links.report.no_content", locale=evaluation.locale),
                 parameters={"required_count": required_count}
             )
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -227,7 +213,7 @@ class CheckInternalLinks(TestFunction):
             if soup.find(id=target_id):
                 valid_links += 1
         score = min(100, int((valid_links / required_count) * 100)) if required_count > 0 else 100
-        report = t("web_dev.html.check_internal_links.report.valid", locale=kwargs.get("locale"), valid_links=valid_links, required_count=required_count)
+        report = t("web_dev.html.check_internal_links.report.valid", locale=evaluation.locale, valid_links=valid_links, required_count=required_count)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -246,11 +232,9 @@ class CheckNoUnclosedTags(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the search for unclosed tags."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -281,7 +265,7 @@ class CheckNoUnclosedTags(TestFunction):
             open_tags.append(tag)
         unclosed = len(open_tags)
         score = 100 if unclosed == 0 else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = (
             t("web_dev.html.check_no_unclosed_tags.report.not_found", locale=locale)
             if unclosed == 0
@@ -304,16 +288,13 @@ class LinkPointsToPageWithQueryParam(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("target_page", t("web_dev.html.link_points_to_page_with_query_param.param.target_page"), "string"),
-            ParamDescription("query_param", t("web_dev.html.link_points_to_page_with_query_param.param.query_param"), "string"),
-            ParamDescription("required_count", t("web_dev.html.link_points_to_page_with_query_param.param.required_count"), "integer")
-        ]
-
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, target_page: str = "", query_param: str = "", required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                target_page: Annotated[str, Field(min_length=1, description=t("web_dev.html.link_points_to_page_with_query_param.param.target_page"))],
+                query_param: Annotated[str, Field(min_length=1, description=t("web_dev.html.link_points_to_page_with_query_param.param.query_param"))],
+                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.link_points_to_page_with_query_param.param.required_count"))] = 0,
+                ) -> TestResult:
         """Executes the verification of links with query parameters."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -331,7 +312,7 @@ class LinkPointsToPageWithQueryParam(TestFunction):
                 if query_param in query_params:
                     valid_link_count += 1
         score = min(100, int((valid_link_count / required_count) * 100)) if required_count > 0 else 100
-        report = t("web_dev.html.link_points_to_page_with_query_param.report", locale=kwargs.get("locale"), valid_link_count=valid_link_count, required_count=required_count, target_page=target_page, query_param=query_param)
+        report = t("web_dev.html.link_points_to_page_with_query_param.report", locale=evaluation.locale, valid_link_count=valid_link_count, required_count=required_count, target_page=target_page, query_param=query_param)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -350,18 +331,16 @@ class CheckInternalLinksToArticle(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("required_count", "O número mínimo de links válidos.", "integer")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                required_count: Annotated[int, Field(ge=0, description="O número mínimo de links válidos.")] = 0,
+                ) -> TestResult:
         """Executes the verification of links to articles."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=kwargs.get("locale")),
+                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=evaluation.locale),
                 parameters={"required_count": required_count}
             )
 
@@ -370,7 +349,7 @@ class CheckInternalLinksToArticle(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=0,
-                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=kwargs.get("locale")),
+                report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=evaluation.locale),
                 parameters={"required_count": required_count}
             )
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -384,7 +363,7 @@ class CheckInternalLinksToArticle(TestFunction):
             if target_element and target_element.name == 'article':
                 valid_links += 1
         score = min(100, int((valid_links / required_count) * 100)) if required_count > 0 else 100
-        report = t("web_dev.html.check_internal_links_to_article.report.valid", locale=kwargs.get("locale"), valid_links=valid_links, required_count=required_count)
+        report = t("web_dev.html.check_internal_links_to_article.report.valid", locale=evaluation.locale, valid_links=valid_links, required_count=required_count)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -403,14 +382,12 @@ class CheckTagNotInside(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("child_tag", t("web_dev.html.check_tag_not_inside.param.child_tag"), "string"),
-            ParamDescription("parent_tag", t("web_dev.html.check_tag_not_inside.param.parent_tag"), "string")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, child_tag: str = "", parent_tag: str = "", **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                child_tag: Annotated[str, Field(min_length=1, description=t("web_dev.html.check_tag_not_inside.param.child_tag"))],
+                parent_tag: Annotated[str, Field(min_length=1, description=t("web_dev.html.check_tag_not_inside.param.parent_tag"))],
+                ) -> TestResult:
         """Executes the forbidden nesting verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -419,7 +396,7 @@ class CheckTagNotInside(TestFunction):
         parent = soup.find(parent_tag)
         found = parent and parent.find(child_tag)
         score = 0 if found else 100
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.check_tag_not_inside.report.found", locale=locale, child_tag=child_tag, parent_tag=parent_tag) if found else t("web_dev.html.check_tag_not_inside.report.not_found", locale=locale, child_tag=child_tag, parent_tag=parent_tag)
         return TestResult(
             test_name=self.name,
@@ -439,11 +416,9 @@ class CheckHeadingsSequential(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the heading sequence verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -454,7 +429,7 @@ class CheckHeadingsSequential(TestFunction):
             return TestResult(
                 test_name=self.name,
                 score=100,
-                report=t("web_dev.html.check_headings_sequential.report.one_level", locale=kwargs.get("locale"))
+                report=t("web_dev.html.check_headings_sequential.report.one_level", locale=evaluation.locale)
             )
         valid = True
         for i in range(len(headings) - 1):
@@ -464,7 +439,7 @@ class CheckHeadingsSequential(TestFunction):
                 valid = False
                 break
         score = 100 if valid else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = (
             t("web_dev.html.check_headings_sequential.report.valid", locale=locale)
             if valid
@@ -487,14 +462,12 @@ class HasTag(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("tag", t("web_dev.html.has_tag.param.tag"), "string"),
-            ParamDescription("required_count", t("web_dev.html.has_tag.param.required_count"), "integer")
-        ]
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, tag: str = "", required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                tag: Annotated[str, Field(min_length=1, description=t("web_dev.html.has_tag.param.tag"))],
+                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.has_tag.param.required_count"))] = 0,
+                ) -> TestResult:
         """Executes the tag presence verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -502,7 +475,7 @@ class HasTag(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found_count = len(soup.find_all(tag))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
-        report = t("web_dev.html.has_tag.report", locale=kwargs.get("locale"), found_count=found_count, required_count=required_count, tag=tag)
+        report = t("web_dev.html.has_tag.report", locale=evaluation.locale, found_count=found_count, required_count=required_count, tag=tag)
         return TestResult(
             test_name=self.name,
             score=score,
@@ -521,11 +494,9 @@ class CheckBootstrapLinked(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the Bootstrap link verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -534,7 +505,7 @@ class CheckBootstrapLinked(TestFunction):
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 100 if found else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.check_bootstrap_linked.report.found", locale=locale) if found else t("web_dev.html.check_bootstrap_linked.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
@@ -553,11 +524,9 @@ class CheckBootstrapUsage(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the Bootstrap usage verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -566,7 +535,7 @@ class CheckBootstrapUsage(TestFunction):
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 0 if found else 100
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.check_bootstrap_usage.report.found", locale=locale) if found else t("web_dev.html.check_bootstrap_usage.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
@@ -585,11 +554,9 @@ class UsesSemanticTags(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the semantic tags verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -597,7 +564,7 @@ class UsesSemanticTags(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find(("article", "section", "nav", "aside", "figure")) is not None
         score = 100 if found else 40
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.uses_semantic_tags.report.found", locale=locale) if found else t("web_dev.html.uses_semantic_tags.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
@@ -616,11 +583,9 @@ class CheckCssLinked(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the CSS link verification."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -628,7 +593,7 @@ class CheckCssLinked(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         found = soup.find("link", rel="stylesheet") is not None
         score = 100 if found else 0
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.check_css_linked.report.found", locale=locale) if found else t("web_dev.html.check_css_linked.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
@@ -647,11 +612,9 @@ class CheckAllImagesHaveAlt(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the alt attribute verification in images."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -659,10 +622,10 @@ class CheckAllImagesHaveAlt(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         images = soup.find_all("img")
         if not images:
-            return TestResult(test_name=self.name, score=100, report=t("web_dev.html.check_all_images_have_alt.report.no_images", locale=kwargs.get("locale")))
+            return TestResult(test_name=self.name, score=100, report=t("web_dev.html.check_all_images_have_alt.report.no_images", locale=evaluation.locale))
         with_alt = sum(1 for img in images if img.has_attr('alt') and img['alt'].strip())
         score = int((with_alt / len(images)) * 100) if len(images) > 0 else 100
-        report = t("web_dev.html.check_all_images_have_alt.report.valid", locale=kwargs.get("locale"), with_alt=with_alt, total_images=len(images))
+        report = t("web_dev.html.check_all_images_have_alt.report.valid", locale=evaluation.locale, with_alt=with_alt, total_images=len(images))
         return TestResult(
             test_name=self.name,
             score=score,
@@ -680,19 +643,16 @@ class HasClass(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("class_names", t("web_dev.html.has_class.param.class_names"), "list of strings"),
-            ParamDescription("required_count", t("web_dev.html.has_class.param.required_count"), "integer")
-        ]
-
     def _compile_patterns(self, class_names: Optional[List[str]]) -> List[re.Pattern]:
         """Helper to compile regex patterns for classes."""
         return [re.compile(name.replace('*', r'\S*')) for name in (class_names or [])]
 
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, class_names: list[str] = None, required_count: int = 0, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                class_names: Annotated[List[str], Field(default_factory=list, description=t("web_dev.html.has_class.param.class_names"))],
+                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.has_class.param.required_count"))] = 0,
+                ) -> TestResult:
         """Executes the search for CSS classes in the HTML."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -708,7 +668,7 @@ class HasClass(TestFunction):
                         found_count += 1
                         found_classes.append(cls)
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
-        report = t("web_dev.html.has_class.report", locale=kwargs.get("locale"), found_count=found_count, required_count=required_count, classes=list(set(found_classes)))
+        report = t("web_dev.html.has_class.report", locale=evaluation.locale, found_count=found_count, required_count=required_count, classes=sorted(set(found_classes)))
         return TestResult(
             test_name=self.name,
             score=score,
@@ -726,11 +686,9 @@ class CheckHtmlDirectChildren(TestFunction):
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
-    @property
-    def parameter_description(self):
-        return []
-    def execute(self, files: Optional[List[SubmissionFile]], sandbox: Optional[ExecutionSession], *args, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
         """Executes the direct structure verification of <html>."""
+        files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
@@ -738,10 +696,10 @@ class CheckHtmlDirectChildren(TestFunction):
         soup = BeautifulSoup(html_content, 'html.parser')
         html_tag = soup.find('html')
         if not html_tag:
-            return TestResult(test_name=self.name, score=0, report=t("web_dev.html.check_html_direct_children.report.no_html", locale=kwargs.get("locale")))
+            return TestResult(test_name=self.name, score=0, report=t("web_dev.html.check_html_direct_children.report.no_html", locale=evaluation.locale))
         children_names = [child.name for child in html_tag.findChildren(recursive=False) if child.name]
         is_valid = all(name in ['head', 'body'] for name in children_names) and 'head' in children_names and 'body' in children_names
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
         report = t("web_dev.html.check_html_direct_children.report.valid", locale=locale) if is_valid else t("web_dev.html.check_html_direct_children.report.invalid", locale=locale)
         return TestResult(
             test_name=self.name,

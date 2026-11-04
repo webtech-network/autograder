@@ -99,7 +99,7 @@ class AutograderPipeline:
                 criteria_tree=self.compiled.criteria_tree,
                 submission_files=submission.submission_files, sandbox=session,
                 submission_language=submission.language, locale=submission.locale,
-                pre_computed_results=assessments, evaluation_scope=submission.evaluation_scope,
+                assessments=assessments, evaluation_scope=submission.evaluation_scope,
             )
             result_tree.calculate_final_score()
             try:

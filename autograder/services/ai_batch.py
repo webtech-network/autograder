@@ -1,5 +1,6 @@
 """Evaluate selected AI criteria once and return assessments by criterion ID."""
 from autograder.models.abstract.ai_test_function import AiTestFunction
+from autograder.models.abstract.test_function import EvaluationInput
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.dataclass.submission import Submission
 from autograder.models.dataclass.test_result import TestResult
@@ -20,9 +21,8 @@ def evaluate_ai_batch(
         if not isinstance(test.test_function, AiTestFunction):
             continue
         files = select_files(test, submission.submission_files, submission.evaluation_scope, submission.language)
-        prompt = test.test_function.build_prompt(
-            files, locale=submission.locale, context_files=context_files, **thaw(test.parameters),
-        )
+        evaluation = EvaluationInput(files=tuple(files), language=submission.language, locale=submission.locale)
+        prompt = test.test_function.build_prompt(evaluation, **thaw(test.parameters))
         inputs.append(TestInput(test_name=test.criterion_id, prompt=prompt))
     if not inputs:
         return {}

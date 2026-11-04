@@ -199,42 +199,34 @@ ptw
 
 ```python
 # autograder/template_library/my_template.py
+from typing import Annotated
+
+from pydantic import Field
+
 from autograder.models.abstract.template import Template
-from autograder.models.abstract.test_function import TestFunction
+from autograder.models.abstract.test_function import EvaluationInput, TestFunction
 from autograder.models.dataclass.test_result import TestResult
 
+
 class MyTestFunction(TestFunction):
-    @property
-    def name(self) -> str:
-        return "my_test"
-    
-    def execute(self, files: dict, sandbox, **kwargs) -> TestResult:
-        # Your test logic here
-        score = 100  # 0-100
-        report = "Test passed!"
-        
-        return TestResult(
-            test_name=self.name,
-            score=score,
-            report=report,
-            passed=score >= 70
-        )
+    """Stateless: per-submission state stays in the call."""
+    name = "my_test"
+    description = "Check that the selected file mentions a word."
+
+    def execute(self, evaluation: EvaluationInput, *,
+                word: Annotated[str, Field(min_length=1, description="Word to find")]) -> TestResult:
+        found = any(word in file.content for file in evaluation.files)
+        return TestResult(test_name=self.name, score=100 if found else 0,
+                          report="Found" if found else "Missing")
+
 
 class MyTemplate(Template):
+    template_name = "My template"
+    template_description = "Example template"
+    requires_sandbox = False  # True if code execution is needed
+
     def __init__(self):
-        self.tests = [MyTestFunction()]
-    
-    @property
-    def name(self) -> str:
-        return "my_template"
-    
-    @property
-    def requires_sandbox(self) -> bool:
-        return True  # If code execution needed
-    
-    @property
-    def supported_languages(self) -> list[str]:
-        return ["python", "javascript"]
+        self.tests = {"my_test": MyTestFunction()}
 ```
 
 2. **Register template** in `TemplateLibraryService`:
@@ -255,11 +247,12 @@ class TemplateLibraryService:
 
 ```python
 # tests/unit/test_my_template.py
+from autograder.models.abstract.test_function import EvaluationInput
 from autograder.template_library.my_template import MyTestFunction
 
 def test_my_test_function():
     test_func = MyTestFunction()
-    result = test_func.execute(files={}, sandbox=None)
+    result = test_func.execute(EvaluationInput(), word="hello")
     
     assert result.score >= 0
     assert result.report is not None

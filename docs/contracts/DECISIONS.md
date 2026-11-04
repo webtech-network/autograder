@@ -128,8 +128,8 @@ blocked Docker or asset-provider calls.
 ## Assessment inputs
 
 [File selection](FILES.md) is shared by ordinary and AI assessment. Structural
-parsing belongs to the static evaluator and is cached only within one grading
-traversal; there is no pipeline-wide structural-analysis stage. Explicit targets
+parsing belongs to the static evaluator and happens within its own assessment;
+there is no pipeline-wide structural-analysis stage or grader-level AST cache. Explicit targets
 and required file counts fail clearly rather than silently omitting criteria.
 
 ## Submission inputs and evaluator files
@@ -239,3 +239,38 @@ deeply immutable: `definition` returns a fresh copy, tree nodes are frozen, and
 parameters are frozen JSON values. Each evaluator invocation and each reported
 result receives an isolated mutable copy, so executions from one plan cannot
 affect one another. v1 JSON shape and hash rules are unchanged.
+
+## Evaluator-owned contracts (ARC-03)
+
+An evaluator is a local change: its implementation, its parameter contract and
+its registration. The supported invocation shape is
+
+```python
+def execute(self, evaluation: EvaluationInput, *, <normalized configuration>) -> TestResult
+```
+
+(`build_prompt` with the same shape for AI evaluators). `EvaluationInput` is a
+small frozen value with `files` (the selected assessment files, carrying their
+metadata and changed lines), `language`, `locale` and `session`. The session is
+bound only to evaluators declaring `sandbox_execution` or `http_network`; AI
+results reach no evaluator, because the grader takes each AI criterion's result
+from the provider batch. Keyword-only parameters are exactly the contract fields
+and receive an isolated copy of the canonical values. Template registration and
+compilation reject any other signature (`*args`, `**kwargs`, extra positional
+parameters, unannotated configuration, fields that disagree with an explicit
+`config_schema`, or runtime names used as configuration) with `INVALID_TEMPLATE`.
+
+Constraints come only from the evaluator: annotations and defaults are used
+verbatim, with bounds declared through `Annotated[..., Field(...)]` or an explicit
+Pydantic model. Field descriptions document the catalog; there is no separate
+parameter-description list. Semantics that a JSON contract cannot express (built-in
+command coverage, keyword support and ast-grep rule compilation for every allowed
+language) live in the evaluator's pure `validate_parameters(parameters, *,
+languages)` hook, which returns `ParameterIssue(code, path, message)` values. The
+generic compiler interprets no parameter names, so unrelated evaluators may reuse
+names. Registry lookup is implemented once by `Template`.
+
+Evaluator instances are shared by every submission and thread that uses their
+template and must be stateless. Per-submission state lives in the call
+(`EvaluationInput`, parameters, locals) or in the grader that owns one traversal.
+

@@ -11,7 +11,7 @@ from autograder.models.dataclass.submission import EvaluationScope, Submission, 
 from autograder.models.evaluation_error import EvaluationError
 from autograder.services.file_selection import select_files
 from autograder.services.grader.grader_service import GraderService
-from autograder.services.structural_analysis import StructuralAnalysisCache
+from autograder.services.structural_analysis import parse_source
 from autograder.services.ai_batch import evaluate_ai_batch
 from autograder.template_library.static_analysis import AiSortingAlgorithmTest, ForbiddenKeywordTest
 from autograder.template_library.input_output import DontFailTest
@@ -100,7 +100,7 @@ def test_ai_and_ordinary_assessment_share_scoped_selection():
     provider.run.return_value = {"check": MagicMock()}
     with patch.object(test.test_function, "build_prompt", return_value="review") as prompt:
         evaluate_ai_batch(tree, submission(submitted, scope), provider)
-    selected = prompt.call_args.args[0]
+    selected = list(prompt.call_args.args[0].files)
     assert selected == select_files(test, submitted, scope, Language.PYTHON)
     assert [f.filename for f in selected] == ["a.py"]
     tree = CriteriaTree(base=CategoryNode("base", 100, tests=[replace(test, file_target=["b.py"])]))
@@ -138,22 +138,18 @@ def test_python_plus_readme_and_unparsed_context_complete(scope):
     assert execution.outcome.score == 100
 
 
-def test_cache_is_content_and_grammar_specific_and_execution_local():
-    """Criteria share parses only within the same execution and grammar."""
+def test_parsing_is_owned_by_each_structural_assessment():
+    """Each structural criterion parses only its selected sources, with their grammar;
+    no AST state is shared by the grader, across criteria or across executions."""
     with patch("autograder.services.structural_analysis.SgRoot") as parser:
         parser.return_value.root.return_value.find_all.return_value = []
         pipeline = static_pipeline(keyword("first"), keyword("second"))
         submitted = files(("main.py", "x = 1"), ("README.md", "context"))
         assert pipeline.run(submission(submitted)).outcome.status == "completed"
-        assert parser.call_args_list == [call("x = 1", "python")]
+        assert parser.call_args_list == [call("x = 1", "python")] * 2
         assert pipeline.run(submission(submitted)).outcome.status == "completed"
-        assert parser.call_count == 2
-        cache = StructuralAnalysisCache()
-        cache.root_for(SubmissionFile("same.py", "x = 1"))
-        cache.root_for(SubmissionFile("other.py", "x = 1"))
-        cache.root_for(SubmissionFile("same.py", "x = 2"))
-        cache.root_for(SubmissionFile("same.js", "x = 1"))
-        assert parser.call_count == 5
+        assert parser.call_count == 4
+        parse_source(SubmissionFile("same.js", "x = 1"))
         assert parser.call_args.args == ("x = 1", "javascript")
 
 

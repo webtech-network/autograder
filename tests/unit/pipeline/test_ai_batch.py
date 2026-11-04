@@ -2,19 +2,18 @@
 
 import pytest
 from autograder.models.evaluation_error import EvaluationError
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 import autograder.utils.executors.ai_executor as ai_executor_mod
 from unittest.mock import MagicMock
 
 from autograder.models.abstract.ai_test_function import AiTestFunction
-from autograder.models.abstract.test_function import TestFunction
+from autograder.models.abstract.test_function import EvaluationInput, TestFunction
 from autograder.models.criteria_tree import (
     CategoryNode,
     CriteriaTree,
     SubjectNode,
     TestNode,
 )
-from autograder.models.dataclass.param_description import ParamDescription
 from autograder.models.dataclass.submission import (
     Submission,
     SubmissionFile,
@@ -57,11 +56,7 @@ class _ConcreteAiTest(AiTestFunction):
     def description(self) -> str:
         return "AI code review"
 
-    @property
-    def parameter_description(self) -> List[ParamDescription]:
-        return []
-
-    def build_prompt(self, files, **kwargs) -> str:
+    def build_prompt(self, evaluation: EvaluationInput) -> str:
         return "Evaluate the code quality."
 
 
@@ -69,29 +64,31 @@ class _ConcreteAiTest(AiTestFunction):
 # AiTestFunction ABC tests
 # ---------------------------------------------------------------------------
 
-class TestAiTestFunctionPreComputedPath:
-    """Tests for AiTestFunction pre-computed results lookup and fallback path."""
+class TestAiAssessmentsInGrading:
+    """The grader takes AI results from the batch by criterion ID; evaluators never see them."""
 
-    def test_returns_precomputed_result_when_present(self):
-        """Pre-computed result for this test's name is returned directly."""
-        func = _ConcreteAiTest()
-        expected = TestResult(
-            test_name="ai_code_review", score=85.0, report="Good work.", subject_name=""
-        )
-        pre_computed = {"ai_code_review": expected}
+    def _grade(self, assessments):
+        return GraderService().grade_from_tree(
+            criteria_tree=_build_criteria_tree_with_ai_test(_ConcreteAiTest()),
+            submission_files={}, assessments=assessments)
 
-        result = func.execute(files=[], sandbox=None, criterion_id="ai_code_review", pre_computed_results=pre_computed)
+    def test_returns_batch_assessment_for_the_criterion(self):
+        expected = TestResult(test_name="ai_code_review", score=85.0, report="Good work.", subject_name="")
+        result = self._grade({"ai_code_review": expected})
+        leaf = result.root.base.subjects[0].tests[0]
+        assert (leaf.score, leaf.report) == (85.0, "Good work.")
 
-        assert result is expected
-
-    def test_missing_precomputed_result_does_not_retry(self):
-        func = _ConcreteAiTest()
+    def test_missing_assessment_does_not_retry(self):
         with pytest.raises(EvaluationError, match="required AI assessment"):
-            func.execute(files=[], sandbox=None, criterion_id="ai_code_review", pre_computed_results={"other": TestResult("x", 100, "")})
+            self._grade({"other": TestResult("x", 100, "")})
 
-    def test_standalone_requires_host_provider(self):
+    def test_grading_without_a_provider_batch_fails(self):
         with pytest.raises(EvaluationError, match="host-supplied"):
-            _ConcreteAiTest().execute(files=None, sandbox=None, criterion_id="ai_code_review")
+            self._grade(None)
+
+    def test_ai_evaluators_are_never_executed_individually(self):
+        with pytest.raises(EvaluationError, match="host-supplied"):
+            _ConcreteAiTest().execute(EvaluationInput())
 
 
 # ---------------------------------------------------------------------------
@@ -122,11 +119,7 @@ def _build_criteria_tree_no_ai() -> CriteriaTree:
         def description(self):
             return "Regular"
 
-        @property
-        def parameter_description(self):
-            return []
-
-        def execute(self, files, sandbox, *args, **kwargs):
+        def execute(self, evaluation):
             return TestResult(test_name="regular", score=100, report="ok", subject_name="")
 
     test_node = TestNode(name="reg_test", test_function=_RegularTest())
@@ -166,12 +159,12 @@ class TestAiBatch:
 # GraderService tests
 # ---------------------------------------------------------------------------
 
-class TestGraderServicePreComputedResults:
-    """GraderService must thread pre_computed_results through to test functions."""
+class TestGraderServiceAssessments:
+    """Ordinary evaluators receive only their typed input, never AI assessments."""
 
-    def test_pre_computed_results_forwarded_to_test_function(self):
-        """GraderService passes pre_computed_results as a kwarg to test_function.execute."""
-        received_kwargs = {}
+    def test_assessments_are_not_forwarded_to_ordinary_evaluators(self):
+        """GraderService calls execute(evaluation) with no AI results or provider."""
+        received = []
 
         class _CapturingTest(TestFunction):
             @property
@@ -182,12 +175,8 @@ class TestGraderServicePreComputedResults:
             def description(self):
                 return ""
 
-            @property
-            def parameter_description(self):
-                return []
-
-            def execute(self, files, sandbox, *args, **kwargs):
-                received_kwargs.update(kwargs)
+            def execute(self, evaluation, **parameters):
+                received.append((evaluation, parameters))
                 return TestResult(test_name="capture", score=50, report="", subject_name="")
 
         test_node = TestNode(name="cap_test", test_function=_CapturingTest())
@@ -200,10 +189,12 @@ class TestGraderServicePreComputedResults:
         svc.grade_from_tree(
             criteria_tree=tree,
             submission_files={},
-            pre_computed_results=precomp,
+            assessments=precomp,
         )
 
-        assert received_kwargs.get("pre_computed_results") is precomp
+        [(evaluation, parameters)] = received
+        assert parameters == {}
+        assert evaluation == EvaluationInput(files=(), language=None, locale="en", session=None)
 
     def test_no_executor_attribute_checked(self):
         """GraderService must not inspect test_function.executor."""
@@ -221,11 +212,7 @@ class TestGraderServicePreComputedResults:
             def description(self):
                 return ""
 
-            @property
-            def parameter_description(self):
-                return []
-
-            def execute(self, files, sandbox, *args, **kwargs):
+            def execute(self, evaluation):
                 return TestResult(test_name="old_style", score=100, report="ok", subject_name="")
 
         test_node = TestNode(name="old_test", test_function=_TestWithExecutorAttr())

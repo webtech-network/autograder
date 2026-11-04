@@ -1,12 +1,14 @@
 """Tests for ForbiddenKeywordTest."""
 
-from unittest.mock import MagicMock
+from tests.evaluator_calls import invoke
+
+PARSE = "autograder.template_library.static_analysis.parse_source"
+from unittest.mock import MagicMock, patch
 import pytest
 from autograder.models.evaluation_error import EvaluationError
 
 from autograder.template_library.static_analysis import ForbiddenKeywordTest, StaticAnalysisTemplate, ForbiddenKeywordConfig
 from autograder.models.dataclass.submission import SubmissionFile
-from autograder.services.structural_analysis import StructuralAnalysisCache
 from sandbox_manager.models.sandbox_models import Language
 
 
@@ -58,11 +60,10 @@ class TestForbiddenKeywordMetadata:
         assert len(self.test_fn.description) > 0
 
     def test_parameter_descriptions(self):
-        """Test that the test has correct parameter descriptions."""
-        params = self.test_fn.parameter_description
-        assert len(params) == 2
-        assert params[0].name == "forbidden_keywords"
-        assert params[1].name == "custom_ast_grep_rules"
+        """Parameter documentation comes from the contract field descriptions."""
+        properties = self.test_fn.config_schema.model_json_schema()["properties"]
+        assert list(properties) == ["forbidden_keywords", "custom_ast_grep_rules"]
+        assert all(field["description"] for field in properties.values())
 
 
 class TestForbiddenKeywordExecution:
@@ -76,40 +77,35 @@ class TestForbiddenKeywordExecution:
 
     def test_no_rules_gives_100(self):
         """Test that no keywords or rules returns full score."""
-        result = self.test_fn.execute([], None)
+        result = invoke(self.test_fn, [], None)
         assert result.score == 100.0
 
     def test_no_analysis_gives_0(self):
         """Test that missing structural analysis returns score 0."""
         with pytest.raises(EvaluationError):
-            self.test_fn.execute([], None, forbidden_keywords=["for_loop"])
+            invoke(self.test_fn, [], None, forbidden_keywords=["for_loop"])
 
     def test_unavailable_analysis_gives_0(self):
         """Unavailable structural analysis should fail explicitly."""
-        sa_result = MagicMock(root_for=MagicMock(side_effect=EvaluationError("CAPABILITY_UNAVAILABLE", "Unavailable", "capability")))
-        with pytest.raises(EvaluationError):
-            self.test_fn.execute(
+        parser = patch(PARSE, side_effect=EvaluationError("CAPABILITY_UNAVAILABLE", "Unavailable", "capability"))
+        with parser, pytest.raises(EvaluationError):
+            invoke(self.test_fn,
                 [SubmissionFile("main.py", "for i in range(10): pass")],
                 None,
                 forbidden_keywords=["for_loop"],
-                structural_analysis=sa_result,
                 submission_language=Language.PYTHON,
             )
 
     def test_no_language_gives_0(self):
         """Test that missing language returns score 0."""
-        sa_result = StructuralAnalysisCache()
         with pytest.raises(EvaluationError):
-            self.test_fn.execute([], None,
-                                         forbidden_keywords=["for_loop"],
-                                         structural_analysis=sa_result)
+            invoke(self.test_fn, [], None,
+                                         forbidden_keywords=["for_loop"])
 
     def test_no_files_gives_100(self):
         """Test that empty file list returns full score."""
-        sa_result = StructuralAnalysisCache()
-        result = self.test_fn.execute([], None,
+        result = invoke(self.test_fn, [], None,
                                      forbidden_keywords=["for_loop"],
-                                     structural_analysis=sa_result,
                                      submission_language=Language.PYTHON)
         assert result.score == 100.0
 
@@ -120,12 +116,12 @@ class TestForbiddenKeywordExecution:
         mock_match = MagicMock()
         mock_root.root().find_all.return_value = [mock_match]
 
-        sa_result = MagicMock(root_for=MagicMock(return_value=mock_root))
+        parser = patch(PARSE, return_value=mock_root)
         files = [SubmissionFile("main.py", "for i in range(10): pass")]
         
-        result = self.test_fn.execute(files, None,
+        with parser:
+            result = invoke(self.test_fn, files, None,
                                      forbidden_keywords=["for_loop"],
-                                     structural_analysis=sa_result,
                                      submission_language=Language.PYTHON)
         
         assert result.score == 0.0
@@ -137,13 +133,13 @@ class TestForbiddenKeywordExecution:
         mock_root = MagicMock()
         mock_root.root().find_all.return_value = [MagicMock()]
 
-        sa_result = MagicMock(root_for=MagicMock(return_value=mock_root))
+        parser = patch(PARSE, return_value=mock_root)
         files = [SubmissionFile("main.py", "if True: pass")]
         custom_rules = [{"kind": "if_statement"}]
         
-        result = self.test_fn.execute(files, None,
+        with parser:
+            result = invoke(self.test_fn, files, None,
                                      custom_ast_grep_rules=custom_rules,
-                                     structural_analysis=sa_result,
                                      submission_language=Language.PYTHON)
         
         assert result.score == 0.0
@@ -154,25 +150,24 @@ class TestForbiddenKeywordExecution:
         mock_root = MagicMock()
         mock_root.root().find_all.return_value = []
 
-        sa_result = MagicMock(root_for=MagicMock(return_value=mock_root))
+        parser = patch(PARSE, return_value=mock_root)
         files = [SubmissionFile("main.py", "x = 1")]
         
-        result = self.test_fn.execute(files, None,
+        with parser:
+            result = invoke(self.test_fn, files, None,
                                      forbidden_keywords=["for_loop"],
-                                     structural_analysis=sa_result,
                                      submission_language=Language.PYTHON)
         
         assert result.score == 100.0
 
     def test_missing_roots_for_target_file_gives_0(self):
         """If target files have no parsed roots, the test should fail as no-analysis."""
-        sa_result = MagicMock(root_for=MagicMock(side_effect=EvaluationError("CAPABILITY_UNAVAILABLE", "Unavailable", "capability")))
+        parser = patch(PARSE, side_effect=EvaluationError("CAPABILITY_UNAVAILABLE", "Unavailable", "capability"))
         files = [SubmissionFile("main.py", "for i in range(10): pass")]
-        with pytest.raises(EvaluationError):
-            self.test_fn.execute(
+        with parser, pytest.raises(EvaluationError):
+            invoke(self.test_fn,
                 files,
                 None,
                 forbidden_keywords=["for_loop"],
-                structural_analysis=sa_result,
                 submission_language=Language.PYTHON,
             )

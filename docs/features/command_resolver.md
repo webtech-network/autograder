@@ -86,11 +86,11 @@ When a student submits code, it enters an execution pipeline managed by the Auto
 
 1. **Language Association:** The API or Web layer identifies the submitted language and supplies it on `Submission`.
 2. **Configuration Load:** The pipeline loads the standard criteria (e.g., weight, number of tests, configurations like `setup_config` to compile `.java` or `.cpp`).
-3. **Execution Routing in `SubmissionGrader`:** When evaluating an individual test node, `SubmissionGrader` discovers that `program_command` isn't an exact literal. It hands over the raw value (Dict or `"CMD"`) alongside the current `SubmissionLanguage` to the `CommandResolver`.
+3. **Resolution inside the execution evaluator:** The generic grader passes the canonical `program_command` verbatim. The I/O evaluators (`expect_output`, `dont_fail`, `expect_file_artifact`) hand the raw value (string, language map or `"CMD"`) and `evaluation.language` to the `CommandResolver`. Their `validate_parameters` hook rejects maps that do not cover every allowed language at compilation.
 4. **Processing by `CommandResolver`:**
    - If the value is a dictionary, it looks up the specific key (e.g., `java`) and returns its explicit command string (`java Calculator`).
    - If the value is `"CMD"`, it assesses the submitted files or fallback defaults to return the right execution instruction.
-5. **Sandbox Hand-off:** After finding the appropriate string, the `SubmissionGrader` forwards it into the configured Docker container (the sandbox). Since the sandbox matches the submission language context, it spins up and correctly evaluates `java Calculator`, oblivious to the fact that the assignment originally supported Python or Node submissions.
+5. **Sandbox Hand-off:** After finding the appropriate string, the evaluator runs it in its execution session (the sandbox). Since the sandbox matches the submission language context, it spins up and correctly evaluates `java Calculator`, oblivious to the fact that the assignment originally supported Python or Node submissions.
 
 ---
 
@@ -133,12 +133,12 @@ When a student submits code, it enters an execution pipeline managed by the Auto
 
 ### Code Flow
 
-1. **Grade Step** (`grade_step.py`):
-   - Sets submission language in `GraderService`
+1. **Grader** (`criteria_grader.py`):
+   - Builds `EvaluationInput(files, language, locale, session)`
+   - Calls `test_function.execute(evaluation, **canonical_parameters)`
 
-2. **Grader Service** (`grader_service.py`):
-   - Handles the resolution mapping internally using `CommandResolver`
-   - Passes the resolved command to `test_function.execute()`
+2. **Execution evaluator** (`input_output.py`):
+   - Resolves `program_command` with `CommandResolver` for `evaluation.language`
 
 3. **Command Resolver** (`command_resolver.py`):
    - Checks `program_command` format (`dict` or `"CMD"`)
@@ -347,7 +347,7 @@ None. This feature is fully backward compatible with existing configurations.
 
 ### Modified Components
 
-- `GraderService`: Tracks and passes submission language to tests
+- `SubmissionGrader`: Passes the submission language to evaluators as `evaluation.language`
 - `AutograderPipeline.run`: Passes the selected submission language directly to the grader service
 
 ---

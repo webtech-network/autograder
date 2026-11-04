@@ -1,15 +1,23 @@
-from typing import Any
-
-import requests
 import json
 import logging
+from typing import Annotated, Any
+
+import requests
+from pydantic import Field
+
 from autograder.models.abstract.template import Template
-from autograder.models.abstract.test_function import TestFunction
-from autograder.models.dataclass.param_description import ParamDescription
+from autograder.models.abstract.test_function import EvaluationInput, TestFunction
 from autograder.models.dataclass.test_result import TestResult
 from autograder.translations import t
-from autograder.models.execution import ExecutionSession
+from autograder.models.execution import ServerSession
 from autograder.models.evaluation_error import EvaluationError
+
+
+def _server(evaluation: EvaluationInput) -> ServerSession:
+    """The assessed-server session bound to API evaluators by their capability."""
+    if evaluation.session is None:
+        raise EvaluationError("SERVER_CAPABILITY_UNAVAILABLE", "This host cannot start and reach an assessed server.", "capability")
+    return evaluation.session
 
 # ===============================================================
 # region: Concrete TestFunction Implementations for API Testing
@@ -30,22 +38,15 @@ class HealthCheckTest(TestFunction):
     def description(self):
         return t("api_testing.health_check.description")
 
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("endpoint", t("api_testing.health_check.params.endpoint"), "string")
-        ]
-
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-
-    def execute(self, files , sandbox: ExecutionSession, endpoint: str = "", **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *, endpoint: Annotated[str, Field(
+            min_length=1, description=t("api_testing.health_check.params.endpoint"))]) -> TestResult:
         """Executes the health check test."""
 
         report = ""
         score = 0
 
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
+        sandbox = _server(evaluation)
         try:
             response = sandbox.make_request("GET", endpoint)
             if response.status_code == 200:
@@ -80,24 +81,18 @@ class CheckResponseJsonTest(TestFunction):
     def description(self):
         return t("api_testing.check_response_json.description")
 
-    @property
-    def parameter_description(self):
-        return [
-            ParamDescription("endpoint", t("api_testing.check_response_json.params.endpoint"), "string"),
-            ParamDescription("expected_key", t("api_testing.check_response_json.params.expected_key"), "string"),
-            ParamDescription("expected_value", t("api_testing.check_response_json.params.expected_value"), "any")
-        ]
-
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-
-    def execute(self, files, sandbox: ExecutionSession, endpoint: str = "", expected_key: str = "", expected_value: Any = None, **kwargs) -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *,
+                endpoint: Annotated[str, Field(min_length=1, description=t("api_testing.check_response_json.params.endpoint"))],
+                expected_key: Annotated[str, Field(min_length=1, description=t("api_testing.check_response_json.params.expected_key"))],
+                expected_value: Annotated[Any, Field(description=t("api_testing.check_response_json.params.expected_value"))] = None,
+                ) -> TestResult:
         """Executes the JSON validation test."""
 
         report = ""
         score = 0
 
-        locale = kwargs.get("locale")
+        locale = evaluation.locale
+        sandbox = _server(evaluation)
         try:
             response = sandbox.make_request("GET", endpoint)
             if response.status_code != 200:
@@ -156,10 +151,3 @@ class ApiTestingTemplate(Template):
             "health_check": HealthCheckTest(),
             "check_response_json": CheckResponseJsonTest(),
         }
-
-
-    def get_test(self, name: str) -> TestFunction:
-        test_function = self.tests.get(name)
-        if not test_function:
-            raise AttributeError(f"Test '{name}' not found in the '{self.template_name}' template.")
-        return test_function

@@ -106,7 +106,9 @@ requiring a nested Docker daemon. The control service is private and token
 protected; see [SANDBOX.md](SANDBOX.md) for its lifecycle, owner leases,
 worker model and recovery rules. Local Docker hosts use `mode="local"` and a sandbox configuration file.
 Custom runner implementations implement the same session operations; evaluators
-receive no manager or provider identity. There is no unrestricted runner profile
+receive no manager or provider identity. Only evaluators declaring `sandbox_execution`
+or `http_network` receive the session, as `evaluation.session`; every other
+evaluator receives `None`, and AI evaluators never receive the provider. There is no unrestricted runner profile
 shipped by this change.
 
 AI providers implement `run(tests, submission_files, locale)` and return exactly
