@@ -115,6 +115,25 @@ def test_deploy_waits_for_every_verification_job():
     assert "github.event_name == 'push'" in condition
     assert "github.ref == 'refs/heads/main'" in condition
     assert not any(override in condition for override in STATUS_OVERRIDES)
+    # A red step or job that is allowed to fail would still count as success.
+    for name, job in jobs.items():
+        assert "continue-on-error" not in job, name
+        for step in job.get("steps", []):
+            assert "continue-on-error" not in step, f"{name}: {step}"
+
+
+def test_deploy_skips_a_commit_that_is_no_longer_the_head_of_main():
+    # Verification time differs per commit, so an older commit can finish last;
+    # deploying it would roll production and `latest` back.
+    deploy = workflow(VERIFY)["jobs"]["deploy"]
+    assert deploy["concurrency"] == {"group": "deploy-production", "cancel-in-progress": False}
+    check, *rest = deploy["steps"]
+    assert check["id"] == "head"
+    assert "git/ref/heads/main" in check["run"] and "GITHUB_SHA" in check["run"]
+    assert "${{" not in check["run"]  # expressions reach the script only through env
+    assert rest
+    for step in rest:
+        assert step.get("if") == "steps.head.outputs.current == 'true'", step
 
 
 def test_only_the_gated_job_deploys_the_service():
@@ -146,3 +165,21 @@ def test_postgres_tier_fails_loudly_without_a_database():
     assert "TEST_POSTGRES_URL" in result.stdout
     assert re.search(r"\d+ errors?", summary), summary
     assert "passed" not in summary and "skipped" not in summary, summary
+
+
+def test_lint_fails_on_any_error_whatever_the_repository_score(tmp_path):
+    # `make lint` scores the whole tree, so one broken module barely moves the
+    # average; the gate must fail on its error, not on the score.
+    recipe = make("-n", "lint").stdout
+    assert "pylint" in recipe
+    assert not re.search(r"--(rcfile|fail-on|fail-under|exit-zero|errors-only|disable)", recipe), recipe
+    clean = "".join(f"VALUE_{index} = {index}\n" for index in range(200))
+    cases = {"undefined_name.py": clean + "print(missing_name)\n", "syntax_error.py": clean + "def f(:\n"}
+    for filename, source in cases.items():
+        module = tmp_path / filename
+        module.write_text('"""Probe."""\n' + source, encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, "-m", "pylint", f"--rcfile={ROOT / '.pylintrc'}", str(module)],
+            cwd=tmp_path, capture_output=True, text=True, check=False, timeout=120)
+        assert re.search(r": E\d{4}: ", result.stdout), result.stdout
+        assert result.returncode != 0, f"{filename} passed lint:\n{result.stdout}"
