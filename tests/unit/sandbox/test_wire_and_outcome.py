@@ -12,7 +12,8 @@ from autograder.models.capabilities import HostCapabilities
 from execution_host.docker import DockerSession
 from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.manager import SandboxManager
-from sandbox_manager.models.sandbox_models import DisposalStatus, Language
+from sandbox_manager.models.sandbox_models import DisposalStatus
+from autograder.models.language import Language
 from sandbox_manager.remote_client import (
     ArtifactNotFound,
     RemoteSandboxError,

@@ -149,9 +149,9 @@
               "enum": [
                 "python",
                 "java",
-                "c",
+                "node",
                 "cpp",
-                "node"
+                "c"
               ],
               "type": "string"
             },
@@ -356,9 +356,9 @@
               "enum": [
                 "python",
                 "java",
-                "c",
+                "node",
                 "cpp",
-                "node"
+                "c"
               ],
               "type": "string"
             },

@@ -516,11 +516,12 @@ SELECT * FROM submissions ORDER BY created_at DESC LIMIT 10;
 
 ```yaml
 # sandbox_config.yml
-pools:
-  - language: python
-    pool_size: 5          # Increase for high load
-    scale_limit: 20       # Maximum containers
-    idle_timeout: 300     # Keep warm longer
+general:
+  pool_size: 5          # Increase for high load (per language)
+  scale_limit: 20       # Maximum containers per language
+  idle_timeout: 300     # Keep warm longer
+runtimes:               # only listed languages get a pool
+  python: sandbox-py:latest
 ```
 
 ### Profile Code

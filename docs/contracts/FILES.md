@@ -103,8 +103,12 @@ hosts; `helper.py` and `README.md` remain context and execution input.
 
 Remove the unused `required_file`/`required_file_type` properties. Optional
 `TestFunction` declarations are `file_extensions`, `minimum_files`,
-`maximum_files`, `source_files_only`, `uses_context_files`, and `file_parameters`.
-Defaults allow zero or more scoped files without a type restriction. Set
+`maximum_files`, `uses_context_files`, and `file_parameters`, plus the
+`accepts_file(filename, language)` hook. Defaults allow zero or more scoped files
+without a type restriction; the default hook honours `file_extensions`. Source
+analysers override the hook with their parser rules (`source_files_only` was
+replaced by `accepts_file`; the built-in static evaluators use
+`structural_analysis.is_runtime_source`). Set
 `maximum_files = 0` for endpoint-only checks; set matching extensions and minimum
 and maximum of one for single-file checks. Avoid implementing declarations that
 an evaluator does not need. The former internal structural pipeline step,

@@ -11,8 +11,9 @@ import pytest
 from autograder import evaluate_submission
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from execution_host.docker import DockerHost
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from tests.fake_object_store import fake_s3_provider
+from tests.sandbox_profiles import sandbox_config
 
 PROGRAM = """import os
 root = '/tmp/app'
@@ -51,7 +52,7 @@ FIXTURES = [{"reference": "course/a/b", "path": "slash.txt", "read_only": True},
 @pytest.fixture(scope="module")
 def host(tmp_path_factory):
     config = tmp_path_factory.mktemp("sandbox") / "sandbox.yml"
-    config.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
+    config.write_text(sandbox_config())
     owner = DockerHost(mode="local", config_file=str(config))
     yield owner
     owner.close()

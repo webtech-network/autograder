@@ -6,7 +6,8 @@ import pytest
 from autograder import build_pipeline
 from autograder.models.capabilities import HostCapabilities
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from sandbox_manager.models.sandbox_models import CommandResponse, Language, ResponseCategory
+from sandbox_manager.models.sandbox_models import CommandResponse, ResponseCategory
+from autograder.models.language import Language
 
 
 def definition(*, preparation=None, templates=None, evaluator="check_project_structure", parameters=None):

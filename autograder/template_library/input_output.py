@@ -1,15 +1,14 @@
 import logging
 import re
 from pathlib import PurePosixPath
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
+from typing import Annotated, Any, Dict, Iterable, List, Literal, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import EvaluationInput, ParameterIssue, TestFunction
-from autograder.models.contracts.parameters import Command
 from autograder.models.dataclass.test_result import TestResult
-from autograder.services.command_resolver import CommandResolver
+from autograder.models.language import Language, LanguageId
 from autograder.translations import t
 from autograder.models.execution import ExecutionSession
 from sandbox_manager.models.sandbox_models import ResponseCategory
@@ -22,6 +21,22 @@ from autograder.models.evaluation_error import EvaluationError
 
 PROGRAM_COMMAND = ("Command that runs the program: a nonempty string, a map with a command for every "
                    "allowed language, or 'CMD' for the conventional per-language default.")
+
+Nonempty = Annotated[str, Field(min_length=1)]
+Command = Nonempty | dict[LanguageId, Nonempty]
+
+#: The ``CMD`` placeholder: the conventional entry point of each runtime. This is
+#: the only default-command table. A language without an entry cannot use ``CMD``
+#: (``MISSING_LANGUAGE_COMMAND`` at compilation); authors can always write an
+#: explicit command or a language map instead.
+DEFAULT_COMMANDS: Dict[Language, str] = {
+    Language.PYTHON: "python3 main.py",
+    Language.JAVA: "java Main",
+    Language.NODE: "node index.js",
+    Language.CPP: "./a.out",
+    Language.C: "./a.out",
+}
+DEFAULT_COMMAND = "CMD"
 
 
 STRICT = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
@@ -81,18 +96,37 @@ class BaseExecutionTest(TestFunction):
 
     def validate_parameters(self, parameters: Dict[str, Any], *,
                             languages: Tuple[str, ...]) -> Iterable[ParameterIssue]:
-        """A language-keyed command map must cover every allowed language."""
+        """A language map or ``CMD`` must name a command for every allowed language."""
         command = parameters["program_command"]
-        if isinstance(command, dict) and not set(languages).issubset(command):
+        if isinstance(command, dict):
+            covered = set(command)
+        elif command == DEFAULT_COMMAND:
+            covered = {language.value for language in DEFAULT_COMMANDS}
+        else:
+            return
+        if not set(languages).issubset(covered):
             yield ParameterIssue("MISSING_LANGUAGE_COMMAND", ("program_command",),
                                  "Command map must cover every allowed language")
 
     @staticmethod
-    def resolve_command(program_command: Any, evaluation: EvaluationInput) -> Optional[str]:
-        """Resolve a command map or the CMD placeholder for the submission language."""
-        if evaluation.language is None:
+    def resolve_command(program_command: Any, evaluation: EvaluationInput) -> str:
+        """The command for the bound submission language.
+
+        A plain string is used verbatim; a language map and ``CMD`` select by
+        ``evaluation.language``. Compilation guarantees coverage, so a missing
+        entry here means the evaluator was invoked outside a compiled plan.
+        """
+        if isinstance(program_command, str) and program_command != DEFAULT_COMMAND:
             return program_command
-        return CommandResolver().resolve_command(program_command, evaluation.language)
+        if evaluation.language is None:
+            raise EvaluationError("LANGUAGE_REQUIRED", "A language is required to select the program command.", "submission")
+        table = program_command if isinstance(program_command, dict) else {
+            language.value: command for language, command in DEFAULT_COMMANDS.items()}
+        try:
+            return table[evaluation.language.value]
+        except KeyError:
+            raise EvaluationError("MISSING_LANGUAGE_COMMAND", "No program command is defined for this language.",
+                                  "submission") from None
 
     @staticmethod
     def require_session(evaluation: EvaluationInput) -> ExecutionSession:

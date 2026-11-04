@@ -15,7 +15,8 @@ from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.evaluation_error import EvaluationError
 from autograder.template_library.input_output import ExpectOutputTest
-from sandbox_manager.models.sandbox_models import CommandResponse, Language, ResponseCategory
+from sandbox_manager.models.sandbox_models import CommandResponse, ResponseCategory
+from autograder.models.language import Language
 
 API_PARAMETERS = {"health_check": {}, "check_response_json": {"expected_key": "status"}}
 

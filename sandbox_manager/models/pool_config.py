@@ -1,18 +1,27 @@
-import os
-import yaml
-from dataclasses import dataclass
-from typing import List, Optional
+"""Host runtime profiles: language -> image, and pool sizing.
 
-from sandbox_manager.models.sandbox_models import Language
+The domain language (``autograder.models.language.Language``) carries no image.
+This host maps each language it can execute to a sandbox image in the
+``runtimes`` section of ``sandbox_config.yml``; a language without an entry has
+no pool, and acquiring it is a capability failure (``RuntimeUnavailableError``).
+Isolation and limits stay in the single Docker profile
+(``sandbox_manager.docker_profile``).
+"""
+import os
+from dataclasses import dataclass
+from typing import Dict, List
+
+import yaml
+
+from autograder.models.language import Language
 
 
 @dataclass
 class SandboxPoolConfig:
-    """
-    Configuration for sandboxes of a specific language
-    """
+    """One runtime profile: the image this host runs for a language, and its pool sizing."""
     language: Language
-    pool_size: int  # Renamed from start_amount for consistency with main.py
+    image: str
+    pool_size: int
     scale_limit: int
     idle_timeout: int
     running_timeout: int
@@ -22,51 +31,46 @@ class SandboxPoolConfig:
 
     @classmethod
     def load_from_yaml(cls, config_path: str = "sandbox_config.yml") -> List['SandboxPoolConfig']:
-        """
-        Load sandbox pool configurations from YAML file.
+        """Load one pool configuration per runtime listed in the YAML ``runtimes`` map.
 
-        Args:
-            config_path: Path to the sandbox configuration YAML file
-
-        Returns:
-            List of SandboxPoolConfig objects for each language
+        A relative path is resolved from the project root.
         """
-        # If path is relative, resolve from project root
         if not os.path.isabs(config_path):
-            # Try to find the project root (where the config file should be)
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            # Go up to project root (from sandbox_manager/models/ to root)
-            project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
+            project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
             config_path = os.path.join(project_root, config_path)
 
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Sandbox configuration file not found: {config_path}")
 
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f)
 
         if not config_data or 'general' not in config_data:
             raise ValueError("Invalid sandbox configuration: 'general' section not found")
 
         general = config_data['general']
+        return [cls(
+            language=language,
+            image=image,
+            pool_size=general.get('pool_size', 2),
+            scale_limit=general.get('scale_limit', 5),
+            idle_timeout=general.get('idle_timeout', 300),
+            running_timeout=general.get('running_timeout', 60),
+            disposal_attempts=general.get('disposal_attempts', 5),
+        ) for language, image in runtime_images(config_data.get('runtimes')).items()]
 
-        # Extract configuration values
-        pool_size = general.get('pool_size', 2)
-        scale_limit = general.get('scale_limit', 5)
-        idle_timeout = general.get('idle_timeout', 300)
-        running_timeout = general.get('running_timeout', 60)
-        disposal_attempts = general.get('disposal_attempts', 5)
 
-        # Create configurations for all supported languages
-        configs = []
-        for language in Language:
-            configs.append(cls(
-                language=language,
-                pool_size=pool_size,
-                scale_limit=scale_limit,
-                idle_timeout=idle_timeout,
-                running_timeout=running_timeout,
-                disposal_attempts=disposal_attempts,
-            ))
-
-        return configs
+def runtime_images(runtimes) -> Dict[Language, str]:
+    """Validate the ``runtimes`` map: canonical language identifiers to image references."""
+    if not isinstance(runtimes, dict) or not runtimes:
+        raise ValueError("Invalid sandbox configuration: 'runtimes' must map languages to images")
+    images = {}
+    for key, image in runtimes.items():
+        try:
+            language = Language(key)
+        except ValueError:
+            raise ValueError(f"Invalid sandbox configuration: unknown runtime language '{key}'") from None
+        if not isinstance(image, str) or not image.strip():
+            raise ValueError(f"Invalid sandbox configuration: runtime '{key}' needs an image")
+        images[language] = image
+    return images

@@ -7,9 +7,11 @@ import docker
 import pytest
 
 from sandbox_manager.docker_profile import container_options
+from sandbox_manager.errors import RuntimeUnavailableError
 from sandbox_manager.language_pool import LanguagePool, SandboxUnavailableError
 from sandbox_manager.manager import SandboxManager
-from sandbox_manager.models.sandbox_models import DisposalStatus, Language, SandboxState
+from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
+from autograder.models.language import Language
 from sandbox_manager.ownership import LABEL_OWNER
 from tests.unit.sandbox.fakes import Clock, FakeDocker, owner, pool_config
 
@@ -182,8 +184,8 @@ def test_gvisor_available_uses_runtime():
 
 
 def test_profile_is_declared_once():
-    options = container_options(Language.JAVA, "n", {"k": "v"})
-    assert options["image"] == Language.JAVA.image
+    options = container_options("registry.local/java:21", "n", {"k": "v"})
+    assert options["image"] == "registry.local/java:21"
     assert options["mem_limit"] == options["memswap_limit"] == "128m"
     assert options["pids_limit"] == 64
     assert options["tmpfs"]["/tmp"].endswith("noexec")
@@ -224,7 +226,7 @@ def test_manager_dispose_and_context_manager():
             assert sandbox.state is SandboxState.ACTIVE
         assert sandbox.state is SandboxState.DISPOSED
         assert manager.dispose(sandbox) is DisposalStatus.ALREADY_DISPOSED
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeUnavailableError):  # no runtime profile: a host capability gap
             manager.get_sandbox(Language.JAVA)
     assert not manager.monitor_thread.is_alive()
 

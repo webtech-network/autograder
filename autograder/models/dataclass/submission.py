@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set
 
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 
 
 @dataclass

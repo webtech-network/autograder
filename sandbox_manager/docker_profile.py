@@ -16,8 +16,6 @@ from typing import Dict
 
 from docker.types.containers import Ulimit
 
-from sandbox_manager.models.sandbox_models import Language
-
 GVISOR_RUNTIME = "runsc"
 
 MEMORY_LIMIT = "128m"
@@ -29,10 +27,13 @@ FIXTURE_TMPFS = "rw,size=32m,noexec"             # /tmp: fixtures, never executa
 FIXTURE_TMPFS_BYTES = 32 * 1024 * 1024
 
 
-def container_options(language: Language, name: str, labels: Dict[str, str]) -> dict:
-    """Keyword arguments for ``client.containers.run`` without a runtime."""
+def container_options(image: str, name: str, labels: Dict[str, str]) -> dict:
+    """Keyword arguments for ``client.containers.run`` without a runtime.
+
+    ``image`` comes from the host runtime profile (``SandboxPoolConfig.image``).
+    """
     return {
-        "image": language.image,
+        "image": image,
         "name": name,
         "detach": True,
         "command": "sleep infinity",  # Keep the container alive for exec commands.

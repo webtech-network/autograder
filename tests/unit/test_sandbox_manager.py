@@ -11,7 +11,9 @@ Tests cover:
 import unittest
 from unittest.mock import Mock, MagicMock, patch
 from sandbox_manager.sandbox_container import SandboxContainer
-from sandbox_manager.models.sandbox_models import Language, SandboxState, CommandResponse, HttpResponse
+from sandbox_manager.models.sandbox_models import SandboxState, CommandResponse, HttpResponse
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_IMAGES
 from autograder.models.dataclass.submission import SubmissionFile
 import requests
 
@@ -261,6 +263,7 @@ class TestLanguagePoolNaming(unittest.TestCase):
 
         config = SandboxPoolConfig(
             language=Language.PYTHON,
+            image=TEST_IMAGES[Language.PYTHON],
             pool_size=1,
             scale_limit=2,
             idle_timeout=300,
@@ -278,6 +281,7 @@ class TestLanguagePoolNaming(unittest.TestCase):
 
         config = SandboxPoolConfig(
             language=Language.JAVA,
+            image=TEST_IMAGES[Language.JAVA],
             pool_size=1,
             scale_limit=2,
             idle_timeout=300,

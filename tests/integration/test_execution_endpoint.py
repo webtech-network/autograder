@@ -10,7 +10,8 @@ from web.main import create_app
 from web.core.config import Settings
 from tests.web.conftest import db_engine, session_factory  # pylint: disable=unused-import
 from execution_host.docker import DockerHost
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_SANDBOX_CONFIG
 
 BASE_URL = "/api/v1/execute"
 
@@ -24,7 +25,7 @@ def integration_token(monkeypatch):
 async def execution_application(session_factory, tmp_path):
     """Give every endpoint test its own explicitly supplied Docker host."""
     config = tmp_path / "sandbox.yml"
-    config.write_text("general:\n  pool_size: 0\n  scale_limit: 2\n  idle_timeout: 300\n  running_timeout: 60\n")
+    config.write_text(TEST_SANDBOX_CONFIG)
     owner = DockerHost(mode="local", config_file=str(config))
     app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts")), session_factory=session_factory,
                      capabilities=owner.capabilities, resource_owner=owner, start_workers=False)

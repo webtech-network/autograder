@@ -8,16 +8,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from sandbox_manager.api import ControlSettings, HandleRegistry, create_app
+from sandbox_manager.errors import RuntimeUnavailableError
 from sandbox_manager.language_pool import SandboxUnavailableError
 from sandbox_manager.models.api_models import MAX_BODY_BYTES, MAX_OUTPUT_BYTES
-from sandbox_manager.models.sandbox_models import (
-    CommandResponse,
-    DisposalStatus,
-    ExtractedFile,
-    Language,
-    ResponseCategory,
-    SandboxState,
-)
+from sandbox_manager.models.sandbox_models import CommandResponse, DisposalStatus, ExtractedFile, ResponseCategory, SandboxState
+from autograder.models.language import Language
 from tests.unit.sandbox.fakes import Clock
 
 TOKEN = "s3cret-token"
@@ -55,7 +50,7 @@ class FakeManager:
 
     def get_sandbox(self, language):
         if language not in self.language_pools:
-            raise ValueError("unsupported")
+            raise RuntimeUnavailableError("no runtime")
         if self.unavailable:
             raise SandboxUnavailableError("busy")
         sandbox = FakeSandbox(language)
@@ -210,7 +205,9 @@ def test_pool_exhaustion_and_unknown_language(api, manager):
     response = acquire(api)
     assert response.status_code == 503 and code(response) == "SANDBOX_UNAVAILABLE"
     response = acquire(api, language="java")
-    assert response.status_code == 400 and code(response) == "LANGUAGE_UNAVAILABLE"
+    assert response.status_code == 501 and code(response) == "RUNTIME_UNAVAILABLE"
+    response = acquire(api, language="rust")
+    assert response.status_code == 422 and code(response) == "INVALID_REQUEST"
 
 
 # ------------------------------------------------------------------ operations and errors

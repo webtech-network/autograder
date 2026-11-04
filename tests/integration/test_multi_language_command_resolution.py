@@ -4,7 +4,8 @@ from unittest.mock import Mock
 
 from tests.integration.definition_fixtures import build_migrated_fixture_pipeline
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from sandbox_manager.models.sandbox_models import Language, ResponseCategory
+from sandbox_manager.models.sandbox_models import ResponseCategory
+from autograder.models.language import Language
 
 
 class TestMultiLanguageCommandResolution:

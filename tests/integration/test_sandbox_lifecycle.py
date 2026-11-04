@@ -10,10 +10,11 @@ from unittest.mock import patch
 import docker
 import pytest
 
+from autograder.models.language import Language
 from sandbox_manager.language_pool import LABEL_LANGUAGE, LABEL_POOL_ID
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import DisposalStatus, Language, SandboxState
+from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
 from sandbox_manager.ownership import (
     APP_LABEL_VALUE,
     LABEL_APP,
@@ -23,10 +24,11 @@ from sandbox_manager.ownership import (
     OwnerIdentity,
     reclaim_selected,
 )
+from tests.sandbox_profiles import TEST_IMAGES
 
 
 def config(pool_size=0, scale_limit=2, running_timeout=60, disposal_attempts=3):
-    return SandboxPoolConfig(language=Language.PYTHON, pool_size=pool_size, scale_limit=scale_limit,
+    return SandboxPoolConfig(language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=pool_size, scale_limit=scale_limit,
                              idle_timeout=300, running_timeout=running_timeout,
                              disposal_attempts=disposal_attempts)
 
@@ -35,9 +37,9 @@ def config(pool_size=0, scale_limit=2, running_timeout=60, disposal_attempts=3):
 def client():
     try:
         value = docker.from_env()
-        value.images.get(Language.PYTHON.image)
+        value.images.get(TEST_IMAGES[Language.PYTHON])
     except Exception as exc:  # pragma: no cover - environment guard
-        pytest.skip(f"Docker or {Language.PYTHON.image} unavailable: {exc}")
+        pytest.skip(f"Docker or {TEST_IMAGES[Language.PYTHON]} unavailable: {exc}")
     yield value
     value.close()
 
@@ -58,7 +60,7 @@ def wait_until(predicate, timeout=15.0):
 
 def fabricated_container(client, labels, name_suffix):
     """A cheap labelled container standing in for another owner's sandbox."""
-    return client.containers.run(Language.PYTHON.image, command="sleep infinity", detach=True,
+    return client.containers.run(TEST_IMAGES[Language.PYTHON], command="sleep infinity", detach=True,
                                  network_mode="none", labels=labels,
                                  name=f"ag-test-{name_suffix}-{OwnerIdentity.current().owner_id[:8]}")
 

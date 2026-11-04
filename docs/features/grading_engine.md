@@ -141,3 +141,4 @@ so repeated labels or labels containing slashes never collide:
 | `autograder/models/criteria_tree.py` | `CriteriaTree`, `CategoryNode`, `SubjectNode`, `TestNode` |
 | `autograder/models/dataclass/test_result.py` | `TestResult`: an evaluator's return value |
 | `autograder/services/result_comparator.py` | `compare`: pure ID-joined comparison |
+| `autograder/template_library/input_output.py` | I/O evaluators, including `program_command` selection (see [Program Commands](program_commands.md)) |

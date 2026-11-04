@@ -1607,9 +1607,9 @@
                 "enum": [
                   "python",
                   "java",
-                  "c",
+                  "node",
                   "cpp",
-                  "node"
+                  "c"
                 ]
               },
               {
@@ -1695,9 +1695,9 @@
                 "enum": [
                   "python",
                   "java",
-                  "c",
+                  "node",
                   "cpp",
-                  "node"
+                  "c"
                 ]
               },
               {
@@ -2590,9 +2590,9 @@
                 "enum": [
                   "python",
                   "java",
-                  "c",
+                  "node",
                   "cpp",
-                  "node"
+                  "c"
                 ]
               },
               {
@@ -2675,9 +2675,9 @@
                 "enum": [
                   "python",
                   "java",
-                  "c",
+                  "node",
                   "cpp",
-                  "node"
+                  "c"
                 ]
               },
               {

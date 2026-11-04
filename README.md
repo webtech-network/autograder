@@ -265,6 +265,15 @@ general:
     # Seconds before killing sandboxes with running processes
     # Prevents hanging processes from consuming resources
     running_timeout: 120
+
+# Host runtime profiles: language identifier -> sandbox image.
+# A language left out has no pool and is reported as an unavailable capability.
+runtimes:
+    python: sandbox-py:latest
+    java: sandbox-java:latest
+    node: sandbox-node:latest
+    cpp: sandbox-cpp:latest
+    c: sandbox-cpp:latest
 ```
 
 4. **Build sandbox images**

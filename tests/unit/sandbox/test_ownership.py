@@ -7,7 +7,7 @@ import pytest
 from sandbox_manager import ownership, reclaim
 from sandbox_manager.language_pool import LanguagePool
 from sandbox_manager.manager import SandboxManager
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from sandbox_manager.ownership import (
     APP_LABEL_VALUE,
     LABEL_APP,

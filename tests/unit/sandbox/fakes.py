@@ -5,8 +5,9 @@ from unittest.mock import Mock
 import docker
 
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from sandbox_manager.ownership import OwnerIdentity
+from tests.sandbox_profiles import TEST_IMAGES
 
 _ids = itertools.count(1)
 
@@ -70,7 +71,7 @@ class FakeDocker:
 
 def pool_config(language=Language.PYTHON, pool_size=0, scale_limit=2, running_timeout=60,
                 idle_timeout=300, disposal_attempts=3):
-    return SandboxPoolConfig(language=language, pool_size=pool_size, scale_limit=scale_limit,
+    return SandboxPoolConfig(language=language, image=TEST_IMAGES[language], pool_size=pool_size, scale_limit=scale_limit,
                              idle_timeout=idle_timeout, running_timeout=running_timeout,
                              disposal_attempts=disposal_attempts)
 

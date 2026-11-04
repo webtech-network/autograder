@@ -11,7 +11,9 @@ import unittest
 import time
 from tests.integration.sandbox_support import current_manager, start_manager, wait_for_idle
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import Language, SandboxState
+from sandbox_manager.models.sandbox_models import SandboxState
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_IMAGES
 from autograder.models.dataclass.submission import SubmissionFile
 
 
@@ -24,6 +26,7 @@ class TestSandboxManagerIntegration(unittest.TestCase):
         pool_configs = [
             SandboxPoolConfig(
                 language=Language.PYTHON,
+                image=TEST_IMAGES[Language.PYTHON],
                 pool_size=2,
                 scale_limit=5,
                 idle_timeout=300,
@@ -31,6 +34,7 @@ class TestSandboxManagerIntegration(unittest.TestCase):
             ),
             SandboxPoolConfig(
                 language=Language.JAVA,
+                image=TEST_IMAGES[Language.JAVA],
                 pool_size=1,
                 scale_limit=3,
                 idle_timeout=300,
@@ -38,6 +42,7 @@ class TestSandboxManagerIntegration(unittest.TestCase):
             ),
             SandboxPoolConfig(
                 language=Language.NODE,
+                image=TEST_IMAGES[Language.NODE],
                 pool_size=1,
                 scale_limit=3,
                 idle_timeout=300,
@@ -45,6 +50,7 @@ class TestSandboxManagerIntegration(unittest.TestCase):
             ),
             SandboxPoolConfig(
                 language=Language.CPP,
+                image=TEST_IMAGES[Language.CPP],
                 pool_size=1,
                 scale_limit=3,
                 idle_timeout=300,

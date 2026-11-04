@@ -5,7 +5,7 @@ import requests
 from autograder.autograder import build_pipeline
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from sandbox_manager.models.sandbox_models import Language
+from autograder.models.language import Language
 from tests.e2e.contracts import create_config, poll
 
 

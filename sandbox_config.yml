@@ -30,6 +30,17 @@ general:
     # Development: 60, Production: 120 (2 min) for safety
     running_timeout: 120
 
+# RUNTIMES: the host's runtime profiles, mapping a domain language identifier to the
+# sandbox image this host runs for it. Replacing an image changes only this map.
+# A language left out has no pool: grading or deliberate execution in that language
+# fails as an unavailable capability (never as an invalid language).
+runtimes:
+    python: sandbox-py:latest
+    java: sandbox-java:latest
+    node: sandbox-node:latest
+    cpp: sandbox-cpp:latest
+    c: sandbox-cpp:latest
+
 # SCALING BEHAVIOR (After Fix):
 # 1. ON HIGH DEMAND: When all idle sandboxes are busy, system automatically
 #    creates new sandboxes up to scale_limit

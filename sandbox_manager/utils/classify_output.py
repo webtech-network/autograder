@@ -1,4 +1,5 @@
-from sandbox_manager.models.sandbox_models import ResponseCategory, Language
+from sandbox_manager.models.sandbox_models import ResponseCategory
+from autograder.models.language import Language
 
 
 def classify_output(stdout: str, stderr: str, exit_code: int, language: Language) -> ResponseCategory:

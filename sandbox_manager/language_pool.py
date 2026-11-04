@@ -20,7 +20,8 @@ from docker.client import DockerClient
 
 from sandbox_manager.docker_profile import GVISOR_RUNTIME, container_options, is_missing_runtime_error
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from sandbox_manager.models.sandbox_models import DisposalStatus, Language, SandboxState
+from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
+from autograder.models.language import Language
 from sandbox_manager.ownership import OwnerIdentity
 from sandbox_manager.sandbox_container import SandboxContainer
 
@@ -270,7 +271,7 @@ class LanguagePool:
     def _create_sandbox(self) -> SandboxContainer:
         """Create one container from the single Docker profile (gVisor when available)."""
         name = self._build_container_name()
-        options = container_options(self.language, name, self._labels())
+        options = container_options(self.config.image, name, self._labels())
         container = None
         if self._gvisor_available:
             try:
