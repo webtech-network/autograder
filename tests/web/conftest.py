@@ -16,10 +16,13 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "postgres: needs TEST_POSTGRES_URL; run with `make test-postgres`")
 
 
+POSTGRES_FIXTURES = {"postgres_sessions", "postgres_url"}
+
+
 def pytest_collection_modifyitems(items):
     """Mark every test that needs the real database, derived from its fixtures."""
     for item in items:
-        if "postgres_sessions" in getattr(item, "fixturenames", ()):
+        if POSTGRES_FIXTURES.intersection(getattr(item, "fixturenames", ())):
             item.add_marker(pytest.mark.postgres)
 
 
