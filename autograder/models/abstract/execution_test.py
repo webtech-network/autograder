@@ -3,7 +3,8 @@
 It lives outside ``autograder.template_library`` so that ``import autograder``
 (which exports it) never builds the built-in templates.
 """
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+import posixpath
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from autograder.models.abstract.test_function import EvaluationInput, ParameterIssue, TestFunction
 from autograder.models.dataclass.test_result import TestResult
@@ -11,7 +12,8 @@ from autograder.models.evaluation_error import EvaluationError
 from autograder.models.execution import ExecutionSession
 from autograder.models.language import Language
 from autograder.models.process import (
-    SHELL_OPERATOR_MESSAGE, ProcessRequest, ProcessResult, ProcessStatus, lines_to_stdin, shell_operator, split_command,
+    SHELL_OPERATOR_MESSAGE, WORKSPACE, ProcessRequest, ProcessResult, ProcessStatus, SandboxExhausted, lines_to_stdin,
+    shell_operator, split_command,
 )
 from autograder.translations import t
 
@@ -30,6 +32,20 @@ DEFAULT_COMMAND = "CMD"
 
 #: Process deadline of one assessed run (see ProcessRequest.timeout).
 RUN_TIMEOUT_SECONDS = 30
+
+
+def in_workspace(executable: str) -> bool:
+    """Whether an executable is a path into the submission's workspace (``./a.out``, ``bin/app``).
+
+    The workspace belongs to the submission, so such a program that is missing
+    or not executable is the submission's result. A bare command is looked up
+    in the runtime image's ``PATH``, and an absolute path outside the workspace
+    is part of the image: when those cannot start, the host lacks a capability.
+    """
+    if "/" not in executable:
+        return False
+    # Relative paths resolve from the workspace, the programs' working directory.
+    return posixpath.normpath(posixpath.join(WORKSPACE, executable)).startswith(f"{WORKSPACE}/")
 
 
 class BaseExecutionTest(TestFunction):  # pylint: disable=abstract-method
@@ -104,13 +120,16 @@ class BaseExecutionTest(TestFunction):  # pylint: disable=abstract-method
         return evaluation.session
 
     def run_program(self, evaluation: EvaluationInput, program_command: Any,
-                    inputs: Optional[List[str]] = None) -> ProcessResult:
+                    inputs: Optional[List[str]] = None) -> Union[ProcessResult, TestResult]:
         """Run the program once with the process contract.
 
         ``inputs`` are lines: each is sent followed by a newline and nothing else is
         sent, so ``[]`` is empty stdin. The command is an argument vector; shell
-        syntax needs an explicit ``sh -c``. Infrastructure failures and a program
-        that cannot be started are execution errors, never an assessed zero.
+        syntax needs an explicit ``sh -c``. Infrastructure failures and a runtime
+        command that cannot be started are execution errors, never an assessed
+        zero. What the submission did to its own sandbox is assessed and returned
+        as the zero ``TestResult``: an entry point in the workspace that is
+        missing or not executable, or an exhausted memory or process limit.
         """
         session = self.require_session(evaluation)
         try:
@@ -118,20 +137,31 @@ class BaseExecutionTest(TestFunction):  # pylint: disable=abstract-method
                                              stdin=lines_to_stdin(inputs or []), timeout=RUN_TIMEOUT_SECONDS)
         except ValueError as e:  # compilation rejects these; reached only outside a compiled plan
             raise EvaluationError("INVALID_COMMAND", "The program command is not valid.", "definition") from e
+        locale = evaluation.locale
         try:
             result = session.run_process(request)
+        except SandboxExhausted:
+            return TestResult(test_name=self.name, score=0.0, report=t("io.execution.exhausted", locale=locale))
         except (ValueError, TimeoutError, RuntimeError) as e:
             raise EvaluationError("SANDBOX_ERROR", "The execution environment could not complete evaluation.",
                                   "capability", True) from e
         if result.status is ProcessStatus.NOT_STARTED:
-            raise EvaluationError("PROCESS_START_FAILED", "The assessed program could not be started.", "capability")
+            if not in_workspace(result.missing_executable or ""):
+                raise EvaluationError("PROCESS_START_FAILED", "The assessed program could not be started.",
+                                      "capability")
+            return TestResult(test_name=self.name, score=0.0,
+                              report=t("io.execution.not_started", locale=locale, program=result.missing_executable))
         return result
 
-    def assessed_failure(self, result: ProcessResult, locale: Optional[str] = None) -> Optional[TestResult]:
+    def assessed_failure(self, result: Union[ProcessResult, TestResult],
+                         locale: Optional[str] = None) -> Optional[TestResult]:
         """A zero for a program that timed out or returned a nonzero exit code.
 
         Classification uses only the exit status, never the wording of stderr.
+        An already assessed ``run_program`` result is returned as it is.
         """
+        if isinstance(result, TestResult):
+            return result
         if result.status is ProcessStatus.TIMED_OUT:
             return TestResult(test_name=self.name, score=0.0,
                               report=t("io.execution.timeout", locale=locale, time=result.duration))

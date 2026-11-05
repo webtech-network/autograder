@@ -5,9 +5,11 @@ A :class:`ProcessRequest` states exactly what runs: an argument vector
 (``shell``, run as ``/bin/sh -c <script>``), the exact ``stdin`` bytes, the
 working directory and a process deadline. A :class:`ProcessResult` reports what
 happened to a process that the backend ran: it exited with a code, it was
-stopped at its deadline, or it could not be started. Anything else (transport,
-provisioning, an invalidated sandbox, failed output readback) is raised as an
-exception by the backend and is never a student result.
+stopped at its deadline, or it could not be started. A submission that
+exhausted its sandbox's memory or process limit raises :class:`SandboxExhausted`,
+a student outcome. Anything else (transport, provisioning, a sandbox stopped or
+removed by the host, an invalidated sandbox, failed output readback) is raised
+as an infrastructure exception by the backend and is never a student result.
 
 Preparation, the I/O and artifact evaluators and deliberate execution all use
 ``ExecutionSession.run_process`` with this contract; they differ only in how
@@ -204,6 +206,19 @@ class ProcessResult:
         if self.status is ProcessStatus.TIMED_OUT:
             return ResponseCategory.TIMEOUT
         return ResponseCategory.SUCCESS if self.exit_code == 0 else ResponseCategory.RUNTIME_ERROR
+
+
+class SandboxExhausted(Exception):
+    """The submission exhausted its sandbox's memory or process limit.
+
+    Raised by the process during which the limit was reached and by every later
+    operation of the same session: the sandbox is spent and nothing more runs
+    in it. The backend decides this from host-side evidence (the container's
+    own limit counters, or the runtime stopping the container by itself), never
+    from an exit code. It is a student outcome, so it is deliberately not a
+    ``RuntimeError``: evaluators assess it as zero (see
+    ``docs/contracts/PROCESSES.md``).
+    """
 
 
 def decode_output(data: bytes, truncated: bool) -> str:

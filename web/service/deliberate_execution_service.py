@@ -6,7 +6,7 @@ from time import monotonic
 
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.asset import ResolvedAsset
-from autograder.models.process import ProcessRequest, ProcessStatus, ResponseCategory, lines_to_stdin
+from autograder.models.process import ProcessRequest, ProcessStatus, ResponseCategory, SandboxExhausted, lines_to_stdin
 from autograder.models.language import Language
 from sandbox_manager.errors import SandboxCapacityTimeout
 from web.schemas.execution import (
@@ -37,6 +37,8 @@ BUSY = ("EXECUTION_BUSY", "All execution sandboxes are busy; retry later.", 503)
 
 
 TIMEOUT_EXIT_CODE = 124  # the wire needs an integer for a stopped process; `category` is authoritative
+EXHAUSTED_EXIT_CODE = 137  # SIGKILL: the program was stopped at the sandbox's memory or process limit
+EXHAUSTED_MESSAGE = "Runtime error occurred: memory or process limit exceeded"
 
 
 def _result(process) -> DeliberateCodeExecutionResult:
@@ -104,9 +106,16 @@ def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: flo
             timeout = max(1, min(CASE_TIMEOUT_SECONDS, int(remaining)))
             # The same process primitive as grading: argv, exact stdin bytes (each
             # line newline-terminated; an omitted or empty case is empty stdin).
-            process = sandbox.run_process(ProcessRequest.command(
-                request.program_command, stdin=lines_to_stdin(case), timeout=timeout,
-                max_output_bytes=MAX_OUTPUT_BYTES))
+            try:
+                process = sandbox.run_process(ProcessRequest.command(
+                    request.program_command, stdin=lines_to_stdin(case), timeout=timeout,
+                    max_output_bytes=MAX_OUTPUT_BYTES))
+            except SandboxExhausted:
+                # The program's own result; nothing more can run in this sandbox.
+                results.append(DeliberateCodeExecutionResult(
+                    category=ResponseCategory.RUNTIME_ERROR, stdout="", stderr="", exit_code=EXHAUSTED_EXIT_CODE,
+                    execution_time=0.0, output="", error_message=EXHAUSTED_MESSAGE, truncated=False))
+                break
             results.append(_result(process))
             if process.status is ProcessStatus.TIMED_OUT:
                 break

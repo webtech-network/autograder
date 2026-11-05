@@ -11,7 +11,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from autograder.models.dataclass.asset import ResolvedAsset
-from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus
+from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus, SandboxExhausted
 from contextlib import contextmanager
 from dataclasses import replace
 from autograder.models.capabilities import HostCapabilities
@@ -215,6 +215,19 @@ async def test_timeout_stops_batch_and_destroys_sandbox():
     assert response.json()["results"][0]["exit_code"] == 124  # wire compatibility; category is authoritative
     assert response.json()["stopped_early"] is True
     assert len(response.json()["results"]) == 1
+    manager.dispose.assert_called_once_with(manager.get_sandbox.return_value)
+
+
+@pytest.mark.asyncio
+async def test_exhausted_sandbox_is_the_programs_runtime_error_and_stops_the_batch():
+    manager, _ = manager_with_sandbox(SandboxExhausted("limit"))
+    with manager_profile(return_value=manager):
+        response = await post(REQUEST)
+    assert response.status_code == 200
+    [result] = response.json()["results"]
+    assert (result["category"], result["exit_code"]) == ("runtime_error", 137)
+    assert "memory or process limit" in result["error_message"]
+    assert response.json()["stopped_early"] is True
     manager.dispose.assert_called_once_with(manager.get_sandbox.return_value)
 
 

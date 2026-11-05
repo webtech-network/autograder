@@ -32,8 +32,12 @@ Malformed quoting is rejected when the definition is compiled
   program, and any process it started, is killed before the next criterion runs.
 - Compile in `preparation` setup commands; a failed setup command stops grading
   with `PREPARATION_FAILED`.
-- A program that cannot be started (`PROCESS_START_FAILED`) and infrastructure
-  failures (`SANDBOX_ERROR`) fail the execution without a score.
+- A program in the workspace (`./a.out`) that is missing or not executable
+  scores 0. Exhausting the sandbox's memory or process limit scores 0 for that
+  criterion and every later one (the sandbox is spent).
+- A runtime command that cannot be started (`PROCESS_START_FAILED`) and
+  infrastructure failures (`SANDBOX_ERROR`, including a sandbox the host
+  stopped or removed) fail the execution without a score.
 
 **Example:**
 ```json

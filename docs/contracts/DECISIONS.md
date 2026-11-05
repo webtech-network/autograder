@@ -467,3 +467,27 @@ The control API waits for slots in its own threads so waiting acquisitions
 cannot starve the `DELETE` that frees one, and no longer serializes acquisitions.
 No new pool abstraction or scheduler was added. See [SANDBOX.md](SANDBOX.md) and
 [JOBS.md](JOBS.md#sandbox-capacity).
+
+## Who ended a sandbox (COR-01)
+
+A container that stopped under a process no longer keeps that process's exit
+code: the reaper or `docker kill` had turned correct programs into zeros, and a
+submission could kill the `sandbox`-owned PID 1 or collector to turn a bad grade
+into a retryable `SANDBOX_ERROR`. PID 1 (Docker's init) and the control execs
+that run beside the submission now run as `root` with only `KILL` and
+`DAC_OVERRIDE`; submission processes run as `sandbox` without capabilities
+(`no-new-privileges`) and are the OOM killer's first choice. Attribution uses
+host-side evidence only: the container's cgroup counters (runc), the pool's
+disposal record and Docker's record of how the container stopped. Host stops
+and removals are infrastructure failures. Memory or process exhaustion is the
+core `SandboxExhausted` (control API `409 SANDBOX_EXHAUSTED`), not a
+`RuntimeError`; because gVisor's container stops while runc's survives, the
+sandbox is spent under both runtimes and the exhausting criterion and every
+later one are assessed zeros. A missing or non-executable workspace program is
+an assessed zero; only a runtime command that cannot start stays
+`PROCESS_START_FAILED`. Artifacts and outputs are read whatever permissions the
+submission set, never through a symbolic link it planted (a link is no
+artifact, under both runtimes). The collector needs no fork until it has
+reported the cgroup counters, is restarted when runc finds no pid to start it,
+and a running container at its pids limit is exhaustion. The outcome wire is
+unchanged. See [PROCESSES.md](PROCESSES.md#who-ended-a-run).

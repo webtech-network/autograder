@@ -19,11 +19,10 @@ from httpx import ASGITransport, AsyncClient
 
 from autograder import Submission, SubmissionFile, build_pipeline
 from autograder.models.language import Language
-from autograder.models.process import ProcessRequest, ProcessStatus, lines_to_stdin
+from autograder.models.process import ProcessRequest, ProcessStatus, SandboxExhausted, lines_to_stdin
 from autograder.models.abstract import execution_test
 from execution_host.docker import DockerHost, DockerSession
 from sandbox_manager.api import ControlSettings, create_app
-from sandbox_manager.errors import ArtifactReadError
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.remote_client import RemoteSandboxManager, SandboxHandleGone
@@ -48,14 +47,17 @@ ORPHAN = ("import os, time\n"
           "    os.setsid()\n"
           "    while True:\n"
           "        open('/app/orphan', 'a').write('x'); time.sleep(0.05)\n")
-# Fails unless it is the only live process besides the container's PID 1 and no writer is active.
+# Fails unless it is the submission's only live process and no writer is active. The
+# container's init and its child are root-owned control processes, not the submission's.
 CHECK = ("import os, sys, time\n"
          "def live():\n"
          "    found = []\n"
          "    for pid in filter(str.isdigit, os.listdir('/proc')):\n"
          "        try: state = open(f'/proc/{pid}/stat').read().rsplit(')', 1)[1].split()[0]\n"
          "        except OSError: continue\n"
-         "        if pid not in ('1', str(os.getpid())) and state != 'Z': found.append(pid)\n"
+         "        try: owner = os.stat(f'/proc/{pid}').st_uid\n"
+         "        except OSError: continue\n"
+         "        if pid != str(os.getpid()) and owner == os.getuid() and state != 'Z': found.append(pid)\n"
          "    return found\n"
          "def size(path): return os.path.getsize(path) if os.path.exists(path) else 0\n"
          "before = (size('/app/ticks'), size('/app/orphan')); time.sleep(0.5)\n"
@@ -215,22 +217,18 @@ def test_background_processes_do_not_outlive_their_run(session):
     assert check.exit_code == 0, check.stdout
 
 
-def test_memory_exhaustion_keeps_its_exit_and_never_fabricates_a_later_result(session):
-    """Exhausting the memory limit is an exited, non-zero program.
+def test_memory_exhaustion_ends_the_sandbox_with_one_outcome(session):
+    """Exhausting the memory limit has one outcome under gVisor and runc (COR-01).
 
-    Whether the kernel kills only the process or the whole container depends on
-    the host (cgroup/OOM configuration). Either way no later result is invented:
-    a surviving sandbox runs the next process normally, and a stopped one is
-    invalidated so every later operation raises a non-missing-file error.
+    gVisor's container stops; under runc the kernel kills the process and the
+    container's cgroup records it. Both are the submission's ``SandboxExhausted``,
+    never an infrastructure error, and nothing runs in that sandbox afterwards.
     """
-    result = run(session, "python3 hog.py", timeout=30)
-    assert result.status is ProcessStatus.EXITED and result.exit_code != 0
-    try:
-        later = run(session, "python3 probe.py")
-    except RuntimeError as error:
-        assert not isinstance(error, FileNotFoundError)
-    else:
-        assert later.status is ProcessStatus.EXITED and later.exit_code == 0, later
+    with pytest.raises(SandboxExhausted) as exhausted:
+        run(session, "python3 hog.py", timeout=30)
+    assert not isinstance(exhausted.value, RuntimeError)
+    with pytest.raises(SandboxExhausted):
+        run(session, "python3 probe.py")
 
 
 # ----- bounded output and distinct readback failures -------------------------------
@@ -242,13 +240,12 @@ def test_output_is_bounded_by_the_executing_host(session):
     assert result.stderr == "\u00e9" * 512  # cut on a character boundary
 
 
-def test_missing_artifact_failed_readback_and_unknown_handle_are_distinct(session, managers):
+def test_missing_artifact_and_unknown_handle_are_distinct(session, managers):
     with pytest.raises(FileNotFoundError):
         session.read_artifact("absent.txt")
+    # Permissions the submission set never make its artifact unreadable to the host (COR-01).
     assert run(session, "python3 artifact.py").exit_code == 0
-    with pytest.raises(ArtifactReadError) as unreadable:
-        session.read_artifact("secret.txt")
-    assert not isinstance(unreadable.value, FileNotFoundError)
+    assert session.read_artifact("secret.txt").content_text == "hidden"
     if isinstance(session.manager, RemoteSandboxManager):
         session.close()
         with pytest.raises(SandboxHandleGone) as closed:
@@ -301,23 +298,24 @@ def test_timeout_is_terminated_before_the_next_criterion_runs(docker_host, monke
     assert "timed out" in outcome.tree.base.tests[0].report
 
 
-def test_memory_exhaustion_is_assessed_and_a_dead_sandbox_is_not_reused(docker_host):
-    alone = grade(docker_host, [dont_fail("hog", "python3 hog.py")], ["hog.py"])
-    assert alone.status == "completed" and alone.score == 0, alone.error
-    # A later criterion either runs in a surviving container or, if the container
-    # was taken down (host dependent), fails the grade: never a fabricated zero.
-    after = grade(docker_host, [dont_fail("hog", "python3 hog.py"), dont_fail("next", "python3 probe.py")],
-                  ["hog.py", "probe.py"])
-    if after.status == "failed":
-        assert after.error.code == "SANDBOX_ERROR" and after.score is None
-    else:
-        scores = {test.id: test.score for test in after.tree.base.tests}
-        assert scores == {"hog": 0, "next": 100}, after
+def test_memory_exhaustion_is_assessed_and_ends_the_sandbox(docker_host):
+    """The exhausting criterion and every later one are assessed zeros; the grade completes."""
+    outcome = grade(docker_host, [dont_fail("hog", "python3 hog.py"), dont_fail("next", "python3 probe.py")],
+                    ["hog.py", "probe.py"])
+    assert outcome.status == "completed", outcome.error
+    assert {test.id: test.score for test in outcome.tree.base.tests} == {"hog": 0, "next": 0}
+    assert all("memory or process limit" in test.report for test in outcome.tree.base.tests)
 
 
-def test_program_that_cannot_start_is_not_an_assessed_zero(docker_host):
-    outcome = grade(docker_host, [dont_fail("missing", "./a.out")], ["probe.py"])
+def test_runtime_command_that_cannot_start_is_not_an_assessed_zero(docker_host):
+    outcome = grade(docker_host, [dont_fail("missing", "no-such-runtime probe.py")], ["probe.py"])
     assert outcome.status == "failed" and outcome.error.code == "PROCESS_START_FAILED" and outcome.score is None
+
+
+def test_workspace_program_that_cannot_start_is_an_assessed_zero(docker_host):
+    outcome = grade(docker_host, [dont_fail("missing", "./a.out")], ["probe.py"])
+    assert outcome.status == "completed" and outcome.score == 0, outcome.error
+    assert "./a.out" in outcome.tree.base.tests[0].report
 
 
 def test_preparation_uses_the_same_process_contract(docker_host):
@@ -333,14 +331,15 @@ def test_preparation_uses_the_same_process_contract(docker_host):
     assert outcome.status == "failed" and outcome.error.code == "PREPARATION_FAILED"
 
 
-def test_artifact_evaluator_distinguishes_missing_from_unreadable(docker_host):
+def test_artifact_evaluator_grades_what_the_submission_wrote_whatever_its_permissions(docker_host):
     def artifact(path):
         return [{"id": "artifact", "type": "expect_file_artifact", "name": "artifact", "parameters": {
             "program_command": "python3 artifact.py", "artifact_path": path, "expected_content": "hidden"}}]
     missing = grade(docker_host, artifact("absent.txt"), ["artifact.py"])
     assert missing.status == "completed" and missing.score == 0
+    # chmod 0 by the submission is not a readback failure (no student-triggered SANDBOX_ERROR).
     unreadable = grade(docker_host, artifact("secret.txt"), ["artifact.py"])
-    assert unreadable.status == "failed" and unreadable.error.code == "SANDBOX_ERROR"
+    assert unreadable.status == "completed" and unreadable.score == 100, unreadable.error
 
 
 # ----- HTTP: grading and deliberate execution keep their own policies --------------

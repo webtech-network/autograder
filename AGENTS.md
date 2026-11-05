@@ -120,8 +120,10 @@ canonical preferences); disabled feedback does no work and stays `disabled`.
 
 Required failures produce null score/tree. A student program's nonzero exit or
 timeout during evaluator assessment produces a valid zero; compilation belongs in
-setup commands (`PREPARATION_FAILED`), and a program that cannot start is not a
-zero (`PROCESS_START_FAILED`). Every process runs
+setup commands (`PREPARATION_FAILED`), and a runtime command that cannot start is
+not a zero (`PROCESS_START_FAILED`). Who ended a sandbox comes from host-side
+evidence: host stop/removal is `SANDBOX_ERROR`, student exhaustion
+(`SandboxExhausted`) is an assessed zero. Every process runs
 through `ExecutionSession.run_process(ProcessRequest)`: explicit argv or explicit
 shell, exact stdin bytes, a deadline that kills the process tree, and
 classification by exit status only. Infrastructure failures are exceptions, not

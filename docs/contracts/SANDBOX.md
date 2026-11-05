@@ -72,8 +72,16 @@ manager) alike.
 * `get_budget_stats()` reports `max_sandboxes`, `held` and `waiting`.
 
 There is one Docker profile (`sandbox_manager/docker_profile.py`): limits,
-tmpfs mounts, `network_mode="none"`, `cap_drop=["ALL"]`, ulimits and labels are
-declared once. gVisor (`runsc`) is preferred; when the daemon lacks it, the
+tmpfs mounts, `network_mode="none"`, identities, capabilities, ulimits and
+labels are declared once. PID 1 is Docker's init (`init=True`, reaping orphans)
+running `sleep infinity` as `root`; control execs that can run beside the
+submission also run as `root`. `root` keeps only `KILL` (to end every
+submission process) and `DAC_OVERRIDE` (to read back and remove what the
+submission wrote, whatever its permissions); every other capability is dropped.
+Submission processes run as the image's `sandbox` user with no capabilities,
+under `no-new-privileges`, so they cannot signal PID 1 or a control exec. The
+container holds nothing the submission may not see: its own files, fixtures
+staged readable, and the image. gVisor (`runsc`) is preferred; when the daemon lacks it, the
 same options are used without the `runtime` argument. That is the only allowed
 difference. Previously the default-runtime path omitted the `/app` tmpfs because
 runc mounts tmpfs `root:root 0755`, which the unprivileged `sandbox` user cannot
@@ -195,7 +203,8 @@ Errors use `{"detail": {"code", "message"}}` and never echo request input:
 | No runtime profile for a valid language (absent from `runtimes:`) | 501 | `RUNTIME_UNAVAILABLE` | `RuntimeUnavailableError` (same as the local manager) |
 | Unknown language identifier | 422 | `INVALID_REQUEST` | `RemoteSandboxError` |
 | Execution infrastructure failure | 500 | `SANDBOX_ERROR` | `RemoteSandboxError` |
-| Sandbox invalidated (termination or readback not confirmed) | 409 | `SANDBOX_INVALIDATED` | `SandboxInvalidatedError` (same as the local sandbox) |
+| Sandbox invalidated by an earlier failure (termination or readback not confirmed, or the host stopped or removed it) | 409 | `SANDBOX_INVALIDATED` | `SandboxInvalidatedError` (same as the local sandbox) |
+| The submission exhausted the sandbox's memory or process limit | 409 | `SANDBOX_EXHAUSTED` | `SandboxExhausted` (same as the local sandbox) |
 | Artifact exists but readback failed | 500 | `ARTIFACT_READ_FAILED` | `ArtifactReadError` (same as the local sandbox) |
 | Disposal raised unexpectedly | 500 | `DISPOSAL_FAILED` | `RemoteSandboxError` |
 | Schema or limit violation | 422 | `INVALID_REQUEST` | `RemoteSandboxError` |

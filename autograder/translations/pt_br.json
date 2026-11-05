@@ -386,7 +386,9 @@
     "execution": {
       "timeout": "FALHA: O tempo de execução do programa expirou. Verifique se há loops infinitos. [Tempo: {time:.2f}s]",
       "runtime_error": "FALHA: O programa falhou durante a execução (crash).\nErro:\n{error}",
-      "exit_code": "Código de saída {code} (sem saída de erro)"
+      "exit_code": "Código de saída {code} (sem saída de erro)",
+      "exhausted": "FALHA: A submissão excedeu o limite de memória ou de processos do sandbox; nenhum programa pode mais ser executado neste sandbox.",
+      "not_started": "FALHA: O programa {program} não pôde ser iniciado: ele não existe ou não é executável."
     },
     "expect_output": {
       "description": "Executa o programa do aluno, fornece uma série de entradas separadas por linha e verifica se a saída final está correta.",

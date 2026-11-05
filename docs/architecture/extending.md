@@ -64,17 +64,15 @@ at compilation and returns `ParameterIssue`s. File needs are class attributes
 (`file_extensions`, `minimum_files`, `uses_context_files`, `accepts_file`); see
 [FILES.md](../contracts/FILES.md).
 
-<<<<<<< HEAD
 A criterion must not pass a submission just because the author omitted a
 parameter: give presence thresholds a default of at least 1 (`ge=1`) and make
 lists of things to find or forbid nonempty (`min_length=1`). A prohibition or
 limit check, which passes when what it looks for is absent, sets the class
 attribute `absence_check` to the reason; the catalog publishes it.
-=======
+
 Validate at compilation, not at grading: a value that would only fail when the
 evaluator runs (a regular expression, a path, a command) must be rejected by the
 contract (`Field(pattern=...)`, a Pydantic validator) or by `validate_parameters`.
->>>>>>> a3a0dcc (docs: complete the evaluator recipe with a test-enforced built-in checklist (ONB-08))
 
 ## 3. Register it
 
@@ -94,12 +92,6 @@ supported. Reference the evaluator as a criterion `type`, with a distinct `id`.
 
 Test the evaluator by calling `execute` with an explicit `EvaluationInput`, and
 test the registration by compiling and grading a definition, as the examples'
-<<<<<<< HEAD
-tests do. For built-in evaluators, `tests/unit/test_catalog.py` already checks
-that discovery and compilation agree, and `tests/unit/test_non_vacuous_criteria.py`
-checks that, with only its required parameters, no presence check passes an
-irrelevant project; nothing else needs registering.
-=======
 tests do.
 
 ## Built-in evaluator checklist
@@ -121,12 +113,14 @@ exists.
 | Regenerate the wire schemas with `python scripts/generate_contract_schemas.py` (the definition schema carries every evaluator's parameters) | `tests/unit/test_config_models.py::test_checked_in_examples_and_schema_are_current`, `tests/web/test_template_catalog.py::test_openapi_gives_typed_template_and_evaluator_models` |
 | Criterion snippets in `docs/template-library/` and the README template tables name registered evaluators and compile | `tests/unit/test_architecture.py::test_template_reference_criterion_snippets_compile`, `tests/unit/test_architecture.py::test_readme_template_tables_name_registered_evaluators_and_parameters` |
 
+`tests/unit/test_non_vacuous_criteria.py` also checks that, with only its
+required parameters, no presence check passes an irrelevant project.
+
 Not enforced, so reviewers check them: execution and API evaluators get a real
 Docker case beside `tests/integration/test_builtin_io_evaluators.py` (golden
 cases cover static evaluators only); the evaluator is documented in its
 `docs/template-library/` page; runtime-only failures are moved to compilation
 (see step 2).
->>>>>>> a3a0dcc (docs: complete the evaluator recipe with a test-enforced built-in checklist (ONB-08))
 
 ## Evaluators that run code
 
@@ -146,7 +140,9 @@ capability and supplies the shared steps: `run_program(evaluation,
 program_command, inputs)` runs the bound language's command (a string, a
 language map or `CMD`, checked at compilation) with exact stdin lines, and
 `assessed_failure(result, locale)` returns the assessed zero for a timeout or
-nonzero exit. The built-in I/O evaluators use the same base. It is defined in
+nonzero exit. `run_program` itself returns the assessed zero `TestResult` when
+the submission exhausted its sandbox or its workspace entry point (`./a.out`)
+is missing, and `assessed_failure` passes that through. The built-in I/O evaluators use the same base. It is defined in
 `autograder/models/abstract/execution_test.py`, so `import autograder` does not
 build the built-in templates. It checks `program_command` at compilation only
 when the evaluator takes that parameter.

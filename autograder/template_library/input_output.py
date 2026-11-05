@@ -11,6 +11,7 @@ from autograder.models.dataclass.test_result import TestResult
 from autograder.models.language import LanguageId
 from autograder.translations import t
 from autograder.models.execution import ExecutionSession
+from autograder.models.process import SandboxExhausted
 from autograder.models.evaluation_error import EvaluationError
 
 
@@ -25,6 +26,7 @@ PROGRAM_COMMAND = ("Command that runs the program: a nonempty string, a map with
 
 Nonempty = Annotated[str, Field(min_length=1)]
 Command = Nonempty | dict[LanguageId, Nonempty]
+
 
 
 STRICT = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
@@ -204,6 +206,8 @@ class ExpectFileArtifactTest(BaseExecutionTest):
             # or failed readback is an infrastructure error below.
             return TestResult(test_name=self.name, score=0.0,
                               report=t("io.expect_file_artifact.report.file_not_found", locale=locale, path=path))
+        except SandboxExhausted:
+            return TestResult(test_name=self.name, score=0.0, report=t("io.execution.exhausted", locale=locale))
         except (ValueError, RuntimeError) as e:
             raise EvaluationError("SANDBOX_ERROR", "The execution environment could not retrieve the assessed artifact.", "capability", True) from e
 
