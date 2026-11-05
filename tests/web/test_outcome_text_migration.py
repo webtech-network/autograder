@@ -23,7 +23,7 @@ from tests.web.test_contracts_v1 import create, integration_auth  # noqa: F401  
 from tests.web.test_submission_comparison import attest, bound, compare
 from web.service.outcome_delivery import republish_receipt
 
-MIGRATION = "web.migrations.versions.008_bound_outcome_text"
+MIGRATION = "web.migrations.versions.009_bound_outcome_text"
 MARKER = re.compile(r"\n\[\.\.\. (\d+) of (\d+) bytes omitted \.\.\.\]\n")
 # What a pre-COR-06 flood stored: a whole 1 MiB-class stream, with multibyte text.
 LEGACY_REPORT = "FAILURE: Output Mismatch.\nActual: '" + "o" * 999_000 + "é" * 500 + "'"

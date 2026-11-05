@@ -167,7 +167,7 @@ because of oversized `metadata`) with 422 `OUTCOME_TOO_LARGE`. Storage and UI ca
 size for these bounds.
 
 Outcomes this host stored before the bounds existed are upgraded, never
-rejected when they are read. Alembic revision `008_bound_outcome_text` rewrites
+rejected when they are read. Alembic revision `009_bound_outcome_text` rewrites
 every stored `submission_results.outcome` with the same excerpt
 (`bound_outcome_text`). Scores, identities and text within a bound are
 unchanged, and the upgrade is idempotent. Publication receipts written before

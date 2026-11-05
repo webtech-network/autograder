@@ -402,7 +402,7 @@ jobs". It is accepted because such a definition (more than about 465 criteria
 with short parameters) is not a realistic assignment.
 
 Migration evidence: outcomes stored before the bounds are upgraded in place by
-Alembic revision `008_bound_outcome_text`, which applies the engine's excerpt to
+Alembic revision `009_bound_outcome_text`, which applies the engine's excerpt to
 every stored report and feedback. Unpublished receipts get the same excerpt when
 they are read, so pending delivery retries finish. Both use one function,
 `bound_outcome_text`, and leave scores unchanged.
