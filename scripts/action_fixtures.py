@@ -16,7 +16,7 @@ pulls it itself, as on a consumer's runner.
 ``check`` (``make test-action``, after each ``uses: ./`` step, fixture named by
 ``ACTION_FIXTURE``) asserts the retained outcome and the step outputs, that the
 run created exactly the expected number of sandboxes on the runner's Docker and
-that none survived, then moves ``.autograder/`` aside for the next fixture.
+that none survived, then copies ``.autograder/`` aside (the next run rewrites it).
 The ``probe`` fixture's submission reports what it can see from inside the
 sandbox; no credential, runner variable, Docker socket or network may be among it.
 
@@ -42,6 +42,7 @@ from scripts.sandbox_images import build, catalog
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT / ".action-fixtures"
 MARK = FIXTURES_DIR / "since"
+SEEN = FIXTURES_DIR / "last-execution-id"
 #: Label every sandbox container carries (sandbox_manager.ownership).
 SANDBOX_LABEL = "autograder.sandbox.app=autograder-sandbox"
 #: Values the probe step hands the Action; none may reach the submission.
@@ -175,6 +176,8 @@ def check(name: str) -> None:
     print(f"{name}: status={outcome['status']} score={outcome.get('score')} sandboxes={created} "
           f"step outputs: status={os.environ.get('ACTION_STATUS')} score={os.environ.get('ACTION_SCORE')}",
           flush=True)
+    previous = SEEN.read_text(encoding="utf-8") if SEEN.exists() else None
+    assert outcome["execution_id"] != previous, "the Action did not write a new outcome"
     assert outcome["status"] == fixture.status, outcome.get("error")
     assert outcome.get("score") == fixture.score, outcome.get("score")
     assert os.environ.get("ACTION_STATUS") == fixture.status
@@ -184,8 +187,10 @@ def check(name: str) -> None:
     assert left == [], f"sandboxes survived the run: {left}"
     if fixture.probe:
         _check_probe(outcome)
-    shutil.move(str(ROOT / ".autograder"), str(FIXTURES_DIR / name / "result"))
+    # The Action runs as root and owns .autograder/: keep a copy; the next run rewrites it.
+    shutil.copytree(ROOT / ".autograder", FIXTURES_DIR / name / "result")
     MARK.write_text(until, encoding="utf-8")
+    SEEN.write_text(outcome["execution_id"], encoding="utf-8")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
