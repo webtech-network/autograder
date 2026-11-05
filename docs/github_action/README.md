@@ -42,11 +42,15 @@ the image was built from:
 | `webtech-network/autograder@<version>` (e.g. `@0.6.0`) | `autograder-action:<version>`, built from that tag. Reproducible: pin this. |
 | `webtech-network/autograder@main` | The version `action.yml` names on `main`: the latest release, not unreleased commits. |
 
-`main` only ever names a published, public image: CI runs `make action-check`
-without registry credentials on every pull request into `main` and on `main`,
-and it fails while the image `action.yml` pins cannot be pulled anonymously
-(missing, or a private package). So `@main` never points at an image a
-runner cannot pull.
+`main` only ever names a published, public image built from its own history.
+CI runs `make action-check` on every pull request into `main` and on `main`. It
+fails unless the `<version>` tag is an ancestor of the checked commit and the
+image `action.yml` pins can be pulled without credentials (it fails for a
+missing image or a private package). The `Service and Action images` job that
+runs it is a
+[required check](../guides/development.md#required-checks) of the `main`
+ruleset, so a red check blocks the merge. So `@main` never points at an image a
+runner cannot pull, or at one built from code that `main` does not contain.
 
 ### Releasing a version
 
@@ -67,7 +71,12 @@ runner cannot pull.
    `DOCKER_CONFIG="$(mktemp -d)" docker manifest inspect ghcr.io/webtech-network/autograder-action:<version>`
    must print a manifest, not `denied` or `unauthorized`.
 4. Re-run the pull request's checks; `make action-check` now passes and the
-   pull request can merge.
+   pull request can merge. Merge it with a merge commit, not squash or
+   rebase: those leave the tagged commit out of `main`, and
+   `make action-check` on `main` then fails (and holds back the API deploy)
+   until a new version is released. The check gates the merge only while the
+   ruleset requires it ([Required checks](../guides/development.md#required-checks));
+   confirm that before merging.
 5. Release notes stay manual, as for `0.1.0`–`0.5.0`: create the GitHub Release
    from the existing `<version>` tag (`gh release create <version> --verify-tag`).
 

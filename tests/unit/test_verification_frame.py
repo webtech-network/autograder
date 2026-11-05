@@ -170,6 +170,21 @@ def test_main_only_ever_pins_a_published_action_image():
     assert len(gate) == 1
     assert gate[0]["if"] == "github.base_ref == 'main' || github.ref == 'refs/heads/main'"
     assert "docker/login-action" not in yaml.safe_dump(images)  # anonymous, like a consumer's runner
+    # It asks whether the release tag is an ancestor of this commit: a shallow clone cannot tell.
+    checkout = images["steps"][0]
+    assert checkout["uses"].startswith("actions/checkout@") and checkout["with"]["fetch-depth"] == 0
+
+
+def test_the_documented_required_checks_are_exactly_the_verification_jobs():
+    # A job blocks a merge into main only if the ruleset requires it by name; the
+    # guide's list is what the ruleset is set to, so it must follow verify.yml.
+    jobs = workflow(VERIFY)["jobs"]
+    verification = {job["name"] for name, job in jobs.items() if name not in PUBLICATION}
+    guide = (ROOT / "docs" / "guides" / "development.md").read_text(encoding="utf-8")
+    section = guide.split("### Required checks", 1)[1].split("\n### ", 1)[0]
+    required = set(re.findall(r"^- `([^`]+)`", section, re.M))
+    assert required == verification
+    assert "Service and Action images" in required  # runs `make action-check` into main
 
 
 def test_third_party_actions_are_pinned_to_commits():

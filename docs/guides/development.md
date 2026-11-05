@@ -64,7 +64,7 @@ has pylint false positives to resolve first.
 | `make test-e2e` | Docker | An API process with real sandboxes. |
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
 | `make test-images` | Docker | Builds those images and checks exactly them ([Images](#images)). |
-| `make action-check` | Network | Fails unless the Action image `action.yml` pins is published and public. |
+| `make action-check` | Network, full git history | Fails unless the version `action.yml` pins is tagged in this commit's history and its image is anonymously pullable (asked with an empty `DOCKER_CONFIG`, so a GHCR login does not hide a private package). |
 
 A bare `pytest` collects all of `tests/`, including `tests/integration/`,
 `tests/e2e/` and `tests/images/`, which fail rather than skip without Docker and
@@ -91,6 +91,34 @@ the documented examples agree with the registry, and the extension path.
 `tests/unit/test_verification_frame.py` checks that `make help`, the docs and
 CI name only existing targets, and that deployment and the Action release wait
 for every verification job.
+
+### Required checks
+
+A red job blocks a merge into `main` only when the `main` ruleset
+(`SINGLE_APPROVAL_BPR`, id `8901171`) requires it. The ruleset must require
+every verification job of `verify.yml` by its name, from the GitHub Actions app:
+
+- `Core path (make verify)`
+- `PostgreSQL tier`
+- `Service and Action images` (which runs `make action-check` into `main`)
+- `Docker sandboxes (integration and e2e)`
+
+The publication jobs (`Release Action image`, `Deploy API`) are skipped on pull
+requests and are not required. Check the setting with:
+
+```bash
+gh api repos/webtech-network/autograder/rulesets/8901171 \
+  --jq '.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
+```
+
+It must print exactly the names above. Until 0.6.0 it required `pylint` and
+`pytest`, contexts no workflow produces, so no check blocked a merge into
+`main`. Before the first merge of `refactor/363` into `main`, a maintainer
+replaces them (Settings → Rules → Rulesets → `SINGLE_APPROVAL_BPR` → Require
+status checks to pass) and confirms with the command above. A job added to or
+renamed in `verify.yml` changes this list and the ruleset in the same pull
+request. The ruleset's bypass list can still merge past a red check; nobody
+merges into `main` while a required check is red.
 
 ### Images
 

@@ -447,10 +447,14 @@ so `.env`, `.venv`, `data/` and caches never enter an image. `action.yml` pins
 `Dockerfile.actions` in every job. A version is released once, gated on
 verification, from the branch that raises it (`workflow_dispatch`), before
 that branch can merge: the image is pushed first, then a git tag of the same
-name. `make action-check` (CI, without credentials, on pull requests into
-`main` and on `main`) fails while the pinned image is not anonymously
-pullable, so `main`, which every documented `uses: ...@main` follows, only ever
-names a published, public image. `tests/images/`
+name. `make action-check` (CI, on pull requests into `main` and on `main`)
+fails unless the `<version>` tag is an ancestor of the checked commit and the
+pinned image is pullable with an empty `DOCKER_CONFIG`. It runs in the
+`Service and Action images` job, which the `main` ruleset requires
+([Required checks](../guides/development.md#required-checks)). So `main`, which
+every documented `uses: ...@main` follows, only ever names a published, public
+image built from its own history. Release pull requests merge with a merge
+commit, so the tag stays in that history. `tests/images/`
 (`make test-images`, CI) checks the built images, including a build from a
 checkout with planted secrets and the Action grading the static example.
 
@@ -461,7 +465,11 @@ released image rather than building the current commit; consumer workflows
 need no change. The first merge of this change into `main` requires
 `autograder-action:0.6.0` to be released from the merging branch and the new
 GHCR package to be made public, verified with an anonymous `docker manifest
-inspect`; `make action-check` blocks that merge until both are true. See
+inspect`. Before that merge, the `main` ruleset's required checks, which were
+the stale `pylint` and `pytest` contexts that no workflow produces (so no check
+blocked any merge into `main`), are replaced with the Verify job names and
+confirmed with `gh api`. Only then does a red `make action-check` block the
+merge until both are true. See
 [Releasing a version](../github_action/README.md#releasing-a-version). GitHub
 Release notes remain manual.
 
