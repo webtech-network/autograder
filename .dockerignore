@@ -1,0 +1,5 @@
+# Local state that must never enter an image: a development checkout's outcome
+# receipts (an API started from the image would publish them as its own) and
+# its virtual environment (images install from uv.lock).
+data/
+.venv/

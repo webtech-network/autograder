@@ -139,8 +139,10 @@ def stacks():
 def test_two_stacks_side_by_side_grade_a_fixture_assignment_from_empty_volumes(stacks):
     assert len({stack.url for stack in stacks}) == len(stacks)
     for stack in stacks:
-        # Empty volumes: the only configuration is the one this test creates.
+        # Empty volumes: the only configuration is the one this test creates, and no
+        # outcome receipt arrives with the image (a dev checkout's data/ is not copied).
         assert stack.sql("select count(*) from grading_configurations") == "0"
+        assert stack.receipts() == []
         submission_id = submit(stack, fixture_submission(stack), "smoke-" + uuid4().hex)
         details = poll(stack.url, stack.headers, submission_id, timeout=180)
         outcome = details["outcome"]
