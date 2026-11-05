@@ -160,7 +160,7 @@ def test_invalid_runtime_profiles_are_rejected(runtimes, message):
 def test_shipped_pool_uses_the_profile_image():
     docker = FakeDocker()
     config = SandboxPoolConfig(language=Language.C, image="custom-c:1", pool_size=1, running_timeout=60)
-    manager = SandboxManager([config], docker, max_sandboxes=2, owner=owner(), reclaim_orphans=False,
+    manager = SandboxManager([config], docker, runtime="runc", max_sandboxes=2, owner=owner(), reclaim_orphans=False,
                              monitor_interval=60)
     try:
         # Each creation attempt (gVisor, then the default runtime) uses the profile image.
@@ -170,7 +170,7 @@ def test_shipped_pool_uses_the_profile_image():
 
 
 def test_missing_local_runtime_is_a_capability_failure_not_an_invalid_language():
-    manager = SandboxManager([pool_config(Language.PYTHON)], FakeDocker(), max_sandboxes=2, owner=owner(),
+    manager = SandboxManager([pool_config(Language.PYTHON)], FakeDocker(), runtime="runc", max_sandboxes=2, owner=owner(),
                              reclaim_orphans=False,
                              monitor_interval=60)
     try:
@@ -184,7 +184,7 @@ def test_missing_local_runtime_is_a_capability_failure_not_an_invalid_language()
 
 def test_missing_remote_runtime_has_a_distinct_code_and_client_error():
     def manager_factory():
-        return SandboxManager([pool_config(Language.PYTHON)], FakeDocker(), max_sandboxes=2, owner=owner(), reclaim_orphans=False,
+        return SandboxManager([pool_config(Language.PYTHON)], FakeDocker(), runtime="runc", max_sandboxes=2, owner=owner(), reclaim_orphans=False,
                               monitor_interval=60)
     app = create_app(ControlSettings(token=TOKEN), manager_factory=manager_factory)
     with TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"}) as client:

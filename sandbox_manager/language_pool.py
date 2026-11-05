@@ -28,7 +28,7 @@ from typing import Callable, Dict, List, Optional, Set
 import docker
 from docker.client import DockerClient
 
-from sandbox_manager.docker_profile import GVISOR_RUNTIME, container_options, is_missing_runtime_error
+from sandbox_manager.docker_profile import RUNTIMES, container_options
 from sandbox_manager.errors import SandboxCapacityTimeout
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
@@ -112,7 +112,9 @@ class LanguagePool:
 
     def __init__(self, language: Language, config: SandboxPoolConfig, client: DockerClient = None,
                  owner: Optional[OwnerIdentity] = None, clock: Callable[[], float] = time.monotonic, *,
-                 budget: SandboxBudget):
+                 budget: SandboxBudget, runtime: str):
+        if runtime not in RUNTIMES:
+            raise ValueError(f"Unknown sandbox runtime {runtime!r}; choose one of {', '.join(RUNTIMES)}")
         self.language = language
         self.config = config
         self.client = client
@@ -121,7 +123,7 @@ class LanguagePool:
         self.budget = budget
         self._sandbox_seq = 0
         self._clock = clock
-        self._gvisor_available = True
+        self.runtime = runtime
         self._closed = False
         self._creating = 0
 
@@ -134,8 +136,8 @@ class LanguagePool:
         # The budget's lock: shared by the host's pools; Docker calls always happen outside it.
         self.lock = budget.condition
 
-        logger.info("[%s] POOL INITIALIZED - pool_size: %s, max_sandboxes: %s, pool_id: %s, owner: %s",
-                    language, config.pool_size, budget.limit, self.pool_id[:8], self.owner.owner_id[:8])
+        logger.info("[%s] POOL INITIALIZED - runtime: %s, pool_size: %s, max_sandboxes: %s, pool_id: %s, owner: %s",
+                    language, runtime, config.pool_size, budget.limit, self.pool_id[:8], self.owner.owner_id[:8])
 
     # ------------------------------------------------------------------ capacity
     def _tracked_count(self) -> int:
@@ -349,31 +351,25 @@ class LanguagePool:
         }
 
     def _create_sandbox(self, name: str) -> SandboxContainer:
-        """Create one container from the single Docker profile (gVisor when available).
+        """Create one container from the single Docker profile under the host's runtime.
 
-        Runs outside the lock. Concurrent creators may each discover a missing
-        gVisor runtime; each removes only its own uniquely named attempt.
+        Runs outside the lock. Any failure, a transient one of the runtime
+        included, fails only this creation: the runtime never changes. A
+        container the failed attempt left behind is removed by its unique name.
         """
         options = container_options(self.config.image, name, self._labels())
-        container = None
-        if self._gvisor_available:
-            try:
-                container = self.client.containers.run(runtime=GVISOR_RUNTIME, **options)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                if not is_missing_runtime_error(e):
-                    raise
-                logger.info("[%s] gVisor runtime not available, using the default runtime", self.language)
-                self._gvisor_available = False
-                self._remove_by_name(name)
-        if container is None:
-            container = self.client.containers.run(**options)
-        logger.info("[%s] SANDBOX CREATED - %s (%s)", self.language, name, container.id[:12])
+        try:
+            container = self.client.containers.run(runtime=self.runtime, **options)
+        except Exception:
+            self._remove_by_name(name)
+            raise
+        logger.info("[%s] SANDBOX CREATED - %s (%s, %s)", self.language, name, container.id[:12], self.runtime)
         sandbox = SandboxContainer(language=self.language, container_ref=container)
         sandbox.created_at = self._clock()
         return sandbox
 
     def _remove_by_name(self, name: str) -> None:
-        """A failed runtime start may leave a created container holding the name."""
+        """A failed start may leave a created container holding the name."""
         try:
             self.client.containers.get(name).remove(force=True, v=True)
         except docker.errors.NotFound:

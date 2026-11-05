@@ -13,7 +13,7 @@ from autograder.models.language import Language
 from sandbox_manager.errors import RuntimeImageError
 from sandbox_manager.manager import RUNTIME_LANGUAGES_LABEL, SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from tests.sandbox_profiles import TEST_IMAGES
+from tests.sandbox_profiles import TEST_IMAGES, suite_runtime
 
 #: The student-facing runtime of each language, as documented in docs/contracts/LANGUAGES.md.
 DOCUMENTED_RUNTIMES = {
@@ -63,7 +63,7 @@ def test_runtime_image_holds_only_its_documented_runtime(client, language):
 
 def manager_for(image, language=Language.PYTHON):
     return SandboxManager([SandboxPoolConfig(language=language, image=image, pool_size=1, running_timeout=60)],
-                          max_sandboxes=1, reclaim_orphans=False)
+                          runtime=suite_runtime(), max_sandboxes=1, reclaim_orphans=False)
 
 
 def test_missing_image_fails_at_startup_without_pulling(client):

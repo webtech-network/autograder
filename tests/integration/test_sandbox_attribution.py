@@ -1,7 +1,7 @@
 """Who ended a run: the host or the submission (COR-01), in real containers.
 
 Every test runs under each runtime this daemon offers: gVisor (``runsc``) when
-it is installed, and Docker's default runtime (``runc``), forced. A host that
+it is installed, and ``runc`` always. A host that
 stops or removes a sandbox under a correct program is an infrastructure
 failure with no score. A submission that exhausts its sandbox, signals what it
 can reach or deletes its entry point gets one documented assessed result, the
@@ -18,11 +18,11 @@ import pytest
 from autograder import Submission, SubmissionFile, build_pipeline
 from autograder.models.language import Language
 from execution_host.docker import docker_capabilities
-from sandbox_manager.docker_profile import GVISOR_RUNTIME, container_options
+from sandbox_manager.docker_profile import container_options
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.sandbox_container import COLLECT
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from tests.sandbox_profiles import TEST_IMAGES
+from tests.sandbox_profiles import TEST_IMAGES, offered_runtimes
 
 #: Repetitions of each exhaustion program per runtime (the acceptance criterion asks for 20).
 REPETITIONS = 20
@@ -66,29 +66,16 @@ PROGRAMS = {
 }
 
 
-def _daemon_runtimes():
-    client = docker.from_env()
-    try:
-        offered = client.info().get("Runtimes", {})
-    finally:
-        client.close()
-    return [runtime for runtime in ("runsc", "runc") if runtime == "runc" or runtime in offered]
-
-
 def _pool(running_timeout):
     return SandboxPoolConfig(language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0,
                              running_timeout=running_timeout)
 
 
 def _manager(runtime, running_timeout=120):
-    manager = SandboxManager([_pool(running_timeout)], max_sandboxes=4)
-    if runtime == "runc":
-        # Force Docker's default runtime, as on a host without gVisor.
-        manager.language_pools[Language.PYTHON]._gvisor_available = False  # pylint: disable=protected-access
-    return manager
+    return SandboxManager([_pool(running_timeout)], max_sandboxes=4, runtime=runtime)
 
 
-@pytest.fixture(scope="module", params=_daemon_runtimes())
+@pytest.fixture(scope="module", params=offered_runtimes())
 def runtime(request):
     return request.param
 
@@ -261,9 +248,7 @@ def test_the_collector_sweeps_and_reports_without_forking(runtime):
     options = container_options(TEST_IMAGES[Language.PYTHON], f"cor-01-nofork-{runtime}-{time.monotonic_ns()}",
                                 {"cor-01": "test"})
     options.update(init=False, security_opt=options["security_opt"] + [f"seccomp={NO_FORK}"])
-    if runtime == "runsc":
-        options["runtime"] = GVISOR_RUNTIME
-    container = client.containers.run(**options)
+    container = client.containers.run(runtime=runtime, **options)
     try:
         if container.exec_run(["/bin/sh", "-c", "true & wait"], user="root").exit_code == 0:
             pytest.skip(f"{runtime} does not apply OCI seccomp profiles, so forks cannot be refused here")

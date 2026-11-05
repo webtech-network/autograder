@@ -29,7 +29,7 @@ from sandbox_manager.ownership import (
     OwnerIdentity,
     reclaim_selected,
 )
-from tests.sandbox_profiles import TEST_IMAGES
+from tests.sandbox_profiles import TEST_IMAGES, suite_runtime
 
 
 def config(pool_size=0, running_timeout=60, disposal_attempts=3):
@@ -71,7 +71,7 @@ def fabricated_container(client, labels, name_suffix):
 
 
 def test_acquire_run_dispose_removes_container_and_is_idempotent(client):
-    with SandboxManager([config()], client, max_sandboxes=2) as manager:
+    with SandboxManager([config()], client, runtime=suite_runtime(), max_sandboxes=2) as manager:
         sandbox = manager.get_sandbox(Language.PYTHON)
         assert sandbox.state is SandboxState.ACTIVE
         result = sandbox.run_process(ProcessRequest(argv=("python", "-c", "print(2+2)")))
@@ -93,7 +93,7 @@ def test_acquire_run_dispose_removes_container_and_is_idempotent(client):
 
 
 def test_workspace_is_a_bounded_writable_tmpfs_under_the_active_runtime(client):
-    with SandboxManager([config()], client, max_sandboxes=2) as manager:
+    with SandboxManager([config()], client, runtime=suite_runtime(), max_sandboxes=2) as manager:
         with manager.acquire_sandbox(Language.PYTHON) as sandbox:
             from autograder.models.dataclass.submission import SubmissionFile
             sandbox.prepare_workdir({"pkg/main.py": SubmissionFile("pkg/main.py", "print('hi')")})
@@ -107,7 +107,7 @@ def test_workspace_is_a_bounded_writable_tmpfs_under_the_active_runtime(client):
 
 
 def test_disposal_failure_quarantines_then_monitor_retry_confirms_removal(client):
-    with SandboxManager([config()], client, max_sandboxes=1, monitor_interval=0.2) as manager:
+    with SandboxManager([config()], client, runtime=suite_runtime(), max_sandboxes=1, monitor_interval=0.2) as manager:
         pool = manager.language_pools[Language.PYTHON]
         sandbox = manager.get_sandbox(Language.PYTHON)
         container_id = sandbox.container_ref.id
@@ -138,7 +138,7 @@ def test_disposal_failure_quarantines_then_monitor_retry_confirms_removal(client
 
 
 def test_running_timeout_disposes_through_the_same_path(client):
-    with SandboxManager([config(running_timeout=1)], client, max_sandboxes=2, monitor_interval=0.2) as manager:
+    with SandboxManager([config(running_timeout=1)], client, runtime=suite_runtime(), max_sandboxes=2, monitor_interval=0.2) as manager:
         sandbox = manager.get_sandbox(Language.PYTHON)
         assert wait_until(lambda: sandbox.state is SandboxState.DISPOSED)
         assert manager.dispose(sandbox) is DisposalStatus.ALREADY_DISPOSED
@@ -146,7 +146,7 @@ def test_running_timeout_disposes_through_the_same_path(client):
 
 
 def test_shutdown_disposes_everything_and_stops_monitor(client):
-    manager = SandboxManager([config(pool_size=1)], client, max_sandboxes=3)
+    manager = SandboxManager([config(pool_size=1)], client, runtime=suite_runtime(), max_sandboxes=3)
     try:
         active = manager.get_sandbox(Language.PYTHON)
         assert wait_until(lambda: len(owned(client, manager.owner.owner_id)) == 2)
@@ -163,7 +163,7 @@ def test_concurrent_cold_acquisitions_create_together_within_the_budget(client):
     limit = 4
     together = threading.Barrier(limit, timeout=60)
     created = []
-    with SandboxManager([config()], client, max_sandboxes=limit, reclaim_orphans=False) as manager:
+    with SandboxManager([config()], client, runtime=suite_runtime(), max_sandboxes=limit, reclaim_orphans=False) as manager:
         run = ContainerCollection.run
 
         def gated_run(collection, **kwargs):
@@ -186,7 +186,7 @@ def test_concurrent_cold_acquisitions_create_together_within_the_budget(client):
 
 def test_shutdown_with_holders_and_waiters_leaves_no_owned_container(client):
     limit, callers = 3, 8
-    manager = SandboxManager([config(pool_size=1)], client, max_sandboxes=limit, reclaim_orphans=False)
+    manager = SandboxManager([config(pool_size=1)], client, runtime=suite_runtime(), max_sandboxes=limit, reclaim_orphans=False)
     outcomes = []
     holding = threading.Barrier(limit + 1, timeout=60)
 
@@ -217,7 +217,7 @@ def test_shutdown_with_holders_and_waiters_leaves_no_owned_container(client):
 
 
 def test_shutdown_with_failing_container_reports_it_and_keeps_owner_labels(client):
-    manager = SandboxManager([config()], client, max_sandboxes=2)
+    manager = SandboxManager([config()], client, runtime=suite_runtime(), max_sandboxes=2)
     sandbox = manager.get_sandbox(Language.PYTHON)
     container_id = sandbox.container_ref.id
     try:
@@ -232,11 +232,11 @@ def test_shutdown_with_failing_container_reports_it_and_keeps_owner_labels(clien
 
 
 def test_two_live_owners_never_reclaim_each_other(client):
-    first = SandboxManager([config(pool_size=1)], client, max_sandboxes=2)
+    first = SandboxManager([config(pool_size=1)], client, runtime=suite_runtime(), max_sandboxes=2)
     second = None
     try:
         assert wait_until(lambda: len(owned(client, first.owner.owner_id)) == 1)
-        second = SandboxManager([config(pool_size=1)], client, max_sandboxes=2)  # Startup reclamation runs here.
+        second = SandboxManager([config(pool_size=1)], client, runtime=suite_runtime(), max_sandboxes=2)  # Startup reclamation runs here.
         assert wait_until(lambda: len(owned(client, second.owner.owner_id)) == 1)
         assert len(owned(client, first.owner.owner_id)) == 1
         with first.acquire_sandbox(Language.PYTHON) as sandbox:
@@ -264,7 +264,7 @@ def test_dead_local_owner_is_reclaimed_but_remote_and_legacy_owners_are_not(clie
                   [("dead", dead), ("rebooted", rebooted), ("remote", remote), ("legacy", legacy)]}
     manager = None
     try:
-        manager = SandboxManager([config()], client, max_sandboxes=2)
+        manager = SandboxManager([config()], client, runtime=suite_runtime(), max_sandboxes=2)
         survivors = {name for name, container in containers.items() if _exists(client, container.id)}
         assert survivors == {"remote", "legacy"}
         # The operator command handles the cases automatic reclamation cannot prove.

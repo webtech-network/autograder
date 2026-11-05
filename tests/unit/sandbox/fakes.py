@@ -92,6 +92,9 @@ class FakeDocker:
         self.images = FakeImages()
         self.close = Mock()
 
+    def info(self):
+        return {"Runtimes": {"runc": {}, **({"runsc": {}} if self.gvisor else {})}}
+
 
 def pool_config(language=Language.PYTHON, pool_size=0, running_timeout=60, disposal_attempts=3):
     return SandboxPoolConfig(language=language, image=TEST_IMAGES[language], pool_size=pool_size,

@@ -29,9 +29,11 @@ describes the internals.
 
 ### Startup (host-owned)
 
-1. The host constructs `SandboxManager(pool_configs, client=None, max_sandboxes=N)`
+1. The host constructs `SandboxManager(pool_configs, client=None, max_sandboxes=N, runtime="runsc")`
    (or `SandboxManager.from_config(SandboxHostConfig.load_from_yaml(path))`) — for
    example `DockerHost` on first acquisition, or the control API lifespan.
+   It refuses to start when the Docker daemon does not offer the configured
+   runtime (`general.runtime`), and logs the runtime it uses.
 2. Containers of provably dead owners on this host are reclaimed
    (`sandbox_manager.ownership.reclaim_dead_owners`). Other owners are untouched.
 3. A `LanguagePool` is created per configured language, all sharing one
@@ -233,8 +235,8 @@ Each container is created with:
 - **Network:** Disabled (`network_mode="none"`)
 - **Capabilities:** All dropped except `KILL` and `DAC_OVERRIDE` for `root` control processes; `no-new-privileges`
 - **File size limit:** 10 MB
-- **Filesystem:** tmpfs-based (`/app` 64 MB writable with mode 1777, `/tmp` 32 MB noexec) under both runtimes
-- **Runtime:** gVisor (`runsc`) when available, falls back to default `runc`; the fallback only drops the `runtime` argument
+- **Filesystem:** read-only root; the only writable paths are tmpfs (`/app` 64 MiB with mode 1777, `/tmp` 32 MiB noexec, `/dev/shm` 64 MiB), so nothing reaches host disk
+- **Runtime:** the host's explicit `general.runtime` (`runsc` for gVisor, or `runc`); never changed at run time (see [isolation](../contracts/SANDBOX.md#isolation-profile-and-runtime))
 - **Labels:** application label plus owner lease (see [ownership](../contracts/SANDBOX.md#owner-leases-and-orphan-reclamation))
 
 All options are declared once in `sandbox_manager/docker_profile.py`.

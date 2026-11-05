@@ -372,7 +372,7 @@ class TestLanguagePoolNaming(unittest.TestCase):
             pool_size=1,
             running_timeout=60
         )
-        pool = LanguagePool(Language.PYTHON, config, client=None, budget=SandboxBudget(2))
+        pool = LanguagePool(Language.PYTHON, config, client=None, runtime="runc", budget=SandboxBudget(2))
 
         name = pool._build_container_name()
         assert re.match(r'^ag-sbx-python-[a-f0-9]{8}-0001$', name), f"Unexpected name: {name}"
@@ -388,7 +388,7 @@ class TestLanguagePoolNaming(unittest.TestCase):
             pool_size=1,
             running_timeout=60
         )
-        pool = LanguagePool(Language.JAVA, config, client=None, budget=SandboxBudget(2))
+        pool = LanguagePool(Language.JAVA, config, client=None, runtime="runc", budget=SandboxBudget(2))
 
         name1 = pool._build_container_name()
         name2 = pool._build_container_name()
