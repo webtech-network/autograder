@@ -29,32 +29,38 @@ describes the internals.
 
 ### Startup (host-owned)
 
-1. The host constructs `SandboxManager(pool_configs, client=None)` — for example
-   `DockerHost` on first acquisition, or the control API lifespan.
+1. The host constructs `SandboxManager(pool_configs, client=None, max_sandboxes=N)`
+   (or `SandboxManager.from_config(SandboxHostConfig.load_from_yaml(path))`) — for
+   example `DockerHost` on first acquisition, or the control API lifespan.
 2. Containers of provably dead owners on this host are reclaimed
    (`sandbox_manager.ownership.reclaim_dead_owners`). Other owners are untouched.
-3. A `LanguagePool` is created per configured language and replenishes
-   `pool_size` idle containers.
+3. A `LanguagePool` is created per configured language, all sharing one
+   `SandboxBudget` of N slots, and warms up `pool_size` idle containers.
 4. The monitor thread starts. No signal handlers or `atexit` hooks are installed;
    the host calls `shutdown()`.
 
 ### Request flow
 
 ```
-manager.get_sandbox(Language.PYTHON)
+manager.get_sandbox(Language.PYTHON, wait_seconds=600)
     ↓
-LanguagePool.acquire()
-    ├── Idle sandbox available? → activate, return
-    ├── tracked (idle+active+closing+quarantined) < scale_limit? → create, return
-    └── otherwise → SandboxUnavailableError (a ValueError)
+LanguagePool.acquire(wait_seconds)
+    ├── take a budget slot: FIFO across all languages; when all N are held wait,
+    │   and raise SandboxCapacityTimeout once wait_seconds passes
+    ├── idle sandbox available? → activate, return
+    └── otherwise create one outside the lock → activate, return
+        (failure releases the slot: SandboxUnavailableError)
     ↓
 SandboxContainer: prepare_workdir / inject_assets / run_process / extract_file
     ↓
 manager.dispose(sandbox) → LanguagePool.dispose()
     ├── mark closing; container.remove(force=True, v=True) outside the lock
     ├── removed or NotFound → disposed, forgotten
-    └── Docker error → quarantined (tracked, counted, retried by the monitor)
+    └── Docker error → quarantined (tracked, keeps its slot, retried by the monitor)
 ```
+
+The slot is returned only when Docker confirms removal, so at every instant
+creating + active + closing + quarantined ≤ N.
 
 A used sandbox is never reused. Replenishment is asynchronous (monitor thread),
 so `dispose` returns as soon as Docker confirms removal.
@@ -62,8 +68,10 @@ so `dispose` returns as soon as Docker confirms removal.
 ### Shutdown
 
 1. The host calls `shutdown()` (lifespan, `finally`, or `with SandboxManager(...)`).
-2. The monitor thread is stopped and joined; pools refuse new acquisitions.
-3. Every tracked container is disposed; quarantined ones get a final attempt.
+2. The monitor thread is stopped and joined; pools refuse new acquisitions and
+   waiting acquisitions fail with `SandboxUnavailableError`.
+3. Every tracked container is disposed, a container still being created is
+   removed once Docker returns it, and quarantined ones get a final attempt.
 4. Containers that still cannot be removed are logged and keep their owner
    labels, so the next manager on this host reclaims them.
 
@@ -75,16 +83,14 @@ Configuration is loaded from `sandbox_config.yml` at the project root:
 
 ```yaml
 general:
-    # Minimum idle sandboxes per language (always kept warm)
-    pool_size: 3
+    # The host sandbox budget N (required): creating + active + closing +
+    # quarantined sandboxes of every language never exceed it
+    max_sandboxes: 8
 
-    # Maximum total sandboxes (active + idle) per language
-    scale_limit: 10
+    # Warm idle containers per language, outside N (at most max_sandboxes)
+    pool_size: 1
 
-    # Seconds before destroying idle sandboxes above pool_size
-    idle_timeout: 600
-
-    # Maximum seconds a sandbox can be actively processing
+    # Maximum seconds a handed-out sandbox may live, counted from the grant
     running_timeout: 120
 
     # Removal attempts for a quarantined container before it stays
@@ -92,46 +98,35 @@ general:
     disposal_attempts: 5
 
 runtimes:           # host runtime profiles: language identifier -> sandbox image
-    python: sandbox-py:latest
-    java: sandbox-java:latest
-    node: sandbox-node:latest
-    cpp: sandbox-cpp:latest
-    c: sandbox-cpp:latest
+    python: ghcr.io/webtech-network/autograder-sandbox-python:<tag>
+    java: ghcr.io/webtech-network/autograder-sandbox-java:<tag>
+    node: ghcr.io/webtech-network/autograder-sandbox-node:<tag>
+    cpp: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
+    c: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
 ```
 
 A language missing from `runtimes:` has no pool; acquiring it raises
-`RuntimeUnavailableError` (control API `501 RUNTIME_UNAVAILABLE`).
-
-### Sizing Guidelines
-
-| Environment | `pool_size` | `scale_limit` | `idle_timeout` | `running_timeout` |
-|-------------|-------------|---------------|----------------|-------------------|
-| Development | 2–3 | 5–10 | 300 | 60 |
-| Production (light) | 3–5 | 10 | 600 | 120 |
-| Production (heavy) | 5–10 | 50+ | 600 | 120 |
-
-> **Resource usage:** Each sandbox uses ~128 MB RAM + 0.5 CPU.
+`RuntimeUnavailableError` (control API `501 RUNTIME_UNAVAILABLE`). Unknown keys,
+the removed `scale_limit`/`idle_timeout`, a missing or non-positive
+`max_sandboxes` and `pool_size > max_sandboxes` are rejected at startup.
 
 ---
 
-## Scaling Behavior
+## Capacity
 
-The pool scales between `pool_size` (minimum) and `scale_limit` (maximum):
-
-```
-                    pool_size              scale_limit
-                       │                      │
-   ┌───────────────────┼──────────────────────┼──────┐
-   │  Always warm      │  Scale on demand     │ Hard │
-   │  (idle containers)│  (created when busy) │ limit│
-   └───────────────────┼──────────────────────┼──────┘
-```
-
-- **Below `pool_size`:** Pool automatically replenishes idle containers
-- **Between `pool_size` and `scale_limit`:** New containers created on-demand when all are busy
-- **At `scale_limit`:** Requests fail with an error (bottleneck)
-- **Scale down:** Idle containers above `pool_size` are disposed once older than `idle_timeout`
-- **Quarantine:** Containers whose removal failed still count toward `scale_limit`
+- **Budget:** one host-wide number N bounds creating, active, closing and
+  quarantined sandboxes across every language, for grading and deliberate
+  execution alike. Size it by CPU, not by worker count: see the sizing rule in
+  [JOBS.md](../contracts/JOBS.md#sandbox-capacity).
+- **Saturation waits:** an acquisition beyond N waits in arrival order for a
+  slot. Grading waits up to 600 s (`GRADING_CAPACITY_WAIT_SECONDS`), deliberate
+  execution 10 s; expiry raises `SandboxCapacityTimeout`.
+- **Warm pool:** `pool_size` idle containers per language hold no slot; taking
+  one takes a slot. Warm-up only uses a slot no acquisition is waiting for. Used
+  containers are never returned, so idle containers never exceed `pool_size`.
+- **Creation and removal** run outside the lock, so N cold acquisitions take
+  about one creation time instead of N.
+- **Quarantine:** a container whose removal failed keeps its slot.
 
 ---
 
@@ -168,8 +163,8 @@ result = sandbox.run_process(ProcessRequest.command("python3 calculator.py", std
 
 ### `extract_file(path, max_bytes=1_048_576)`
 Reads back a regular file. It raises `FileNotFoundError` only when the file is
-missing, `ArtifactTooLargeError` above `max_bytes`, and `ArtifactReadError` when
-an existing file cannot be read.
+missing or is a symbolic link (or is reached through one), `ArtifactTooLargeError`
+above `max_bytes`, and `ArtifactReadError` when an existing file cannot be read.
 
 ---
 
@@ -208,16 +203,20 @@ Classification uses the exit status only; see
 
 Sandbox images are located in `sandbox_manager/images/`:
 
-| File | Language | Base |
-|------|----------|------|
-| `Dockerfile.python` | Python | Python runtime |
-| `Dockerfile.java` | Java | JDK |
-| `Dockerfile.javascript` | Node.js | Node runtime |
-| `Dockerfile.cpp` | C/C++ | GCC toolchain |
+| File | Languages | Runtime |
+|------|-----------|---------|
+| `Dockerfile.python` | `python` | CPython 3.13 |
+| `Dockerfile.java` | `java` | Temurin JDK 21 |
+| `Dockerfile.node` | `node` | Node.js 24 |
+| `Dockerfile.cpp` | `cpp`, `c` | GCC 15 |
 
-Build all images:
+Each image is published as a content-versioned reference that `sandbox_config.yml`
+names; the manager refuses to start with a missing or mismatched image. See
+[Runtime images](../contracts/LANGUAGES.md#runtime-images).
+
 ```bash
-make sandbox-build-all
+make sandbox-list        # language -> reference
+make sandbox-build-all   # build this checkout's images under those references
 ```
 
 ### Container Security
@@ -232,14 +231,14 @@ Each container is created with:
 - **CPU limit:** 0.5 CPU cores
 - **Process limit:** 64 PIDs
 - **Network:** Disabled (`network_mode="none"`)
-- **Capabilities:** All dropped (`cap_drop=["ALL"]`)
+- **Capabilities:** All dropped except `KILL` and `DAC_OVERRIDE` for `root` control processes; `no-new-privileges`
 - **File size limit:** 10 MB
 - **Filesystem:** tmpfs-based (`/app` 64 MB writable with mode 1777, `/tmp` 32 MB noexec) under both runtimes
 - **Runtime:** gVisor (`runsc`) when available, falls back to default `runc`; the fallback only drops the `runtime` argument
 - **Labels:** application label plus owner lease (see [ownership](../contracts/SANDBOX.md#owner-leases-and-orphan-reclamation))
 
 All options are declared once in `sandbox_manager/docker_profile.py`.
-- **User:** Runs as non-root `sandbox` user
+- **User:** Submission processes run as the non-root `sandbox` user; PID 1 (Docker's init) and control execs run as `root`, out of the submission's reach (see [who ended a run](../contracts/PROCESSES.md#who-ended-a-run))
 
 ---
 
@@ -249,9 +248,9 @@ All options are declared once in `sandbox_manager/docker_profile.py`.
 
 ```python
 from sandbox_manager.manager import SandboxManager
-from sandbox_manager.models.pool_config import SandboxPoolConfig
+from sandbox_manager.models.pool_config import SandboxHostConfig
 
-manager = SandboxManager(SandboxPoolConfig.load_from_yaml("sandbox_config.yml"))
+manager = SandboxManager.from_config(SandboxHostConfig.load_from_yaml("sandbox_config.yml"))
 try:
     with manager.acquire_sandbox(Language.PYTHON) as sandbox:
         sandbox.prepare_workdir(files)
@@ -285,13 +284,14 @@ Get pool statistics:
 ```python
 stats = manager.get_pool_stats()
 # {
-#   "python": { "idle": 2, "active": 1, "closing": 0, "quarantined": 0, "quarantine": [],
-#               "total": 3, "pool_size": 3, "scale_limit": 10, "utilization": 33.3 },
-#   "java":   { "idle": 3, "active": 0, "total": 3, "pool_size": 3, "scale_limit": 10, "utilization": 0.0 },
+#   "python": { "language": "python", "idle": 1, "creating": 0, "active": 1, "closing": 0,
+#               "quarantined": 0, "quarantine": [], "total": 2, "pool_size": 1 },
 #   ...
 # }
+manager.get_budget_stats()
+# {"max_sandboxes": 8, "held": 1, "waiting": 0}
 ```
 
-The monitor thread logs quarantined containers at error level every ~10 s and a
-`HIGH LOAD` warning at ≥90% utilization. The control API exposes the same data
-at `GET /stats` (token required).
+The monitor thread logs quarantined containers at error level every ~10 s. The
+control API exposes the same data at `GET /stats` (`pools`, `budget`, `handles`;
+token required).

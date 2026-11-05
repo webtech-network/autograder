@@ -1,7 +1,9 @@
 """Real PostgreSQL claims, restart recovery and publication races.
 
-Set TEST_POSTGRES_URL to a disposable PostgreSQL deployment. Every test creates
-and drops its own schema; SQLite cannot prove SKIP LOCKED or publication fencing.
+Set TEST_POSTGRES_URL to a disposable PostgreSQL deployment and run
+`make test-postgres`. Every test creates and drops its own schema; SQLite cannot
+prove SKIP LOCKED or publication fencing. Without the URL these tests error
+instead of skipping, so a missing database never passes as green.
 """
 import asyncio
 from dataclasses import replace
@@ -38,7 +40,7 @@ PG_TOKEN = "postgres-worker-test-token"
 async def postgres_sessions():
     url = os.getenv("TEST_POSTGRES_URL")
     if not url:
-        pytest.skip("TEST_POSTGRES_URL is required for PostgreSQL worker guarantees")
+        pytest.fail("TEST_POSTGRES_URL is required for the PostgreSQL tier (make test-postgres)", pytrace=False)
     schema = "test_workers_" + uuid4().hex
     admin = create_async_engine(url)
     async with admin.begin() as connection:
@@ -230,6 +232,12 @@ async def test_cancelled_wrapper_drains_thread_renews_lease_and_publishes(pg_app
 
 @pytest.mark.asyncio
 async def test_burst_acceptance_is_separate_from_active_execution(pg_app, pg_client, postgres_sessions):
+    """200 concurrent acceptances commit durably while no worker runs.
+
+    In-process (ASGI transport, workers disabled): this does not measure HTTP
+    serving, worker throughput, sandbox capacity or acceptance under grading load.
+    scripts/capacity_benchmark.py measures those against a running stack.
+    """
     await pg_client.post("/api/v1/configs", json={"external_assignment_id": "assignment", "definition": definition()})
     payload = {"external_assignment_id": "assignment", "external_user_id": "student", "username": "Student",
                "files": [{"filename": "main.py", "content": "print('ok')"}]}

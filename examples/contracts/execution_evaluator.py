@@ -1,80 +1,59 @@
 """Execution evaluator example; run with ``python -m examples.contracts.execution_evaluator``.
 
 An evaluator that runs the submission is still a local change: its
-implementation, its parameter contract and its registration. The only
-differences from a static evaluator are that it declares
-``required_capabilities = ("sandbox_execution",)`` and uses the session it then
-receives in ``evaluation.session``.
+implementation, its parameter contract and its registration. It subclasses the
+public ``BaseExecutionTest``, which declares ``sandbox_execution`` (so the run
+acquires a session and hands it to this evaluator in ``evaluation.session``) and
+supplies the shared steps: ``run_program`` runs the bound language's command with
+exact stdin and a deadline, and ``assessed_failure`` turns a timeout or nonzero
+exit into an assessed zero (as it does a missing workspace program or an
+exhausted sandbox, which ``run_program`` already assessed). A runtime command
+that cannot start fails the run instead.
 
-This example teaches those semantics with a *fake* execution capability, so it
-needs no Docker. A real host supplies the same ``HostCapabilities.execution``
-callable (``execution_host.docker.DockerHost`` for the shipped hosts); see
-"Host composition" in docs/architecture/extending.md.
+Everything here is imported from ``autograder``. This example teaches those
+semantics with a *fake* execution capability, so it needs no Docker. A real host
+supplies the same ``HostCapabilities.execution`` callable
+(``execution_host.docker.DockerHost`` for the shipped hosts); see "Host
+composition" in docs/architecture/extending.md.
 """
 # The keyword-only parameters of ``execute`` are the evaluator's contract, so the
 # override intentionally differs from the base signature.
 # pylint: disable=arguments-differ
-from typing import Annotated, Any, Dict, Iterable, List, Tuple
+from typing import Annotated, Dict, List
 
 from pydantic import Field
 
 from autograder import (
-    EvaluationInput, HostCapabilities, ParameterIssue, Submission, SubmissionFile, Template,
-    TestFunction, TestResult, compile_definition, evaluate_submission,
-)
-from autograder.models.evaluation_error import EvaluationError
-from autograder.models.process import (
-    ProcessRequest, ProcessResult, ProcessStatus, lines_to_stdin, split_command,
+    BaseExecutionTest, EvaluationInput, HostCapabilities, ProcessRequest, ProcessResult, ProcessStatus,
+    Submission, SubmissionFile, Template, TestResult, compile_definition, evaluate_submission,
 )
 
 
 # --- 1. Implementation and 2. parameter contract -----------------------------
 
-class PrintsLine(TestFunction):
+class PrintsLine(BaseExecutionTest):
     """Run the program once and look for one exact line of standard output."""
     name = "prints_line"
     description = "Run the program with the given input lines and check one output line."
-    #: Declaring the capability is what makes the pipeline acquire a session
-    #: and hand it to this evaluator. Undeclared evaluators receive ``None``.
-    required_capabilities = ("sandbox_execution",)
-    #: The program may import any submitted file, so it needs all of them.
-    uses_context_files = True
-
-    def validate_parameters(self, parameters: Dict[str, Any], *,
-                            languages: Tuple[str, ...]) -> Iterable[ParameterIssue]:
-        """Pure compile-time check that a JSON contract cannot express."""
-        del languages
-        try:
-            split_command(parameters["command"])
-        except ValueError:
-            yield ParameterIssue("INVALID_COMMAND", ("command",), "Command quoting is malformed")
 
     def execute(self, evaluation: EvaluationInput, *,
-                command: Annotated[str, Field(min_length=1, description="Program command (argv, no shell)")],
+                program_command: Annotated[str, Field(min_length=1, description="Program command (argv, no shell)")],
                 inputs: Annotated[List[str], Field(description="Lines sent to standard input")],
                 expected_line: Annotated[str, Field(description="A line the program must print")]) -> TestResult:
-        result = evaluation.session.run_process(
-            ProcessRequest.command(command, stdin=lines_to_stdin(inputs), timeout=10))
-        if result.status is ProcessStatus.NOT_STARTED:
-            # The host could not start the program: not a student zero.
-            raise EvaluationError("PROCESS_START_FAILED", "The program could not be started.", "capability")
-        if result.status is ProcessStatus.TIMED_OUT:
-            return TestResult(self.name, 0, "The program did not finish in time.")
+        # Compilation already rejected malformed quoting in ``program_command``
+        # (the base class's ``validate_parameters``).
+        result = self.run_program(evaluation, program_command, inputs)
+        failure = self.assessed_failure(result, evaluation.locale)
+        if failure:
+            return failure
         if expected_line in result.stdout.splitlines():
             return TestResult(self.name, 100, "Expected line printed.")
-        return TestResult(self.name, 0, f"Exit {result.exit_code}; expected line missing.")
+        return TestResult(self.name, 0, "Expected line missing.")
 
 
 # --- 3. Registration -----------------------------------------------------------
 
-class ProgramTemplate(Template):
-    """A trusted registry holding one execution evaluator."""
-    template_name = "Program checks"
-    template_description = "One trusted execution evaluator"
-    requires_sandbox = True
-
-    def __init__(self):
-        self.tests = {"prints_line": PrintsLine()}
+TEMPLATE = Template("Program checks", "One trusted execution evaluator", [PrintsLine()])
 
 
 DEFINITION = {
@@ -83,7 +62,7 @@ DEFINITION = {
     "languages": ["python"],
     "criteria": {"base": {"weight": 100, "tests": [{
         "id": "greets", "type": "prints_line", "name": "Greets the user",
-        "parameters": {"command": "python3 main.py", "inputs": ["Ada"], "expected_line": "Hello, Ada"},
+        "parameters": {"program_command": "python3 main.py", "inputs": ["Ada"], "expected_line": "Hello, Ada"},
     }]}},
 }
 
@@ -140,7 +119,7 @@ def fake_capabilities(result: ProcessResult, sessions: List[FakeSession]) -> Hos
 
 def grade(program: str, result: ProcessResult, sessions: List[FakeSession] | None = None):
     """Grade ``program`` with a fake session that answers every process with ``result``."""
-    compiled = compile_definition(DEFINITION, templates={"program_checks": ProgramTemplate()})
+    compiled = compile_definition(DEFINITION, templates={"program_checks": TEMPLATE})
     submission = Submission("local", "local", "execution-example",
                             {"main.py": SubmissionFile("main.py", program)})
     return evaluate_submission(submission, definition=compiled,

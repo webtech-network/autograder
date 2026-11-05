@@ -92,11 +92,23 @@ distributed sandbox provisioning, submission idempotency, or retention policy.
 Those are hosting responsibilities; the HTTP host provides replay-safe operation
 keys ([REPLAY.md](REPLAY.md)).
 
+Migrations are the only owner of the HTTP database schema (ENV-02). The API
+checks the database revision at startup and refuses to serve any revision but its
+own head; it never creates tables. Revisions `001`-`007` are squashed into a
+baseline `007`, so empty databases migrate and databases at `007` upgrade
+unchanged. See [deployment and migration](JOBS.md#deployment-and-migration).
+
 ## Discovery and trusted Python extensions
 
 The typed template/evaluator catalog derives parameter schemas and validated
 samples from the same contracts used by compilation. Capability requirements
-and known language constraints live on evaluator implementations. Discovery does
+and known language constraints live on evaluator implementations only; a
+template is a named collection of evaluators with no requirements of its own.
+The catalog's `requires_sandbox` field is removed rather than deprecated
+(ONB-08): it restated `required_capabilities` and was wrong for a static
+evaluator in an execution template. `BUILTIN_TEMPLATES` is the one built-in
+registry, and the authoring types (error, process contract,
+`BaseExecutionTest`) are part of the `autograder` facade. Discovery does
 not probe host availability. `compile_definition`, `describe_templates` and
 `evaluate_submission` form the supported facade; evaluation returns the finalized
 terminal outcome. Trusted instantiated `Template` objects may be injected by
@@ -373,3 +385,109 @@ other in real containers. `POST /process` replaces `/run` and `/run-batch`, and
 process requests are never replayed. Output and artifact readback are bounded
 where the process runs. See [PROCESSES.md](PROCESSES.md), which also gives the
 migration from the old newline and shell behaviour.
+
+## Bounded outcome text (COR-06)
+
+Process output is bounded where the program runs, but the terminal artifact was
+not. I/O reports copied whole streams, so a flooding program produced about
+1 MiB per criterion. Student behaviour could then deny an Action's publication
+(413) and enlarge HTTP storage. Reports (8 KiB) and feedback (256 KiB) are now
+bounded in UTF-8 bytes by the outcome contract. Local text is excerpted once:
+reports in `grade` and feedback in `render_feedback`. The excerpt is a
+deterministic head and tail with a marker stating the full byte count. Attested
+text above a bound is a typed validation error, never truncated. The worst-case
+outcome is `CompiledDefinition.max_outcome_bytes`, a function of the criteria
+count and of definition-authored text. Compilation keeps snapshot plus outcome
+within 24 MiB. Assessment, scores and schema shape are unchanged; only report
+text above a bound changes. Definitions above the budget (more than about 465
+criteria) now fail with `DEFINITION_TOO_LARGE`, including stored ones when they
+are loaded. That includes a job accepted before the deployment whose bound
+snapshot is over the budget: its worker compilation fails and the job ends as a
+failed outcome. This departs from "activation gates new acceptance, not bound
+jobs". It is accepted because such a definition (more than about 465 criteria
+with short parameters) is not a realistic assignment.
+
+Migration evidence: outcomes stored before the bounds are upgraded in place by
+Alembic revision `009_bound_outcome_text`, which applies the engine's excerpt to
+every stored report and feedback. Unpublished receipts get the same excerpt when
+they are read, so pending delivery retries finish. Both use one function,
+`bound_outcome_text`, and leave scores unchanged.
+`tests/web/test_outcome_text_migration.py` stores pre-bound rows and a pre-bound
+receipt, then checks `/details`, comparison and receipt replay through the real
+app. An Action `delivery.json` saved by an earlier release is an attestation, so
+an oversized report in it is rejected with `text_too_large`, not excerpted. The
+excerpt marker is fixed English until ONB-03. See
+[OUTCOMES.md](OUTCOMES.md#size-bounds).
+
+## Versioned runtime images (ENV-04, runtime part)
+
+The student runtimes are built from `sandbox_manager/images` on digest-pinned,
+supported bases (CPython 3.13, Temurin JDK 21, Node.js 24, GCC 15 on Alpine
+3.24) without a build context, and hold no package manager, downloader or setuid
+binary. Each image's reference is derived from its Dockerfile's content, CI
+publishes a reference once and never overwrites it, and `sandbox_config.yml`
+names exactly those references; floating local `:latest` tags are gone. A
+`SandboxManager` never pulls: it starts only when every configured image is
+present and declares its language in the `autograder.runtime.languages` label,
+and raises `RuntimeImageError` otherwise. Hosts therefore pull or build the
+configured images before starting; an old unlabelled image is rejected rather
+than silently used. Service and Action images are a later change. See
+[LANGUAGES.md](LANGUAGES.md#runtime-images).
+
+## Closed locale and outcome-code vocabularies (COR-07)
+
+`Locale` (`autograder/models/locale.py`) is the one declaration of supported
+locales; `parse_locale` (case-insensitive, `_` read as `-`) is the only way a
+boundary accepts one. `Submission`, the HTTP schema (422, OpenAPI enum) and the
+Action CLI (argument error) all use it, and unknown locales are rejected rather
+than replaced by English. The translator loads one catalog per declared locale at
+import, so no caller value becomes a file path; the lazy loader, its per-lookup
+error logging and the singleton are removed. Outcome error codes are the closed
+`OUTCOME_ERROR_CODES` enum: engine codes, which `EvaluationError` enforces at
+construction, plus host-only `RECOVERY_EXHAUSTED`, `RECOVERY_INPUT_UNAVAILABLE`
+and `LEGACY_UNVERIFIED`. `EXECUTION_ERROR` is the single unexpected-failure code;
+the HTTP host's `EXECUTION_FAILED` is removed and migrated (revision 010). A
+contract test enumerates every emitted code from the source and requires the
+OUTCOMES matrix and both schemas to list exactly that vocabulary.
+
+## One host-wide sandbox budget (PRF-01)
+
+Execution capacity is one number per sandbox manager, `general.max_sandboxes`
+(N). Every language pool shares one `SandboxBudget` whose lock is also the pools'
+lock; a slot is held from the start of creation (or the hand-out of a warm
+container) until Docker confirms removal, so creating + active + closing +
+quarantined ≤ N. Saturation waits in one FIFO queue for the caller's
+`wait_seconds` (grading 600 s, deliberate execution 10 s) instead of failing;
+expiry is `SandboxCapacityTimeout`, reported to grading as a retryable
+`CAPABILITY_UNAVAILABLE` and to deliberate callers as `503 EXECUTION_BUSY`.
+Docker create/remove run outside the lock. Warm idle containers stay outside N
+and never exceed `pool_size`, so `idle_timeout` had nothing left to expire and
+was removed with `scale_limit` and `SANDBOX_MAX_HANDLES`; startup rejects them.
+The control API waits for slots in its own threads so waiting acquisitions
+cannot starve the `DELETE` that frees one, and no longer serializes acquisitions.
+No new pool abstraction or scheduler was added. See [SANDBOX.md](SANDBOX.md) and
+[JOBS.md](JOBS.md#sandbox-capacity).
+
+## Who ended a sandbox (COR-01)
+
+A container that stopped under a process no longer keeps that process's exit
+code: the reaper or `docker kill` had turned correct programs into zeros, and a
+submission could kill the `sandbox`-owned PID 1 or collector to turn a bad grade
+into a retryable `SANDBOX_ERROR`. PID 1 (Docker's init) and the control execs
+that run beside the submission now run as `root` with only `KILL` and
+`DAC_OVERRIDE`; submission processes run as `sandbox` without capabilities
+(`no-new-privileges`) and are the OOM killer's first choice. Attribution uses
+host-side evidence only: the container's cgroup counters (runc), the pool's
+disposal record and Docker's record of how the container stopped. Host stops
+and removals are infrastructure failures. Memory or process exhaustion is the
+core `SandboxExhausted` (control API `409 SANDBOX_EXHAUSTED`), not a
+`RuntimeError`; because gVisor's container stops while runc's survives, the
+sandbox is spent under both runtimes and the exhausting criterion and every
+later one are assessed zeros. A missing or non-executable workspace program is
+an assessed zero; only a runtime command that cannot start stays
+`PROCESS_START_FAILED`. Artifacts and outputs are read whatever permissions the
+submission set, never through a symbolic link it planted (a link is no
+artifact, under both runtimes). The collector needs no fork until it has
+reported the cgroup counters, is restarted when runc finds no pid to start it,
+and a running container at its pids limit is exhaustion. The outcome wire is
+unchanged. See [PROCESSES.md](PROCESSES.md#who-ended-a-run).

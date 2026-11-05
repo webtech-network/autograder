@@ -4,9 +4,11 @@
 does not create a grading submission or score. The caller must be a trusted host
 using `Authorization: Bearer <AUTOGRADER_INTEGRATION_TOKEN>`. The host must
 authorize its own users and resource access before calling it. The request is
-synchronous and is not durably accepted. The endpoint and grading both acquire
-from the same sandbox manager and language pool, so its `scale_limit` bounds active containers
-for both paths. Pool exhaustion is a service failure, not a student result.
+synchronous and is not durably accepted. The endpoint and grading take slots of
+the same host sandbox budget (`max_sandboxes`). A run waits at most 10 seconds for
+a slot; when every slot stays held it answers `503 EXECUTION_BUSY` with
+`Retry-After: 5`. It never takes a slot from, or fails, a grading, which waits
+much longer. Saturation is a service condition, not a student result.
 
 ## Request and stdin
 
@@ -115,7 +117,8 @@ blocked Docker call or asset provider. No job ID or later status query exists.
 | Invalid input or limit | 422 | `detail[]` with path, code, message |
 | Missing/invalid token | 401 | authentication detail |
 | Student runtime/compile error or process timeout | 200 | `results[].category`, stdout/stderr/exit_code |
-| Pool unavailable/full, asset or sandbox failure | 503 | `detail.code=EXECUTION_UNAVAILABLE` |
+| Every sandbox busy for the 10 s capacity wait | 503 + `Retry-After: 5` | `detail.code=EXECUTION_BUSY` |
+| Pool unavailable, asset or sandbox failure | 503 | `detail.code=EXECUTION_UNAVAILABLE` |
 | Response deadline | 504 | `detail.code=EXECUTION_DEADLINE_EXCEEDED` |
 | Caller disconnect | no response | worker completes cleanup; no persisted result |
 
@@ -123,7 +126,7 @@ blocked Docker call or asset provider. No job ID or later status query exists.
 
 Send the integration Bearer token, a supported lower-case language, normalized
 file and asset paths, and at most four stdin cases. Treat 422, 503, and 504 as
-request or service failures. Treat `results[].category` as the student process
+request or service failures; `EXECUTION_BUSY` may be retried after `Retry-After`. Treat `results[].category` as the student process
 outcome. A caller that only displays output can use `output`; one that needs
 precise process details should read `stdout`, `stderr`, `exit_code`,
 `truncated`, and `stopped_early`.

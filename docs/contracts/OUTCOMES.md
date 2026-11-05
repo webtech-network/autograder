@@ -24,26 +24,51 @@ finalization, including engine resource cleanup. It excludes adapter queueing,
 persistence, and publication. Internal
 pipeline diagnostics are not public result fields.
 
+Error codes are one closed vocabulary, `OUTCOME_ERROR_CODES` in
+`autograder.models.contracts.outcome`; the terminal-outcome schema and OpenAPI
+publish it as an enum, and every code below appears in it. Engine codes
+(`ENGINE_ERROR_CODES`) are the only ones an evaluator or provider may raise as
+`EvaluationError`; an unpublished code is a programming error reported as
+`EXECUTION_ERROR`. Host-only codes (`HOST_ERROR_CODES`) are recorded by an adapter
+for work the engine never finalized. `EXECUTION_ERROR` is the single code for an
+unexpected failure in the engine and in every host.
+
 | Trigger | Grading outcome | Error category / code |
 | --- | --- | --- |
 | An assessed criterion genuinely scores zero | Completed, score 0 | No top-level error |
 | Student compilation/runtime failure or student execution timeout reported by an I/O evaluator | Completed, criterion scores 0 | No top-level error |
-| Required preparation file missing | Failed, no score | submission / REQUIRED_FILE_MISSING |
-| Preparation command fails because the submission does not satisfy it | Failed, no score | submission / PREPARATION_FAILED |
-| Language omitted for a multilingual definition or disallowed language selected | Failed, no score | submission / LANGUAGE_REQUIRED or LANGUAGE_NOT_ALLOWED |
-| Required sandbox cannot be provisioned | Failed, no score | capability / CAPABILITY_UNAVAILABLE |
-| Sandbox system/transport or artifact extraction failure | Failed, no score | capability / SANDBOX_ERROR |
-| Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / PREPARATION_ERROR |
-| Required structural analysis unavailable | Failed, no score | capability / CAPABILITY_UNAVAILABLE |
-| Provider initialization fails | Failed, no score | provider / PROVIDER_UNAVAILABLE |
-| Provider request fails | Failed, no score | provider / PROVIDER_ERROR |
-| Missing required AI assessment | Failed, no score | provider / MISSING_EVALUATOR_RESULT |
-| Duplicate, unknown, or invalid provider assessment | Failed, no score | provider / INVALID_EVALUATOR_RESULT |
-| Evaluator returns an invalid numeric grade | Failed, no score | internal / INVALID_EVALUATOR_RESULT |
-| Unexpected required operation exception | Failed, no score | internal / EXECUTION_ERROR |
-| Optional focus or feedback fails | Completed, original grade preserved | feedback.error / FEEDBACK_ERROR |
+| Submission exhausts the sandbox's memory or process limit (`SandboxExhausted`) | Completed; that criterion and every later one in the sandbox score 0, the same under gVisor and runc | No top-level error |
+| Workspace program (`./a.out`) missing or not executable | Completed, criterion scores 0 | No top-level error |
+| Expected artifact missing, or a symbolic link (or reached through one) | Completed, criterion scores 0 | No top-level error |
+| Required preparation or assessment file missing | Failed, no score | submission / `REQUIRED_FILE_MISSING` |
+| Preparation command fails because the submission does not satisfy it | Failed, no score | submission / `PREPARATION_FAILED` |
+| Language omitted for a multilingual definition or disallowed language selected | Failed, no score | submission / `LANGUAGE_REQUIRED` or `LANGUAGE_NOT_ALLOWED` |
+| Criterion file parameters conflict with its targets, or a target is outside the evaluation scope | Failed, no score | submission / `FILE_TARGET_CONFLICT` |
+| A criterion target has a file type its evaluator does not accept | Failed, no score | submission / `UNSUPPORTED_FILE_TYPE` |
+| A single-file evaluator matches several files without an explicit target | Failed, no score | submission / `AMBIGUOUS_FILE_TARGET` |
+| AI criterion identities are not unique | Failed, no score | definition / `INVALID_DEFINITION` |
+| Program command is malformed (reached only outside a compiled plan) | Failed, no score | definition / `INVALID_COMMAND` |
+| No program command is defined for the selected language | Failed, no score | submission / `MISSING_LANGUAGE_COMMAND` |
+| Required sandbox cannot be provisioned, or no sandbox budget slot frees up within the grading wait (retryable) | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
+| Host cannot start and reach an assessed server | Failed, no score | capability / `SERVER_CAPABILITY_UNAVAILABLE` |
+| Sandbox system/transport or artifact extraction failure, or a host/operator that stopped or removed the sandbox (running timeout, `docker kill`/`rm`) | Failed, no score, retryable | capability / `SANDBOX_ERROR` |
+| Runtime command (`python3`) cannot be started | Failed, no score | capability / `PROCESS_START_FAILED` |
+| Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / `PREPARATION_ERROR` |
+| Required fixture provider is not supplied by the host | Failed, no score | capability / `FIXTURE_PROVIDER_UNAVAILABLE` |
+| Required structural analysis unavailable | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
+| Provider initialization fails (not cached; the next grading tries again) or no provider is supplied | Failed, no score | provider / `PROVIDER_UNAVAILABLE` |
+| Provider request fails, including its deadline expiring (one request, retryable) | Failed, no score | provider / `PROVIDER_ERROR` |
+| Missing required AI assessment | Failed, no score | provider / `MISSING_EVALUATOR_RESULT` |
+| Duplicate, unknown, or invalid provider assessment | Failed, no score | provider / `INVALID_EVALUATOR_RESULT` |
+| Evaluator returns an invalid numeric grade | Failed, no score | internal / `INVALID_EVALUATOR_RESULT` |
+| Unexpected exception in the engine or a host's grading call | Failed, no score | internal / `EXECUTION_ERROR` |
+| Optional focus or feedback fails | Completed, original grade preserved | feedback.error / `FEEDBACK_ERROR` |
+| Owned execution session cannot be closed | Outcome unchanged | Diagnostic observation only / `CLEANUP_ERROR` |
+| HTTP: interrupted work exhausts its recovery attempts (host-only) | Failed, no score | internal / `RECOVERY_EXHAUSTED` |
+| HTTP: unfinished historical submission lacks replayable input (host-only projection) | Failed, no score | internal / `RECOVERY_INPUT_UNAVAILABLE` |
+| HTTP: historical failure predates the verified outcome contract (host-only projection) | Failed, no score | internal / `LEGACY_UNVERIFIED` |
 | Feedback disabled (even if feedback services would fail) | Completed; no focus or report work | feedback.status = disabled |
-| Externally attested comparison enrichment fails | Completed, original grade preserved | host-attested comparison.error |
+| Externally attested comparison enrichment fails | Completed, original grade preserved | host-attested comparison.error (published codes only) |
 | On-demand baseline comparison cannot be computed | Stored outcomes unchanged | HTTP 409/422 response only (see below) |
 | Persistence/publication fails after finalization | Original artifact remains completed or failed | Adapter delivery failure, outside the grading outcome |
 
@@ -51,7 +76,10 @@ There is no partial grading policy: every configured evaluator is required,
 including zero-weight criteria. A required evaluator failure makes the entire
 numeric grade unauthoritative. Student timeout is determined by a sandbox's
 explicit `TIMEOUT` assessment response; an exception while communicating with
-the sandbox is an infrastructure failure. API evaluators assess returned HTTP
+the sandbox is an infrastructure failure. Who ended a sandbox is decided from
+host-side evidence, never from an exit code ([PROCESSES.md](PROCESSES.md#who-ended-a-run)),
+and the submission cannot signal or starve the control processes, so it cannot
+turn an assessed result into a retryable failure. API evaluators assess returned HTTP
 status/content; inability to obtain a response is a capability failure. These
 conservative classifications avoid claiming that unavailable infrastructure
 proved student code incorrect.
@@ -60,7 +88,7 @@ Public errors expose stable codes, fixed safe engine messages, categories
 (`definition`, `submission`, `capability`, `provider`, `internal`), retryability,
 and correlation IDs. Raw exceptions, provider responses, setup stderr, and
 internal step names remain in host-controlled diagnostics/logs. Authenticated
-external hosts may attest their own safe structured error codes/messages; that
+external hosts may attest their own safe messages using the published codes; that
 attestation does not prove the local server executed the grade.
 
 The tree has one root representation. Categories retain the base/bonus/penalty
@@ -107,6 +135,73 @@ current definition hashes. Consumers migrate to the canonical outcome plus
 compact polling/history projections; source files and trees require explicit
 trusted detail retrieval.
 
+
+## Size bounds
+
+Student-controlled text cannot size an outcome. Each criterion `report` is at
+most `MAX_REPORT_BYTES` (8 KiB) and feedback `content` at most
+`MAX_FEEDBACK_BYTES` (256 KiB) of UTF-8, both in
+`autograder/models/contracts/outcome.py`. The engine bounds locally produced
+text in one place: `grade` excerpts every evaluator and AI report, and
+`render_feedback` excerpts feedback. Text that fits is kept (lone surrogates
+become U+FFFD). Longer text becomes a deterministic, valid UTF-8 excerpt that
+keeps the head and the tail around a marker with the full byte count:
+
+```text
+FAILURE: Output Mismatch.
+Expected: '5'
+Actual: 'ooo...
+[... 1040478 of 1048626 bytes omitted ...]
+...ooo'
+```
+
+Excerpting never changes a score. Process output is still read with its 1 MiB
+per-stream bound ([PROCESSES.md](PROCESSES.md)), and evaluators assess the whole
+stream. Only the retained text is shorter. Validation rejects an attested report
+or feedback above its bound with the typed error `text_too_large` and never
+truncates it.
+
+The worst-case outcome is a function of the definition, never of a submission.
+`CompiledDefinition.max_outcome_bytes` is the largest size of any of its
+outcomes serialized with `json.dumps` defaults. That encoding uses ASCII escaping
+and spaced separators, so it is never smaller than a compact or raw-UTF-8
+encoding:
+
+```text
+max_outcome_bytes = S + 6 * (N * 8 KiB + 256 KiB) + 1 KiB * nodes + 16 KiB
+```
+
+Here `S` is the measured tree with empty reports: IDs, labels, targets, weights
+and canonical parameters. `N` is the number of criteria, and `nodes` counts
+criteria, groups, categories and the root. The factor 6 is the largest JSON
+escaping of one UTF-8 byte (`\u0001`). The per-node allowance covers score digits
+and one attested comparison delta for each criterion of this definition. Deltas
+for criteria `removed` since the baseline name criteria that are not nodes of
+this definition and have no allowance. An attestation whose comparison lists
+enough of them to exceed the bound is rejected with `OUTCOME_TOO_LARGE`. The
+16 KiB covers identifiers, provenance, timestamps, statuses and a structured
+error.
+
+An attestation carries the definition snapshot and the outcome. Compilation
+(`compile_definition` and `compile_snapshot`) therefore rejects with
+`DEFINITION_TOO_LARGE` any definition whose snapshot plus `max_outcome_bytes`
+exceeds `MAX_ATTESTATION_BYTES` (24 MiB, `verification.py`). The hosts' 32 MiB
+request limit ([SUBMISSIONS.md](SUBMISSIONS.md)) leaves 8 MiB for identity and
+audit metadata, so every valid definition's maximal attestation is accepted.
+With short parameters this allows about 465 criteria, and long
+definition-authored text lowers the number. The HTTP host also rejects an
+attested outcome larger than its snapshot's `max_outcome_bytes` (for example
+because of oversized `metadata`) with 422 `OUTCOME_TOO_LARGE`. Storage and UI can
+size for these bounds.
+
+Outcomes this host stored before the bounds existed are upgraded, never
+rejected when they are read. Alembic revision `009_bound_outcome_text` rewrites
+every stored `submission_results.outcome` with the same excerpt
+(`bound_outcome_text`). Scores, identities and text within a bound are
+unchanged, and the upgrade is idempotent. Publication receipts written before
+the deployment are excerpted the same way when they are read, so their delivery
+retry still completes and still equals the migrated row. Neither path applies to
+incoming attestations.
 
 ## Publication receipts
 

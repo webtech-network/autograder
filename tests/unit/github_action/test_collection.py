@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 
 from github_action import main
-from submission_contract import MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_FILE_BYTES
+from sandbox_manager.submission_contract import MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_FILE_BYTES
 
 
 def test_collection_preserves_utf8_and_line_endings(tmp_path):

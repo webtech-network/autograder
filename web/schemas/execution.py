@@ -18,6 +18,10 @@ MAX_STDIN_BYTES = 16 * 1024
 MAX_OUTPUT_BYTES = 16 * 1024  # Per stream, per case, on the wire.
 CASE_TIMEOUT_SECONDS = 8
 REQUEST_DEADLINE_SECONDS = 45
+# A run waits this long for a slot of the host sandbox budget it shares with
+# grading, then answers 503 EXECUTION_BUSY with Retry-After.
+CAPACITY_WAIT_SECONDS = 10
+BUSY_RETRY_AFTER_SECONDS = 5
 
 
 class ExecutionFile(BaseModel):

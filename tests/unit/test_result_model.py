@@ -34,13 +34,8 @@ class Fixed(TestFunction):
         return TestResult(self.name, score, f"scored {score}")
 
 
-class Local(Template):
-    template_name = "Local"
-    template_description = "Fixed scores."
-    requires_sandbox = False
-
-    def __init__(self):
-        self.tests = {"fixed": Fixed()}
+def local_template():
+    return Template("Local", "Fixed scores.", [Fixed()])
 
 
 def t(identity, score, weight=1, name=None, **extra):
@@ -68,7 +63,7 @@ def run(base, bonus=None, penalty=None, feedback=None):
     definition = {"schema_version": "1.0", "templates": ["local"], "languages": ["python"], "criteria": criteria}
     if feedback:
         definition["feedback"] = feedback
-    pipeline = build_pipeline(definition=definition, templates={"local": Local()})
+    pipeline = build_pipeline(definition=definition, templates={"local": local_template()})
     outcome = pipeline.run(Submission("u", "u", "a", {"main.py": SubmissionFile("main.py", "")})).outcome
     assert outcome.status == "completed", outcome.error
     return pipeline, outcome

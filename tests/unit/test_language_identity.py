@@ -15,9 +15,9 @@ from autograder.models.language import LANGUAGE_IDS, Language
 from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.errors import RuntimeUnavailableError
 from sandbox_manager.manager import SandboxManager
-from sandbox_manager.models.pool_config import SandboxPoolConfig, runtime_images
+from sandbox_manager.models.pool_config import SandboxHostConfig, SandboxPoolConfig, runtime_images
 from sandbox_manager.remote_client import RemoteSandboxManager
-from tests.sandbox_profiles import sandbox_config
+from tests.sandbox_profiles import TEST_IMAGES, sandbox_config
 from tests.unit.sandbox.fakes import FakeDocker, owner, pool_config
 from web.schemas.execution import DeliberateCodeExecutionRequest
 from web.schemas.submission import SubmissionCreate
@@ -141,8 +141,8 @@ def test_the_bound_language_reaches_the_evaluator_and_the_outcome():
 
 def test_runtime_images_come_only_from_the_host_profile(tmp_path):
     path = tmp_path / "sandbox.yml"
-    path.write_text(sandbox_config((Language.PYTHON,)).replace("sandbox-py:latest", "registry.local/py:3.13"))
-    configs = SandboxPoolConfig.load_from_yaml(str(path))
+    path.write_text(sandbox_config((Language.PYTHON,)).replace(TEST_IMAGES[Language.PYTHON], "registry.local/py:3.13"))
+    configs = SandboxHostConfig.load_from_yaml(str(path)).pools
     assert [(config.language, config.image) for config in configs] == [(Language.PYTHON, "registry.local/py:3.13")]
 
 
@@ -159,9 +159,9 @@ def test_invalid_runtime_profiles_are_rejected(runtimes, message):
 
 def test_shipped_pool_uses_the_profile_image():
     docker = FakeDocker()
-    config = SandboxPoolConfig(language=Language.C, image="custom-c:1", pool_size=1, scale_limit=2,
-                               idle_timeout=300, running_timeout=60)
-    manager = SandboxManager([config], docker, owner=owner(), reclaim_orphans=False, monitor_interval=60)
+    config = SandboxPoolConfig(language=Language.C, image="custom-c:1", pool_size=1, running_timeout=60)
+    manager = SandboxManager([config], docker, max_sandboxes=2, owner=owner(), reclaim_orphans=False,
+                             monitor_interval=60)
     try:
         # Each creation attempt (gVisor, then the default runtime) uses the profile image.
         assert {call["image"] for call in docker.containers.run_calls} == {"custom-c:1"}
@@ -170,7 +170,8 @@ def test_shipped_pool_uses_the_profile_image():
 
 
 def test_missing_local_runtime_is_a_capability_failure_not_an_invalid_language():
-    manager = SandboxManager([pool_config(Language.PYTHON)], FakeDocker(), owner=owner(), reclaim_orphans=False,
+    manager = SandboxManager([pool_config(Language.PYTHON)], FakeDocker(), max_sandboxes=2, owner=owner(),
+                             reclaim_orphans=False,
                              monitor_interval=60)
     try:
         with pytest.raises(RuntimeUnavailableError, match="c"):
@@ -183,7 +184,7 @@ def test_missing_local_runtime_is_a_capability_failure_not_an_invalid_language()
 
 def test_missing_remote_runtime_has_a_distinct_code_and_client_error():
     def manager_factory():
-        return SandboxManager([pool_config(Language.PYTHON)], FakeDocker(), owner=owner(), reclaim_orphans=False,
+        return SandboxManager([pool_config(Language.PYTHON)], FakeDocker(), max_sandboxes=2, owner=owner(), reclaim_orphans=False,
                               monitor_interval=60)
     app = create_app(ControlSettings(token=TOKEN), manager_factory=manager_factory)
     with TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"}) as client:

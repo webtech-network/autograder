@@ -18,6 +18,10 @@ from autograder.models.abstract.ai_test_function import AiTestFunction
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.language import Language
+from autograder.models.locale import Locale
+from autograder.models.evaluation_error import EvaluationError
+from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus, lines_to_stdin, split_command
+from autograder.models.abstract.execution_test import BaseExecutionTest
 
 __all__ = ["build_pipeline", "compile_definition", "compile_snapshot", "select_language", "validate_outcome",
            "grading_definition_json_schema", "outcome_json_schema", "GradingDefinition",
@@ -26,4 +30,8 @@ __all__ = ["build_pipeline", "compile_definition", "compile_snapshot", "select_l
            "EvaluationInput", "ParameterIssue", "Submission",
            "SubmissionFile", "TestResult", "HostCapabilities", "ExecutionSession",
            "ServerSession", "AssessmentProvider", "AssessmentRequest", "ProviderAssessment",
-           "outcome_score_vector", "compare_outcomes", "OutcomeComparison", "ComparisonError", "Language"]
+           "outcome_score_vector", "compare_outcomes", "OutcomeComparison", "ComparisonError", "Language",
+           "Locale",
+           # Evaluator authoring: failure type, process contract and the shared run-the-program base.
+           "EvaluationError", "ProcessRequest", "ProcessResult", "ProcessStatus", "lines_to_stdin",
+           "split_command", "BaseExecutionTest"]

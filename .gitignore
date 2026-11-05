@@ -92,7 +92,8 @@ Thumbs.db
 *.bak
 tmp/
 temp/
-test.py
+# Root scratch file only: autograder/models/config/test.py is source.
+/test.py
 
 # Database
 *.db

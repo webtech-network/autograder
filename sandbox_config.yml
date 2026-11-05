@@ -1,55 +1,36 @@
 general:
 
-    # POOL SIZE: Minimum number of idle sandboxes to maintain for each language
-    # - This is the baseline number always kept ready
-    # - System will automatically create more on-demand up to scale_limit
-    # Development: 2-3, Production: 3-5 depending on expected baseline load
+    # MAX SANDBOXES (N): the host-wide sandbox budget, shared by every language,
+    # by grading and by deliberate execution (POST /execute).
+    # Sandboxes being created, in use, being removed or quarantined never exceed N.
+    # An acquisition beyond N waits for a slot instead of failing: grading waits up
+    # to 10 minutes (then a retryable failure, never a score), deliberate execution
+    # 10 seconds (then 503 EXECUTION_BUSY).
+    # Sizing: N is bounded by CPU, not by the number of API workers. Each sandbox
+    # may use 0.5 CPU and 128 MiB; gVisor and the API need the rest. Start near
+    # 2/3 of the logical CPUs (about 8 on 12 CPUs) and raise it only while the
+    # benchmark's throughput still rises. See docs/contracts/JOBS.md.
+    max_sandboxes: 8
+
+    # POOL SIZE: warm idle containers kept per language, outside the budget.
+    # Taking a warm container still takes a budget slot. Must not exceed max_sandboxes.
     pool_size: 1
 
-    # SCALE LIMIT: Maximum total sandboxes (active + idle) per language
-    # - System scales UP automatically when all sandboxes are busy
-    # - System scales DOWN automatically when demand decreases
-    # - This is your safety limit to prevent resource exhaustion
-    # Production recommendations:
-    #   - Light load (< 10 concurrent users): 10
-    #   - Medium load (10-50 concurrent users): 20-30
-    #   - Heavy load (50+ concurrent users): 50+
-    # Note: Each sandbox uses ~128MB RAM + 0.5 CPU
-    scale_limit: 3
-
-    # IDLE TIMEOUT: Seconds before destroying idle sandboxes above pool_size
-    # - Sandboxes are destroyed only if: total > pool_size AND idle > idle_timeout
-    # - This prevents keeping too many idle resources during low traffic
-    # Development: 300 (5 min), Production: 600 (10 min) to reduce churn
-    idle_timeout: 600
-
-    # RUNNING TIMEOUT: Maximum seconds a sandbox can be actively processing
-    # - Prevents hanging/stuck processes from blocking resources
-    # - Active sandboxes exceeding this are forcefully destroyed
-    # - Should be generous enough for complex submissions
-    # Development: 60, Production: 120 (2 min) for safety
+    # RUNNING TIMEOUT: maximum seconds a handed-out sandbox may live, counted from
+    # the moment it was granted (time spent waiting for a slot does not count).
     running_timeout: 120
 
 # RUNTIMES: the host's runtime profiles, mapping a domain language identifier to the
 # sandbox image this host runs for it. Replacing an image changes only this map.
 # A language left out has no pool: grading or deliberate execution in that language
 # fails as an unavailable capability (never as an invalid language).
+# These are the versioned images built from sandbox_manager/images (see
+# `python scripts/sandbox_images.py list`). Images are never pulled implicitly: run
+# `docker pull <image>` (or `make sandbox-build-all`) first; a missing image, or one
+# whose autograder.runtime.languages label omits the language, stops the host at startup.
 runtimes:
-    python: sandbox-py:latest
-    java: sandbox-java:latest
-    node: sandbox-node:latest
-    cpp: sandbox-cpp:latest
-    c: sandbox-cpp:latest
-
-# SCALING BEHAVIOR (After Fix):
-# 1. ON HIGH DEMAND: When all idle sandboxes are busy, system automatically
-#    creates new sandboxes up to scale_limit
-# 2. ON LOW DEMAND: When sandboxes become idle and exceed pool_size + idle_timeout,
-#    they are destroyed to free resources
-# 3. MINIMUM MAINTAINED: Always maintains pool_size idle sandboxes ready
-# 4. MAXIMUM ENFORCED: Never exceeds scale_limit total sandboxes
-
-# TODO: Create language-specific configurations for different scaling needs
-
-
-
+    python: ghcr.io/webtech-network/autograder-sandbox-python:c7739d3b1863
+    java: ghcr.io/webtech-network/autograder-sandbox-java:e6a8ea1c4e0c
+    node: ghcr.io/webtech-network/autograder-sandbox-node:4a0dc30f9c4d
+    cpp: ghcr.io/webtech-network/autograder-sandbox-cpp:bcbf4bab3f24
+    c: ghcr.io/webtech-network/autograder-sandbox-cpp:bcbf4bab3f24

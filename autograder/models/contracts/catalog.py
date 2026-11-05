@@ -32,7 +32,8 @@ class EvaluatorDescription(BaseModel):
     required_capabilities: List[Capability]
     supported_languages: Optional[List[LanguageId]] = Field(
         default=None, description="Known language constraints; null means no evaluator-specific restriction is declared. Host execution support is separate.")
-    requires_sandbox: bool
+    absence_check: Optional[str] = Field(
+        default=None, description="Set for prohibition and limit checks: why the evaluator passes when what it looks for is absent. Null for presence checks, which cannot pass an irrelevant submission.")
 
 
 class TemplateDescription(BaseModel):
@@ -40,7 +41,6 @@ class TemplateDescription(BaseModel):
     identifier: str
     name: str
     description: str
-    requires_sandbox: bool
     evaluators: List[EvaluatorDescription]
 
 
@@ -99,13 +99,6 @@ def sample_parameters(function: TestFunction) -> Dict[str, Any]:
         raise ValueError(f"Evaluator '{function.name}' must supply valid example_parameters") from exc
 
 
-def required_capabilities(template: Template, function: TestFunction) -> List[str]:
-    capabilities = set(getattr(function, "required_capabilities", ()))
-    if template.requires_sandbox:
-        capabilities.add("sandbox_execution")
-    return sorted(capabilities)
-
-
 def describe_template(identifier: str, template: Template) -> TemplateDescription:
     if not isinstance(template, Template):
         raise TypeError("Injected templates must be trusted Template instances")
@@ -114,15 +107,15 @@ def describe_template(identifier: str, template: Template) -> TemplateDescriptio
         identifier=identifier,
         name=template.template_name,
         description=template.template_description,
-        requires_sandbox=template.requires_sandbox,
         evaluators=[EvaluatorDescription(
             identifier=name,
             description=function.description,
             parameters_schema=parameters_schema(function),
             sample_parameters=sample_parameters(function),
-            required_capabilities=required_capabilities(template, function),
-            supported_languages=getattr(function, "supported_languages", None),
-            requires_sandbox=template.requires_sandbox,
+            # Declared once, on the evaluator: discovery and runtime read the same tuple.
+            required_capabilities=sorted(set(function.required_capabilities)),
+            supported_languages=function.supported_languages,
+            absence_check=function.absence_check,
         ) for name, function in template.get_tests().items()])
 
 
@@ -131,8 +124,6 @@ def describe_templates(templates: Optional[Mapping[str, Template]] = None) -> Te
 
     Injected identifiers replace built-ins exactly as in ``compile_definition``.
     """
-    from autograder.services.template_library_service import TemplateLibraryService
-    library = TemplateLibraryService.get_instance()
-    resolved: Dict[str, Template] = {name: library.start_template(name) for name in library.list_available_templates()}
-    resolved.update(templates or {})
+    from autograder.template_library import BUILTIN_TEMPLATES
+    resolved: Dict[str, Template] = {**BUILTIN_TEMPLATES, **(templates or {})}
     return TemplateCatalog(templates=[describe_template(name, template) for name, template in resolved.items()])

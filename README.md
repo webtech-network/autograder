@@ -6,12 +6,10 @@
 
 **An educational-standards-driven autograding tool that transforms assignment grading into an engaging learning experience.**
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://github.com/webtech-network/autograder/actions/workflows/pytest.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/pytest.yml)
-[![Lint](https://github.com/webtech-network/autograder/actions/workflows/pylint.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/pylint.yml)
-[![Docs](https://github.com/webtech-network/autograder/actions/workflows/validate-docs.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/validate-docs.yml)
+[![Verify](https://github.com/webtech-network/autograder/actions/workflows/verify.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/verify.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 [Features](#features) • [Architecture](#architecture) • [Quick Start](#quick-start) • [Templates](#grading-templates) • [Pipeline](#pipeline-workflow) • [API](#rest-api) • [GitHub Action](#github-action) • [Docs](https://webtech-network.github.io/autograder/) • [Community](#community-standards)
@@ -35,7 +33,7 @@ The **Autograder** is an advanced educational tool designed to efficiently and a
 - **Multiple Assignment Types**: Native support for Web Development, APIs, Command-Line Programs, and Custom Templates
 - **Secure Code Execution**: Isolated sandbox environments for safe remote code execution
 - **Proven Engagement**: Students treat assignments as iterative learning challenges
-- **High Performance**: Warm container pools and pipeline architecture enable rapid grading at scale
+- **Measured Capacity**: One [benchmark command](docs/contracts/JOBS.md#capacity-benchmark) reports throughput and failures on your hardware
 - **Intelligent Feedback**: Focus-based feedback generation that highlights the most impactful improvements
 
 ---
@@ -240,67 +238,31 @@ definitions cannot upload Python evaluator code.
 
 ## Quick Start
 
-### Prerequisites
+Setup lives in one place, the [Development Guide](docs/guides/development.md).
+In short, with [uv](https://docs.astral.sh/uv/) (it provides Python 3.13, the
+only supported version) and GNU Make:
 
-- Python 3.9+
-- Docker and Docker Compose
-
-### Installation
-
-1. **Clone the repository**
 ```bash
 git clone https://github.com/webtech-network/autograder.git
 cd autograder
+make install           # .venv from the committed uv.lock
+make verify            # hermetic core/library check: no Docker, no database
 ```
 
-2. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
+CI runs the same commands, plus the Docker and PostgreSQL tiers
+(`make test-integration`, `make test-e2e`, `make test-postgres`); `make help`
+lists them all.
 
-3. **Configure sandbox pools** (edit `sandbox_config.yml`)
-```yaml
-general:
-    # Number of sandboxes to create for each language at startup
-    # Development: 2-3, Production: 3-5 depending on expected load
-    pool_size: 3
+To run the system:
 
-    # Maximum sandboxes per language (prevents resource exhaustion)
-    # Production should have higher limits to handle traffic spikes
-    scale_limit: 10
-
-    # Seconds before killing idle sandboxes (no running processes)
-    # Production: longer timeout to reduce container churn
-    idle_timeout: 600
-
-    # Seconds before killing sandboxes with running processes
-    # Prevents hanging processes from consuming resources
-    running_timeout: 120
-
-# Host runtime profiles: language identifier -> sandbox image.
-# A language left out has no pool and is reported as an unavailable capability.
-runtimes:
-    python: sandbox-py:latest
-    java: sandbox-java:latest
-    node: sandbox-node:latest
-    cpp: sandbox-cpp:latest
-    c: sandbox-cpp:latest
-```
-
-4. **Build sandbox images**
-```bash
-make sandbox-build-all
-```
-
-5. **Start the system**
-
-**As a Web API:**
-```bash
-make start-autograder
-```
-
-**As a GitHub Action:**
-See [GitHub Action](#github-action) section.
+- **Sandbox images:** the runtime images named in `sandbox_config.yml`
+  (`make sandbox-list`) must be present before a host starts: `docker pull` the
+  published references, or `make sandbox-build-all` to build them from this checkout.
+- **Web API:** `export SANDBOX_API_TOKEN=<long random secret>` then
+  `make start-autograder` (Docker and Docker Compose; the host-wide sandbox budget
+  `general.max_sandboxes` and the runtimes are configured in `sandbox_config.yml`;
+  size the budget by CPU, about 8 on 12 CPUs, see [JOBS.md](docs/contracts/JOBS.md#sandbox-capacity)). See [Run your first grading workflow](docs/getting-started/first-grading-workflow.md).
+- **GitHub Action:** see the [GitHub Action](#github-action) section.
 
 ---
 
@@ -383,14 +345,10 @@ Full documentation available at [GitHub Pages](https://webtech-network.github.io
 
 ## Performance
 
-- **Warm Containers**: Pre-started sandboxes eliminate cold-start delays
-- **Async Processing**: FastAPI enables high concurrency
-- **Configurable Pools**: Scale sandbox pools based on demand
-
-**Typical Performance:**
-- Grade submission: 1-3 seconds (with warm sandbox)
-- Cold start: 5-8 seconds (first request per language)
-- Concurrent submissions: 400+ with proper pool sizing
+Capacity depends on hardware, configuration and assignments, so the project
+publishes measurements rather than typical numbers. Run the
+[capacity benchmark](docs/contracts/JOBS.md#capacity-benchmark) against your own
+stack; JOBS.md holds the reference result with its hardware and workload.
 
 ---
 

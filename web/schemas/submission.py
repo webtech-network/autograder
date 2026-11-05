@@ -11,7 +11,8 @@ from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict, StrictInt, field_validator, model_validator
 
 from autograder.models.language import LANGUAGE_IDS, Language
-from submission_contract import (
+from autograder.models.locale import DEFAULT_LOCALE, LocaleId, parse_locale
+from sandbox_manager.submission_contract import (
     MAX_FILES, MAX_TOTAL_FILE_BYTES, MAX_TOTAL_METADATA_BYTES,
     validate_filename, validate_content, validate_filenames, validate_metadata, metadata_bytes,
 )
@@ -89,8 +90,9 @@ class SubmissionCreate(BaseModel):
     username: str = Field(..., min_length=1, max_length=255, strict=True, description="Username of the submitter")
     files: List[SubmissionFileData] = Field(..., min_length=1, max_length=MAX_FILES, description="List of source files to submit")
     language: Optional[str] = Field(None, description="Optional language override")
-    locale: Optional[str] = Field(
-        "en", max_length=32, description="Optional locale for feedback (e.g., 'en', 'pt_br')"
+    locale: LocaleId = Field(
+        DEFAULT_LOCALE.value,
+        description="Feedback locale. Case-insensitive; '_' is accepted for '-' (e.g. 'pt_BR' is 'pt-br').",
     )
     metadata: Optional[Dict[str, Any]] = Field(
         None, description="Optional submission metadata"
@@ -101,6 +103,12 @@ class SubmissionCreate(BaseModel):
     )
 
     _metadata = field_validator("metadata")(validate_metadata)
+
+    @field_validator("locale", mode="before")
+    @classmethod
+    def validate_locale(cls, value):
+        """Bind the core locale set with the same normalization as every other host."""
+        return parse_locale(value).value
 
     @model_validator(mode="after")
     def valid_file_set(self):
@@ -165,7 +173,7 @@ class SubmissionDetailResponse(SubmissionResponse):
     """Authenticated source, provenance and outcome projection."""
 
     submission_files: Dict[str, SubmissionFileDetail]
-    locale: str = "en"
+    locale: LocaleId = DEFAULT_LOCALE.value
     evaluation_scope: EvaluationScopeData | None = None
     submission_metadata: dict | None = None
     definition_snapshot: GradingDefinition | None = None

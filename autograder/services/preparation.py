@@ -5,7 +5,7 @@ from autograder.models.dataclass.submission import Submission
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.execution import ExecutionSession
 from autograder.services.file_selection import select_files
-from autograder.models.process import ProcessRequest, ProcessStatus
+from autograder.models.process import ProcessRequest, ProcessStatus, SandboxExhausted
 
 SETUP_TIMEOUT_SECONDS = 30
 
@@ -54,6 +54,9 @@ def prepare_session(
             session.wait_ready()
     except EvaluationError:
         raise
+    except SandboxExhausted as exc:
+        # A setup command (for example the compiler) exhausted the sandbox on the submission.
+        raise EvaluationError("PREPARATION_FAILED", "A required setup command failed.", "submission") from exc
     except FixtureNotFound as exc:
         # Same safe outcome as other fixture failures, but retrying cannot help.
         raise EvaluationError("PREPARATION_ERROR", "Assignment preparation could not complete.", "capability", False) from exc

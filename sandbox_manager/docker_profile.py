@@ -11,6 +11,16 @@ not write submissions there, and the image's ``VOLUME /app`` silently became an
 unbounded anonymous volume that ``remove()`` without ``v=True`` leaked. Mounting
 ``/app`` with ``mode=1777`` keeps it writable under both runtimes, bounded by
 size, and removed with the container.
+
+Control and submission identities: PID 1 (Docker's init, which reaps orphans,
+running ``sleep infinity``) and every control exec that may run beside a
+submission's processes (termination sweep, output and artifact readback) run
+as ``root``. Submission processes run as the image's unprivileged ``sandbox``
+user, so they cannot signal PID 1 or a control exec. ``root`` keeps exactly
+two capabilities: ``KILL`` to end every ``sandbox`` process, and
+``DAC_OVERRIDE`` to read back and remove files whatever permissions the
+submission gave them. A non-root process holds no capabilities and
+``no-new-privileges`` stops it from gaining any.
 """
 from typing import Dict
 
@@ -25,6 +35,8 @@ FILE_SIZE_LIMIT_BYTES = 10_000_000
 WORKSPACE_TMPFS = "rw,size=64m,exec,mode=1777"   # /app: submission and artifacts
 FIXTURE_TMPFS = "rw,size=32m,noexec"             # /tmp: fixtures, never executable
 FIXTURE_TMPFS_BYTES = 32 * 1024 * 1024
+CONTROL_USER = "root"
+CONTROL_CAPABILITIES = ["DAC_OVERRIDE", "KILL"]
 
 
 def container_options(image: str, name: str, labels: Dict[str, str]) -> dict:
@@ -36,6 +48,8 @@ def container_options(image: str, name: str, labels: Dict[str, str]) -> dict:
         "image": image,
         "name": name,
         "detach": True,
+        "user": CONTROL_USER,
+        "init": True,                 # PID 1 reaps orphans: killed processes never pin the pids limit.
         "command": "sleep infinity",  # Keep the container alive for exec commands.
         "mem_limit": MEMORY_LIMIT,
         "memswap_limit": MEMORY_LIMIT,
@@ -44,6 +58,8 @@ def container_options(image: str, name: str, labels: Dict[str, str]) -> dict:
         "tmpfs": {"/app": WORKSPACE_TMPFS, "/tmp": FIXTURE_TMPFS},
         "network_mode": "none",
         "cap_drop": ["ALL"],
+        "cap_add": list(CONTROL_CAPABILITIES),
+        "security_opt": ["no-new-privileges"],
         "ulimits": [Ulimit(name="fsize", soft=FILE_SIZE_LIMIT_BYTES, hard=FILE_SIZE_LIMIT_BYTES)],
         "labels": dict(labels),
     }

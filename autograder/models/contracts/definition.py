@@ -10,7 +10,7 @@ from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.frozen import freeze, thaw
 from autograder.models.language import Language, LanguageId
-from autograder.models.process import split_command
+from autograder.models.process import SHELL_OPERATOR_MESSAGE, shell_operator, split_command
 
 
 class StrictModel(BaseModel):
@@ -28,7 +28,8 @@ class SetupCommand(StrictModel):
     name: str = Field(min_length=1)
     command: str = Field(min_length=1, description=(
         "Executable and arguments, split with POSIX quoting and run without a shell. "
-        "Use an explicit `sh -c '...'` command for shell operators."))
+        "Standalone shell operators (&&, |, ;, >, ...) are rejected: use one setup command per step, "
+        "and an explicit `sh -c '...'` command only for a real pipeline."))
 
     @field_validator('command')
     @classmethod
@@ -171,15 +172,16 @@ class CompiledDefinition:
     trusted templates were produced together. Reading ``definition`` returns a
     fresh model copy; changing that copy cannot alter this plan.
     """
-    __slots__ = ('_snapshot', '_definition_hash', '_criteria_tree', '_templates')
+    __slots__ = ('_snapshot', '_definition_hash', '_criteria_tree', '_templates', '_max_outcome_bytes')
 
     def __init__(self, *args, **kwargs):
         raise TypeError('CompiledDefinition is created only by compile_definition or compile_snapshot')
 
     @classmethod
     def _create(cls, snapshot: dict, definition_hash: str, criteria_tree: CriteriaTree,
-                templates: Mapping[str, Template]) -> 'CompiledDefinition':
+                templates: Mapping[str, Template], max_outcome_bytes: int) -> 'CompiledDefinition':
         compiled = object.__new__(cls)
+        object.__setattr__(compiled, '_max_outcome_bytes', max_outcome_bytes)
         object.__setattr__(compiled, '_snapshot', freeze(snapshot))
         object.__setattr__(compiled, '_definition_hash', definition_hash)
         object.__setattr__(compiled, '_criteria_tree', criteria_tree)
@@ -213,6 +215,11 @@ class CompiledDefinition:
     @property
     def criteria_tree(self) -> CriteriaTree:
         return self._criteria_tree
+
+    @property
+    def max_outcome_bytes(self) -> int:
+        """Worst-case serialized size of any outcome of this definition (OUTCOMES.md)."""
+        return self._max_outcome_bytes
 
     @property
     def templates(self) -> Mapping[str, Template]:
@@ -260,13 +267,12 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         definition = GradingDefinition.model_validate(value)
     except ValidationError as exc:
         raise DefinitionValidationError(_pydantic_errors(exc)) from exc
-    from autograder.models.contracts.catalog import required_capabilities
-    from autograder.services.template_library_service import TemplateLibraryService
-    library = TemplateLibraryService.get_instance()
+    from autograder.template_library import BUILTIN_TEMPLATES
+    available = {**BUILTIN_TEMPLATES, **(templates or {})}
     selected, registry, errors = {}, {}, []
     for index, identifier in enumerate(definition.templates):
         try:
-            template = templates[identifier] if templates is not None and identifier in templates else library.load_builtin_template(identifier)
+            template = available[identifier]
         except KeyError:
             errors.append(_error('UNKNOWN_TEMPLATE', ('templates', index), 'Unknown template identifier'))
             continue
@@ -281,7 +287,7 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         for name, function in template.get_tests().items():
             if name in registry:
                 errors.append(_error('AMBIGUOUS_EVALUATOR', ('templates', index), f'Duplicate evaluator identifier: {name}'))
-            registry[name] = (function, frozenset(required_capabilities(template, function)))
+            registry[name] = function
     seen = set()
     for test, path in walk_tests(definition.criteria):
         if test.id in seen:
@@ -295,7 +301,7 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         if test.type not in registry:
             errors.append(_error('UNKNOWN_EVALUATOR', (*path, 'type'), 'Evaluator is not registered in selected templates'))
             continue
-        function = registry[test.type][0]
+        function = registry[test.type]
         from autograder.models.contracts.parameter_contract import RUNTIME_PARAMETERS
         reserved = set(test.parameters) & RUNTIME_PARAMETERS
         if reserved:
@@ -324,15 +330,32 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
             errors.append(_error('INVALID_PARAMETER_CONTRACT', (*path, 'parameters'), str(exc)))
             continue
         errors.extend(_error(issue.code, (*path, 'parameters', *issue.path), issue.message) for issue in issues)
+    for language, preparation in definition.preparation.languages.items():
+        for index, setup in enumerate(preparation.setup_commands):
+            operator = shell_operator(setup.command)
+            if operator is not None:
+                errors.append(_error('SHELL_OPERATOR', ('preparation', 'languages', language, 'setup_commands', index, 'command'),
+                                     SHELL_OPERATOR_MESSAGE.format(operator=operator)))
     for resource_index, resource in enumerate(definition.feedback.preferences.general.online_content):
         if not set(resource.linked_tests).issubset(seen):
             errors.append(_error('UNKNOWN_CRITERION_REFERENCE', ('feedback','preferences','general','online_content',resource_index,'linked_tests'), 'Learning resources must reference criterion IDs'))
     if errors:
         raise DefinitionValidationError(errors)
     from autograder.services.criteria_tree_service import build_criteria_tree
+    from autograder.models.contracts.outcome import wire_bytes
+    from autograder.models.contracts.verification import MAX_ATTESTATION_BYTES
+    from autograder.services.grading import max_outcome_bytes
     snapshot = definition.model_dump(mode='json')
     tree = build_criteria_tree(definition.criteria, registry)
-    return CompiledDefinition._create(snapshot, definition_hash(definition), tree, selected)  # pylint: disable=protected-access
+    # Every outcome travels with its definition snapshot; both must fit in one
+    # attestation whatever the submission does.
+    outcome_bytes = max_outcome_bytes(tree)
+    if wire_bytes(snapshot) + outcome_bytes > MAX_ATTESTATION_BYTES:
+        raise DefinitionValidationError([_error(
+            'DEFINITION_TOO_LARGE', (), f'The definition and its worst-case outcome exceed {MAX_ATTESTATION_BYTES} '
+            'bytes; reduce the number of criteria or the size of their parameters')])
+    return CompiledDefinition._create(snapshot, definition_hash(definition), tree, selected,  # pylint: disable=protected-access
+                                      outcome_bytes)
 
 
 def definition_hash(definition: GradingDefinition) -> str:
@@ -357,11 +380,10 @@ def select_language(definition: GradingDefinition | CompiledDefinition, supplied
 def grading_definition_json_schema() -> dict:
     """Structural schema plus evaluator-conditional parameter contracts."""
     schema = GradingDefinition.model_json_schema()
-    from autograder.services.template_library_service import TemplateLibraryService
+    from autograder.template_library import BUILTIN_TEMPLATES
     conditions = []
     definitions = schema['$defs']
-    for identifier in TemplateLibraryService.get_instance().list_available_templates():
-        template = TemplateLibraryService.get_instance().load_builtin_template(identifier)
+    for template in BUILTIN_TEMPLATES.values():
         for name, function in template.get_tests().items():
             parameters = function.config_schema.model_json_schema()
             parameters['additionalProperties'] = False

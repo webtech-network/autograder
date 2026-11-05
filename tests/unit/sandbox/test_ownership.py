@@ -5,7 +5,7 @@ import os
 import pytest
 
 from sandbox_manager import ownership, reclaim
-from sandbox_manager.language_pool import LanguagePool
+from sandbox_manager.language_pool import LanguagePool, SandboxBudget
 from sandbox_manager.manager import SandboxManager
 from autograder.models.language import Language
 from sandbox_manager.ownership import (
@@ -96,8 +96,8 @@ def test_reclaim_removes_only_dead_local_owners(tmp_path):
 
 def test_two_owners_in_one_process_do_not_reclaim_each_other():
     client = FakeDocker()
-    first = SandboxManager([pool_config(pool_size=1)], client, monitor_interval=60)
-    second = SandboxManager([pool_config(pool_size=1)], client, monitor_interval=60)
+    first = SandboxManager([pool_config(pool_size=1)], client, max_sandboxes=2, monitor_interval=60)
+    second = SandboxManager([pool_config(pool_size=1)], client, max_sandboxes=2, monitor_interval=60)
     try:
         owners = {c.labels[LABEL_OWNER] for c in client.live.values()}
         assert owners == {first.owner.owner_id, second.owner.owner_id}
@@ -113,7 +113,7 @@ def test_startup_reclaims_a_fabricated_dead_owner():
     client = FakeDocker()
     dead = client.containers.run(name="dead", labels=labels(
         host=me.hostname, owner_id="dead", token=f"{me.boot_id}:{2 ** 22 + 1}:1"))
-    manager = SandboxManager([pool_config()], client, monitor_interval=60)
+    manager = SandboxManager([pool_config()], client, max_sandboxes=2, monitor_interval=60)
     try:
         if me.boot_id:  # Linux: the dead owner is provable.
             assert dead.id not in client.live
@@ -130,7 +130,7 @@ def test_reclaim_failure_is_logged_and_startup_continues(caplog):
     dead = client.containers.run(name="dead", labels=labels(
         host=me.hostname, owner_id="dead", token=f"{me.boot_id}:{2 ** 22 + 1}:1"))
     dead.remove_failures = [docker.errors.APIError("busy")]
-    manager = SandboxManager([pool_config()], client, monitor_interval=60)
+    manager = SandboxManager([pool_config()], client, max_sandboxes=2, monitor_interval=60)
     manager.shutdown()
     if me.boot_id:
         assert "Failed to remove sandbox container" in caplog.text
@@ -172,7 +172,7 @@ def test_reclaim_command(monkeypatch, capsys):
 
 def test_pool_labels_carry_the_owner_lease():
     client = FakeDocker()
-    pool = LanguagePool(Language.PYTHON, pool_config(), client, owner())
+    pool = LanguagePool(Language.PYTHON, pool_config(), client, owner(), budget=SandboxBudget(1))
     sandbox = pool.acquire()
     assert sandbox.container_ref.labels[LABEL_OWNER_PROCESS] == "boot-1:4242:777"
     assert sandbox.container_ref.labels[LABEL_OWNER_HOST] == "host-a"

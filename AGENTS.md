@@ -120,8 +120,10 @@ canonical preferences); disabled feedback does no work and stays `disabled`.
 
 Required failures produce null score/tree. A student program's nonzero exit or
 timeout during evaluator assessment produces a valid zero; compilation belongs in
-setup commands (`PREPARATION_FAILED`), and a program that cannot start is not a
-zero (`PROCESS_START_FAILED`). Every process runs
+setup commands (`PREPARATION_FAILED`), and a runtime command that cannot start is
+not a zero (`PROCESS_START_FAILED`). Who ended a sandbox comes from host-side
+evidence: host stop/removal is `SANDBOX_ERROR`, student exhaustion
+(`SandboxExhausted`) is an assessed zero. Every process runs
 through `ExecutionSession.run_process(ProcessRequest)`: explicit argv or explicit
 shell, exact stdin bytes, a deadline that kills the process tree, and
 classification by exit status only. Infrastructure failures are exceptions, not
@@ -151,16 +153,18 @@ are its runnable examples, executed by `tests/unit/test_architecture.py`.
    `config_schema` with the same fields). Declare constraints and descriptions with
    `Annotated[..., Field(...)]`; primitive types imply none. Put cross-field or
    language-dependent semantics in the pure `validate_parameters` hook.
-3. Register the instance under its explicit `name` in a trusted `Template`'s
-   `tests` dict (lookup is inherited). Invalid signatures fail at registration.
-4. Reference the registry key as criterion `type`, with a distinct instance `id`.
+3. Add the instance to a trusted `Template(name, description, evaluators)`; it is
+   registered under its own `name`. Invalid signatures fail at registration.
+   Capabilities are declared only on evaluators, never on templates.
+4. Reference the evaluator `name` as criterion `type`, with a distinct instance `id`.
 
 Evaluators are shared and must be stateless; keep per-submission state in the call.
 Only evaluators declaring `sandbox_execution`/`http_network` receive a session;
-they run processes only through `session.run_process(ProcessRequest...)`.
+they run processes only through `session.run_process(ProcessRequest...)` or the
+public `BaseExecutionTest` helpers. Authors import only from `autograder`.
 
 Do not add adapter vocabulary or a new pipeline framework for one evaluator.
-Provider/system failure raises `EvaluationError` with a fixed safe public message;
+Provider/system failure raises `EvaluationError` with a published code (OUTCOMES.md) and a fixed safe public message;
 ordinary assessment returns a finite `TestResult` in 0–100.
 
 ## Adapter contracts and publication
@@ -200,8 +204,7 @@ rely on them as current): a host supplying `server_execution` (API-testing
 criteria fail with `SERVER_CAPABILITY_UNAVAILABLE` on the shipped hosts), job
 scheduling beyond submission-order claiming (priority, fairness, quotas), a shared
 or distributed sandbox handle store, feedback modes other than `default`, and
-fixture caching. `archive/` holds historical designs and roadmaps only; refactor
-progress is tracked in GitHub issue #363.
+fixture caching. Refactor progress is tracked in GitHub issue #363.
 
 ## Verification
 
@@ -210,7 +213,9 @@ actual execution of normalized values, invalid paths, outcome invariants, snapsh
 optimistic concurrency, migrations, adapter wire parity and publication retry.
 Docker integration tests exercise real grading isolation. Architecture tests
 (`tests/unit/test_architecture.py`) protect dependency direction, catalog/example
-truthfulness and the extension path. Documentation changes run
-`python scripts/validate_docs.py` and `mkdocs build --strict`; contract changes run
-`PYTHONPATH=. python scripts/generate_contract_schemas.py --check`. Preserve unrelated work;
+truthfulness and the extension path. `make verify` is the hermetic path (lint,
+schema drift, strict docs build, unit and SQLite HTTP tests); `make test-postgres`,
+`make test-integration` and `make test-e2e` are the database and Docker tiers. CI
+runs exactly these targets and deploys only after all pass; see
+[the development guide](docs/guides/development.md#verification). Preserve unrelated work;
 use a clean worktree for delivery. Do not add co-author commit trailers.

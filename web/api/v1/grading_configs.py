@@ -35,7 +35,7 @@ def _response(config, response):
             if key.endswith("_at") and value.tzinfo is None
             else value
         )
-        for key in GradingConfigResponse.model_fields
+        for key in GradingConfigResponse.model_fields  # pylint: disable=not-an-iterable  # pydantic class property
         if (value := getattr(config, key)) is not None
     } | {
         "definition": config.definition,

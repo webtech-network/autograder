@@ -4,14 +4,21 @@ The assessed tree is the terminal ``ResultOutcomeTree``: every leaf owns its
 criterion ID, evaluator ID, label, file target, canonical parameters, score and
 report as data, with no reference to compiled nodes or evaluator instances.
 Focus, feedback, score vectors and comparison derive from this tree.
+
+This is the one place where locally produced reports are bounded: whatever an
+evaluator (or AI provider) returns, the tree keeps a deterministic excerpt of at
+most ``MAX_REPORT_BYTES``. The score is never affected. ``max_outcome_bytes``
+measures the worst case from this same producer, so the bound cannot drift.
 """
 from typing import Mapping
 
 from pydantic import ValidationError
 
-from autograder.models.contracts.outcome import ResultOutcomeTree
+from autograder.models.contracts.outcome import (
+    JSON_EXPANSION, MAX_FEEDBACK_BYTES, MAX_REPORT_BYTES, ResultOutcomeTree, bound_text, wire_bytes,
+)
 from autograder.models.contracts.scoring import (
-    categories, child_weights, final_score, holder_score, report_score,
+    CATEGORIES, categories, child_weights, final_score, holder_score, iter_tests, report_score,
 )
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.dataclass.test_result import TestResult
@@ -31,7 +38,8 @@ def grade(criteria: CriteriaTree, results: Mapping[str, TestResult]) -> ResultOu
         result = results[test.criterion_id]
         return result.score, {
             "id": test.criterion_id, "evaluator": test.test_function.name, "type": "test", "name": test.name,
-            "score": report_score(result.score), "weight": weight, "report": result.report,
+            "score": report_score(result.score), "weight": weight,
+            "report": bound_text(result.report, MAX_REPORT_BYTES),
             "file_target": list(test.file_target) if test.file_target is not None else None,
             "parameters": thaw(test.parameters), "metadata": {},
         }
@@ -59,3 +67,31 @@ def grade(criteria: CriteriaTree, results: Mapping[str, TestResult]) -> ResultOu
     except (ValidationError, TypeError, ValueError) as exc:
         raise EvaluationError("INVALID_EVALUATOR_RESULT", "The grading execution produced an invalid assessment.",
                               "internal") from exc
+
+
+#: Outcome fields outside the tree and feedback text: identifiers, provenance,
+#: timestamps, status objects and a structured error.
+OUTCOME_ENVELOPE_BYTES = 16 * 1024
+#: Per result-tree node: score digits beyond the measured skeleton and one
+#: attested comparison delta naming that node's criterion.
+NODE_OVERHEAD_BYTES = 1024
+
+
+def max_outcome_bytes(criteria: CriteriaTree) -> int:
+    """Worst-case serialized size of any outcome of ``criteria`` (see ``wire_bytes``).
+
+    The tree skeleton (identities, names, targets, weights and canonical
+    parameters, with empty reports) is measured exactly; each report and the
+    feedback add their bound at maximal JSON escaping. The result is a function
+    of the criteria count and of definition-authored text only, never of a
+    submission.
+    """
+    skeleton = grade(criteria, {test.criterion_id: TestResult("", 0.0) for test in criteria.get_all_tests()})
+    tests = sum(1 for _ in iter_tests(skeleton))
+    nodes = tests + sum(_holders(getattr(skeleton, name)) for name in CATEGORIES) + 1
+    return (wire_bytes(skeleton.model_dump(mode="json")) + OUTCOME_ENVELOPE_BYTES
+            + JSON_EXPANSION * (MAX_FEEDBACK_BYTES + tests * MAX_REPORT_BYTES) + nodes * NODE_OVERHEAD_BYTES)
+
+
+def _holders(holder) -> int:
+    return 0 if holder is None else 1 + sum(_holders(subject) for subject in holder.subjects)

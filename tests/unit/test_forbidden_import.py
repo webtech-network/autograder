@@ -63,10 +63,11 @@ class TestForbiddenImportEdgeCases:
         with pytest.raises(ValidationError):
             invoke(self.test_fn, [], None, forbidden_imports=None)
 
-    def test_empty_forbidden_list(self):
-        """Test that empty forbidden_imports list returns full score."""
-        result = invoke(self.test_fn, [], None, forbidden_imports=[])
-        assert result.score == 100.0
+    @pytest.mark.parametrize("parameters", [{}, {"forbidden_imports": []}, {"forbidden_imports": [""]}])
+    def test_empty_forbidden_list_is_rejected_by_the_contract(self, parameters):
+        """A prohibition that names nothing would pass every submission (ONB-01)."""
+        with pytest.raises(ValidationError):
+            invoke(self.test_fn, [], None, **parameters)
 
     def test_no_language_gives_zero(self):
         """Test that missing language returns score 0."""
@@ -674,11 +675,6 @@ class TestForbiddenImportReport:
         assert result.score == 0.0
         assert "subprocess" in result.report
         assert "app.py" in result.report
-
-    def test_no_forbidden_list_report(self):
-        """Test that the report mentions nothing to check when the list is empty."""
-        result = invoke(self.test_fn, [], None)
-        assert "nothing to check" in result.report.lower() or "no forbidden" in result.report.lower()
 
     def test_no_files_report(self):
         """Test that the report for no files returns full score."""

@@ -58,12 +58,12 @@ class TestCmdPlaceholderResolution:
 
     def test_default_table_covers_every_domain_language(self):
         """Adding a language without a default would make CMD a compile-time error."""
-        from autograder.template_library.input_output import DEFAULT_COMMANDS
+        from autograder.models.abstract.execution_test import DEFAULT_COMMANDS
         assert set(DEFAULT_COMMANDS) == set(Language)
 
     def test_cmd_without_default_is_rejected_at_compilation(self, monkeypatch):
-        from autograder.template_library import input_output
-        monkeypatch.setattr(input_output, "DEFAULT_COMMANDS", {Language.PYTHON: "python3 main.py"})
+        from autograder.models.abstract import execution_test
+        monkeypatch.setattr(execution_test, "DEFAULT_COMMANDS", {Language.PYTHON: "python3 main.py"})
         value = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python", "java"],
                  "criteria": {"base": {"weight": 100, "tests": [{"id": "run", "name": "Run", "type": "dont_fail",
                                                                  "parameters": {"program_command": "CMD"}}]}}}
@@ -138,3 +138,28 @@ def test_definition_cannot_supply_runtime_language():
     with pytest.raises(DefinitionValidationError) as failure:
         compile_definition(value)
     assert failure.value.errors()[0]["code"] == "RESERVED_PARAMETER"
+
+
+def test_execution_evaluator_without_a_program_command_parameter_compiles():
+    """``BaseExecutionTest`` only checks ``program_command`` when an evaluator takes one."""
+    from typing import Annotated
+    from pydantic import Field
+    from autograder import BaseExecutionTest, Template
+    from autograder.models.dataclass.test_result import TestResult
+
+    class RunsEntryPoint(BaseExecutionTest):
+        name = "runs_entry_point"
+        description = "Runs a fixed entry point."
+
+        def execute(self, evaluation, *, marker: Annotated[str, Field(min_length=1)]):  # pylint: disable=arguments-differ
+            return TestResult(self.name, 100, marker)
+
+    evaluator = RunsEntryPoint()
+    assert list(evaluator.validate_parameters({"marker": "x"}, languages=("python", "java"))) == []
+    definition = {
+        "schema_version": "1.0", "templates": ["local"], "languages": ["python", "java"],
+        "criteria": {"base": {"weight": 100, "tests": [{
+            "id": "runs", "type": "runs_entry_point", "name": "Runs", "parameters": {"marker": "x"}}]}},
+    }
+    compiled = compile_definition(definition, templates={"local": Template("Local", "Local", [evaluator])})
+    assert compiled.definition.criteria.base.tests[0].parameters == {"marker": "x"}

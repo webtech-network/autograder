@@ -15,8 +15,12 @@ Recovery rules:
   (:class:`~sandbox_manager.errors.ArtifactReadError`) and an invalidated
   sandbox (:class:`~sandbox_manager.errors.SandboxInvalidatedError`) are
   distinct exceptions, the last two shared with the local implementation;
+* a submission that exhausted its sandbox raises the core
+  :class:`~autograder.models.process.SandboxExhausted`, as the local backend does;
 * a language this host has no runtime for raises
-  :class:`~sandbox_manager.errors.RuntimeUnavailableError`, as the local manager does.
+  :class:`~sandbox_manager.errors.RuntimeUnavailableError`, and a full sandbox
+  budget after the requested wait raises
+  :class:`~sandbox_manager.errors.SandboxCapacityTimeout`, as the local manager does.
 """
 import base64
 import uuid
@@ -26,8 +30,10 @@ from typing import TYPE_CHECKING, Dict, List, Optional
 import requests
 
 from autograder.models.language import Language
-from autograder.models.process import ProcessRequest, ProcessResult
-from sandbox_manager.errors import ArtifactReadError, RuntimeUnavailableError, SandboxInvalidatedError
+from autograder.models.process import ProcessRequest, ProcessResult, SandboxExhausted
+from sandbox_manager.errors import (
+    ArtifactReadError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
+)
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS, ProcessRequestModel, ProcessResultModel
 from autograder.models.execution import ExtractedFile
 from sandbox_manager.models.sandbox_models import DisposalStatus
@@ -37,7 +43,7 @@ if TYPE_CHECKING:
     from autograder.models.dataclass.submission import SubmissionFile
 
 CONNECT_TIMEOUT_SECONDS = 5
-ACQUIRE_TIMEOUT_SECONDS = 90     # May create a container (image start, gVisor).
+ACQUIRE_TIMEOUT_SECONDS = 90     # Beyond the budget wait: may create a container (image start, gVisor).
 TRANSFER_TIMEOUT_SECONDS = 120   # Up to 5 MiB of files or 32 MiB of fixtures.
 DISPOSE_TIMEOUT_SECONDS = 60
 STATS_TIMEOUT_SECONDS = 10
@@ -61,7 +67,7 @@ class SandboxHandleGone(RemoteSandboxError):
 
 
 class SandboxUnavailable(RemoteSandboxError):
-    """No sandbox can be handed out now (capacity or handle limit)."""
+    """No sandbox can be handed out (the service is shutting down or creation failed)."""
 
 
 class ArtifactNotFound(FileNotFoundError):
@@ -89,6 +95,8 @@ def _checked(response: requests.Response, *, artifact_path: Optional[str] = None
         raise ArtifactReadError(text)
     if code == "SANDBOX_INVALIDATED":
         raise SandboxInvalidatedError(text)
+    if code == "SANDBOX_EXHAUSTED":
+        raise SandboxExhausted(text)
     if code == "ARTIFACT_INVALID":
         raise ValueError(message)
     if code == "HANDLE_NOT_FOUND":
@@ -97,7 +105,9 @@ def _checked(response: requests.Response, *, artifact_path: Optional[str] = None
         raise SandboxHandleGone(text, status_code=response.status_code, code=code)
     if code == "RUNTIME_UNAVAILABLE":
         raise RuntimeUnavailableError(f"The sandbox service has no runtime for this language: {message}")
-    if code in ("SANDBOX_UNAVAILABLE", "HANDLE_LIMIT"):
+    if code == "CAPACITY_TIMEOUT":
+        raise SandboxCapacityTimeout(text)
+    if code == "SANDBOX_UNAVAILABLE":
         raise SandboxUnavailable(text, status_code=response.status_code, code=code)
     raise RemoteSandboxError(text, status_code=response.status_code, code=code)
 
@@ -186,12 +196,16 @@ class RemoteSandboxManager:
                                              code="TRANSPORT_ERROR") from exc
         raise AssertionError("unreachable")
 
-    def get_sandbox(self, lang: Language) -> RemoteSandboxContainer:
-        """Acquire a handle. Transport retries reuse one request id (no duplicate containers)."""
+    def get_sandbox(self, lang: Language, wait_seconds: float = 0.0) -> RemoteSandboxContainer:
+        """Acquire a handle, letting the service wait up to ``wait_seconds`` for a budget slot.
+
+        Transport retries reuse one request id (no duplicate containers).
+        """
         request_id = uuid.uuid4().hex
         url = f"{self.api_url}/sandboxes/{lang.value}"
+        body = {"request_id": request_id, "wait_seconds": wait_seconds}
         response = self._with_transport_retry(self.acquire_attempts, lambda: self._session.post(
-            url, json={"request_id": request_id}, timeout=(CONNECT_TIMEOUT_SECONDS, ACQUIRE_TIMEOUT_SECONDS)))
+            url, json=body, timeout=(CONNECT_TIMEOUT_SECONDS, wait_seconds + ACQUIRE_TIMEOUT_SECONDS)))
         data = _checked(response)
         return RemoteSandboxContainer(sandbox_id=data["sandbox_id"], language=lang, api_url=self.api_url,
                                       token=self.token)
@@ -211,9 +225,9 @@ class RemoteSandboxManager:
             sandbox.close()
 
     @contextmanager
-    def acquire_sandbox(self, lang: Language):
+    def acquire_sandbox(self, lang: Language, wait_seconds: float = 0.0):
         """Acquire a handle and dispose it when the block exits."""
-        sandbox = self.get_sandbox(lang)
+        sandbox = self.get_sandbox(lang, wait_seconds)
         try:
             yield sandbox
         finally:

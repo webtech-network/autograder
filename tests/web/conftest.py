@@ -11,6 +11,21 @@ from web.database import models  # pylint: disable=unused-import  # Register tab
 from web.core.config import Settings
 
 
+def pytest_configure(config):
+    """Declare the PostgreSQL tier marker."""
+    config.addinivalue_line("markers", "postgres: needs TEST_POSTGRES_URL; run with `make test-postgres`")
+
+
+POSTGRES_FIXTURES = {"postgres_sessions", "postgres_url"}
+
+
+def pytest_collection_modifyitems(items):
+    """Mark every test that needs the real database, derived from its fixtures."""
+    for item in items:
+        if POSTGRES_FIXTURES.intersection(getattr(item, "fixturenames", ())):
+            item.add_marker(pytest.mark.postgres)
+
+
 @pytest.fixture
 async def db_engine(tmp_path):
     """Give concurrent HTTP and worker sessions independent connections."""

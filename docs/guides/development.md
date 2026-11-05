@@ -1,22 +1,94 @@
 # Development Guide
 
-How to set up, run and test the repository. What each package owns, and which
-package may import which, is described once in
+The one place for setting up, running and verifying the repository. What each
+package owns, and which package may import which, is described once in
 [Responsibilities and Dependencies](../architecture/overview.md); the
-contributor rules are in `AGENTS.md` at the repository root.
+contributor rules are in `AGENTS.md` at the repository root. `make help` lists
+every command below.
 
-## Prerequisites
+## Setup
 
-- **Python 3.13** (the version CI uses)
-- **Docker** (sandbox images, integration and end-to-end tests)
-- **PostgreSQL** (web API and `tests/web/`; `docker compose up -d postgres` is enough locally)
+- **[uv](https://docs.astral.sh/uv/)**. It installs **Python 3.13**, the only
+  supported version (`requires-python` in `pyproject.toml`; CI uses the patch
+  release in `.tool-versions`), when it is missing.
+- **GNU Make**
+- **Docker** only for the Docker tiers, the sandbox images and running the API
+- **PostgreSQL** only for the PostgreSQL tier and the compose stack
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-make sandbox-build-all        # one image per runtime listed in sandbox_config.yml
+make install                  # uv sync --locked: .venv with the project, test, lint and docs tools
+make verify                   # hermetic check: no Docker, no database
 ```
+
+The `make` targets run Python through `uv run --locked`; inside an activated
+environment of your own, pass `PYTHON=python`. Outside `make`, run commands with
+`uv run` (for example `uv run pytest tests/unit/`) or after
+`source .venv/bin/activate`.
+
+`pyproject.toml` declares one distribution (`autograder`, `web`, `sandbox_manager`,
+`execution_host`, `github_action`) and its dependencies; `uv.lock` pins every
+package. Runtime dependencies are separate from development tools:
+
+| Selection | Contents | Used by |
+| --- | --- | --- |
+| `dependencies` | engine, execution host, GitHub Action | Action image |
+| `server` extra | FastAPI, Uvicorn, SQLAlchemy, Alembic, database drivers | API and sandbox manager images |
+| `dev` group (`test`, `lint`, `docs`) | pytest, pylint, MkDocs | contributors and CI, never images |
+
+Change dependencies with `uv add` / `uv remove` (or edit `pyproject.toml` and run
+`uv lock`) and commit both files. `make install` (and therefore CI) runs
+`uv sync --locked`, which fails when the two disagree. `tests/unit/test_packaging.py`
+builds the wheel, imports every module from it outside the checkout and checks that
+the declared runtime dependencies are exactly the imported ones.
+
+## Verification
+
+CI ([`verify.yml`](https://github.com/webtech-network/autograder/blob/main/.github/workflows/verify.yml))
+runs exactly these targets on every pull request and on `main`, and deploys the
+API only after all of them pass for that commit and only while it is still
+the head of `main`. Run the same command locally
+before opening a pull request. `make verify` stops at the first failing step;
+`make -k verify` runs every step and reports all failures. `make lint` fails on
+any pylint error (`fail-on` in `.pylintrc`), whatever the repository score. It
+runs in one process: parallel pylint (`-j`) reports spurious `E1136` errors on
+the SQLAlchemy models depending on how modules are split across workers. It
+covers the shipped packages, `scripts/` and `examples/`, not `tests/`, which still
+has pylint false positives to resolve first.
+
+| Command | Needs | Runs |
+| --- | --- | --- |
+| `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas match the models), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Under a minute. |
+| `make test-postgres` | `TEST_POSTGRES_URL` | PostgreSQL claims, publication fencing and concurrent idempotency. Without the URL these tests **error**; they never skip. The role must be able to `CREATE DATABASE` (migration tests). |
+| `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. |
+| `make test-e2e` | Docker | An API process with real sandboxes. |
+| `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
+
+The PostgreSQL tier needs a disposable database; every test creates and drops
+its own schema:
+
+```bash
+docker run -d --rm --name autograder-test-postgres -p 127.0.0.1:5433:5432 \
+  -e POSTGRES_USER=autograder -e POSTGRES_PASSWORD=local-test-only -e POSTGRES_DB=autograder \
+  postgres:17-alpine
+TEST_POSTGRES_URL=postgresql+asyncpg://autograder:local-test-only@127.0.0.1:5433/autograder make test-postgres
+```
+
+The HTTP service path (the compose stack built from the commit, with
+migrations and remote sandboxes) and the packaged GitHub Action path will each
+become one more `make` target and CI job; until then the Docker tiers above
+cover them.
+
+`tests/unit/test_architecture.py` checks dependency direction, that discovery and
+the documented examples agree with the registry, and the extension path.
+`tests/unit/test_verification_frame.py` checks that `make help`, the docs and
+CI name only existing targets, and that deployment waits for every
+verification job.
+
+### Documentation site
+
+`make docs-serve` previews the MkDocs Material site at http://127.0.0.1:8000
+with live reload; `make docs` is the strict build CI runs, which turns broken
+navigation or links into errors.
 
 ## Project structure
 
@@ -39,15 +111,18 @@ github_action/       Actions host
 examples/            runnable definitions and trusted Python examples
 tests/               unit/, web/, integration/ (Docker), e2e/ (Docker + API process)
 docs/                documentation (contracts/ are normative)
-archive/             historical designs and roadmaps, not current guidance
 ```
 
 ## Running the API locally
 
 ```bash
+# Sandbox images, one per runtime listed in sandbox_config.yml
+make sandbox-build-all
+
 # Database
+docker compose up -d postgres
 export DATABASE_URL=postgresql+asyncpg://autograder:autograder_password@localhost:5432/autograder
-alembic -c web/alembic.ini upgrade head
+make db-upgrade               # the API never creates tables; see JOBS.md "Deployment and migration"
 
 # HTTP trust boundary (docs/contracts/AUTH.md): every protected route needs a bearer token
 export AUTOGRADER_INTEGRATION_TOKEN=change-me-to-a-long-random-secret
@@ -70,26 +145,9 @@ SANDBOX_MODE=remote SANDBOX_API_URL=http://127.0.0.1:8001 uvicorn web.main:app -
 ```
 
 `docker compose up -d --build` (or `make start-autograder`) starts PostgreSQL,
-the API on port 8000 and the sandbox manager on the internal network only.
+migrates it in the one-shot `migrate` service, then starts the API on port 8000
+and the sandbox manager on the internal network only.
 API docs are served at http://localhost:8000/docs.
-
-## Running tests
-
-These are the commands CI runs (`.github/workflows/`), from the repository root
-with `PYTHONPATH=.`:
-
-```bash
-python scripts/generate_contract_schemas.py --check   # checked-in JSON Schemas match the models
-pytest tests/unit/                                    # make test
-TEST_POSTGRES_URL=postgresql+asyncpg://... pytest tests/web/
-make test-integration                                 # real Docker sandboxes
-make test-e2e                                         # API process + Docker
-python scripts/validate_docs.py && mkdocs build --strict   # documentation (requirements-docs.txt)
-pylint <changed .py files>                            # CI lints the files a push changes
-```
-
-`tests/unit/test_architecture.py` checks dependency direction, that discovery and
-the documented examples agree with the registry, and the extension path.
 
 ## Making changes
 
@@ -97,10 +155,10 @@ the documented examples agree with the registry, and the extension path.
 
 Follow [Adding an evaluator](../architecture/extending.md): implementation,
 parameter contract, registration and tests, with runnable static and execution
-examples. A built-in evaluator is registered in its template under
-`autograder/template_library/` (new built-in templates are added to
-`autograder/services/template_library_service.py`); trusted callers pass
-`templates={identifier: instance}` instead.
+examples. A built-in evaluator is added to its template under
+`autograder/template_library/` (new built-in templates are one entry in
+`BUILTIN_TEMPLATES` there) and follows the built-in checklist; trusted callers
+pass `templates={identifier: instance}` instead.
 
 ### Adding a language or runtime
 
@@ -116,6 +174,13 @@ Keep required assessment failures separate from optional enrichment failures,
 and close owned sessions before constructing the terminal outcome.
 Do not add step registries or store intermediate artifacts in diagnostic events.
 See [the grading flow](../core/pipeline-architecture.md).
+
+### Changing the database schema
+
+Change the model, then generate and review a revision against a database at
+head: `make db-migrate MSG="describe the change"`. `tests/web/test_migrations.py`
+fails until `upgrade head` from empty equals the models again, and checks the
+downgrade/upgrade round trip.
 
 ### Changing an HTTP route
 
@@ -163,23 +228,28 @@ see "Owner leases and orphan reclamation" in [SANDBOX.md](../contracts/SANDBOX.m
 docker compose exec postgres psql -U autograder
 ```
 
-## Sandbox pool tuning
+## Sandbox budget tuning
 
 ```yaml
 # sandbox_config.yml
 general:
-  pool_size: 5          # warm containers per language
-  scale_limit: 20       # maximum containers per language (quarantined ones count)
-  idle_timeout: 300
+  max_sandboxes: 8      # host-wide budget N for all languages, grading and /execute;
+                        # creating, active, closing and quarantined sandboxes count
+  pool_size: 1          # warm idle containers per language (outside N)
 runtimes:               # only listed languages get a pool
-  python: sandbox-py:latest
+  python: ghcr.io/webtech-network/autograder-sandbox-python:<tag>   # make sandbox-list
 ```
 
 ## Troubleshooting
 
-- **Sandbox containers will not start**: check `docker info`, rebuild images
-  with `make sandbox-build-all`, and confirm the language is listed under
-  `runtimes:` (an unlisted language fails with `RUNTIME_UNAVAILABLE`).
+- **Sandbox containers will not start**: check `docker info`, and confirm the
+  language is listed under `runtimes:` (an unlisted language fails with
+  `RUNTIME_UNAVAILABLE`).
+- **`RuntimeImageError` at startup**: the configured image is not on this Docker
+  host, or its `autograder.runtime.languages` label does not list the language.
+  Run `docker pull <image>` for the published references, or
+  `make sandbox-build-all` to build this checkout's images under the same
+  references. Images are never pulled automatically.
 - **401 from the API**: set `AUTOGRADER_INTEGRATION_TOKEN` and send
   `Authorization: Bearer <token>`.
 - **Remote sandbox manager refuses to start**: set `SANDBOX_API_TOKEN` (or

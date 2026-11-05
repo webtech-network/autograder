@@ -75,10 +75,11 @@ class TestForbiddenKeywordExecution:
         """Set up test fixtures."""
         self.test_fn = ForbiddenKeywordTest()
 
-    def test_no_rules_gives_100(self):
-        """Test that no keywords or rules returns full score."""
-        result = invoke(self.test_fn, [], None)
-        assert result.score == 100.0
+    def test_no_rules_is_a_definition_error(self):
+        """A prohibition that names nothing would pass every submission (ONB-01)."""
+        parameters = {"forbidden_keywords": [], "custom_ast_grep_rules": []}
+        issues = list(self.test_fn.validate_parameters(parameters, languages=("python",)))
+        assert [(issue.code, issue.path) for issue in issues] == [("EMPTY_FORBIDDEN_LIST", ("forbidden_keywords",))]
 
     def test_no_analysis_gives_0(self):
         """Test that missing structural analysis returns score 0."""

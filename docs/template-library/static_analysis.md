@@ -16,7 +16,7 @@ Statically analyzes submission files to check if any forbidden libraries were im
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `forbidden_imports` | list[string] | ✓ | List of library/module names whose import is forbidden. |
+| `forbidden_imports` | list[string] | ✓ | List of library/module names whose import is forbidden (at least one). |
 
 **Scoring:** 100 if no forbidden imports are found, 0 if any violation is detected.
 
@@ -44,7 +44,7 @@ Statically analyzes submission files using structural analysis (`ast-grep`) to d
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `forbidden_keywords` | list[string] | ✗ | List of predefined constructs to forbid (e.g., `for_loop`, `eval_call`). |
+| `forbidden_keywords` | list[string] | ✗ | List of predefined constructs to forbid (e.g., `for_loop`, `eval_call`). At least one keyword or custom rule is required (`EMPTY_FORBIDDEN_LIST`). |
 | `custom_ast_grep_rules` | list[dict] | ✗ | List of custom `ast-grep` rules to apply for advanced matching. |
 
 **Supported Predefined Keywords:**

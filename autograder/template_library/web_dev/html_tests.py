@@ -1,12 +1,12 @@
 import re
 from typing import Annotated, List, Optional
 from urllib.parse import parse_qs, urlparse
-from bs4 import BeautifulSoup
 
 from pydantic import Field
 
 from autograder.models.abstract.test_function import EvaluationInput, TestFunction
 from autograder.models.dataclass.test_result import TestResult
+from autograder.template_library.web_dev.documents import parsed_html
 from autograder.translations import t
 
 
@@ -29,8 +29,7 @@ class CheckHeadDetails(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         head = soup.find('head')
         found = head is not None and head.find(detail_tag) is not None
         score = 100 if found else 0
@@ -44,6 +43,7 @@ class CheckHeadDetails(TestFunction):
 
 class HasForbiddenTag(TestFunction):
     """Checks for the presence of a forbidden HTML tag."""
+    absence_check = "Prohibition: passes while the forbidden tag is absent."
     @property
     def name(self):
         return "has_forbidden_tag"
@@ -61,8 +61,7 @@ class HasForbiddenTag(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         found = soup.find(tag) is not None
         score = 0 if found else 100
         locale = evaluation.locale
@@ -86,15 +85,14 @@ class HasAttribute(TestFunction):
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
                 attribute: Annotated[str, Field(min_length=1, description=t("web_dev.html.has_attribute.param.attribute"))],
-                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.has_attribute.param.required_count"))] = 0,
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.html.has_attribute.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the search for specific attributes."""
         files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         found_count = len(soup.find_all(attrs={attribute: True}))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
         report = t("web_dev.html.has_attribute.report", locale=evaluation.locale, attribute=attribute, found_count=found_count, required_count=required_count)
@@ -125,8 +123,7 @@ class CheckAttributeAndValue(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         elements = soup.find_all(tag, attrs={attribute: value})
         score = 100 if elements else 0
         locale = evaluation.locale
@@ -139,6 +136,7 @@ class CheckAttributeAndValue(TestFunction):
 
 class CheckNoInlineStyles(TestFunction):
     """Ensures that no inline styles are used."""
+    absence_check = "Prohibition: passes while no element has an inline style."
     @property
     def name(self):
         return "check_no_inline_styles"
@@ -154,8 +152,7 @@ class CheckNoInlineStyles(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         found_count = len(soup.find_all(style=True))
         score = 0 if found_count > 0 else 100
         locale = evaluation.locale
@@ -178,7 +175,7 @@ class CheckInternalLinks(TestFunction):
     minimum_files = 1
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
-                required_count: Annotated[int, Field(ge=0, description="O número mínimo de links válidos.")] = 0,
+                required_count: Annotated[int, Field(ge=1, description="O número mínimo de links válidos.")] = 1,
                 ) -> TestResult:
         """Executes the internal link verification."""
         files = evaluation.files
@@ -196,7 +193,7 @@ class CheckInternalLinks(TestFunction):
                 score=0,
                 report=t("web_dev.html.check_internal_links.report.no_content", locale=evaluation.locale)
             )
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         links = soup.select('a[href^="#"]')
         valid_links = 0
         for link in links:
@@ -216,6 +213,7 @@ class CheckInternalLinks(TestFunction):
 
 class CheckNoUnclosedTags(TestFunction):
     """Detector for unclosed HTML tags."""
+    absence_check = "Prohibition: passes while no tag is left unclosed."
     @property
     def name(self):
         return "check_no_unclosed_tags"
@@ -284,15 +282,14 @@ class LinkPointsToPageWithQueryParam(TestFunction):
     def execute(self, evaluation: EvaluationInput, *,
                 target_page: Annotated[str, Field(min_length=1, description=t("web_dev.html.link_points_to_page_with_query_param.param.target_page"))],
                 query_param: Annotated[str, Field(min_length=1, description=t("web_dev.html.link_points_to_page_with_query_param.param.query_param"))],
-                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.link_points_to_page_with_query_param.param.required_count"))] = 0,
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.html.link_points_to_page_with_query_param.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the verification of links with query parameters."""
         files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         links = soup.find_all("a", href=True)
         valid_link_count = 0
         for link in links:
@@ -324,7 +321,7 @@ class CheckInternalLinksToArticle(TestFunction):
     minimum_files = 1
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
-                required_count: Annotated[int, Field(ge=0, description="O número mínimo de links válidos.")] = 0,
+                required_count: Annotated[int, Field(ge=1, description="O número mínimo de links válidos.")] = 1,
                 ) -> TestResult:
         """Executes the verification of links to articles."""
         files = evaluation.files
@@ -342,7 +339,7 @@ class CheckInternalLinksToArticle(TestFunction):
                 score=0,
                 report=t("web_dev.html.check_internal_links_to_article.report.no_file", locale=evaluation.locale)
             )
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         links = soup.select('a[href^="#"]')
         valid_links = 0
         for link in links:
@@ -362,6 +359,7 @@ class CheckInternalLinksToArticle(TestFunction):
 
 class CheckTagNotInside(TestFunction):
     """Ensures that a tag is not inside another."""
+    absence_check = "Prohibition: passes while the child tag never appears inside the parent tag."
     @property
     def name(self):
         return "check_tag_not_inside"
@@ -380,8 +378,7 @@ class CheckTagNotInside(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         parent = soup.find(parent_tag)
         found = parent and parent.find(child_tag)
         score = 0 if found else 100
@@ -395,6 +392,7 @@ class CheckTagNotInside(TestFunction):
 
 class CheckHeadingsSequential(TestFunction):
     """Checks if heading levels (h1-h6) are sequential."""
+    absence_check = "Rule over headings: passes while no heading level is skipped, including pages with fewer than two levels."
     @property
     def name(self):
         return "check_headings_sequential"
@@ -410,8 +408,7 @@ class CheckHeadingsSequential(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         headings = [int(h.name[1]) for h in soup.find_all(re.compile(r"^h[1-6]$"))]
         if len(headings) < 2:
             return TestResult(
@@ -452,15 +449,14 @@ class HasTag(TestFunction):
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
                 tag: Annotated[str, Field(min_length=1, description=t("web_dev.html.has_tag.param.tag"))],
-                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.has_tag.param.required_count"))] = 0,
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.html.has_tag.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the tag presence verification."""
         files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         found_count = len(soup.find_all(tag))
         score = min(100, int((found_count / required_count) * 100)) if required_count > 0 else 100
         report = t("web_dev.html.has_tag.report", locale=evaluation.locale, found_count=found_count, required_count=required_count, tag=tag)
@@ -487,8 +483,7 @@ class CheckBootstrapLinked(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 100 if found else 0
@@ -502,6 +497,7 @@ class CheckBootstrapLinked(TestFunction):
 
 class CheckBootstrapUsage(TestFunction):
     """Checks if Bootstrap is being used."""
+    absence_check = "Prohibition: passes while Bootstrap is not used."
     @property
     def name(self):
         return "check_bootstrap_usage"
@@ -517,8 +513,7 @@ class CheckBootstrapUsage(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         found = soup.find("link", href=re.compile(r"bootstrap", re.IGNORECASE)) is not None or \
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 0 if found else 100
@@ -547,8 +542,7 @@ class UsesSemanticTags(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         found = soup.find(("article", "section", "nav", "aside", "figure")) is not None
         score = 100 if found else 40
         locale = evaluation.locale
@@ -576,8 +570,7 @@ class CheckCssLinked(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         found = soup.find("link", rel="stylesheet") is not None
         score = 100 if found else 0
         locale = evaluation.locale
@@ -590,6 +583,7 @@ class CheckCssLinked(TestFunction):
 
 class CheckAllImagesHaveAlt(TestFunction):
     """Checks if all images have an alt attribute."""
+    absence_check = "Rule over images: passes while no image lacks alt text, including pages without images."
     @property
     def name(self):
         return "check_all_images_have_alt"
@@ -605,8 +599,7 @@ class CheckAllImagesHaveAlt(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         images = soup.find_all("img")
         if not images:
             return TestResult(test_name=self.name, score=100, report=t("web_dev.html.check_all_images_have_alt.report.no_images", locale=evaluation.locale))
@@ -635,16 +628,15 @@ class HasClass(TestFunction):
         return [re.compile(name.replace('*', r'\S*')) for name in (class_names or [])]
 
     def execute(self, evaluation: EvaluationInput, *,
-                class_names: Annotated[List[str], Field(default_factory=list, description=t("web_dev.html.has_class.param.class_names"))],
-                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.has_class.param.required_count"))] = 0,
+                class_names: Annotated[List[Annotated[str, Field(min_length=1)]], Field(min_length=1, description=t("web_dev.html.has_class.param.class_names"))],
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.html.has_class.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the search for CSS classes in the HTML."""
         files = evaluation.files
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         found_count = 0
         patterns = self._compile_patterns(class_names)
         found_classes = []
@@ -678,8 +670,7 @@ class CheckHtmlDirectChildren(TestFunction):
         if not files or len(files) == 0:
             return TestResult(self.name, 0, "No HTML file provided.")
 
-        html_content = files[0].content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parsed_html(files[0])
         html_tag = soup.find('html')
         if not html_tag:
             return TestResult(test_name=self.name, score=0, report=t("web_dev.html.check_html_direct_children.report.no_html", locale=evaluation.locale))

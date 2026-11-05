@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 from pydantic import ValidationError
 
-from submission_contract import (
+from sandbox_manager.submission_contract import (
     MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_FILE_BYTES, MAX_METADATA_BYTES,
     MAX_TOTAL_METADATA_BYTES, MAX_PATH_BYTES, MAX_REQUEST_BYTES,
 )

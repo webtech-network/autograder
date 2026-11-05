@@ -15,8 +15,9 @@ Never publish until the pipeline has returned.
 The engine first selects the language, validates required preparation files and
 every criterion's file contract without provider calls, and computes one
 requirement set. This set uses selected evaluator instances and preparation for
-the selected language. Unused execution templates and another language's setup
-do not request resources. Fixtures apply to the definition's selected run.
+the selected language, read only from each evaluator's own declaration. Unused
+evaluators, static evaluators in an execution template and another language's
+setup do not request resources. Fixtures apply to the definition's selected run.
 Discovery uses the same evaluator capability declarations and never probes
 availability. Missing execution support has a capability error; a disallowed
 language has a separate submission error. A host that supports execution but has
@@ -136,9 +137,34 @@ assessment.
 Each prompt receives its selected assessment files. The provider additionally
 receives all submitted file contents as context, including files outside the
 evaluation scope. Scope controls assessment, not privacy or upload selection.
-Hosts must collect only files appropriate for that provider. The supplied
-OpenAI host reads its credentials and optional `AUTOGRADER_AI_MODEL`; standalone
-AI evaluators do not create a provider or retry missing batch results.
+Hosts must collect only files appropriate for that provider. Standalone AI
+evaluators do not create a provider or retry missing batch results.
+
+### The shipped OpenAI provider
+
+`execution_host.docker.ConfiguredAssessmentProvider` reads `OPENAI_API_KEY` (or,
+with `ENVIRONMENT=production`, the AWS secret `AUTOGRADER_AI_SECRET_NAME`) and
+optional `AUTOGRADER_AI_MODEL` when the host is composed, but resolves nothing
+until the first selected AI criterion. Static and I/O gradings never look up
+credentials, construct a client or touch the network.
+
+- **One client per host.** The credential lookup and the SDK client (with its
+  connection pool) happen at most once per host lifetime, also when several
+  workers reach the first AI grading at the same time. A failed lookup or
+  construction is `PROVIDER_UNAVAILABLE` and is not cached: the next AI grading
+  tries again.
+- **Secret rotation needs no restart.** A request rejected as unauthenticated
+  (HTTP 401) fails that grading with `PROVIDER_ERROR` and drops the client; the
+  next AI grading looks the secret up again.
+- **Deadline.** `openai_client` sets an explicit deadline and zero SDK retries
+  (the SDK defaults are a 600 s read and two retries). Each network wait is
+  bounded by `REQUEST_TIMEOUT_SECONDS` (180 s; connecting by
+  `CONNECT_TIMEOUT_SECONDS`, 10 s), and a grading makes one request, so a
+  provider that stops responding fails the grading with the safe, retryable
+  `PROVIDER_ERROR` within 190 s. These constants in
+  `execution_host/openai_provider.py` are the AI term of any attempt deadline.
+- **No hidden retries.** A timeout, 429, 5xx or any other failure is exactly one
+  request. Whether to try the grading again is the host's decision, not the SDK's.
 
 `AssessmentProvider.assess(requests, *, context_files, locale)` receives one
 batch of `AssessmentRequest(criterion_id, prompt)` and returns a sequence of

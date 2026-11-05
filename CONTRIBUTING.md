@@ -10,7 +10,8 @@ We currently follow a **basic Git workflow** and coordinate work through GitHub 
 2. Use the issue templates when opening new issues (`Bug report`, `Feature proposal`, `Implementation task`, `Umbrella initiative`, `Hypothesis / RFC`).
 3. Check the open issues and pick one that matches your interest.
 4. Comment on the issue and tag a maintainer to request context and confirm alignment before implementation.
-5. Read [AGENTS.md](AGENTS.md), the [responsibility map](docs/architecture/overview.md) and, for a new evaluator, [Adding an evaluator](docs/architecture/extending.md). Documents under `archive/` are historical, not current guidance.
+5. Read [AGENTS.md](AGENTS.md), the [responsibility map](docs/architecture/overview.md) and, for a new evaluator, [Adding an evaluator](docs/architecture/extending.md).
+6. Set up the repository as described in the [Development Guide](docs/guides/development.md#setup).
 
 ## Contribution Workflow
 
@@ -31,9 +32,17 @@ We currently follow a **basic Git workflow** and coordinate work through GitHub 
 
    Keep changes focused on the issue scope.
 
-4. **Run relevant checks locally**
+4. **Run the checks CI runs**
 
-   Use the project test/lint commands relevant to your change.
+   ```bash
+   make verify              # always: lint, contracts, docs build, unit and HTTP (SQLite) tests
+   make test-postgres       # changes to persistence, workers or idempotency (needs TEST_POSTGRES_URL)
+   make test-integration    # changes to execution or evaluators (needs Docker)
+   make test-e2e            # changes to the HTTP service (needs Docker)
+   ```
+
+   CI runs all of them on every pull request; see
+   [Verification](docs/guides/development.md#verification).
 
 5. **Commit your work**
 

@@ -6,9 +6,9 @@ import pytest
 
 from autograder import (
     compile_definition, describe_templates, evaluate_submission,
-    DefinitionValidationError, Submission,
+    DefinitionValidationError, Submission, Template,
 )
-from examples.contracts.custom_evaluator import DEFINITION, TrustedTextTemplate, grade
+from examples.contracts.custom_evaluator import DEFINITION, TEMPLATE, ContainsText, grade
 
 
 def test_documented_custom_evaluator_and_catalog_need_no_external_capabilities(monkeypatch):
@@ -26,7 +26,7 @@ def test_documented_custom_evaluator_and_catalog_need_no_external_capabilities(m
 
 
 def test_injected_template_contract_is_checked():
-    template = TrustedTextTemplate()
+    template = Template("Trusted text", "One local, trusted evaluator", [ContainsText()])
     template.validate_contract = Mock(side_effect=ValueError("broken contract"))
     with pytest.raises(DefinitionValidationError) as error:
         compile_definition(DEFINITION, templates={"trusted_text": template})
@@ -34,11 +34,35 @@ def test_injected_template_contract_is_checked():
     assert error.value.errors()[0]["code"] == "INVALID_TEMPLATE"
 
 
+class PreOnb08Template(Template):
+    """The documented breaking migration: sets ``tests`` and never calls ``super().__init__``."""
+
+    def __init__(self):  # pylint: disable=super-init-not-called
+        self.template_name = "old"
+        self.template_description = "old"
+        self.tests = {"contains_text": ContainsText()}
+
+
+def test_old_style_template_subclass_is_an_invalid_template_on_every_entry_point():
+    submission = Submission(username="local", user_id="local", assignment_id="local",
+                            language="node", submission_files={})
+    for call in (lambda: compile_definition(DEFINITION, templates={"trusted_text": PreOnb08Template()}),
+                 lambda: evaluate_submission(submission, definition=DEFINITION,
+                                             templates={"trusted_text": PreOnb08Template()})):
+        with pytest.raises(DefinitionValidationError) as error:
+            call()
+        first = error.value.errors()[0]
+        assert first["code"] == "INVALID_TEMPLATE"
+        assert "super().__init__" in first["message"]
+    with pytest.raises(TypeError, match=r"super\(\)\.__init__"):
+        describe_templates({"trusted_text": PreOnb08Template()})
+
+
 def test_facade_returns_failed_outcome_for_execution_error():
     submission = Submission(username="local", user_id="local", assignment_id="local",
                             language="python", submission_files={})
     outcome = evaluate_submission(submission, definition=DEFINITION,
-                                  templates={"trusted_text": TrustedTextTemplate()})
+                                  templates={"trusted_text": TEMPLATE})
     assert outcome.status == "failed"
     assert outcome.score is None and outcome.tree is None
     assert outcome.error.code == "LANGUAGE_NOT_ALLOWED"

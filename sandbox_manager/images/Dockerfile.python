@@ -1,28 +1,21 @@
-FROM python:3.11-alpine
+# Student runtime for `python`: CPython 3.13 on Alpine 3.24.
+# Built without a build context (see scripts/sandbox_images.py); never COPY or ADD.
+FROM python:3.13-alpine3.24@sha256:7984cf56ceaddebe4fefeb75d64000b9f45d8b77b11a09b24524da6cdc3af0c8
 
-# 1. Create a non-root user
-RUN addgroup -S sandbox && adduser -S sandbox -G sandbox
+LABEL autograder.runtime.languages="python"
 
-# 2. Install minimal runtime dependencies (if any)
-# For scientific libs (numpy), you might need standard python-slim instead of alpine
-# RUN pip install numpy pandas --no-cache-dir
+# Students get the interpreter only: no package managers or downloaders, no
+# setuid binaries, and an unprivileged user.
+RUN rm -rf /usr/local/bin/pip* /usr/local/lib/python3.13/site-packages/pip* \
+        /usr/local/lib/python3.13/ensurepip \
+    && rm -rf /sbin/apk /etc/apk /lib/apk /usr/share/apk /var/cache/apk \
+    && rm -f /usr/bin/wget /usr/bin/curl /usr/bin/nc \
+    && find / -xdev -perm /6000 -type f -exec chmod a-s {} + \
+    && addgroup -S sandbox && adduser -S sandbox -G sandbox \
+    && mkdir -p /app && chown sandbox:sandbox /app
 
-# 3. Security Hardening: Remove network tools and dangerous binaries
-# Alpine doesn't have curl/wget by default usually, but we ensure 'wget' is gone if present
-RUN rm -f /usr/bin/wget /usr/bin/curl /usr/bin/nc
-
-# 4. Remove SUID bits (prevents some priv-esc attacks)
-RUN find / -perm /6000 -type f -exec chmod a-s {} \; || true
-
-# 5. Setup Workspace
 WORKDIR /app
-RUN chown sandbox:sandbox /app
-
-# 6. Make /app a volume so it's writable even when container is read-only
+# Pools always mount a bounded tmpfs here (sandbox_manager/docker_profile.py).
 VOLUME ["/app"]
-
-# 7. Switch to user
 USER sandbox
-
-# 8. Safety Limit: Default entrypoint prevents keeping container alive without a command
 CMD ["python3"]

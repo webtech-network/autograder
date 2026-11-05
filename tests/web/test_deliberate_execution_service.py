@@ -11,12 +11,16 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from autograder.models.dataclass.asset import ResolvedAsset
-from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus
+from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus, SandboxExhausted
 from contextlib import contextmanager
 from dataclasses import replace
 from autograder.models.capabilities import HostCapabilities
-from execution_host.docker import DockerSession
+from execution_host.docker import GRADING_CAPACITY_WAIT_SECONDS, DockerHost, DockerSession
+from autograder.models.language import Language
+from sandbox_manager.errors import SandboxCapacityTimeout
+from web.core.host import WebHost
 from web.schemas.execution import (
+    CAPACITY_WAIT_SECONDS,
     MAX_OUTPUT_BYTES,
     DeliberateCodeExecutionRequest,
 )
@@ -149,6 +153,34 @@ async def test_invalid_requests_are_rejected_before_acquisition(change):
 
 
 @pytest.mark.asyncio
+async def test_a_saturated_sandbox_budget_answers_the_defined_busy_status():
+    manager = Mock()
+    manager.get_sandbox.side_effect = SandboxCapacityTimeout("every slot is held")
+    with manager_profile(return_value=manager):
+        response = await post(REQUEST)
+    assert response.status_code == 503
+    assert response.json()["detail"] == {"code": "EXECUTION_BUSY",
+                                         "message": "All execution sandboxes are busy; retry later."}
+    assert response.headers["Retry-After"] == "5"
+    manager.dispose.assert_not_called()  # Nothing was acquired.
+
+
+def test_deliberate_runs_share_the_grading_budget_but_wait_only_briefly(session_factory):
+    owner = DockerHost(mode="local")
+    owner._manager = Mock()  # pylint: disable=protected-access
+    host = WebHost(session_factory=session_factory, capabilities=owner.capabilities, resource_owner=owner,
+                   start_workers=False)
+    host.capabilities.execution(Language.PYTHON)
+    host.deliberate_capabilities.execution(Language.PYTHON)
+    assert [call.kwargs["wait_seconds"] for call in owner._manager.get_sandbox.call_args_list] == [
+        GRADING_CAPACITY_WAIT_SECONDS, CAPACITY_WAIT_SECONDS]
+    assert CAPACITY_WAIT_SECONDS < GRADING_CAPACITY_WAIT_SECONDS
+    injected = HostCapabilities(execution=Mock())
+    assert WebHost(session_factory=session_factory, capabilities=injected,
+                   start_workers=False).deliberate_capabilities is injected
+
+
+@pytest.mark.asyncio
 async def test_unavailable_manager_and_sandbox_failure_are_service_errors():
     with manager_profile(side_effect=ValueError("not ready")):
         response = await post(REQUEST)
@@ -183,6 +215,19 @@ async def test_timeout_stops_batch_and_destroys_sandbox():
     assert response.json()["results"][0]["exit_code"] == 124  # wire compatibility; category is authoritative
     assert response.json()["stopped_early"] is True
     assert len(response.json()["results"]) == 1
+    manager.dispose.assert_called_once_with(manager.get_sandbox.return_value)
+
+
+@pytest.mark.asyncio
+async def test_exhausted_sandbox_is_the_programs_runtime_error_and_stops_the_batch():
+    manager, _ = manager_with_sandbox(SandboxExhausted("limit"))
+    with manager_profile(return_value=manager):
+        response = await post(REQUEST)
+    assert response.status_code == 200
+    [result] = response.json()["results"]
+    assert (result["category"], result["exit_code"]) == ("runtime_error", 137)
+    assert "memory or process limit" in result["error_message"]
+    assert response.json()["stopped_early"] is True
     manager.dispose.assert_called_once_with(manager.get_sandbox.return_value)
 
 

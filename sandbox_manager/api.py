@@ -8,9 +8,11 @@ The service refuses to start without a token unless
 
 Worker model: handles live in this process's memory. Run exactly one worker
 process (``uvicorn --workers 1``); the service refuses ``WEB_CONCURRENCY`` > 1.
-Handles are random, bounded in number and expire after an idle TTL; a reaper
-disposes expired handles. Acquisition is replay-safe through a client request
-id. ``DELETE`` marks a handle closing, disposes it, and only then forgets it,
+Handles are random and expire after an idle TTL; a reaper disposes expired
+handles. Each handle holds one slot of the manager's sandbox budget, which
+bounds them. Acquisition waits for a slot in its own threads (never in the
+threads other routes need to free slots) and is replay-safe through a client
+request id. ``DELETE`` marks a handle closing, disposes it, and only then forgets it,
 remembering it in a bounded tombstone so a repeated ``DELETE`` succeeds.
 """
 import base64
@@ -25,16 +27,19 @@ from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Optional
 
+import anyio
 from fastapi import APIRouter, Depends, FastAPI, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.dataclass.submission import SubmissionFile
+from autograder.models.process import SandboxExhausted
 from sandbox_manager.errors import (
     ArtifactReadError,
     ArtifactTooLargeError,
     RuntimeUnavailableError,
+    SandboxCapacityTimeout,
     SandboxInvalidatedError,
 )
 from sandbox_manager.language_pool import SandboxUnavailableError
@@ -56,6 +61,9 @@ from autograder.models.language import Language
 logger = logging.getLogger(__name__)
 
 TRUE_VALUES = {"1", "true", "yes"}
+# Threads in which acquisitions wait for a budget slot. Separate from the route
+# threadpool, so waiting acquisitions can never starve the DELETE that frees a slot.
+ACQUIRE_THREADS = 256
 
 
 @dataclass(frozen=True)
@@ -63,7 +71,6 @@ class ControlSettings:
     """Startup policy of the control service, read from the environment."""
     token: Optional[str] = field(default=None, repr=False)
     allow_unauthenticated: bool = False
-    max_handles: Optional[int] = None          # Default: sum of pool scale limits.
     handle_ttl_seconds: float = 600.0          # Idle time before a handle expires.
     tombstone_seconds: float = 3600.0          # How long closed handles are remembered.
     max_tombstones: int = 10_000
@@ -72,10 +79,12 @@ class ControlSettings:
 
     @classmethod
     def from_env(cls) -> "ControlSettings":
+        if os.getenv("SANDBOX_MAX_HANDLES") is not None:
+            raise RuntimeError("SANDBOX_MAX_HANDLES was removed: open handles are bounded by the host sandbox "
+                               "budget (general.max_sandboxes in sandbox_config.yml). Unset it.")
         return cls(
             token=os.getenv("SANDBOX_API_TOKEN") or None,
             allow_unauthenticated=os.getenv("SANDBOX_API_ALLOW_UNAUTHENTICATED", "").lower() in TRUE_VALUES,
-            max_handles=int(os.environ["SANDBOX_MAX_HANDLES"]) if os.getenv("SANDBOX_MAX_HANDLES") else None,
             handle_ttl_seconds=float(os.getenv("SANDBOX_HANDLE_TTL_SECONDS", "600")),
             tombstone_seconds=float(os.getenv("SANDBOX_HANDLE_TOMBSTONE_SECONDS", "3600")),
             worker_count=int(os.getenv("WEB_CONCURRENCY", "1")),
@@ -92,9 +101,8 @@ class ControlSettings:
             logger.warning("!!! SANDBOX CONTROL API IS UNAUTHENTICATED (SANDBOX_API_ALLOW_UNAUTHENTICATED=true). "
                            "Any client that reaches this port can run code and control sandboxes. "
                            "Never use this outside local development. !!!")
-        if self.handle_ttl_seconds <= 0 or self.tombstone_seconds <= 0 or (
-                self.max_handles is not None and self.max_handles < 1):
-            raise RuntimeError("Handle limits and lifetimes must be positive")
+        if self.handle_ttl_seconds <= 0 or self.tombstone_seconds <= 0:
+            raise RuntimeError("Handle lifetimes must be positive")
 
 
 class ControlError(Exception):
@@ -123,20 +131,20 @@ class Handle:
 
 
 class HandleRegistry:
-    """In-memory, bounded, expiring handles for one worker process."""
+    """In-memory, expiring handles for one worker process, bounded by the sandbox budget."""
 
-    def __init__(self, manager, *, max_handles: int, ttl: float, tombstone_ttl: float = 3600.0,
+    def __init__(self, manager, *, ttl: float, tombstone_ttl: float = 3600.0,
                  max_tombstones: int = 10_000, clock: Callable[[], float] = time.monotonic):
         self.manager = manager
-        self.max_handles = max_handles
         self.ttl = ttl
         self.tombstone_ttl = tombstone_ttl
         self.max_tombstones = max_tombstones
         self.clock = clock
         self._lock = threading.Lock()
-        self._acquire_lock = threading.Lock()
         self._handles: Dict[str, Handle] = {}
         self._by_request: Dict[str, str] = {}
+        # request_id -> (language, done) while that acquisition is waiting or creating.
+        self._pending: Dict[str, tuple] = {}
         # handle_id -> (reason, forgotten_at, request_id, language)
         self._tombstones: "OrderedDict[str, tuple]" = OrderedDict()
 
@@ -163,31 +171,46 @@ class HandleRegistry:
 
     def stats(self) -> dict:
         with self._lock:
-            return {"handles": len(self._handles), "max_handles": self.max_handles,
+            return {"handles": len(self._handles), "acquiring": len(self._pending),
                     "closing": sum(1 for h in self._handles.values() if h.state == "closing"),
                     "tombstones": len(self._tombstones)}
 
     # -------------------------------------------------------------- operations
-    def acquire(self, language: Language, request_id: str) -> Handle:
-        with self._acquire_lock:
+    def acquire(self, language: Language, request_id: str, wait_seconds: float = 0.0) -> Handle:
+        """Hand out a new handle, or the existing one for a replayed ``request_id``.
+
+        Acquisitions run concurrently; a replay of one still in progress waits
+        for it instead of creating a second container.
+        """
+        while True:
             with self._lock:
                 self._prune_tombstones(self.clock())
                 existing = self._by_request.get(request_id)
+                pending = self._pending.get(request_id)
                 if existing is not None:
                     handle = self._handles.get(existing)
                     language_of = handle.language if handle else self._tombstones[existing][3]
-                    if language_of != language:
-                        raise ControlError(status.HTTP_409_CONFLICT, "REQUEST_ID_CONFLICT",
-                                           "Request id was used for another acquisition.")
+                elif pending is not None:
+                    language_of = pending[0]
+                else:
+                    done = threading.Event()
+                    self._pending[request_id] = (language, done)
+                    break
+                if language_of != language:
+                    raise ControlError(status.HTTP_409_CONFLICT, "REQUEST_ID_CONFLICT",
+                                       "Request id was used for another acquisition.")
+                if existing is not None:
                     if handle is None:
                         raise self._gone_error(existing)
                     handle.last_used = self.clock()
                     return handle  # Replay after a lost response: same handle, no second container.
-                if len(self._handles) >= self.max_handles:
-                    raise ControlError(status.HTTP_429_TOO_MANY_REQUESTS, "HANDLE_LIMIT",
-                                       "Too many open sandbox handles.")
+            pending[1].wait()  # The original attempt ends within its own wait; then look again.
+        try:
             try:
-                sandbox = self.manager.get_sandbox(language)
+                sandbox = self.manager.get_sandbox(language, wait_seconds=wait_seconds)
+            except SandboxCapacityTimeout as exc:
+                raise ControlError(status.HTTP_503_SERVICE_UNAVAILABLE, "CAPACITY_TIMEOUT",
+                                   "No sandbox slot became free within the requested wait.") from exc
             except SandboxUnavailableError as exc:
                 raise ControlError(status.HTTP_503_SERVICE_UNAVAILABLE, "SANDBOX_UNAVAILABLE",
                                    "No sandbox is available now.") from exc
@@ -200,6 +223,10 @@ class HandleRegistry:
                 self._handles[handle.handle_id] = handle
                 self._by_request[request_id] = handle.handle_id
             return handle
+        finally:
+            with self._lock:
+                del self._pending[request_id]
+            done.set()
 
     @contextmanager
     def use(self, handle_id: str):
@@ -346,6 +373,10 @@ def _registry(request: Request) -> HandleRegistry:
 
 
 def _sandbox_error(exc: Exception) -> ControlError:
+    if isinstance(exc, SandboxExhausted):
+        # The submission's own result: nothing more can run; only DELETE remains useful.
+        return ControlError(status.HTTP_409_CONFLICT, "SANDBOX_EXHAUSTED",
+                            "The submission exhausted the sandbox's memory or process limit.")
     if isinstance(exc, SandboxInvalidatedError):
         # The sandbox cannot be trusted any more; only DELETE remains useful.
         return ControlError(status.HTTP_409_CONFLICT, "SANDBOX_INVALIDATED",
@@ -358,9 +389,10 @@ router = APIRouter(dependencies=[Depends(require_token)])
 
 
 @router.post("/sandboxes/{language}", response_model=AcquireSandboxResponse)
-def acquire_sandbox(language: Language, body: AcquireSandboxRequest, request: Request):
+async def acquire_sandbox(language: Language, body: AcquireSandboxRequest, request: Request):
     registry = _registry(request)
-    handle = registry.acquire(language, body.request_id)
+    handle = await anyio.to_thread.run_sync(registry.acquire, language, body.request_id, body.wait_seconds,
+                                            limiter=request.app.state.acquire_limiter)
     return AcquireSandboxResponse(sandbox_id=handle.handle_id, request_id=handle.request_id,
                                   expires_in=int(registry.ttl))
 
@@ -441,13 +473,16 @@ def dispose_sandbox(sandbox_id: str, request: Request):
 
 @router.get("/stats")
 def get_stats(request: Request):
-    return {"pools": request.app.state.manager.get_pool_stats(), "handles": _registry(request).stats()}
+    manager = request.app.state.manager
+    return {"pools": manager.get_pool_stats(), "budget": manager.get_budget_stats(),
+            "handles": _registry(request).stats()}
 
 
 def _default_manager():
     from sandbox_manager.manager import SandboxManager
-    from sandbox_manager.models.pool_config import SandboxPoolConfig
-    return SandboxManager(SandboxPoolConfig.load_from_yaml(os.getenv("SANDBOX_CONFIG_FILE", "sandbox_config.yml")))
+    from sandbox_manager.models.pool_config import SandboxHostConfig
+    return SandboxManager.from_config(
+        SandboxHostConfig.load_from_yaml(os.getenv("SANDBOX_CONFIG_FILE", "sandbox_config.yml")))
 
 
 def create_app(settings: Optional[ControlSettings] = None,
@@ -464,13 +499,12 @@ def create_app(settings: Optional[ControlSettings] = None,
         stop = threading.Event()
         reaper = None
         try:
-            max_handles = control.max_handles or sum(
-                pool.config.scale_limit for pool in manager.language_pools.values())
-            registry = HandleRegistry(manager, max_handles=max_handles, ttl=control.handle_ttl_seconds,
+            registry = HandleRegistry(manager, ttl=control.handle_ttl_seconds,
                                       tombstone_ttl=control.tombstone_seconds,
                                       max_tombstones=control.max_tombstones, clock=clock)
             application.state.manager = manager
             application.state.registry = registry
+            application.state.acquire_limiter = anyio.CapacityLimiter(ACQUIRE_THREADS)
             reaper = threading.Thread(target=registry.run_reaper, name="sandbox-handle-reaper",
                                       args=(stop, control.reaper_interval_seconds), daemon=True)
             reaper.start()

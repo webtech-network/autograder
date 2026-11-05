@@ -57,14 +57,7 @@ class Static(TestFunction):
 
 
 def template(*evaluators):
-    class Local(Template):
-        template_name = "Local"
-        template_description = "Local evaluators."
-        requires_sandbox = False
-
-        def __init__(self):
-            self.tests = {evaluator.name: evaluator for evaluator in evaluators}
-    return Local()
+    return Template("Local", "Local evaluators.", evaluators)
 
 
 def ai(criterion_id, focus, name="Review"):
@@ -222,9 +215,16 @@ def test_provider_exceptions_map_to_one_safe_error(count):
 
 def test_provider_evaluation_errors_pass_through_unchanged():
     def unavailable(requests):
-        raise EvaluationError("PROVIDER_TIMEOUT", "The assessment provider timed out.", "provider", True)
+        raise EvaluationError("PROVIDER_UNAVAILABLE", "The assessment provider timed out.", "provider", True)
     outcome = run(FakeProvider(unavailable), ai("a", "x"))
-    assert (outcome.error.code, outcome.error.message) == ("PROVIDER_TIMEOUT", "The assessment provider timed out.")
+    assert (outcome.error.code, outcome.error.message) == ("PROVIDER_UNAVAILABLE", "The assessment provider timed out.")
+
+
+def test_provider_cannot_invent_an_unpublished_code():
+    def invented(requests):
+        raise EvaluationError("PROVIDER_TIMEOUT", "The assessment provider timed out.", "provider", True)
+    outcome = run(FakeProvider(invented), ai("a", "x"))
+    assert outcome.error.code == "PROVIDER_ERROR"
 
 
 def test_missing_provider_fails_before_assessment():
@@ -279,9 +279,7 @@ def test_global_batch_stage_and_untyped_inputs_are_removed(module):
 # --- The OpenAI adapter translates structured output only ----------------------
 
 def _executor(parsed=None, error=None):
-    executor = AiExecutor.__new__(AiExecutor)  # skip credential lookup
-    executor.model = "test-model"
-    executor.client = MagicMock()
+    executor = AiExecutor(MagicMock(), "test-model")
     if error:
         executor.client.responses.parse.side_effect = error
     else:

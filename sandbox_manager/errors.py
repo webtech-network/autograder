@@ -15,11 +15,31 @@ class RuntimeUnavailableError(RuntimeError):
     """
 
 
+class RuntimeImageError(RuntimeError):
+    """A configured runtime image is absent from the Docker host or serves another language.
+
+    Raised when a :class:`~sandbox_manager.manager.SandboxManager` starts, before
+    it creates any container. Images are never pulled implicitly: the host
+    operator pulls (or builds) exactly the references in ``sandbox_config.yml``.
+    """
+
+
+class SandboxCapacityTimeout(RuntimeError):
+    """No slot of the host sandbox budget became free within the caller's wait.
+
+    Saturation is transient: grading reports it as a retryable capability
+    failure, never as an assessed result, and deliberate execution answers
+    ``503 EXECUTION_BUSY``. The control API answers ``503 CAPACITY_TIMEOUT``.
+    """
+
+
 class SandboxInvalidatedError(RuntimeError):
     """The sandbox can no longer be trusted.
 
     A timed-out process could not be confirmed terminated, an internal exec did
-    not complete, or output readback failed. Every later operation on the
+    not complete, output readback failed, or the host stopped or removed the
+    container. A submission that exhausted the sandbox raises the core
+    ``SandboxExhausted`` instead, never this error. Every later operation on the
     sandbox raises this error until it is disposed. The control API answers
     ``409 SANDBOX_INVALIDATED``.
     """

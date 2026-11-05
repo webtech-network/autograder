@@ -95,12 +95,8 @@ class Review(AiTestFunction):
         return 'Review this criterion'
 
 
-class ReviewTemplate(Template):
-    template_name = 'review'
-    template_description = 'review'
-    requires_sandbox = False
-    def __init__(self):
-        self.tests = {'review':Review()}
+def review_template():
+    return Template('review', 'review', [Review()])
 
 
 def ai_definition():
@@ -112,7 +108,7 @@ def ai_definition():
 
 def test_repeated_ai_evaluator_outputs_are_bound_to_criterion_ids():
     provider = FakeProvider(lambda requests: [ProviderAssessment('first', 100), ProviderAssessment('second', 0)])
-    pipeline = build_pipeline(definition=ai_definition(), templates={'review':ReviewTemplate()}, capabilities=HostCapabilities(ai=provider))
+    pipeline = build_pipeline(definition=ai_definition(), templates={'review':review_template()}, capabilities=HostCapabilities(ai=provider))
     execution = pipeline.run(submission('print(1)'))
     assert execution.outcome.status == 'completed' and execution.outcome.score == 50
     assert outcome_score_vector(execution.outcome) == {'first':100,'second':0}
@@ -122,7 +118,7 @@ def test_repeated_ai_evaluator_outputs_are_bound_to_criterion_ids():
 
 def test_missing_ai_assessment_fails_once_without_fallback_or_zero_grade():
     provider = FakeProvider(lambda requests: [ProviderAssessment('first', 100)])
-    pipeline = build_pipeline(definition=ai_definition(), templates={'review':ReviewTemplate()}, capabilities=HostCapabilities(ai=provider))
+    pipeline = build_pipeline(definition=ai_definition(), templates={'review':review_template()}, capabilities=HostCapabilities(ai=provider))
     execution = pipeline.run(submission('print(1)'))
     assert execution.outcome.status == 'failed' and execution.outcome.score is None
     assert execution.outcome.error.code == 'MISSING_EVALUATOR_RESULT'

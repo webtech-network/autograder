@@ -45,7 +45,7 @@ class GradingRequest:
                                     reference=str(self.grading_config_id), revision=self.configuration_version)
 
 
-def failed_outcome(request, code="EXECUTION_FAILED", message="Grading execution could not be completed.", *, started=None, duration_ms=0):
+def failed_outcome(request, code="EXECUTION_ERROR", message="The grading execution could not complete.", *, started=None, duration_ms=0):
     execution_id = str(uuid4())
     finished = datetime.now(timezone.utc)
     return {

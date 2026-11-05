@@ -386,7 +386,9 @@
     "execution": {
       "timeout": "FALHA: O tempo de execução do programa expirou. Verifique se há loops infinitos. [Tempo: {time:.2f}s]",
       "runtime_error": "FALHA: O programa falhou durante a execução (crash).\nErro:\n{error}",
-      "exit_code": "Código de saída {code} (sem saída de erro)"
+      "exit_code": "Código de saída {code} (sem saída de erro)",
+      "exhausted": "FALHA: A submissão excedeu o limite de memória ou de processos do sandbox; nenhum programa pode mais ser executado neste sandbox.",
+      "not_started": "FALHA: O programa {program} não pôde ser iniciado: ele não existe ou não é executável."
     },
     "expect_output": {
       "description": "Executa o programa do aluno, fornece uma série de entradas separadas por linha e verifica se a saída final está correta.",
@@ -432,10 +434,9 @@
     "forbidden_import": {
       "description": "Analisa estaticamente os arquivos de submissão para verificar se alguma biblioteca proibida foi importada. Penaliza a submissão caso alguma importação proibida seja encontrada.",
       "params": {
-        "libraries": "Lista de nomes de bibliotecas/módulos cuja importação é proibida."
+        "libraries": "Lista de nomes de bibliotecas/módulos cuja importação é proibida (ao menos um)."
       },
       "report": {
-        "no_imports": "Nenhuma importação proibida especificada — nada para verificar.",
         "no_lang": "FALHA: A linguagem da submissão não foi definida. Não é possível verificar importações proibidas.",
         "no_files": "Nenhum arquivo de submissão para analisar.",
         "violation": "  - '{lib}' encontrado em '{file}'",
@@ -446,11 +447,10 @@
     "forbidden_keyword": {
       "description": "Analisa estaticamente os arquivos de submissão usando análise estrutural para detectar construções de linguagem proibidas (como loops ou chamadas eval).",
       "params": {
-        "keywords": "Lista de construções predefinidas a proibir (ex: 'for_loop', 'while_loop', 'eval_call').",
+        "keywords": "Lista de construções predefinidas a proibir (ex: 'for_loop', 'while_loop', 'eval_call'). É obrigatório ao menos uma palavra-chave ou regra personalizada.",
         "custom_rules": "Lista de regras ast-grep personalizadas para aplicar."
       },
       "report": {
-        "no_rules": "Nenhuma construção ou regra proibida especificada — nada para verificar.",
         "no_analysis": "FALHA: Dados de análise estrutural ausentes. Não é possível verificar construções proibidas.",
         "no_lang": "FALHA: A linguagem da submissão não foi definida. Não é possível verificar construções proibidas.",
         "no_files": "Nenhum arquivo de submissão para analisar.",

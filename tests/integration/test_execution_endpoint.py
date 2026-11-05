@@ -11,6 +11,7 @@ from web.core.config import Settings
 from tests.web.conftest import db_engine, session_factory  # pylint: disable=unused-import
 from execution_host.docker import DockerHost
 from autograder.models.language import Language
+from sandbox_manager.models.sandbox_models import SandboxState
 from tests.sandbox_profiles import TEST_SANDBOX_CONFIG
 
 BASE_URL = "/api/v1/execute"
@@ -236,7 +237,11 @@ int main() {
             assert response.status_code == 422  # Validation error
 
     async def test_execution_uses_the_grading_sandbox_pool_budget(self, execution_application):
-        """Grading acquisitions and deliberate runs share this host's pool capacity."""
+        """Grading acquisitions and deliberate runs share this host's sandbox budget.
+
+        With the budget held by gradings, a deliberate run waits its short capacity
+        wait and then answers the defined busy status; it never takes a grading's slot.
+        """
         capabilities = execution_application.state.host.capabilities
         first = capabilities.execution(Language.PYTHON)
         second = capabilities.execution(Language.PYTHON)
@@ -248,7 +253,9 @@ int main() {
                     "submission_files": [{"filename": "main.py", "content": "print('run')"}],
                     "program_command": "python main.py"})
             assert response.status_code == 503
-            assert response.json()["detail"]["code"] == "EXECUTION_UNAVAILABLE"
+            assert response.json()["detail"]["code"] == "EXECUTION_BUSY"
+            assert response.headers["retry-after"] == "5"
+            assert first.sandbox.state is second.sandbox.state is SandboxState.ACTIVE
         finally:
             first.close()
             second.close()

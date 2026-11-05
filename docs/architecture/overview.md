@@ -3,7 +3,7 @@
 This is the one current map of who owns what. It describes the code as
 implemented; the [integration contracts](../contracts/DECISIONS.md) are the
 normative versions of each boundary, and this page links to them instead of
-repeating their schemas. Pages under `archive/` are historical.
+repeating their schemas.
 
 ## Dependency direction
 
@@ -38,7 +38,7 @@ SDK. It does not prescribe classes or folders.
 | Versioned definition, normalization, immutable compiled definition (`compile_definition`, `compile_snapshot`) | `models/contracts/definition.py` | [DEFINITIONS.md](../contracts/DEFINITIONS.md) |
 | Evaluator contract: `TestFunction`/`AiTestFunction`, parameter contracts derived from `execute`, `validate_parameters`, `accepts_file`; trusted `Template` registries | `models/abstract/`, `models/contracts/parameter_contract.py` | [CATALOG.md](../contracts/CATALOG.md), [Adding an evaluator](extending.md) |
 | Discovery (`describe_templates`) read from the same registry | `models/contracts/catalog.py` | [CATALOG.md](../contracts/CATALOG.md) |
-| Built-in evaluators and their registry | `template_library/`, `services/template_library_service.py` | [Template Library](../core/template-library.md) |
+| Built-in evaluators and their registry | `template_library/` (`BUILTIN_TEMPLATES`) | [Template Library](../core/template-library.md) |
 | Language identity (the only language list) | `models/language.py` | [LANGUAGES.md](../contracts/LANGUAGES.md) |
 | Submission input and evaluator file selection | `models/dataclass/submission.py`, `services/file_selection.py` | [SUBMISSIONS.md](../contracts/SUBMISSIONS.md), [FILES.md](../contracts/FILES.md) |
 | Host capability protocols: `ExecutionSession` (`run_process`), `ServerSession`, `AssessmentProvider`, fixture `reference -> bytes` | `models/capabilities.py`, `models/execution.py`, `models/process.py` | [CAPABILITIES.md](../contracts/CAPABILITIES.md), [PROCESSES.md](../contracts/PROCESSES.md) |
@@ -74,7 +74,8 @@ bearer-authenticated control API (one worker) with its remote client. Language-t
 Builds the `HostCapabilities` a host passes to the core: `DockerHost` (local or
 remote manager, one `DockerSession` per run), `S3FixtureProvider` (uncached
 `reference -> bytes`, `FixtureNotFound` for a missing key) and
-`ConfiguredAssessmentProvider` (OpenAI, configured from the environment). A new
+`ConfiguredAssessmentProvider` (OpenAI, configured from the environment; one
+lazily built client per host with a 180 s request deadline and no SDK retries). A new
 host or provider is a new value here or in a host, not a core change.
 
 ## Hosts (`web/`, `github_action/`)
@@ -115,6 +116,3 @@ implemented and must not be described as current behavior:
 - Feedback has one mode (`default`); there is no AI report mode.
 - Fixtures are not cached; any future cache must meet the identity and
   invalidation rules in [CAPABILITIES.md](../contracts/CAPABILITIES.md).
-
-Older designs (step pipelines, pre-flight steps, result wrappers, serializer
-outputs, roadmaps) are kept under `archive/` as history only.

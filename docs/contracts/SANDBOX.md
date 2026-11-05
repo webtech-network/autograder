@@ -16,7 +16,8 @@ idle -> active -> closing -> disposed
                           \-> quarantined -> (bounded retry) -> disposed
 ```
 
-* `SandboxManager.get_sandbox(language)` hands one active sandbox to one caller.
+* `SandboxManager.get_sandbox(language, wait_seconds)` hands one active sandbox
+  to one caller once it holds a slot of the host budget (below).
 * `SandboxManager.dispose(sandbox)` (and `LanguagePool.dispose`) is the only
   disposal path. It marks the sandbox `closing`, calls
   `container.remove(force=True, v=True)` outside the pool lock, and forgets the
@@ -25,7 +26,7 @@ idle -> active -> closing -> disposed
   `already_disposed`, `closing` (another caller is disposing it) or
   `quarantined`. Only a sandbox the pool never tracked raises `ValueError`.
 * When Docker fails to remove a container, the sandbox is **quarantined**: it
-  stays tracked, still counts against `scale_limit` (capacity is never silently
+  stays tracked, keeps its budget slot (capacity is never silently
   over-committed), is logged at error level, and appears in
   `get_pool_stats()[language]["quarantine"]` with its attempts and last error.
   The pool monitor retries with exponential backoff (1 s doubling, 60 s cap) up
@@ -39,9 +40,48 @@ idle -> active -> closing -> disposed
   logs it, reports `CLEANUP_ERROR` to the optional observer, and keeps a
   completed grade completed; the pool keeps retrying.
 
+## One host-wide sandbox budget
+
+A manager owns one budget of N slots, `general.max_sandboxes` in
+`sandbox_config.yml` (required, at least 1). Every pool of the manager shares it,
+so grading and deliberate execution of every language draw from the same N, in
+local mode (the web process's manager) and remote mode (the control service's
+manager) alike.
+
+* A slot is taken before a container is created or an idle one is handed out,
+  and returned only when Docker confirms the container's removal. At every
+  instant **creating + active + closing + quarantined ≤ N**.
+* When every slot is held, an acquisition **waits** in arrival order (one FIFO
+  queue across languages) for up to its `wait_seconds`, then raises
+  `SandboxCapacityTimeout`. Saturation never fails immediately unless the caller
+  asked for no wait. Grading waits up to 600 s (`GRADING_CAPACITY_WAIT_SECONDS`,
+  `execution_host/docker.py`) and reports expiry as a retryable
+  `CAPABILITY_UNAVAILABLE`, never as an assessment; deliberate execution waits
+  10 s and answers `503 EXECUTION_BUSY`. The sandbox's `running_timeout` starts
+  at the grant, never during the wait.
+* Docker `create` and `remove` run outside the pool lock, so N cold acquisitions
+  take about one creation time. A failed creation returns its slot and wakes the
+  next waiter. Concurrent creations that discover a missing gVisor runtime each
+  remove only their own uniquely named attempt and fall back.
+* `pool_size` warm idle containers per language hold no slot (taking one takes a
+  slot); warm-up only uses a slot no acquisition is waiting for. Used containers
+  are never returned, so idle containers never exceed `pool_size`, which must not
+  exceed N. Total containers are at most N + `pool_size` × languages.
+* `shutdown()` wakes every waiter with `SandboxUnavailableError` and waits for
+  in-flight creations, removing their containers before it returns.
+* `get_budget_stats()` reports `max_sandboxes`, `held` and `waiting`.
+
 There is one Docker profile (`sandbox_manager/docker_profile.py`): limits,
-tmpfs mounts, `network_mode="none"`, `cap_drop=["ALL"]`, ulimits and labels are
-declared once. gVisor (`runsc`) is preferred; when the daemon lacks it, the
+tmpfs mounts, `network_mode="none"`, identities, capabilities, ulimits and
+labels are declared once. PID 1 is Docker's init (`init=True`, reaping orphans)
+running `sleep infinity` as `root`; control execs that can run beside the
+submission also run as `root`. `root` keeps only `KILL` (to end every
+submission process) and `DAC_OVERRIDE` (to read back and remove what the
+submission wrote, whatever its permissions); every other capability is dropped.
+Submission processes run as the image's `sandbox` user with no capabilities,
+under `no-new-privileges`, so they cannot signal PID 1 or a control exec. The
+container holds nothing the submission may not see: its own files, fixtures
+staged readable, and the image. gVisor (`runsc`) is preferred; when the daemon lacks it, the
 same options are used without the `runtime` argument. That is the only allowed
 difference. Previously the default-runtime path omitted the `/app` tmpfs because
 runc mounts tmpfs `root:root 0755`, which the unprivileged `sandbox` user cannot
@@ -53,6 +93,10 @@ The image is not part of the profile or of the language: the `runtimes:` map
 of `sandbox_config.yml` is the host's only language-to-image table
 (`SandboxPoolConfig.image`). A pool exists only for listed languages; acquiring
 another language raises `RuntimeUnavailableError` (see [LANGUAGES.md](LANGUAGES.md)).
+A manager starts only when every configured image is present locally and its
+`autograder.runtime.languages` label declares the language; otherwise it raises
+`RuntimeImageError` before reclaiming or creating any container, and never pulls
+an image (see [Runtime images](LANGUAGES.md#runtime-images)).
 
 ## Host-owned lifetime and signals
 
@@ -122,22 +166,25 @@ is a private network plus a shared bearer token:
 * Compose exposes port 8001 only on the internal network (`expose`, no
   `ports`) and passes the token to both services. Never publish this port.
 
-Handles are random (`secrets.token_urlsafe(32)`), never container ids. They are
-bounded (`SANDBOX_MAX_HANDLES`, default the sum of pool `scale_limit`s; excess
-acquisitions get 429 `HANDLE_LIMIT`) and expire after
-`SANDBOX_HANDLE_TTL_SECONDS` (default 600) without use. A reaper thread disposes
+Handles are random (`secrets.token_urlsafe(32)`), never container ids. Each
+holds one budget slot, so the budget bounds them. An acquisition carries
+`wait_seconds` (0–900, default 0) and waits for a slot in a dedicated pool of
+threads, never in the threadpool the other routes use, so waiting acquisitions
+cannot starve the `DELETE` that frees a slot. Acquisitions run concurrently; a
+replay of a request id that is still waiting returns the same handle when it is
+granted. Handles expire after `SANDBOX_HANDLE_TTL_SECONDS` (default 600) without use. A reaper thread disposes
 expired handles and handles whose sandbox the pool already disposed (running
 timeout); handles with an operation in flight are never reaped.
 
 | Route | Purpose |
 | --- | --- |
-| `POST /sandboxes/{language}` `{"request_id"}` | acquire; replay-safe |
+| `POST /sandboxes/{language}` `{"request_id", "wait_seconds"}` | acquire, waiting for a budget slot; replay-safe |
 | `POST /sandboxes/{id}/prepare` | stage submission files in `/app` |
 | `POST /sandboxes/{id}/inject` | stage base64 fixtures under `/tmp` |
 | `POST /sandboxes/{id}/process` | run one process ([PROCESSES.md](PROCESSES.md)); never replayed |
 | `GET /sandboxes/{id}/files?path=` | read one artifact |
 | `DELETE /sandboxes/{id}` | dispose |
-| `GET /stats` | pool stats (including quarantine) and handle counts |
+| `GET /stats` | pool stats (including quarantine), budget and handle counts |
 | `GET /health` | unauthenticated liveness |
 
 Errors use `{"detail": {"code", "message"}}` and never echo request input:
@@ -151,11 +198,13 @@ Errors use `{"detail": {"code", "message"}}` and never echo request input:
 | Handle closed / closing | 410 | `HANDLE_CLOSED` | `SandboxHandleGone` |
 | Handle expired or sandbox timed out | 410 | `HANDLE_EXPIRED` | `SandboxHandleGone` |
 | Request id reused for another language | 409 | `REQUEST_ID_CONFLICT` | `RemoteSandboxError` |
-| Too many handles / no sandbox | 429 / 503 | `HANDLE_LIMIT` / `SANDBOX_UNAVAILABLE` | `SandboxUnavailable` |
+| No budget slot within `wait_seconds` | 503 | `CAPACITY_TIMEOUT` | `SandboxCapacityTimeout` (same as the local manager) |
+| Service shutting down, or container creation failed | 503 | `SANDBOX_UNAVAILABLE` | `SandboxUnavailable` |
 | No runtime profile for a valid language (absent from `runtimes:`) | 501 | `RUNTIME_UNAVAILABLE` | `RuntimeUnavailableError` (same as the local manager) |
 | Unknown language identifier | 422 | `INVALID_REQUEST` | `RemoteSandboxError` |
 | Execution infrastructure failure | 500 | `SANDBOX_ERROR` | `RemoteSandboxError` |
-| Sandbox invalidated (termination or readback not confirmed) | 409 | `SANDBOX_INVALIDATED` | `SandboxInvalidatedError` (same as the local sandbox) |
+| Sandbox invalidated by an earlier failure (termination or readback not confirmed, or the host stopped or removed it) | 409 | `SANDBOX_INVALIDATED` | `SandboxInvalidatedError` (same as the local sandbox) |
+| The submission exhausted the sandbox's memory or process limit | 409 | `SANDBOX_EXHAUSTED` | `SandboxExhausted` (same as the local sandbox) |
 | Artifact exists but readback failed | 500 | `ARTIFACT_READ_FAILED` | `ArtifactReadError` (same as the local sandbox) |
 | Disposal raised unexpectedly | 500 | `DISPOSAL_FAILED` | `RemoteSandboxError` |
 | Schema or limit violation | 422 | `INVALID_REQUEST` | `RemoteSandboxError` |
@@ -197,7 +246,7 @@ Wire limits agree with the operations they guard (`sandbox_manager/models/api_mo
 
 | Input/output | Limit | Reason |
 | --- | --- | --- |
-| Submission files | 100 files, 1 MiB each, 5 MiB total | shared `submission_contract` limits |
+| Submission files | 100 files, 1 MiB each, 5 MiB total | shared `sandbox_manager.submission_contract` limits |
 | Fixtures | 100, 32 MiB decoded total | `/tmp` tmpfs size |
 | Process `argv` / `shell` text | 64 KiB | below the Linux 128 KiB per-argument limit |
 | Process `stdin` | 1 MiB (base64 on the wire) | staged in chunks, not as one argument |
@@ -206,11 +255,27 @@ Wire limits agree with the operations they guard (`sandbox_manager/models/api_mo
 | Artifact read | 1 MiB | same as local `extract_file` default |
 | Request body | 48 MiB | base64 fixtures plus framing |
 
-Client transport deadlines: connect 5 s; acquire 90 s (may start a container);
+Client transport deadlines: connect 5 s; acquire `wait_seconds` + 90 s (may start a container);
 file/fixture transfer and artifact reads 120 s; dispose 60 s. Docker calls on the
 server have no hard deadline beyond docker-py's own client timeout.
 
 ## Migration
+
+* **One sandbox budget (PRF-01).** `general.max_sandboxes` is required in
+  `sandbox_config.yml`; the per-language `scale_limit` and `idle_timeout` are
+  removed and rejected at startup with a message naming the replacement, as are
+  unknown keys and `pool_size > max_sandboxes`. Set `max_sandboxes` from the
+  sizing rule in [JOBS.md](JOBS.md#sandbox-capacity) (about 8 on 12 CPUs), not
+  from the old sum of `scale_limit`s. `SANDBOX_MAX_HANDLES` is removed (the
+  budget bounds handles) and the control service refuses to start while it is
+  set; `429 HANDLE_LIMIT` no longer exists and saturation is `503
+  CAPACITY_TIMEOUT` after the requested wait. Python callers construct
+  `SandboxManager(pool_configs, client, max_sandboxes=N)` or
+  `SandboxManager.from_config(SandboxHostConfig.load_from_yaml(path))`;
+  `SandboxPoolConfig.load_from_yaml` is gone. `get_pool_stats()` no longer
+  reports `scale_limit`/`utilization`; use `get_budget_stats()`. Upgrade the
+  control service and its remote clients together (the acquire body gained
+  `wait_seconds`; an old client gets no wait).
 
 * **Process route (ARC-08).** `POST /sandboxes/{id}/run` and `/run-batch`
   are replaced by `POST /sandboxes/{id}/process`, whose body and response are
