@@ -21,6 +21,15 @@ class FakeContainer:
         self.kwargs = kwargs
         self.remove_failures = []  # Exceptions raised by successive remove() calls.
         self.remove_calls = []
+        self.exec_calls = []  # Control execs; a granted sandbox arms its lifetime with one.
+
+    def exec_run(self, **kwargs):
+        self.exec_calls.append(kwargs)
+        if self.client.exec_failure is not None:
+            raise self.client.exec_failure
+        if self.client.on_exec is not None:
+            return self.client.on_exec(kwargs)
+        return Mock(exit_code=None if kwargs.get("detach") else 0, output=b"")
 
     def remove(self, **kwargs):
         self.remove_calls.append(kwargs)
@@ -87,13 +96,15 @@ class FakeDocker:
         self.gvisor = gvisor
         self.live = {}
         self.run_failure = None
+        self.exec_failure = None
+        self.on_exec = None  # Scripted answers to control execs: kwargs -> result.
         self.on_run = None
         self.containers = FakeContainers(self)
         self.images = FakeImages()
         self.close = Mock()
 
 
-def pool_config(language=Language.PYTHON, pool_size=0, running_timeout=60, disposal_attempts=3):
+def pool_config(language=Language.PYTHON, pool_size=0, running_timeout=900, disposal_attempts=3):
     return SandboxPoolConfig(language=language, image=TEST_IMAGES[language], pool_size=pool_size,
                              running_timeout=running_timeout, disposal_attempts=disposal_attempts)
 

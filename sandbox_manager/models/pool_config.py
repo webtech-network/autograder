@@ -33,7 +33,7 @@ class SandboxPoolConfig:
     language: Language
     image: str
     pool_size: int        # Warm idle containers kept for this language (outside the budget).
-    running_timeout: int  # Seconds a handed-out sandbox may live, counted from the grant.
+    running_timeout: int  # The longest lifetime granted to a sandbox, counted from the grant.
     # Bounded attempts to remove a quarantined container before it stays
     # quarantined (still holding its budget slot) for an operator.
     disposal_attempts: int = 5
@@ -44,6 +44,11 @@ class SandboxHostConfig:
     """Everything ``sandbox_config.yml`` configures: the budget N and one pool per runtime."""
     max_sandboxes: int
     pools: List[SandboxPoolConfig]
+
+    @property
+    def running_timeout(self) -> int:
+        """The longest lifetime this host grants a sandbox (``general.running_timeout``)."""
+        return min(pool.running_timeout for pool in self.pools)
 
     @classmethod
     def load_from_yaml(cls, config_path: str = "sandbox_config.yml") -> "SandboxHostConfig":
