@@ -444,16 +444,26 @@ or database stack. No image has `dockerd`, `containerd`, a Docker CLI, Node.js,
 curl, uv or a test tool. The build context is an allow-list (`.dockerignore`),
 so `.env`, `.venv`, `data/` and caches never enter an image. `action.yml` pins
 `docker://ghcr.io/webtech-network/autograder-action:<version>` instead of building
-`Dockerfile.actions` in every job; raising that version releases it once,
-gated on verification, under a git tag of the same name. `tests/images/`
+`Dockerfile.actions` in every job. A version is released once, gated on
+verification, from the branch that raises it (`workflow_dispatch`), before
+that branch can merge: the image is pushed first, then a git tag of the same
+name. `make action-check` (CI, without credentials, on pull requests into
+`main` and on `main`) fails while the pinned image is not anonymously
+pullable, so `main`, which every documented `uses: ...@main` follows, only ever
+names a published, public image. `tests/images/`
 (`make test-images`, CI) checks the built images, including a build from a
 checkout with planted secrets and the Action grading the static example.
 
 Migration: Compose health checks use Python instead of curl. Deployments that
 run `curl` inside the API or sandbox manager containers must do the same. The
 Action image no longer contains Node.js or `tree`. `@main` follows the latest
-released image rather than building the current commit; see
-[Versions and images](../github_action/README.md#versions-and-images).
+released image rather than building the current commit; consumer workflows
+need no change. The first merge of this change into `main` requires
+`autograder-action:0.6.0` to be released from the merging branch and the new
+GHCR package to be made public, verified with an anonymous `docker manifest
+inspect`; `make action-check` blocks that merge until both are true. See
+[Releasing a version](../github_action/README.md#releasing-a-version). GitHub
+Release notes remain manual.
 
 ## Closed locale and outcome-code vocabularies (COR-07)
 

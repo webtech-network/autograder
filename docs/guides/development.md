@@ -64,6 +64,12 @@ has pylint false positives to resolve first.
 | `make test-e2e` | Docker | An API process with real sandboxes. |
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
 | `make test-images` | Docker | Builds those images and checks exactly them ([Images](#images)). |
+| `make action-check` | Network | Fails unless the Action image `action.yml` pins is published and public. |
+
+A bare `pytest` collects all of `tests/`, including `tests/integration/`,
+`tests/e2e/` and `tests/images/`, which fail rather than skip without Docker and
+the images they need. Use the targets above, or name a directory
+(`uv run pytest tests/unit/`).
 
 The PostgreSQL tier needs a disposable database; every test creates and drops
 its own schema:
@@ -104,8 +110,10 @@ with that environment and the first-party directories listed in its Dockerfile
 under `/app` (`PYTHONPATH=/app`). There is no uv, Node.js, Docker CLI or daemon,
 curl or test tool in them; the Docker SDK talks to a mounted socket. The build
 context is an allow-list (`.dockerignore`): `.env` files, `.venv`, `data/`,
-databases and caches never reach an image, even when they sit inside an allowed
-directory. To add a process or a file to an image, add its path to both the
+databases, `*.pem`/`*.key` files and caches never reach an image, even when they
+sit inside an allowed directory. Any other file inside an allowed directory
+(for example a stray `web/credentials.json`) does ship, so keep secrets out of
+the source directories. To add a process or a file to an image, add its path to both the
 allow-list and that image's `COPY` lines, and its expectation to
 `tests/images/`.
 
@@ -113,15 +121,15 @@ allow-list and that image's `COPY` lines, and its expectation to
 installed distributions (no pytest, web or database stack where the process does
 not import one), absent executables (`dockerd`, `containerd`, `node`, `curl`...),
 `/app` holding exactly the allow-list, a rebuild from a copy of the checkout with
-planted `.env`, `.venv`, `data/` and other secrets that must contain none of them,
+planted `.env`, `.venv`, `data/`, keys and other secrets that must contain none of them,
 and the Action image grading the static example the way a runner invokes it. CI
 runs it on every pull request; `IMAGE_PREFIX` and `IMAGE_TAG` rename the local
 images (`make test-images IMAGE_PREFIX=mine`).
 
 To change a base, replace its digest (`docker buildx imagetools inspect
 python:3.13-slim-trixie`) in all three Dockerfiles. The Action image is released
-by raising its version in `action.yml`; see
-[Versions and images](../github_action/README.md#versions-and-images).
+from the branch that raises its version in `action.yml`, before that branch
+merges; see [Releasing a version](../github_action/README.md#releasing-a-version).
 
 ### Documentation site
 

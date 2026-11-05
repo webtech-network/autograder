@@ -105,7 +105,8 @@ SENTINEL = f"ENV04-LEAK-SENTINEL-{uuid.uuid4().hex}"
 #: Files a maintainer checkout really has (ignored by git, present on disk).
 PLANTED = (".env", ".env.production", ".venv/lib/python3.13/site-packages/planted-secret.py",
            "data/receipts/planted-secret.json", "test.db", "secrets.json", "web/.env", "autograder/.env",
-           "github_action/__pycache__/planted-secret.cpython-313.pyc", "sandbox_manager/.venv/planted-secret.py")
+           "github_action/__pycache__/planted-secret.cpython-313.pyc", "sandbox_manager/.venv/planted-secret.py",
+           "web/prod.pem", "autograder/deploy.key")
 
 
 @pytest.fixture(scope="module")
@@ -135,7 +136,7 @@ def test_image_built_from_a_checkout_with_secrets_contains_none_of_them(name, pl
         found = run(reference, "sh", "-c",
                     f"grep -rlsI --exclude-dir=proc --exclude-dir=sys --exclude-dir=dev {SENTINEL} / ; "
                     "find / -xdev \\( -name '.env*' -o -name '.venv' -o -name '*.db' -o -name 'planted-secret*' "
-                    "-o -name 'secrets.json' -o -path '/app/tests' -o -path '/app/docs' -o -path '/app/data' \\) "
+                    "-o -name 'secrets.json' -o -path '/app/*.pem' -o -path '/app/*.key' -o -path '/app/tests' -o -path '/app/docs' -o -path '/app/data' \\) "
                     "-print; true")
         assert found.split() == [], f"{reference} contains {found.split()}"
         assert set(run(reference, "ls", "-A", "/app").split()) == expected

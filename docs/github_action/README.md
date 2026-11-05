@@ -42,12 +42,34 @@ the image was built from:
 | `webtech-network/autograder@<version>` (e.g. `@0.6.0`) | `autograder-action:<version>`, built from that tag. Reproducible: pin this. |
 | `webtech-network/autograder@main` | The version `action.yml` names on `main`: the latest release, not unreleased commits. |
 
-Raising the version in `action.yml` is the release. When that commit reaches
-`main` and every verification job passed, CI builds the image from scratch,
-checks it (`make test-images`), tags the commit with the version and publishes
-the image (`make action-publish`). A published version is never overwritten, and
-a version already tagged on another commit stops the release. Until the release
-job finishes, `@main` names an image the registry does not have yet.
+`main` only ever names a published, public image: CI runs `make action-check`
+without registry credentials on every pull request into `main` and on `main`,
+and it fails while the image `action.yml` pins cannot be pulled anonymously
+(missing, or a private package). So `@main` never points at an image a
+runner cannot pull.
+
+### Releasing a version
+
+1. On a branch, raise the version in `action.yml` (`runs.image`) and open the
+   pull request into `main`. Its `make action-check` fails until step 3.
+2. Run the Verify workflow on that branch: Actions → Verify → Run workflow, or
+   `gh workflow run verify.yml --ref <branch>`. After every verification job
+   passed, the `action-release` job builds the image from scratch, checks it
+   (`make test-images`), publishes it (`make action-publish`) and only then
+   tags the commit with the version. A published version is never overwritten,
+   a version already tagged on another commit stops the release, and a re-run
+   resumes an interrupted one. The tag is on the commit the image was built
+   from, which is the branch commit, not the merge commit on `main`.
+3. The first release creates the GHCR package `autograder-action` as private.
+   Make it public once (organization → Packages → `autograder-action` →
+   Package settings → Change visibility → Public). Confirm it as a runner
+   sees it, without credentials:
+   `DOCKER_CONFIG="$(mktemp -d)" docker manifest inspect ghcr.io/webtech-network/autograder-action:<version>`
+   must print a manifest, not `denied` or `unauthorized`.
+4. Re-run the pull request's checks; `make action-check` now passes and the
+   pull request can merge.
+5. Release notes stay manual, as for `0.1.0`–`0.5.0`: create the GitHub Release
+   from the existing `<version>` tag (`gh release create <version> --verify-tag`).
 
 To test an unreleased change, build and run the image locally the way a runner
 does (`make images`, then `docker run` with the workspace mounted at

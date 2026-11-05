@@ -92,6 +92,7 @@ def test_ci_runs_on_every_pull_request_and_on_main():
     triggers = workflow(VERIFY)["on"]
     assert triggers["pull_request"] in (None, {})  # no branch or path filter
     assert triggers["push"] == {"branches": ["main"]}
+    assert triggers["workflow_dispatch"] in (None, {})  # the Action release, on any ref
 
 
 def test_ci_invokes_only_make_targets():
@@ -113,10 +114,10 @@ def test_publication_waits_for_every_verification_job():
     jobs = workflow(VERIFY)["jobs"]
     for name in PUBLICATION:
         assert set(jobs[name]["needs"]) == set(jobs) - PUBLICATION, name
-        condition = jobs[name]["if"]
-        assert "github.event_name == 'push'" in condition
-        assert "github.ref == 'refs/heads/main'" in condition
-        assert not any(override in condition for override in STATUS_OVERRIDES)
+        assert not any(override in jobs[name]["if"] for override in STATUS_OVERRIDES)
+    assert jobs["deploy"]["if"] == "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+    # The Action image is published before main can name it (see the pin check below).
+    assert jobs["action-release"]["if"] == "github.event_name == 'workflow_dispatch'"
     # A red step or job that is allowed to fail would still count as success.
     for name, job in jobs.items():
         assert "continue-on-error" not in job, name
@@ -158,6 +159,17 @@ def test_only_the_gated_release_job_publishes_the_action_image():
             if "action-publish" in yaml.safe_dump(job):
                 assert (path, name) == (VERIFY, "action-release")
     assert "make test-images" in [step.get("run", "").strip() for step in jobs["images"]["steps"]]
+
+
+def test_main_only_ever_pins_a_published_action_image():
+    # Every documented consumer uses `webtech-network/autograder@main`: a pull
+    # request into main, and main itself, fail while action.yml pins an image an
+    # anonymous runner cannot pull (missing, or a private package).
+    images = workflow(VERIFY)["jobs"]["images"]
+    gate = [step for step in images["steps"] if step.get("run", "").strip() == "make action-check"]
+    assert len(gate) == 1
+    assert gate[0]["if"] == "github.base_ref == 'main' || github.ref == 'refs/heads/main'"
+    assert "docker/login-action" not in yaml.safe_dump(images)  # anonymous, like a consumer's runner
 
 
 def test_third_party_actions_are_pinned_to_commits():
