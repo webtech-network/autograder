@@ -12,7 +12,7 @@ from typing import Dict, Iterable, Optional
 
 import docker
 
-from sandbox_manager.errors import RuntimeUnavailableError
+from sandbox_manager.errors import RuntimeImageError, RuntimeUnavailableError
 from sandbox_manager.language_pool import LanguagePool
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import DisposalStatus
@@ -21,6 +21,31 @@ from sandbox_manager.ownership import OwnerIdentity, reclaim_dead_owners
 from sandbox_manager.sandbox_container import SandboxContainer
 
 logger = logging.getLogger(__name__)
+
+#: Image label listing the comma-separated language identifiers an image serves.
+RUNTIME_LANGUAGES_LABEL = "autograder.runtime.languages"
+
+
+def verify_runtime_images(client: docker.DockerClient, configs: Iterable[SandboxPoolConfig]) -> None:
+    """Require each configured image to be present locally and to declare its language.
+
+    Nothing is pulled: a missing reference is an operator error with one fix.
+    Other Docker errors propagate unchanged.
+    """
+    for config in configs:
+        try:
+            image = client.images.get(config.image)
+        except docker.errors.ImageNotFound:
+            raise RuntimeImageError(
+                f"Sandbox image '{config.image}' for the '{config.language.value}' runtime is not on this "
+                f"Docker host. Run `docker pull {config.image}` (or `make sandbox-build-all` for the images "
+                f"of this checkout), or change `runtimes:` in the sandbox configuration.") from None
+        declared = [item.strip() for item in (image.labels or {}).get(RUNTIME_LANGUAGES_LABEL, "").split(",")]
+        if config.language.value not in declared:
+            raise RuntimeImageError(
+                f"Sandbox image '{config.image}' does not declare the '{config.language.value}' runtime "
+                f"(label {RUNTIME_LANGUAGES_LABEL}={','.join(filter(None, declared)) or '<missing>'}). "
+                "Map the language to the image built for it in `runtimes:`.")
 
 
 class SandboxManager:
@@ -37,6 +62,12 @@ class SandboxManager:
                 raise ValueError(f"Unsupported language: {config.language}")
         self._owns_client = client is None
         self.client = client or docker.from_env()
+        try:
+            verify_runtime_images(self.client, configs)
+        except Exception:
+            if self._owns_client:
+                self.client.close()
+            raise
         self.owner = owner or OwnerIdentity.current()
         if reclaim_orphans:
             reclaim_dead_owners(self.client, self.owner)

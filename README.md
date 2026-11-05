@@ -255,6 +255,9 @@ lists them all.
 
 To run the system:
 
+- **Sandbox images:** the runtime images named in `sandbox_config.yml`
+  (`make sandbox-list`) must be present before a host starts: `docker pull` the
+  published references, or `make sandbox-build-all` to build them from this checkout.
 - **Web API:** `export SANDBOX_API_TOKEN=<long random secret>` then
   `make start-autograder` (Docker and Docker Compose; sandbox pools are configured
   in `sandbox_config.yml`). See [Run your first grading workflow](docs/getting-started/first-grading-workflow.md).

@@ -10,7 +10,8 @@ import requests
 from github_action import main as action_main
 from github_action.identity import TrustError
 from tests.e2e.contracts import create_config
-from tests.sandbox_profiles import sandbox_config
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_IMAGES, sandbox_config
 
 DEFINITION = json.loads((Path(__file__).resolve().parents[2] / "examples/contracts/input_output.json").read_text())
 
@@ -19,9 +20,9 @@ DEFINITION = json.loads((Path(__file__).resolve().parents[2] / "examples/contrac
 def checkout(tmp_path, monkeypatch, isolated_api):
     docker = pytest.importorskip("docker")
     try:
-        docker.from_env().images.get("sandbox-py")
+        docker.from_env().images.get(TEST_IMAGES[Language.PYTHON])
     except Exception as exc:  # pragma: no cover - environment dependent
-        pytest.skip(f"sandbox-py image required: {exc}")
+        pytest.skip(f"the Python sandbox image is required: {exc}")
     workspace = tmp_path / "checkout"
     (workspace / ".github/autograder").mkdir(parents=True)
     (workspace / ".github/autograder/definition.json").write_text(json.dumps(DEFINITION))

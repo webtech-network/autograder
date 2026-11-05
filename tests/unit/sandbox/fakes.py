@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import docker
 
 from sandbox_manager.models.pool_config import SandboxPoolConfig
-from autograder.models.language import Language
+from autograder.models.language import LANGUAGE_IDS, Language
 from sandbox_manager.ownership import OwnerIdentity
 from tests.sandbox_profiles import TEST_IMAGES
 
@@ -60,12 +60,33 @@ class FakeContainers:
         return [c for c in self.client.live.values() if all(c.labels.get(k) == v for k, v in pairs)]
 
 
+class FakeImage:
+    def __init__(self, labels):
+        self.labels = labels
+
+
+class FakeImages:
+    """Every reference is present and declares every language unless a test says otherwise."""
+
+    def __init__(self):
+        self.missing = set()
+        self.labels = {}  # reference -> label dict
+        self.get_calls = []
+
+    def get(self, reference):
+        self.get_calls.append(reference)
+        if reference in self.missing:
+            raise docker.errors.ImageNotFound(f"No such image: {reference}")
+        return FakeImage(self.labels.get(reference, {"autograder.runtime.languages": ",".join(LANGUAGE_IDS)}))
+
+
 class FakeDocker:
     def __init__(self, gvisor=False):
         self.gvisor = gvisor
         self.live = {}
         self.run_failure = None
         self.containers = FakeContainers(self)
+        self.images = FakeImages()
         self.close = Mock()
 
 

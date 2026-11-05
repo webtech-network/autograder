@@ -5,7 +5,7 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -52,22 +52,29 @@ images: ## Build the API, sandbox manager and Action images from this checkout
 	docker build -t autograder-sandbox-manager:local -f Dockerfile.sandbox .
 	docker build -t autograder-action:local -f Dockerfile.actions .
 
-sandbox-build-all: sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp ## Build every sandbox runtime image
+# The versioned runtime images named in sandbox_config.yml (scripts/sandbox_images.py).
+SANDBOX_IMAGES = $(PYTHON) scripts/sandbox_images.py
+
+sandbox-build-all: ## Build every sandbox runtime image under its versioned reference
+	$(SANDBOX_IMAGES) build
 
 sandbox-build-python: ## Build the Python sandbox image
-	docker build -t sandbox-py:latest -f sandbox_manager/images/Dockerfile.python sandbox_manager/images/
+	$(SANDBOX_IMAGES) build python
 
 sandbox-build-java: ## Build the Java sandbox image
-	docker build -t sandbox-java:latest -f sandbox_manager/images/Dockerfile.java sandbox_manager/images/
+	$(SANDBOX_IMAGES) build java
 
 sandbox-build-node: ## Build the Node.js sandbox image
-	docker build -t sandbox-node:latest -f sandbox_manager/images/Dockerfile.javascript sandbox_manager/images/
+	$(SANDBOX_IMAGES) build node
 
 sandbox-build-cpp: ## Build the C/C++ sandbox image
-	docker build -t sandbox-cpp:latest -f sandbox_manager/images/Dockerfile.cpp sandbox_manager/images/
+	$(SANDBOX_IMAGES) build cpp
+
+sandbox-list: ## Show the runtime image each language uses
+	@$(SANDBOX_IMAGES) list
 
 sandbox-clean: ## Remove the sandbox images
-	-docker rmi sandbox-py:latest sandbox-java:latest sandbox-node:latest sandbox-cpp:latest
+	-docker rmi $$($(SANDBOX_IMAGES) list | cut -d' ' -f2 | sort -u)
 
 ##@ Database migrations (DATABASE_URL selects the database)
 

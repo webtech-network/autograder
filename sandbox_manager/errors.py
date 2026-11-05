@@ -15,6 +15,15 @@ class RuntimeUnavailableError(RuntimeError):
     """
 
 
+class RuntimeImageError(RuntimeError):
+    """A configured runtime image is absent from the Docker host or serves another language.
+
+    Raised when a :class:`~sandbox_manager.manager.SandboxManager` starts, before
+    it creates any container. Images are never pulled implicitly: the host
+    operator pulls (or builds) exactly the references in ``sandbox_config.yml``.
+    """
+
+
 class SandboxInvalidatedError(RuntimeError):
     """The sandbox can no longer be trusted.
 

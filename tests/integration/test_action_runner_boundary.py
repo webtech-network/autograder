@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 
 from github_action import main
-from tests.sandbox_profiles import sandbox_config
+from autograder.models.language import Language
+from tests.sandbox_profiles import TEST_IMAGES, sandbox_config
 
 PROBE = r'''
 import json, os, socket
@@ -38,9 +39,9 @@ def action_workspace(tmp_path, monkeypatch):
     docker = pytest.importorskip("docker")
     try:
         client = docker.from_env()
-        client.images.get("sandbox-py")
+        client.images.get(TEST_IMAGES[Language.PYTHON])
     except Exception as exc:  # pragma: no cover - environment dependent
-        pytest.skip(f"Docker with the sandbox-py image is required: {exc}")
+        pytest.skip(f"Docker with the Python sandbox image is required: {exc}")
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     (workspace / "main.py").write_text(PROBE)

@@ -412,3 +412,18 @@ app. An Action `delivery.json` saved by an earlier release is an attestation, so
 an oversized report in it is rejected with `text_too_large`, not excerpted. The
 excerpt marker is fixed English until ONB-03. See
 [OUTCOMES.md](OUTCOMES.md#size-bounds).
+
+## Versioned runtime images (ENV-04, runtime part)
+
+The student runtimes are built from `sandbox_manager/images` on digest-pinned,
+supported bases (CPython 3.13, Temurin JDK 21, Node.js 24, GCC 15 on Alpine
+3.24) without a build context, and hold no package manager, downloader or setuid
+binary. Each image's reference is derived from its Dockerfile's content, CI
+publishes a reference once and never overwrites it, and `sandbox_config.yml`
+names exactly those references; floating local `:latest` tags are gone. A
+`SandboxManager` never pulls: it starts only when every configured image is
+present and declares its language in the `autograder.runtime.languages` label,
+and raises `RuntimeImageError` otherwise. Hosts therefore pull or build the
+configured images before starting; an old unlabelled image is rejected rather
+than silently used. Service and Action images are a later change. See
+[LANGUAGES.md](LANGUAGES.md#runtime-images).

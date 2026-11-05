@@ -17,7 +17,7 @@ from sandbox_manager.errors import RuntimeUnavailableError
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig, runtime_images
 from sandbox_manager.remote_client import RemoteSandboxManager
-from tests.sandbox_profiles import sandbox_config
+from tests.sandbox_profiles import TEST_IMAGES, sandbox_config
 from tests.unit.sandbox.fakes import FakeDocker, owner, pool_config
 from web.schemas.execution import DeliberateCodeExecutionRequest
 from web.schemas.submission import SubmissionCreate
@@ -141,7 +141,7 @@ def test_the_bound_language_reaches_the_evaluator_and_the_outcome():
 
 def test_runtime_images_come_only_from_the_host_profile(tmp_path):
     path = tmp_path / "sandbox.yml"
-    path.write_text(sandbox_config((Language.PYTHON,)).replace("sandbox-py:latest", "registry.local/py:3.13"))
+    path.write_text(sandbox_config((Language.PYTHON,)).replace(TEST_IMAGES[Language.PYTHON], "registry.local/py:3.13"))
     configs = SandboxPoolConfig.load_from_yaml(str(path))
     assert [(config.language, config.image) for config in configs] == [(Language.PYTHON, "registry.local/py:3.13")]
 
