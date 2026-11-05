@@ -5,7 +5,7 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -46,6 +46,9 @@ test-integration: sandbox-build-all ## Real Docker sandboxes (builds sandbox ima
 
 test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 	PYTHON='$(PYTHON)' ./scripts/run_e2e_tests.sh
+
+gvisor-install: ## Install the pinned gVisor release as Docker's runsc runtime (sudo; CI's Docker job)
+	./scripts/install_gvisor.sh
 
 images: ## Build the API, sandbox manager and Action images from this checkout
 	docker build -t autograder-api:local -f Dockerfile.api .

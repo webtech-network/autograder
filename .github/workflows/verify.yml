@@ -96,6 +96,8 @@ jobs:
           enable-cache: true
       # uv sync --locked fails when pyproject.toml and uv.lock disagree.
       - run: make install
+      # gVisor as well as runc, so the per-runtime sandbox suites run under both.
+      - run: make gvisor-install
       - run: make test-integration
       - run: make test-e2e
 

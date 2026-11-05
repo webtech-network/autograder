@@ -59,7 +59,7 @@ has pylint false positives to resolve first.
 | --- | --- | --- |
 | `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas match the models), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Under a minute. |
 | `make test-postgres` | `TEST_POSTGRES_URL` | PostgreSQL claims, publication fencing and concurrent idempotency. Without the URL these tests **error**; they never skip. The role must be able to `CREATE DATABASE` (migration tests). |
-| `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. |
+| `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. Suites run under gVisor when Docker offers `runsc` (else runc; `AUTOGRADER_TEST_RUNTIME` overrides), and the per-runtime isolation suites under both. `make gvisor-install` (sudo) installs the pinned gVisor release, as CI does. |
 | `make test-e2e` | Docker | An API process with real sandboxes. |
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
 
