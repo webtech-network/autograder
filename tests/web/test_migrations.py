@@ -299,6 +299,16 @@ async def test_adopting_a_create_all_database_stamps_the_adopted_revision_and_up
     await app.state.host.close()
 
 
+async def test_adopted_revision_has_exactly_the_models_schema(postgres_url):
+    """Adoption compares the live schema with the models but stamps ``ADOPTED_REVISION``.
+
+    Only data migrations may follow it; a later schema change must revisit the constant.
+    """
+    url = await postgres_url()
+    alembic(url, "upgrade", ADOPTED_REVISION)
+    assert await on_database(url, schema_differences) == []
+
+
 async def test_adoption_refuses_a_schema_that_differs_from_the_models(postgres_url):
     url = await postgres_url()
     await create_all(url)
