@@ -77,11 +77,11 @@ def _daemon_runtimes():
 
 def _pool(running_timeout):
     return SandboxPoolConfig(language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0,
-                             scale_limit=4, idle_timeout=300, running_timeout=running_timeout)
+                             running_timeout=running_timeout)
 
 
 def _manager(runtime, running_timeout=120):
-    manager = SandboxManager([_pool(running_timeout)])
+    manager = SandboxManager([_pool(running_timeout)], max_sandboxes=4)
     if runtime == "runc":
         # Force Docker's default runtime, as on a host without gVisor.
         manager.language_pools[Language.PYTHON]._gvisor_available = False  # pylint: disable=protected-access
