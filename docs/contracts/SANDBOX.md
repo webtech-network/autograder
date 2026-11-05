@@ -153,6 +153,35 @@ The command refuses containers whose owner is visibly alive on the machine it
 runs on. Run it where the Docker daemon is reachable (in Compose:
 `docker compose exec sandbox-manager python -m sandbox_manager.reclaim ...`).
 
+## Staging
+
+Submission files (`prepare_workdir`), a fixture set (`inject_assets`) and
+process stdin above 48 KiB are each staged in **one transfer**: the host packs
+the files into a tar archive and streams it to the stdin of a single `tar -x`
+exec, so a staging operation costs the same three Docker calls (create, start,
+inspect the exec) for one file or for the 100-file, 5 MiB submission and 32 MiB
+fixture maxima. Docker's archive upload cannot reach the `/app` and `/tmp`
+tmpfs mounts, so the exec's stdin is the transport; the command is a fixed
+argument vector and no caller value becomes shell text or an argument.
+
+* Every path is normalized and checked before anything is sent: a submission
+  path that is absolute or leaves `/app`, or a fixture target that leaves
+  `/tmp`, rejects the whole operation and nothing is staged.
+* Bytes are exact, empty files included. Submission files are `0644` and owned
+  by `sandbox`; fixtures are owned by `root` (`0444` when read-only, else
+  `0644`), so the submission cannot change either kind of fixture. Missing
+  parent directories are created `0755` by the same user; existing directories,
+  `/tmp` (`1777`) included, keep their mode.
+* A transfer that does not complete cleanly (the archive could not be
+  delivered or extracted, `/tmp` is full, the host stopped the container) may
+  have staged part of the files, so it invalidates the sandbox and raises
+  `ProcessExecutionError` (wrapped as `RuntimeError` by `prepare_workdir`, as
+  before). A partial workdir is never reported as staged. Each transfer is
+  bounded by the 60 s control deadline.
+
+The runtime image provides `tar` (BusyBox or GNU) next to the `/bin/sh` tools
+the control scripts already use.
+
 ## Private control API
 
 The control API runs code on behalf of trusted hosts. Its deployment boundary
@@ -249,7 +278,7 @@ Wire limits agree with the operations they guard (`sandbox_manager/models/api_mo
 | Submission files | 100 files, 1 MiB each, 5 MiB total | shared `sandbox_manager.submission_contract` limits |
 | Fixtures | 100, 32 MiB decoded total | `/tmp` tmpfs size |
 | Process `argv` / `shell` text | 64 KiB | below the Linux 128 KiB per-argument limit |
-| Process `stdin` | 1 MiB (base64 on the wire) | staged in chunks, not as one argument |
+| Process `stdin` | 1 MiB (base64 on the wire) | above 48 KiB staged in one transfer, not as an argument |
 | Process `timeout` | (0, 600] s and at most the pool's `running_timeout` | client read deadline is timeout + 15 s |
 | Process output | `max_output_bytes` per stream, 1 B–8 MiB (default 1 MiB), with `stdout_truncated`/`stderr_truncated` | bounded where the process runs, never after transfer |
 | Artifact read | 1 MiB | same as local `extract_file` default |
@@ -261,6 +290,15 @@ server have no hard deadline beyond docker-py's own client timeout.
 
 ## Migration
 
+* **Single-transfer staging (PRF-03).** No configuration, wire or definition
+  change. Staging no longer sends one `docker exec` per 48 KiB per file: a
+  100-file submission went from 100 execs to one, 32 MiB of fixtures from about
+  680 to one (measurements in the PRF-03 pull request). A failed staging
+  operation now invalidates the sandbox (later operations answer `409
+  SANDBOX_INVALIDATED`) instead of leaving a partially staged sandbox usable,
+  and paths are validated before any file is staged. A fixture staged directly
+  under `/tmp` no longer changes `/tmp` to `0755` (which stopped every later
+  process from staging its run files). A custom runtime image needs `tar`.
 * **One sandbox budget (PRF-01).** `general.max_sandboxes` is required in
   `sandbox_config.yml`; the per-language `scale_limit` and `idle_timeout` are
   removed and rejected at startup with a message naming the replacement, as are
