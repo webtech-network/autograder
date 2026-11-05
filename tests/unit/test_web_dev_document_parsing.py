@@ -62,7 +62,7 @@ def test_each_document_is_parsed_once_per_grading(parses, variant):
     files = SUBMISSIONS[variant]
     rubric = WEBDEV_TESTS + [
         {"id": f"tag-{index}", "type": "has_tag", "name": "Has tag", "parameters": {"tag": "p", "required_count": index}}
-        for index in range(30)]
+        for index in range(1, 31)]
 
     _grade(_definition(rubric), files)
     assert [markup for markup, _, _ in parses] == [files["index.html"]]
