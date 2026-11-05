@@ -120,13 +120,8 @@ class Flood(TestFunction):
         return TestResult(self.name, score, "Expected: ok\nActual: " + "\x01é" * size + "\nend")
 
 
-class Local(Template):
-    template_name = "Local"
-    template_description = "Flooding reports."
-    requires_sandbox = False
-
-    def __init__(self):
-        self.tests = {"flood": Flood()}
+def Local():  # pylint: disable=invalid-name
+    return Template("Local", "Flooding reports.", [Flood()])
 
 
 def flood_definition(count, size=1_000_000, feedback=False, score=0.0):
