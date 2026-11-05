@@ -37,7 +37,7 @@ from typing import Dict, Optional, Sequence
 
 import yaml
 
-from scripts.sandbox_images import build, catalog, published
+from scripts.sandbox_images import build, catalog
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT / ".action-fixtures"
@@ -108,6 +108,14 @@ def _languages(definition: Path) -> set:
     return set(json.loads(definition.read_text(encoding="utf-8"))["languages"])
 
 
+def anonymously_pullable(reference: str) -> bool:
+    """Whether a runner without credentials can pull ``reference`` (a private package cannot)."""
+    with tempfile.TemporaryDirectory() as anonymous:
+        found = subprocess.run(["docker", "manifest", "inspect", reference], capture_output=True, check=False,
+                               env={**os.environ, "DOCKER_CONFIG": anonymous})
+    return found.returncode == 0
+
+
 def prepare() -> None:
     """Write the fixture checkouts, run this commit's Action image, provide unpublished runtimes."""
     shutil.rmtree(FIXTURES_DIR, ignore_errors=True)
@@ -125,9 +133,7 @@ def prepare() -> None:
     runtimes = yaml.safe_load((ROOT / "sandbox_config.yml").read_text(encoding="utf-8"))["runtimes"]
     executed = {runtimes[language] for name, fixture in FIXTURES.items() if fixture.sandboxes
                 for language in _languages(FIXTURES_DIR / name / "definition.json")}
-    with tempfile.TemporaryDirectory() as anonymous:
-        missing = [image for image in catalog() if image.ref in executed
-                   and not published(image.ref, env={**os.environ, "DOCKER_CONFIG": anonymous})]
+    missing = [image for image in catalog() if image.ref in executed and not anonymously_pullable(image.ref)]
     for image in missing:
         print(f"::notice::{image.ref} is not anonymously pullable yet; building it from this checkout.", flush=True)
     build(missing)
