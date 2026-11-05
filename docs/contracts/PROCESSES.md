@@ -119,7 +119,9 @@ Docker buffer. They are read back with at most `max_output_bytes` each, so host
 memory is bounded no matter how much the program writes. The container's file
 size limit, 10 MB, bounds the files themselves. Artifacts are read with
 `max_bytes + 1` and checked against the reported size. The default bound and
-the control API's limit are 1 MiB.
+the control API's limit are 1 MiB. Evaluators assess output up to this bound.
+The terminal outcome keeps only a bounded excerpt of any report that quotes it
+([OUTCOMES.md](OUTCOMES.md#size-bounds)).
 
 ## Migration from `run_command`/`run_commands`
 

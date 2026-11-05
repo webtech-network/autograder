@@ -110,13 +110,16 @@ process must not publish work after a new worker policy starts.
   schema exactly. Revision `008` converts the naive configuration/submission
   timestamps to timezone-aware ones, reading stored values as UTC (the database
   `TimeZone` used by the supported images), and drops the `006` backfill defaults.
+  Revision `009` excerpts stored outcome reports and feedback to the outcome text
+  bounds ([OUTCOMES.md](OUTCOMES.md)).
 - **At `001`-`006`**: first run `upgrade 007` with a release that still contains
   the old chain (commit `3a8abcc`), then `upgrade head` with this one. That chain
   includes the irreversible definition conversion `005`.
 - **Created by an older API startup** (no `alembic_version` table): run
-  `python -m web.database.schema adopt` with `DATABASE_URL` set. It stamps the head
-  revision only when the live schema equals the models, and otherwise prints the
-  differences and changes nothing. Reconcile those differences, or, when
+  `python -m web.database.schema adopt` with `DATABASE_URL` set. It stamps revision
+  `008` (the schema the old startup created) only when the live schema equals the
+  models, and otherwise prints the differences and changes nothing. Then run
+  `upgrade head`, which applies the later data migrations such as `009`. Reconcile those differences, or, when
   `pg_dump --schema-only` matches `tests/web/fixtures/legacy_007_schema.sql` (the
   old chain's schema), run `alembic -c web/alembic.ini stamp 007` and upgrade.
 

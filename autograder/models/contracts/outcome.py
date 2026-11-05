@@ -3,15 +3,112 @@
 Pipeline diagnostics and publication state deliberately do not belong here.
 """
 from datetime import datetime, timezone
+import json
 import re
 from math import isclose
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_validator, model_validator
+from pydantic_core import PydanticCustomError
 
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.contracts.scoring import final_score, holder_score, iter_tests
 from autograder.models.language import LanguageId
+
+#: Student-derived text bounds, in UTF-8 bytes of the text (see OUTCOMES.md,
+#: "Size bounds"). The engine excerpts locally produced text to these bounds;
+#: validation rejects attested text above them, it never truncates it.
+MAX_REPORT_BYTES = 8 * 1024
+MAX_FEEDBACK_BYTES = 256 * 1024
+#: Any JSON encoder writes one UTF-8 byte of text as at most six bytes (``\u0001``).
+JSON_EXPANSION = 6
+
+
+def text_bytes(text: str) -> int:
+    """UTF-8 size of ``text``; a lone surrogate counts as its 3-byte encoding."""
+    return len(text.encode("utf-8", "surrogatepass"))
+
+
+def wire_bytes(value: Any) -> int:
+    """The largest size of a JSON value under common encoders.
+
+    ASCII escaping and spaced separators (``json.dumps`` defaults) are never
+    smaller than compact or raw-UTF-8 encodings of the same value.
+    """
+    return len(json.dumps(value, ensure_ascii=True, allow_nan=False))
+
+
+def bound_text(text: str, limit: int) -> str:
+    """Return ``text`` when it fits in ``limit`` UTF-8 bytes, else an excerpt.
+
+    The excerpt keeps the head and the tail, cut at character boundaries, around
+    a marker stating the omitted and the full byte counts. The result is
+    deterministic, valid UTF-8 (lone surrogates become U+FFFD) and never
+    exceeds ``limit``.
+    """
+    try:
+        data = text.encode("utf-8")
+    except UnicodeEncodeError:
+        text = text.encode("utf-8", "surrogatepass").decode("utf-8", "replace")
+        data = text.encode("utf-8")
+    if len(data) <= limit:
+        return text
+    total = len(data)
+    # The marker is sized for the largest possible omitted count before cutting.
+    budget = limit - len(_marker(total, total).encode("utf-8"))
+    if budget < 0:
+        raise ValueError("limit is too small for an excerpt marker")
+    head = data[:budget - budget // 2].decode("utf-8", "ignore")
+    tail = data[total - budget // 2:].decode("utf-8", "ignore") if budget // 2 else ""
+    omitted = total - len(head.encode("utf-8")) - len(tail.encode("utf-8"))
+    return head + _marker(omitted, total) + tail
+
+
+def _marker(omitted: int, total: int) -> str:
+    return f"\n[... {omitted} of {total} bytes omitted ...]\n"
+
+
+def bound_outcome_text(data: Any) -> Any:
+    """Excerpt the reports and feedback of a stored outcome's wire JSON to the bounds.
+
+    Upgrades outcomes this host finalized before the bounds existed (stored rows
+    and publication receipts) with the same ``bound_text`` the engine applies
+    now. Text within its bound and every other value are returned unchanged, so
+    the function is idempotent. It is never applied to an incoming attestation.
+    """
+    if not isinstance(data, dict):
+        return data
+    data = dict(data)
+    feedback = data.get("feedback")
+    if isinstance(feedback, dict) and isinstance(feedback.get("content"), str):
+        data["feedback"] = {**feedback, "content": bound_text(feedback["content"], MAX_FEEDBACK_BYTES)}
+    if isinstance(data.get("tree"), dict):
+        data["tree"] = {key: _bound_holder(value) if key in ("base", "bonus", "penalty") else value
+                        for key, value in data["tree"].items()}
+    return data
+
+
+def _bound_holder(holder: Any) -> Any:
+    if not isinstance(holder, dict):
+        return holder
+    holder = dict(holder)
+    if isinstance(holder.get("subjects"), list):
+        holder["subjects"] = [_bound_holder(subject) for subject in holder["subjects"]]
+    if isinstance(holder.get("tests"), list):
+        holder["tests"] = [
+            {**test, "report": bound_text(test["report"], MAX_REPORT_BYTES)}
+            if isinstance(test, dict) and isinstance(test.get("report"), str) else test
+            for test in holder["tests"]]
+    return holder
+
+
+def _bounded(limit: int):
+    def check(text: str) -> str:
+        if text_bytes(text) > limit:
+            raise PydanticCustomError("text_too_large", "Text exceeds {limit} UTF-8 bytes", {"limit": limit})
+        return text
+    return AfterValidator(check)
+
 
 Score = Annotated[float, Field(ge=0, le=100, allow_inf_nan=False, strict=True)]
 Weight = Annotated[float, Field(ge=0, allow_inf_nan=False, strict=True)]
@@ -75,7 +172,7 @@ class TestOutcome(ContractModel):
     name: str
     score: Score
     weight: Weight
-    report: str = ""
+    report: Annotated[str, _bounded(MAX_REPORT_BYTES)] = ""
     file_target: tuple[str, ...] | None = None
     parameters: dict[str, JsonValue] = Field(default_factory=dict)
     metadata: dict[str, JsonValue] = Field(default_factory=dict)
@@ -161,7 +258,7 @@ def outcome_score_vector(outcome: "CompletedOutcome") -> dict[str, float]:
 
 class FeedbackOutcome(ContractModel):
     status: Literal["disabled", "completed", "failed"] = "disabled"
-    content: str | None = None
+    content: Annotated[str, _bounded(MAX_FEEDBACK_BYTES)] | None = None
     error: OutcomeError | None = None
 
     @model_validator(mode="after")

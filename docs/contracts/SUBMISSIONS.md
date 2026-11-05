@@ -38,7 +38,10 @@ actual ASGI stream, even without `Content-Length`, before JSON parsing and
 acceptance. Compressed bodies are unsupported (415); JSON bodies must be UTF-8.
 The deliberate execution endpoint retains its smaller source and case limits.
 External result ingestion also bounds its audit metadata and HTTP body, but does
-not require source files: it attests an already finalized outcome.
+not require source files: it attests an already finalized outcome. A definition
+snapshot plus its worst-case outcome is at most 24 MiB. Compilation enforces
+this, so a maximal attestation always fits the request limit
+([OUTCOMES.md](OUTCOMES.md#size-bounds)).
 
 HTTP schema violations return 422 with `detail: [{path, code, message}]` and no
 echoed source. Oversized HTTP bodies return 413 with code `REQUEST_TOO_LARGE` in

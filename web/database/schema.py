@@ -1,7 +1,7 @@
 """Migrations own the schema; the API only verifies the revision it was built for.
 
 ``python -m web.database.schema adopt`` brings a database created by the old
-startup ``create_all`` under migrations: it stamps the head revision only when the
+startup ``create_all`` under migrations: it stamps ``ADOPTED_REVISION`` only when the
 live schema already equals the models, and otherwise prints the differences.
 """
 import argparse
@@ -22,6 +22,10 @@ from web.database import models  # noqa: F401  # pylint: disable=unused-import  
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 UPGRADE_COMMAND = "alembic -c web/alembic.ini upgrade head"
+# The revision whose schema the old startup ``create_all`` produced. Adoption stamps
+# it, never head, so ``upgrade head`` still runs the later revisions, including data
+# migrations such as ``009`` (stored outcome text excerpts) that the rows need.
+ADOPTED_REVISION = "008"
 
 
 class SchemaNotCurrent(RuntimeError):
@@ -74,13 +78,13 @@ def _adopt(connection):
         listed = "\n".join(f"  {difference}" for difference in differences)
         return False, ("Schema differs from the models, so it cannot be stamped. Reconcile these "
                        f"differences (or restore a migrated backup) and retry:\n{listed}")
-    head = head_revision()
-    context.stamp(migration_scripts(), head)
-    return True, f"Schema matches the models; stamped revision {head}."
+    context.stamp(migration_scripts(), ADOPTED_REVISION)
+    return True, (f"Schema matches the models; stamped revision {ADOPTED_REVISION}. "
+                  f"Run `{UPGRADE_COMMAND}` to apply the later revisions.")
 
 
 async def adopt(url):
-    """Stamp head on an unversioned database whose schema equals the models."""
+    """Stamp ``ADOPTED_REVISION`` on an unversioned database whose schema equals the models."""
     engine = create_async_engine(url)
     try:
         async with engine.begin() as connection:
