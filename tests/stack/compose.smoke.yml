@@ -1,0 +1,6 @@
+# Layered over docker-compose.yml by tests/stack: a short worker lease, so a job
+# whose API died is recovered within seconds instead of a minute.
+services:
+  api:
+    environment:
+      WEB_LEASE_SECONDS: '5'

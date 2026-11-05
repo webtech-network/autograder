@@ -61,7 +61,8 @@ has pylint false positives to resolve first.
 | `make test-postgres` | `TEST_POSTGRES_URL` | PostgreSQL claims, publication fencing and concurrent idempotency. Without the URL these tests **error**; they never skip. The role must be able to `CREATE DATABASE` (migration tests). |
 | `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. |
 | `make test-e2e` | Docker | An API process with real sandboxes. |
-| `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
+| `make test-http` | Docker | The **HTTP path**: builds the images, starts two `docker-compose.yml` stacks side by side from empty volumes (PostgreSQL, migrations, seeded S3 emulator, sandbox manager, API in remote mode), grades the fixture example, recovers a retained outcome receipt across an API recreate without grading again, and checks that the image rejects retired configuration. Removes the stacks, their volumes and sandboxes. |
+| `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout (`IMAGE_TAG`, default `local`). |
 
 The PostgreSQL tier needs a disposable database; every test creates and drops
 its own schema:
@@ -73,10 +74,8 @@ docker run -d --rm --name autograder-test-postgres -p 127.0.0.1:5433:5432 \
 TEST_POSTGRES_URL=postgresql+asyncpg://autograder:local-test-only@127.0.0.1:5433/autograder make test-postgres
 ```
 
-The HTTP service path (the compose stack built from the commit, with
-migrations and remote sandboxes) and the packaged GitHub Action path will each
-become one more `make` target and CI job; until then the Docker tiers above
-cover them.
+The packaged GitHub Action path will become one more `make` target and CI job;
+until then the Docker tiers above cover it.
 
 `tests/unit/test_architecture.py` checks dependency direction, that discovery and
 the documented examples agree with the registry, and the extension path.
@@ -119,9 +118,11 @@ docs/                documentation (contracts/ are normative)
 # Sandbox images, one per runtime listed in sandbox_config.yml
 make sandbox-build-all
 
-# Database
-docker compose up -d postgres
-export DATABASE_URL=postgresql+asyncpg://autograder:autograder_password@localhost:5432/autograder
+# Database (a disposable one; the compose stack's database is not published)
+docker run -d --rm --name autograder-dev-postgres -p 127.0.0.1:5432:5432 \
+  -e POSTGRES_USER=autograder -e POSTGRES_PASSWORD=development-only -e POSTGRES_DB=autograder \
+  postgres:17-alpine
+export DATABASE_URL=postgresql+asyncpg://autograder:development-only@localhost:5432/autograder
 make db-upgrade               # the API never creates tables; see JOBS.md "Deployment and migration"
 
 # HTTP trust boundary (docs/contracts/AUTH.md): every protected route needs a bearer token
@@ -144,10 +145,20 @@ python -m sandbox_manager &                 # 127.0.0.1:8001, one worker
 SANDBOX_MODE=remote SANDBOX_API_URL=http://127.0.0.1:8001 uvicorn web.main:app --port 8000
 ```
 
-`docker compose up -d --build` (or `make start-autograder`) starts PostgreSQL,
-migrates it in the one-shot `migrate` service, then starts the API on port 8000
-and the sandbox manager on the internal network only.
-API docs are served at http://localhost:8000/docs.
+Every variable either process reads is listed in the
+[configuration reference](../operate/configuration.md); an invalid, incoherent or
+retired one stops startup with a message naming it.
+
+`make start-autograder` runs the development stack of `docker-compose.yml` (the
+[supported topology](../operate/deployment.md) with throwaway credentials). Export
+`SANDBOX_API_TOKEN` and `AUTOGRADER_INTEGRATION_TOKEN` first. It migrates the
+database in the one-shot `migrate` service, creates the fixture bucket and
+uploads `examples/fixtures/` in `storage-init`, then starts the sandbox manager on
+the project network only and the API on `127.0.0.1:8000`
+(`AUTOGRADER_HTTP_PORT`; empty picks a free port). API docs are served at
+http://localhost:8000/docs. Another stack runs beside it under another project
+name: `docker compose -p <name> up -d --wait`. `docker compose down -v` deletes
+a stack's data.
 
 ## Making changes
 
@@ -225,7 +236,7 @@ see "Owner leases and orphan reclamation" in [SANDBOX.md](../contracts/SANDBOX.m
 ### Database
 
 ```bash
-docker compose exec postgres psql -U autograder
+docker compose exec postgres psql -U autograder    # the compose stack's database
 ```
 
 ## Sandbox budget tuning

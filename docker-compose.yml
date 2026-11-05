@@ -1,122 +1,138 @@
-version: '3.8'
+# DEVELOPMENT STACK ONLY. It shows the supported topology (an API in remote mode
+# and a private sandbox manager) with throwaway credentials, an S3 emulator and
+# no TLS. Production configuration and its persistent state are described in
+# docs/operate/deployment.md; every variable is in docs/operate/configuration.md.
+#
+#   export SANDBOX_API_TOKEN=... AUTOGRADER_INTEGRATION_TOKEN=...   # long random secrets
+#   make start-autograder                                           # http://127.0.0.1:8000
+#
+# Any number of stacks can run side by side under different project names
+# (`docker compose -p <name>`): nothing here has a fixed container name, and the
+# API's published port is AUTOGRADER_HTTP_PORT (default 8000; empty picks a free
+# port, see `docker compose port api 8000`). `make test-http` starts two this way
+# from empty volumes. `docker compose down -v` deletes a stack's data.
+
+# The default project name; `-p <name>` (or COMPOSE_PROJECT_NAME) starts another stack.
+name: autograder
+
+x-database-url: &database-url postgresql+asyncpg://autograder:development-only@postgres:5432/autograder
 
 services:
-  # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
-    container_name: autograder-db
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: autograder
-      POSTGRES_PASSWORD: autograder_password
+      POSTGRES_PASSWORD: development-only
       POSTGRES_DB: autograder
-    ports:
-      - '5432:5432'
+    # No published port: use `docker compose exec postgres psql -U autograder`.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U autograder']
-      interval: 10s
+      interval: 2s
       timeout: 5s
-      retries: 5
+      retries: 30
 
   # One-shot schema migration. The API never creates tables and refuses to start
   # unless the database is at the revision its image was built for.
   migrate:
+    image: autograder-api:${AUTOGRADER_IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: Dockerfile.api
     command: ['alembic', '-c', 'web/alembic.ini', 'upgrade', 'head']
     environment:
-      DATABASE_URL: postgresql+asyncpg://autograder:autograder_password@postgres:5432/autograder
+      DATABASE_URL: *database-url
     depends_on:
       postgres:
         condition: service_healthy
     restart: 'no'
 
-  # Autograder Web API
+  # One-shot: create the fixture bucket and upload examples/fixtures (idempotent).
+  storage-init:
+    image: autograder-api:${AUTOGRADER_IMAGE_TAG:-local}
+    command: ['python', '/seed/seed_fixture_store.py', '/seed/objects']
+    environment:
+      EXTERNAL_ASSETS_BUCKET_NAME: autograder-assets
+      S3_ENDPOINT_URL: http://ministack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+    volumes:
+      - ./scripts/seed_fixture_store.py:/seed/seed_fixture_store.py:ro
+      - ./examples/fixtures:/seed/objects:ro
+    depends_on:
+      ministack:
+        condition: service_started
+    restart: 'no'
+
   api:
+    image: autograder-api:${AUTOGRADER_IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: Dockerfile.api
-    container_name: autograder-api
     environment:
-      # Database URL - use PostgreSQL
-      DATABASE_URL: postgresql+asyncpg://autograder:autograder_password@postgres:5432/autograder
-      DATABASE_ECHO: 'False'
-      DATABASE_POOL_SIZE: 10
-      DATABASE_MAX_OVERFLOW: 20
-
-      # Sandbox Configuration
-      SANDBOX_POOL_SIZE: 2
+      DATABASE_URL: *database-url
+      AUTOGRADER_INTEGRATION_TOKEN: ${AUTOGRADER_INTEGRATION_TOKEN:?Set AUTOGRADER_INTEGRATION_TOKEN to a long random secret}
       SANDBOX_MODE: remote
       SANDBOX_API_URL: http://sandbox-manager:8001
-      # Shared secret for the private sandbox control API (required).
       SANDBOX_API_TOKEN: ${SANDBOX_API_TOKEN:?Set SANDBOX_API_TOKEN to a long random secret}
-      AUTOGRADER_INTEGRATION_TOKEN: e2e-test-token
-
-      # API Configuration
-      API_HOST: 0.0.0.0
-      API_PORT: 8000
-
-      # S3 fixture store (read per run, uncached)
       EXTERNAL_ASSETS_BUCKET_NAME: autograder-assets
-      AWS_ACCESS_ID: test
+      S3_ENDPOINT_URL: http://ministack:4566
+      AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       AWS_REGION: us-east-1
-      S3_ENDPOINT_URL: http://ministack:4566
-
-      # Optional: Add your API keys here
-      # OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
-      - '8000:8000'
+      - '127.0.0.1:${AUTOGRADER_HTTP_PORT-8000}:8000'
+    volumes:
+      # Finalized outcomes not yet in the database (WEB_OUTCOME_RECEIPT_DIR, relative
+      # to /app). They must survive a recreated container, or it grades again.
+      - receipts:/app/data/unpublished-outcomes
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      storage-init:
         condition: service_completed_successfully
       sandbox-manager:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000/api/v1/health']
-      interval: 30s
-      timeout: 10s
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/api/v1/ready']
+      interval: 5s
+      timeout: 5s
       retries: 3
       start_period: 40s
 
-  # Sandbox Manager control API: private. It is reachable only on the internal
-  # Compose network (expose, never ports) and requires the bearer token.
+  # Private sandbox control API: reachable only on this project's network
+  # (expose, never ports) and only with the bearer token. It alone holds the
+  # Docker socket.
   sandbox-manager:
+    image: autograder-sandbox-manager:${AUTOGRADER_IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: Dockerfile.sandbox
-    container_name: autograder-sandbox-manager
-    # Stable hostname: a restarted manager recognises containers of its dead
-    # predecessor (owner lease) and reclaims them. Run exactly one replica.
-    hostname: autograder-sandbox-manager
+    # A hostname unique to the project and stable across restarts: a restarted
+    # manager reclaims its dead predecessor's sandboxes (owner lease) and never
+    # another stack's. Run exactly one replica.
+    hostname: ${COMPOSE_PROJECT_NAME}-sandbox-manager
     environment:
-      SANDBOX_PORT: 8001
-      SANDBOX_HOST: 0.0.0.0
       SANDBOX_API_TOKEN: ${SANDBOX_API_TOKEN:?Set SANDBOX_API_TOKEN to a long random secret}
-      # Handles live in process memory: exactly one worker process.
-      WEB_CONCURRENCY: 1
     expose:
       - '8001'
     volumes:
-      # Mount Docker socket for sandbox management
       - /var/run/docker.sock:/var/run/docker.sock
     stop_grace_period: 60s
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8001/health']
-      interval: 10s
+      interval: 2s
       timeout: 5s
-      retries: 3
+      retries: 30
       start_period: 10s
 
-  # Ministack for S3 emulation (AWS-compatible services)
+  # S3 emulator for fixtures; reachable only on this project's network.
   ministack:
     image: ministackorg/ministack:1.3
-    container_name: autograder-ministack
-    ports:
-      - '4566:4566'
     environment:
       - GATEWAY_PORT=4566
       - MINISTACK_HOST=ministack
@@ -132,6 +148,5 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
   ministack_data:
-    driver: local
+  receipts:

@@ -16,17 +16,17 @@ This quickstart walks you through one complete grading cycle:
 
 ```bash
 export SANDBOX_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export AUTOGRADER_INTEGRATION_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 make start-autograder
 ```
 
-The API and its private sandbox control service share that token. When ready,
-the API is available at `http://localhost:8000`. Every route except health,
-readiness and the template catalog requires a bearer token
-([AUTH.md](../contracts/AUTH.md)); the development compose file sets the
-integration token to `e2e-test-token`:
+The API and its private sandbox control service share the first token. When
+ready, the API is available at `http://localhost:8000`. Every route except
+health, readiness and the template catalog requires the integration token as a
+bearer token ([AUTH.md](../contracts/AUTH.md)):
 
 ```bash
-export TOKEN=e2e-test-token
+export TOKEN="$AUTOGRADER_INTEGRATION_TOKEN"
 ```
 
 You can check health (public):
