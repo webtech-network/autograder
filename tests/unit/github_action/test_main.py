@@ -267,3 +267,49 @@ def test_external_metadata_shell_cli_real_wire_outcome(workspace, delivery_fails
         assert "delivery-status=uncertain" in outputs
     else:
         assert "delivery-status=delivered" in outputs
+
+
+@pytest.mark.parametrize("locale,expected", [
+    ("en", "Required file not found: Main.java. Submit it with exactly this name and path."),
+    ("pt-br", "Arquivo obrigatório não encontrado: Main.java. Envie-o exatamente com este nome e caminho."),
+])
+def test_real_shell_explains_an_ungradable_submission_in_summary_and_artifact(workspace, locale, expected):
+    """ONB-02: the job summary and the retained outcome name what the student must fix."""
+    import sys
+    repo = Path(__file__).resolve().parents[3]
+    (workspace / "index.html").unlink()
+    (workspace / "main.java").write_text("public class Main {}")
+    path = workspace / ".github/autograder/definition.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps({
+        "schema_version": "1.0", "templates": ["input_output"], "languages": ["java"],
+        "preparation": {"languages": {"java": {"required_files": ["Main.java"],
+                                               "setup_commands": [{"name": "compile", "command": "javac Main.java"}]}}},
+        "criteria": {"base": {"weight": 100, "tests": [
+            {"id": "runs", "type": "dont_fail", "name": "Runs", "parameters": {"program_command": "java Main"}}]}}}))
+    env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
+               GITHUB_ACTOR="alice", SUBMITTER_ID="alice", LOCALE=locale, UPLOAD_TO_CLOUD="false",
+               GITHUB_OUTPUT=str(workspace.parent / "explain-output"),
+               GITHUB_STEP_SUMMARY=str(workspace.parent / "explain-summary"))
+    result = subprocess.run(["bash", str(repo / "github_action/entrypoint.sh")], env=env,
+                            capture_output=True, text=True, timeout=60)
+    assert result.returncode == 1
+    outcome = json.loads((workspace / ".autograder/outcome.json").read_text(encoding="utf-8"))
+    assert outcome["status"] == "failed" and outcome["score"] is None
+    assert outcome["error"]["code"] == "REQUIRED_FILE_MISSING"
+    assert outcome["error"]["message"] == expected
+    summary = Path(env["GITHUB_STEP_SUMMARY"]).read_text(encoding="utf-8")
+    assert f"{expected} (`REQUIRED_FILE_MISSING`)" in summary
+    assert expected in result.stderr
+
+
+def test_summary_fences_setup_output_so_it_cannot_escape(workspace):
+    error = {"code": "PREPARATION_FAILED", "message": "The setup step 'compile' failed with exit code 1.",
+             "category": "submission", "retryable": False, "correlation_id": "action-test",
+             "output": "```\n# injected heading\n````"}
+    failed = completed()
+    failed.update(status="failed", score=None, tree=None, feedback={"status": "disabled"}, error=error)
+    main.retain_outcome(failed)
+    summary = (workspace / "summary").read_text(encoding="utf-8")
+    assert "`````text\n```\n# injected heading\n````\n`````\n" in summary
+    assert json.loads((workspace / ".autograder/outcome.json").read_text())["error"]["output"] == error["output"]
