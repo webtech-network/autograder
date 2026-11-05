@@ -76,7 +76,8 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000/api/v1/health']
+      # The image has no curl: Python's standard library fails on a non-2xx answer.
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -105,7 +106,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     stop_grace_period: 60s
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8001/health']
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=5)"]
       interval: 10s
       timeout: 5s
       retries: 3

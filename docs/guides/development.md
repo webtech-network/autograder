@@ -31,8 +31,9 @@ package. Runtime dependencies are separate from development tools:
 
 | Selection | Contents | Used by |
 | --- | --- | --- |
-| `dependencies` | engine, execution host, GitHub Action | Action image |
-| `server` extra | FastAPI, Uvicorn, SQLAlchemy, Alembic, database drivers | API and sandbox manager images |
+| `dependencies` | engine, execution host, GitHub Action | every image |
+| `sandbox` extra | FastAPI, Uvicorn, AnyIO (the private sandbox control API) | sandbox manager image |
+| `server` extra | the `sandbox` extra, SQLAlchemy, Alembic, database drivers | API image |
 | `dev` group (`test`, `lint`, `docs`) | pytest, pylint, MkDocs | contributors and CI, never images |
 
 Change dependencies with `uv add` / `uv remove` (or edit `pyproject.toml` and run
@@ -62,6 +63,7 @@ has pylint false positives to resolve first.
 | `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. |
 | `make test-e2e` | Docker | An API process with real sandboxes. |
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
+| `make test-images` | Docker | Builds those images and checks exactly them ([Images](#images)). |
 
 The PostgreSQL tier needs a disposable database; every test creates and drops
 its own schema:
@@ -76,13 +78,50 @@ TEST_POSTGRES_URL=postgresql+asyncpg://autograder:local-test-only@127.0.0.1:5433
 The HTTP service path (the compose stack built from the commit, with
 migrations and remote sandboxes) and the packaged GitHub Action path will each
 become one more `make` target and CI job; until then the Docker tiers above
-cover them.
+and `make test-images` cover them.
 
 `tests/unit/test_architecture.py` checks dependency direction, that discovery and
 the documented examples agree with the registry, and the extension path.
 `tests/unit/test_verification_frame.py` checks that `make help`, the docs and
-CI name only existing targets, and that deployment waits for every
-verification job.
+CI name only existing targets, and that deployment and the Action release wait
+for every verification job.
+
+### Images
+
+Each process has its own image, holding only what that process imports:
+
+| Image | Dockerfile | Contents |
+| --- | --- | --- |
+| API (`ghcr.io/webtech-network/autograder-api`) | `Dockerfile.api` | `server` extra; `autograder`, `execution_host`, `sandbox_manager`, `web` |
+| Sandbox manager | `Dockerfile.sandbox` | `sandbox` extra; `autograder`, `sandbox_manager` |
+| Action (`ghcr.io/webtech-network/autograder-action`) | `Dockerfile.actions` | base dependencies and `git`; `autograder`, `execution_host`, `sandbox_manager`, `github_action` |
+| Student runtimes | `sandbox_manager/images/` | see [LANGUAGES.md](../contracts/LANGUAGES.md#runtime-images) |
+
+The three service and Action images share one layout: a digest-pinned
+`python:3.13-slim` base, a build stage that installs only the locked runtime
+dependencies (`uv sync --locked --no-dev`) into `/opt/venv`, and a final stage
+with that environment and the first-party directories listed in its Dockerfile
+under `/app` (`PYTHONPATH=/app`). There is no uv, Node.js, Docker CLI or daemon,
+curl or test tool in them; the Docker SDK talks to a mounted socket. The build
+context is an allow-list (`.dockerignore`): `.env` files, `.venv`, `data/`,
+databases and caches never reach an image, even when they sit inside an allowed
+directory. To add a process or a file to an image, add its path to both the
+allow-list and that image's `COPY` lines, and its expectation to
+`tests/images/`.
+
+`make test-images` builds the images and checks them against real Docker:
+installed distributions (no pytest, web or database stack where the process does
+not import one), absent executables (`dockerd`, `containerd`, `node`, `curl`...),
+`/app` holding exactly the allow-list, a rebuild from a copy of the checkout with
+planted `.env`, `.venv`, `data/` and other secrets that must contain none of them,
+and the Action image grading the static example the way a runner invokes it. CI
+runs it on every pull request; `IMAGE_PREFIX` and `IMAGE_TAG` rename the local
+images (`make test-images IMAGE_PREFIX=mine`).
+
+To change a base, replace its digest (`docker buildx imagetools inspect
+python:3.13-slim-trixie`) in all three Dockerfiles. The Action image is released
+by raising its version in `action.yml`; see
+[Versions and images](../github_action/README.md#versions-and-images).
 
 ### Documentation site
 

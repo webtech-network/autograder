@@ -20,6 +20,8 @@ VERIFY = WORKFLOWS / "verify.yml"
 PINNED = re.compile(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}")
 #: Status functions that would let a job run after a failed dependency.
 STATUS_OVERRIDES = ("always()", "failure()", "cancelled()")
+#: Jobs that publish (deploy the service, release the Action image); every other job verifies.
+PUBLICATION = {"deploy", "action-release"}
 
 
 def makefile_targets() -> tuple[set[str], set[str]]:
@@ -107,14 +109,14 @@ def test_ci_invokes_only_make_targets():
     assert "make test-postgres" in commands["postgres"]
 
 
-def test_deploy_waits_for_every_verification_job():
+def test_publication_waits_for_every_verification_job():
     jobs = workflow(VERIFY)["jobs"]
-    deploy = jobs["deploy"]
-    assert set(deploy["needs"]) == set(jobs) - {"deploy"}
-    condition = deploy["if"]
-    assert "github.event_name == 'push'" in condition
-    assert "github.ref == 'refs/heads/main'" in condition
-    assert not any(override in condition for override in STATUS_OVERRIDES)
+    for name in PUBLICATION:
+        assert set(jobs[name]["needs"]) == set(jobs) - PUBLICATION, name
+        condition = jobs[name]["if"]
+        assert "github.event_name == 'push'" in condition
+        assert "github.ref == 'refs/heads/main'" in condition
+        assert not any(override in condition for override in STATUS_OVERRIDES)
     # A red step or job that is allowed to fail would still count as success.
     for name, job in jobs.items():
         assert "continue-on-error" not in job, name
@@ -142,6 +144,20 @@ def test_only_the_gated_job_deploys_the_service():
             text = yaml.safe_dump(job)
             if "SSH_PRIVATE_KEY" in text or "push: true" in text:
                 assert (path, name) == (VERIFY, "deploy")
+
+
+def test_only_the_gated_release_job_publishes_the_action_image():
+    jobs = workflow(VERIFY)["jobs"]
+    release = jobs["action-release"]
+    assert release["concurrency"] == {"group": "action-release", "cancel-in-progress": False}
+    commands = [step["run"].strip() for step in release["steps"] if "run" in step]
+    # It publishes exactly the image it has just built and tested from this commit.
+    assert commands[-2:] == ["make test-images", "make action-publish"]
+    for path in WORKFLOWS.glob("*.yml"):
+        for name, job in workflow(path)["jobs"].items():
+            if "action-publish" in yaml.safe_dump(job):
+                assert (path, name) == (VERIFY, "action-release")
+    assert "make test-images" in [step.get("run", "").strip() for step in jobs["images"]["steps"]]
 
 
 def test_third_party_actions_are_pinned_to_commits():

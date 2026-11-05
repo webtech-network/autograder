@@ -1,0 +1,22 @@
+# Allow-list build context for Dockerfile.api, Dockerfile.sandbox and
+# Dockerfile.actions: everything is excluded unless listed below, so local
+# secrets and state (.env, .venv, data/, *.db, caches) never reach an image.
+# Each Dockerfile then copies only the paths its process needs.
+# tests/images/ builds the images from a checkout with planted secrets.
+*
+!pyproject.toml
+!uv.lock
+!sandbox_config.yml
+!autograder/
+!execution_host/
+!github_action/
+!sandbox_manager/
+!web/
+
+# Never, even inside an allowed directory.
+**/.env*
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/*.db
+sandbox_manager/images

@@ -5,7 +5,7 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images test-images action-publish sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -47,10 +47,20 @@ test-integration: sandbox-build-all ## Real Docker sandboxes (builds sandbox ima
 test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 	PYTHON='$(PYTHON)' ./scripts/run_e2e_tests.sh
 
+# Local names of the service and Action images: $(IMAGE_PREFIX)-<name>:$(IMAGE_TAG).
+IMAGE_PREFIX ?= autograder
+IMAGE_TAG ?= local
+
 images: ## Build the API, sandbox manager and Action images from this checkout
-	docker build -t autograder-api:local -f Dockerfile.api .
-	docker build -t autograder-sandbox-manager:local -f Dockerfile.sandbox .
-	docker build -t autograder-action:local -f Dockerfile.actions .
+	docker build -t $(IMAGE_PREFIX)-api:$(IMAGE_TAG) -f Dockerfile.api .
+	docker build -t $(IMAGE_PREFIX)-sandbox-manager:$(IMAGE_TAG) -f Dockerfile.sandbox .
+	docker build -t $(IMAGE_PREFIX)-action:$(IMAGE_TAG) -f Dockerfile.actions .
+
+test-images: images ## Contents, context leaks and Action grading of exactly those images
+	AUTOGRADER_IMAGE_PREFIX='$(IMAGE_PREFIX)' AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' $(PYTHON) -m pytest tests/images/
+
+action-publish: ## Release the tested Action image under the version action.yml pins (CI, main only)
+	$(PYTHON) -m scripts.action_image publish $(IMAGE_PREFIX)-action:$(IMAGE_TAG)
 
 # The versioned runtime images named in sandbox_config.yml (scripts/sandbox_images.py).
 SANDBOX_IMAGES = $(PYTHON) scripts/sandbox_images.py

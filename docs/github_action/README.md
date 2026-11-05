@@ -29,6 +29,33 @@ Classroom check discovery/dashboard synchronization and automatic `relatorio.md`
 commits are retired. Existing repository rubrics remain migratable through the
 explicit legacy converter; the runtime accepts only the versioned definition.
 
+## Versions and images
+
+The Action runs a prebuilt image: `action.yml` pins
+`docker://ghcr.io/webtech-network/autograder-action:<version>`, so a job pulls
+it (Python 3.13, the engine, the Action and `git`) and builds nothing. Each
+version is one immutable image and one git tag of the same name, on the commit
+the image was built from:
+
+| `uses:` | Image |
+| --- | --- |
+| `webtech-network/autograder@<version>` (e.g. `@0.6.0`) | `autograder-action:<version>`, built from that tag. Reproducible: pin this. |
+| `webtech-network/autograder@main` | The version `action.yml` names on `main`: the latest release, not unreleased commits. |
+
+Raising the version in `action.yml` is the release. When that commit reaches
+`main` and every verification job passed, CI builds the image from scratch,
+checks it (`make test-images`), tags the commit with the version and publishes
+the image (`make action-publish`). A published version is never overwritten, and
+a version already tagged on another commit stops the release. Until the release
+job finishes, `@main` names an image the registry does not have yet.
+
+To test an unreleased change, build and run the image locally the way a runner
+does (`make images`, then `docker run` with the workspace mounted at
+`/github/workspace`, `GITHUB_WORKSPACE=/github/workspace` and the
+`runs.env` variables of `action.yml`; `tests/images/` does exactly this), or,
+in a branch of a fork, set `runs.image` to `Dockerfile.actions` and use
+`<fork>/autograder@<branch>`: the runner then builds the image from that branch.
+
 - [Quick start](quick-start.md)
 - [Inputs and outputs](configuration.md)
 - [Cloud publication](external-mode.md)

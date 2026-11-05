@@ -431,8 +431,29 @@ names exactly those references; floating local `:latest` tags are gone. A
 present and declares its language in the `autograder.runtime.languages` label,
 and raises `RuntimeImageError` otherwise. Hosts therefore pull or build the
 configured images before starting; an old unlabelled image is rejected rather
-than silently used. Service and Action images are a later change. See
-[LANGUAGES.md](LANGUAGES.md#runtime-images).
+than silently used. See [LANGUAGES.md](LANGUAGES.md#runtime-images).
+
+## Lean service and Action images (ENV-04)
+
+The API, sandbox manager and Action each have an image that holds only what its
+process imports: locked runtime dependencies (`server`, the new `sandbox` extra,
+or the base dependencies) in `/opt/venv` and an allow-listed set of first-party
+directories in `/app`, on a digest-pinned `python:3.13-slim` base. The API and
+sandbox manager images no longer share contents: the sandbox manager has no web
+or database stack. No image has `dockerd`, `containerd`, a Docker CLI, Node.js,
+curl, uv or a test tool. The build context is an allow-list (`.dockerignore`),
+so `.env`, `.venv`, `data/` and caches never enter an image. `action.yml` pins
+`docker://ghcr.io/webtech-network/autograder-action:<version>` instead of building
+`Dockerfile.actions` in every job; raising that version releases it once,
+gated on verification, under a git tag of the same name. `tests/images/`
+(`make test-images`, CI) checks the built images, including a build from a
+checkout with planted secrets and the Action grading the static example.
+
+Migration: Compose health checks use Python instead of curl. Deployments that
+run `curl` inside the API or sandbox manager containers must do the same. The
+Action image no longer contains Node.js or `tree`. `@main` follows the latest
+released image rather than building the current commit; see
+[Versions and images](../github_action/README.md#versions-and-images).
 
 ## Closed locale and outcome-code vocabularies (COR-07)
 
