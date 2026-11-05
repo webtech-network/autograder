@@ -6,8 +6,10 @@ and [terminal outcome](v1/terminal-outcome.schema.json) schemas are generated fr
 the same typed Python models. All three use contract version `1.0`; run
 `make contracts` after changing their models. CI runs this check and the
 conformance tests. Regenerate with
-`PYTHONPATH=. python scripts/generate_contract_schemas.py` when a model
-intentionally changes.
+`uv run python scripts/generate_contract_schemas.py` when a model
+intentionally changes. The rendered schemas depend on the interpreter and
+Pydantic versions, so generate them in the project environment (`make install`):
+Python 3.13 and the Pydantic version in `uv.lock`.
 
 ## HTTP: validate, create, submit, poll
 
@@ -15,7 +17,7 @@ For a local HTTP service with its configured database, run
 `uvicorn web.main:app`, then from a checkout of this repository run:
 
 ```sh
-PYTHONPATH=. python -m examples.contracts.http_round_trip --base-url http://127.0.0.1:8000
+python -m examples.contracts.http_round_trip --base-url http://127.0.0.1:8000
 ```
 
 This executable example sends the complete [static definition](v1/examples/static-conformance.json)
@@ -59,7 +61,7 @@ both artifacts and never changes a completed grade into a failed grade.
 
 [Adding an evaluator](../architecture/extending.md) is the recipe; its examples are
 executed by `tests/unit/test_architecture.py`.
-Run `PYTHONPATH=. python -m examples.contracts.custom_evaluator` for a complete
+Run `python -m examples.contracts.custom_evaluator` for a complete
 local `TestFunction` and `Template` example. It compiles a v1 definition with
 `templates={"trusted_text": TrustedTextTemplate()}`, grades an in-memory
 submission, and prints the terminal outcome. Only a trusted Python caller can

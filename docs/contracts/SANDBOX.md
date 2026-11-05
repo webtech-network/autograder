@@ -197,7 +197,7 @@ Wire limits agree with the operations they guard (`sandbox_manager/models/api_mo
 
 | Input/output | Limit | Reason |
 | --- | --- | --- |
-| Submission files | 100 files, 1 MiB each, 5 MiB total | shared `submission_contract` limits |
+| Submission files | 100 files, 1 MiB each, 5 MiB total | shared `sandbox_manager.submission_contract` limits |
 | Fixtures | 100, 32 MiB decoded total | `/tmp` tmpfs size |
 | Process `argv` / `shell` text | 64 KiB | below the Linux 128 KiB per-argument limit |
 | Process `stdin` | 1 MiB (base64 on the wire) | staged in chunks, not as one argument |

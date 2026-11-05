@@ -14,7 +14,7 @@ from github_action.cloud_client import CloudClient, CloudClientError, CloudConne
 from github_action.cloud_exporter import delivery_key
 from github_action.github_action_service import GithubActionService
 from github_action.identity import EXCLUDED_DIRECTORIES, TrustError, check_publication_trust, resolve_identity, run_provenance
-from submission_contract import (
+from sandbox_manager.submission_contract import (
     MAX_FILE_BYTES,
     MAX_FILES,
     MAX_TOTAL_FILE_BYTES,

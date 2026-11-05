@@ -11,7 +11,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict, StrictInt, field_validator, model_validator
 
 from autograder.models.language import LANGUAGE_IDS, Language
-from submission_contract import (
+from sandbox_manager.submission_contract import (
     MAX_FILES, MAX_TOTAL_FILE_BYTES, MAX_TOTAL_METADATA_BYTES,
     validate_filename, validate_content, validate_filenames, validate_metadata, metadata_bytes,
 )

@@ -8,17 +8,38 @@ every command below.
 
 ## Setup
 
-- **Python 3.13** (the version in `.tool-versions`, used by CI)
+- **[uv](https://docs.astral.sh/uv/)**. It installs **Python 3.13**, the only
+  supported version (`requires-python` in `pyproject.toml`; CI uses the patch
+  release in `.tool-versions`), when it is missing.
 - **GNU Make**
 - **Docker** only for the Docker tiers, the sandbox images and running the API
 - **PostgreSQL** only for the PostgreSQL tier and the compose stack
 
 ```bash
-python3.13 -m venv .venv
-source .venv/bin/activate
-make install                  # runtime, test, docs and lint dependencies
+make install                  # uv sync --locked: .venv with the project, test, lint and docs tools
 make verify                   # hermetic check: no Docker, no database
 ```
+
+The `make` targets run Python through `uv run --locked`; inside an activated
+environment of your own, pass `PYTHON=python`. Outside `make`, run commands with
+`uv run` (for example `uv run pytest tests/unit/`) or after
+`source .venv/bin/activate`.
+
+`pyproject.toml` declares one distribution (`autograder`, `web`, `sandbox_manager`,
+`execution_host`, `github_action`) and its dependencies; `uv.lock` pins every
+package. Runtime dependencies are separate from development tools:
+
+| Selection | Contents | Used by |
+| --- | --- | --- |
+| `dependencies` | engine, execution host, GitHub Action | Action image |
+| `server` extra | FastAPI, Uvicorn, SQLAlchemy, Alembic, database drivers | API and sandbox manager images |
+| `dev` group (`test`, `lint`, `docs`) | pytest, pylint, MkDocs | contributors and CI, never images |
+
+Change dependencies with `uv add` / `uv remove` (or edit `pyproject.toml` and run
+`uv lock`) and commit both files. `make install` (and therefore CI) runs
+`uv sync --locked`, which fails when the two disagree. `tests/unit/test_packaging.py`
+builds the wheel, imports every module from it outside the checkout and checks that
+the declared runtime dependencies are exactly the imported ones.
 
 ## Verification
 

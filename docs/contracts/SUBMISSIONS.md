@@ -19,7 +19,7 @@ files, and fails when a directory or file cannot be read. It excludes `.git`,
 `.github` and `.autograder` directories from collection. Sandbox path checks
 remain a second boundary for trusted Python callers and filesystem operations.
 
-Both hosts use these conservative limits from `submission_contract.py`:
+Both hosts use these conservative limits from `sandbox_manager/submission_contract.py`:
 
 | Input | Inclusive limit |
 | --- | --- |

@@ -2,7 +2,7 @@
 
 from fastapi.responses import JSONResponse
 
-from submission_contract import MAX_REQUEST_BYTES
+from sandbox_manager.submission_contract import MAX_REQUEST_BYTES
 
 
 class RequestBodyLimitMiddleware:
