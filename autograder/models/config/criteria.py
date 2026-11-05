@@ -7,11 +7,11 @@ from autograder.models.config.category import CategoryConfig
 class CriteriaConfig(BaseModel):
     """Root configuration for grading criteria."""
 
-    base: CategoryConfig = Field(..., description="Base grading criteria (required)")
-    bonus: Optional[CategoryConfig] = Field(None, description="Bonus points criteria")
-    penalty: Optional[CategoryConfig] = Field(None, description="Penalty criteria")
+    base: CategoryConfig = Field(..., description="Criteria that make up the score (weight 100).")
+    bonus: Optional[CategoryConfig] = Field(None, description="Criteria whose score adds up to their weight in points.")
+    penalty: Optional[CategoryConfig] = Field(None, description="Criteria whose shortfall subtracts up to their weight in points.")
 
-    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+    metadata: dict[str, JsonValue] = Field(default_factory=dict, description="Free-form JSON stored with the definition; never interpreted by grading.")
 
     model_config = {"extra": "forbid", "allow_inf_nan": False}
 

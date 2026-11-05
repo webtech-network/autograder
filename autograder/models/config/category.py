@@ -8,21 +8,21 @@ from pydantic import BaseModel, Field, JsonValue, model_validator
 class CategoryConfig(BaseModel):
     """Configuration for a grading category (base, bonus, or penalty)."""
     weight: float = Field(
-        ..., ge=0, le=100, strict=True, description="Weight of this category (0-100)"
+        ..., ge=0, le=100, strict=True, description="Base must be 100; bonus and penalty weights (0-100) cap the points they add or subtract."
     )
     tests: Optional[List[TestConfig]] = Field(
-        None, description="Tests under this subject"
+        None, description="Criteria directly under this category; null when it has none."
     )
-    subjects: Optional[List[SubjectConfig]] = Field(None, description="Nested subjects")
+    subjects: Optional[List[SubjectConfig]] = Field(None, description="Subjects nested in this category; null when it has none.")
     subjects_weight: Optional[float] = Field(
         None,
         strict=True,
         ge=0,
         le=100,
-        description="Weight of the subject when it is a heterogeneous tree",
+        description="Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise.",
     )
 
-    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+    metadata: dict[str, JsonValue] = Field(default_factory=dict, description="Free-form JSON stored with the definition; never interpreted by grading.")
 
     model_config = {"extra": "forbid", "allow_inf_nan": False}
 

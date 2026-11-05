@@ -5,7 +5,7 @@
       "description": "Configuration for a grading category (base, bonus, or penalty).",
       "properties": {
         "weight": {
-          "description": "Weight of this category (0-100)",
+          "description": "Base must be 100; bonus and penalty weights (0-100) cap the points they add or subtract.",
           "maximum": 100,
           "minimum": 0,
           "title": "Weight",
@@ -24,7 +24,7 @@
             }
           ],
           "default": null,
-          "description": "Tests under this subject",
+          "description": "Criteria directly under this category; null when it has none.",
           "title": "Tests"
         },
         "subjects": {
@@ -40,7 +40,7 @@
             }
           ],
           "default": null,
-          "description": "Nested subjects",
+          "description": "Subjects nested in this category; null when it has none.",
           "title": "Subjects"
         },
         "subjects_weight": {
@@ -55,13 +55,15 @@
             }
           ],
           "default": null,
-          "description": "Weight of the subject when it is a heterogeneous tree",
+          "description": "Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise.",
           "title": "Subjects Weight"
         },
         "metadata": {
           "additionalProperties": {
             "$ref": "#/$defs/JsonValue"
           },
+          "default": {},
+          "description": "Free-form JSON stored with the definition; never interpreted by grading.",
           "title": "Metadata",
           "type": "object"
         }
@@ -78,7 +80,7 @@
       "properties": {
         "base": {
           "$ref": "#/$defs/CategoryConfig",
-          "description": "Base grading criteria (required)"
+          "description": "Criteria that make up the score (weight 100)."
         },
         "bonus": {
           "anyOf": [
@@ -90,7 +92,7 @@
             }
           ],
           "default": null,
-          "description": "Bonus points criteria"
+          "description": "Criteria whose score adds up to their weight in points."
         },
         "penalty": {
           "anyOf": [
@@ -102,12 +104,14 @@
             }
           ],
           "default": null,
-          "description": "Penalty criteria"
+          "description": "Criteria whose shortfall subtracts up to their weight in points."
         },
         "metadata": {
           "additionalProperties": {
             "$ref": "#/$defs/JsonValue"
           },
+          "default": {},
+          "description": "Free-form JSON stored with the definition; never interpreted by grading.",
           "title": "Metadata",
           "type": "object"
         }
@@ -120,11 +124,14 @@
     },
     "DefaultPreferences": {
       "additionalProperties": false,
+      "description": "Options of the default Markdown report.",
       "properties": {
         "category_headers": {
           "additionalProperties": {
             "type": "string"
           },
+          "default": {},
+          "description": "Section heading per category; a missing category uses its localized default heading.",
           "propertyNames": {
             "enum": [
               "base",
@@ -141,20 +148,36 @@
     },
     "Feedback": {
       "additionalProperties": false,
+      "description": "Whether and how a feedback report is written for a completed grade.",
       "properties": {
         "enabled": {
           "default": false,
+          "description": "Whether a feedback report is rendered; disabled feedback does no work.",
           "title": "Enabled",
           "type": "boolean"
         },
         "mode": {
           "const": "default",
           "default": "default",
+          "description": "Report format; only the Markdown default exists.",
           "title": "Mode",
           "type": "string"
         },
         "preferences": {
-          "$ref": "#/$defs/FeedbackPreferences"
+          "$ref": "#/$defs/FeedbackPreferences",
+          "default": {
+            "general": {
+              "add_report_summary": true,
+              "online_content": [],
+              "report_title": null,
+              "show_passed_tests": false,
+              "show_score": true
+            },
+            "default": {
+              "category_headers": {}
+            }
+          },
+          "description": "Report options."
         }
       },
       "title": "Feedback",
@@ -162,12 +185,25 @@
     },
     "FeedbackPreferences": {
       "additionalProperties": false,
+      "description": "How the feedback report is written.",
       "properties": {
         "general": {
-          "$ref": "#/$defs/GeneralPreferences"
+          "$ref": "#/$defs/GeneralPreferences",
+          "default": {
+            "report_title": null,
+            "show_score": true,
+            "show_passed_tests": false,
+            "add_report_summary": true,
+            "online_content": []
+          },
+          "description": "Options for every mode."
         },
         "default": {
-          "$ref": "#/$defs/DefaultPreferences"
+          "$ref": "#/$defs/DefaultPreferences",
+          "default": {
+            "category_headers": {}
+          },
+          "description": "Options of the default mode."
         }
       },
       "title": "FeedbackPreferences",
@@ -175,18 +211,22 @@
     },
     "Fixture": {
       "additionalProperties": false,
+      "description": "A host-provided file staged into the sandbox before setup commands.",
       "properties": {
         "reference": {
+          "description": "Logical relative reference resolved by the host's fixture provider (an object key on the shipped hosts).",
           "minLength": 1,
           "title": "Reference",
           "type": "string"
         },
         "path": {
+          "description": "Unique relative destination under the fixture root (/tmp/app on the shipped hosts).",
           "title": "Path",
           "type": "string"
         },
         "read_only": {
           "default": true,
+          "description": "Whether the staged file is read-only to the submission.",
           "title": "Read Only",
           "type": "boolean"
         }
@@ -200,6 +240,7 @@
     },
     "GeneralPreferences": {
       "additionalProperties": false,
+      "description": "Report options shared by every feedback mode.",
       "properties": {
         "report_title": {
           "anyOf": [
@@ -211,24 +252,30 @@
             }
           ],
           "default": null,
+          "description": "Report heading; null uses the localized default title.",
           "title": "Report Title"
         },
         "show_score": {
           "default": true,
+          "description": "Whether the report shows the final score.",
           "title": "Show Score",
           "type": "boolean"
         },
         "show_passed_tests": {
           "default": false,
+          "description": "Whether criteria that scored 100 are listed; by default only criteria below 100 are.",
           "title": "Show Passed Tests",
           "type": "boolean"
         },
         "add_report_summary": {
           "default": true,
+          "description": "Whether the report starts with a score summary.",
           "title": "Add Report Summary",
           "type": "boolean"
         },
         "online_content": {
+          "default": [],
+          "description": "Learning resources listed at the end of the report.",
           "items": {
             "$ref": "#/$defs/LearningResource"
           },
@@ -242,8 +289,11 @@
     "JsonValue": {},
     "LanguagePreparation": {
       "additionalProperties": false,
+      "description": "Preparation for one allowed language.",
       "properties": {
         "required_files": {
+          "default": [],
+          "description": "Unique relative submission paths that must exist; a missing one fails with REQUIRED_FILE_MISSING before any sandbox is acquired.",
           "items": {
             "type": "string"
           },
@@ -251,6 +301,8 @@
           "type": "array"
         },
         "setup_commands": {
+          "default": [],
+          "description": "Steps run in order after fixtures are staged, for example compilation. A failing step stops grading with PREPARATION_FAILED.",
           "items": {
             "$ref": "#/$defs/SetupCommand"
           },
@@ -263,17 +315,22 @@
     },
     "LearningResource": {
       "additionalProperties": false,
+      "description": "A link listed in the feedback report.",
       "properties": {
         "url": {
+          "description": "Address of the resource.",
           "minLength": 1,
           "title": "Url",
           "type": "string"
         },
         "description": {
+          "description": "Link text shown in the report.",
           "title": "Description",
           "type": "string"
         },
         "linked_tests": {
+          "default": [],
+          "description": "Criterion IDs; the resource is shown only when one of them scored below 100. Empty shows it always.",
           "items": {
             "type": "string"
           },
@@ -290,11 +347,14 @@
     },
     "Preparation": {
       "additionalProperties": false,
+      "description": "What must exist and run before any criterion is assessed.",
       "properties": {
         "languages": {
           "additionalProperties": {
             "$ref": "#/$defs/LanguagePreparation"
           },
+          "default": {},
+          "description": "Preparation keyed by allowed language; only the submission's language is used.",
           "propertyNames": {
             "enum": [
               "python",
@@ -308,6 +368,8 @@
           "type": "object"
         },
         "fixtures": {
+          "default": [],
+          "description": "Files staged for every language.",
           "items": {
             "$ref": "#/$defs/Fixture"
           },
@@ -320,8 +382,10 @@
     },
     "SetupCommand": {
       "additionalProperties": false,
+      "description": "One preparation step, run once before assessment in the selected language's sandbox.",
       "properties": {
         "name": {
+          "description": "Label of the step, shown when it fails.",
           "minLength": 1,
           "title": "Name",
           "type": "string"
@@ -345,13 +409,13 @@
       "description": "Configuration for a subject within a grading category.",
       "properties": {
         "subject_name": {
-          "description": "Name of the subject",
+          "description": "Display name of the subject.",
           "minLength": 1,
           "title": "Subject Name",
           "type": "string"
         },
         "weight": {
-          "description": "Weight of this subject (0-100)",
+          "description": "Weight (0-100) relative to sibling subjects; all-zero siblings share equally.",
           "maximum": 100,
           "minimum": 0,
           "title": "Weight",
@@ -370,7 +434,7 @@
             }
           ],
           "default": null,
-          "description": "Tests under this subject",
+          "description": "Criteria directly under this subject; null when it has none.",
           "title": "Tests"
         },
         "subjects": {
@@ -386,7 +450,7 @@
             }
           ],
           "default": null,
-          "description": "Nested subjects",
+          "description": "Subjects nested in this subject; null when it has none.",
           "title": "Subjects"
         },
         "subjects_weight": {
@@ -401,13 +465,15 @@
             }
           ],
           "default": null,
-          "description": "Weight of the subject when it is a heterogeneous tree",
+          "description": "Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise.",
           "title": "Subjects Weight"
         },
         "metadata": {
           "additionalProperties": {
             "$ref": "#/$defs/JsonValue"
           },
+          "default": {},
+          "description": "Free-form JSON stored with the definition; never interpreted by grading.",
           "title": "Metadata",
           "type": "object"
         }
@@ -421,8 +487,10 @@
     },
     "TestConfig": {
       "additionalProperties": false,
+      "description": "One criterion: an evaluator invocation with its parameters.",
       "properties": {
         "id": {
+          "description": "Stable identifier, unique in the definition; results, feedback links and comparisons use it.",
           "maxLength": 128,
           "minLength": 1,
           "pattern": "^[A-Za-z0-9_.:-]+$",
@@ -430,6 +498,7 @@
           "type": "string"
         },
         "type": {
+          "description": "Evaluator identifier from one of the listed templates.",
           "minLength": 1,
           "title": "Type",
           "type": "string",
@@ -483,6 +552,7 @@
           ]
         },
         "name": {
+          "description": "Display name; may repeat.",
           "minLength": 1,
           "title": "Name",
           "type": "string"
@@ -491,6 +561,7 @@
           "additionalProperties": {
             "$ref": "#/$defs/JsonValue"
           },
+          "description": "The evaluator's parameters ({} when it has none); each evaluator documents its own.",
           "title": "Parameters",
           "type": "object"
         },
@@ -505,10 +576,12 @@
             }
           ],
           "default": null,
+          "description": "Exact relative submission path to assess; null selects the evaluator's matching files.",
           "title": "File"
         },
         "weight": {
           "default": 100.0,
+          "description": "Weight relative to sibling criteria; all-zero siblings share equally.",
           "minimum": 0,
           "title": "Weight",
           "type": "number"
@@ -517,6 +590,8 @@
           "additionalProperties": {
             "$ref": "#/$defs/JsonValue"
           },
+          "default": {},
+          "description": "Free-form JSON stored with the definition; never interpreted by grading.",
           "title": "Metadata",
           "type": "object"
         }
@@ -613,7 +688,7 @@
                 "properties": {
                   "required_count": {
                     "default": 1,
-                    "description": "O número mínimo de links válidos.",
+                    "description": "The minimum number of links that point to an existing element ID.",
                     "minimum": 1,
                     "title": "Required Count",
                     "type": "integer"
@@ -1118,7 +1193,7 @@
                 "properties": {
                   "required_count": {
                     "default": 1,
-                    "description": "O número mínimo de links válidos.",
+                    "description": "The minimum number of links that point to the ID of an <article> element.",
                     "minimum": 1,
                     "title": "Required Count",
                     "type": "integer"
@@ -1750,6 +1825,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "inputs": {
+                    "default": [],
                     "description": "List of strings to be sent to the program, each on a new line.",
                     "items": {
                       "type": "string"
@@ -1880,6 +1956,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "inputs": {
+                    "default": [],
                     "description": "List of strings to be sent to the program via stdin.",
                     "items": {
                       "type": "string"
@@ -2006,6 +2083,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "forbidden_keywords": {
+                    "default": [],
                     "description": "List of predefined constructs to forbid (e.g., 'for_loop', 'while_loop', 'eval_call'). At least one keyword or custom rule is required.",
                     "items": {
                       "type": "string"
@@ -2014,6 +2092,7 @@
                     "type": "array"
                   },
                   "custom_ast_grep_rules": {
+                    "default": [],
                     "description": "List of custom ast-grep rules to apply.",
                     "items": {
                       "additionalProperties": true,
@@ -2129,13 +2208,16 @@
     }
   },
   "additionalProperties": false,
+  "description": "One assignment's complete grading definition (version 1).",
   "properties": {
     "schema_version": {
       "const": "1.0",
+      "description": "Definition format version.",
       "title": "Schema Version",
       "type": "string"
     },
     "templates": {
+      "description": "Distinct template identifiers whose evaluators the criteria may use.",
       "items": {
         "type": "string"
       },
@@ -2144,6 +2226,7 @@
       "type": "array"
     },
     "languages": {
+      "description": "Distinct languages a submission may use; with several, each submission names its language.",
       "items": {
         "enum": [
           "python",
@@ -2159,18 +2242,43 @@
       "type": "array"
     },
     "criteria": {
-      "$ref": "#/$defs/CriteriaConfig"
+      "$ref": "#/$defs/CriteriaConfig",
+      "description": "The weighted criteria tree."
     },
     "preparation": {
-      "$ref": "#/$defs/Preparation"
+      "$ref": "#/$defs/Preparation",
+      "default": {
+        "languages": {},
+        "fixtures": []
+      },
+      "description": "Required files, fixtures and setup commands."
     },
     "feedback": {
-      "$ref": "#/$defs/Feedback"
+      "$ref": "#/$defs/Feedback",
+      "default": {
+        "enabled": false,
+        "mode": "default",
+        "preferences": {
+          "default": {
+            "category_headers": {}
+          },
+          "general": {
+            "add_report_summary": true,
+            "online_content": [],
+            "report_title": null,
+            "show_passed_tests": false,
+            "show_score": true
+          }
+        }
+      },
+      "description": "Feedback report policy."
     },
     "metadata": {
       "additionalProperties": {
         "$ref": "#/$defs/JsonValue"
       },
+      "default": {},
+      "description": "Free-form JSON stored with the definition; never interpreted by grading.",
       "title": "Metadata",
       "type": "object"
     }

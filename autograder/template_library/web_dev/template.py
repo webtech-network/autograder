@@ -25,7 +25,7 @@ class WebDevTemplate(Template):
     def __init__(self):
         super().__init__(
             "Html Css Js Template",
-            "Um template abrangente para trabalhos de desenvolvimento web, incluindo testes para HTML, CSS e JavaScript.",
+            "Static checks of HTML, CSS and JavaScript files for web development assignments.",
             [
                 HasClass(), CheckBootstrapLinked(), CheckInternalLinks(), HasTag(), HasForbiddenTag(),
                 HasAttribute(), CheckNoUnclosedTags(), CheckNoInlineStyles(), UsesSemanticTags(),
