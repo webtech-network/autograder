@@ -78,7 +78,7 @@ async def postgres_url():
     """Return a factory of empty, disposable PostgreSQL databases."""
     admin_url = os.getenv("TEST_POSTGRES_URL")
     if not admin_url:
-        pytest.skip("TEST_POSTGRES_URL is required for PostgreSQL migration guarantees")
+        pytest.fail("TEST_POSTGRES_URL is required for the PostgreSQL tier (make test-postgres)", pytrace=False)
     created = []
 
     async def create():
