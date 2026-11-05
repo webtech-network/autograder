@@ -1,7 +1,8 @@
 import json
 import logging
 from typing import List, Mapping, Sequence
-from openai import OpenAI
+
+from openai import OpenAI, Timeout
 from autograder.models.execution import AssessmentRequest, ProviderAssessment
 from autograder.translations import t
 from pydantic import BaseModel, Field
@@ -10,6 +11,18 @@ from autograder.models.evaluation_error import EvaluationError
 
 logger = logging.getLogger(__name__)
 
+# The one AI request a grading makes is bounded by these waits and never retried
+# by the SDK (whose defaults are a 600 s read and two retries). A provider that
+# stops responding fails the grading with PROVIDER_ERROR after at most
+# CONNECT_TIMEOUT_SECONDS + REQUEST_TIMEOUT_SECONDS; recovery is the host's choice.
+REQUEST_TIMEOUT_SECONDS = 180.0
+CONNECT_TIMEOUT_SECONDS = 10.0
+
+
+def openai_client(api_key, *, base_url=None, timeout=REQUEST_TIMEOUT_SECONDS):
+    """One reusable client: explicit deadline, zero SDK retries."""
+    return OpenAI(api_key=api_key, base_url=base_url, max_retries=0,
+                  timeout=Timeout(timeout, connect=min(CONNECT_TIMEOUT_SECONDS, timeout)))
 
 
 class TestOutput(BaseModel):
@@ -26,24 +39,25 @@ class AIResponseModel(BaseModel):
     results: List[TestOutput] = Field(description="A list of test results each test performed following the TestOutput format")
 
 
+def resolve_api_key(*, api_key, secret_name, region, secret_source=None):
+    """Return the configured key, or look it up once in the host's secret store."""
+    if api_key is None and secret_name:
+        api_key = (secret_source or fetch_secret)(secret_name, "OPENAI_API_KEY", region)
+    if not api_key:
+        raise ValueError("An assessment credential is required")
+    return api_key
+
+
 class AiExecutor:
-    """Stateless OpenAI ``AssessmentProvider``: one request per batch, no retries.
+    """OpenAI ``AssessmentProvider`` over one reusable client: one request per batch, no retries.
 
     The engine validates exact criterion-ID coverage and scores of the returned
     assessments; this adapter only translates the model's structured output.
     """
 
-    def __init__(self, *, api_key, model, secret_name=None, region="us-east-1") -> None:
+    def __init__(self, client, model) -> None:
+        self.client = client
         self.model = model
-        try:
-            if api_key is None and secret_name:
-                api_key = fetch_secret(secret_name, "OPENAI_API_KEY", region)
-            if not api_key:
-                raise ValueError("An assessment credential is required")
-            self.client = OpenAI(api_key=api_key)
-        except Exception as exc:
-            logger.exception("Assessment provider initialization failed")
-            raise EvaluationError("PROVIDER_UNAVAILABLE", "The assessment provider is unavailable.", "provider") from exc
 
     def assess(
         self,

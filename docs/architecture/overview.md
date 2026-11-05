@@ -74,7 +74,8 @@ bearer-authenticated control API (one worker) with its remote client. Language-t
 Builds the `HostCapabilities` a host passes to the core: `DockerHost` (local or
 remote manager, one `DockerSession` per run), `S3FixtureProvider` (uncached
 `reference -> bytes`, `FixtureNotFound` for a missing key) and
-`ConfiguredAssessmentProvider` (OpenAI, configured from the environment). A new
+`ConfiguredAssessmentProvider` (OpenAI, configured from the environment; one
+lazily built client per host with a 180 s request deadline and no SDK retries). A new
 host or provider is a new value here or in a host, not a core change.
 
 ## Hosts (`web/`, `github_action/`)

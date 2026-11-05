@@ -286,9 +286,7 @@ def test_global_batch_stage_and_untyped_inputs_are_removed(module):
 # --- The OpenAI adapter translates structured output only ----------------------
 
 def _executor(parsed=None, error=None):
-    executor = AiExecutor.__new__(AiExecutor)  # skip credential lookup
-    executor.model = "test-model"
-    executor.client = MagicMock()
+    executor = AiExecutor(MagicMock(), "test-model")
     if error:
         executor.client.responses.parse.side_effect = error
     else:

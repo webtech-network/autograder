@@ -53,8 +53,8 @@ unexpected failure in the engine and in every host.
 | Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / `PREPARATION_ERROR` |
 | Required fixture provider is not supplied by the host | Failed, no score | capability / `FIXTURE_PROVIDER_UNAVAILABLE` |
 | Required structural analysis unavailable | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
-| Provider initialization fails or no provider is supplied | Failed, no score | provider / `PROVIDER_UNAVAILABLE` |
-| Provider request fails | Failed, no score | provider / `PROVIDER_ERROR` |
+| Provider initialization fails (not cached; the next grading tries again) or no provider is supplied | Failed, no score | provider / `PROVIDER_UNAVAILABLE` |
+| Provider request fails, including its deadline expiring (one request, retryable) | Failed, no score | provider / `PROVIDER_ERROR` |
 | Missing required AI assessment | Failed, no score | provider / `MISSING_EVALUATOR_RESULT` |
 | Duplicate, unknown, or invalid provider assessment | Failed, no score | provider / `INVALID_EVALUATOR_RESULT` |
 | Evaluator returns an invalid numeric grade | Failed, no score | internal / `INVALID_EVALUATOR_RESULT` |
