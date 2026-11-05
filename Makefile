@@ -45,7 +45,7 @@ test-integration: sandbox-build-all ## Real Docker sandboxes (builds sandbox ima
 	$(PYTHON) -m pytest tests/integration/
 
 test-e2e: sandbox-build-all ## API process with real Docker sandboxes
-	./scripts/run_e2e_tests.sh
+	PYTHON='$(PYTHON)' ./scripts/run_e2e_tests.sh
 
 images: ## Build the API, sandbox manager and Action images from this checkout
 	docker build -t autograder-api:local -f Dockerfile.api .
