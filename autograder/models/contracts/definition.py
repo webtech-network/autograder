@@ -30,6 +30,11 @@ class SetupCommand(StrictModel):
         "Executable and arguments, split with POSIX quoting and run without a shell. "
         "Standalone shell operators (&&, |, ;, >, ...) are rejected: use one setup command per step, "
         "and an explicit `sh -c '...'` command only for a real pipeline."))
+    # Omitted from the snapshot while false, so definitions written before the
+    # field existed keep their hash.
+    private_output: bool = Field(default=False, exclude_if=lambda value: value is False, description=(
+        "Keep this step's output out of the student-facing failure explanation, for example when it "
+        "compiles a hidden test harness. By default a failing step's output excerpt is shown."))
 
     @field_validator('command')
     @classmethod
@@ -370,10 +375,13 @@ def select_language(definition: GradingDefinition | CompiledDefinition, supplied
     value = supplied.value if isinstance(supplied, Language) else supplied
     if value is None and len(definition.languages) == 1:
         value = definition.languages[0]
+    allowed = ', '.join(definition.languages)
     if value is None:
-        raise DefinitionValidationError([_error('LANGUAGE_REQUIRED', ('language',), 'Select one of the allowed languages')])
+        raise DefinitionValidationError([_error('LANGUAGE_REQUIRED', ('language',),
+                                                f'Select one of the allowed languages: {allowed}')])
     if value not in definition.languages:
-        raise DefinitionValidationError([_error('LANGUAGE_NOT_ALLOWED', ('language',), 'Language is not allowed by this definition')])
+        raise DefinitionValidationError([_error('LANGUAGE_NOT_ALLOWED', ('language',),
+                                                f'Language is not allowed by this definition; allowed: {allowed}')])
     return Language(value)
 
 

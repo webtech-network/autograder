@@ -31,7 +31,8 @@ Malformed quoting is rejected when the definition is compiled
   report shows stderr, or the exit code when stderr is empty. A timed-out
   program, and any process it started, is killed before the next criterion runs.
 - Compile in `preparation` setup commands; a failed setup command stops grading
-  with `PREPARATION_FAILED`.
+  with `PREPARATION_FAILED`, and the student sees the step name, exit code and
+  an excerpt of the compiler output (unless the step sets `private_output`).
 - A program in the workspace (`./a.out`) that is missing or not executable
   scores 0. Exhausting the sandbox's memory or process limit scores 0 for that
   criterion and every later one (the sandbox is spent).

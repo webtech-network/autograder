@@ -331,6 +331,12 @@
           "minLength": 1,
           "title": "Command",
           "type": "string"
+        },
+        "private_output": {
+          "default": false,
+          "description": "Keep this step's output out of the student-facing failure explanation, for example when it compiles a hidden test harness. By default a failing step's output excerpt is shown.",
+          "title": "Private Output",
+          "type": "boolean"
         }
       },
       "required": [
