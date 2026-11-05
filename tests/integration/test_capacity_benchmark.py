@@ -68,7 +68,7 @@ def database_url():
 def api_stack(directory, database_url, languages):
     """uvicorn with durable workers and local sandboxes: the stack the benchmark measures."""
     config = directory / "sandbox.yml"
-    config.write_text(sandbox_config(languages=languages, pool_size=0, scale_limit=8))
+    config.write_text(sandbox_config(languages=languages, pool_size=0, max_sandboxes=8))
     receipts = directory / "receipts"
     token = secrets.token_hex(24)
     env = dict(os.environ, DATABASE_URL=database_url, AUTOGRADER_INTEGRATION_TOKEN=token,

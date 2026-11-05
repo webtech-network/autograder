@@ -7,7 +7,7 @@ answer the defined busy status, and after shutdown no container of the API's
 owner lease may remain.
 
 Requires ``TEST_POSTGRES_URL`` (a disposable PostgreSQL; each run creates and
-drops its own database) and the ``sandbox-py`` image.
+drops its own database) and the shipped Python sandbox image.
 """
 import asyncio
 import os
@@ -107,10 +107,16 @@ def budget_api(tmp_path_factory, database_url, docker_client):  # pylint: disabl
     listener.bind(("127.0.0.1", 0))
     listener.listen(128)
     url = f"http://127.0.0.1:{listener.getsockname()[1]}/api/v1"
+    repo = Path(__file__).resolve().parents[2]
+    # The API never creates tables; migrate first, exactly as a deployment does.
+    migration = subprocess.run([sys.executable, "-m", "alembic", "-c", "web/alembic.ini", "upgrade", "head"],
+                               cwd=repo, env=env, capture_output=True, text=True, timeout=120, check=False)
+    if migration.returncode:
+        pytest.fail("Migrating the budget database failed:\n" + migration.stderr)
     log_path = directory / "server.log"
     with log_path.open("w") as log:
         process = subprocess.Popen([sys.executable, "-m", "uvicorn", "web.main:app", "--fd", str(listener.fileno()),
-                                    "--log-level", "warning"], cwd=Path(__file__).resolve().parents[2], env=env,
+                                    "--log-level", "warning"], cwd=repo, env=env,
                                    pass_fds=(listener.fileno(),), stdout=log, stderr=subprocess.STDOUT)
         listener.close()
         state = {"url": url, "headers": {"Authorization": "Bearer " + token}, "process": process,

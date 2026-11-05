@@ -62,8 +62,8 @@ def test_runtime_image_holds_only_its_documented_runtime(client, language):
 
 
 def manager_for(image, language=Language.PYTHON):
-    return SandboxManager([SandboxPoolConfig(language=language, image=image, pool_size=1, scale_limit=1,
-                                             idle_timeout=60, running_timeout=60)], reclaim_orphans=False)
+    return SandboxManager([SandboxPoolConfig(language=language, image=image, pool_size=1, running_timeout=60)],
+                          max_sandboxes=1, reclaim_orphans=False)
 
 
 def test_missing_image_fails_at_startup_without_pulling(client):
