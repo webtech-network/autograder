@@ -65,6 +65,9 @@ nav:
       - Educational Criteria Design: guides/criteria-tree-educational-standards.md
   - API:
       - REST API Reference: API.md
+  - Operate:
+      - Deploying the HTTP Service: operate/deployment.md
+      - Configuration Reference: operate/configuration.md
   - GitHub Action:
       - Overview: github_action/README.md
       - Quick Start Guide: github_action/quick-start.md
