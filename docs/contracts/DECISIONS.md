@@ -521,3 +521,24 @@ command or submitted file names. The dead `preflight.*` and `system.*` catalog
 keys were replaced by the keys now used; a test keeps that namespace free of
 unused or missing keys in both locales. See
 [OUTCOMES.md](OUTCOMES.md#explained-submission-failures).
+
+## One execution time budget (COR-02)
+
+Four unrelated clocks bounded a grading (per-process deadlines, the reaper's
+`running_timeout`, an unbounded HTTP lease and `sleep infinity`), so a legitimate
+worst case longer than `running_timeout` failed with `SANDBOX_ERROR`, and a
+crashed owner left its student processes running until something reclaimed
+them. Now compilation derives one `ExecutionBudget` from deadlines already
+declared (evaluator `process_timeouts`, 30 s per setup command; no authoring
+field), and the one host knob is the maximum `running_timeout`. A budget the host
+cannot grant is refused before any code runs (`EXECUTION_BUDGET_EXCEEDED`; HTTP
+422 at validation and acceptance, never after queueing). Each granted sandbox
+arms its own lifetime with a root exec the submission cannot signal and stops
+itself then, whatever happens to its owner; owner-lease reclamation only removes
+stopped records. Every process runs before the one AI call, so the sandbox
+lifetime holds only process time. An HTTP attempt's deadline is the session
+lifetime from the grant plus the provider deadline per AI call plus a margin; it
+ends as a retryable `ATTEMPT_DEADLINE_EXCEEDED` without further lease renewal.
+Re-queuing is left to COR-03. See [SANDBOX.md](SANDBOX.md#sandbox-lifetime),
+[CAPABILITIES.md](CAPABILITIES.md#execution-budget) and
+[JOBS.md](JOBS.md#attempt-deadline).

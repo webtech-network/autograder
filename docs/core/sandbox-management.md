@@ -43,7 +43,7 @@ Runtime prefers gVisor (`runsc`) when available and falls back to default runtim
 |------|------------|
 | Faster first response | Increase `pool_size` |
 | Higher concurrency (up to the CPU knee) | Increase `max_sandboxes` |
-| Faster stuck-process recovery | Lower `running_timeout` |
+| Accept definitions with more or longer processes | Raise `running_timeout` (the host maximum; each sandbox lives its definition's budget) |
 
 These values are defined in `sandbox_config.yml`.
 

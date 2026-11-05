@@ -33,7 +33,8 @@ idle -> active -> closing -> disposed
   to `disposal_attempts` (default 5, `general.disposal_attempts` in
   `sandbox_config.yml`). After exhaustion it stays quarantined and visible
   (`"exhausted": true`) for an operator. Shutdown makes one final attempt.
-* Running-timeout and idle-timeout expiry use the same `dispose` path. A
+* Lifetime expiry uses the same `dispose` path: the monitor disposes an active
+  sandbox past its own lifetime and an idle one too old to be granted. A
   caller whose sandbox expired gets `already_disposed` from its own later
   cleanup.
 * `DockerSession.close()` raises when disposal ends `quarantined`. The engine
@@ -57,8 +58,8 @@ manager) alike.
   asked for no wait. Grading waits up to 600 s (`GRADING_CAPACITY_WAIT_SECONDS`,
   `execution_host/docker.py`) and reports expiry as a retryable
   `CAPABILITY_UNAVAILABLE`, never as an assessment; deliberate execution waits
-  10 s and answers `503 EXECUTION_BUSY`. The sandbox's `running_timeout` starts
-  at the grant, never during the wait.
+  10 s and answers `503 EXECUTION_BUSY`. The sandbox's lifetime starts at the
+  grant, never during the wait.
 * Docker `create` and `remove` run outside the pool lock, so N cold acquisitions
   take about one creation time. A failed creation returns its slot and wakes the
   next waiter. Concurrent creations that discover a missing gVisor runtime each
@@ -71,10 +72,41 @@ manager) alike.
   in-flight creations, removing their containers before it returns.
 * `get_budget_stats()` reports `max_sandboxes`, `held` and `waiting`.
 
+## Sandbox lifetime
+
+Every sandbox ends itself; neither its owner nor reclamation has to be alive.
+
+* `get_sandbox(language, wait_seconds, lifetime_seconds)` grants a sandbox for
+  `lifetime_seconds` from the grant (default: the host maximum). The host
+  maximum is `general.running_timeout` in `sandbox_config.yml` (shipped: 900 s);
+  a longer lifetime raises `SandboxLifetimeExceeded` before any wait, and the
+  control API answers `422 LIFETIME_EXCEEDED`. Graders ask for the run's
+  `budget.session_seconds` (see [CAPABILITIES.md](CAPABILITIES.md#execution-budget))
+  and report a refusal as `EXECUTION_BUDGET_EXCEEDED`; hosts compare the same
+  numbers before any acquisition.
+* At the grant a root control exec (`docker_profile.LIFETIME`), which the
+  submission cannot signal, sleeps for the lifetime and then kills every other
+  process with `kill -KILL -1` (a shell builtin, so a submission at its pids
+  limit cannot stop it). PID 1's child dies, PID 1 exits and the container
+  stops with nothing running, under runsc and runc alike, whatever happened to
+  its owner (crash, `SIGKILL`, a recreated container with another hostname).
+* PID 1 itself runs `sleep <2 × running_timeout + 60>`: an idle container is
+  granted only while younger than `running_timeout`, the monitor disposes older
+  ones, and an orphaned idle container stops by itself at that bound.
+* A run the lifetime ended is an infrastructure failure (`SANDBOX_ERROR`): the
+  sandbox records the instant its lifetime passes (never later than the real
+  stop), and any operation, control failure or readback after it invalidates the
+  sandbox instead of reporting a process result.
+* The pool's monitor disposes an active sandbox once its lifetime passed, and the
+  control API's reaper then forgets its handle. After a crash, a stopped
+  container's record remains until its owner lease is reclaimed (startup
+  reclamation on the same hostname, or `python -m sandbox_manager.reclaim
+  --dead-host <name>`); reclamation only removes containers that already ended.
+
 There is one Docker profile (`sandbox_manager/docker_profile.py`): limits,
 tmpfs mounts, `network_mode="none"`, identities, capabilities, ulimits and
 labels are declared once. PID 1 is Docker's init (`init=True`, reaping orphans)
-running `sleep infinity` as `root`; control execs that can run beside the
+running a bounded `sleep` as `root`; control execs that can run beside the
 submission also run as `root`. `root` keeps only `KILL` (to end every
 submission process) and `DAC_OVERRIDE` (to read back and remove what the
 submission wrote, whatever its permissions); every other capability is dropped.
@@ -83,7 +115,8 @@ under `no-new-privileges`, so they cannot signal PID 1 or a control exec. The
 container holds nothing the submission may not see: its own files, fixtures
 staged readable, and the image. gVisor (`runsc`) is preferred; when the daemon lacks it, the
 same options are used without the `runtime` argument. That is the only allowed
-difference. Previously the default-runtime path omitted the `/app` tmpfs because
+difference. PID 1 runs a bounded `sleep` (see [Sandbox lifetime](#sandbox-lifetime)).
+Previously the default-runtime path omitted the `/app` tmpfs because
 runc mounts tmpfs `root:root 0755`, which the unprivileged `sandbox` user cannot
 write; `/app` then fell back to an anonymous, unbounded image volume that was
 leaked on removal. `/app` is now `rw,size=64m,exec,mode=1777` under both
@@ -213,7 +246,7 @@ timeout); handles with an operation in flight are never reaped.
 
 | Route | Purpose |
 | --- | --- |
-| `POST /sandboxes/{language}` `{"request_id", "wait_seconds"}` | acquire, waiting for a budget slot; replay-safe |
+| `POST /sandboxes/{language}` `{"request_id", "wait_seconds", "lifetime_seconds"}` | acquire, waiting for a budget slot, for a lifetime (default `running_timeout`); replay-safe |
 | `POST /sandboxes/{id}/prepare` | stage submission files in `/app` |
 | `POST /sandboxes/{id}/inject` | stage base64 fixtures under `/tmp` |
 | `POST /sandboxes/{id}/process` | run one process ([PROCESSES.md](PROCESSES.md)); never replayed |
@@ -231,9 +264,10 @@ Errors use `{"detail": {"code", "message"}}` and never echo request input:
 | Artifact missing (valid handle) | 404 | `ARTIFACT_NOT_FOUND` | `ArtifactNotFound` (a `FileNotFoundError`) |
 | Artifact too large / invalid path | 422 | `ARTIFACT_INVALID` | `ValueError` |
 | Handle closed / closing | 410 | `HANDLE_CLOSED` | `SandboxHandleGone` |
-| Handle expired or sandbox timed out | 410 | `HANDLE_EXPIRED` | `SandboxHandleGone` |
+| Handle expired or sandbox reached its lifetime | 410 | `HANDLE_EXPIRED` | `SandboxHandleGone` |
 | Request id reused for another language | 409 | `REQUEST_ID_CONFLICT` | `RemoteSandboxError` |
 | No budget slot within `wait_seconds` | 503 | `CAPACITY_TIMEOUT` | `SandboxCapacityTimeout` (same as the local manager) |
+| `lifetime_seconds` above the host's `running_timeout` | 422 | `LIFETIME_EXCEEDED` | `SandboxLifetimeExceeded` (same as the local manager) |
 | Service shutting down, or container creation failed | 503 | `SANDBOX_UNAVAILABLE` | `SandboxUnavailable` |
 | No runtime profile for a valid language (absent from `runtimes:`) | 501 | `RUNTIME_UNAVAILABLE` | `RuntimeUnavailableError` (same as the local manager) |
 | Unknown language identifier | 422 | `INVALID_REQUEST` | `RemoteSandboxError` |
@@ -254,13 +288,13 @@ looks like a missing `output.txt`. All other client exceptions are
 | Situation | Bounded recovery |
 | --- | --- |
 | Acquire response lost | The client retries transport failures (3 attempts) with the same `request_id`; the service returns the same handle, never a second container. |
-| Client gives up or crashes after acquiring | The handle expires after the TTL; the reaper disposes it. |
+| Client gives up or crashes after acquiring | The sandbox stops itself at its lifetime; the handle expires after the TTL or the lifetime, and the reaper disposes it. |
 | Acquire replayed after the handle closed | 410, no new container. |
 | `DELETE` response lost | `DELETE` is idempotent: the handle is marked `closing`, disposed, then forgotten into a tombstone (1 hour, at most 10 000 entries), so a retried `DELETE` returns `already_disposed`. The client retries transport failures (3 attempts). |
 | Disposal raises | The handle stays `closing` (500 `DISPOSAL_FAILED`); a repeated `DELETE` or the reaper retries. |
 | Docker cannot remove the container | `DELETE` returns `quarantined`; the pool owns the retry record and reports it. |
 | `/process` response lost | Never replayed automatically: the outcome is unknown and the caller gets `RemoteSandboxError` (`TRANSPORT_ERROR`), never a process result. |
-| Control service restarts | Handles are lost (later calls get `HANDLE_NOT_FOUND`); the restarted manager reclaims the previous process's containers through its owner lease. |
+| Control service restarts or is killed | Handles are lost (later calls get `HANDLE_NOT_FOUND`); every sandbox still stops itself at its lifetime, and the restarted manager removes the previous process's containers through its owner lease. |
 
 The client closes each handle's HTTP session in `finally`, including when
 deletion fails, and its HTTP adapter performs no automatic retries.
@@ -285,7 +319,7 @@ Wire limits agree with the operations they guard (`sandbox_manager/models/api_mo
 | Fixtures | 100, 32 MiB decoded total | `/tmp` tmpfs size |
 | Process `argv` / `shell` text | 64 KiB | below the Linux 128 KiB per-argument limit |
 | Process `stdin` | 1 MiB (base64 on the wire) | above 48 KiB staged in one transfer, not as an argument |
-| Process `timeout` | (0, 600] s and at most the pool's `running_timeout` | client read deadline is timeout + 15 s |
+| Process `timeout` | (0, 600] s and at most the pool's `running_timeout` (a process past the sandbox's own lifetime is ended by it) | client read deadline is timeout + 15 s |
 | Process output | `max_output_bytes` per stream, 1 B–8 MiB (default 1 MiB), with `stdout_truncated`/`stderr_truncated` | bounded where the process runs, never after transfer |
 | Artifact read | 1 MiB | same as local `extract_file` default |
 | Request body | 48 MiB | base64 fixtures plus framing |
@@ -295,6 +329,23 @@ file/fixture transfer and artifact reads 120 s; dispose 60 s. Docker calls on th
 server have no hard deadline beyond docker-py's own client timeout.
 
 ## Migration
+
+* **One execution time budget (COR-02).** `running_timeout` is now the host
+  maximum: each sandbox lives the lifetime its caller asks for (a grading's
+  `budget.session_seconds`) up to it, and stops itself then even if its owner
+  died; containers no longer run `sleep infinity`. The shipped value rose from
+  120 s to 900 s so that definitions of up to 26 thirty-second processes are
+  granted; set it from the largest definition you accept. Definitions needing
+  more are now refused at validation and acceptance (HTTP 422
+  `EXECUTION_BUDGET_EXCEEDED`) instead of failing with `SANDBOX_ERROR` after the
+  reaper fired. The acquire body gained the optional `lifetime_seconds`
+  (`422 LIFETIME_EXCEEDED` above the maximum); an old client omits it and gets
+  `running_timeout`. In remote mode the API reads the same `sandbox_config.yml`
+  as the service; keep them identical. Custom evaluators declaring
+  `sandbox_execution` must declare `process_timeouts`, and custom
+  `HostCapabilities.execution` callables receive `(language, budget)`. Containers
+  created before the upgrade still run `sleep infinity`: remove them with
+  `python -m sandbox_manager.reclaim` after the old managers stop.
 
 * **Single-transfer staging (PRF-03).** No configuration, wire or definition
   change. Staging no longer sends one `docker exec` per 48 KiB per file: a
