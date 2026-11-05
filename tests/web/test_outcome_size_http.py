@@ -6,7 +6,7 @@ import pytest
 from autograder import compile_definition
 from autograder.models.contracts.outcome import MAX_REPORT_BYTES
 from autograder.models.contracts.verification import MAX_ATTESTATION_BYTES
-from submission_contract import MAX_METADATA_BYTES, MAX_REQUEST_BYTES
+from sandbox_manager.submission_contract import MAX_METADATA_BYTES, MAX_REQUEST_BYTES
 from tests.unit.test_outcome_size_bounds import largest, sized_definition, worst_outcome
 from tests.web.test_contracts_v1 import HEADERS, integration_auth  # pylint: disable=unused-import
 

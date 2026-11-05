@@ -25,7 +25,7 @@ from autograder.models.contracts.verification import (
 )
 from autograder.services.grading import grade
 from github_action.cloud_exporter import CloudPublisher
-from submission_contract import MAX_METADATA_BYTES, MAX_REQUEST_BYTES
+from sandbox_manager.submission_contract import MAX_METADATA_BYTES, MAX_REQUEST_BYTES
 
 MARKER = re.compile(r"\n\[\.\.\. (\d+) of (\d+) bytes omitted \.\.\.\]\n")
 
