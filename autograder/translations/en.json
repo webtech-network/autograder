@@ -432,10 +432,9 @@
     "forbidden_import": {
       "description": "Statically analyzes submission files to check if any forbidden libraries were imported. Penalizes the submission if any forbidden imports are found.",
       "params": {
-        "libraries": "List of library/module names whose import is forbidden."
+        "libraries": "List of library/module names whose import is forbidden (at least one)."
       },
       "report": {
-        "no_imports": "No forbidden imports specified — nothing to check.",
         "no_lang": "FAILURE: Submission language is not defined. Cannot check for forbidden imports.",
         "no_files": "No submission files to analyze.",
         "violation": "  - '{lib}' found in '{file}'",
@@ -446,11 +445,10 @@
     "forbidden_keyword": {
       "description": "Statically analyzes submission files using structural analysis to detect forbidden language constructs (like loops or eval calls).",
       "params": {
-        "keywords": "List of predefined constructs to forbid (e.g., 'for_loop', 'while_loop', 'eval_call').",
+        "keywords": "List of predefined constructs to forbid (e.g., 'for_loop', 'while_loop', 'eval_call'). At least one keyword or custom rule is required.",
         "custom_rules": "List of custom ast-grep rules to apply."
       },
       "report": {
-        "no_rules": "No forbidden constructs or rules specified — nothing to check.",
         "no_analysis": "FAILURE: Structural analysis data is missing. Cannot check for forbidden constructs.",
         "no_lang": "FAILURE: Submission language is not defined. Cannot check for forbidden constructs.",
         "no_files": "No submission files to analyze.",

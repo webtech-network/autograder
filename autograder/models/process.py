@@ -14,6 +14,7 @@ Preparation, the I/O and artifact evaluators and deliberate execution all use
 they grade or report the result.
 """
 import posixpath
+import re
 import shlex
 from dataclasses import dataclass, field
 from enum import Enum
@@ -44,7 +45,8 @@ def split_command(command: str) -> Tuple[str, ...]:
     """POSIX-style argument splitting without a shell.
 
     Quotes group words; operators such as ``&&``, ``|`` or ``>`` are ordinary
-    arguments. Malformed quoting is an error, never a reason to use a shell.
+    arguments (definitions reject them, see :func:`shell_operator`). Malformed
+    quoting is an error, never a reason to use a shell.
     """
     try:
         argv = tuple(shlex.split(command))
@@ -53,6 +55,42 @@ def split_command(command: str) -> Tuple[str, ...]:
     if not argv:
         raise ValueError("Command must name an executable")
     return argv
+
+
+#: A word made only of shell control/redirection characters, optionally with
+#: file-descriptor digits (``&&``, ``|``, ``;``, ``>``, ``2>&1``, ``&`` ...).
+_SHELL_OPERATOR = re.compile(r"[0-9]*[&|;<>]+[0-9-]*")
+
+
+#: Compilation error for a definition command containing a shell operator.
+SHELL_OPERATOR_MESSAGE = (
+    "`{operator}` is shell syntax, but commands run without a shell, so it would reach the program as an "
+    "argument. Put build steps such as compilation in preparation.setup_commands (one command each), quote "
+    "the operator to pass it literally, or use sh -c '...' only for a real pipeline.")
+
+
+def shell_operator(command: str) -> Optional[str]:
+    """The first standalone, unquoted shell operator word of ``command``, if any.
+
+    :func:`split_command` passes such a word to the program as an argument, so
+    its presence means the command was written for a shell. Quoted or escaped
+    operators (``'&&'``, ``\\|``) and operators inside a word are literal text.
+    Malformed quoting raises ``ValueError`` exactly as in :func:`split_command`.
+    """
+    lexer = shlex.shlex(command, posix=True)
+    lexer.whitespace_split = True
+    lexer.commenters = ""
+    start = 0
+    try:
+        while (word := lexer.get_token()) is not None:
+            end = lexer.instream.tell()
+            # The raw text equals the word only when no quote or escape produced it.
+            if command[start:end].strip() == word and _SHELL_OPERATOR.fullmatch(word):
+                return word
+            start = end
+    except ValueError as exc:
+        raise ValueError(f"Command has malformed quoting: {exc}") from None
+    return None
 
 
 @dataclass(frozen=True)

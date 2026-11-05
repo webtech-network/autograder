@@ -2348,6 +2348,18 @@
           "requires_sandbox": {
             "type": "boolean",
             "title": "Requires Sandbox"
+          },
+          "absence_check": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Absence Check",
+            "description": "Set for prohibition and limit checks: why the evaluator passes when what it looks for is absent. Null for presence checks, which cannot pass an irrelevant submission."
           }
         },
         "additionalProperties": false,
@@ -3481,7 +3493,7 @@
             "type": "string",
             "minLength": 1,
             "title": "Command",
-            "description": "Executable and arguments, split with POSIX quoting and run without a shell. Use an explicit `sh -c '...'` command for shell operators."
+            "description": "Executable and arguments, split with POSIX quoting and run without a shell. Standalone shell operators (&&, |, ;, >, ...) are rejected: use one setup command per step, and an explicit `sh -c '...'` command only for a real pipeline."
           }
         },
         "additionalProperties": false,

@@ -14,7 +14,7 @@ from autograder.models.contracts.scoring import normalized_sibling_weights
 def criterion(identity, *, name=None, imports=("os",), weight=100, file=None, type_="forbidden_import"):
     value = {"id": identity, "type": type_, "name": name or identity.title(), "weight": weight,
              "parameters": ({"forbidden_imports": list(imports)} if type_ == "forbidden_import"
-                            else {"forbidden_keywords": [], "custom_ast_grep_rules": []})}
+                            else {"forbidden_keywords": ["for_loop"], "custom_ast_grep_rules": []})}
     if file:
         value["file"] = file
     return value

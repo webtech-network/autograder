@@ -10,6 +10,7 @@ from autograder.translations import t
 
 class CountGlobalVars(TestFunction):
     """Counts variables in the global scope of JS."""
+    absence_check = "Limit: passes while global variables number at most max_allowed."
     @property
     def name(self):
         return "count_global_vars"
@@ -40,6 +41,7 @@ class CountGlobalVars(TestFunction):
 
 class HasNoJsFramework(TestFunction):
     """Checks if forbidden JS frameworks are present."""
+    absence_check = "Prohibition: passes while no JavaScript framework is referenced."
 
     file_parameters = ("html_file", "js_file")
     @property
@@ -111,6 +113,7 @@ class JsUsesQueryStringParsing(TestFunction):
 
 class UsesForbiddenMethod(TestFunction):
     """Checks and penalizes the use of forbidden methods."""
+    absence_check = "Prohibition: passes while the forbidden method is not called."
     @property
     def name(self):
         return "uses_forbidden_method"
@@ -178,8 +181,8 @@ class JsUsesDomManipulation(TestFunction):
     minimum_files = 1
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
-                methods: Annotated[List[str], Field(default_factory=list, description=t("web_dev.js.js_uses_dom_manipulation.param.methods"))],
-                required_count: Annotated[int, Field(ge=0, description=t("web_dev.js.js_uses_dom_manipulation.param.required_count"))] = 0,
+                methods: Annotated[List[Annotated[str, Field(min_length=1)]], Field(min_length=1, description=t("web_dev.js.js_uses_dom_manipulation.param.methods"))],
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.js.js_uses_dom_manipulation.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the search for DOM manipulations."""
         files = evaluation.files
@@ -213,7 +216,7 @@ class JsHasJsonArrayWithId(TestFunction):
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
                 required_key: Annotated[str, Field(min_length=1, description=t("web_dev.js.js_has_json_array_with_id.param.required_key"))],
-                min_items: Annotated[int, Field(ge=0, description=t("web_dev.js.js_has_json_array_with_id.param.min_items"))] = 0,
+                min_items: Annotated[int, Field(ge=1, description=t("web_dev.js.js_has_json_array_with_id.param.min_items"))] = 1,
                 ) -> TestResult:
         """Executes the JSON structure check in JS."""
         files = evaluation.files

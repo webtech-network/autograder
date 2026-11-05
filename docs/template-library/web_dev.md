@@ -22,7 +22,7 @@ Checks if a specific HTML tag appears a minimum number of times.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `tag` | string | The HTML tag to search for (e.g., `"div"`, `"header"`) |
-| `required_count` | integer | Minimum number of occurrences required |
+| `required_count` | integer | Minimum number of occurrences required (default 1; at least 1) |
 
 ```json
 {"id": "has-tag", "type": "has_tag", "name": "Has tag", "parameters": {"tag": "header", "required_count": 1}, "weight": 50}
@@ -35,8 +35,8 @@ Checks for CSS classes in the HTML, with **wildcard support** (e.g., `col-*` mat
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `class_names` | list[string] | Class names to search for. Wildcards (`*`) supported. |
-| `required_count` | integer | Minimum total number of matching class occurrences |
+| `class_names` | list[string] | Class names to search for (at least one). Wildcards (`*`) supported. |
+| `required_count` | integer | Minimum total number of matching class occurrences (default 1; at least 1) |
 
 ```json
 {"id": "has-class", "type": "has_class", "name": "Has class", "parameters": {"class_names": ["col-*", "container"], "required_count": 3}, "weight": 50}
@@ -50,7 +50,7 @@ Checks if a specific HTML attribute is present on any tag a minimum number of ti
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `attribute` | string | The attribute to search for (e.g., `"alt"`, `"href"`) |
-| `required_count` | integer | Minimum number of occurrences required |
+| `required_count` | integer | Minimum number of occurrences required (default 1; at least 1) |
 
 ```json
 {"id": "has-attribute", "type": "has_attribute", "name": "Has attribute", "parameters": {"attribute": "alt", "required_count": 3}, "weight": 30}
@@ -94,7 +94,7 @@ Verifies that anchor links (`<a href="#id">`) point to valid element IDs within 
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `required_count` | integer | Minimum number of valid internal links |
+| `required_count` | integer | Minimum number of valid internal links (default 1; at least 1) |
 
 ---
 
@@ -103,7 +103,7 @@ Verifies that anchor links point to IDs on `<article>` elements specifically.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `required_count` | integer | Minimum number of valid links to `<article>` elements |
+| `required_count` | integer | Minimum number of valid links to `<article>` elements (default 1; at least 1) |
 
 ---
 
@@ -201,7 +201,7 @@ Checks for anchor tags linking to a specific page with a required query string p
 |-----------|------|-------------|
 | `target_page` | string | Expected page (e.g., `"details.html"`) |
 | `query_param` | string | Required query parameter name (e.g., `"id"`) |
-| `required_count` | integer | Minimum number of valid links |
+| `required_count` | integer | Minimum number of valid links (default 1; at least 1) |
 
 ---
 
@@ -227,7 +227,7 @@ Checks if a CSS style rule appears a minimum number of times.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `style` | string | The CSS property to count (e.g., `"margin"`) |
-| `count` | integer | Minimum number of occurrences |
+| `count` | integer | Minimum number of occurrences (default 1; at least 1) |
 
 ---
 
@@ -317,7 +317,7 @@ Checks for a JS array of objects where each object has a specific required key.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `required_key` | string | Key that must exist in each object (e.g., `"id"`) |
-| `min_items` | integer | Minimum number of items expected |
+| `min_items` | integer | Minimum number of items expected (default 1; at least 1) |
 
 ---
 
@@ -326,8 +326,8 @@ Checks for DOM manipulation method calls in the JavaScript code.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `methods` | list[string] | Methods to search for (e.g., `["createElement", "appendChild"]`) |
-| `required_count` | integer | Minimum total occurrences |
+| `methods` | list[string] | Methods to search for, at least one (e.g., `["createElement", "appendChild"]`) |
+| `required_count` | integer | Minimum total occurrences (default 1; at least 1) |
 
 ```json
 {"id": "js-uses-dom-manipulation", "type": "js_uses_dom_manipulation", "name": "Js uses dom manipulation", "parameters": {"methods": ["createElement", "appendChild", "textContent"], "required_count": 5}, "weight": 60}

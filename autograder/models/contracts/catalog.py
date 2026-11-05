@@ -33,6 +33,8 @@ class EvaluatorDescription(BaseModel):
     supported_languages: Optional[List[LanguageId]] = Field(
         default=None, description="Known language constraints; null means no evaluator-specific restriction is declared. Host execution support is separate.")
     requires_sandbox: bool
+    absence_check: Optional[str] = Field(
+        default=None, description="Set for prohibition and limit checks: why the evaluator passes when what it looks for is absent. Null for presence checks, which cannot pass an irrelevant submission.")
 
 
 class TemplateDescription(BaseModel):
@@ -123,6 +125,7 @@ def describe_template(identifier: str, template: Template) -> TemplateDescriptio
             required_capabilities=required_capabilities(template, function),
             supported_languages=getattr(function, "supported_languages", None),
             requires_sandbox=template.requires_sandbox,
+            absence_check=getattr(function, "absence_check", None),
         ) for name, function in template.get_tests().items()])
 
 

@@ -43,6 +43,7 @@ class CheckHeadDetails(TestFunction):
 
 class HasForbiddenTag(TestFunction):
     """Checks for the presence of a forbidden HTML tag."""
+    absence_check = "Prohibition: passes while the forbidden tag is absent."
     @property
     def name(self):
         return "has_forbidden_tag"
@@ -84,7 +85,7 @@ class HasAttribute(TestFunction):
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
                 attribute: Annotated[str, Field(min_length=1, description=t("web_dev.html.has_attribute.param.attribute"))],
-                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.has_attribute.param.required_count"))] = 0,
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.html.has_attribute.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the search for specific attributes."""
         files = evaluation.files
@@ -135,6 +136,7 @@ class CheckAttributeAndValue(TestFunction):
 
 class CheckNoInlineStyles(TestFunction):
     """Ensures that no inline styles are used."""
+    absence_check = "Prohibition: passes while no element has an inline style."
     @property
     def name(self):
         return "check_no_inline_styles"
@@ -173,7 +175,7 @@ class CheckInternalLinks(TestFunction):
     minimum_files = 1
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
-                required_count: Annotated[int, Field(ge=0, description="O número mínimo de links válidos.")] = 0,
+                required_count: Annotated[int, Field(ge=1, description="O número mínimo de links válidos.")] = 1,
                 ) -> TestResult:
         """Executes the internal link verification."""
         files = evaluation.files
@@ -211,6 +213,7 @@ class CheckInternalLinks(TestFunction):
 
 class CheckNoUnclosedTags(TestFunction):
     """Detector for unclosed HTML tags."""
+    absence_check = "Prohibition: passes while no tag is left unclosed."
     @property
     def name(self):
         return "check_no_unclosed_tags"
@@ -279,7 +282,7 @@ class LinkPointsToPageWithQueryParam(TestFunction):
     def execute(self, evaluation: EvaluationInput, *,
                 target_page: Annotated[str, Field(min_length=1, description=t("web_dev.html.link_points_to_page_with_query_param.param.target_page"))],
                 query_param: Annotated[str, Field(min_length=1, description=t("web_dev.html.link_points_to_page_with_query_param.param.query_param"))],
-                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.link_points_to_page_with_query_param.param.required_count"))] = 0,
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.html.link_points_to_page_with_query_param.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the verification of links with query parameters."""
         files = evaluation.files
@@ -318,7 +321,7 @@ class CheckInternalLinksToArticle(TestFunction):
     minimum_files = 1
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
-                required_count: Annotated[int, Field(ge=0, description="O número mínimo de links válidos.")] = 0,
+                required_count: Annotated[int, Field(ge=1, description="O número mínimo de links válidos.")] = 1,
                 ) -> TestResult:
         """Executes the verification of links to articles."""
         files = evaluation.files
@@ -356,6 +359,7 @@ class CheckInternalLinksToArticle(TestFunction):
 
 class CheckTagNotInside(TestFunction):
     """Ensures that a tag is not inside another."""
+    absence_check = "Prohibition: passes while the child tag never appears inside the parent tag."
     @property
     def name(self):
         return "check_tag_not_inside"
@@ -388,6 +392,7 @@ class CheckTagNotInside(TestFunction):
 
 class CheckHeadingsSequential(TestFunction):
     """Checks if heading levels (h1-h6) are sequential."""
+    absence_check = "Rule over headings: passes while no heading level is skipped, including pages with fewer than two levels."
     @property
     def name(self):
         return "check_headings_sequential"
@@ -444,7 +449,7 @@ class HasTag(TestFunction):
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
                 tag: Annotated[str, Field(min_length=1, description=t("web_dev.html.has_tag.param.tag"))],
-                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.has_tag.param.required_count"))] = 0,
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.html.has_tag.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the tag presence verification."""
         files = evaluation.files
@@ -492,6 +497,7 @@ class CheckBootstrapLinked(TestFunction):
 
 class CheckBootstrapUsage(TestFunction):
     """Checks if Bootstrap is being used."""
+    absence_check = "Prohibition: passes while Bootstrap is not used."
     @property
     def name(self):
         return "check_bootstrap_usage"
@@ -577,6 +583,7 @@ class CheckCssLinked(TestFunction):
 
 class CheckAllImagesHaveAlt(TestFunction):
     """Checks if all images have an alt attribute."""
+    absence_check = "Rule over images: passes while no image lacks alt text, including pages without images."
     @property
     def name(self):
         return "check_all_images_have_alt"
@@ -621,8 +628,8 @@ class HasClass(TestFunction):
         return [re.compile(name.replace('*', r'\S*')) for name in (class_names or [])]
 
     def execute(self, evaluation: EvaluationInput, *,
-                class_names: Annotated[List[str], Field(default_factory=list, description=t("web_dev.html.has_class.param.class_names"))],
-                required_count: Annotated[int, Field(ge=0, description=t("web_dev.html.has_class.param.required_count"))] = 0,
+                class_names: Annotated[List[Annotated[str, Field(min_length=1)]], Field(min_length=1, description=t("web_dev.html.has_class.param.class_names"))],
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.html.has_class.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the search for CSS classes in the HTML."""
         files = evaluation.files

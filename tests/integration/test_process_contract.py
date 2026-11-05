@@ -323,7 +323,7 @@ def test_program_that_cannot_start_is_not_an_assessed_zero(docker_host):
 def test_preparation_uses_the_same_process_contract(docker_host):
     preparation = {"languages": {"python": {"setup_commands": [
         {"name": "explicit shell", "command": "sh -c 'echo prepared > ready.txt'"},
-        {"name": "argv", "command": "python3 probe.py && false"}]}}}
+        {"name": "argv", "command": "python3 probe.py '&&' false"}]}}}
     tests = [{"id": "ready", "type": "expect_file_artifact", "name": "ready", "parameters": {
         "program_command": "python3 probe.py", "artifact_path": "ready.txt", "expected_content": "prepared"}}]
     outcome = grade(docker_host, tests, ["probe.py"], preparation)

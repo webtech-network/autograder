@@ -12,6 +12,7 @@ from autograder.translations import t
 
 class CountUnusedCssClasses(TestFunction):
     """Analyzes unused CSS classes in the HTML."""
+    absence_check = "Limit: passes while no CSS class is left unused."
 
     file_parameters = ("html_file", "css_file")
     @property
@@ -140,6 +141,7 @@ class CheckFlexboxUsage(TestFunction):
 
 class CountOverUsage(TestFunction):
     """Penalizes over usage of a specific text."""
+    absence_check = "Limit: passes while the text appears at most max_allowed times."
     @property
     def name(self):
         return "count_over_usage"
@@ -199,6 +201,7 @@ class UsesRelativeUnits(TestFunction):
 
 class CheckIdSelectorOverUsage(TestFunction):
     """Counts ID selectors in the CSS to avoid over usage."""
+    absence_check = "Limit: passes while ID selectors appear at most max_allowed times."
     @property
     def name(self):
         return "check_id_selector_over_usage"
@@ -262,7 +265,7 @@ class HasStyle(TestFunction):
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
                 style: Annotated[str, Field(min_length=1, description=t("web_dev.css.has_style.param.style"))],
-                count: Annotated[int, Field(ge=0, description=t("web_dev.css.has_style.param.count"))] = 0,
+                count: Annotated[int, Field(ge=1, description=t("web_dev.css.has_style.param.count"))] = 1,
                 ) -> TestResult:
         """Executes the search for style rules."""
         files = evaluation.files
