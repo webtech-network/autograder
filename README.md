@@ -224,7 +224,7 @@ Validates HTML, CSS, and JavaScript files.
 | `has_attribute` | Check element attributes | `attribute`, `required_count` |
 | `css_uses_property` | Validate CSS rules | `prop`, `value` |
 
-And much more! Check the [WebDev Template Documentation](docs/template-library/web_dev.md) for the full list of tests.
+And much more! The generated [evaluator reference](docs/reference/evaluators.md) lists every evaluator with its parameters and defaults.
 #### 4. Custom Templates
 Trusted Python callers can pass their own test functions through the `templates`
 argument to `compile_definition()` or `evaluate_submission()`. Follow

@@ -24,6 +24,7 @@ from autograder import (
 )
 from autograder.models.contracts.catalog import CAPABILITY_DESCRIPTIONS
 from autograder.services.preparation import check_capabilities
+from autograder.template_library import BUILTIN_TEMPLATES
 from autograder.translations import translator
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -145,24 +146,20 @@ def test_every_discovery_evaluator_appears_with_correct_required_and_default_fla
             else:
                 expected = json.dumps(schema["properties"][name]["default"], ensure_ascii=False)
                 assert row["Default"] == f"`{expected}`", (evaluator.identifier, name)
-            assert row["Description"] == schema["properties"][name]["description"].replace("|", "\\|")
+            documented = row["Description"].replace("\\|", "|").replace("&lt;", "<")
+            assert documented == schema["properties"][name]["description"], (evaluator.identifier, name)
 
 
 def test_every_optional_discovery_parameter_publishes_the_default_compilation_applies():
-    for _, evaluator in evaluators():
+    """Factory defaults (``[]``) used to be missing from discovery, so the reference could not state them."""
+    for template, evaluator in evaluators():
+        contract = BUILTIN_TEMPLATES[template.identifier].get_test(evaluator.identifier).config_schema
         schema = evaluator.parameters_schema
-        optional = set(schema["properties"]) - set(schema.get("required", []))
-        normalized = compile_definition({
-            "schema_version": "1.0", "templates": ["input_output", "api", "webdev", "static_analysis"],
-            "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [{
-                "id": "x", "type": evaluator.identifier, "name": "x",
-                "parameters": {k: v for k, v in evaluator.sample_parameters.items() if k not in optional}}]}},
-        }) if evaluator.identifier != "forbidden_keyword" else None
-        for name in optional:
+        required = {name: evaluator.sample_parameters[name] for name in schema.get("required", [])}
+        normalized = contract.model_validate(required, strict=True).model_dump(mode="json")
+        for name in set(schema["properties"]) - set(required):
             assert "default" in schema["properties"][name], (evaluator.identifier, name)
-            if normalized is not None:
-                [test] = normalized.definition.criteria.base.tests
-                assert test.parameters[name] == schema["properties"][name]["default"], (evaluator.identifier, name)
+            assert normalized[name] == schema["properties"][name]["default"], (evaluator.identifier, name)
 
 
 def foreign_catalog_strings():
@@ -286,7 +283,7 @@ def test_no_hand_maintained_parameter_tables_remain_under_docs():
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if re.match(r"^\|\s*Parameter\s*\|", line):
                 offenders.append(f"{path.relative_to(ROOT)}:{number}")
-    assert offenders == []
+    assert not offenders
 
 
 def test_generated_pages_say_they_are_generated_and_are_in_the_nav():

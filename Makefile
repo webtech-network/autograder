@@ -23,8 +23,9 @@ verify: lint contracts docs test test-web ## Hermetic core/library path (no Dock
 lint: ## Pylint the shipped packages, scripts and examples, serially (.pylintrc)
 	$(PYTHON) -m pylint autograder web sandbox_manager execution_host github_action scripts examples
 
-contracts: ## Check that checked-in JSON Schemas match the models
+contracts: ## Check that checked-in JSON Schemas and docs/reference match the contracts
 	$(PYTHON) scripts/generate_contract_schemas.py --check
+	$(PYTHON) scripts/generate_reference.py --check
 
 docs: ## Check documentation links and API routes, then build the site strictly
 	$(PYTHON) scripts/validate_docs.py
