@@ -157,3 +157,15 @@ class TestSourceKeyCoverage:
             f"{len(missing)} translation key(s) used in code but missing from en.json:\n"
             + "\n".join(f"  - {k}" for k in sorted(missing))
         )
+
+
+class TestFeedbackKeyUsage:
+    """The report catalog holds only keys the default report renders (ONB-03)."""
+
+    def test_every_feedback_key_is_rendered(self, flat_catalogs):
+        source = (SOURCE_ROOT / "services" / "report" / "default_reporter.py").read_text(encoding="utf-8")
+        used = extract_translation_keys_from_source() | {
+            f"feedback.category.{name}" for name in ("base", "bonus", "penalty")
+            if 'f"feedback.category.{name}"' in source}
+        unused = {key for key in flat_catalogs["en"] if key.startswith("feedback.")} - used
+        assert not unused, f"Unused feedback keys: {sorted(unused)}"

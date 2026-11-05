@@ -15,8 +15,10 @@ focus.base[0].diff_score                  # points lost on the 0-100 scale
 ```
 
 `Focus` has `base`, `penalty` and `bonus` tuples (`None` for absent categories)
-of `FocusedTest(test_result, diff_score)`. `test_result` is the tree's own
-`TestOutcome`; both values are frozen.
+of `FocusedTest(test_result, diff_score, points)`. `test_result` is the tree's own
+`TestOutcome`; `points` is `criterion_points(category, score, share)`, the signed
+effect on the final score (negative for base and penalty points lost, positive
+for bonus points earned). All values are frozen.
 
 ## Impact
 

@@ -163,8 +163,11 @@ def test_feedback_repeating_flooded_reports_is_excerpted_and_keeps_the_final_sco
     content = outcome.feedback.content
     assert outcome.feedback.status == "completed"
     assert len(content.encode("utf-8")) <= MAX_FEEDBACK_BYTES
-    assert MARKER.search(content)
-    assert content.rstrip().endswith("0.00 / 100**")
+    marker = MARKER.search(content)
+    assert marker
+    # The score and its explanation open the report, so the excerpt's head keeps them.
+    assert content.index("**Final score: 0.00 / 100**") < content.index("100 − 100.00 = **0.00 / 100**") \
+        < marker.start()
 
 
 # ---------------------------------------------------------------- definition budget

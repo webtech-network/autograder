@@ -16,21 +16,21 @@
   "feedback": {
     "report_title": "Evaluation Report",
     "category": {
-      "base": "✅ Essential Requirements",
-      "bonus": "⭐ Extra Points",
-      "penalty": "❌ Points to Improve"
+      "base": "Requirements",
+      "bonus": "Bonus",
+      "penalty": "Penalties"
     },
     "report": {
-      "summary_header": "GRADING SUMMARY",
-      "tests_label": "Tests",
-      "passed_label": "passed",
-      "failed_label": "failed",
-      "file_label": "File",
-      "score_label": "Score",
-      "params_label": "Parameters",
-      "error_label": "Error",
-      "feedback_label": "Feedback",
-      "final_score_label": "Final Score",
+      "final_score": "Final score",
+      "summary_header": "Summary",
+      "category_column": "Category",
+      "passed_column": "Passed",
+      "points_column": "Points",
+      "points": "{points} points",
+      "points_of": "{points} of {cap} points",
+      "no_penalty": "no penalty applied",
+      "clamped": "the final score is limited to 0–100",
+      "all_passed": "✅ All tests passed ({count}).",
       "learning_resources_label": "Learning Resources"
     }
   },

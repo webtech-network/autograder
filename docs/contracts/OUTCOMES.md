@@ -104,7 +104,8 @@ Scoring arithmetic has one definition (`autograder/models/contracts/scoring.py`)
 effective sibling weights are ratios scaled to 100 (all-zero siblings share
 equally; a mixed holder splits 100 by `subjects_weight`), holder scores are the
 weighted mean of unrounded child scores, the final score is
-`base + bonus/100*cap - (100-penalty)/100*cap` clamped to 0–100, every reported
+`base + bonus/100*cap - (100-penalty)/100*cap` clamped to 0–100 (equivalently,
+100 plus each category's signed `criterion_points`), every reported
 score is rounded to two decimals and effective weights are not rounded. The
 canonical criterion order is base, bonus, penalty and, inside a holder, nested
 subjects before direct tests.

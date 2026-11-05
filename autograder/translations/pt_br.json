@@ -16,21 +16,21 @@
   "feedback": {
     "report_title": "Relatório de Avaliação",
     "category": {
-      "base": "✅ Requisitos Essenciais",
-      "bonus": "⭐ Pontos Extras",
-      "penalty": "❌ Pontos a Melhorar"
+      "base": "Requisitos",
+      "bonus": "Bônus",
+      "penalty": "Penalidades"
     },
     "report": {
-      "summary_header": "RESUMO DA AVALIAÇÃO",
-      "tests_label": "Testes",
-      "passed_label": "aprovados",
-      "failed_label": "reprovados",
-      "file_label": "Arquivo",
-      "score_label": "Nota",
-      "params_label": "Parâmetros",
-      "error_label": "Erro",
-      "feedback_label": "Feedback",
-      "final_score_label": "Nota Final",
+      "final_score": "Nota final",
+      "summary_header": "Resumo",
+      "category_column": "Categoria",
+      "passed_column": "Aprovados",
+      "points_column": "Pontos",
+      "points": "{points} pontos",
+      "points_of": "{points} de {cap} pontos",
+      "no_penalty": "nenhuma penalidade aplicada",
+      "clamped": "a nota final é limitada a 0–100",
+      "all_passed": "✅ Todos os testes aprovados ({count}).",
       "learning_resources_label": "Recursos de Aprendizado"
     }
   },
