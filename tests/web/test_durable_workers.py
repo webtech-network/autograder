@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 import os
 import platform
 from threading import Event
+from types import SimpleNamespace
 from time import monotonic
 from uuid import uuid4
 
@@ -252,3 +253,70 @@ async def test_burst_acceptance_is_separate_from_active_execution(pg_app, pg_cli
                                     .where(Submission.status == SubmissionStatus.PENDING, Submission.attempt_count == 0)) == 200
     print(f"200 durable acknowledgments in {elapsed:.3f}s; platform={platform.machine()}; logical_cpus={os.cpu_count()}; "
           "workload=1 tiny Python source/config per request; workers=disabled; no sandbox throughput claim")
+
+
+STATIC_DEFINITION = {"schema_version": "1.0", "templates": ["webdev"], "languages": ["python"],
+                     "criteria": {"base": {"weight": 100, "tests": [
+                         {"id": "tag", "type": "has_tag", "name": "Tag", "file": "index.html",
+                          "parameters": {"tag": "main"}}]}}}
+
+
+@pytest.mark.asyncio
+async def test_an_attempt_past_its_deadline_is_a_retryable_failure_without_lease_renewal(
+        pg_app, pg_client, postgres_sessions):
+    """A grading thread that never returns cannot hold its submission: at the attempt's
+    deadline (a static definition: the margin alone) the worker publishes a retryable
+    infrastructure failure, stops renewing the lease and never publishes the late result."""
+    await pg_client.post("/api/v1/configs", json={"external_assignment_id": "static", "definition": STATIC_DEFINITION})
+    response = await pg_client.post("/api/v1/submissions", json={
+        "external_assignment_id": "static", "external_user_id": "student", "username": "Student",
+        "files": [{"filename": "index.html", "content": "<main></main>"}]})
+    submission_id = response.json()["id"]
+    started, release, exited = Event(), Event(), Event()
+
+    def blocked(request):
+        started.set()
+        assert release.wait(timeout=30)
+        exited.set()
+        return failed_outcome(request, "EXECUTION_ERROR")  # never published: the attempt already ended
+
+    async def evaluate_blocked(request, capabilities):
+        return await asyncio.to_thread(blocked, request)
+
+    settings = pg_app.state.host.settings
+    worker = DurableWorker(postgres_sessions, settings, HostCapabilities(), evaluator=evaluate_blocked,
+                           attempt_margin=1.0)
+    claimed_at = monotonic()
+    try:
+        assert await asyncio.wait_for(worker.run_once(), timeout=15) is True
+        elapsed = monotonic() - claimed_at
+        assert started.is_set() and not exited.is_set()  # the thread is still blocked
+        assert 1.0 <= elapsed < 1.0 + settings.LEASE_SECONDS  # its deadline, not the thread, ended it
+        poll = (await pg_client.get(f"/api/v1/submissions/{submission_id}")).json()
+        assert poll["status"] == "failed" and poll["final_score"] is None
+        assert (poll["error"]["code"], poll["error"]["retryable"], poll["error"]["category"]) == (
+            "ATTEMPT_DEADLINE_EXCEEDED", True, "capability")
+        async with postgres_sessions() as session:
+            renewed_until = (await session.get(Submission, submission_id)).lease_until
+    finally:
+        release.set()
+    assert await asyncio.to_thread(exited.wait, 10)
+    async with postgres_sessions() as session:
+        row = await session.get(Submission, submission_id)
+        assert row.lease_until == renewed_until  # never renewed after the deadline
+        result = await session.scalar(select(SubmissionResult).where(SubmissionResult.submission_id == submission_id))
+        assert result.outcome["error"]["code"] == "ATTEMPT_DEADLINE_EXCEEDED"
+
+
+@pytest.mark.asyncio
+async def test_an_expired_attempt_stops_renewing_even_while_its_thread_runs(pg_app, pg_client, postgres_sessions):
+    _, submission_id, _ = await accept(pg_client)
+    request, attempt_id = await pg_app.state.host.worker.claim()
+    async with postgres_sessions() as session:
+        claimed = (await session.get(Submission, submission_id)).lease_until
+    expired = SimpleNamespace(remaining=lambda: 0.0)
+    renewer = asyncio.create_task(pg_app.state.host.worker.heartbeat(request.submission_id, attempt_id,
+                                                                     asyncio.Event(), expired))
+    await asyncio.wait_for(renewer, timeout=pg_app.state.host.settings.LEASE_SECONDS * 3)
+    async with postgres_sessions() as session:
+        assert (await session.get(Submission, submission_id)).lease_until == claimed
