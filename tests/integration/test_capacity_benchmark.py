@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from autograder.models.language import Language
 from sandbox_manager.ownership import LABEL_OWNER_PROCESS, process_start_ticks, read_boot_id
-from tests.sandbox_profiles import sandbox_config
+from tests.sandbox_profiles import TEST_IMAGES, sandbox_config
 
 REPO = Path(__file__).resolve().parents[2]
 BENCHMARK = REPO / "scripts" / "capacity_benchmark.py"
@@ -52,7 +52,7 @@ def database_url():
     docker = pytest.importorskip("docker")
     try:
         client = docker.from_env()
-        client.images.get("sandbox-py:latest")
+        client.images.get(TEST_IMAGES[Language.PYTHON])
         client.close()
     except Exception as exc:  # pylint: disable=broad-exception-caught
         pytest.skip(f"Docker with the sandbox images is required: {exc}")
@@ -79,6 +79,11 @@ def api_stack(directory, database_url, languages):
     listener.bind(("127.0.0.1", 0))
     listener.listen(256)
     url = f"http://127.0.0.1:{listener.getsockname()[1]}"
+    # The API never creates tables; migrate first, exactly as a deployment does.
+    migration = subprocess.run([sys.executable, "-m", "alembic", "-c", "web/alembic.ini", "upgrade", "head"],
+                               cwd=REPO, env=env, capture_output=True, text=True, timeout=120, check=False)
+    if migration.returncode:
+        pytest.fail("Migrating the benchmark database failed:\n" + migration.stderr)
     log_path = directory / "server.log"
     with log_path.open("w") as log:
         process = subprocess.Popen([sys.executable, "-m", "uvicorn", "web.main:app", "--fd", str(listener.fileno()),
