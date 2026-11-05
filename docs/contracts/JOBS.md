@@ -215,7 +215,7 @@ terminal. Workloads expand the checked-in v1 examples:
 
 | `--workload` | Definition | Submission | Executes in |
 | --- | --- | --- | --- |
-| `python-io` | `python-io.json` with `--tests` (5) stdin/stdout tests | distinct correct `main.py` | one sandbox per grading |
+| `python-io` | `python-io.json` with `--tests` (5) stdin/stdout tests | distinct correct `main.py`, plus `--files` (1) − 1 unused 2 KiB modules | one sandbox per grading |
 | `webdev` | `webdev.json` with `--criteria` (30) `has_tag` checks | distinct correct page of `--page-kb` (20) KiB | the API process |
 | `mix` | both, alternating, plus `--executions` (12) concurrent `POST /execute` | as above | shared sandbox pools |
 

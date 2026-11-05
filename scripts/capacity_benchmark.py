@@ -105,10 +105,16 @@ def webdev_definition(criteria):
     return _with_tests(definition, checks)
 
 
-def python_io_files(nonce):
-    """A correct program, distinct per submission so nothing can be shared by accident."""
-    return [{"filename": "main.py",
-             "content": f"# capacity benchmark {nonce}\na = int(input())\nb = int(input())\nprint(a + b)\n"}]
+def python_io_files(nonce, count=1):
+    """A correct program, distinct per submission so nothing can be shared by accident.
+
+    ``count`` above 1 adds unused 2 KiB modules under ``lib/``: a multi-file
+    project whose staging cost grows with its file count.
+    """
+    program = {"filename": "main.py",
+               "content": f"# capacity benchmark {nonce}\na = int(input())\nb = int(input())\nprint(a + b)\n"}
+    return [program] + [{"filename": f"lib/part_{index}.py",
+                         "content": f"# {nonce} part {index}\n".ljust(2047, "#") + "\n"} for index in range(1, count)]
 
 
 def webdev_files(nonce, page_kb):
@@ -141,7 +147,7 @@ def plan(args):
         for index in range(args.submissions):
             kind = kinds[index % len(kinds)]
             nonce = f"{run_id}-{index}"
-            files = python_io_files(nonce) if kind == "python-io" else webdev_files(nonce, args.page_kb)
+            files = python_io_files(nonce, args.files) if kind == "python-io" else webdev_files(nonce, args.page_kb)
             yield ALIASES[kind], files
     return definitions, submissions
 
@@ -486,6 +492,7 @@ async def benchmark(args):
     report = {
         "benchmark": {"workload": args.workload, "submissions": args.submissions, "runs": args.runs,
                       "python_io_tests": args.tests if args.workload != "webdev" else None,
+                      "python_io_files": args.files if args.workload != "webdev" else None,
                       "webdev_criteria": args.criteria if args.workload != "python-io" else None,
                       "webdev_page_kb": args.page_kb if args.workload != "python-io" else None,
                       "executions": args.executions, "allowed_failure_codes": sorted(args.allow_failure),
@@ -537,6 +544,8 @@ def parse_args(argv=None):
     parser.add_argument("--workload", choices=WORKLOADS, default="python-io")
     parser.add_argument("--submissions", type=int, default=200, help="burst size (default %(default)s)")
     parser.add_argument("--tests", type=int, default=5, help="python-io stdin/stdout tests (default %(default)s)")
+    parser.add_argument("--files", type=int, default=1,
+                        help="python-io files per submission: main.py plus 2 KiB modules (default %(default)s)")
     parser.add_argument("--criteria", type=int, default=30, help="webdev has_tag criteria (default %(default)s)")
     parser.add_argument("--page-kb", type=int, default=20, help="webdev page size (default %(default)s)")
     parser.add_argument("--executions", type=int, default=None,
@@ -562,7 +571,7 @@ def parse_args(argv=None):
     args.sandbox_label = args.sandbox_label or [SANDBOX_APP_LABEL]
     if not args.token:
         parser.error("an integration token is required (--token or AUTOGRADER_INTEGRATION_TOKEN)")
-    if min(args.submissions, args.tests, args.criteria, args.page_kb, args.runs) < 1 or args.executions < 0:
+    if min(args.submissions, args.tests, args.files, args.criteria, args.page_kb, args.runs) < 1 or args.executions < 0:
         parser.error("sizes and run counts must be positive")
     return args
 
