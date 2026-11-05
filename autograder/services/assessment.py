@@ -56,10 +56,14 @@ def assess_criteria(criteria: CriteriaTree, submission: Submission, *,
     """Return one validated result per criterion ID, in execution order."""
     prepared = prepare_criteria(criteria, submission, session)
     ai_group = [item for item in prepared if isinstance(item.test.test_function, AiTestFunction)]
+    # Ordinary evaluators (every process) run first, so the session's lifetime
+    # covers only their deadlines; the provider call has its own deadline.
+    results = {item.criterion_id: assess_one(item) for item in prepared
+               if not isinstance(item.test.test_function, AiTestFunction)}
     context = {name: submission.submission_files[name].content for name in sorted(submission.submission_files)}
-    ai_results = assess_many(ai_group, ai, context_files=context, locale=submission.locale) if ai_group else {}
-    return {item.criterion_id: ai_results[item.criterion_id] if item.criterion_id in ai_results else assess_one(item)
-            for item in prepared}
+    if ai_group:
+        results.update(assess_many(ai_group, ai, context_files=context, locale=submission.locale))
+    return {item.criterion_id: results[item.criterion_id] for item in prepared}
 
 
 def assess_one(item: PreparedCriterion) -> TestResult:

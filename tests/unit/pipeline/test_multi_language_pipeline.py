@@ -3,6 +3,8 @@
 import pytest
 from unittest.mock import Mock
 
+from autograder.models.capabilities import ExecutionBudget
+
 from autograder.models.dataclass.submission import Submission, SubmissionFile
 from autograder.models.language import Language
 
@@ -96,7 +98,7 @@ class TestPipelineLanguageHandling:
         from autograder.models.dataclass.submission import Submission, SubmissionFile
 
         # Mock sandbox manager
-        mock_manager = Mock()
+        mock_manager = Mock(running_timeout=900)
         mock_sandbox = Mock()
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
@@ -131,7 +133,9 @@ class TestPipelineLanguageHandling:
 
         # Verify sandbox was requested with Java language
         # This will be called during SandboxStep
-        mock_manager.get_sandbox.assert_called_once_with(Language.JAVA, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS)
+        mock_manager.get_sandbox.assert_called_once_with(
+            Language.JAVA, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS,
+            lifetime_seconds=ExecutionBudget(30.0, 1).session_seconds)
 
 
 class TestLanguageEnumValues:

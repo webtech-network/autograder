@@ -8,6 +8,7 @@ from autograder.models.contracts.definition import relative_path
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.evaluation_error import EvaluationError
 from execution_host.fixtures import S3FixtureProvider
+from sandbox_manager.errors import SandboxLifetimeExceeded
 from sandbox_manager.models.sandbox_models import DisposalStatus
 
 logger = logging.getLogger(__name__)
@@ -20,12 +21,23 @@ GRADING_CAPACITY_WAIT_SECONDS = 600.0
 
 
 class DockerSession:
+    """One sandbox that stops by itself ``budget.session_seconds`` after its grant.
+
+    Without a budget it lives the host's ``running_timeout``. A budget the host
+    does not grant is refused before waiting: ``EXECUTION_BUDGET_EXCEEDED``.
+    """
     fixture_root = "/tmp/app"
 
-    def __init__(self, manager, language, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS):
+    def __init__(self, manager, language, budget=None, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS):
         self.manager = manager
         self.language = language
-        self.sandbox = manager.get_sandbox(language, wait_seconds=wait_seconds)
+        try:
+            self.sandbox = manager.get_sandbox(language, wait_seconds=wait_seconds,
+                                               lifetime_seconds=budget.session_seconds if budget else None)
+        except SandboxLifetimeExceeded as exc:
+            raise EvaluationError("EXECUTION_BUDGET_EXCEEDED",
+                                  "The definition needs more execution time than this host grants.",
+                                  "capability") from exc
         self._closed = False
 
     def prepare_workdir(self, files):
@@ -66,6 +78,7 @@ class ConfiguredAssessmentProvider:
     cached. A rejected credential (HTTP 401) drops the client, so the next AI
     grading looks the key up again and a rotated secret needs no restart.
     ``secret_source`` and ``client_factory`` let a host (or a test) supply its own.
+    ``deadline_seconds`` bounds one ``assess`` call (connect plus the request).
     """
 
     def __init__(self, *, api_key=None, model=DEFAULT_AI_MODEL, secret_name=None, region="us-east-1",
@@ -86,6 +99,12 @@ class ConfiguredAssessmentProvider:
         return cls(api_key=config.get("OPENAI_API_KEY"), model=config.get("AUTOGRADER_AI_MODEL", DEFAULT_AI_MODEL),
                    secret_name=config.get("AUTOGRADER_AI_SECRET_NAME", "AUTOGRADER_OPENAI_KEY") if production else None,
                    region=config.get("AWS_REGION", "us-east-1"), **overrides)
+
+    @property
+    def deadline_seconds(self) -> float:
+        """The longest one ``assess`` call can take: connecting plus the one request, never retried."""
+        from execution_host import openai_provider
+        return openai_provider.CONNECT_TIMEOUT_SECONDS + openai_provider.REQUEST_TIMEOUT_SECONDS
 
     def _get_executor(self):
         with self._lock:
@@ -119,35 +138,48 @@ class ConfiguredAssessmentProvider:
 
 
 def docker_capabilities(manager):
-    """Borrow a host-owned manager; each acquisition returns an owned session."""
-    return HostCapabilities(execution=lambda language: DockerSession(manager, language),
+    """Borrow a host-owned local manager; each acquisition returns an owned session."""
+    return HostCapabilities(execution=lambda language, budget: DockerSession(manager, language, budget),
                             fixtures=S3FixtureProvider.from_environment(),
-                            ai=ConfiguredAssessmentProvider.from_environment())
+                            ai=ConfiguredAssessmentProvider.from_environment(),
+                            max_session_seconds=manager.running_timeout)
 
 
 class DockerHost:
     """Lazy, isolated manager for one host lifetime. Static work starts nothing.
 
-    The mode and the provider settings are validated at construction; the
-    sandbox configuration, Docker and the network are first used by the first
-    acquisition.
+    The mode, the provider settings and the sandbox configuration's host
+    maximum are validated at construction; Docker and the network are first
+    used by the first acquisition.
     """
     def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml",
                  api_token=None):
+        from sandbox_manager.models.pool_config import SandboxHostConfig
         if mode not in ("local", "remote"):
             raise ValueError(f"SANDBOX_MODE must be local or remote, got {mode!r}")
         self.mode = mode
         self.api_url = api_url
         self.api_token = api_token
         self.config_file = config_file
+        # The host maximum: the longest sandbox lifetime this host grants. A remote
+        # host reads the same sandbox_config.yml as its control service, which
+        # enforces it again (LIFETIME_EXCEEDED) at acquisition. Without the file
+        # (a library install) nothing is checked early; acquisition still refuses.
+        try:
+            self.max_session_seconds = SandboxHostConfig.load_from_yaml(config_file).running_timeout
+        except FileNotFoundError:
+            logger.warning("Sandbox configuration %s not found: execution budgets are checked only at "
+                           "sandbox acquisition", config_file)
+            self.max_session_seconds = None
         self._manager = None
         self._lock = Lock()
         self.capabilities = HostCapabilities(execution=self.acquire,
             fixtures=S3FixtureProvider.from_environment(),
-            ai=ConfiguredAssessmentProvider.from_environment())
+            ai=ConfiguredAssessmentProvider.from_environment(),
+            max_session_seconds=self.max_session_seconds)
 
-    def acquire(self, language, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS):
-        """An owned session; waits up to ``wait_seconds`` for a slot of the sandbox budget."""
+    def acquire(self, language, budget=None, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS):
+        """An owned session for ``budget``; waits up to ``wait_seconds`` for a slot of the sandbox budget."""
         with self._lock:
             if self._manager is None:
                 if self.mode == "remote":
@@ -159,7 +191,7 @@ class DockerHost:
                     # Reclaims containers of provably dead owners, then starts the pools.
                     self._manager = SandboxManager.from_config(SandboxHostConfig.load_from_yaml(self.config_file))
             manager = self._manager
-        return DockerSession(manager, language, wait_seconds)
+        return DockerSession(manager, language, budget, wait_seconds)
 
     def close(self):
         """Shut down the manager this host created. Safe to call repeatedly."""

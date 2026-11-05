@@ -1,13 +1,13 @@
 """Validate inputs without resources, then prepare the host-owned session."""
-from autograder.models.capabilities import ExecutionRequirements, FixtureNotFound, HostCapabilities
+from autograder.models.capabilities import (
+    SETUP_TIMEOUT_SECONDS, ExecutionRequirements, FixtureNotFound, HostCapabilities,
+)
 from autograder.models.contracts.definition import CompiledDefinition, SetupCommand
 from autograder.models.dataclass.submission import Submission
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.execution import ExecutionSession, StagedFixture
 from autograder.services.file_selection import select_files
 from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus, SandboxExhausted
-
-SETUP_TIMEOUT_SECONDS = 30
 
 
 def validate_submission(compiled: CompiledDefinition, submission: Submission, requirements: ExecutionRequirements) -> None:
