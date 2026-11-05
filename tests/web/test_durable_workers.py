@@ -232,6 +232,12 @@ async def test_cancelled_wrapper_drains_thread_renews_lease_and_publishes(pg_app
 
 @pytest.mark.asyncio
 async def test_burst_acceptance_is_separate_from_active_execution(pg_app, pg_client, postgres_sessions):
+    """200 concurrent acceptances commit durably while no worker runs.
+
+    In-process (ASGI transport, workers disabled): this does not measure HTTP
+    serving, worker throughput, sandbox capacity or acceptance under grading load.
+    scripts/capacity_benchmark.py measures those against a running stack.
+    """
     await pg_client.post("/api/v1/configs", json={"external_assignment_id": "assignment", "definition": definition()})
     payload = {"external_assignment_id": "assignment", "external_user_id": "student", "username": "Student",
                "files": [{"filename": "main.py", "content": "print('ok')"}]}
