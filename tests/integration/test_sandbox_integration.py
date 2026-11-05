@@ -29,36 +29,28 @@ class TestSandboxManagerIntegration(unittest.TestCase):
                 language=Language.PYTHON,
                 image=TEST_IMAGES[Language.PYTHON],
                 pool_size=2,
-                scale_limit=5,
-                idle_timeout=300,
                 running_timeout=60
             ),
             SandboxPoolConfig(
                 language=Language.JAVA,
                 image=TEST_IMAGES[Language.JAVA],
                 pool_size=1,
-                scale_limit=3,
-                idle_timeout=300,
                 running_timeout=60
             ),
             SandboxPoolConfig(
                 language=Language.NODE,
                 image=TEST_IMAGES[Language.NODE],
                 pool_size=1,
-                scale_limit=3,
-                idle_timeout=300,
                 running_timeout=60
             ),
             SandboxPoolConfig(
                 language=Language.CPP,
                 image=TEST_IMAGES[Language.CPP],
                 pool_size=1,
-                scale_limit=3,
-                idle_timeout=300,
                 running_timeout=60
             )
         ]
-        cls.manager = start_manager(pool_configs)
+        cls.manager = start_manager(pool_configs, max_sandboxes=8)
         # Give containers time to start
         time.sleep(2)
 

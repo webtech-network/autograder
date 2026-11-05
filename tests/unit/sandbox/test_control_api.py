@@ -1,6 +1,7 @@
 """Private control API: token, handle ownership, replay, expiry and error codes."""
 import base64
 import logging
+from concurrent.futures import as_completed
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -8,7 +9,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from sandbox_manager.api import ControlSettings, HandleRegistry, create_app
-from sandbox_manager.errors import ArtifactReadError, RuntimeUnavailableError, SandboxInvalidatedError
+from sandbox_manager.errors import (
+    ArtifactReadError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
+)
 from sandbox_manager.language_pool import SandboxUnavailableError
 from autograder.models.process import MAX_STDIN_BYTES, ProcessRequest, ProcessResult, ProcessStatus
 from sandbox_manager.models.api_models import MAX_BODY_BYTES
@@ -40,20 +43,25 @@ class FakeSandbox:
 
 
 class FakeManager:
-    def __init__(self, scale_limit=3):
-        self.language_pools = {Language.PYTHON: SimpleNamespace(config=SimpleNamespace(scale_limit=scale_limit, running_timeout=120))}
+    def __init__(self):
+        self.language_pools = {Language.PYTHON: SimpleNamespace(config=SimpleNamespace(running_timeout=120))}
         self.acquired = []
         self.disposed = []
         self.dispose_result = None
         self.dispose_error = None
         self.unavailable = False
+        self.saturated = False
+        self.waits = []
         self.shutdown = Mock()
 
-    def get_sandbox(self, language):
+    def get_sandbox(self, language, wait_seconds=0.0):
+        self.waits.append(wait_seconds)
         if language not in self.language_pools:
             raise RuntimeUnavailableError("no runtime")
         if self.unavailable:
-            raise SandboxUnavailableError("busy")
+            raise SandboxUnavailableError("shut down")
+        if self.saturated:
+            raise SandboxCapacityTimeout("full")
         sandbox = FakeSandbox(language)
         self.acquired.append(sandbox)
         return sandbox
@@ -72,6 +80,9 @@ class FakeManager:
 
     def get_pool_stats(self):
         return {"python": {"quarantined": 0}}
+
+    def get_budget_stats(self):
+        return {"max_sandboxes": 3, "held": len(self.acquired) - len(self.disposed), "waiting": 0}
 
 
 @pytest.fixture
@@ -147,11 +158,17 @@ def test_refuses_multiple_workers(manager):
 
 def test_settings_from_environment(monkeypatch):
     monkeypatch.setenv("SANDBOX_API_TOKEN", "t")
-    monkeypatch.setenv("SANDBOX_MAX_HANDLES", "7")
     monkeypatch.setenv("WEB_CONCURRENCY", "4")
     settings = ControlSettings.from_env()
-    assert settings.token == "t" and settings.max_handles == 7 and settings.worker_count == 4
+    assert settings.token == "t" and settings.worker_count == 4
     assert "token='t'" not in repr(settings)
+
+
+def test_removed_handle_limit_setting_is_rejected_at_startup(monkeypatch):
+    monkeypatch.setenv("SANDBOX_API_TOKEN", "t")
+    monkeypatch.setenv("SANDBOX_MAX_HANDLES", "7")
+    with pytest.raises(RuntimeError, match="SANDBOX_MAX_HANDLES was removed.*max_sandboxes"):
+        ControlSettings.from_env()
 
 
 # ------------------------------------------------------------------ handles
@@ -191,14 +208,19 @@ def test_request_id_is_required_and_validated(api):
     assert api.post("/sandboxes/python", json={"request_id": "x"}, headers=AUTH).status_code == 422
 
 
-def test_max_handles_is_enforced(api, manager):
-    for index in range(3):  # Default limit = sum of pool scale limits.
-        assert acquire(api, f"request-000{index}").status_code == 200
-    response = acquire(api, "request-0009")
-    assert response.status_code == 429 and code(response) == "HANDLE_LIMIT"
-    handle = acquire(api, "request-0000").json()["sandbox_id"]  # Replay still works.
-    api.delete(f"/sandboxes/{handle}", headers=AUTH)
-    assert acquire(api, "request-0009").status_code == 200
+def test_acquire_passes_the_requested_wait_and_reports_capacity_timeout(api, manager):
+    response = api.post("/sandboxes/python", json={"request_id": "request-0001", "wait_seconds": 12.5}, headers=AUTH)
+    assert response.status_code == 200 and manager.waits == [12.5]
+    manager.saturated = True
+    response = acquire(api, "request-0002")
+    assert response.status_code == 503 and code(response) == "CAPACITY_TIMEOUT"
+    assert manager.waits == [12.5, 0.0]
+    manager.saturated = False
+    assert acquire(api, "request-0002").status_code == 200  # A failed attempt is not remembered.
+    for wait in (-1, 901):
+        response = api.post("/sandboxes/python", json={"request_id": "request-0003", "wait_seconds": wait},
+                            headers=AUTH)
+        assert response.status_code == 422 and code(response) == "INVALID_REQUEST"
 
 
 def test_pool_exhaustion_and_unknown_language(api, manager):
@@ -383,7 +405,7 @@ def test_pool_disposed_sandbox_reports_expired_and_is_reaped(api, manager):
 
 
 def test_tombstones_are_bounded(manager, clock):
-    registry = HandleRegistry(manager, max_handles=100, ttl=60, tombstone_ttl=10, max_tombstones=2, clock=clock)
+    registry = HandleRegistry(manager, ttl=60, tombstone_ttl=10, max_tombstones=2, clock=clock)
     handles = [registry.acquire(Language.PYTHON, f"request-{i:04d}") for i in range(4)]
     for handle in handles:
         registry.close(handle.handle_id)
@@ -397,7 +419,7 @@ def test_tombstones_are_bounded(manager, clock):
 
 
 def test_in_flight_handles_are_not_reaped(manager, clock):
-    registry = HandleRegistry(manager, max_handles=10, ttl=5, clock=clock)
+    registry = HandleRegistry(manager, ttl=5, clock=clock)
     handle = registry.acquire(Language.PYTHON, "request-0001")
     with registry.use(handle.handle_id):
         clock.now += 100
@@ -413,3 +435,95 @@ def test_shutdown_forgets_handles_and_shuts_manager_down(manager, clock):
         acquire(client)
     manager.shutdown.assert_called_once()
     assert app.state.registry.stats()["handles"] == 0
+
+
+# ------------------------------------------------------------------ waiting on the real budget
+
+@pytest.fixture
+def budget_api():
+    """The control API over a real manager (fake Docker) with a one-sandbox budget."""
+    from concurrent.futures import ThreadPoolExecutor
+    from sandbox_manager.manager import SandboxManager
+    from tests.unit.sandbox.fakes import FakeDocker, owner, pool_config
+
+    docker_client = FakeDocker()
+    real = SandboxManager([pool_config()], docker_client, max_sandboxes=1, owner=owner(), reclaim_orphans=False,
+                          monitor_interval=3600)
+    settings = ControlSettings(token=TOKEN, reaper_interval_seconds=3600)
+    with TestClient(create_app(settings, lambda: real)) as client, ThreadPoolExecutor(64) as executor:
+        yield client, real, docker_client, executor
+    assert docker_client.live == {}
+
+
+def wait_for_waiters(manager, count):
+    with manager.budget.condition:
+        assert manager.budget.condition.wait_for(lambda: len(manager.budget._waiters) == count, timeout=30)  # pylint: disable=protected-access
+
+
+def waiting_acquire(client, request_id, wait_seconds=30):
+    return client.post("/sandboxes/python", json={"request_id": request_id, "wait_seconds": wait_seconds},
+                       headers=AUTH)
+
+
+def test_waiting_acquisitions_never_starve_the_delete_that_frees_a_slot(budget_api):
+    """More waiters than the route threadpool (40) still leave DELETE and /stats responsive."""
+    client, real, _, executor = budget_api
+    first = acquire(client, "request-holder").json()["sandbox_id"]
+    waiters = [executor.submit(waiting_acquire, client, f"request-{index:04d}") for index in range(45)]
+    wait_for_waiters(real, 45)
+    assert client.get("/stats", headers=AUTH).json()["budget"] == {"max_sandboxes": 1, "held": 1, "waiting": 45}
+    assert client.delete(f"/sandboxes/{first}", headers=AUTH).json() == {"status": "disposed"}
+    served = 0
+    pending = set(waiters)
+    while pending:  # Each grant is released again, so every waiter is served in turn.
+        done = next(as_completed(pending, timeout=30))
+        pending.discard(done)
+        response = done.result()
+        assert response.status_code == 200, response.text
+        assert client.delete(f"/sandboxes/{response.json()['sandbox_id']}", headers=AUTH).status_code == 200
+        served += 1
+    assert served == 45
+
+
+def test_a_replay_of_a_waiting_acquisition_gets_the_same_handle(budget_api):
+    client, real, docker_client, executor = budget_api
+    first = acquire(client, "request-holder").json()["sandbox_id"]
+    original = executor.submit(waiting_acquire, client, "request-replayed")
+    wait_for_waiters(real, 1)
+    replay = executor.submit(waiting_acquire, client, "request-replayed")  # Lost-response retry meanwhile.
+    client.delete(f"/sandboxes/{first}", headers=AUTH)
+    handles = {original.result(timeout=30).json()["sandbox_id"], replay.result(timeout=30).json()["sandbox_id"]}
+    assert len(handles) == 1 and len(docker_client.live) == 1  # One container for one request id.
+    client.delete(f"/sandboxes/{handles.pop()}", headers=AUTH)
+
+
+def test_capacity_timeout_is_a_defined_503_and_leaves_no_handle(budget_api):
+    client, _, _, _ = budget_api
+    first = acquire(client, "request-holder").json()["sandbox_id"]
+    response = waiting_acquire(client, "request-starved", 0.05)
+    assert response.status_code == 503 and code(response) == "CAPACITY_TIMEOUT"
+    assert client.get("/stats", headers=AUTH).json()["handles"]["handles"] == 1
+    client.delete(f"/sandboxes/{first}", headers=AUTH)
+    assert waiting_acquire(client, "request-starved", 0).status_code == 200  # Not remembered as failed.
+    assert client.get("/stats", headers=AUTH).json()["budget"]["held"] == 1
+    for handle in list(client.app.state.registry._handles):  # pylint: disable=protected-access
+        client.delete(f"/sandboxes/{handle}", headers=AUTH)
+
+
+def test_acquisitions_are_not_serialized_by_the_registry():
+    """Two cold acquisitions are inside Docker create at the same time."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    from sandbox_manager.manager import SandboxManager
+    from tests.unit.sandbox.fakes import FakeDocker, owner, pool_config
+
+    docker_client = FakeDocker(gvisor=True)
+    together = threading.Barrier(2, timeout=30)
+    docker_client.on_run = lambda _kwargs: together.wait()
+    real = SandboxManager([pool_config()], docker_client, max_sandboxes=2, owner=owner(), reclaim_orphans=False,
+                          monitor_interval=3600)
+    with TestClient(create_app(ControlSettings(token=TOKEN, reaper_interval_seconds=3600), lambda: real)) as client:
+        with ThreadPoolExecutor(2) as executor:
+            responses = list(executor.map(lambda i: acquire(client, f"request-{i:04d}"), range(2)))
+    assert [response.status_code for response in responses] == [200, 200]
+    assert docker_client.live == {}

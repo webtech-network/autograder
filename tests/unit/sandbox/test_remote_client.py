@@ -8,11 +8,14 @@ import requests
 
 from execution_host.docker import DockerSession
 from autograder.models.process import ProcessRequest, ProcessStatus
-from sandbox_manager.errors import ArtifactReadError, RuntimeUnavailableError, SandboxInvalidatedError
+from sandbox_manager.errors import (
+    ArtifactReadError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
+)
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS
 from sandbox_manager.models.sandbox_models import DisposalStatus
 from autograder.models.language import Language
 from sandbox_manager.remote_client import (
+    ACQUIRE_TIMEOUT_SECONDS,
     ArtifactNotFound,
     RemoteSandboxContainer,
     RemoteSandboxError,
@@ -79,6 +82,21 @@ def test_acquire_http_errors_are_not_retried(manager):
     manager._session.post = Mock(return_value=error(503, "SANDBOX_UNAVAILABLE"))  # pylint: disable=protected-access
     with pytest.raises(SandboxUnavailable):
         manager.get_sandbox(Language.PYTHON)
+    assert manager._session.post.call_count == 1  # pylint: disable=protected-access
+
+
+def test_acquire_lets_the_service_wait_for_a_budget_slot(manager):
+    manager._session.post = Mock(return_value=acquired())  # pylint: disable=protected-access
+    manager.get_sandbox(Language.PYTHON, wait_seconds=600)
+    call = manager._session.post.call_args  # pylint: disable=protected-access
+    assert call.kwargs["json"]["wait_seconds"] == 600
+    assert call.kwargs["timeout"][1] == 600 + ACQUIRE_TIMEOUT_SECONDS  # The read deadline covers the wait.
+
+
+def test_capacity_timeout_raises_the_local_capacity_error(manager):
+    manager._session.post = Mock(return_value=error(503, "CAPACITY_TIMEOUT"))  # pylint: disable=protected-access
+    with pytest.raises(SandboxCapacityTimeout):
+        manager.get_sandbox(Language.PYTHON, wait_seconds=1)
     assert manager._session.post.call_count == 1  # pylint: disable=protected-access
 
 

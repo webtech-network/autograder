@@ -9,6 +9,8 @@ Limits agree with the operations behind them:
   the kernel's per-argument size); its timeout is further bounded by the
   pool's ``running_timeout`` and each output stream by ``max_output_bytes``;
 * artifact reads use the local ``extract_file`` default of 1 MiB;
+* an acquisition waits for a slot of the host sandbox budget for at most
+  :data:`MAX_ACQUIRE_WAIT_SECONDS`;
 * the client's transport deadline for a process is its timeout plus
   :data:`TRANSPORT_MARGIN_SECONDS`.
 """
@@ -32,6 +34,7 @@ MAX_ARTIFACT_BYTES = 1024 * 1024
 MAX_BODY_BYTES = 48 * 1024 * 1024
 TRANSPORT_MARGIN_SECONDS = 15
 REQUEST_ID_PATTERN = r"^[A-Za-z0-9_-]{8,128}$"
+MAX_ACQUIRE_WAIT_SECONDS = 900
 
 
 def _utf8_size(value: str) -> int:
@@ -39,8 +42,13 @@ def _utf8_size(value: str) -> int:
 
 
 class AcquireSandboxRequest(BaseModel):
-    """``request_id`` makes acquisition replay-safe after a lost response."""
+    """``request_id`` makes acquisition replay-safe after a lost response.
+
+    ``wait_seconds`` is how long the caller accepts to wait for a budget slot
+    before ``503 CAPACITY_TIMEOUT``.
+    """
     request_id: str = Field(pattern=REQUEST_ID_PATTERN)
+    wait_seconds: float = Field(default=0.0, ge=0, le=MAX_ACQUIRE_WAIT_SECONDS)
 
 
 class AcquireSandboxResponse(BaseModel):

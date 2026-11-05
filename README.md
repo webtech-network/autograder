@@ -259,8 +259,9 @@ To run the system:
   (`make sandbox-list`) must be present before a host starts: `docker pull` the
   published references, or `make sandbox-build-all` to build them from this checkout.
 - **Web API:** `export SANDBOX_API_TOKEN=<long random secret>` then
-  `make start-autograder` (Docker and Docker Compose; sandbox pools are configured
-  in `sandbox_config.yml`). See [Run your first grading workflow](docs/getting-started/first-grading-workflow.md).
+  `make start-autograder` (Docker and Docker Compose; the host-wide sandbox budget
+  `general.max_sandboxes` and the runtimes are configured in `sandbox_config.yml`;
+  size the budget by CPU, about 8 on 12 CPUs, see [JOBS.md](docs/contracts/JOBS.md#sandbox-capacity)). See [Run your first grading workflow](docs/getting-started/first-grading-workflow.md).
 - **GitHub Action:** see the [GitHub Action](#github-action) section.
 
 ---

@@ -72,8 +72,7 @@ FILES = {"probe.py": PROBE, "hang.py": HANG, "orphan.py": ORPHAN, "check.py": CH
 
 
 def pool(**overrides):
-    values = dict(language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0, scale_limit=4,
-                  idle_timeout=300, running_timeout=120)
+    values = dict(language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0, running_timeout=120)
     values.update(overrides)
     return SandboxPoolConfig(**values)
 
@@ -100,11 +99,11 @@ def serve(app):
 
 @pytest.fixture(scope="module")
 def managers():
-    local = SandboxManager([pool()])
+    local = SandboxManager([pool()], max_sandboxes=4)
     settings = ControlSettings(token=TOKEN, reaper_interval_seconds=1)
     try:
         # The control service owns (and shuts down) its own real SandboxManager.
-        with serve(create_app(settings, manager_factory=lambda: SandboxManager([pool()]))) as url:
+        with serve(create_app(settings, manager_factory=lambda: SandboxManager([pool()], max_sandboxes=4))) as url:
             remote = RemoteSandboxManager(url, TOKEN)
             yield {"local": local, "remote": remote}
             remote.shutdown()

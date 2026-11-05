@@ -1,4 +1,4 @@
-"""Local sandbox manager: per-language pools under one owner lease.
+"""Local sandbox manager: per-language pools under one owner lease and one sandbox budget.
 
 The host that constructs a :class:`SandboxManager` owns its lifetime and must
 call :meth:`SandboxManager.shutdown` (for example in a ``finally`` block or an
@@ -13,8 +13,8 @@ from typing import Dict, Iterable, Optional
 import docker
 
 from sandbox_manager.errors import RuntimeImageError, RuntimeUnavailableError
-from sandbox_manager.language_pool import LanguagePool
-from sandbox_manager.models.pool_config import SandboxPoolConfig
+from sandbox_manager.language_pool import LanguagePool, SandboxBudget
+from sandbox_manager.models.pool_config import SandboxHostConfig, SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import DisposalStatus
 from autograder.models.language import Language
 from sandbox_manager.ownership import OwnerIdentity, reclaim_dead_owners
@@ -49,10 +49,14 @@ def verify_runtime_images(client: docker.DockerClient, configs: Iterable[Sandbox
 
 
 class SandboxManager:
-    """Owns the language pools, their monitor thread and this process's owner lease."""
+    """Owns the language pools, their shared budget, the monitor thread and this process's owner lease.
+
+    ``max_sandboxes`` (N) bounds creating + active + closing + quarantined
+    sandboxes across every language; acquisitions beyond it wait.
+    """
 
     def __init__(self, pool_configs: Iterable[SandboxPoolConfig], client: Optional[docker.DockerClient] = None,
-                 *, owner: Optional[OwnerIdentity] = None, reclaim_orphans: bool = True,
+                 *, max_sandboxes: int, owner: Optional[OwnerIdentity] = None, reclaim_orphans: bool = True,
                  monitor_interval: float = 1.0):
         configs = list(pool_configs)
         if not configs:
@@ -60,6 +64,7 @@ class SandboxManager:
         for config in configs:
             if not isinstance(config.language, Language):
                 raise ValueError(f"Unsupported language: {config.language}")
+        self.budget = SandboxBudget(max_sandboxes)
         self._owns_client = client is None
         self.client = client or docker.from_env()
         try:
@@ -72,7 +77,7 @@ class SandboxManager:
         if reclaim_orphans:
             reclaim_dead_owners(self.client, self.owner)
         self.language_pools: Dict[Language, LanguagePool] = {
-            config.language: LanguagePool(config.language, config, self.client, self.owner)
+            config.language: LanguagePool(config.language, config, self.client, self.owner, budget=self.budget)
             for config in configs
         }
         self._stop = threading.Event()
@@ -85,15 +90,25 @@ class SandboxManager:
                                                daemon=True)
         self.monitor_thread.start()
 
+    @classmethod
+    def from_config(cls, config: SandboxHostConfig, client: Optional[docker.DockerClient] = None,
+                    **options) -> "SandboxManager":
+        """A manager for a loaded ``sandbox_config.yml``."""
+        return cls(config.pools, client, max_sandboxes=config.max_sandboxes, **options)
+
     def _pool(self, lang: Language) -> LanguagePool:
         pool = self.language_pools.get(lang)
         if pool is None:
             raise RuntimeUnavailableError(f"No sandbox runtime is configured for {lang.value}")
         return pool
 
-    def get_sandbox(self, lang: Language) -> SandboxContainer:
-        """Acquire a fresh sandbox; the caller must :meth:`dispose` it."""
-        return self._pool(lang).acquire()
+    def get_sandbox(self, lang: Language, wait_seconds: float = 0.0) -> SandboxContainer:
+        """Acquire a fresh sandbox; the caller must :meth:`dispose` it.
+
+        Waits up to ``wait_seconds`` for a budget slot, then raises
+        :class:`~sandbox_manager.errors.SandboxCapacityTimeout`.
+        """
+        return self._pool(lang).acquire(wait_seconds)
 
     def dispose(self, sandbox: SandboxContainer) -> DisposalStatus:
         """Destroy a used sandbox. Idempotent; see :class:`DisposalStatus`."""
@@ -103,9 +118,9 @@ class SandboxManager:
         return pool.dispose(sandbox)
 
     @contextmanager
-    def acquire_sandbox(self, lang: Language):
+    def acquire_sandbox(self, lang: Language, wait_seconds: float = 0.0):
         """Acquire a sandbox and dispose it when the block exits."""
-        sandbox = self.get_sandbox(lang)
+        sandbox = self.get_sandbox(lang, wait_seconds)
         try:
             yield sandbox
         finally:
@@ -123,6 +138,8 @@ class SandboxManager:
             self.monitor_thread.join(timeout=max(30.0, self._monitor_interval * 5))
             if self.monitor_thread.is_alive():
                 logger.error("[SandboxManager] Pool monitor did not stop within the shutdown timeout")
+        for pool in self.language_pools.values():
+            pool.close()  # No pool may take slots another pool's shutdown frees.
         for language, pool in self.language_pools.items():
             try:
                 pool.shutdown()
@@ -135,6 +152,10 @@ class SandboxManager:
     def get_pool_stats(self) -> dict:
         """Per-language pool statistics, including quarantined containers."""
         return {language.value: pool.get_stats() for language, pool in self.language_pools.items()}
+
+    def get_budget_stats(self) -> dict:
+        """The host budget: ``max_sandboxes``, slots ``held`` and acquisitions ``waiting``."""
+        return self.budget.stats()
 
     def __enter__(self):
         return self

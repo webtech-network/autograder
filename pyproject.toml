@@ -26,6 +26,8 @@ dependencies = [
 server = [
     "aiosqlite~=0.20.0",
     "alembic~=1.13.0",
+    # Imported directly by the sandbox control API (its acquisition capacity limiter).
+    "anyio~=4.16",
     "asyncpg~=0.30",
     "fastapi~=0.115.0",
     "sqlalchemy[asyncio]~=2.0.0",

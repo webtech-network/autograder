@@ -228,14 +228,14 @@ see "Owner leases and orphan reclamation" in [SANDBOX.md](../contracts/SANDBOX.m
 docker compose exec postgres psql -U autograder
 ```
 
-## Sandbox pool tuning
+## Sandbox budget tuning
 
 ```yaml
 # sandbox_config.yml
 general:
-  pool_size: 5          # warm containers per language
-  scale_limit: 20       # maximum containers per language (quarantined ones count)
-  idle_timeout: 300
+  max_sandboxes: 8      # host-wide budget N for all languages, grading and /execute;
+                        # creating, active, closing and quarantined sandboxes count
+  pool_size: 1          # warm idle containers per language (outside N)
 runtimes:               # only listed languages get a pool
   python: ghcr.io/webtech-network/autograder-sandbox-python:<tag>   # make sandbox-list
 ```

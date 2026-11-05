@@ -38,6 +38,8 @@ class FakeContainers:
 
     def run(self, **kwargs):
         self.run_calls.append(kwargs)
+        if self.client.on_run is not None:
+            self.client.on_run(kwargs)  # Tests block or observe creation here (outside any pool lock).
         if kwargs.get("runtime") == "runsc" and not self.client.gvisor:
             raise docker.errors.APIError("unknown or invalid runtime name: runsc")
         if self.client.run_failure is not None:
@@ -85,16 +87,15 @@ class FakeDocker:
         self.gvisor = gvisor
         self.live = {}
         self.run_failure = None
+        self.on_run = None
         self.containers = FakeContainers(self)
         self.images = FakeImages()
         self.close = Mock()
 
 
-def pool_config(language=Language.PYTHON, pool_size=0, scale_limit=2, running_timeout=60,
-                idle_timeout=300, disposal_attempts=3):
-    return SandboxPoolConfig(language=language, image=TEST_IMAGES[language], pool_size=pool_size, scale_limit=scale_limit,
-                             idle_timeout=idle_timeout, running_timeout=running_timeout,
-                             disposal_attempts=disposal_attempts)
+def pool_config(language=Language.PYTHON, pool_size=0, running_timeout=60, disposal_attempts=3):
+    return SandboxPoolConfig(language=language, image=TEST_IMAGES[language], pool_size=pool_size,
+                             running_timeout=running_timeout, disposal_attempts=disposal_attempts)
 
 
 def owner(**overrides):

@@ -33,7 +33,7 @@ def service():
 
     def factory():
         holder["manager"] = SandboxManager([SandboxPoolConfig(
-            language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0, scale_limit=3, idle_timeout=300, running_timeout=120)], client)
+            language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0, running_timeout=120)], client, max_sandboxes=3)
         return holder["manager"]
 
     settings = ControlSettings(token=TOKEN, handle_ttl_seconds=3, reaper_interval_seconds=0.5)

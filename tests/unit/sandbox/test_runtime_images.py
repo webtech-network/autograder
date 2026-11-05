@@ -122,7 +122,7 @@ def test_publish_stops_when_it_cannot_tell_whether_a_reference_exists(monkeypatc
 # ----- a host refuses to start with a missing or mismatched image ---------------------
 
 def start(client, *configs):
-    return SandboxManager(list(configs), client, owner=owner(), reclaim_orphans=False, monitor_interval=60)
+    return SandboxManager(list(configs), client, max_sandboxes=2, owner=owner(), reclaim_orphans=False, monitor_interval=60)
 
 
 def test_missing_runtime_image_fails_at_startup_and_creates_nothing():
@@ -174,7 +174,8 @@ def test_startup_failure_closes_a_client_the_manager_created(monkeypatch):
     client.images.missing.add(TEST_IMAGES[Language.PYTHON])
     monkeypatch.setattr(docker, "from_env", lambda: client)
     with pytest.raises(RuntimeImageError):
-        SandboxManager([pool_config()], owner=owner(), reclaim_orphans=False, monitor_interval=60)
+        SandboxManager([pool_config()], max_sandboxes=2, owner=owner(), reclaim_orphans=False,
+                       monitor_interval=60)
     client.close.assert_called_once()
 
 
@@ -182,5 +183,5 @@ def test_a_custom_image_needs_only_the_languages_label():
     client = FakeDocker()
     client.images.labels["registry.local/py:3.13"] = {RUNTIME_LANGUAGES_LABEL: "python"}
     config = SandboxPoolConfig(language=Language.PYTHON, image="registry.local/py:3.13", pool_size=0,
-                               scale_limit=1, idle_timeout=60, running_timeout=60)
+                               running_timeout=60)
     start(client, config).shutdown()

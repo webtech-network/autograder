@@ -264,36 +264,32 @@ class TestLanguagePoolNaming(unittest.TestCase):
     def test_build_container_name_format(self):
         """Test that _build_container_name produces ag-sbx-{lang}-{pool8}-{seq4}."""
         import re
-        from sandbox_manager.language_pool import LanguagePool
+        from sandbox_manager.language_pool import LanguagePool, SandboxBudget
         from sandbox_manager.models.pool_config import SandboxPoolConfig
 
         config = SandboxPoolConfig(
             language=Language.PYTHON,
             image=TEST_IMAGES[Language.PYTHON],
             pool_size=1,
-            scale_limit=2,
-            idle_timeout=300,
             running_timeout=60
         )
-        pool = LanguagePool(Language.PYTHON, config, client=None)
+        pool = LanguagePool(Language.PYTHON, config, client=None, budget=SandboxBudget(2))
 
         name = pool._build_container_name()
         assert re.match(r'^ag-sbx-python-[a-f0-9]{8}-0001$', name), f"Unexpected name: {name}"
 
     def test_build_container_name_increments(self):
         """Test that sequential calls produce incrementing sequence numbers."""
-        from sandbox_manager.language_pool import LanguagePool
+        from sandbox_manager.language_pool import LanguagePool, SandboxBudget
         from sandbox_manager.models.pool_config import SandboxPoolConfig
 
         config = SandboxPoolConfig(
             language=Language.JAVA,
             image=TEST_IMAGES[Language.JAVA],
             pool_size=1,
-            scale_limit=2,
-            idle_timeout=300,
             running_timeout=60
         )
-        pool = LanguagePool(Language.JAVA, config, client=None)
+        pool = LanguagePool(Language.JAVA, config, client=None, budget=SandboxBudget(2))
 
         name1 = pool._build_container_name()
         name2 = pool._build_container_name()

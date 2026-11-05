@@ -443,3 +443,21 @@ and `LEGACY_UNVERIFIED`. `EXECUTION_ERROR` is the single unexpected-failure code
 the HTTP host's `EXECUTION_FAILED` is removed and migrated (revision 010). A
 contract test enumerates every emitted code from the source and requires the
 OUTCOMES matrix and both schemas to list exactly that vocabulary.
+
+## One host-wide sandbox budget (PRF-01)
+
+Execution capacity is one number per sandbox manager, `general.max_sandboxes`
+(N). Every language pool shares one `SandboxBudget` whose lock is also the pools'
+lock; a slot is held from the start of creation (or the hand-out of a warm
+container) until Docker confirms removal, so creating + active + closing +
+quarantined ≤ N. Saturation waits in one FIFO queue for the caller's
+`wait_seconds` (grading 600 s, deliberate execution 10 s) instead of failing;
+expiry is `SandboxCapacityTimeout`, reported to grading as a retryable
+`CAPABILITY_UNAVAILABLE` and to deliberate callers as `503 EXECUTION_BUSY`.
+Docker create/remove run outside the lock. Warm idle containers stay outside N
+and never exceed `pool_size`, so `idle_timeout` had nothing left to expire and
+was removed with `scale_limit` and `SANDBOX_MAX_HANDLES`; startup rejects them.
+The control API waits for slots in its own threads so waiting acquisitions
+cannot starve the `DELETE` that frees one, and no longer serializes acquisitions.
+No new pool abstraction or scheduler was added. See [SANDBOX.md](SANDBOX.md) and
+[JOBS.md](JOBS.md#sandbox-capacity).

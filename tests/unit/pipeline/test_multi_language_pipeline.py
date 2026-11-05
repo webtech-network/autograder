@@ -102,7 +102,7 @@ class TestPipelineLanguageHandling:
         mock_sandbox.prepare_workdir.return_value = None
 
         # Create pipeline with preflight step (which uses sandbox)
-        from execution_host.docker import docker_capabilities
+        from execution_host.docker import GRADING_CAPACITY_WAIT_SECONDS, docker_capabilities
         pipeline = build_pipeline(capabilities=docker_capabilities(mock_manager), definition={
             "schema_version": "1.0", "templates": ["input_output"], "languages": ["java"],
             "criteria": {"base": {"weight": 100, "tests": [{"id": "run", "type": "dont_fail", "name": "Runs",
@@ -131,7 +131,7 @@ class TestPipelineLanguageHandling:
 
         # Verify sandbox was requested with Java language
         # This will be called during SandboxStep
-        mock_manager.get_sandbox.assert_called_once_with(Language.JAVA)
+        mock_manager.get_sandbox.assert_called_once_with(Language.JAVA, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS)
 
 
 class TestLanguageEnumValues:

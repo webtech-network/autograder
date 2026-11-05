@@ -36,20 +36,16 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
                 language=Language.PYTHON,
                 image=TEST_IMAGES[Language.PYTHON],
                 pool_size=3,  # More sandboxes for concurrent tests
-                scale_limit=6,
-                idle_timeout=300,
                 running_timeout=60
             ),
             SandboxPoolConfig(
                 language=Language.JAVA,
                 image=TEST_IMAGES[Language.JAVA],
                 pool_size=2,
-                scale_limit=4,
-                idle_timeout=300,
                 running_timeout=60
             ),
         ]
-        cls.manager = start_manager(pool_configs)
+        cls.manager = start_manager(pool_configs, max_sandboxes=6)
         time.sleep(2)
 
     def test_01_simple_python_io_assignment_complete_flow(self):
