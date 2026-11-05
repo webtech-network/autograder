@@ -261,7 +261,7 @@ def test_criteria_tree_guide_example_compiles():
 
 
 def test_quickstart_configuration_is_a_valid_definition():
-    guide = (ROOT / "docs/getting-started/mkdocs-local-development.md").read_text(encoding="utf-8")
+    guide = (ROOT / "docs/getting-started/first-grading-workflow.md").read_text(encoding="utf-8")
     body = json.loads(re.findall(r"-d '(\{.*?\})'", guide, re.S)[0])
     assert set(body) == {"external_assignment_id", "definition"}
     compile_definition(body["definition"])

@@ -6,12 +6,10 @@
 
 **An educational-standards-driven autograding tool that transforms assignment grading into an engaging learning experience.**
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://github.com/webtech-network/autograder/actions/workflows/pytest.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/pytest.yml)
-[![Lint](https://github.com/webtech-network/autograder/actions/workflows/pylint.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/pylint.yml)
-[![Docs](https://github.com/webtech-network/autograder/actions/workflows/validate-docs.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/validate-docs.yml)
+[![Verify](https://github.com/webtech-network/autograder/actions/workflows/verify.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/verify.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 [Features](#features) • [Architecture](#architecture) • [Quick Start](#quick-start) • [Templates](#grading-templates) • [Pipeline](#pipeline-workflow) • [API](#rest-api) • [GitHub Action](#github-action) • [Docs](https://webtech-network.github.io/autograder/) • [Community](#community-standards)
@@ -240,68 +238,30 @@ definitions cannot upload Python evaluator code.
 
 ## Quick Start
 
-### Prerequisites
+Setup lives in one place, the [Development Guide](docs/guides/development.md).
+In short, with [uv](https://docs.astral.sh/uv/) (it provides Python 3.13, the
+only supported version) and GNU Make:
 
-- Python 3.9+
-- Docker and Docker Compose
-
-### Installation
-
-1. **Clone the repository**
 ```bash
 git clone https://github.com/webtech-network/autograder.git
 cd autograder
+make install           # .venv from the committed uv.lock
+make verify            # hermetic core/library check: no Docker, no database
 ```
 
-2. **Install dependencies**
-```bash
-pip install -r requirements.txt
-```
+CI runs the same commands, plus the Docker and PostgreSQL tiers
+(`make test-integration`, `make test-e2e`, `make test-postgres`); `make help`
+lists them all.
 
-3. **Configure sandbox pools** (edit `sandbox_config.yml`)
-```yaml
-general:
-    # Number of sandboxes to create for each language at startup
-    # Development: 2-3, Production: 3-5 depending on expected load
-    pool_size: 3
+To run the system:
 
-    # Maximum sandboxes per language (prevents resource exhaustion)
-    # Production should have higher limits to handle traffic spikes
-    scale_limit: 10
-
-    # Seconds before killing idle sandboxes (no running processes)
-    # Production: longer timeout to reduce container churn
-    idle_timeout: 600
-
-    # Seconds before killing sandboxes with running processes
-    # Prevents hanging processes from consuming resources
-    running_timeout: 120
-
-# Host runtime profiles: language identifier -> versioned sandbox image.
-# A language left out has no pool and is reported as an unavailable capability.
-runtimes:
-    python: ghcr.io/webtech-network/autograder-sandbox-python:<tag>
-    java: ghcr.io/webtech-network/autograder-sandbox-java:<tag>
-    node: ghcr.io/webtech-network/autograder-sandbox-node:<tag>
-    cpp: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
-    c: ghcr.io/webtech-network/autograder-sandbox-cpp:<tag>
-```
-
-4. **Get the sandbox images** named in `sandbox_config.yml` (`make sandbox-list`):
-pull the published ones with `docker pull`, or build them from this checkout:
-```bash
-make sandbox-build-all
-```
-
-5. **Start the system**
-
-**As a Web API:**
-```bash
-make start-autograder
-```
-
-**As a GitHub Action:**
-See [GitHub Action](#github-action) section.
+- **Sandbox images:** the runtime images named in `sandbox_config.yml`
+  (`make sandbox-list`) must be present before a host starts: `docker pull` the
+  published references, or `make sandbox-build-all` to build them from this checkout.
+- **Web API:** `export SANDBOX_API_TOKEN=<long random secret>` then
+  `make start-autograder` (Docker and Docker Compose; sandbox pools are configured
+  in `sandbox_config.yml`). See [Run your first grading workflow](docs/getting-started/first-grading-workflow.md).
+- **GitHub Action:** see the [GitHub Action](#github-action) section.
 
 ---
 

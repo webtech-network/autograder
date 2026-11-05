@@ -32,6 +32,11 @@ def isolated_api(tmp_path_factory):
     port = listener.getsockname()[1]
     url = f"http://127.0.0.1:{port}/api/v1"
     repo = Path(__file__).resolve().parents[2]
+    # The API never creates tables; migrate first, exactly as a deployment does.
+    migration = subprocess.run([sys.executable, "-m", "alembic", "-c", "web/alembic.ini", "upgrade", "head"],
+                               cwd=repo, env=env, capture_output=True, text=True, timeout=120, check=False)
+    if migration.returncode:
+        pytest.fail("Migrating the isolated API database failed:\n" + migration.stderr)
     log_path = directory / "server.log"
     with log_path.open("w") as log:
         process = subprocess.Popen([sys.executable, "-m", "uvicorn", "web.main:app",

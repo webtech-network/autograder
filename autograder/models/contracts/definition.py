@@ -171,15 +171,16 @@ class CompiledDefinition:
     trusted templates were produced together. Reading ``definition`` returns a
     fresh model copy; changing that copy cannot alter this plan.
     """
-    __slots__ = ('_snapshot', '_definition_hash', '_criteria_tree', '_templates')
+    __slots__ = ('_snapshot', '_definition_hash', '_criteria_tree', '_templates', '_max_outcome_bytes')
 
     def __init__(self, *args, **kwargs):
         raise TypeError('CompiledDefinition is created only by compile_definition or compile_snapshot')
 
     @classmethod
     def _create(cls, snapshot: dict, definition_hash: str, criteria_tree: CriteriaTree,
-                templates: Mapping[str, Template]) -> 'CompiledDefinition':
+                templates: Mapping[str, Template], max_outcome_bytes: int) -> 'CompiledDefinition':
         compiled = object.__new__(cls)
+        object.__setattr__(compiled, '_max_outcome_bytes', max_outcome_bytes)
         object.__setattr__(compiled, '_snapshot', freeze(snapshot))
         object.__setattr__(compiled, '_definition_hash', definition_hash)
         object.__setattr__(compiled, '_criteria_tree', criteria_tree)
@@ -213,6 +214,11 @@ class CompiledDefinition:
     @property
     def criteria_tree(self) -> CriteriaTree:
         return self._criteria_tree
+
+    @property
+    def max_outcome_bytes(self) -> int:
+        """Worst-case serialized size of any outcome of this definition (OUTCOMES.md)."""
+        return self._max_outcome_bytes
 
     @property
     def templates(self) -> Mapping[str, Template]:
@@ -330,9 +336,20 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
     if errors:
         raise DefinitionValidationError(errors)
     from autograder.services.criteria_tree_service import build_criteria_tree
+    from autograder.models.contracts.outcome import wire_bytes
+    from autograder.models.contracts.verification import MAX_ATTESTATION_BYTES
+    from autograder.services.grading import max_outcome_bytes
     snapshot = definition.model_dump(mode='json')
     tree = build_criteria_tree(definition.criteria, registry)
-    return CompiledDefinition._create(snapshot, definition_hash(definition), tree, selected)  # pylint: disable=protected-access
+    # Every outcome travels with its definition snapshot; both must fit in one
+    # attestation whatever the submission does.
+    outcome_bytes = max_outcome_bytes(tree)
+    if wire_bytes(snapshot) + outcome_bytes > MAX_ATTESTATION_BYTES:
+        raise DefinitionValidationError([_error(
+            'DEFINITION_TOO_LARGE', (), f'The definition and its worst-case outcome exceed {MAX_ATTESTATION_BYTES} '
+            'bytes; reduce the number of criteria or the size of their parameters')])
+    return CompiledDefinition._create(snapshot, definition_hash(definition), tree, selected,  # pylint: disable=protected-access
+                                      outcome_bytes)
 
 
 def definition_hash(definition: GradingDefinition) -> str:

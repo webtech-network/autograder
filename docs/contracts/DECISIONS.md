@@ -92,6 +92,12 @@ distributed sandbox provisioning, submission idempotency, or retention policy.
 Those are hosting responsibilities; the HTTP host provides replay-safe operation
 keys ([REPLAY.md](REPLAY.md)).
 
+Migrations are the only owner of the HTTP database schema (ENV-02). The API
+checks the database revision at startup and refuses to serve any revision but its
+own head; it never creates tables. Revisions `001`-`007` are squashed into a
+baseline `007`, so empty databases migrate and databases at `007` upgrade
+unchanged. See [deployment and migration](JOBS.md#deployment-and-migration).
+
 ## Discovery and trusted Python extensions
 
 The typed template/evaluator catalog derives parameter schemas and validated
@@ -373,6 +379,39 @@ other in real containers. `POST /process` replaces `/run` and `/run-batch`, and
 process requests are never replayed. Output and artifact readback are bounded
 where the process runs. See [PROCESSES.md](PROCESSES.md), which also gives the
 migration from the old newline and shell behaviour.
+
+## Bounded outcome text (COR-06)
+
+Process output is bounded where the program runs, but the terminal artifact was
+not. I/O reports copied whole streams, so a flooding program produced about
+1 MiB per criterion. Student behaviour could then deny an Action's publication
+(413) and enlarge HTTP storage. Reports (8 KiB) and feedback (256 KiB) are now
+bounded in UTF-8 bytes by the outcome contract. Local text is excerpted once:
+reports in `grade` and feedback in `render_feedback`. The excerpt is a
+deterministic head and tail with a marker stating the full byte count. Attested
+text above a bound is a typed validation error, never truncated. The worst-case
+outcome is `CompiledDefinition.max_outcome_bytes`, a function of the criteria
+count and of definition-authored text. Compilation keeps snapshot plus outcome
+within 24 MiB. Assessment, scores and schema shape are unchanged; only report
+text above a bound changes. Definitions above the budget (more than about 465
+criteria) now fail with `DEFINITION_TOO_LARGE`, including stored ones when they
+are loaded. That includes a job accepted before the deployment whose bound
+snapshot is over the budget: its worker compilation fails and the job ends as a
+failed outcome. This departs from "activation gates new acceptance, not bound
+jobs". It is accepted because such a definition (more than about 465 criteria
+with short parameters) is not a realistic assignment.
+
+Migration evidence: outcomes stored before the bounds are upgraded in place by
+Alembic revision `009_bound_outcome_text`, which applies the engine's excerpt to
+every stored report and feedback. Unpublished receipts get the same excerpt when
+they are read, so pending delivery retries finish. Both use one function,
+`bound_outcome_text`, and leave scores unchanged.
+`tests/web/test_outcome_text_migration.py` stores pre-bound rows and a pre-bound
+receipt, then checks `/details`, comparison and receipt replay through the real
+app. An Action `delivery.json` saved by an earlier release is an attestation, so
+an oversized report in it is rejected with `text_too_large`, not excerpted. The
+excerpt marker is fixed English until ONB-03. See
+[OUTCOMES.md](OUTCOMES.md#size-bounds).
 
 ## Versioned runtime images (ENV-04, runtime part)
 

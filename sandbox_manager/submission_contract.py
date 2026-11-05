@@ -1,4 +1,8 @@
-"""Shared acceptance policy for the HTTP and Actions hosts, outside grading core."""
+"""Shared acceptance policy for the HTTP and Actions hosts, outside grading core.
+
+It lives in ``sandbox_manager``, the lowest shared layer outside the core,
+because the private sandbox control API enforces the same file limits.
+"""
 
 import json
 import posixpath

@@ -77,6 +77,10 @@ parameters must list every contract field explicitly (`NON_CANONICAL_PARAMETERS`
   infer filenames. Prefer explicit commands. `dont_fail` uses `user_input`;
   `input` is rejected. Artifact paths are normalized relative submission paths;
   modes are `exact`, `contains`, `regex`; invalid regex is rejected before execution.
+* A definition is rejected with `DEFINITION_TOO_LARGE` when its snapshot plus
+  its worst-case outcome exceeds 24 MiB (about 465 criteria with short
+  parameters). This keeps every attestation within the hosts' request limit.
+  See [OUTCOMES.md](OUTCOMES.md#size-bounds).
 * AST keywords must be supported in every allowed language. Custom ast-grep rules
   must compile for each language before acceptance. AI algorithm names are stripped
   and must remain nonempty. Repeated AI evaluator uses have independent IDs.

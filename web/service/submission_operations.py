@@ -8,7 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from autograder.models.contracts.comparison import ComparisonError, compare_outcomes
 from autograder.models.contracts.definition import compile_snapshot, select_language, DefinitionValidationError
-from autograder.models.contracts.verification import OutcomeStructureError, verify_outcome_tree
+from autograder.models.contracts.verification import (
+    OutcomeStructureError, OutcomeTooLargeError, verify_outcome_size, verify_outcome_tree,
+)
 from web.database.models.submission import SubmissionStatus
 from web.database.models.operation_receipt import OperationReceipt
 from web.repositories import GradingConfigRepository, SubmissionRepository, ResultRepository
@@ -127,7 +129,14 @@ def _compile_snapshot(value):
 
 
 def _check_attested_tree(outcome, compiled):
-    """Attestation may not change criterion placement or scoring ratios (core contract check)."""
+    """Attestation may not exceed its definition's size bound, change criterion
+    placement or change scoring ratios (core contract checks)."""
+    try:
+        verify_outcome_size(compiled.max_outcome_bytes, outcome)
+    except OutcomeTooLargeError as exc:
+        raise OperationError(422, detail=[
+            {"code": "OUTCOME_TOO_LARGE", "path": ["outcome"], "message": str(exc)}
+        ]) from exc
     if outcome.status != "completed":
         return
     try:

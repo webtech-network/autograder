@@ -77,12 +77,22 @@ currently available.
 
 ## Deployment and migration
 
-Run the existing API command; its lifespan owns worker startup and recovery:
+Migrations in `web/migrations` are the only owner of the database schema. Apply
+them as a separate one-shot step with the new build, then start the API; its
+lifespan owns worker startup and recovery:
 
 ```sh
-alembic -c web/alembic.ini upgrade head
+alembic -c web/alembic.ini upgrade head     # uses DATABASE_URL
 uvicorn web.main:app --host 0.0.0.0 --port 8000
 ```
+
+Compose runs the same command in its `migrate` service before `api` starts, and
+the deploy workflow runs it with the pulled image before replacing the running
+API. Startup never creates or alters tables. It compares the database revision
+with the build's head revision and refuses to start, naming the command to run,
+when the database is empty, behind, ahead or unversioned. `tests/web/test_migrations.py`
+proves on PostgreSQL that `upgrade head` from empty equals the models (an empty
+autogenerate diff), so a model change without a migration fails CI.
 
 Set `DATABASE_URL`, `AUTOGRADER_INTEGRATION_TOKEN`, the required sandbox/provider
 configuration, and a persistent `WEB_OUTCOME_RECEIPT_DIR`. Worker settings listed
@@ -90,12 +100,33 @@ above are positive values validated during construction. Multiple API processes
 have independent workers and coordinate claims through the same PostgreSQL rows.
 No separate queue product or scheduler service is required.
 
-Migration **006** adds locale/scope, attempt identity/count, lease timestamps and
-`grading_attempts`. Pre-migration pending/processing rows did not retain complete
-scope/locale input. The migration marks them failed rather than fabricating that
-input; their compact response reports `RECOVERY_INPUT_UNAVAILABLE` and null grade.
-Historical completed artifacts remain unchanged. Stop old API processes before
-migrating; an older process must not publish work after the new worker policy starts.
+### Existing databases
+
+Back up the database and stop old API processes before migrating; an older
+process must not publish work after a new worker policy starts.
+
+- **At revision `007`**: `upgrade head` applies the remaining revisions. Revision
+  `007` is the squashed baseline of the old `001`-`007` chain and reproduces its
+  schema exactly. Revision `008` converts the naive configuration/submission
+  timestamps to timezone-aware ones, reading stored values as UTC (the database
+  `TimeZone` used by the supported images), and drops the `006` backfill defaults.
+  Revision `009` excerpts stored outcome reports and feedback to the outcome text
+  bounds ([OUTCOMES.md](OUTCOMES.md)).
+- **At `001`-`006`**: first run `upgrade 007` with a release that still contains
+  the old chain (commit `3a8abcc`), then `upgrade head` with this one. That chain
+  includes the irreversible definition conversion `005`.
+- **Created by an older API startup** (no `alembic_version` table): run
+  `python -m web.database.schema adopt` with `DATABASE_URL` set. It stamps revision
+  `008` (the schema the old startup created) only when the live schema equals the
+  models, and otherwise prints the differences and changes nothing. Then run
+  `upgrade head`, which applies the later data migrations such as `009`. Reconcile those differences, or, when
+  `pg_dump --schema-only` matches `tests/web/fixtures/legacy_007_schema.sql` (the
+  old chain's schema), run `alembic -c web/alembic.ini stamp 007` and upgrade.
+
+Pre-`006` pending/processing rows did not retain complete scope/locale input; `006`
+marked them failed rather than fabricating that input. Their compact response
+reports `RECOVERY_INPUT_UNAVAILABLE` and a null grade, and historical completed
+artifacts remain `unverified_legacy`. Both survive `upgrade head` unchanged.
 
 Explicit delivery replay uses the configured database and does not evaluate again:
 

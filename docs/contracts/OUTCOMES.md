@@ -108,6 +108,73 @@ compact polling/history projections; source files and trees require explicit
 trusted detail retrieval.
 
 
+## Size bounds
+
+Student-controlled text cannot size an outcome. Each criterion `report` is at
+most `MAX_REPORT_BYTES` (8 KiB) and feedback `content` at most
+`MAX_FEEDBACK_BYTES` (256 KiB) of UTF-8, both in
+`autograder/models/contracts/outcome.py`. The engine bounds locally produced
+text in one place: `grade` excerpts every evaluator and AI report, and
+`render_feedback` excerpts feedback. Text that fits is kept (lone surrogates
+become U+FFFD). Longer text becomes a deterministic, valid UTF-8 excerpt that
+keeps the head and the tail around a marker with the full byte count:
+
+```text
+FAILURE: Output Mismatch.
+Expected: '5'
+Actual: 'ooo...
+[... 1040478 of 1048626 bytes omitted ...]
+...ooo'
+```
+
+Excerpting never changes a score. Process output is still read with its 1 MiB
+per-stream bound ([PROCESSES.md](PROCESSES.md)), and evaluators assess the whole
+stream. Only the retained text is shorter. Validation rejects an attested report
+or feedback above its bound with the typed error `text_too_large` and never
+truncates it.
+
+The worst-case outcome is a function of the definition, never of a submission.
+`CompiledDefinition.max_outcome_bytes` is the largest size of any of its
+outcomes serialized with `json.dumps` defaults. That encoding uses ASCII escaping
+and spaced separators, so it is never smaller than a compact or raw-UTF-8
+encoding:
+
+```text
+max_outcome_bytes = S + 6 * (N * 8 KiB + 256 KiB) + 1 KiB * nodes + 16 KiB
+```
+
+Here `S` is the measured tree with empty reports: IDs, labels, targets, weights
+and canonical parameters. `N` is the number of criteria, and `nodes` counts
+criteria, groups, categories and the root. The factor 6 is the largest JSON
+escaping of one UTF-8 byte (`\u0001`). The per-node allowance covers score digits
+and one attested comparison delta for each criterion of this definition. Deltas
+for criteria `removed` since the baseline name criteria that are not nodes of
+this definition and have no allowance. An attestation whose comparison lists
+enough of them to exceed the bound is rejected with `OUTCOME_TOO_LARGE`. The
+16 KiB covers identifiers, provenance, timestamps, statuses and a structured
+error.
+
+An attestation carries the definition snapshot and the outcome. Compilation
+(`compile_definition` and `compile_snapshot`) therefore rejects with
+`DEFINITION_TOO_LARGE` any definition whose snapshot plus `max_outcome_bytes`
+exceeds `MAX_ATTESTATION_BYTES` (24 MiB, `verification.py`). The hosts' 32 MiB
+request limit ([SUBMISSIONS.md](SUBMISSIONS.md)) leaves 8 MiB for identity and
+audit metadata, so every valid definition's maximal attestation is accepted.
+With short parameters this allows about 465 criteria, and long
+definition-authored text lowers the number. The HTTP host also rejects an
+attested outcome larger than its snapshot's `max_outcome_bytes` (for example
+because of oversized `metadata`) with 422 `OUTCOME_TOO_LARGE`. Storage and UI can
+size for these bounds.
+
+Outcomes this host stored before the bounds existed are upgraded, never
+rejected when they are read. Alembic revision `009_bound_outcome_text` rewrites
+every stored `submission_results.outcome` with the same excerpt
+(`bound_outcome_text`). Scores, identities and text within a bound are
+unchanged, and the upgrade is idempotent. Publication receipts written before
+the deployment are excerpted the same way when they are read, so their delivery
+retry still completes and still equals the migrated row. Neither path applies to
+incoming attestations.
+
 ## Publication receipts
 
 The HTTP host writes each finalized outcome to a private, fsynced, atomically

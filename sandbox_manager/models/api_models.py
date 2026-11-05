@@ -2,7 +2,7 @@
 
 Limits agree with the operations behind them:
 
-* submissions use the shared host limits from ``submission_contract``;
+* submissions use the shared host limits from ``sandbox_manager.submission_contract``;
 * fixtures are bounded by the sandbox ``/tmp`` tmpfs size;
 * a process request is the shared ``autograder.models.process`` contract
   (stdin is base64 on the wire and staged in chunks, so it is not limited by
@@ -23,7 +23,7 @@ from autograder.models.process import (
     ProcessRequest, ProcessResult, ProcessStatus,
 )
 from sandbox_manager.docker_profile import FIXTURE_TMPFS_BYTES
-from submission_contract import MAX_FILE_BYTES, MAX_FILES, MAX_PATH_BYTES, MAX_TOTAL_FILE_BYTES
+from sandbox_manager.submission_contract import MAX_FILE_BYTES, MAX_FILES, MAX_PATH_BYTES, MAX_TOTAL_FILE_BYTES
 
 MAX_FIXTURES = 100
 MAX_FIXTURE_BYTES = FIXTURE_TMPFS_BYTES
