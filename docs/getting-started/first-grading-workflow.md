@@ -10,8 +10,7 @@ This quickstart walks you through one complete grading cycle:
 ## Prerequisites
 
 - Docker and Docker Compose installed
-- Python available on your machine
-- Project dependencies installed (`pip install -r requirements.txt`)
+- The repository set up as in the [Development Guide](../guides/development.md#setup)
 
 ## 1) Start Autograder
 

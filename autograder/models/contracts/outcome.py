@@ -53,7 +53,7 @@ class ContractModel(BaseModel):
 
     @model_validator(mode="after")
     def freeze_json(self):
-        for name in type(self).model_fields:
+        for name in type(self).model_fields:  # pylint: disable=not-an-iterable  # pydantic class property
             value = getattr(self, name)
             if isinstance(value, dict):
                 object.__setattr__(self, name, _freeze(value))

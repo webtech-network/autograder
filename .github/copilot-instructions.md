@@ -12,5 +12,5 @@ Read it first; this file intentionally does not repeat it, so the two cannot dri
 - Normative integration contracts: [docs/contracts/](../docs/contracts/DECISIONS.md)
 
 There is no step framework (`Step`, `StepName`, `add_step_result`), no
-`CommandResolver` and no `sandbox_manager` `Language`; documents under `archive/`
-describe those historical designs only.
+`CommandResolver` and no `sandbox_manager` `Language`; those historical designs
+live only in git history.

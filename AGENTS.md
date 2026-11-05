@@ -200,8 +200,7 @@ rely on them as current): a host supplying `server_execution` (API-testing
 criteria fail with `SERVER_CAPABILITY_UNAVAILABLE` on the shipped hosts), job
 scheduling beyond submission-order claiming (priority, fairness, quotas), a shared
 or distributed sandbox handle store, feedback modes other than `default`, and
-fixture caching. `archive/` holds historical designs and roadmaps only; refactor
-progress is tracked in GitHub issue #363.
+fixture caching. Refactor progress is tracked in GitHub issue #363.
 
 ## Verification
 
@@ -210,7 +209,9 @@ actual execution of normalized values, invalid paths, outcome invariants, snapsh
 optimistic concurrency, migrations, adapter wire parity and publication retry.
 Docker integration tests exercise real grading isolation. Architecture tests
 (`tests/unit/test_architecture.py`) protect dependency direction, catalog/example
-truthfulness and the extension path. Documentation changes run
-`python scripts/validate_docs.py` and `mkdocs build --strict`; contract changes run
-`PYTHONPATH=. python scripts/generate_contract_schemas.py --check`. Preserve unrelated work;
+truthfulness and the extension path. `make verify` is the hermetic path (lint,
+schema drift, strict docs build, unit and SQLite HTTP tests); `make test-postgres`,
+`make test-integration` and `make test-e2e` are the database and Docker tiers. CI
+runs exactly these targets and deploys only after all pass; see
+[the development guide](docs/guides/development.md#verification). Preserve unrelated work;
 use a clean worktree for delivery. Do not add co-author commit trailers.

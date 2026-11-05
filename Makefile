@@ -1,148 +1,82 @@
-# Makefile for Autograder Development
-# Simplifies common development tasks
+# Development and verification commands. CI runs these same targets
+# (.github/workflows/verify.yml); `make help` lists them.
 
-.PHONY: help install install-dev test test-cov lint format type-check security clean build docs docs-build docs-serve run-api run-api-tests examples-demo start-autograder docker-build sandbox-build sandbox-build-all sandbox-clean db-migrate db-upgrade db-downgrade db-current db-history db-init db-reset
+PYTHON ?= python
+# Tests import `tests` and `examples` from the repository root.
+export PYTHONPATH := $(CURDIR)$(if $(PYTHONPATH),:$(PYTHONPATH))
 
-# Default target
-help:
-	@echo "Available commands:"
-	@echo "  make install             - Install production dependencies"
-	@echo "  make docs-build          - Build docs site with MkDocs (strict mode)"
-	@echo "  make docs-serve          - Serve docs site locally with live reload"
-	@echo "  make examples-demo       - Run interactive demo webpage"
-	@echo "  make start-autograder    - Start the Autograder API server"
-	@echo ""
-	@echo "Database Migrations:"
-	@echo "  make db-upgrade          - Apply all pending migrations"
-	@echo "  make db-downgrade        - Rollback last migration"
-	@echo "  make db-current          - Show current migration version"
-	@echo "  make db-history          - Show migration history"
-	@echo "  make db-migrate MSG=desc - Create new migration with description"
-	@echo "  make db-init             - Initialize database (upgrade to head)"
-	@echo "  make db-reset            - Reset database (downgrade to base, then upgrade)"
-	@echo ""
-	@echo "Sandbox Management:"
-	@echo "  make sandbox-build-all   - Build all sandbox images"
-	@echo "  make sandbox-build-python- Build Python sandbox image"
-	@echo "  make sandbox-build-java  - Build Java sandbox image"
-	@echo "  make sandbox-build-node  - Build Node.js sandbox image"
-	@echo "  make sandbox-build-cpp   - Build C++ sandbox image"
-	@echo "  make sandbox-clean       - Remove all sandbox images"
-	@echo "  make sandbox-test        - Run sandbox integration tests"
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-clean docs-serve start-autograder examples-demo
 
-# Installation
-install:
-	pip install -r requirements.txt
+help: ## Show this list
+	@echo "Usage: make <target>"
+	@awk 'BEGIN {FS = ":.*## "} /^##@/ {printf "\n%s\n", substr($$0, 5)} /^[a-z][a-z0-9-]*:.*## / {printf "  make %-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-docs-build:
-	mkdocs build --strict
+##@ Setup
 
-docs-serve:
-	mkdocs serve
+install: ## Install runtime, test, docs and lint dependencies
+	$(PYTHON) -m pip install -r requirements.txt -r requirements-docs.txt "pylint~=4.1.3"
 
-# Database Migrations
-db-upgrade:
-	@echo "📦 Applying database migrations..."
-	alembic upgrade head
-	@echo "✅ Database migrations applied successfully!"
+##@ Verification paths
 
-db-downgrade:
-	@echo "⏪ Rolling back last migration..."
-	alembic downgrade -1
-	@echo "✅ Migration rolled back successfully!"
+verify: lint contracts docs test test-web ## Hermetic core/library path (no Docker, no database)
 
-db-current:
-	@echo "📍 Current migration version:"
-	alembic current
+lint: ## Pylint the shipped packages, scripts and examples, serially (.pylintrc)
+	$(PYTHON) -m pylint autograder web sandbox_manager execution_host github_action scripts examples submission_contract.py
 
-db-history:
-	@echo "📜 Migration history:"
-	alembic history --verbose
+contracts: ## Check that checked-in JSON Schemas match the models
+	$(PYTHON) scripts/generate_contract_schemas.py --check
 
-db-migrate:
-	@if [ -z "$(MSG)" ]; then \
-		echo "❌ Error: Please provide a message with MSG=your_description"; \
-		echo "Example: make db-migrate MSG='add user table'"; \
-		exit 1; \
-	fi
-	@echo "📝 Creating new migration: $(MSG)"
-	alembic revision --autogenerate -m "$(MSG)"
-	@echo "✅ Migration file created! Review it before applying."
+docs: ## Check documentation links and API routes, then build the site strictly
+	$(PYTHON) scripts/validate_docs.py
+	$(PYTHON) -m mkdocs build --strict --quiet
 
-db-init:
-	@echo "🚀 Initializing database..."
-	alembic upgrade head
-	@echo "✅ Database initialized successfully!"
+test: ## Unit tests
+	$(PYTHON) -m pytest tests/unit/
 
-db-reset:
-	@echo "⚠️  WARNING: This will reset the entire database!"
-	@read -p "Are you sure? [y/N] " -n 1 -r; \
-	echo; \
-	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
-		alembic downgrade base; \
-		alembic upgrade head; \
-		echo "✅ Database reset complete!"; \
-	else \
-		echo "❌ Reset cancelled"; \
-	fi
+test-web: ## HTTP tests on SQLite (the PostgreSQL tier is excluded)
+	$(PYTHON) -m pytest tests/web/ -m "not postgres"
 
-examples-demo:
-	@echo "🚀 Starting Autograder Interactive Demo..."
-	@echo "   Server: http://localhost:8080/demo/"
-	@echo "   Press Ctrl+C to stop"
-	@echo ""
-	cd examples/demo && python serve_demo.py
+##@ Docker and database tiers
 
-start-autograder:
-	@echo "🚀 Starting Autograder API server..."
-	make sandbox-build-all && docker compose up -d --build
-	@echo "✅ Autograder API server is running at http://localhost:8000"
+test-postgres: ## PostgreSQL guarantees; fails unless TEST_POSTGRES_URL is set
+	$(PYTHON) -m pytest tests/web/ -m postgres
 
+test-integration: sandbox-build-all ## Real Docker sandboxes (builds sandbox images)
+	$(PYTHON) -m pytest tests/integration/
 
-# Sandbox Management
-sandbox-build-all: sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp
-	@echo "✅ All sandbox images built successfully!"
-
-sandbox-build-python:
-	@echo "Building Python sandbox image..."
-	docker build -t sandbox-py:latest -f sandbox_manager/images/Dockerfile.python sandbox_manager/images/
-
-sandbox-build-java:
-	@echo "Building Java sandbox image..."
-	docker build -t sandbox-java:latest -f sandbox_manager/images/Dockerfile.java sandbox_manager/images/
-
-sandbox-build-node:
-	@echo "Building Node.js sandbox image..."
-	docker build -t sandbox-node:latest -f sandbox_manager/images/Dockerfile.javascript sandbox_manager/images/
-
-sandbox-build-cpp:
-	@echo "Building C++ sandbox image..."
-	docker build -t sandbox-cpp:latest -f sandbox_manager/images/Dockerfile.cpp sandbox_manager/images/
-
-sandbox-clean:
-	@echo "Removing sandbox images..."
-	-docker rmi sandbox-py:latest
-	-docker rmi sandbox-java:latest
-	-docker rmi sandbox-node:latest
-	-docker rmi sandbox-cpp:latest
-	@echo "✅ Sandbox images removed"
-
-# Testing
-test:
-	pytest tests/unit/
-
-test-integration: sandbox-build-all
-	pytest tests/integration/
-
-test-e2e:
+test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 	./scripts/run_e2e_tests.sh
 
-test-cov:
-	pytest --cov=autograder --cov-report=term-missing tests/unit/
+images: ## Build the API, sandbox manager and Action images from this checkout
+	docker build -t autograder-api:local -f Dockerfile.api .
+	docker build -t autograder-sandbox-manager:local -f Dockerfile.sandbox .
+	docker build -t autograder-action:local -f Dockerfile.actions .
 
-sandbox-test: test-integration
-sandbox-list:
-	@echo "Sandbox images:"
-	@docker images | grep sandbox- || echo "No sandbox images found"
+sandbox-build-all: sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp ## Build every sandbox runtime image
 
+sandbox-build-python: ## Build the Python sandbox image
+	docker build -t sandbox-py:latest -f sandbox_manager/images/Dockerfile.python sandbox_manager/images/
 
+sandbox-build-java: ## Build the Java sandbox image
+	docker build -t sandbox-java:latest -f sandbox_manager/images/Dockerfile.java sandbox_manager/images/
+
+sandbox-build-node: ## Build the Node.js sandbox image
+	docker build -t sandbox-node:latest -f sandbox_manager/images/Dockerfile.javascript sandbox_manager/images/
+
+sandbox-build-cpp: ## Build the C/C++ sandbox image
+	docker build -t sandbox-cpp:latest -f sandbox_manager/images/Dockerfile.cpp sandbox_manager/images/
+
+sandbox-clean: ## Remove the sandbox images
+	-docker rmi sandbox-py:latest sandbox-java:latest sandbox-node:latest sandbox-cpp:latest
+
+##@ Running locally
+
+docs-serve: ## Serve the docs site with live reload
+	$(PYTHON) -m mkdocs serve
+
+start-autograder: sandbox-build-all ## Start PostgreSQL, the API and the sandbox manager (needs SANDBOX_API_TOKEN)
+	docker compose up -d --build
+	@echo "Autograder API: http://localhost:8000"
+
+examples-demo: ## Serve the interactive demo page (needs a running API)
+	cd examples/demo && $(PYTHON) serve_demo.py
