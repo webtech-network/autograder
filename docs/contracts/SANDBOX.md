@@ -6,6 +6,12 @@ This contract covers the local Docker pools (`sandbox_manager.manager`,
 [CAPABILITIES.md](CAPABILITIES.md); this page only describes what a host's
 Docker execution profile guarantees behind `ExecutionSession.close()`.
 
+The GitHub Action uses the same Docker profile but none of the pool, control
+API or reclamation machinery described here: its `RunnerHost` creates one
+sandbox of the selected language on the runner's Docker and removes it before
+publication. Its isolation is stated separately, in
+[Runner execution boundary](../github_action/trust.md#runner-execution-boundary).
+
 ## One owner from acquisition to confirmed disposal
 
 A used sandbox is always destroyed; it is never returned to a pool. Each
@@ -107,7 +113,7 @@ constructs a `SandboxManager` (or `DockerHost`) owns it and calls `shutdown()`:
 | --- | --- |
 | Web API | `WebHost.close()` from the application lifespan (`DockerHost.close`) |
 | Sandbox control API | its FastAPI lifespan `finally` (reaper stopped first) |
-| GitHub Action | `GithubActionService.run_autograder` `finally`; `main` turns `SIGTERM` into `SystemExit` so the `finally` runs |
+| GitHub Action | `RunnerHost.close()` from `GithubActionService.close()`, after grading and before publication; grading runs in a worker thread and `main` turns `SIGTERM` into `SystemExit` in the waiting main thread, so the `finally` runs without interrupting the sandbox bookkeeping |
 | Tests | the integration `conftest.py` session finalizer |
 
 `shutdown()` is idempotent: it stops and joins the monitor thread, refuses new
@@ -284,8 +290,8 @@ server have no hard deadline beyond docker-py's own client timeout.
   together with the control service.
 * **New required setting.** Set `SANDBOX_API_TOKEN` (a long random secret, for
   example `python -c "import secrets; print(secrets.token_urlsafe(32))"`) for the
-  control service and every remote client (`web` settings and the GitHub Action
-  environment). Compose fails fast when it is unset. Local development may set
+  control service and every remote client (`web` settings; the GitHub Action
+  no longer uses the control service). Compose fails fast when it is unset. Local development may set
   `SANDBOX_API_ALLOW_UNAUTHENTICATED=true` on the service instead.
 * **Port no longer published.** Clients outside the Compose network can no
   longer reach port 8001. The healthcheck uses `/health`; `/stats` needs the token.

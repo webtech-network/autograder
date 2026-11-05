@@ -530,3 +530,66 @@ artifact, under both runtimes). The collector needs no fork until it has
 reported the cgroup counters, is restarted when runc finds no pid to start it,
 and a running container at its pids limit is exhaustion. The outcome wire is
 unchanged. See [PROCESSES.md](PROCESSES.md#who-ended-a-run).
+
+## Action execution on the runner (ENV-03)
+
+The published Action could not grade any execution-based criterion: with no
+mode set, its host defaulted to a remote sandbox service at `localhost:8001`
+that nothing provides, so every I/O, command or setup criterion failed as
+`CAPABILITY_UNAVAILABLE`. `DockerHost.from_environment()` and that default are
+deleted; `DockerHost` now requires an explicit `mode`, and `mode="remote"`
+requires the control API URL.
+
+**Decision.** The Action runs submissions on the GitHub runner's own Docker, in
+the web host's single sandbox profile (`sandbox_manager/docker_profile.py`: no
+network, all capabilities dropped for the unprivileged `sandbox` user,
+`no-new-privileges`, memory/CPU/pids/file-size limits, tmpfs workspace, no bind
+mounts, no environment from the Action). GitHub-hosted runners have no gVisor,
+so there the profile runs under Docker's default runtime, `runc`; a runner whose
+daemon has `runsc` gets gVisor, as the web host does. #363 allowed the runner VM
+itself as the boundary, but running submissions directly in the Action container
+would put them beside the Action's environment (`ACTIONS_RUNTIME_TOKEN`, the
+cloud token, provider keys) and the mounted Docker socket, which breaks the
+[trust table](../github_action/trust.md#runner-execution-boundary). Under `runc`
+the kernel is shared, so the boundary is Linux namespaces, cgroups, seccomp and
+the dropped capabilities; a kernel escape would reach the runner VM, which
+GitHub discards after the job. Self-hosted runners keep the
+`trusted-self-hosted-runner` rule for publication.
+
+**Host shape.** `execution_host.runner.RunnerHost` serves only the language the
+definition selected: one sandbox, created when the grading acquires it (budget
+1, `pool_size` 0), from the image `sandbox_config.yml` pins, pulled by the Action
+when the runner lacks it. There is no warm pool, control API, orphan reclamation
+or `SANDBOX_*` setting; those stay web-only. The Action constructs the host only
+when the selected language's criteria or preparation execute code; static and
+AI-only definitions never touch Docker. Construction checks Docker before
+grading: without a reachable daemon the Action fails with the documented
+`Docker is not available to the Action` error and writes no outcome, instead of
+grading to `CAPABILITY_UNAVAILABLE`
+([Requirements](../github_action/README.md#requirements)). Grading runs in a
+worker thread while the main thread waits, so `SIGTERM` (turned into
+`SystemExit` by `main`) interrupts only that wait; the host is then closed,
+removing the sandbox (and a container still being created) before the process
+exits, and on every other path before anything is retained or published.
+
+**Pinning.** The Action image ships `sandbox_config.yml`, so each Action
+release pins its runtime image references (content-addressed tags, never
+`:latest` or a local-only tag). `make action-check`, the gate on `main`, now
+also fails unless every pinned runtime image is anonymously pullable.
+
+**Verification.** The `Packaged Action on a hosted runner` job in `verify.yml`
+runs `uses: ./` on `ubuntu-latest` (static, Python I/O, C I/O, a wrong answer
+and a credential probe) and checks outcomes, outputs, one sandbox per execution
+run and none left over (`scripts/action_fixtures.py`). `tests/images/` runs the
+packaged image with the runner's socket: single-runtime provisioning, removal
+on success, failed grading and `SIGTERM`, the probe, the missing-Docker error
+and the pull of an absent runtime image.
+
+Migration: workflows need no change; execution-based definitions now grade on
+Linux GitHub-hosted runners with no extra step. Workflows that set
+`SANDBOX_MODE`, `SANDBOX_API_URL` or `SANDBOX_API_TOKEN` for the Action can drop
+them; they are ignored. Runners must provide Docker (all Linux GitHub-hosted
+runners do; macOS and Windows runners cannot run container actions at all). Each
+runtime package on GHCR must be public before a release that pins it reaches
+`main`. Python callers of `DockerHost()` must pass `mode`, and `mode="remote"` an
+`api_url`.

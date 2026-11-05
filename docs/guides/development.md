@@ -63,7 +63,8 @@ has pylint false positives to resolve first.
 | `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. |
 | `make test-e2e` | Docker | An API process with real sandboxes. |
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
-| `make test-images` | Docker | Builds those images and checks exactly them ([Images](#images)). |
+| `make test-images` | Docker | Builds those images and the Python runtime, and checks exactly them ([Images](#images)), including the packaged Action grading in a sandbox on the Docker socket it is given. |
+| `make action-fixtures`, `make test-action` | Docker, a GitHub runner | The `Packaged Action on a hosted runner` CI job: fixture checkouts graded by `uses: ./` (`action.yml` pointed at `Dockerfile.actions`), then each outcome, its outputs and the runner's sandboxes checked (`scripts/action_fixtures.py`). Not useful outside a workflow. |
 | `make action-check` | Network, full git history | Fails unless the version `action.yml` pins is tagged in this commit's history and its image is anonymously pullable (asked with an empty `DOCKER_CONFIG`, so a GHCR login does not hide a private package). |
 
 A bare `pytest` collects all of `tests/`, including `tests/integration/`,
@@ -325,7 +326,8 @@ runtimes:               # only listed languages get a pool
   host, or its `autograder.runtime.languages` label does not list the language.
   Run `docker pull <image>` for the published references, or
   `make sandbox-build-all` to build this checkout's images under the same
-  references. Images are never pulled automatically.
+  references. The API and sandbox manager never pull images; only the Action
+  pulls the pinned image of the language it grades.
 - **401 from the API**: set `AUTOGRADER_INTEGRATION_TOKEN` and send
   `Authorization: Bearer <token>`.
 - **Remote sandbox manager refuses to start**: set `SANDBOX_API_TOKEN` (or

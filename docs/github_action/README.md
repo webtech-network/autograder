@@ -29,6 +29,30 @@ Classroom check discovery/dashboard synchronization and automatic `relatorio.md`
 commits are retired. Existing repository rubrics remain migratable through the
 explicit legacy converter; the runtime accepts only the versioned definition.
 
+## Requirements
+
+Static and AI criteria need nothing from the runner. Criteria and preparation
+that run code (I/O, commands, setup and compilation) need Docker on the runner:
+the Action runs the submission in one sandbox of the selected language on the
+runner's Docker daemon, pulling that language's pinned runtime image (from
+about 46 MB for Python to about 364 MB for Java, uncompressed) when the runner
+lacks it, and removes the sandbox before it publishes
+anything. Every Linux GitHub-hosted runner (`runs-on: ubuntu-latest`) qualifies
+with no extra step; no `SANDBOX_*` setting, sandbox service or `docker login` is
+needed. Isolation and its limits are in
+[Runner execution boundary](trust.md#runner-execution-boundary).
+
+Without a reachable Docker daemon (for example a self-hosted runner without
+Docker), such a definition fails before grading, writes no outcome, and the log
+says:
+
+```text
+ERROR: Docker is not available to the Action. This definition runs <language> code, which the Action executes in a sandbox on the runner's Docker daemon (/var/run/docker.sock). ...
+```
+
+Container actions run only on Linux runners; macOS and Windows runners cannot
+run this Action at all.
+
 ## Versions and images
 
 The Action runs a prebuilt image: `action.yml` pins
