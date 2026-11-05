@@ -15,6 +15,7 @@ that stops or removes it raises :class:`ProcessExecutionError`.
 """
 import base64
 import os
+import posixpath
 import threading
 import time
 import uuid
@@ -46,6 +47,8 @@ INLINE_STDIN_BYTES = 48 * 1024
 CONTROL_TIMEOUT_SECONDS = 60        # staging, termination and readback execs
 KILL_GRACE_SECONDS = 10             # wait for the killed process's exec to return
 STOP_SETTLE_SECONDS = 10            # wait for Docker to record a container that stopped
+COLLECT_ATTEMPTS = 5                # starts of the collector while the pids limit leaves no pid for it
+PIDS_SAMPLES = 5                    # Docker stats samples taken when a control exec still failed
 DEFAULT_ARTIFACT_BYTES = 1_048_576
 
 # $1 run dir, $2 base64 stdin or "-" when staged; the rest is the exact argv.
@@ -63,17 +66,19 @@ exec "$@" < "$d/in" > "$d/out" 2> "$d/err"
 '''
 
 # Runs as root, which the submission cannot signal. Kills every non-root
-# process (all of them are the submission's) and waits until none is left
-# (zombies are already dead; PID 1 reaps them). The sweep and the counters
-# below need no fork (a refused ``sleep`` only shortens the wait), so this works
-# even when the submission used up the pids limit. Reports the cgroup's own
-# count of OOM kills and refused forks
-# (cgroup v2 under runc; gVisor has none, and its container stops instead),
-# reads back at most $2 bytes of each output and removes the run dir.
+# process (all of them are the submission's) and waits, up to a deadline read
+# from /proc/uptime, until none is left, not even a zombie that PID 1 has yet to
+# reap (a zombie still holds its pid). Until then it never forks: the sweep, the
+# wait and the counters use shell builtins only, because a submission that used
+# up the pids limit leaves no pid for a child and busybox ash aborts the script
+# on a failed fork. Reports the cgroup's own count of memory-limit OOMs and
+# refused forks (cgroup v2 under runc; gVisor has none, and its container stops
+# instead) before anything that forks, then reads back at most $2 bytes of each
+# output and removes the run dir.
 COLLECT = r'''
 d=$1; n=$2; me=$$
 sweep() {
-  left=0
+  live=0; dead=0
   for p in /proc/[0-9]*; do
     p=${p#/proc/}
     [ "$p" = "$me" ] && continue
@@ -81,24 +86,29 @@ sweep() {
     while read -r k v _; do
       case $k in State:) s=$v ;; Uid:) u=$v; break ;; esac
     done 2>/dev/null < "/proc/$p/status"
-    if [ -z "$u" ] || [ "$u" = 0 ] || [ "$s" = Z ]; then continue; fi
+    if [ -z "$u" ] || [ "$u" = 0 ]; then continue; fi
+    if [ "$s" = Z ]; then dead=$((dead + 1)); continue; fi
     kill -9 "$p" 2>/dev/null
-    left=$((left + 1))
+    live=$((live + 1))
   done
 }
+now() { read -r t _ < /proc/uptime; t=${t%%.*}; }
 count() {
   c=0
   while read -r k v; do [ "$k" = "$2" ] && c=$v; done 2>/dev/null < "$1"
 }
-i=0
+now; end=$((t + 6))
 sweep
-while [ "$left" -gt 0 ] && [ "$i" -lt 50 ]; do sleep 0.1; sweep; i=$((i + 1)); done
-count /sys/fs/cgroup/memory.events oom_kill; oom=$c
+while [ $((live + dead)) -gt 0 ]; do
+  now; [ "$t" -lt "$end" ] || break
+  sweep
+done
+count /sys/fs/cgroup/memory.events oom; oom=$c
 count /sys/fs/cgroup/pids.events max; forks=$c
-printf 'survivors %s\nlimits %s %s\n' "$left" "$oom" "$forks"
+printf 'survivors %s\nlimits %s %s\n' "$live" "$oom" "$forks"
 for s in out err; do
   f="$d/$s"
-  if [ -f "$f" ] && [ ! -L "$f" ]; then
+  if [ -f "$f" ] && [ ! -L "$f" ] && [ "$(readlink -f "$f")" = "$f" ]; then
     printf '%s %s\n' "$s" "$(stat -c %s "$f")"
     head -c "$n" "$f" | base64 | tr -d '\n'
     printf '\n'
@@ -117,11 +127,13 @@ if [ "$2" = new ]; then : > "$f" || exit 1; fi
 printf %s "$3" | base64 -d >> "$f"
 '''
 
-# $1 path, $2 byte limit + 1. Exit 3: no regular file at the path.
+# $1 normalized absolute path, $2 byte limit + 1. Exit 3: no regular file at the
+# path. Runs as root, so it never follows a symbolic link the submission planted
+# (in the path or as the file): the path must name the file itself.
 READ = r'''
 set -o pipefail
 f=$1
-if [ ! -f "$f" ]; then exit 3; fi
+if [ ! -f "$f" ] || [ "$(readlink -f "$f")" != "$f" ]; then exit 3; fi
 stat -c %s "$f" || exit 1
 head -c "$2" "$f" | base64 | tr -d '\n'
 '''
@@ -324,7 +336,9 @@ class SandboxContainer:
 
         The pool disposed it (running timeout, shutdown), Docker no longer has it,
         or a signal stopped its PID 1 (``docker kill``/``stop``): the host ended
-        it, an infrastructure failure. Otherwise Docker reports that the
+        it, an infrastructure failure. A running container whose process count
+        Docker reports at the pids limit had no pid left for the control exec
+        (runc): the submission exhausted it. Otherwise Docker reports that the
         container stopped by itself: the kernel's OOM killer stopped it, or the
         runtime itself (gVisor's Sentry) could not continue within the
         container's limits. The submission, which cannot signal PID 1, exhausted
@@ -333,16 +347,26 @@ class SandboxContainer:
         if self.state in (SandboxState.CLOSING, SandboxState.QUARANTINED, SandboxState.DISPOSED):
             self._invalidate("the host disposed the sandbox")
             return
+        state: dict = {}
         try:
-            self.container_ref.wait(timeout=STOP_SETTLE_SECONDS)
-            self.container_ref.reload()
-            state = self.container_ref.attrs.get("State") or {}
+            # runc could not start the control exec when the submission left it no pid.
+            at_pids_limit = bool(self._state().get("Running")) and self._pids_at_limit()
+            if not at_pids_limit:
+                try:
+                    self.container_ref.wait(timeout=STOP_SETTLE_SECONDS)
+                except docker.errors.NotFound:
+                    raise
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass  # still running, or no answer: Docker's record below decides
+                state = self._state()
         except docker.errors.NotFound:
             self._invalidate("the sandbox was removed")
             return
         except Exception:  # pylint: disable=broad-exception-caught
-            self._invalidate("an internal sandbox operation failed")  # still running, or no answer
+            self._invalidate("an internal sandbox operation failed")  # no answer from Docker
             return
+        if at_pids_limit:
+            self._exhaust()
         if state.get("Running", True):
             self._invalidate("an internal sandbox operation failed")
             return
@@ -351,22 +375,47 @@ class SandboxContainer:
             return
         self._exhaust()
 
+    def _state(self) -> dict:
+        self.container_ref.reload()
+        return self.container_ref.attrs.get("State") or {}
+
+    def _pids_at_limit(self) -> bool:
+        """Whether Docker reports the running container's process count at its pids limit.
+
+        Only the submission's processes can fill it (control holds at most a few
+        pids beside PID 1). A fork bomb's count moves, so a few samples are taken.
+        """
+        for _ in range(PIDS_SAMPLES):
+            try:
+                pids = self.container_ref.stats(stream=False, one_shot=True).get("pids_stats") or {}
+            except Exception:  # pylint: disable=broad-exception-caught
+                return False
+            if pids.get("limit") and pids.get("current", 0) >= pids["limit"]:
+                return True
+        return False
+
     def _exhaust(self) -> None:
         self.exhausted = True
         raise SandboxExhausted("The submission exhausted the sandbox's memory or process limit")
 
     def _collect(self, run_dir: str, limit: int):
-        code, output = self._control(["/bin/sh", "-c", COLLECT, "autograder-collect", run_dir, str(limit)])
+        for _ in range(COLLECT_ATTEMPTS):
+            code, output = self._control(["/bin/sh", "-c", COLLECT, "autograder-collect", run_dir, str(limit)])
+            if output.startswith(b"survivors "):
+                break
+            # The collector never reported: under runc, a submission at its pids limit
+            # leaves no pid to start an exec. It removes nothing before it reports, so
+            # starting it again is safe.
         lines = output.decode("ascii", "replace").split("\n")
         try:
             if len(lines) < 2 or not lines[0].startswith("survivors ") or not lines[1].startswith("limits "):
                 raise ValueError("unexpected collector output")
             survivors = int(lines[0].split()[1])
-            oom_kills, refused_forks = (int(value) for value in lines[1].split()[1:])
+            limit_ooms, refused_forks = (int(value) for value in lines[1].split()[1:])
         except (ValueError, IndexError) as exc:
             self._invalidate("process output readback failed")
             raise ProcessExecutionError("Process output could not be read back") from exc
-        if oom_kills or refused_forks:
+        if limit_ooms or refused_forks:
             # The container's cgroup recorded the limit; outputs may be unreadable now.
             self._exhaust()
         try:
@@ -388,15 +437,17 @@ class SandboxContainer:
     def extract_file(self, path: str, max_bytes: int = DEFAULT_ARTIFACT_BYTES) -> ExtractedFile:
         """Read back at most ``max_bytes`` of a regular file.
 
-        Raises ``FileNotFoundError`` only when no regular file exists at ``path``,
+        Raises ``FileNotFoundError`` only when no regular file exists at ``path``
+        (a symbolic link, or a path through one, is not one),
         ``ArtifactTooLargeError`` above ``max_bytes`` and ``ArtifactReadError``
         when an existing file could not be read; sandbox failures stay distinct.
         """
         if not path.startswith("/"):
             raise ValueError(f"Path must be absolute inside container: {path}")
         self._check_usable()
+        target = "/" + posixpath.normpath(path).lstrip("/")
         try:
-            code, output = self._control(["/bin/sh", "-c", READ, "autograder-read", path, str(max_bytes + 1)])
+            code, output = self._control(["/bin/sh", "-c", READ, "autograder-read", target, str(max_bytes + 1)])
         except ProcessExecutionError as exc:
             raise ArtifactReadError(f"Artifact readback failed: {exc}") from exc
         if code == 3:

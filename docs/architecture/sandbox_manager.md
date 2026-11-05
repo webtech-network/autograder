@@ -163,8 +163,8 @@ result = sandbox.run_process(ProcessRequest.command("python3 calculator.py", std
 
 ### `extract_file(path, max_bytes=1_048_576)`
 Reads back a regular file. It raises `FileNotFoundError` only when the file is
-missing, `ArtifactTooLargeError` above `max_bytes`, and `ArtifactReadError` when
-an existing file cannot be read.
+missing or is a symbolic link (or is reached through one), `ArtifactTooLargeError`
+above `max_bytes`, and `ArtifactReadError` when an existing file cannot be read.
 
 ---
 

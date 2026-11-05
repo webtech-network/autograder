@@ -52,10 +52,15 @@ class ScriptedContainer:
     """A docker container double that answers the sandbox's fixed scripts."""
 
     def __init__(self, exit_code=0, stdout=b"", stderr=b"", marker=b"autograder:started\n", survivors=0,
-                 run_error=None, hang=False, limits=(0, 0), collect_error=None, state=None, wait_error=None):
+                 run_error=None, hang=False, limits=(0, 0), collect_error=None, state=None, wait_error=None,
+                 unstartable_collects=0, pids=None):
         self.exit_code, self.stdout, self.stderr, self.marker = exit_code, stdout, stderr, marker
         self.survivors, self.run_error, self.hang = survivors, run_error, hang
         self.limits, self.collect_error, self.wait_error = limits, collect_error, wait_error
+        # runc refuses to start this many collector execs (no pid left), as Docker reports it.
+        self.unstartable_collects = unstartable_collects
+        # Docker's pids_stats of the running container.
+        self.pids = pids or {"current": 5, "limit": 64}
         # Docker's record of the container (``State``), consulted only when a control exec fails.
         self.attrs = {"State": state or {"Status": "running", "Running": True, "OOMKilled": False, "ExitCode": 0}}
         self.calls = []
@@ -67,6 +72,10 @@ class ScriptedContainer:
         if self.wait_error:
             raise self.wait_error
         return {"StatusCode": self.attrs["State"]["ExitCode"]}
+
+    def stats(self, stream=True, one_shot=False):
+        assert stream is False and one_shot is True
+        return {"pids_stats": self.pids}
 
     def reload(self):
         if isinstance(self.wait_error, docker.errors.NotFound):
@@ -85,6 +94,11 @@ class ScriptedContainer:
         if script == COLLECT:
             if self.collect_error:
                 raise self.collect_error
+            if self.unstartable_collects:
+                self.unstartable_collects -= 1
+                return Mock(exit_code=128, output=b"OCI runtime exec failed: exec failed: unable to start container "
+                                                  b"process: nsexec-0: unable to spawn stage-1: Resource temporarily "
+                                                  b"unavailable\r\n")
 
             def stream(name, data):
                 return f"{name} {len(data)}\n".encode() + base64.b64encode(data[:int(cmd[5])]) + b"\n"
@@ -111,6 +125,11 @@ def _run(container, state=SandboxState.ACTIVE):
     # The container's cgroup recorded the limit while it kept running (runc).
     (ScriptedContainer(exit_code=137, limits=(1, 0)), SandboxState.ACTIVE, SandboxExhausted),
     (ScriptedContainer(hang=True, survivors=3, limits=(0, 12)), SandboxState.ACTIVE, SandboxExhausted),
+    # runc found no pid to start the collector at first; a later start reads the limit.
+    (ScriptedContainer(hang=True, unstartable_collects=3, limits=(0, 40)), SandboxState.ACTIVE, SandboxExhausted),
+    # runc never found a pid for it, and Docker reports the running container at its pids limit.
+    (ScriptedContainer(hang=True, unstartable_collects=99, pids={"current": 64, "limit": 64},
+                       wait_error=http.ReadTimeout("still running")), SandboxState.ACTIVE, SandboxExhausted),
     # The container stopped by itself under the submission: OOM, or the runtime (gVisor) could not continue.
     (ScriptedContainer(exit_code=128, collect_error=OSError("not running"),
                        state={**STOPPED, "OOMKilled": True, "ExitCode": 137}), SandboxState.ACTIVE, SandboxExhausted),
@@ -127,8 +146,12 @@ def _run(container, state=SandboxState.ACTIVE):
                        state={**STOPPED, "OOMKilled": False, "ExitCode": 143}), SandboxState.ACTIVE, ProcessExecutionError),
     (ScriptedContainer(collect_error=OSError("daemon error"), wait_error=http.ReadTimeout("still running")),
      SandboxState.ACTIVE, ProcessExecutionError),
-], ids=["cgroup-oom-kill", "cgroup-refused-fork", "stopped-oom", "runtime-stopped-itself", "pool-disposed",
-        "removed", "docker-kill", "docker-stop", "running-control-failed"])
+    # A control exec that keeps failing to start below the pids limit is the host's fault.
+    (ScriptedContainer(unstartable_collects=99, wait_error=http.ReadTimeout("still running")),
+     SandboxState.ACTIVE, ProcessExecutionError),
+], ids=["cgroup-memory-limit", "cgroup-refused-fork", "collector-started-on-retry", "running-at-pids-limit",
+        "stopped-oom", "runtime-stopped-itself", "pool-disposed",
+        "removed", "docker-kill", "docker-stop", "running-control-failed", "control-unstartable-below-limit"])
 def test_who_ended_the_run_is_decided_from_host_evidence(container, state, outcome):
     sandbox, raised = _run(container, state)
     assert type(raised) is outcome, raised  # pylint: disable=unidiomatic-typecheck

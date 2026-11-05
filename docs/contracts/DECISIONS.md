@@ -486,4 +486,8 @@ sandbox is spent under both runtimes and the exhausting criterion and every
 later one are assessed zeros. A missing or non-executable workspace program is
 an assessed zero; only a runtime command that cannot start stays
 `PROCESS_START_FAILED`. Artifacts and outputs are read whatever permissions the
-submission set. The outcome wire is unchanged. See [PROCESSES.md](PROCESSES.md#who-ended-a-run).
+submission set, never through a symbolic link it planted (a link is no
+artifact, under both runtimes). The collector needs no fork until it has
+reported the cgroup counters, is restarted when runc finds no pid to start it,
+and a running container at its pids limit is exhaustion. The outcome wire is
+unchanged. See [PROCESSES.md](PROCESSES.md#who-ended-a-run).

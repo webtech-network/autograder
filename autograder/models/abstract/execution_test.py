@@ -3,6 +3,7 @@
 It lives outside ``autograder.template_library`` so that ``import autograder``
 (which exports it) never builds the built-in templates.
 """
+import posixpath
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from autograder.models.abstract.test_function import EvaluationInput, ParameterIssue, TestFunction
@@ -41,9 +42,10 @@ def in_workspace(executable: str) -> bool:
     in the runtime image's ``PATH``, and an absolute path outside the workspace
     is part of the image: when those cannot start, the host lacks a capability.
     """
-    if executable.startswith("/"):
-        return executable.startswith(f"{WORKSPACE}/")
-    return "/" in executable
+    if "/" not in executable:
+        return False
+    # Relative paths resolve from the workspace, the programs' working directory.
+    return posixpath.normpath(posixpath.join(WORKSPACE, executable)).startswith(f"{WORKSPACE}/")
 
 
 class BaseExecutionTest(TestFunction):  # pylint: disable=abstract-method

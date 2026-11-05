@@ -39,6 +39,7 @@ unexpected failure in the engine and in every host.
 | Student compilation/runtime failure or student execution timeout reported by an I/O evaluator | Completed, criterion scores 0 | No top-level error |
 | Submission exhausts the sandbox's memory or process limit (`SandboxExhausted`) | Completed; that criterion and every later one in the sandbox score 0, the same under gVisor and runc | No top-level error |
 | Workspace program (`./a.out`) missing or not executable | Completed, criterion scores 0 | No top-level error |
+| Expected artifact missing, or a symbolic link (or reached through one) | Completed, criterion scores 0 | No top-level error |
 | Required preparation or assessment file missing | Failed, no score | submission / `REQUIRED_FILE_MISSING` |
 | Preparation command fails because the submission does not satisfy it | Failed, no score | submission / `PREPARATION_FAILED` |
 | Language omitted for a multilingual definition or disallowed language selected | Failed, no score | submission / `LANGUAGE_REQUIRED` or `LANGUAGE_NOT_ALLOWED` |

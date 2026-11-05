@@ -213,7 +213,8 @@ def test_what_the_submission_did_to_its_own_sandbox_is_assessed(effect, text):
         session.read_artifact.assert_not_called()
 
 
-@pytest.mark.parametrize("executable", ["python3", "/usr/bin/python3", "/application/run"])
+@pytest.mark.parametrize("executable", ["python3", "/usr/bin/python3", "/application/run", "../usr/bin/x",
+                                        "/app/../usr/bin/x"])
 def test_a_runtime_command_that_cannot_start_is_a_capability_failure(executable):
     from autograder.template_library.input_output import DontFailTest
     from autograder.models.abstract.test_function import EvaluationInput

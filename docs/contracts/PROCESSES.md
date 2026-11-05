@@ -76,7 +76,7 @@ are exceptions.
 | `SandboxInvalidatedError` (control API `409 SANDBOX_INVALIDATED`) | An earlier failure made the sandbox untrustworthy, for example termination that could not be confirmed. Every later operation fails until disposal. |
 | `SandboxHandleNotFound` (`404 HANDLE_NOT_FOUND`), `SandboxHandleGone` (`410 HANDLE_CLOSED`/`HANDLE_EXPIRED`) | The remote handle is unknown, closed or expired ([SANDBOX.md](SANDBOX.md)). |
 | `RemoteSandboxError` with code `TRANSPORT_ERROR` | The remote outcome is unknown. Process requests are never replayed. |
-| `FileNotFoundError` (remote `ArtifactNotFound`, `404 ARTIFACT_NOT_FOUND`) | Artifact readback only: no regular file exists at the path. |
+| `FileNotFoundError` (remote `ArtifactNotFound`, `404 ARTIFACT_NOT_FOUND`) | Artifact readback only: no regular file exists at the path. A symbolic link, or a path through one, is not a regular file. |
 | `ArtifactReadError` (`500 ARTIFACT_READ_FAILED`) | The artifact exists but could not be read back. |
 | `ArtifactTooLargeError`, a `ValueError` (`422 ARTIFACT_INVALID`) | The artifact is above the readback bound. |
 
@@ -85,21 +85,25 @@ The local and remote backends raise the same `SandboxExhausted`,
 `SandboxExhausted`, `FileNotFoundError` and `ArtifactTooLargeError` are
 `RuntimeError`s. Only a missing artifact is ever a student's missing file. The
 host reads artifacts and outputs whatever permissions the submission gave them,
-so `ArtifactReadError` is never caused by the submission.
+and never through a symbolic link the submission planted (readback runs as
+`root`, so following one could read files the submission cannot, and runc and
+gVisor treat such links differently). So `ArtifactReadError` is never caused by
+the submission.
 
 ## Consumer policies
 
 | Consumer | `exited` 0 | `exited` ≠ 0 / `timed_out` | `not_started` | `SandboxExhausted` | Other exception |
 | --- | --- | --- | --- | --- | --- |
 | Preparation (`setup_commands`, argv, empty stdin, 30 s) | continue | `PREPARATION_FAILED` (no score) | `PREPARATION_ERROR` (capability) | `PREPARATION_FAILED` | `PREPARATION_ERROR` |
-| `expect_output`, `dont_fail`, `expect_file_artifact` (30 s) | assess | assessed zero (exit code or stderr / timeout report) | workspace program (`./a.out`, `bin/run`, `/app/...`): assessed zero; runtime command (`python3`, `/usr/bin/x`): `PROCESS_START_FAILED` (no score) | assessed zero | `SANDBOX_ERROR` (no score) |
-| `expect_file_artifact` readback | compare | missing file → assessed zero | | assessed zero | readback failure / unknown handle → `SANDBOX_ERROR` |
+| `expect_output`, `dont_fail`, `expect_file_artifact` (30 s) | assess | assessed zero (exit code or stderr / timeout report) | workspace program (`./a.out`, `bin/run`, `/app/...`): assessed zero; runtime command (`python3`, `/usr/bin/x`, `../usr/bin/x`): `PROCESS_START_FAILED` (no score) | assessed zero | `SANDBOX_ERROR` (no score) |
+| `expect_file_artifact` readback | compare | missing file or symbolic link → assessed zero | | assessed zero | readback failure / unknown handle → `SANDBOX_ERROR` |
 | Deliberate execution (8 s per case, 16 KiB per stream) | `success` | `runtime_error` / `timeout` (ends the batch) | 503 `EXECUTION_UNAVAILABLE` | `runtime_error`, exit code 137 (ends the batch) | 503 |
 
 The workspace belongs to the submission: a program in it that is missing or not
 executable (deleted, never built, `chmod -x`) is the submission's result. A
-runtime command comes from the host's image, so when it cannot start the host
-lacks a capability.
+path is in the workspace when it resolves under `/app` from the workspace.
+A runtime command comes from the host's image, so when it cannot start the
+host lacks a capability.
 
 This keeps the outcome rule intact: assessed failures can score zero, and
 required infrastructure failures cannot.
@@ -114,8 +118,9 @@ the whole HTTP exchange. Deliberate execution also applies its 45 s response
 deadline.
 
 When the deadline passes, the local backend kills every process of the
-submission. It waits until none is left (zombies are already dead; the
-container's init reaps them), and only then returns `timed_out`. The same sweep
+submission. It waits until none is left, not even a zombie the container's init
+has yet to reap (a zombie still holds a pid), and only then returns
+`timed_out`. The same sweep
 runs after every process, so background processes never outlive their run or
 reach the next criterion. If termination cannot be confirmed, the sandbox is
 invalidated and every later operation fails. A real-container test runs a
@@ -129,8 +134,16 @@ container's PID 1 (Docker's init) and every control exec that can run beside
 them (the termination sweep, output and artifact readback) run as `root`, so
 the submission cannot signal them. Its processes are also the kernel's first
 choice when the container's memory runs out, so control execs are never
-starved. The sweep kills every non-root process without forking, so it works
-even when the submission used up the process limit. See
+starved.
+
+A submission at its process limit leaves no pid for anything else, and the
+images' shell (busybox ash) aborts a script whose fork fails. So the sweep, its
+wait (a deadline read from `/proc/uptime`, never `sleep`) and the cgroup
+counters use shell builtins only, and the counters are reported before anything
+that forks. Under runc a full pids cgroup can also refuse to start the
+collector exec itself. Nothing ran then, so the host starts it again (up to 5
+times). If it never starts, Docker's `pids_stats` for the running container
+decides (below). See
 [SANDBOX.md](SANDBOX.md#one-owner-from-acquisition-to-confirmed-disposal) for the profile.
 
 Assessed and infrastructure failures are decided from host-side evidence,
@@ -138,11 +151,12 @@ never from an exit code alone:
 
 | Evidence | Meaning | Result |
 | --- | --- | --- |
-| The sweep runs; the container's cgroup counts an OOM kill or a refused fork (runc) | The submission exhausted memory or processes | `SandboxExhausted` |
+| The sweep runs; the container's cgroup counts its memory limit reached (`memory.events oom`) or a refused fork (`pids.events max`) (runc) | The submission exhausted memory or processes | `SandboxExhausted` |
+| The collector exec cannot start and Docker reports the running container's `pids_stats.current` at its limit (runc) | The submission left no pid for control | `SandboxExhausted` |
 | A control exec fails; Docker reports the container stopped by itself: `OOMKilled`, or the runtime exited without a signal (gVisor's Sentry cannot continue at the pids limit) | The submission exhausted the sandbox | `SandboxExhausted` |
 | The pool disposed the sandbox (running timeout, shutdown) | The host ended it | `ProcessExecutionError` |
 | Docker no longer has the container, or a signal stopped PID 1 (`docker rm -f`, `kill`, `stop`) | The host ended it | `ProcessExecutionError` |
-| A control exec fails and the container is still running | Infrastructure (daemon) failure | `ProcessExecutionError` |
+| A control exec fails and the container is still running below its pids limit | Infrastructure (daemon) failure | `ProcessExecutionError` |
 | None of the above; exit code 137 | The program's own exit (`exit(137)`, or a SIGKILL it sent itself) | `exited` 137 |
 
 A host or operator that stops or removes a sandbox under a correct program
@@ -157,9 +171,19 @@ process that reached the limit and every later operation in the session raise
 grade still completes. Its output is not reported, because gVisor loses it.
 
 The runc evidence requires cgroup v2 (`/sys/fs/cgroup/memory.events` and
-`pids.events` inside the container). A host-wide OOM kill of a gVisor Sentry is
-indistinguishable from the submission's: size hosts so that container limits,
-not host memory, are what bind.
+`pids.events` inside the container). It counts the container's own memory limit
+(`oom`), not OOM kills (`oom_kill`), because a host-wide OOM kill of a
+container process also counts as an `oom_kill` and is not the submission's
+doing; such a host kill ends the run as an ordinary exit 137.
+
+Known limitations of the evidence:
+
+- A host-wide OOM kill of a gVisor Sentry, and any other Sentry crash that
+  stops the container without a signal, look like the submission exhausting
+  the sandbox (assessed zero). Size hosts so that container limits, not host
+  memory, are what bind.
+- Any refused fork counts as exhaustion, even when the program handled `EAGAIN`
+  and printed the right answer: the limit is part of the assignment's sandbox.
 
 ## Output and readback bounds
 
