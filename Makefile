@@ -5,7 +5,7 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images test-images action-check action-publish sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images test-images action-fixtures test-action action-check action-publish sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -56,8 +56,14 @@ images: ## Build the API, sandbox manager and Action images from this checkout
 	docker build -t $(IMAGE_PREFIX)-sandbox-manager:$(IMAGE_TAG) -f Dockerfile.sandbox .
 	docker build -t $(IMAGE_PREFIX)-action:$(IMAGE_TAG) -f Dockerfile.actions .
 
-test-images: images ## Contents, context leaks and Action grading of exactly those images
+test-images: images sandbox-build-python ## Contents, context leaks and Action grading of exactly those images
 	AUTOGRADER_IMAGE_PREFIX='$(IMAGE_PREFIX)' AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' $(PYTHON) -m pytest tests/images/
+
+action-fixtures: ## Fixture checkouts for the packaged-Action CI job; points action.yml at Dockerfile.actions (CI)
+	$(PYTHON) -m scripts.action_fixtures prepare
+
+test-action: ## Check the outcome and sandboxes of the fixture ACTION_FIXTURE just graded by `uses: ./` (CI)
+	$(PYTHON) -m scripts.action_fixtures check
 
 action-check: ## Fail unless the Action image action.yml pins is published and public (CI, into main)
 	$(PYTHON) -m scripts.action_image check

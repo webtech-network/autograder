@@ -102,6 +102,7 @@ every verification job of `verify.yml` by its name, from the GitHub Actions app:
 - `PostgreSQL tier`
 - `Service and Action images` (which runs `make action-check` into `main`)
 - `Docker sandboxes (integration and e2e)`
+- `Packaged Action on a hosted runner` (the Action from this commit, `uses: ./`, on `ubuntu-latest`)
 
 The publication jobs (`Release Action image`, `Deploy API`) are skipped on pull
 requests and are not required. Check the setting with:
