@@ -60,8 +60,16 @@ def _stop(message: str) -> None:
     sys.exit(1)
 
 
-def check(action: Path = ROOT / "action.yml") -> None:
+def runtimes(config: Path = ROOT / "sandbox_config.yml") -> list:
+    """The runtime image references ``sandbox_config.yml`` pins, which the Action image ships."""
+    return sorted(set(yaml.safe_load(config.read_text(encoding="utf-8"))["runtimes"].values()))
+
+
+def check(action: Path = ROOT / "action.yml", config: Path = ROOT / "sandbox_config.yml") -> None:
     """Exit 1 unless the pinned version was released from this commit's history and is anonymously pullable.
+
+    The runtime images the release pins must be anonymously pullable too: the
+    Action pulls the selected language's image on the runner.
 
     The ``<version>`` tag names the commit the image was built from; it must be an
     ancestor of the checked commit, so the image ``@main`` runs provably comes
@@ -86,12 +94,21 @@ def check(action: Path = ROOT / "action.yml") -> None:
                            f"full history): {ancestor.stderr.strip()}")
     with tempfile.TemporaryDirectory() as anonymous:
         pullable = published(reference, env={**os.environ, "DOCKER_CONFIG": anonymous})
+        # The Action pulls the runtime image of the selected language itself (ENV-03).
+        private = [runtime for runtime in runtimes(config)
+                   if not published(runtime, env={**os.environ, "DOCKER_CONFIG": anonymous})]
     if not pullable:
         _stop(f"action.yml pins {reference}, which an anonymous runner cannot pull, so every "
               "`webtech-network/autograder@main` workflow would fail. Publish it first: "
               f"{release}. A new package must then be made public "
               "(docs/github_action/README.md#releasing-a-version).")
-    print(f"{reference} was released from this history and is published and public", flush=True)
+    if private:
+        _stop(f"The Action runs submissions in the runtime images sandbox_config.yml pins, and an anonymous "
+              f"runner cannot pull {', '.join(private)}, so execution-based grading would fail. They are "
+              "published from main (sandbox-images.yml); make each new package public "
+              "(docs/github_action/README.md#releasing-a-version).")
+    print(f"{reference} was released from this history and is published and public, with its runtime images",
+          flush=True)
 
 
 def publish(local_image: str, action: Path = ROOT / "action.yml") -> None:

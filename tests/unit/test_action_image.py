@@ -116,9 +116,10 @@ def test_version_tagged_on_another_commit_stops_the_release(monkeypatch, action)
 class Registry:
     """The registry seam of ``check``: answers ``published`` and records the client configuration it was asked with."""
 
-    def __init__(self, *, public=True, error=None):
+    def __init__(self, *, public=True, error=None, private=()):
         self.public = public
         self.error = error
+        self.private = set(private)
         self.configs = []
 
     def __call__(self, reference, env=None):
@@ -126,7 +127,7 @@ class Registry:
         self.configs.append((reference, config.is_dir() and not any(config.iterdir())))
         if self.error:
             raise RuntimeError(self.error)
-        return self.public
+        return self.public and reference not in self.private
 
 
 def git(cwd, *args):
@@ -168,8 +169,23 @@ def test_check_passes_for_a_public_image_released_from_this_history(monkeypatch,
     monkeypatch.setattr(action_image, "published", registry)
     action_image.check(action)
     # Asked as a consumer's runner asks: with no credentials, even where the caller is logged in.
-    assert registry.configs == [("ghcr.io/webtech-network/autograder-action:0.6.0", True)]
+    # The runtime images the Action pulls on the runner are asked the same way (ENV-03).
+    assert registry.configs == [("ghcr.io/webtech-network/autograder-action:0.6.0", True),
+                                *((runtime, True) for runtime in action_image.runtimes())]
     assert "public" in capsys.readouterr().out
+
+
+def test_check_refuses_a_private_runtime_image(monkeypatch, action, history, capsys):
+    tag(history)
+    git(history, "switch", "-q", "main")
+    git(history, "merge", "-q", "--no-ff", "-m", "merge", "release")
+    private = action_image.runtimes()[0]
+    monkeypatch.setattr(action_image, "published", Registry(private=[private]))
+    with pytest.raises(SystemExit) as stopped:
+        action_image.check(action)
+    assert stopped.value.code == 1
+    message = capsys.readouterr().err
+    assert private in message and "public" in message and "runtime" in message
 
 
 def test_check_refuses_a_pin_that_was_never_released(monkeypatch, action, history, capsys):

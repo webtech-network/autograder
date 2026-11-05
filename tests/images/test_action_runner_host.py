@@ -14,6 +14,7 @@ Without a Docker socket the Action fails with the documented error.
 # pylint: disable=missing-function-docstring,redefined-outer-name
 import json
 import os
+import re
 import subprocess
 import time
 import uuid
@@ -23,7 +24,7 @@ import pytest
 import yaml
 
 from scripts.action_fixtures import PROBE
-from tests.images.test_service_and_action_images import ROOT, action_environment, docker, image
+from tests.images.test_service_and_action_images import ROOT, action_environment, docker, image, run as run_in
 
 RUNTIMES = yaml.safe_load((ROOT / "sandbox_config.yml").read_text(encoding="utf-8"))["runtimes"]
 PYTHON_IO = json.loads((ROOT / "docs/contracts/v1/examples/python-io.json").read_text(encoding="utf-8"))
@@ -116,6 +117,13 @@ def action_run(tmp_path):
     yield make
     for run in runs:
         run.close()
+
+
+def test_action_image_pins_the_runtime_images_of_its_release():
+    shipped = yaml.safe_load(run_in(image("action"), "cat", "/app/sandbox_config.yml"))["runtimes"]
+    assert shipped == RUNTIMES
+    for reference in shipped.values():
+        assert re.fullmatch(r"ghcr\.io/webtech-network/autograder-sandbox-[a-z]+:[0-9a-f]{12}", reference), reference
 
 
 def test_action_grades_execution_in_one_sandbox_of_the_selected_language(action_run):

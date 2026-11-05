@@ -124,9 +124,17 @@ def docker_capabilities(manager):
 
 
 class DockerHost:
-    """Lazy, isolated manager for one host lifetime. Static work starts nothing."""
-    def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml",
-                 api_token=None):
+    """The HTTP host's lazy, isolated manager for one host lifetime. Static work starts nothing.
+
+    ``mode="local"`` runs the pools in this process from ``config_file``;
+    ``mode="remote"`` uses the private sandbox control API at ``api_url``, which
+    has no default. The Action uses :class:`execution_host.runner.RunnerHost`.
+    """
+    def __init__(self, *, mode, api_url=None, config_file="sandbox_config.yml", api_token=None):
+        if mode not in ("local", "remote"):
+            raise ValueError("Unsupported sandbox host mode")
+        if mode == "remote" and not api_url:
+            raise ValueError("Remote sandbox mode needs the sandbox control API URL")
         self.mode = mode
         self.api_url = api_url
         self.api_token = api_token
@@ -144,13 +152,11 @@ class DockerHost:
                 if self.mode == "remote":
                     from sandbox_manager.remote_client import RemoteSandboxManager
                     self._manager = RemoteSandboxManager(api_url=self.api_url, token=self.api_token)
-                elif self.mode == "local":
+                else:
                     from sandbox_manager.manager import SandboxManager
                     from sandbox_manager.models.pool_config import SandboxHostConfig
                     # Reclaims containers of provably dead owners, then starts the pools.
                     self._manager = SandboxManager.from_config(SandboxHostConfig.load_from_yaml(self.config_file))
-                else:
-                    raise ValueError("Unsupported sandbox host mode")
             manager = self._manager
         return DockerSession(manager, language, wait_seconds)
 
@@ -160,10 +166,3 @@ class DockerHost:
             manager, self._manager = self._manager, None
         if manager is not None:
             manager.shutdown()
-
-    @classmethod
-    def from_environment(cls):
-        return cls(mode=os.environ.get("SANDBOX_MODE", "remote"),
-                   api_url=os.environ.get("SANDBOX_API_URL", "http://localhost:8001"),
-                   api_token=os.environ.get("SANDBOX_API_TOKEN") or None,
-                   config_file=os.environ.get("SANDBOX_CONFIG_FILE", "sandbox_config.yml"))

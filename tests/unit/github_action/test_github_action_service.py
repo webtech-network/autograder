@@ -86,3 +86,50 @@ def test_restricted_producer_publishes_named_revision_without_reading_configurat
     assert (provenance.reference, provenance.revision) == ("7", 3)
     assert provenance.definition_hash == compiled.definition_hash
     assert service.publisher.grading_config_id == 7
+
+
+def io_definition():
+    return {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
+            "criteria": {"base": {"weight": 100, "tests": [{"id": "echo", "type": "expect_output", "name": "Echo",
+                "parameters": {"program_command": "python main.py", "inputs": ["hi"], "expected_output": "hi"}}]}}}
+
+
+def test_static_definition_never_touches_the_runner_docker(tmp_path):
+    path = tmp_path / "definition.json"
+    path.write_text(json.dumps(definition()))
+    service = GithubActionService()
+    with patch("execution_host.runner.RunnerHost", side_effect=AssertionError("static work needs no Docker")), \
+            patch("github_action.github_action_service.build_pipeline") as build:
+        configure(service, path)
+    assert service.host is None
+    assert build.call_args.kwargs["capabilities"].execution is None
+
+
+def test_execution_definition_provisions_one_host_for_the_selected_language_and_closes_it(tmp_path):
+    from autograder.models.language import Language
+    from github_action.identity import SubmissionIdentity
+    path = tmp_path / "definition.json"
+    path.write_text(json.dumps(io_definition()))
+    service = GithubActionService()
+    with patch("execution_host.runner.RunnerHost") as host, \
+            patch("github_action.github_action_service.build_pipeline") as build:
+        configure(service, path)
+    host.assert_called_once_with(Language.PYTHON)
+    assert build.call_args.kwargs["capabilities"] is host.return_value.capabilities
+    pipeline = MagicMock()
+    pipeline.run.side_effect = RuntimeError("grading crashed")
+    with pytest.raises(RuntimeError):
+        service.run_autograder(pipeline, SubmissionIdentity("alice", "Alice", "input"), {})
+    host.return_value.close.assert_called_once_with()
+    service.close()  # idempotent
+    host.return_value.close.assert_called_once_with()
+
+
+def test_runner_without_docker_fails_with_the_documented_error():
+    import docker
+    from autograder.models.language import Language
+    from execution_host.runner import DockerUnavailableError, RunnerHost
+    with patch("docker.from_env", side_effect=docker.errors.DockerException("socket missing")):
+        with pytest.raises(DockerUnavailableError, match="Docker is not available to the Action") as raised:
+            RunnerHost(Language.C)
+    assert "runs-on: ubuntu-latest" in str(raised.value) and "c code" in str(raised.value)

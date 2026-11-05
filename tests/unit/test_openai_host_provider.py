@@ -144,7 +144,7 @@ def test_host_composition_resolves_production_credentials_once(monkeypatch):
             openai_provider.TestOutput(criterion_id="sort-again", feedback="f", score=70.0)]))))))
     monkeypatch.setattr("execution_host.openai_provider.fetch_secret", lookups)
     monkeypatch.setattr("execution_host.openai_provider.OpenAI", constructed)
-    provider = DockerHost().capabilities.ai
+    provider = DockerHost(mode="local").capabilities.ai
     assert [grade_ai(provider).score for _ in range(3)] == [70.0] * 3
     lookups.assert_called_once_with("course-openai", "OPENAI_API_KEY", "us-east-1")
     constructed.assert_called_once()
@@ -185,7 +185,7 @@ def test_static_and_io_gradings_never_construct_the_provider(monkeypatch, defini
     construct = Mock(side_effect=AssertionError("no AI criterion is selected"))
     monkeypatch.setattr("execution_host.openai_provider.OpenAI", construct)
     monkeypatch.setattr("execution_host.openai_provider.fetch_secret", construct)
-    host = DockerHost()
+    host = DockerHost(mode="local")
     monkeypatch.setattr(host, "acquire", lambda language: FakeSession())
     capabilities = HostCapabilities(execution=host.acquire, ai=host.capabilities.ai)
     submission = Submission("s", "s", "a", {name: SubmissionFile(name, text) for name, text in files.items()})
@@ -287,7 +287,7 @@ def test_production_composition_does_not_retry(stub, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "env-key")
     monkeypatch.setenv("OPENAI_BASE_URL", stub.url)
     stub.replies = [(500, {"error": {"message": "x"}})] * 3
-    outcome = grade_ai(DockerHost().capabilities.ai)
+    outcome = grade_ai(DockerHost(mode="local").capabilities.ai)
     assert outcome.error.code == "PROVIDER_ERROR"
     assert len(stub.wait_for_requests(1)) == 1
 

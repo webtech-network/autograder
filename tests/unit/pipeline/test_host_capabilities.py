@@ -173,10 +173,21 @@ def test_static_work_does_not_initialize_concrete_host_manager(monkeypatch):
     from sandbox_manager import remote_client
     initialize = Mock(side_effect=AssertionError("static work must stay offline"))
     monkeypatch.setattr(remote_client, "RemoteSandboxManager", initialize)
-    host = DockerHost()
+    host = DockerHost(mode="remote", api_url="http://sandbox-manager.invalid:8001")
     assert build_pipeline(definition=definition(), capabilities=host.capabilities).run(submission()).outcome.status == "completed"
     host.close()
     initialize.assert_not_called()
+
+
+def test_docker_host_has_no_implicit_mode_or_sandbox_service():
+    # The old default, a remote service at localhost:8001, was unreachable wherever it applied (ENV-03).
+    from execution_host.docker import DockerHost
+    with pytest.raises(TypeError):
+        DockerHost()  # pylint: disable=missing-kwoa
+    with pytest.raises(ValueError, match="control API URL"):
+        DockerHost(mode="remote")
+    with pytest.raises(ValueError, match="Unsupported"):
+        DockerHost(mode="runner")
 
 
 def test_concrete_hosts_have_independent_managers_and_idempotent_shutdown(monkeypatch):
@@ -185,7 +196,7 @@ def test_concrete_hosts_have_independent_managers_and_idempotent_shutdown(monkey
     first_manager, second_manager = Mock(), Mock()
     initialize = Mock(side_effect=[first_manager, second_manager])
     monkeypatch.setattr(remote_client, "RemoteSandboxManager", initialize)
-    first, second = DockerHost(api_url="http://one"), DockerHost(api_url="http://two")
+    first, second = DockerHost(mode="remote", api_url="http://one"), DockerHost(mode="remote", api_url="http://two")
     first_session, second_session = first.acquire(Language.PYTHON), second.acquire(Language.JAVA)
     first_session.close()
     second_session.close()
