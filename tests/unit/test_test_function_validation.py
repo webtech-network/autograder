@@ -30,16 +30,9 @@ class ValidatedTestFunction(TestFunction):
     def execute(self, evaluation, *, required_str, optional_int=42, list_of_items=None): pass
 
 
-class MockTemplate(Template):
+def mock_template():
     """Mock template containing the validated test function."""
-    def __init__(self):
-        self.tests = {"validated_test": ValidatedTestFunction()}
-    @property
-    def template_name(self): return "Mock Template"
-    @property
-    def template_description(self): return "Mock"
-    @property
-    def requires_sandbox(self): return False
+    return Template("Mock Template", "Mock", [ValidatedTestFunction()])
 
 
 def definition(parameters):
@@ -52,7 +45,7 @@ class TestCompilationValidation:
     """Evaluator contracts are enforced once, by compile_definition, never by tree construction."""
 
     def setup_method(self):
-        self.template = MockTemplate()
+        self.template = mock_template()
 
     def test_validation_success(self):
         """Valid parameters compile and the tree carries the normalized values."""
@@ -78,5 +71,5 @@ class TestCompilationValidation:
         """Building the tree consumes compiled values and never re-runs the contract."""
         compiled = compile_definition(definition({"required_str": "hello"}), templates={"mock": self.template})
         with patch.object(MockParams, "model_validate", side_effect=AssertionError("second validation")):
-            tree = build_criteria_tree(compiled.definition.criteria, {"validated_test": (ValidatedTestFunction(), frozenset())})
+            tree = build_criteria_tree(compiled.definition.criteria, {"validated_test": ValidatedTestFunction()})
         assert tree.base.tests[0].parameters["required_str"] == "hello"

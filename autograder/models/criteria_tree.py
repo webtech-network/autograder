@@ -22,16 +22,16 @@ class TestNode:
     file_target: Optional[Tuple[str, ...]] = None
     weight: float = 100.0
     criterion_id: str = ""
-    #: Host capabilities resolved at compilation (evaluator plus template
-    #: declarations). Defaults to the evaluator's own declaration.
-    capabilities: Optional[FrozenSet[str]] = None
 
     def __post_init__(self):
         object.__setattr__(self, "parameters", freeze(self.parameters))
         if self.file_target is not None:
             object.__setattr__(self, "file_target", tuple(self.file_target))
-        capabilities = self.test_function.required_capabilities if self.capabilities is None else self.capabilities
-        object.__setattr__(self, "capabilities", frozenset(capabilities))
+
+    @property
+    def capabilities(self) -> FrozenSet[str]:
+        """Host capabilities, exactly as the evaluator declares them (no other source)."""
+        return frozenset(self.test_function.required_capabilities)
 
     def __repr__(self):
         params_str = f", params={dict(self.parameters)}" if self.parameters else ""

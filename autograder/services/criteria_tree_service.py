@@ -4,7 +4,7 @@ Parameters arriving here are the canonical values of the definition snapshot.
 Tree construction never validates or normalizes them again: evaluator
 normalization happens exactly once, in ``compile_definition``.
 """
-from typing import FrozenSet, List, Mapping, Tuple
+from typing import List, Mapping
 
 from autograder.models.abstract.test_function import TestFunction
 from autograder.models.config.category import CategoryConfig
@@ -15,14 +15,12 @@ from autograder.models.criteria_tree import CategoryNode, CriteriaTree, SubjectN
 
 
 def build_criteria_tree(criteria: CriteriaConfig,
-                        registry: Mapping[str, Tuple[TestFunction, FrozenSet[str]]]) -> CriteriaTree:
-    """Embed each resolved evaluator and its capabilities with canonical parameters."""
+                        registry: Mapping[str, TestFunction]) -> CriteriaTree:
+    """Embed each resolved evaluator with its canonical parameters."""
     def test(config: TestConfig) -> TestNode:
-        function, capabilities = registry[config.type]
         return TestNode(
             name=config.name,
-            test_function=function,
-            capabilities=capabilities,
+            test_function=registry[config.type],
             parameters=config.parameters,
             file_target=(config.file,) if config.file else None,
             weight=config.weight,

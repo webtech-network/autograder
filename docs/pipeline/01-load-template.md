@@ -12,5 +12,5 @@ Unknown identifiers and invalid contracts produce `DefinitionValidationError`
 before any provider is called.
 
 See [catalog and trusted Python extensions](../contracts/CATALOG.md).
-Implementation: `autograder/models/contracts/definition.py` and
-`autograder/services/template_library_service.py`.
+Implementation: `autograder/models/contracts/definition.py` and the built-in
+registry `autograder/template_library/__init__.py`.

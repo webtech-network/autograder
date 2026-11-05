@@ -46,13 +46,8 @@ class RecordingLabel(TestFunction):
         return TestResult(self.name, 100, label)
 
 
-class LabelTemplate(Template):
-    template_name = "Label"
-    template_description = "Trusted non-idempotent normalizer."
-    requires_sandbox = False
-
-    def __init__(self):
-        self.tests = {"label": RecordingLabel()}
+def label_template():
+    return Template("Label", "Trusted non-idempotent normalizer.", [RecordingLabel()])
 
 
 
@@ -75,7 +70,7 @@ def outcome_parameters(outcome):
 
 
 def test_non_idempotent_normalizer_snapshot_executed_and_reported_values_match():
-    template = LabelTemplate()
+    template = label_template()
     compiled = compile_definition(raw_definition(), templates={"label": template})
     snapshot = compiled.definition.model_dump(mode="json")
     assert snapshot["criteria"]["base"]["tests"][0]["parameters"] == EXPECTED
@@ -84,32 +79,32 @@ def test_non_idempotent_normalizer_snapshot_executed_and_reported_values_match()
     outcome = evaluate_submission(submission(), definition=compiled)
 
     assert outcome.status == "completed"
-    assert template.tests["label"].executed == [EXPECTED]
+    assert template.get_test("label").executed == [EXPECTED]
     assert outcome_parameters(outcome) == EXPECTED
     assert outcome.provenance.definition_hash == compiled.definition_hash
 
 
 def test_raw_facade_input_is_normalized_exactly_once():
-    template = LabelTemplate()
+    template = label_template()
     outcome = evaluate_submission(submission(), definition=raw_definition(), templates={"label": template})
-    assert template.tests["label"].executed == [EXPECTED]
+    assert template.get_test("label").executed == [EXPECTED]
     assert outcome_parameters(outcome) == EXPECTED
 
 
 def test_reusing_a_compiled_definition_never_normalizes_again():
-    template = LabelTemplate()
+    template = label_template()
     compiled = compile_definition(raw_definition(), templates={"label": template})
     assert compile_definition(compiled) is compiled
     assert build_pipeline(definition=compiled).compiled is compiled
     # New templates revalidate the canonical snapshot without re-normalizing it.
-    rebound = compile_definition(compiled, templates={"label": LabelTemplate()})
+    rebound = compile_definition(compiled, templates={"label": label_template()})
     assert rebound.definition_hash == compiled.definition_hash
     assert rebound.definition.model_dump(mode="json") == compiled.definition.model_dump(mode="json")
     assert rebound.criteria_tree.base.tests[0].parameters["label"] == "x!"
 
 
 def test_stored_snapshot_is_validated_without_applying_raw_normalization():
-    template = LabelTemplate()
+    template = label_template()
     compiled = compile_definition(raw_definition(), templates={"label": template})
     stored = compiled.definition.model_dump(mode="json")
 
@@ -118,14 +113,14 @@ def test_stored_snapshot_is_validated_without_applying_raw_normalization():
     assert loaded.definition_hash == compiled.definition_hash
     assert loaded.definition.model_dump(mode="json") == stored
     outcome = build_pipeline(definition=loaded).run(submission()).outcome
-    assert template.tests["label"].executed == [EXPECTED]
+    assert template.get_test("label").executed == [EXPECTED]
     assert outcome_parameters(outcome) == EXPECTED
     # Treating a stored snapshot as raw authoring input is a different operation.
     assert compile_definition(stored, templates={"label": template}).definition_hash != compiled.definition_hash
 
 
 def test_mutating_evaluator_cannot_affect_plan_snapshot_report_or_next_run():
-    template = LabelTemplate()
+    template = label_template()
     compiled = compile_definition(raw_definition(), templates={"label": template})
     before_hash = compiled.definition_hash
     pipeline = build_pipeline(definition=compiled)
@@ -133,7 +128,7 @@ def test_mutating_evaluator_cannot_affect_plan_snapshot_report_or_next_run():
     first = pipeline.run(submission()).outcome
     second = pipeline.run(submission()).outcome
 
-    assert template.tests["label"].executed == [EXPECTED, EXPECTED]
+    assert template.get_test("label").executed == [EXPECTED, EXPECTED]
     assert outcome_parameters(first) == outcome_parameters(second) == EXPECTED
     assert compiled.definition.model_dump(mode="json")["criteria"]["base"]["tests"][0]["parameters"] == EXPECTED
     assert compiled.definition_hash == before_hash
@@ -143,7 +138,7 @@ def test_mutating_evaluator_cannot_affect_plan_snapshot_report_or_next_run():
 
 def test_compiled_plan_cannot_be_modified_through_caller_references():
     raw = raw_definition()
-    compiled = compile_definition(raw, templates={"label": LabelTemplate()})
+    compiled = compile_definition(raw, templates={"label": label_template()})
     raw["criteria"]["base"]["tests"][0]["parameters"]["items"].append("caller")
 
     exposed = compiled.definition
@@ -172,7 +167,7 @@ def test_compiled_definitions_cannot_be_constructed_outside_the_compiler():
     with pytest.raises(TypeError):
         CompiledDefinition(definition=None, definition_hash="0" * 64, criteria_tree=None, templates=[])
     with pytest.raises(TypeError):
-        compile_snapshot(compile_definition(raw_definition(), templates={"label": LabelTemplate()}))
+        compile_snapshot(compile_definition(raw_definition(), templates={"label": label_template()}))
 
 
 def builtin_snapshot():

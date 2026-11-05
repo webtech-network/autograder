@@ -63,7 +63,7 @@ both artifacts and never changes a completed grade into a failed grade.
 executed by `tests/unit/test_architecture.py`.
 Run `python -m examples.contracts.custom_evaluator` for a complete
 local `TestFunction` and `Template` example. It compiles a v1 definition with
-`templates={"trusted_text": TrustedTextTemplate()}`, grades an in-memory
+`templates={"trusted_text": TEMPLATE}`, grades an in-memory
 submission, and prints the terminal outcome. Only a trusted Python caller can
 inject executable evaluator code. JSON sent to HTTP or Actions cannot load a
 Python class, and no plugin upload API is advertised. The example uses

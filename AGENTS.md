@@ -151,13 +151,15 @@ are its runnable examples, executed by `tests/unit/test_architecture.py`.
    `config_schema` with the same fields). Declare constraints and descriptions with
    `Annotated[..., Field(...)]`; primitive types imply none. Put cross-field or
    language-dependent semantics in the pure `validate_parameters` hook.
-3. Register the instance under its explicit `name` in a trusted `Template`'s
-   `tests` dict (lookup is inherited). Invalid signatures fail at registration.
-4. Reference the registry key as criterion `type`, with a distinct instance `id`.
+3. Add the instance to a trusted `Template(name, description, evaluators)`; it is
+   registered under its own `name`. Invalid signatures fail at registration.
+   Capabilities are declared only on evaluators, never on templates.
+4. Reference the evaluator `name` as criterion `type`, with a distinct instance `id`.
 
 Evaluators are shared and must be stateless; keep per-submission state in the call.
 Only evaluators declaring `sandbox_execution`/`http_network` receive a session;
-they run processes only through `session.run_process(ProcessRequest...)`.
+they run processes only through `session.run_process(ProcessRequest...)` or the
+public `BaseExecutionTest` helpers. Authors import only from `autograder`.
 
 Do not add adapter vocabulary or a new pipeline framework for one evaluator.
 Provider/system failure raises `EvaluationError` with a published code (OUTCOMES.md) and a fixed safe public message;

@@ -1,5 +1,4 @@
 import json
-import logging
 from typing import Annotated, Any
 
 from pydantic import Field
@@ -126,27 +125,8 @@ class CheckResponseJsonTest(TestFunction):
 # ===============================================================
 
 class ApiTestingTemplate(Template):
-    """
-    A template for API testing assignments. It uses the ExecutionSession to securely
-    run and test student-submitted web servers.
-    """
-
-    @property
-    def template_name(self):
-        return t("api_testing.template.name")
-
-    @property
-    def template_description(self):
-        return t("api_testing.template.description")
-
-    @property
-    def requires_sandbox(self) -> bool:
-        return True
+    """API testing: evaluators that request a running student server."""
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
-
-        self.tests = {
-            "health_check": HealthCheckTest(),
-            "check_response_json": CheckResponseJsonTest(),
-        }
+        super().__init__(t("api_testing.template.name"), t("api_testing.template.description"),
+                         [HealthCheckTest(), CheckResponseJsonTest()])

@@ -2345,10 +2345,6 @@
             "title": "Supported Languages",
             "description": "Known language constraints; null means no evaluator-specific restriction is declared. Host execution support is separate."
           },
-          "requires_sandbox": {
-            "type": "boolean",
-            "title": "Requires Sandbox"
-          },
           "absence_check": {
             "anyOf": [
               {
@@ -2369,8 +2365,7 @@
           "description",
           "parameters_schema",
           "sample_parameters",
-          "required_capabilities",
-          "requires_sandbox"
+          "required_capabilities"
         ],
         "title": "EvaluatorDescription",
         "description": "One evaluator, as accepted by criterion ``type`` within its template."
@@ -4447,10 +4442,6 @@
             "type": "string",
             "title": "Description"
           },
-          "requires_sandbox": {
-            "type": "boolean",
-            "title": "Requires Sandbox"
-          },
           "evaluators": {
             "items": {
               "$ref": "#/components/schemas/EvaluatorDescription"
@@ -4465,7 +4456,6 @@
           "identifier",
           "name",
           "description",
-          "requires_sandbox",
           "evaluators"
         ],
         "title": "TemplateDescription"

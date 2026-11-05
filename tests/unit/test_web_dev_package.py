@@ -6,7 +6,7 @@ def test_web_dev_template_load():
     template = WebDevTemplate()
     assert template.template_name == "Html Css Js Template"
     # Verify we have exactly 36 tests as expected
-    assert len(template.tests) == 36
+    assert len(template.get_tests()) == 36
 
 def test_all_registered_tests_are_valid():
     template = WebDevTemplate()
@@ -39,8 +39,8 @@ def test_all_registered_tests_are_valid():
 def test_count_unused_css_classes_normalization():
     template = WebDevTemplate()
     # Check new key exists and old is gone
-    assert "count_unused_css_classes" in template.tests
-    assert "Count Unused Css Classes" not in template.tests
+    assert "count_unused_css_classes" in template.get_tests()
+    assert "Count Unused Css Classes" not in template.get_tests()
     
     test_func = template.get_test("count_unused_css_classes")
     assert isinstance(test_func, CountUnusedCssClasses)

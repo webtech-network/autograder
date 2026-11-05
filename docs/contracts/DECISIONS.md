@@ -102,7 +102,13 @@ unchanged. See [deployment and migration](JOBS.md#deployment-and-migration).
 
 The typed template/evaluator catalog derives parameter schemas and validated
 samples from the same contracts used by compilation. Capability requirements
-and known language constraints live on evaluator implementations. Discovery does
+and known language constraints live on evaluator implementations only; a
+template is a named collection of evaluators with no requirements of its own.
+The catalog's `requires_sandbox` field is removed rather than deprecated
+(ONB-08): it restated `required_capabilities` and was wrong for a static
+evaluator in an execution template. `BUILTIN_TEMPLATES` is the one built-in
+registry, and the authoring types (error, process contract,
+`BaseExecutionTest`) are part of the `autograder` facade. Discovery does
 not probe host availability. `compile_definition`, `describe_templates` and
 `evaluate_submission` form the supported facade; evaluation returns the finalized
 terminal outcome. Trusted instantiated `Template` objects may be injected by

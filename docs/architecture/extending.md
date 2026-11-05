@@ -6,6 +6,13 @@ and its tests. It needs no step enum, no generic dispatch change, no host change
 and no Docker. Where the parts fit is shown in the
 [responsibility map](overview.md).
 
+Everything an evaluator author uses is imported from `autograder` (the examples
+import nothing else from the engine, and `tests/unit/test_architecture.py`
+checks it): `TestFunction`, `AiTestFunction`, `EvaluationInput`,
+`ParameterIssue`, `TestResult`, `Template`, `EvaluationError`, the process
+contract (`ProcessRequest`, `ProcessResult`, `ProcessStatus`, `lines_to_stdin`,
+`split_command`) and `BaseExecutionTest`.
+
 ## Runnable examples
 
 Both examples run offline from the repository root and are executed by
@@ -57,41 +64,92 @@ at compilation and returns `ParameterIssue`s. File needs are class attributes
 (`file_extensions`, `minimum_files`, `uses_context_files`, `accepts_file`); see
 [FILES.md](../contracts/FILES.md).
 
+<<<<<<< HEAD
 A criterion must not pass a submission just because the author omitted a
 parameter: give presence thresholds a default of at least 1 (`ge=1`) and make
 lists of things to find or forbid nonempty (`min_length=1`). A prohibition or
 limit check, which passes when what it looks for is absent, sets the class
 attribute `absence_check` to the reason; the catalog publishes it.
+=======
+Validate at compilation, not at grading: a value that would only fail when the
+evaluator runs (a regular expression, a path, a command) must be rejected by the
+contract (`Field(pattern=...)`, a Pydantic validator) or by `validate_parameters`.
+>>>>>>> a3a0dcc (docs: complete the evaluator recipe with a test-enforced built-in checklist (ONB-08))
 
 ## 3. Register it
 
-Put the instance in a trusted `Template`'s `tests` dict under its `name`, then
-pass the template to `compile_definition`, `build_pipeline` or
-`evaluate_submission` with `templates={identifier: instance}`. Built-in
-evaluators are registered the same way in
-`autograder/services/template_library_service.py`. Uploaded code is not
+A template is a named collection of evaluator instances; each is registered
+under its own `name`, so identifiers are never restated:
+
+```python
+TEMPLATE = Template("Trusted text", "One local, trusted evaluator", [ContainsText()])
+```
+
+Pass it to `compile_definition`, `build_pipeline` or `evaluate_submission` with
+`templates={identifier: TEMPLATE}`. A template declares no requirements of its
+own: capabilities come only from its evaluators. Uploaded code is not
 supported. Reference the evaluator as a criterion `type`, with a distinct `id`.
 
 ## 4. Test it
 
 Test the evaluator by calling `execute` with an explicit `EvaluationInput`, and
 test the registration by compiling and grading a definition, as the examples'
+<<<<<<< HEAD
 tests do. For built-in evaluators, `tests/unit/test_catalog.py` already checks
 that discovery and compilation agree, and `tests/unit/test_non_vacuous_criteria.py`
 checks that, with only its required parameters, no presence check passes an
 irrelevant project; nothing else needs registering.
+=======
+tests do.
+
+## Built-in evaluator checklist
+
+A built-in evaluator is added to its template's evaluator list under
+`autograder/template_library/`; a new built-in template is one entry in
+`BUILTIN_TEMPLATES` (`autograder/template_library/__init__.py`), the only
+registry. These steps are enforced by the named tests, which run with the unit
+and web suites; `tests/unit/test_architecture.py` checks that each named test
+exists.
+
+| Step | Enforced by |
+| --- | --- |
+| Register the instance in its template; the template contract and evaluator call shape validate | `tests/unit/test_template_contract.py::test_builtin_templates_validate_contract` |
+| The catalog sample validates and compiles for every supported language (add `example_parameters` when constraints need domain knowledge) | `tests/unit/test_catalog.py::test_every_catalog_evaluator_resolves_and_its_sample_compiles` |
+| Discovery reports exactly the capabilities the evaluator declares | `tests/unit/test_catalog.py::test_discovery_capabilities_come_only_from_evaluators_including_mixed_templates` |
+| Every `t("key")` exists in `autograder/translations/en.json` and `pt_br.json`, with the same placeholders | `tests/unit/test_translations.py::test_all_source_keys_exist`, `tests/unit/test_translations.py::test_placeholders_match` |
+| Static evaluators (no `ai_provider`): a passing and a failing case in `tests/builtin_evaluator_cases.py`, recorded in `tests/builtin_evaluator_golden.json` | `tests/unit/test_builtin_evaluator_golden.py::test_golden_cases_cover_every_static_builtin_with_both_outcomes` |
+| Regenerate the wire schemas with `python scripts/generate_contract_schemas.py` (the definition schema carries every evaluator's parameters) | `tests/unit/test_config_models.py::test_checked_in_examples_and_schema_are_current`, `tests/web/test_template_catalog.py::test_openapi_gives_typed_template_and_evaluator_models` |
+| Criterion snippets in `docs/template-library/` and the README template tables name registered evaluators and compile | `tests/unit/test_architecture.py::test_template_reference_criterion_snippets_compile`, `tests/unit/test_architecture.py::test_readme_template_tables_name_registered_evaluators_and_parameters` |
+
+Not enforced, so reviewers check them: execution and API evaluators get a real
+Docker case beside `tests/integration/test_builtin_io_evaluators.py` (golden
+cases cover static evaluators only); the evaluator is documented in its
+`docs/template-library/` page; runtime-only failures are moved to compilation
+(see step 2).
+>>>>>>> a3a0dcc (docs: complete the evaluator recipe with a test-enforced built-in checklist (ONB-08))
 
 ## Evaluators that run code
 
-The only difference is a declaration. An evaluator with
+The only difference is a declaration on the evaluator. An evaluator with
 `required_capabilities = ("sandbox_execution",)` makes the run acquire one
 execution session for the bound language, stage the files and preparation, and
-pass it as `evaluation.session`; other evaluators receive `None`. Run every
-process through `session.run_process(ProcessRequest...)` (explicit argv or an
-explicit shell, exact stdin, a deadline) and grade the returned
-`ProcessResult`. A program that exits non-zero or times out is an assessed
-result; `not_started` and session exceptions are infrastructure failures. See
-[PROCESSES.md](../contracts/PROCESSES.md).
+pass it as `evaluation.session`; other evaluators, including static ones in the
+same template, receive `None`, and a run that selects none of them acquires
+nothing. Run every process through `session.run_process(ProcessRequest...)`
+(explicit argv or an explicit shell, exact stdin, a deadline) and grade the
+returned `ProcessResult`. A program that exits non-zero or times out is an
+assessed result; `not_started` and session exceptions are infrastructure
+failures. See [PROCESSES.md](../contracts/PROCESSES.md).
+
+Most execution evaluators subclass `BaseExecutionTest`, which declares the
+capability and supplies the shared steps: `run_program(evaluation,
+program_command, inputs)` runs the bound language's command (a string, a
+language map or `CMD`, checked at compilation) with exact stdin lines, and
+`assessed_failure(result, locale)` returns the assessed zero for a timeout or
+nonzero exit. The built-in I/O evaluators use the same base. It is defined in
+`autograder/models/abstract/execution_test.py`, so `import autograder` does not
+build the built-in templates. It checks `program_command` at compilation only
+when the evaluator takes that parameter.
 
 `examples/contracts/execution_evaluator.py` teaches this with `FakeSession`, a
 few lines implementing the `ExecutionSession` protocol that answer every process

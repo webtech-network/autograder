@@ -1,9 +1,9 @@
 from autograder import build_pipeline, compile_definition, Submission
-from examples.contracts.custom_evaluator import DEFINITION, TrustedTextTemplate
+from examples.contracts.custom_evaluator import DEFINITION, TEMPLATE
 
 
 def test_compiled_definition_retains_injected_template_and_tree():
-    template = TrustedTextTemplate()
+    template = TEMPLATE
     compiled = compile_definition(DEFINITION, templates={"trusted_text": template})
     pipeline = build_pipeline(definition=compiled)
     assert dict(pipeline.compiled.templates) == {"trusted_text": template}

@@ -24,15 +24,8 @@ from autograder.models.language import Language
 from tests.grading import FakeProvider
 
 
-def template_with(*evaluators, sandbox=False):
-    class Local(Template):
-        template_name = "Local"
-        template_description = "Trusted local evaluators."
-        requires_sandbox = sandbox
-
-        def __init__(self):
-            self.tests = {evaluator.name: evaluator for evaluator in evaluators}
-    return Local()
+def template_with(*evaluators):
+    return Template("Local", "Trusted local evaluators.", evaluators)
 
 
 def definition(evaluator, parameters, languages=("python",), templates=("local",), extra_tests=()):
@@ -321,13 +314,13 @@ def test_shared_stateless_evaluator_serves_concurrent_runs_independently():
 # --- A new evaluator is a local change ----------------------------------------
 
 def test_new_trusted_evaluator_needs_only_implementation_contract_and_registration():
-    from examples.contracts.custom_evaluator import DEFINITION, TrustedTextTemplate, grade
-    catalog = describe_templates({"trusted_text": TrustedTextTemplate()})
+    from examples.contracts.custom_evaluator import DEFINITION, TEMPLATE, grade
+    catalog = describe_templates({"trusted_text": TEMPLATE})
     [template] = [item for item in catalog.templates if item.identifier == "trusted_text"]
     [evaluator] = template.evaluators
     assert evaluator.identifier == "contains_text"
     assert evaluator.parameters_schema["properties"]["needle"]["description"] == "Text to find"
     assert evaluator.parameters_schema["required"] == ["needle"]
-    assert compile_definition(DEFINITION, templates={"trusted_text": TrustedTextTemplate()}).definition_hash
+    assert compile_definition(DEFINITION, templates={"trusted_text": TEMPLATE}).definition_hash
     assert grade("<h1>Hello</h1>").score == 100
     assert grade("<h1>Bye</h1>").score == 0

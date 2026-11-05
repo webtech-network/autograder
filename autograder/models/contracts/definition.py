@@ -267,13 +267,12 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         definition = GradingDefinition.model_validate(value)
     except ValidationError as exc:
         raise DefinitionValidationError(_pydantic_errors(exc)) from exc
-    from autograder.models.contracts.catalog import required_capabilities
-    from autograder.services.template_library_service import TemplateLibraryService
-    library = TemplateLibraryService.get_instance()
+    from autograder.template_library import BUILTIN_TEMPLATES
+    available = {**BUILTIN_TEMPLATES, **(templates or {})}
     selected, registry, errors = {}, {}, []
     for index, identifier in enumerate(definition.templates):
         try:
-            template = templates[identifier] if templates is not None and identifier in templates else library.load_builtin_template(identifier)
+            template = available[identifier]
         except KeyError:
             errors.append(_error('UNKNOWN_TEMPLATE', ('templates', index), 'Unknown template identifier'))
             continue
@@ -288,7 +287,7 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         for name, function in template.get_tests().items():
             if name in registry:
                 errors.append(_error('AMBIGUOUS_EVALUATOR', ('templates', index), f'Duplicate evaluator identifier: {name}'))
-            registry[name] = (function, frozenset(required_capabilities(template, function)))
+            registry[name] = function
     seen = set()
     for test, path in walk_tests(definition.criteria):
         if test.id in seen:
@@ -302,7 +301,7 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         if test.type not in registry:
             errors.append(_error('UNKNOWN_EVALUATOR', (*path, 'type'), 'Evaluator is not registered in selected templates'))
             continue
-        function = registry[test.type][0]
+        function = registry[test.type]
         from autograder.models.contracts.parameter_contract import RUNTIME_PARAMETERS
         reserved = set(test.parameters) & RUNTIME_PARAMETERS
         if reserved:
@@ -381,11 +380,10 @@ def select_language(definition: GradingDefinition | CompiledDefinition, supplied
 def grading_definition_json_schema() -> dict:
     """Structural schema plus evaluator-conditional parameter contracts."""
     schema = GradingDefinition.model_json_schema()
-    from autograder.services.template_library_service import TemplateLibraryService
+    from autograder.template_library import BUILTIN_TEMPLATES
     conditions = []
     definitions = schema['$defs']
-    for identifier in TemplateLibraryService.get_instance().list_available_templates():
-        template = TemplateLibraryService.get_instance().load_builtin_template(identifier)
+    for template in BUILTIN_TEMPLATES.values():
         for name, function in template.get_tests().items():
             parameters = function.config_schema.model_json_schema()
             parameters['additionalProperties'] = False
