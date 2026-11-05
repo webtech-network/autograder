@@ -5,6 +5,7 @@ each test creates and drops its own database. The migration command runs as the
 documented subprocess, exactly as operators, Compose and deployment run it.
 """
 import asyncio
+import json
 from datetime import datetime, timezone
 import os
 from pathlib import Path
@@ -18,9 +19,10 @@ from sqlalchemy import Column, Integer, MetaData, inspect, make_url, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from autograder.models.capabilities import HostCapabilities
+from autograder.models.contracts.outcome import MAX_FEEDBACK_BYTES, bound_outcome_text
 from web.core.config import Settings
 from web.database.base import Base
-from web.database.schema import SchemaNotCurrent, adopt, head_revision, schema_differences
+from web.database.schema import ADOPTED_REVISION, SchemaNotCurrent, adopt, head_revision, schema_differences
 from web.main import create_app
 from tests.web.test_contracts_v1 import definition
 
@@ -264,14 +266,35 @@ async def create_all(url):
     await on_database(url, Base.metadata.create_all)
 
 
-async def test_adopting_a_create_all_database_stamps_head(postgres_url, tmp_path):
+async def test_adopting_a_create_all_database_stamps_the_adopted_revision_and_upgrades(postgres_url, tmp_path):
+    """Adoption never stamps past data migrations: ``upgrade head`` still excerpts old outcomes (009)."""
     url = await postgres_url()
     await create_all(url)
+    flooded = {"feedback": {"status": "completed", "content": "x" * (MAX_FEEDBACK_BYTES + 1), "error": None}}
+
+    def seed(connection):
+        connection.execute(text(
+            "INSERT INTO grading_configurations (id, external_assignment_id, version, is_active) "
+            "VALUES (1, 'legacy', 1, false)"))
+        connection.execute(text(
+            "INSERT INTO submissions (id, grading_config_id, external_user_id, username, submission_files, "
+            "status, locale, attempt_count) VALUES (1, 1, 'student', 'Student', '{}', 'completed', 'en', 0)"))
+        connection.execute(
+            text("INSERT INTO submission_results (submission_id, final_score, execution_time_ms, pipeline_status, "
+                 "outcome) VALUES (1, 80, 5, 'success', CAST(:outcome AS JSON))"),
+            {"outcome": json.dumps(flooded)})
+    await on_database(url, seed)
+
     process = run(url, "-m", "web.database.schema", "adopt")
     assert process.returncode == 0, process.stderr
-    assert f"stamped revision {head_revision()}" in process.stdout
-    assert await on_database(url, current_revision) == head_revision()
+    assert f"stamped revision {ADOPTED_REVISION}" in process.stdout
+    assert await on_database(url, current_revision) == ADOPTED_REVISION
     alembic(url, "upgrade", "head")
+    assert await on_database(url, current_revision) == head_revision()
+    assert await on_database(url, schema_differences) == []
+    outcome = await on_database(url, lambda connection: connection.execute(
+        text("SELECT outcome FROM submission_results WHERE submission_id = 1")).scalar_one())
+    assert outcome == bound_outcome_text(flooded) != flooded
     app = await started_host(url, tmp_path)
     await app.state.host.close()
 
