@@ -2,8 +2,7 @@ import json
 import logging
 from typing import List, Mapping, Sequence
 
-import httpx
-from openai import OpenAI
+from openai import OpenAI, Timeout
 from autograder.models.execution import AssessmentRequest, ProviderAssessment
 from autograder.translations import t
 from pydantic import BaseModel, Field
@@ -23,7 +22,7 @@ CONNECT_TIMEOUT_SECONDS = 10.0
 def openai_client(api_key, *, base_url=None, timeout=REQUEST_TIMEOUT_SECONDS):
     """One reusable client: explicit deadline, zero SDK retries."""
     return OpenAI(api_key=api_key, base_url=base_url, max_retries=0,
-                  timeout=httpx.Timeout(timeout, connect=min(CONNECT_TIMEOUT_SECONDS, timeout)))
+                  timeout=Timeout(timeout, connect=min(CONNECT_TIMEOUT_SECONDS, timeout)))
 
 
 class TestOutput(BaseModel):
