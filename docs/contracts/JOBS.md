@@ -128,6 +128,14 @@ marked them failed rather than fabricating that input. Their compact response
 reports `RECOVERY_INPUT_UNAVAILABLE` and a null grade, and historical completed
 artifacts remain `unverified_legacy`. Both survive `upgrade head` unchanged.
 
+Migration **010** binds stored data to the closed vocabularies: stored locales
+become canonical (`pt_br` → `pt-br`; unsupported values, which the old translator
+rendered in English, become `en`) and stored outcomes using the former HTTP code
+`EXECUTION_FAILED` use `EXECUTION_ERROR`. It refuses to upgrade, listing result
+IDs, if a stored outcome carries any other unpublished code. Drain retained
+outcome receipts with the previous release before upgrading: a receipt holding
+`EXECUTION_FAILED` no longer validates.
+
 Explicit delivery replay uses the configured database and does not evaluate again:
 
 ```sh

@@ -29,6 +29,7 @@ from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.test_result import TestResult
 from autograder.models.execution import ExecutionSession
 from autograder.models.language import Language
+from autograder.models.locale import DEFAULT_LOCALE, Locale
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ class EvaluationInput:
     """
     files: Tuple[SubmissionFile, ...] = ()
     language: Optional[Language] = None
-    locale: str = "en"
+    locale: Locale = DEFAULT_LOCALE
     session: Optional[ExecutionSession] = None
 
 

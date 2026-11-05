@@ -70,7 +70,7 @@ def test_failed_grading_has_null_score_and_retained_artifact(workspace):
     service = MagicMock()
     failed = completed()
     failed.update(status="failed", score=None, tree=None, feedback={"status": "disabled"},
-                  error={"code": "SANDBOX_UNAVAILABLE", "message": "Sandbox unavailable.",
+                  error={"code": "CAPABILITY_UNAVAILABLE", "message": "Sandbox unavailable.",
                          "category": "capability", "retryable": True, "correlation_id": "action-test"})
     service.run_autograder.return_value.model_dump.return_value = failed
     service.delivery_payload.return_value = None

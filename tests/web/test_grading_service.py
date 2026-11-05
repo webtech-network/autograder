@@ -41,7 +41,7 @@ async def test_exception_exposes_safe_terminal_error():
     with patch("web.service.grading_service._run_pipeline", side_effect=RuntimeError("secret provider token")):
         stored = await evaluate(request())
     assert stored["score"] is None
-    assert stored["error"]["code"] == "EXECUTION_FAILED"
+    assert stored["error"]["code"] == "EXECUTION_ERROR"
     assert "secret" not in str(stored)
     validate_outcome(stored)
 

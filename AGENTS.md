@@ -160,7 +160,7 @@ Only evaluators declaring `sandbox_execution`/`http_network` receive a session;
 they run processes only through `session.run_process(ProcessRequest...)`.
 
 Do not add adapter vocabulary or a new pipeline framework for one evaluator.
-Provider/system failure raises `EvaluationError` with a fixed safe public message;
+Provider/system failure raises `EvaluationError` with a published code (OUTCOMES.md) and a fixed safe public message;
 ordinary assessment returns a finite `TestResult` in 0–100.
 
 ## Adapter contracts and publication

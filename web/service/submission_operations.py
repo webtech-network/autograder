@@ -336,7 +336,7 @@ async def _accept_submission(session, submission):
         definition_snapshot=compiled.definition.model_dump(mode="json"),
         definition_hash=compiled.definition_hash,
         configuration_version=config.version,
-        locale=submission.locale or "en",
+        locale=submission.locale,
         evaluation_scope=submission.evaluation_scope.model_dump() if submission.evaluation_scope is not None else None,
     )
     return row

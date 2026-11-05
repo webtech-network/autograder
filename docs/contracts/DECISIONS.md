@@ -427,3 +427,19 @@ and raises `RuntimeImageError` otherwise. Hosts therefore pull or build the
 configured images before starting; an old unlabelled image is rejected rather
 than silently used. Service and Action images are a later change. See
 [LANGUAGES.md](LANGUAGES.md#runtime-images).
+
+## Closed locale and outcome-code vocabularies (COR-07)
+
+`Locale` (`autograder/models/locale.py`) is the one declaration of supported
+locales; `parse_locale` (case-insensitive, `_` read as `-`) is the only way a
+boundary accepts one. `Submission`, the HTTP schema (422, OpenAPI enum) and the
+Action CLI (argument error) all use it, and unknown locales are rejected rather
+than replaced by English. The translator loads one catalog per declared locale at
+import, so no caller value becomes a file path; the lazy loader, its per-lookup
+error logging and the singleton are removed. Outcome error codes are the closed
+`OUTCOME_ERROR_CODES` enum: engine codes, which `EvaluationError` enforces at
+construction, plus host-only `RECOVERY_EXHAUSTED`, `RECOVERY_INPUT_UNAVAILABLE`
+and `LEGACY_UNVERIFIED`. `EXECUTION_ERROR` is the single unexpected-failure code;
+the HTTP host's `EXECUTION_FAILED` is removed and migrated (revision 010). A
+contract test enumerates every emitted code from the source and requires the
+OUTCOMES matrix and both schemas to list exactly that vocabulary.

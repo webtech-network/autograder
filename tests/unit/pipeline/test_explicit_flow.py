@@ -151,7 +151,7 @@ def test_optional_feedback_failures_preserve_the_validated_grade(failure):
         "empty_content": ("autograder.services.feedback.render_default_report", {"return_value": None}),
         "blank_content": ("autograder.services.feedback.render_default_report", {"return_value": "  "}),
         "evaluation_error": ("autograder.services.feedback.find_focus", {"side_effect": EvaluationError(
-            "SECRET_CODE", "secret", "provider", True)}),
+            "PROVIDER_ERROR", "secret", "provider", True)}),
     }[failure]
     events = []
     with patch(target, **effect):

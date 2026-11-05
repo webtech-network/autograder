@@ -24,26 +24,48 @@ finalization, including engine resource cleanup. It excludes adapter queueing,
 persistence, and publication. Internal
 pipeline diagnostics are not public result fields.
 
+Error codes are one closed vocabulary, `OUTCOME_ERROR_CODES` in
+`autograder.models.contracts.outcome`; the terminal-outcome schema and OpenAPI
+publish it as an enum, and every code below appears in it. Engine codes
+(`ENGINE_ERROR_CODES`) are the only ones an evaluator or provider may raise as
+`EvaluationError`; an unpublished code is a programming error reported as
+`EXECUTION_ERROR`. Host-only codes (`HOST_ERROR_CODES`) are recorded by an adapter
+for work the engine never finalized. `EXECUTION_ERROR` is the single code for an
+unexpected failure in the engine and in every host.
+
 | Trigger | Grading outcome | Error category / code |
 | --- | --- | --- |
 | An assessed criterion genuinely scores zero | Completed, score 0 | No top-level error |
 | Student compilation/runtime failure or student execution timeout reported by an I/O evaluator | Completed, criterion scores 0 | No top-level error |
-| Required preparation file missing | Failed, no score | submission / REQUIRED_FILE_MISSING |
-| Preparation command fails because the submission does not satisfy it | Failed, no score | submission / PREPARATION_FAILED |
-| Language omitted for a multilingual definition or disallowed language selected | Failed, no score | submission / LANGUAGE_REQUIRED or LANGUAGE_NOT_ALLOWED |
-| Required sandbox cannot be provisioned | Failed, no score | capability / CAPABILITY_UNAVAILABLE |
-| Sandbox system/transport or artifact extraction failure | Failed, no score | capability / SANDBOX_ERROR |
-| Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / PREPARATION_ERROR |
-| Required structural analysis unavailable | Failed, no score | capability / CAPABILITY_UNAVAILABLE |
-| Provider initialization fails | Failed, no score | provider / PROVIDER_UNAVAILABLE |
-| Provider request fails | Failed, no score | provider / PROVIDER_ERROR |
-| Missing required AI assessment | Failed, no score | provider / MISSING_EVALUATOR_RESULT |
-| Duplicate, unknown, or invalid provider assessment | Failed, no score | provider / INVALID_EVALUATOR_RESULT |
-| Evaluator returns an invalid numeric grade | Failed, no score | internal / INVALID_EVALUATOR_RESULT |
-| Unexpected required operation exception | Failed, no score | internal / EXECUTION_ERROR |
-| Optional focus or feedback fails | Completed, original grade preserved | feedback.error / FEEDBACK_ERROR |
+| Required preparation or assessment file missing | Failed, no score | submission / `REQUIRED_FILE_MISSING` |
+| Preparation command fails because the submission does not satisfy it | Failed, no score | submission / `PREPARATION_FAILED` |
+| Language omitted for a multilingual definition or disallowed language selected | Failed, no score | submission / `LANGUAGE_REQUIRED` or `LANGUAGE_NOT_ALLOWED` |
+| Criterion file parameters conflict with its targets, or a target is outside the evaluation scope | Failed, no score | submission / `FILE_TARGET_CONFLICT` |
+| A criterion target has a file type its evaluator does not accept | Failed, no score | submission / `UNSUPPORTED_FILE_TYPE` |
+| A single-file evaluator matches several files without an explicit target | Failed, no score | submission / `AMBIGUOUS_FILE_TARGET` |
+| AI criterion identities are not unique | Failed, no score | definition / `INVALID_DEFINITION` |
+| Program command is malformed (reached only outside a compiled plan) | Failed, no score | definition / `INVALID_COMMAND` |
+| No program command is defined for the selected language | Failed, no score | submission / `MISSING_LANGUAGE_COMMAND` |
+| Required sandbox cannot be provisioned | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
+| Host cannot start and reach an assessed server | Failed, no score | capability / `SERVER_CAPABILITY_UNAVAILABLE` |
+| Sandbox system/transport or artifact extraction failure | Failed, no score | capability / `SANDBOX_ERROR` |
+| The assessed program cannot be started | Failed, no score | capability / `PROCESS_START_FAILED` |
+| Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / `PREPARATION_ERROR` |
+| Required fixture provider is not supplied by the host | Failed, no score | capability / `FIXTURE_PROVIDER_UNAVAILABLE` |
+| Required structural analysis unavailable | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
+| Provider initialization fails or no provider is supplied | Failed, no score | provider / `PROVIDER_UNAVAILABLE` |
+| Provider request fails | Failed, no score | provider / `PROVIDER_ERROR` |
+| Missing required AI assessment | Failed, no score | provider / `MISSING_EVALUATOR_RESULT` |
+| Duplicate, unknown, or invalid provider assessment | Failed, no score | provider / `INVALID_EVALUATOR_RESULT` |
+| Evaluator returns an invalid numeric grade | Failed, no score | internal / `INVALID_EVALUATOR_RESULT` |
+| Unexpected exception in the engine or a host's grading call | Failed, no score | internal / `EXECUTION_ERROR` |
+| Optional focus or feedback fails | Completed, original grade preserved | feedback.error / `FEEDBACK_ERROR` |
+| Owned execution session cannot be closed | Outcome unchanged | Diagnostic observation only / `CLEANUP_ERROR` |
+| HTTP: interrupted work exhausts its recovery attempts (host-only) | Failed, no score | internal / `RECOVERY_EXHAUSTED` |
+| HTTP: unfinished historical submission lacks replayable input (host-only projection) | Failed, no score | internal / `RECOVERY_INPUT_UNAVAILABLE` |
+| HTTP: historical failure predates the verified outcome contract (host-only projection) | Failed, no score | internal / `LEGACY_UNVERIFIED` |
 | Feedback disabled (even if feedback services would fail) | Completed; no focus or report work | feedback.status = disabled |
-| Externally attested comparison enrichment fails | Completed, original grade preserved | host-attested comparison.error |
+| Externally attested comparison enrichment fails | Completed, original grade preserved | host-attested comparison.error (published codes only) |
 | On-demand baseline comparison cannot be computed | Stored outcomes unchanged | HTTP 409/422 response only (see below) |
 | Persistence/publication fails after finalization | Original artifact remains completed or failed | Adapter delivery failure, outside the grading outcome |
 
@@ -60,7 +82,7 @@ Public errors expose stable codes, fixed safe engine messages, categories
 (`definition`, `submission`, `capability`, `provider`, `internal`), retryability,
 and correlation IDs. Raw exceptions, provider responses, setup stderr, and
 internal step names remain in host-controlled diagnostics/logs. Authenticated
-external hosts may attest their own safe structured error codes/messages; that
+external hosts may attest their own safe messages using the published codes; that
 attestation does not prove the local server executed the grade.
 
 The tree has one root representation. Categories retain the base/bonus/penalty
