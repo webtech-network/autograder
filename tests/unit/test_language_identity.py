@@ -163,7 +163,7 @@ def test_shipped_pool_uses_the_profile_image():
     manager = SandboxManager([config], docker, runtime="runc", max_sandboxes=2, owner=owner(), reclaim_orphans=False,
                              monitor_interval=60)
     try:
-        # Each creation attempt (gVisor, then the default runtime) uses the profile image.
+        # Every creation uses the profile image.
         assert {call["image"] for call in docker.containers.run_calls} == {"custom-c:1"}
     finally:
         manager.shutdown()
