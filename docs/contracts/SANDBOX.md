@@ -130,7 +130,7 @@ differ in the runtime and in who can reach the Docker daemon.
 | HTTP API, remote mode (`SANDBOX_MODE=remote`) with the control service | `runsc` (the shipped `sandbox_config.yml`) | only the control service | **The supported internet-facing topology.** The API container has no Docker socket; the control service is private (below). |
 | HTTP API, local mode (`SANDBOX_MODE=local`) | `runsc`; `runc` for development | the API process | Not supported internet-facing: a compromised API process owns the Docker host. Use it for development, tests and private single-host deployments. |
 | GitHub Action | `runc` (hosted runners have no gVisor) | the Action on the runner VM | One run per runner VM; the runner VM is the outer boundary. Submitter, actor and token separation: [trust.md](../github_action/trust.md). |
-| CI and local test suites | `runc` always, and `runsc` where installed | the test process | The CI Docker job installs the pinned gVisor release (`make gvisor-install`), so the per-runtime suites below run under both. |
+| CI and local test suites | `runc` always, and `runsc` where installed | the test process | CI's isolation job installs the pinned gVisor release (`make gvisor-install`) and runs the per-runtime suites below under both (`make test-isolation`); the other Docker suites run under runc. |
 
 The supported internet-facing deployment is the repository's
 `docker-compose.yml` shape: the API in remote mode without the Docker socket,

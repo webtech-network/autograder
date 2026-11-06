@@ -1,8 +1,8 @@
 #!/bin/sh
 # Install the pinned gVisor release as the Docker runtime `runsc` (needs sudo).
 #
-# CI's Docker job runs this (`make gvisor-install`) so the per-runtime sandbox
-# suites run under gVisor as well as runc (docs/contracts/SANDBOX.md). The
+# CI's isolation job runs this (`make gvisor-install`, then `make test-isolation`)
+# so the per-runtime sandbox suites run under gVisor as well as runc (docs/contracts/SANDBOX.md). The
 # binary is verified against the pinned SHA-512 before it is installed.
 set -eu
 

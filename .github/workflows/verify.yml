@@ -96,10 +96,26 @@ jobs:
           enable-cache: true
       # uv sync --locked fails when pyproject.toml and uv.lock disagree.
       - run: make install
-      # gVisor as well as runc, so the per-runtime sandbox suites run under both.
-      - run: make gvisor-install
       - run: make test-integration
       - run: make test-e2e
+
+  isolation:
+    name: Sandbox isolation under gVisor and runc
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: .tool-versions
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.11.15"
+          enable-cache: true
+      # uv sync --locked fails when pyproject.toml and uv.lock disagree.
+      - run: make install
+      - run: make gvisor-install
+      - run: make test-isolation
 
   # The HTTP path (compose stack from this commit: PostgreSQL, migrations,
   # remote mode, smoke and e2e) and the packaged Action path join here as their
@@ -107,7 +123,7 @@ jobs:
 
   deploy:
     name: Deploy API
-    needs: [core, postgres, images, docker]
+    needs: [core, postgres, images, docker, isolation]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20

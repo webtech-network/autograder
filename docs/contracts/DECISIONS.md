@@ -507,5 +507,5 @@ acquisition and never downgrades. SANDBOX.md alone states the per-environment
 runtime and Docker-socket exposure, names the supported internet-facing
 topology (remote mode, socket only in the private control service), and maps
 each isolation guarantee to the hostile-submission test that pins it under each
-runtime; CI's Docker job installs the pinned gVisor release so both run. See
+runtime; CI's isolation job installs the pinned gVisor release so both run. See
 [SANDBOX.md](SANDBOX.md#isolation-profile-and-runtime).

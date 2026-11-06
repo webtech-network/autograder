@@ -5,7 +5,7 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-isolation test-e2e images gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -44,10 +44,13 @@ test-postgres: ## PostgreSQL guarantees; fails unless TEST_POSTGRES_URL is set
 test-integration: sandbox-build-all ## Real Docker sandboxes (builds sandbox images)
 	$(PYTHON) -m pytest tests/integration/
 
+test-isolation: sandbox-build-all ## Per-runtime isolation suites, under every runtime Docker offers (runsc after `make gvisor-install`)
+	$(PYTHON) -m pytest tests/integration/test_hostile_submissions.py tests/integration/test_sandbox_attribution.py
+
 test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 	PYTHON='$(PYTHON)' ./scripts/run_e2e_tests.sh
 
-gvisor-install: ## Install the pinned gVisor release as Docker's runsc runtime (sudo; CI's Docker job)
+gvisor-install: ## Install the pinned gVisor release as Docker's runsc runtime (sudo; CI's isolation job)
 	./scripts/install_gvisor.sh
 
 images: ## Build the API, sandbox manager and Action images from this checkout
