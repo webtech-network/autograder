@@ -171,6 +171,27 @@ def test_removed_handle_limit_setting_is_rejected_at_startup(monkeypatch):
         ControlSettings.from_env()
 
 
+@pytest.mark.parametrize(("variable", "value", "message"), [
+    ("SANDBOX_HANDLE_TTL_SECONDS", "ten", "SANDBOX_HANDLE_TTL_SECONDS must be a number, got 'ten'"),
+    ("WEB_CONCURRENCY", "1.5", "WEB_CONCURRENCY must be an integer, got '1.5'"),
+])
+def test_malformed_setting_is_rejected_naming_the_variable(monkeypatch, variable, value, message):
+    monkeypatch.setenv(variable, value)
+    with pytest.raises(RuntimeError, match=message):
+        ControlSettings.from_env()
+
+
+def test_sandbox_configuration_file_is_a_validated_startup_setting(monkeypatch, tmp_path):
+    # Read with the other settings, and a missing file stops startup before Docker is touched.
+    monkeypatch.setenv("SANDBOX_API_TOKEN", "t")
+    monkeypatch.setenv("SANDBOX_CONFIG_FILE", str(tmp_path / "missing.yml"))
+    settings = ControlSettings.from_env()
+    assert settings.config_file == str(tmp_path / "missing.yml")
+    with pytest.raises(FileNotFoundError, match="missing.yml"):
+        with TestClient(create_app(settings)):
+            pass
+
+
 # ------------------------------------------------------------------ handles
 
 def test_handles_are_random_and_not_container_ids(api, manager):

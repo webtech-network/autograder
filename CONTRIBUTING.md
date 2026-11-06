@@ -39,6 +39,7 @@ We currently follow a **basic Git workflow** and coordinate work through GitHub 
    make test-postgres       # changes to persistence, workers or idempotency (needs TEST_POSTGRES_URL)
    make test-integration    # changes to execution or evaluators (needs Docker)
    make test-e2e            # changes to the HTTP service (needs Docker)
+   make test-http           # changes to configuration, images or compose (needs Docker)
    ```
 
    CI runs all of them on every pull request; see

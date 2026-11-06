@@ -14,8 +14,6 @@ from autograder.models.capabilities import FixtureNotFound
 
 logger = logging.getLogger(__name__)
 
-S3_ENVIRONMENT = ("EXTERNAL_ASSETS_BUCKET_NAME", "AWS_ACCESS_KEY_ID", "AWS_ACCESS_ID",
-                  "AWS_SECRET_ACCESS_KEY", "AWS_REGION", "S3_ENDPOINT_URL")
 _MISSING_CODES = frozenset({"NoSuchKey", "404", "NotFound"})
 
 
@@ -43,12 +41,24 @@ class S3FixtureProvider:
 
     @classmethod
     def from_environment(cls, environ=None, **overrides):
+        """Read the store settings once; reject a store that names no bucket.
+
+        Without ``EXTERNAL_ASSETS_BUCKET_NAME`` the host has no fixture store and a
+        fixture assignment fails its preparation. An endpoint without a bucket is
+        a misconfigured store, not an absent one, so it stops the host at startup.
+        """
         config = os.environ if environ is None else environ
-        return cls(bucket=config.get("EXTERNAL_ASSETS_BUCKET_NAME"),
-                   endpoint_url=config.get("S3_ENDPOINT_URL"),
-                   region=config.get("AWS_REGION", "us-east-1"),
-                   access_key=config.get("AWS_ACCESS_KEY_ID") or config.get("AWS_ACCESS_ID"),
-                   secret_key=config.get("AWS_SECRET_ACCESS_KEY"), **overrides)
+        bucket = config.get("EXTERNAL_ASSETS_BUCKET_NAME") or None
+        endpoint_url = config.get("S3_ENDPOINT_URL") or None
+        access_key = config.get("AWS_ACCESS_KEY_ID") or None
+        secret_key = config.get("AWS_SECRET_ACCESS_KEY") or None
+        if endpoint_url and not bucket:
+            raise ValueError("S3_ENDPOINT_URL is set but EXTERNAL_ASSETS_BUCKET_NAME is not: "
+                             "name the fixture bucket, or unset S3_ENDPOINT_URL")
+        if bool(access_key) != bool(secret_key):
+            raise ValueError("Set both AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or neither")
+        return cls(bucket=bucket, endpoint_url=endpoint_url, region=config.get("AWS_REGION") or "us-east-1",
+                   access_key=access_key, secret_key=secret_key, **overrides)
 
     def _boto3_client(self):
         import boto3

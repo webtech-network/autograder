@@ -49,9 +49,10 @@ retryable, a provider failure is. Raw provider errors stay in host logs.
 
 The Docker host composes `execution_host.fixtures.S3FixtureProvider` from
 `EXTERNAL_ASSETS_BUCKET_NAME`, `S3_ENDPOINT_URL`, `AWS_REGION` and
-`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (`AWS_ACCESS_ID` is accepted as a
-legacy alias). Configuration is captured at host construction; one SDK client is
-created on the first selected fixture and reused. Missing keys (`NoSuchKey`/404)
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` ([configuration](../operate/configuration.md)).
+Configuration is captured at host construction, where an endpoint without a
+bucket or half a credential stops the host; one SDK client is created on the
+first selected fixture and reused. Missing keys (`NoSuchKey`/404)
 are `FixtureNotFound`; missing buckets, access denials, transport errors and an
 unset bucket are provider failures. Deliberate execution `assets` use the same
 host provider.

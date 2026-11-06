@@ -134,9 +134,10 @@ in the same process), without owner labels (the old label scheme), or where
 automatically.
 
 The hostname must identify one PID namespace. Compose gives the single
-`sandbox-manager` service the fixed hostname `autograder-sandbox-manager`, so a
-restarted container reclaims its predecessor's containers. Never run two
-managers with the same hostname in different PID namespaces.
+`sandbox-manager` service the hostname `<project>-sandbox-manager`, stable across
+restarts and unique per Compose project, so a restarted container reclaims its
+predecessor's containers and never another stack's. Never run two managers with
+the same hostname in different PID namespaces.
 
 Operators reclaim what automation cannot prove dead with:
 
