@@ -331,7 +331,7 @@ def test_openapi_exposes_shared_definition_and_discriminated_outcome():
 from pathlib import Path
 
 EXAMPLES = (
-    Path(__file__).resolve().parents[2] / "docs" / "contracts" / "v1" / "examples"
+    Path(__file__).resolve().parents[2] / "examples" / "definitions"
 )
 
 
