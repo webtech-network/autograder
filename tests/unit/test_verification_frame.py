@@ -70,6 +70,9 @@ def test_hermetic_path_needs_neither_docker_nor_postgres():
         assert step in plan.stdout
     assert "docker" not in plan.stdout
     assert "not postgres" in plan.stdout
+    # Every test run points DOCKER_HOST nowhere, so CI (which has Docker) catches a daemon lookup.
+    runs = [line for line in plan.stdout.splitlines() if "-m pytest" in line]
+    assert runs and all(line.startswith("DOCKER_HOST=unix:///nonexistent/") for line in runs), runs
 
 
 def test_documented_make_commands_exist():

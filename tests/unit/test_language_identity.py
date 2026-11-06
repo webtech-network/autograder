@@ -141,7 +141,7 @@ def test_the_bound_language_reaches_the_evaluator_and_the_outcome():
 
 def test_runtime_images_come_only_from_the_host_profile(tmp_path):
     path = tmp_path / "sandbox.yml"
-    path.write_text(sandbox_config((Language.PYTHON,)).replace(TEST_IMAGES[Language.PYTHON], "registry.local/py:3.13"))
+    path.write_text(sandbox_config((Language.PYTHON,), runtime="runc").replace(TEST_IMAGES[Language.PYTHON], "registry.local/py:3.13"))
     configs = SandboxHostConfig.load_from_yaml(str(path)).pools
     assert [(config.language, config.image) for config in configs] == [(Language.PYTHON, "registry.local/py:3.13")]
 

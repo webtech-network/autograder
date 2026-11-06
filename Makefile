@@ -5,6 +5,10 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
+# The hermetic tests run against an unreachable Docker endpoint, so a test that
+# reaches for a daemon fails here and in CI (whose runners have Docker).
+NO_DOCKER := DOCKER_HOST=unix:///nonexistent/hermetic.sock
+
 .PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-isolation test-e2e test-http images gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
@@ -31,11 +35,11 @@ docs: ## Check documentation links and API routes, then build the site strictly
 	$(PYTHON) scripts/validate_docs.py
 	$(PYTHON) -m mkdocs build --strict --quiet
 
-test: ## Unit tests
-	$(PYTHON) -m pytest tests/unit/
+test: ## Unit tests (no Docker daemon reachable)
+	$(NO_DOCKER) $(PYTHON) -m pytest tests/unit/
 
-test-web: ## HTTP tests on SQLite (the PostgreSQL tier is excluded)
-	$(PYTHON) -m pytest tests/web/ -m "not postgres"
+test-web: ## HTTP tests on SQLite (the PostgreSQL tier is excluded; no Docker daemon reachable)
+	$(NO_DOCKER) $(PYTHON) -m pytest tests/web/ -m "not postgres"
 
 ##@ Docker and database tiers
 

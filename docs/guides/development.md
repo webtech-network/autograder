@@ -57,7 +57,7 @@ has pylint false positives to resolve first.
 
 | Command | Needs | Runs |
 | --- | --- | --- |
-| `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas and the generated `docs/reference/` pages match the contracts), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Under a minute. |
+| `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas and the generated `docs/reference/` pages match the contracts), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Both test steps set `DOCKER_HOST` to an unreachable socket, so a test that contacts a Docker daemon fails here and in CI, even on a machine that has Docker. Under a minute. |
 | `make test-postgres` | `TEST_POSTGRES_URL` | PostgreSQL claims, publication fencing and concurrent idempotency. Without the URL these tests **error**; they never skip. The role must be able to `CREATE DATABASE` (migration tests). |
 | `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. Suites run under gVisor when Docker offers `runsc` (else runc; `AUTOGRADER_TEST_RUNTIME` overrides). The per-runtime isolation suites are left to `make test-isolation`. `make gvisor-install` (sudo) installs the pinned gVisor release. |
 | `make test-isolation` | Docker | The per-runtime isolation suites (hostile submissions, sandbox attribution), under every runtime Docker offers; CI runs it after `make gvisor-install`, so under gVisor and runc. |
