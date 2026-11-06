@@ -26,10 +26,8 @@ Run as a module from the repository root:
 ``python -m scripts.publish_images <local prefix> <local tag>``.
 """
 import argparse
-import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import List, Optional, Sequence
 
@@ -76,10 +74,7 @@ def publish(local_prefix: str, local_tag: str, root: Path = ROOT) -> List[str]:
     if missing:
         raise RuntimeError(f"pushed but not served by the registry: {', '.join(missing)}")
     consumed = [image.ref for image in runtimes] + [reference(service, CHANNEL) for service in SERVICES]
-    with tempfile.TemporaryDirectory() as anonymous:
-        private = [ref for ref in consumed
-                   if not sandbox_images.published(ref, env={**os.environ, "DOCKER_CONFIG": anonymous})]
-    for ref in private:
+    for ref in [ref for ref in consumed if not sandbox_images.anonymously_pullable(ref)]:
         print(f"::warning::{ref} is published but an anonymous runner cannot pull it: an organization admin "
               "must make its package public once (docs/github_action/README.md#versions-and-images).", flush=True)
     print(f"Published {commit} as {CHANNEL}: {', '.join(pushed)}", flush=True)

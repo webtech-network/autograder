@@ -74,7 +74,9 @@ It publishes nothing unless the commit is still the head of `main`: an older
 commit whose verification finished after a newer one never moves `main` back.
 It then confirms each reference as the workflow token sees the registry (a
 push the registry does not serve fails the job) and warns for each package an
-anonymous runner cannot pull yet. A pull request publishes nothing.
+anonymous runner cannot pull yet. These checks run after every push, so a red
+`publish` job may already have moved `main`: read its log before assuming the
+previous image is still current. A pull request publishes nothing.
 
 | `uses:` | Image |
 | --- | --- |

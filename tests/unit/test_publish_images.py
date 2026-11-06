@@ -50,8 +50,14 @@ class Registry:
         if args[:3] == ["docker", "manifest", "inspect"]:
             env = kwargs.get("env")
             anonymous = env is not None and "DOCKER_CONFIG" in env
-            found = args[3] in self.present and (self.public or not anonymous)
-            return subprocess.CompletedProcess(args, 0 if found else 1, "", "" if found else "manifest unknown")
+            ref = args[3]
+            if ref in self.present and (self.public or not anonymous):
+                return subprocess.CompletedProcess(args, 0, "{}", "")
+            # GHCR's real answers: a package that does not exist yet is "denied"; an
+            # existing private package is "unauthorized" to an anonymous client.
+            url = f"https://ghcr.io/v2/{ref.split('/', 1)[1].replace(':', '/manifests/')}"
+            answer = f'Get "{url}": unauthorized' if ref in self.present else "denied"
+            return subprocess.CompletedProcess(args, 1, "", answer)
         assert kwargs.get("check") is True, args
         self.effects.append(args)
         if args[:2] == ["docker", "push"] and args[2] not in self.lose:
@@ -151,16 +157,36 @@ def test_a_private_package_is_published_with_a_warning_not_a_failure(monkeypatch
     commit = git(checkout, "rev-parse", "HEAD")
     registry = Registry(public=False)
     monkeypatch.setattr(subprocess, "run", registry)
-    publish_images.publish("autograder", "local", checkout)
+    assert publish_images.publish("autograder", "local", checkout) == RUNTIMES + services(commit)
     out = capsys.readouterr().out
     for reference in RUNTIMES + services(commit, ("main",)):
         assert f"::warning::{reference}" in out
     assert "public" in out
 
 
-def test_published_asks_the_registry_with_the_given_client_configuration(monkeypatch):
+def test_packages_that_already_exist_privately_are_a_warning_not_a_failure(monkeypatch, checkout, capsys):
+    # The runtime and API packages already exist on GHCR as private packages, so the
+    # first publication from main meets "unauthorized" for those it does not push.
+    registry = Registry(present=RUNTIMES, public=False)
+    monkeypatch.setattr(subprocess, "run", registry)
+    publish_images.publish("autograder", "local", checkout)
+    out = capsys.readouterr().out
+    for reference in RUNTIMES:
+        assert f"::warning::{reference}" in out
+
+
+@pytest.mark.parametrize("stderr", ['Get "https://ghcr.io/v2/x/y/manifests/1": unauthorized',  # private
+                                    'Get "https://ghcr.io/v2/x/y/manifests/1": denied'])       # not created
+def test_a_private_or_missing_package_is_not_anonymously_pullable(monkeypatch, stderr):
     seen = []
-    monkeypatch.setattr(subprocess, "run", lambda args, **kwargs: seen.append(kwargs.get("env")) or
-                        subprocess.CompletedProcess(args, 1, "", "denied"))
-    assert sandbox_images.published("ghcr.io/x/y:1", env={"DOCKER_CONFIG": "/empty"}) is False
-    assert seen == [{"DOCKER_CONFIG": "/empty"}]
+    monkeypatch.setattr(subprocess, "run", lambda args, **kwargs: seen.append(kwargs["env"]["DOCKER_CONFIG"]) or
+                        subprocess.CompletedProcess(args, 1, "", stderr))
+    assert sandbox_images.anonymously_pullable("ghcr.io/x/y:1") is False
+    assert len(seen) == 1 and not Path(seen[0]).exists()  # an empty client configuration, removed afterwards
+
+
+def test_an_unexpected_registry_answer_is_an_error_never_unpullable(monkeypatch):
+    monkeypatch.setattr(subprocess, "run", lambda args, **kwargs:
+                        subprocess.CompletedProcess(args, 1, "", "dial tcp: i/o timeout"))
+    with pytest.raises(RuntimeError, match="i/o timeout"):
+        sandbox_images.anonymously_pullable("ghcr.io/x/y:1")
