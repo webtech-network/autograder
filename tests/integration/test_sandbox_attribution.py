@@ -7,7 +7,7 @@ failure with no score. A submission that exhausts its sandbox, signals what it
 can reach or deletes its entry point gets one documented assessed result, the
 same under both runtimes.
 """
-# pylint: disable=missing-function-docstring,redefined-outer-name,unused-argument
+# pylint: disable=missing-function-docstring,redefined-outer-name,unused-argument,protected-access
 import json
 import threading
 import time
@@ -21,7 +21,7 @@ from autograder.models.language import Language
 from execution_host.docker import DockerSession, docker_capabilities
 from sandbox_manager.docker_profile import container_options
 from sandbox_manager.manager import SandboxManager
-from sandbox_manager.sandbox_container import COLLECT
+from sandbox_manager.sandbox_container import COLLECT, SandboxContainer
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from tests.sandbox_profiles import TEST_IMAGES, offered_runtimes
 
@@ -251,9 +251,14 @@ NO_FORK = json.dumps({"defaultAction": "SCMP_ACT_ALLOW", "syscalls": [
 
 
 def test_the_collector_sweeps_and_reports_without_forking(runtime):
-    """At the pids limit busybox ash aborts on any fork, so the sweep, its wait and the counters use none."""
+    """At the pids limit busybox ash aborts on any fork, so the sweep, its wait and the counters use none.
+
+    The collector runs through the host's own control exec, which reads its
+    report from stdout alone: the readback after the report may fork, and in
+    Docker's combined stream that later complaint could arrive ahead of it.
+    """
     client = docker.from_env()
-    options = container_options(TEST_IMAGES[Language.PYTHON], f"cor-01-nofork-{runtime}-{time.monotonic_ns()}",
+    options = container_options(TEST_IMAGES[Language.PYTHON], f"collector-nofork-{runtime}-{time.monotonic_ns()}",
                                 {"cor-01": "test"}, 600)
     options.update(init=False, security_opt=options["security_opt"] + [f"seccomp={NO_FORK}"])
     container = client.containers.run(runtime=runtime, **options)
@@ -265,9 +270,10 @@ def test_the_collector_sweeps_and_reports_without_forking(runtime):
         deadline = time.monotonic() + 30
         while container.exec_run(["pgrep", "-u", "sandbox", "sleep"], user="root").output.count(b"\n") < 2:
             assert time.monotonic() < deadline, "the submission processes never started"
-        result = container.exec_run(["/bin/sh", "-c", COLLECT, "autograder-collect", "/tmp/none", "10"], user="root")
+        sandbox = SandboxContainer(Language.PYTHON, container)
+        _, output = sandbox._control(["/bin/sh", "-c", COLLECT, "autograder-collect", "/tmp/none", "10"])
         # Reading outputs back may fork later; the evidence was reported first.
-        assert result.output.startswith(b"survivors 0\nlimits 0 0\n"), result.output
+        assert output.startswith(b"survivors 0\nlimits 0 0\n"), output
         assert container.exec_run(["pgrep", "-u", "sandbox"], user="root").output == b""
     finally:
         container.remove(force=True, v=True)

@@ -140,7 +140,11 @@ A submission at its process limit leaves no pid for anything else, and the
 images' shell (busybox ash) aborts a script whose fork fails. So the sweep, its
 wait (a deadline read from `/proc/uptime`, never `sleep`) and the cgroup
 counters use shell builtins only, and the counters are reported before anything
-that forks. Under runc a full pids cgroup can also refuse to start the
+that forks. The report is the collector's stdout alone: control execs that
+report on stdout do not attach stderr. Docker forwards an exec's two streams
+through independent copies, so in a combined stream a refused fork during the
+later readback (ash's `can't fork` on stderr) could arrive ahead of the report
+it follows. Under runc a full pids cgroup can also refuse to start the
 collector exec itself. Nothing ran then, so the host starts it again (up to 5
 times). If it never starts, Docker's `pids_stats` for the running container
 decides (below). See

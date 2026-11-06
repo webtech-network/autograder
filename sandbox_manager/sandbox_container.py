@@ -84,7 +84,8 @@ exec "$@" < "$d/in" > "$d/out" 2> "$d/err"
 # on a failed fork. Reports the cgroup's own count of memory-limit OOMs and
 # refused forks (cgroup v2 under runc; gVisor has none, and its container stops
 # instead) before anything that forks, then reads back at most $2 bytes of each
-# output and removes the run dir.
+# output and removes the run dir. Its report is its stdout alone (see _control):
+# when the readback cannot fork, ash's complaint must never displace the report.
 COLLECT = r'''
 d=$1; n=$2; me=$$
 sweep() {
@@ -256,10 +257,17 @@ class SandboxContainer:
 
     def _control(self, cmd: List[str], *, user: str = CONTROL_USER, workdir: str = "/",
                  stdin: Optional[bytes] = None) -> tuple:
-        """A bounded internal exec, fed ``stdin`` when given. Failure to complete it invalidates the sandbox."""
+        """A bounded internal exec, fed ``stdin`` when given. Failure to complete it invalidates the sandbox.
+
+        Without stdin the exec's output is its stdout alone, the protocol the control
+        scripts report on. Docker forwards an exec's stdout and stderr through
+        independent copies, so a combined stream has no defined order: a diagnostic
+        written after the report (the collector's readback refused a fork) can arrive
+        ahead of it. Their stderr is not attached; the process's stderr is ``/dev/null``.
+        """
         if stdin is None:
             call = _Call(lambda: self.container_ref.exec_run(cmd=cmd, user=user, workdir=workdir, demux=False,
-                                                             stdout=True, stderr=True, stdin=False)).start()
+                                                             stdout=True, stderr=False, stdin=False)).start()
         else:
             call = _Call(lambda: self._exec_with_stdin(cmd, user, workdir, stdin)).start()
         if not call.join(CONTROL_TIMEOUT_SECONDS):
