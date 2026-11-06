@@ -59,8 +59,8 @@ has pylint false positives to resolve first.
 | --- | --- | --- |
 | `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas match the models), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Under a minute. |
 | `make test-postgres` | `TEST_POSTGRES_URL` | PostgreSQL claims, publication fencing and concurrent idempotency. Without the URL these tests **error**; they never skip. The role must be able to `CREATE DATABASE` (migration tests). |
-| `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. Suites run under gVisor when Docker offers `runsc` (else runc; `AUTOGRADER_TEST_RUNTIME` overrides), and the per-runtime isolation suites under both. `make gvisor-install` (sudo) installs the pinned gVisor release. |
-| `make test-isolation` | Docker | The per-runtime isolation suites (hostile submissions, sandbox attribution); CI runs it after `make gvisor-install`, so under gVisor and runc. |
+| `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. Suites run under gVisor when Docker offers `runsc` (else runc; `AUTOGRADER_TEST_RUNTIME` overrides). The per-runtime isolation suites are left to `make test-isolation`. `make gvisor-install` (sudo) installs the pinned gVisor release. |
+| `make test-isolation` | Docker | The per-runtime isolation suites (hostile submissions, sandbox attribution), under every runtime Docker offers; CI runs it after `make gvisor-install`, so under gVisor and runc. |
 | `make test-e2e` | Docker | An API process with real sandboxes. |
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
 
@@ -135,6 +135,18 @@ export OPENAI_API_KEY=your_openai_key_here
 # Images per language come from the runtimes: map in sandbox_config.yml.
 SANDBOX_MODE=local uvicorn web.main:app --reload --port 8000
 ```
+
+**Without gVisor.** The shipped `sandbox_config.yml` requires gVisor
+(`general.runtime: runsc`). If `docker info` does not list `runsc`, install it
+(`make gvisor-install`; Linux, sudo) or choose runc deliberately with a
+development copy: `sed 's/runtime: runsc/runtime: runc/' sandbox_config.yml >
+sandbox_config.dev.yml` (ignored by git), then
+`export SANDBOX_CONFIG_FILE=$PWD/sandbox_config.dev.yml`. Otherwise the local API
+starts but fails every execution grading with `IsolationRuntimeError`, and the
+control service (`python -m sandbox_manager`, the compose `sandbox-manager`)
+refuses to start. For compose, give `sandbox-manager` the copy in a
+`docker-compose.override.yml`: mount `./sandbox_config.dev.yml:/config/sandbox.yml:ro`
+and set `SANDBOX_CONFIG_FILE: /config/sandbox.yml`.
 
 Remote mode runs the private sandbox control API as a separate single-worker
 process and requires its shared token ([SANDBOX.md](../contracts/SANDBOX.md)):

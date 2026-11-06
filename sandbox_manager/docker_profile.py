@@ -6,9 +6,10 @@ OCI runtime explicitly (``general.runtime`` in ``sandbox_config.yml``): gVisor
 the two**; a host never switches runtime on its own.
 
 Storage: the root filesystem is read-only, so nothing a submission writes
-reaches the container's writable layer on host disk. The only writable paths
-are the in-memory tmpfs mounts in :data:`WRITABLE_PATHS`, each bounded by its
-size, charged to the container's memory limit and gone with the container.
+reaches the container's writable layer on host disk. The writable paths are
+the in-memory tmpfs mounts in :data:`WRITABLE_PATHS`, each bounded by its size,
+charged to the container's memory limit and gone with the container, plus, under
+runc only, the kernel's POSIX message-queue mount :data:`MQUEUE_PATH`.
 ``/app`` and ``/tmp`` use ``mode=1777`` so the unprivileged ``sandbox`` user can
 write them under both runtimes (runc mounts a tmpfs ``root:root 0755``
 otherwise); the image's ``VOLUME /app`` never becomes an anonymous volume.
@@ -44,6 +45,10 @@ SHM_SIZE_BYTES = 64 * MIB                        # /dev/shm (Docker's default, d
 #: are tmpfs: memory-backed, charged to the memory limit, removed with the container.
 WRITABLE_PATHS: Dict[str, int] = {"/app": WORKSPACE_TMPFS_BYTES, "/tmp": FIXTURE_TMPFS_BYTES,
                                   "/dev/shm": SHM_SIZE_BYTES}
+#: runc (not gVisor) also mounts the POSIX message-queue filesystem, writable by
+#: every user. It stores no file bytes: queues live in kernel memory, bounded per
+#: user by RLIMIT_MSGQUEUE (Docker's 819200 bytes), never on host disk.
+MQUEUE_PATH = "/dev/mqueue"
 CONTROL_USER = "root"
 CONTROL_CAPABILITIES = ["DAC_OVERRIDE", "KILL"]
 

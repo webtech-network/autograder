@@ -41,11 +41,14 @@ test-web: ## HTTP tests on SQLite (the PostgreSQL tier is excluded)
 test-postgres: ## PostgreSQL guarantees; fails unless TEST_POSTGRES_URL is set
 	$(PYTHON) -m pytest tests/web/ -m postgres
 
-test-integration: sandbox-build-all ## Real Docker sandboxes (builds sandbox images)
-	$(PYTHON) -m pytest tests/integration/
+# The per-runtime isolation suites run once, in test-isolation, under every runtime Docker offers.
+ISOLATION_SUITES := tests/integration/test_hostile_submissions.py tests/integration/test_sandbox_attribution.py
+
+test-integration: sandbox-build-all ## Real Docker sandboxes except the isolation suites (builds sandbox images)
+	$(PYTHON) -m pytest tests/integration/ $(addprefix --ignore=,$(ISOLATION_SUITES))
 
 test-isolation: sandbox-build-all ## Per-runtime isolation suites, under every runtime Docker offers (runsc after `make gvisor-install`)
-	$(PYTHON) -m pytest tests/integration/test_hostile_submissions.py tests/integration/test_sandbox_attribution.py
+	$(PYTHON) -m pytest $(ISOLATION_SUITES)
 
 test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 	PYTHON='$(PYTHON)' ./scripts/run_e2e_tests.sh

@@ -187,9 +187,12 @@ def test_a_container_left_by_a_failed_start_is_removed_by_its_name():
     assert client.live == {} and pool.get_stats()["total"] == 0
 
 
-def test_an_unknown_runtime_is_refused():
-    with pytest.raises(ValueError, match="runtime"):
-        make_pool(FakeDocker(), runtime="kata")
+def test_an_unknown_runtime_is_refused_at_the_manager_boundary_before_any_container():
+    client = FakeDocker(gvisor=True)
+    with pytest.raises(IsolationRuntimeError, match="Unknown sandbox runtime 'kata'"):
+        SandboxManager([pool_config(pool_size=1)], client, runtime="kata", max_sandboxes=2, owner=owner(),
+                       monitor_interval=60)
+    assert client.containers.run_calls == [] and client.images.get_calls == []
 
 
 def test_profile_is_declared_once():

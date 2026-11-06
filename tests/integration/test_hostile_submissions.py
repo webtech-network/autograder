@@ -16,8 +16,8 @@ from docker.models.containers import ContainerCollection
 from autograder.models.language import Language
 from autograder.models.process import ProcessRequest, ProcessStatus, SandboxExhausted
 from sandbox_manager.docker_profile import (
-    CONTROL_CAPABILITIES, FILE_SIZE_LIMIT_BYTES, GVISOR_RUNTIME, MEMORY_LIMIT_BYTES, PIDS_LIMIT,
-    SHM_SIZE_BYTES, WRITABLE_PATHS,
+    CONTROL_CAPABILITIES, FILE_SIZE_LIMIT_BYTES, GVISOR_RUNTIME, MEMORY_LIMIT_BYTES, MQUEUE_PATH, PIDS_LIMIT,
+    RUNC_RUNTIME, SHM_SIZE_BYTES, WRITABLE_PATHS,
 )
 from sandbox_manager.language_pool import SandboxUnavailableError
 from sandbox_manager.manager import SandboxManager
@@ -25,7 +25,6 @@ from sandbox_manager.models.pool_config import SandboxPoolConfig
 from tests.sandbox_profiles import TEST_IMAGES, offered_runtimes
 
 PY = Language.PYTHON
-SENTINEL = "COR04_HOST_SECRET"
 #: Paths a submission might try to fill outside its writable mounts.
 READ_ONLY_PATHS = ("/", "/home/sandbox", "/var/tmp", "/usr/local/lib", "/etc", "/run", "/root")
 
@@ -130,6 +129,23 @@ def test_disk_fill_never_reaches_host_storage(sandbox):
     assert sandbox.container_ref.logs() == b""
 
 
+def test_only_the_declared_paths_are_writable(sandbox, runtime):
+    """The submission's view: every directory it may write, and no writable regular file."""
+    seen = json.loads(python(sandbox, "import os, stat, json\n"
+                                      "dirs, files = [], []\n"
+                                      "for root, subdirs, names in os.walk('/'):\n"
+                                      "    if root in ('/proc', '/sys'): subdirs[:] = []; continue\n"
+                                      "    if os.access(root, os.W_OK): dirs.append(root); subdirs[:] = []; continue\n"
+                                      "    for name in names:\n"
+                                      "        path = os.path.join(root, name)\n"
+                                      "        try: mode = os.lstat(path).st_mode\n"
+                                      "        except OSError: continue\n"
+                                      "        if stat.S_ISREG(mode) and os.access(path, os.W_OK): files.append(path)\n"
+                                      "print(json.dumps({'dirs': dirs, 'files': files}))\n"))
+    expected = set(WRITABLE_PATHS) | ({MQUEUE_PATH} if runtime == RUNC_RUNTIME else set())
+    assert set(seen["dirs"]) == expected and seen["files"] == [], seen
+
+
 @pytest.mark.parametrize("path", sorted(WRITABLE_PATHS))
 def test_each_writable_path_is_bounded_in_memory_and_by_its_size(sandbox, path):
     size = WRITABLE_PATHS[path]
@@ -160,8 +176,7 @@ def test_no_network_egress(sandbox):
     assert out.splitlines() == ["['lo']"]
 
 
-def test_no_host_credentials_environment_or_docker_socket(sandbox, monkeypatch):
-    monkeypatch.setenv(SENTINEL, "do-not-leak")
+def test_no_host_credentials_environment_or_docker_socket(sandbox):
     out = python(sandbox, "import os, json\n"
                           "paths = ['/var/run/docker.sock', '/run/docker.sock', '/run/containerd/containerd.sock']\n"
                           "try: open('/proc/1/environ', 'rb').read(); pid1 = 'readable'\n"
@@ -169,9 +184,9 @@ def test_no_host_credentials_environment_or_docker_socket(sandbox, monkeypatch):
                           "print(json.dumps({'env': dict(os.environ), 'sockets': [p for p in paths if os.path.exists(p)],\n"
                           "                  'pid1': pid1}))\n")
     seen = json.loads(out)
-    assert SENTINEL not in json.dumps(seen)
     assert seen["sockets"] == [] and seen["pid1"] == "denied"
-    # The submission sees only the image's environment, never the host's.
+    # The submission sees only the image's environment: no variable of the host, the manager
+    # process or the configuration can reach it.
     image_env = {item.split("=", 1)[0] for item in docker.from_env().images.get(TEST_IMAGES[PY]).attrs["Config"]["Env"]}
     assert set(seen["env"]) <= image_env | {"HOME", "HOSTNAME", "PWD", "SHLVL", "_"}, seen["env"]
 

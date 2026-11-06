@@ -497,13 +497,18 @@ unchanged. See [PROCESSES.md](PROCESSES.md#who-ended-a-run).
 The root filesystem was writable, so a submission writing fsynced files with the
 page cache dropped grew a sandbox's writable layer on host disk (540 MB under
 runc, 1 GiB under gVisor within the probe's time) on the VPS it shares with
-PostgreSQL. Sandboxes now have a read-only root filesystem; the only writable
-paths are tmpfs mounts (`/app` 64 MiB, `/tmp` 32 MiB, `/dev/shm` 64 MiB) charged
-to the memory limit, so the per-sandbox host-disk bound is 0 bytes. Any error
+PostgreSQL. Sandboxes now have a read-only root filesystem; the writable paths
+are tmpfs mounts (`/app` 64 MiB, `/tmp` 32 MiB, `/dev/shm` 64 MiB) charged to the
+memory limit, plus runc's in-kernel `/dev/mqueue`, so the per-sandbox host-disk
+bound is 0 bytes. Any error
 mentioning `runsc` used to switch a pool to runc for the rest of its life. The
 runtime is now the host's explicit, required `general.runtime` (`runsc` or
-`runc`), verified and logged at startup; a failed gVisor start fails that one
-acquisition and never downgrades. SANDBOX.md alone states the per-environment
+`runc`), verified and logged when the manager starts; a failed gVisor start
+fails that one acquisition and never downgrades. Migration: a daemon without
+gVisor stops the control service at startup, while a local-mode API (production's
+current shape) starts and fails every execution grading until `docker info` lists
+`runsc` or `runtime: runc` is deployed deliberately; the shipped configuration
+says `runsc`. SANDBOX.md alone states the per-environment
 runtime and Docker-socket exposure, names the supported internet-facing
 topology (remote mode, socket only in the private control service), and maps
 each isolation guarantee to the hostile-submission test that pins it under each

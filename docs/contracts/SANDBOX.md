@@ -88,15 +88,22 @@ setuid/setgid files (see [Runtime images](LANGUAGES.md#runtime-images)).
 **Storage.** The root filesystem is read-only, so no write reaches the
 container's writable layer on host disk: its `SizeRw` stays 0 under both
 runtimes, and the image's `VOLUME /app` never becomes an anonymous volume. A
-submission can write only these in-memory tmpfs mounts, each bounded by its
-size, charged to the container's 128 MiB memory limit (no swap) and removed
-with the container:
+submission can write these in-memory tmpfs mounts, each bounded by its size,
+charged to the container's 128 MiB memory limit (no swap) and removed with the
+container:
 
 | Path | Bound | Use |
 | --- | ---: | --- |
 | `/app` | 64 MiB, `exec`, mode 1777 | the workspace: submission files, build outputs, artifacts |
 | `/tmp` | 32 MiB, `noexec`, mode 1777 | fixtures, per-run stdin/output files, runtime scratch (JVM `hsperfdata`, compiler temporaries) |
 | `/dev/shm` | 64 MiB, `noexec` | POSIX shared memory |
+
+The sizes sum to 160 MiB, intentionally above the 128 MiB memory limit: each
+mount stops at its own size, and together they stop at the memory limit, where
+filling them ends the sandbox as `SandboxExhausted` (an assessed zero) under both
+runtimes. Under runc, and not gVisor, `/dev/mqueue` (POSIX message queues) is
+also writable; it holds no file bytes, only queues in kernel memory bounded per
+user by `RLIMIT_MSGQUEUE` (819200 bytes). No other path is writable.
 
 No single file exceeds 10 MB (`fsize`). Filling `/tmp` can only make the
 submission's own output unreadable; filling memory ends the sandbox as
@@ -107,9 +114,14 @@ bound is therefore **0 bytes**, and the memory-backed bound is the memory limit.
 `general.runtime` in `sandbox_config.yml` (`runtime=` for
 `SandboxManager`), with no default:
 
-* `runsc`: gVisor is required. A manager refuses to start
+* `runsc`: gVisor is required. A `SandboxManager` refuses to start
   (`IsolationRuntimeError`) when the Docker daemon does not offer it, before it
-  creates any container, and logs the decision at startup.
+  creates any container, and logs the decision at startup. The control service
+  builds its manager in its lifespan, so it does not start. A local-mode HTTP
+  API builds its manager on the first execution grading, so it starts and
+  serves, and every execution grading fails with `IsolationRuntimeError` until
+  the daemon offers `runsc` or the configuration says `runc`: check
+  `docker info` lists `runsc` before deploying.
 * `runc`: accepted explicitly; submissions share the host kernel. The manager
   logs a warning at startup.
 
@@ -128,7 +140,7 @@ differ in the runtime and in who can reach the Docker daemon.
 | Environment | Runtime | Who holds the Docker socket | Exposure |
 | --- | --- | --- | --- |
 | HTTP API, remote mode (`SANDBOX_MODE=remote`) with the control service | `runsc` (the shipped `sandbox_config.yml`) | only the control service | **The supported internet-facing topology.** The API container has no Docker socket; the control service is private (below). |
-| HTTP API, local mode (`SANDBOX_MODE=local`) | `runsc`; `runc` for development | the API process | Not supported internet-facing: a compromised API process owns the Docker host. Use it for development, tests and private single-host deployments. |
+| HTTP API, local mode (`SANDBOX_MODE=local`) | `runsc`; `runc` for development (a configuration copy via `SANDBOX_CONFIG_FILE`, see [the development guide](../guides/development.md#running-the-api-locally)) | the API process | Not supported internet-facing: a compromised API process owns the Docker host. Use it for development, tests and private single-host deployments. |
 | GitHub Action | `runc` (hosted runners have no gVisor) | the Action on the runner VM | One run per runner VM; the runner VM is the outer boundary. Submitter, actor and token separation: [trust.md](../github_action/trust.md). |
 | CI and local test suites | `runc` always, and `runsc` where installed | the test process | CI's isolation job installs the pinned gVisor release (`make gvisor-install`) and runs the per-runtime suites below under both (`make test-isolation`); the other Docker suites run under runc. |
 
@@ -148,6 +160,7 @@ hostile-submission suite is `tests/integration/test_hostile_submissions.py`.
 | --- | --- |
 | Every sandbox uses the configured runtime and this one profile (read-only root, tmpfs, limits, capabilities, `no-new-privileges`) | `tests/integration/test_hostile_submissions.py::test_the_configured_runtime_and_the_one_profile_are_in_effect` |
 | A disk-fill probe (fsync, page cache dropped) writes nothing outside the tmpfs mounts and grows no host storage (`SizeRw` 0, no volume, no log) | `tests/integration/test_hostile_submissions.py::test_disk_fill_never_reaches_host_storage` |
+| Only the declared paths are writable (the tmpfs mounts, and `/dev/mqueue` under runc); no regular file is writable | `tests/integration/test_hostile_submissions.py::test_only_the_declared_paths_are_writable` |
 | Each writable path stops at its size bound, in memory | `tests/integration/test_hostile_submissions.py::test_each_writable_path_is_bounded_in_memory_and_by_its_size` |
 | The submission cannot write the container log | `tests/integration/test_hostile_submissions.py::test_writes_to_the_container_log_are_refused` |
 | No network egress (loopback only, no DNS) | `tests/integration/test_hostile_submissions.py::test_no_network_egress` |

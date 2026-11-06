@@ -28,7 +28,7 @@ from typing import Callable, Dict, List, Optional, Set
 import docker
 from docker.client import DockerClient
 
-from sandbox_manager.docker_profile import RUNTIMES, container_options
+from sandbox_manager.docker_profile import container_options
 from sandbox_manager.errors import SandboxCapacityTimeout
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
@@ -113,8 +113,6 @@ class LanguagePool:
     def __init__(self, language: Language, config: SandboxPoolConfig, client: DockerClient = None,
                  owner: Optional[OwnerIdentity] = None, clock: Callable[[], float] = time.monotonic, *,
                  budget: SandboxBudget, runtime: str):
-        if runtime not in RUNTIMES:
-            raise ValueError(f"Unknown sandbox runtime {runtime!r}; choose one of {', '.join(RUNTIMES)}")
         self.language = language
         self.config = config
         self.client = client

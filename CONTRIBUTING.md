@@ -38,6 +38,7 @@ We currently follow a **basic Git workflow** and coordinate work through GitHub 
    make verify              # always: lint, contracts, docs build, unit and HTTP (SQLite) tests
    make test-postgres       # changes to persistence, workers or idempotency (needs TEST_POSTGRES_URL)
    make test-integration    # changes to execution or evaluators (needs Docker)
+   make test-isolation      # changes to the sandbox profile or runtime (needs Docker)
    make test-e2e            # changes to the HTTP service (needs Docker)
    ```
 

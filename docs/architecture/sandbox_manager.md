@@ -235,7 +235,7 @@ Each container is created with:
 - **Network:** Disabled (`network_mode="none"`)
 - **Capabilities:** All dropped except `KILL` and `DAC_OVERRIDE` for `root` control processes; `no-new-privileges`
 - **File size limit:** 10 MB
-- **Filesystem:** read-only root; the only writable paths are tmpfs (`/app` 64 MiB with mode 1777, `/tmp` 32 MiB noexec, `/dev/shm` 64 MiB), so nothing reaches host disk
+- **Filesystem:** read-only root; the writable paths are tmpfs (`/app` 64 MiB with mode 1777, `/tmp` 32 MiB noexec, `/dev/shm` 64 MiB) and, under runc, the in-kernel `/dev/mqueue`, so nothing reaches host disk
 - **Runtime:** the host's explicit `general.runtime` (`runsc` for gVisor, or `runc`); never changed at run time (see [isolation](../contracts/SANDBOX.md#isolation-profile-and-runtime))
 - **Labels:** application label plus owner lease (see [ownership](../contracts/SANDBOX.md#owner-leases-and-orphan-reclamation))
 
