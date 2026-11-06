@@ -216,7 +216,7 @@ def test_duplicate_labels_and_slashes_stay_distinct_in_vectors_feedback_and_comp
                                 s("A / B", 1, tests=[t("other", 50, name=label)])]}, feedback=feedback)
     assert score_vector(head.tree) == {"failing": 0, "passing": 100, "other": 50}
     content = head.feedback.content
-    assert content.count(f"### 🧪 {label}") == 3
+    assert content.count(f"**{label}**") == 3 and content.count("\n### A / B · ") == 2
     assert "https://example.com/failing" in content and "https://example.com/passing" not in content
     baseline_pipeline, baseline = run({"subjects": [s("A / B", 1, tests=[t("failing", 100, name=label), t("passing", 100, name=label)]),
                                     s("A / B", 1, tests=[t("other", 50, name=label)])]})

@@ -35,7 +35,9 @@ Current container setup includes strict controls such as:
 - disabled network mode
 - dropped Linux capabilities
 
-Runtime prefers gVisor (`runsc`) when available and falls back to default runtime when unavailable.
+The root filesystem is read-only; submissions write only bounded tmpfs mounts. The OCI runtime is the host's
+explicit `general.runtime` (`runsc` for gVisor, or `runc`), never a fallback. See
+[SANDBOX.md](../contracts/SANDBOX.md#isolation-profile-and-runtime) for the guarantees per environment.
 
 ## Operational tuning
 
@@ -43,7 +45,7 @@ Runtime prefers gVisor (`runsc`) when available and falls back to default runtim
 |------|------------|
 | Faster first response | Increase `pool_size` |
 | Higher concurrency (up to the CPU knee) | Increase `max_sandboxes` |
-| Faster stuck-process recovery | Lower `running_timeout` |
+| Accept definitions with more or longer processes | Raise `running_timeout` (the host maximum; each sandbox lives its definition's budget) |
 
 These values are defined in `sandbox_config.yml`.
 

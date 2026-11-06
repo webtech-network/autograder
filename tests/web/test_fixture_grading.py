@@ -22,8 +22,8 @@ class RecordingSession:
     def prepare_workdir(self, files):
         self.files = dict(files)
 
-    def stage_fixture(self, path, content, read_only):
-        self.staged[path] = (content, read_only)
+    def stage_fixtures(self, fixtures):
+        self.staged.update({fixture.path: (fixture.content, fixture.read_only) for fixture in fixtures})
 
     def run_process(self, request):
         self.commands.append(" ".join(request.program))
@@ -54,7 +54,7 @@ def store(application):
                                          "course/empty": b""})
     sessions = []
     application.state.host.capabilities = HostCapabilities(
-        execution=lambda language: RecordingSession(sessions), fixtures=provider)
+        execution=lambda language, budget: RecordingSession(sessions), fixtures=provider)
     application.state.host.worker.capabilities = application.state.host.capabilities
     return client, sessions
 

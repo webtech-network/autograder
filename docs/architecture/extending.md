@@ -111,6 +111,7 @@ exists.
 | Every `t("key")` exists in `autograder/translations/en.json` and `pt_br.json`, with the same placeholders | `tests/unit/test_translations.py::test_all_source_keys_exist`, `tests/unit/test_translations.py::test_placeholders_match` |
 | Static evaluators (no `ai_provider`): a passing and a failing case in `tests/builtin_evaluator_cases.py`, recorded in `tests/builtin_evaluator_golden.json` | `tests/unit/test_builtin_evaluator_golden.py::test_golden_cases_cover_every_static_builtin_with_both_outcomes` |
 | Regenerate the wire schemas with `python scripts/generate_contract_schemas.py` (the definition schema carries every evaluator's parameters) | `tests/unit/test_config_models.py::test_checked_in_examples_and_schema_are_current`, `tests/web/test_template_catalog.py::test_openapi_gives_typed_template_and_evaluator_models` |
+| Give every parameter an English `description` and regenerate the [evaluator reference](../reference/evaluators.md) with `python scripts/generate_reference.py` (`make contracts` fails on a stale page) | `tests/unit/test_generated_reference.py::test_every_discovery_text_is_a_nonempty_default_locale_description`, `tests/unit/test_generated_reference.py::test_checked_in_reference_matches_the_contracts` |
 | Criterion snippets in `docs/template-library/` and the README template tables name registered evaluators and compile | `tests/unit/test_architecture.py::test_template_reference_criterion_snippets_compile`, `tests/unit/test_architecture.py::test_readme_template_tables_name_registered_evaluators_and_parameters` |
 
 `tests/unit/test_non_vacuous_criteria.py` also checks that, with only its
@@ -118,8 +119,8 @@ required parameters, no presence check passes an irrelevant project.
 
 Not enforced, so reviewers check them: execution and API evaluators get a real
 Docker case beside `tests/integration/test_builtin_io_evaluators.py` (golden
-cases cover static evaluators only); the evaluator is documented in its
-`docs/template-library/` page; runtime-only failures are moved to compilation
+cases cover static evaluators only); scoring semantics the contract cannot
+state are explained in its `docs/template-library/` page; runtime-only failures are moved to compilation
 (see step 2).
 
 ## Evaluators that run code
@@ -129,14 +130,19 @@ The only difference is a declaration on the evaluator. An evaluator with
 execution session for the bound language, stage the files and preparation, and
 pass it as `evaluation.session`; other evaluators, including static ones in the
 same template, receive `None`, and a run that selects none of them acquires
-nothing. Run every process through `session.run_process(ProcessRequest...)`
-(explicit argv or an explicit shell, exact stdin, a deadline) and grade the
+nothing. Such an evaluator also declares `process_timeouts`, the deadline of
+every process one assessment may run (for example `(30,)`; registration rejects
+an execution evaluator without it): the run's execution budget, and so the
+sandbox's lifetime, is derived from these declarations
+([CAPABILITIES.md](../contracts/CAPABILITIES.md#execution-budget)). Run every
+process through `session.run_process(ProcessRequest...)` (explicit argv or an
+explicit shell, exact stdin, a deadline within the declared ones) and grade the
 returned `ProcessResult`. A program that exits non-zero or times out is an
 assessed result; `not_started` and session exceptions are infrastructure
 failures. See [PROCESSES.md](../contracts/PROCESSES.md).
 
 Most execution evaluators subclass `BaseExecutionTest`, which declares the
-capability and supplies the shared steps: `run_program(evaluation,
+capability and its one 30 s run and supplies the shared steps: `run_program(evaluation,
 program_command, inputs)` runs the bound language's command (a string, a
 language map or `CMD`, checked at compilation) with exact stdin lines, and
 `assessed_failure(result, locale)` returns the assessed zero for a timeout or
@@ -156,12 +162,15 @@ split, and that a host without the capability fails before acquisition.
 ### Host composition
 
 Evaluator code never chooses a host. Hosts pass `HostCapabilities` whose
-`execution` is a callable from `Language` to an owned session:
+`execution` is a callable from the bound `Language` and the run's
+`ExecutionBudget` to an owned session that lives at least
+`budget.session_seconds`, and whose `max_session_seconds` states the longest
+session the host grants:
 
 ```python
 from execution_host.docker import DockerHost
 
-host = DockerHost(mode="local")          # or DockerHost.from_environment()
+host = DockerHost(mode="local")          # or mode="remote", api_url=<sandbox control API>
 try:
     outcome = evaluate_submission(submission, definition=compiled, capabilities=host.capabilities)
 finally:

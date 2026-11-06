@@ -77,12 +77,12 @@ def test_client_and_server_agree_on_the_wire(served):
 
 def test_unconfirmed_local_disposal_keeps_the_completed_grade(caplog):
     client = FakeDocker()
-    manager = SandboxManager([pool_config()], client, max_sandboxes=2, owner=owner(), monitor_interval=60)
+    manager = SandboxManager([pool_config()], client, runtime="runc", max_sandboxes=2, owner=owner(), monitor_interval=60)
     events = []
     concrete = {}
 
-    def acquire(language):
-        docker_session = DockerSession(manager, language)
+    def acquire(language, budget):
+        docker_session = DockerSession(manager, language, budget)
         concrete["sandbox"] = docker_session.sandbox
         docker_session.sandbox.container_ref.remove_failures = [docker.errors.APIError("stuck")]
         # Commands are not under test: delegate execution to a scripted session.

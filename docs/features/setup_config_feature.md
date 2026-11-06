@@ -37,7 +37,12 @@ it is split into arguments with no implicit shell, gets empty stdin and has a
 command per step (`javac Main.java`), and `sh -c '...'` only when a step really
 needs a pipeline or redirection. Any nonzero exit or timeout is a failed setup
 command (`PREPARATION_FAILED`); a missing executable is `PREPARATION_ERROR`.
-A failed required setup command stops assessment with null score/tree. A student
+A failed required setup command stops assessment with null score/tree. The
+student's error names the step and its exit code (or deadline) in the
+submission's locale, with an excerpt of the step's output, typically the compiler
+errors. Mark a step `"private_output": true` when its output could reveal private
+content (a compiled hidden harness): the step and exit code are still named,
+the output is not ([explained submission failures](../contracts/OUTCOMES.md#explained-submission-failures)). A student
 compilation failure reported by an evaluator during assessment can instead be a
 valid zero. See the [outcome failure matrix](../contracts/OUTCOMES.md).
 

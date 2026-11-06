@@ -12,6 +12,7 @@ from botocore.stub import Stubber
 
 from autograder import build_pipeline
 from autograder.models.capabilities import FixtureNotFound, HostCapabilities
+from autograder.models.execution import StagedFixture
 from execution_host.docker import DockerHost, docker_capabilities
 from execution_host.fixtures import FixtureProviderError, S3FixtureProvider
 from tests.fake_object_store import fake_s3_provider
@@ -103,7 +104,7 @@ def test_client_is_created_lazily_once_and_shared_by_concurrent_requests():
 def test_host_composition_reads_provider_configuration_from_environment(monkeypatch):
     monkeypatch.setenv("EXTERNAL_ASSETS_BUCKET_NAME", "course-fixtures")
     monkeypatch.setenv("S3_ENDPOINT_URL", "http://ministack:4566")
-    for capabilities in (DockerHost().capabilities, docker_capabilities(Mock())):
+    for capabilities in (DockerHost(mode="local").capabilities, docker_capabilities(Mock())):
         assert isinstance(capabilities.fixtures, S3FixtureProvider)
         assert capabilities.fixtures.bucket == "course-fixtures"
         assert capabilities.fixtures.endpoint_url == "http://ministack:4566"
@@ -114,19 +115,33 @@ def fixtures_definition(*fixtures):
         {"reference": reference, "path": path, "read_only": read_only} for reference, path, read_only in fixtures]})
 
 
-def test_pipeline_stages_each_reference_with_placement_chosen_by_the_session():
+def test_pipeline_stages_the_fetched_set_in_one_call_with_placement_chosen_by_the_session():
     provider, client = fake_s3_provider({**COLLIDING, "empty": b""})
     owned = session()
     outcome = build_pipeline(definition=fixtures_definition(
         ("a_b", "under.txt", True), ("a/b", "slash.txt", False), ("empty", "empty.txt", True),
         ("a/b", "copy/slash.txt", True)),
-        capabilities=HostCapabilities(execution=lambda language: owned, fixtures=provider)).run(submission()).outcome
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
     assert outcome.status == "completed"
-    assert [call.args for call in owned.stage_fixture.call_args_list] == [
-        ("under.txt", b"underscore content", True), ("slash.txt", b"slash content", False),
-        ("empty.txt", b"", True), ("copy/slash.txt", b"slash content", True)]
+    owned.stage_fixtures.assert_called_once_with([
+        StagedFixture("under.txt", b"underscore content", True), StagedFixture("slash.txt", b"slash content", False),
+        StagedFixture("empty.txt", b"", True), StagedFixture("copy/slash.txt", b"slash content", True)])
     assert [key for _, key in client.requests] == ["a_b", "a/b", "empty", "a/b"]
     owned.close.assert_called_once()
+
+
+def test_a_missing_fixture_after_present_ones_stages_nothing_and_no_fixtures_stage_nothing():
+    provider, _ = fake_s3_provider({"present": b"x"})
+    owned = session()
+    outcome = build_pipeline(definition=fixtures_definition(("present", "p", True), ("absent", "a", True)),
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
+    assert outcome.error.code == "PREPARATION_ERROR" and outcome.error.retryable is False
+    owned.stage_fixtures.assert_not_called()
+    owned = session()
+    outcome = build_pipeline(definition=fixtures_definition(),
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
+    assert outcome.status == "completed"
+    owned.stage_fixtures.assert_not_called()
 
 
 @pytest.mark.parametrize("unreachable, retryable", [(False, False), (True, True)])
@@ -135,10 +150,10 @@ def test_missing_and_failed_fixtures_share_the_safe_preparation_outcome(unreacha
     client.unreachable = unreachable
     owned = session()
     outcome = build_pipeline(definition=fixtures_definition(("absent" if not unreachable else "present", "f", True)),
-        capabilities=HostCapabilities(execution=lambda language: owned, fixtures=provider)).run(submission()).outcome
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
     assert outcome.status == "failed" and outcome.score is None and outcome.tree is None
     assert (outcome.error.category, outcome.error.code) == ("capability", "PREPARATION_ERROR")
     assert outcome.error.message == "Assignment preparation could not complete."
     assert outcome.error.retryable is retryable
-    owned.stage_fixture.assert_not_called()
+    owned.stage_fixtures.assert_not_called()
     owned.close.assert_called_once()

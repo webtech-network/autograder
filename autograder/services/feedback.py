@@ -13,9 +13,8 @@ from autograder.services.report.default_reporter import render_default_report
 def render_feedback(tree: ResultOutcomeTree, preferences: FeedbackPreferences, locale: str) -> str:
     """Return Markdown feedback within ``MAX_FEEDBACK_BYTES``; raise if it cannot be produced.
 
-    Feedback repeats criterion reports, so it is excerpted like them: criteria are
-    ranked by impact first and the final score is at the end, so the excerpt
-    keeps both.
+    Feedback repeats criterion reports, so it is excerpted like them: the final
+    score and its explanation open the report, so the excerpt's head keeps them.
     """
     content = render_default_report(find_focus(tree), tree, preferences, locale)
     if not isinstance(content, str) or not content.strip():

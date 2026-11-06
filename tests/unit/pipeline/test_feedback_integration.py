@@ -10,4 +10,5 @@ def test_feedback_includes_configured_title_and_grade():
     assert outcome.status == "completed"
     assert outcome.feedback.status == "completed"
     assert "Integration Test Title" in outcome.feedback.content
-    assert "GRADING SUMMARY" in outcome.feedback.content
+    assert "## Summary" in outcome.feedback.content
+    assert f"**Final score: {outcome.score:.2f} / 100**" in outcome.feedback.content

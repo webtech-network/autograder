@@ -63,7 +63,10 @@ outputs:
     description: "delivered, failed or uncertain when publication was requested. Uncertain means the server may have stored it; retrying delivery.json is safe."
 runs:
   using: docker
-  image: "Dockerfile.actions"
+  # A prebuilt image: jobs pull it and build nothing. Raising this version is the
+  # release (scripts/action_image.py); to test an unreleased change, see
+  # docs/github_action/README.md#versions-and-images.
+  image: "docker://ghcr.io/webtech-network/autograder-action:0.6.0"
   env:
     EXECUTION_MODE: ${{ inputs.execution-mode }}
     DEFINITION_PATH: ${{ inputs.definition-path }}

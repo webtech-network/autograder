@@ -60,12 +60,48 @@ applies. Mount the receipt directory persistently and share it between replicas
 that may recover each other's jobs. Publication failure cannot rewrite a completed
 grade into an execution failure.
 
+## Attempt deadline
+
+Every attempt has a deadline derived from its bound definition, never from a
+setting: the execution session's lifetime (`budget.session_seconds`, the same
+lifetime the sandbox enforces on itself, see
+[CAPABILITIES.md](CAPABILITIES.md#execution-budget)) plus the AI provider's
+`deadline_seconds` (190 s for the shipped OpenAI provider; a provider that does
+not declare a positive finite one is refused when the worker starts) for the
+grading's one provider call, plus a 60 s margin (`ATTEMPT_MARGIN_SECONDS` in
+`web/service/worker.py`) for grading, feedback and the hand-off. The clock starts
+when the session is granted, so waiting for a sandbox slot does not count (that
+wait is bounded separately by `GRADING_CAPACITY_WAIT_SECONDS`, below). A static
+or AI-only definition (budget 0) is clocked from the claim and still covers its
+provider call.
+
+The lease is renewed only before the deadline. An attempt past it stops waiting
+for its grading thread (which cannot be stopped from outside and whose sandbox
+has already stopped itself) and publishes a failed outcome
+`ATTEMPT_DEADLINE_EXCEEDED`, `category: capability`, `retryable: true`, fenced by
+its attempt UUID like any other publication. A late result of the abandoned
+thread is logged and discarded; each abandonment logs how many abandoned grading
+threads are still running in the process (sandbox and AI paths end by
+themselves; a growing count points at a hung static path). Re-queuing retryable failures is COR-03 (#418);
+until then the failure is terminal.
+
+A definition whose worst case the host could never grant is refused before it is
+stored or queued: `POST /api/v1/configs`, `POST /api/v1/configs/validate`,
+configuration updates (every allowed language) and `POST /api/v1/submissions`
+(the selected language) answer **422** with
+`{"code": "EXECUTION_BUDGET_EXCEEDED", "path": ["languages", <language>], ...}`
+when the session it needs is longer than the host's `running_timeout`
+([SANDBOX.md](SANDBOX.md#sandbox-lifetime)). In remote mode the API reads the
+same `sandbox_config.yml` as its sandbox service, which enforces the maximum
+again at acquisition.
+
 Shutdown stops new claims and drains existing evaluation threads, keeping leases
-and provider ownership until grading/publication completes. It does not cancel
-threads or close their providers underneath them. Cancellation of the async worker
-wrapper likewise drains its evaluation and publishes before releasing ownership.
-A process killed forcibly can leave an attempt running in external infrastructure;
-a new attempt may begin after lease expiry. UUID fencing prevents competing
+and provider ownership until grading/publication completes or the attempt's
+deadline passes. It does not cancel threads or close their providers underneath
+them. Cancellation of the async worker wrapper likewise drains its evaluation,
+up to the same deadline, and publishes before releasing ownership.
+A process killed forcibly can leave an attempt running in external infrastructure
+until its sandbox's own lifetime ends it; a new attempt may begin after lease expiry. UUID fencing prevents competing
 authoritative publications; sandbox cleanup belongs to the owning execution
 session. Graceful shutdown can wait for a blocked external provider; configure
 the deployment termination grace period accordingly.
@@ -126,7 +162,8 @@ proves on PostgreSQL that `upgrade head` from empty equals the models (an empty
 autogenerate diff), so a model change without a migration fails CI.
 
 Set `DATABASE_URL`, `AUTOGRADER_INTEGRATION_TOKEN`, the required sandbox/provider
-configuration, and a persistent `WEB_OUTCOME_RECEIPT_DIR`. Worker settings listed
+configuration, and a persistent `WEB_OUTCOME_RECEIPT_DIR`
+([configuration](../operate/configuration.md), [deployment](../operate/deployment.md)). Worker settings listed
 above are positive values validated during construction. Multiple API processes
 have independent workers and coordinate claims through the same PostgreSQL rows.
 No separate queue product or scheduler service is required.
@@ -200,12 +237,12 @@ the capacity benchmark below measures those.
 `scripts/capacity_benchmark.py` measures an already running stack through its
 public HTTP API with an integration token. It never starts, migrates or configures
 the stack, so the same command works for the compose stack and a production-like
-deployment. Against `docker compose up` (synthetic token `e2e-test-token`):
+deployment. Against `make start-autograder` (project `autograder`, its token exported):
 
 ```sh
-AUTOGRADER_INTEGRATION_TOKEN=e2e-test-token python scripts/capacity_benchmark.py \
+python scripts/capacity_benchmark.py \
   --url http://localhost:8000 --workload python-io \
-  --api-pid "$(docker inspect -f '{{.State.Pid}}' autograder-api)" \
+  --api-pid "$(docker inspect -f '{{.State.Pid}}' "$(docker compose ps -q api)")" \
   --sandbox-label autograder.sandbox.owner_host=autograder-sandbox-manager > result.json
 ```
 
@@ -215,7 +252,7 @@ terminal. Workloads expand the checked-in v1 examples:
 
 | `--workload` | Definition | Submission | Executes in |
 | --- | --- | --- | --- |
-| `python-io` | `python-io.json` with `--tests` (5) stdin/stdout tests | distinct correct `main.py` | one sandbox per grading |
+| `python-io` | `python-io.json` with `--tests` (5) stdin/stdout tests | distinct correct `main.py`, plus `--files` (1) − 1 unused 2 KiB modules | one sandbox per grading |
 | `webdev` | `webdev.json` with `--criteria` (30) `has_tag` checks | distinct correct page of `--page-kb` (20) KiB | the API process |
 | `mix` | both, alternating, plus `--executions` (12) concurrent `POST /execute` | as above | shared sandbox pools |
 

@@ -107,6 +107,11 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+sandbox = [
+    { name = "anyio" },
+    { name = "fastapi" },
+    { name = "uvicorn", extra = ["standard"] },
+]
 server = [
     { name = "aiosqlite" },
     { name = "alembic" },
@@ -150,22 +155,23 @@ test = [
 requires-dist = [
     { name = "aiosqlite", marker = "extra == 'server'", specifier = "~=0.20.0" },
     { name = "alembic", marker = "extra == 'server'", specifier = "~=1.13.0" },
-    { name = "anyio", marker = "extra == 'server'", specifier = "~=4.16" },
+    { name = "anyio", marker = "extra == 'sandbox'", specifier = "~=4.16" },
     { name = "ast-grep-py", specifier = "~=0.51.1" },
     { name = "asyncpg", marker = "extra == 'server'", specifier = "~=0.30" },
+    { name = "autograder", extras = ["sandbox"], marker = "extra == 'server'" },
     { name = "beautifulsoup4", specifier = "~=4.13.4" },
     { name = "boto3", specifier = "~=1.43" },
     { name = "docker", specifier = "~=7.1.0" },
-    { name = "fastapi", marker = "extra == 'server'", specifier = "~=0.115.0" },
+    { name = "fastapi", marker = "extra == 'sandbox'", specifier = "~=0.115.0" },
     { name = "openai", specifier = "==1.93.0" },
     { name = "pydantic", specifier = "~=2.12.5" },
     { name = "pydantic-core" },
     { name = "pyyaml", specifier = "~=6.0.2" },
     { name = "requests", specifier = "~=2.32.4" },
     { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'server'", specifier = "~=2.0.0" },
-    { name = "uvicorn", extras = ["standard"], marker = "extra == 'server'", specifier = "~=0.32.0" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'sandbox'", specifier = "~=0.32.0" },
 ]
-provides-extras = ["server"]
+provides-extras = ["sandbox", "server"]
 
 [package.metadata.requires-dev]
 dev = [

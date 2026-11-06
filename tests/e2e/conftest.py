@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 import requests
-from tests.sandbox_profiles import TEST_SANDBOX_CONFIG
+from tests.sandbox_profiles import sandbox_config
 
 
 @pytest.fixture(scope="session")
@@ -18,13 +18,13 @@ def isolated_api(tmp_path_factory):
     directory = tmp_path_factory.mktemp("autograder-e2e")
     database = directory / "api.sqlite3"
     config = directory / "sandbox.yml"
-    config.write_text(TEST_SANDBOX_CONFIG)
+    config.write_text(sandbox_config())
     token = secrets.token_hex(24)
     producer_token = secrets.token_hex(24)
     env = dict(os.environ, DATABASE_URL=f"sqlite+aiosqlite:///{database}",
         AUTOGRADER_INTEGRATION_TOKEN=token, AUTOGRADER_ATTESTATION_TOKENS=f"actions={producer_token}",
         SANDBOX_MODE="local", SANDBOX_CONFIG_FILE=str(config), LOG_LEVEL="WARNING",
-        APP_ENV="test", PYTHON_DOTENV_DISABLED="1")
+        APP_ENV="test", PYTHON_DOTENV_DISABLED="1", WEB_OUTCOME_RECEIPT_DIR=str(directory / "receipts"))
     # Retain the bound socket through exec, avoiding a free-port discovery race.
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))

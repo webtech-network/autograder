@@ -57,9 +57,10 @@ nonnegative `duration_ms`, `score`, `tree`, `feedback`, and `error`.
 * Optional focus/feedback/comparison enrichment failure preserves a completed
   grade and is represented by its own disabled/completed/failed status.
 
-Safe errors expose code, fixed safe message, category, retryability, and an
+Safe errors expose code, message, category, retryability, and an
 execution correlation ID, never raw exceptions, provider responses or step
-class names. Diagnostics are internal. Criterion IDs identify tree leaves and
+class names. Infrastructure, provider and internal messages are fixed;
+submission failures are explained to the student (ONB-02, below). Diagnostics are internal. Criterion IDs identify tree leaves and
 AI batch outputs, including repeated evaluators and duplicate display labels.
 
 External ingestion is an authenticated host attestation, not proof that this
@@ -230,7 +231,7 @@ signals and call `shutdown()`; the library installs no handlers. Orphan
 reclamation is scoped to owner leases (owner id, hostname, boot/pid/start time)
 and removes only provably dead local owners; an explicit operator command
 handles remote and legacy owners. One Docker profile declares all limits; the
-gVisor fallback only drops the runtime argument. The control API is private
+host's explicit runtime is its only variable (COR-04). The control API is private
 (Compose `expose`), requires a bearer token, uses random bounded expiring
 handles in one worker process, makes acquisition replay-safe by request id,
 tombstones disposed handles, and distinguishes unknown handles from missing
@@ -431,8 +432,60 @@ names exactly those references; floating local `:latest` tags are gone. A
 present and declares its language in the `autograder.runtime.languages` label,
 and raises `RuntimeImageError` otherwise. Hosts therefore pull or build the
 configured images before starting; an old unlabelled image is rejected rather
-than silently used. Service and Action images are a later change. See
-[LANGUAGES.md](LANGUAGES.md#runtime-images).
+than silently used. See [LANGUAGES.md](LANGUAGES.md#runtime-images).
+
+## Lean service and Action images (ENV-04)
+
+The API, sandbox manager and Action each have an image that holds only what its
+process imports: locked runtime dependencies (`server`, the new `sandbox` extra,
+or the base dependencies) in `/opt/venv` and an allow-listed set of first-party
+directories in `/app`, on a digest-pinned `python:3.13-slim` base. The API and
+sandbox manager images no longer share contents: the sandbox manager has no web
+or database stack. No image has `dockerd`, `containerd`, a Docker CLI, Node.js,
+curl, uv or a test tool. The build context is an allow-list (`.dockerignore`),
+so `.env`, `.venv`, `data/` and caches never enter an image. `action.yml` pins
+`docker://ghcr.io/webtech-network/autograder-action:<version>` instead of building
+`Dockerfile.actions` in every job. A version is released once, gated on
+verification, from the branch that raises it (`workflow_dispatch`), before
+that branch can merge: the image is pushed first, then a git tag of the same
+name. `make action-check` (`scripts/action_image.py check`) fails unless
+the `<version>` tag is an ancestor of the checked commit, no released path
+differs between the tagged commit and the checked one, and the pinned image is
+pullable with an empty `DOCKER_CONFIG`. The released paths are `action.yml`
+(read by consumers from the branch), `Dockerfile.actions`, `.dockerignore` and
+every build-context path that Dockerfile copies (read from it, so a new `COPY`
+joins automatically): any change to the Action interface or the image's inputs
+needs a new version and release, or the check fails. It runs in the
+`Service and Action images` job of `verify.yml` on every pull request into
+`main` and on every push to `main`, where `deploy` needs that job. That is what
+enforces it today: a red job on a pull request into `main`, and no API deploy
+from a `main` commit that fails it. It blocks a merge only once the `main`
+ruleset requires that job; today the ruleset still requires the stale `pylint`
+and `pytest` contexts, which no workflow produces, so the merge block depends on
+the repository owner adding the Verify jobs as required checks
+([Required checks](../guides/development.md#required-checks)). With that in
+place, `main`, which every documented `uses: ...@main` follows, only ever names a
+published, public image built from its own history together with the
+`action.yml` it was released with. Release pull requests merge with a merge
+commit, so the tag stays in that history. `tests/images/`
+(`make test-images`, CI) checks the built images, including a build from a
+checkout with planted secrets and the Action grading the static example.
+
+Migration: Compose health checks use Python instead of curl. Deployments that
+run `curl` inside the API or sandbox manager containers must do the same. The
+Action image no longer contains Node.js or `tree`. `@main` follows the latest
+released image rather than building the current commit; consumer workflows
+need no change. The first merge of this change into `main` requires
+`autograder-action:0.6.0` to be released from the merging branch and the new
+GHCR package to be made public, verified with an anonymous `docker manifest
+inspect`, and nothing released may change on that branch after the release
+(a later Wave change to `autograder/`, `github_action/` or `action.yml` needs a
+new version). Before that merge, the repository owner replaces the `main`
+ruleset's stale required checks (`pylint`, `pytest`) with the Verify job names
+and confirms them with `gh api`; until then a red `make action-check` is
+visible but does not block the merge. See
+[Releasing a version](../github_action/README.md#releasing-a-version). GitHub
+Release notes remain manual.
 
 ## Closed locale and outcome-code vocabularies (COR-07)
 
@@ -491,3 +544,170 @@ artifact, under both runtimes). The collector needs no fork until it has
 reported the cgroup counters, is restarted when runc finds no pid to start it,
 and a running container at its pids limit is exhaustion. The outcome wire is
 unchanged. See [PROCESSES.md](PROCESSES.md#who-ended-a-run).
+
+## Explained submission failures (ONB-02)
+
+INT-07 hid infrastructure details from outcomes and, with them, the diagnostics
+students own: a non-compiling submission said only "A required setup command
+failed." A `submission`-category `EvaluationError` may now carry an
+`explanation` (a `preflight.error.*` catalog key and its parameters) and the
+failing step's `output`. The pipeline renders the explanation in the
+submission's locale (COR-07's closed set) as the error `message` and excerpts
+`output` with COR-06's `bound_text` and `MAX_REPORT_BYTES`; `EvaluationError`
+and `OutcomeError` reject both for every other category, so capability,
+provider and internal errors are unchanged byte for byte. Categories, codes,
+`retryable` and the null score/tree are unchanged: an unpreparable submission is
+still a failed grading, never an assessed zero.
+
+The wire change is additive: `OutcomeError.output` is optional and absent (not
+`null`) when there is none, so every outcome without it serializes exactly as
+before, and stored outcomes need no migration. A consumer that validates with
+`additionalProperties: false` against the previous schema must update before it
+receives an outcome with `output` or a snapshot with `private_output`: deploy
+the HTTP host before Actions that attest them. Setup commands gain `private_output` (strict boolean,
+default `false`), omitted from the canonical snapshot while `false`, so existing
+definition hashes and bound snapshots are unchanged. Messages name only
+definition-authored files, steps, criteria and languages, never the setup
+command or submitted file names. The dead `preflight.*` and `system.*` catalog
+keys were replaced by the keys now used; a test keeps that namespace free of
+unused or missing keys in both locales. See
+[OUTCOMES.md](OUTCOMES.md#explained-submission-failures).
+
+## One execution time budget (COR-02)
+
+Four unrelated clocks bounded a grading (per-process deadlines, the reaper's
+`running_timeout`, an unbounded HTTP lease and `sleep infinity`), so a legitimate
+worst case longer than `running_timeout` failed with `SANDBOX_ERROR`, and a
+crashed owner left its student processes running until something reclaimed
+them. Now compilation derives one `ExecutionBudget` from deadlines already
+declared (evaluator `process_timeouts`, 30 s per setup command; no authoring
+field), and the one host knob is the maximum `running_timeout`. A budget the host
+cannot grant is refused before any code runs (`EXECUTION_BUDGET_EXCEEDED`; HTTP
+422 at validation and acceptance, never after queueing). Each granted sandbox
+arms its own lifetime with a root exec the submission cannot signal and stops
+itself then, whatever happens to its owner; owner-lease reclamation only removes
+stopped records. Every process runs before the one AI call, so the sandbox
+lifetime holds only process time. An HTTP attempt's deadline is the session
+lifetime from the grant plus the provider deadline per AI call plus a margin; it
+ends as a retryable `ATTEMPT_DEADLINE_EXCEEDED` without further lease renewal.
+Re-queuing is left to COR-03. See [SANDBOX.md](SANDBOX.md#sandbox-lifetime),
+[CAPABILITIES.md](CAPABILITIES.md#execution-budget) and
+[JOBS.md](JOBS.md#attempt-deadline).
+
+## The default report explains the rubric and the score (ONB-03)
+
+The `default` Markdown report was a flat list per category with a Python repr
+of every parameter, `Score: 0.0/100` per test and fixed headings ("❌ Points to
+Improve" even when no penalty applied). It now follows the authored tree
+(category, nested subjects, tests) under the authored names, and states the
+points every category, subject and test moved the final score: base and
+penalty points lost, bonus points earned, and the equation
+`100 − base − penalty + bonus = final`, noting when the 0–100 limit applied.
+The values come from the shared scoring module: `criterion_points` (next to
+`final_score`) for categories and focus's per-test `points`; the reporter
+aggregates them and recomputes nothing. Parameters are never rendered; a test
+shows its status, file target, score, points and its evaluator's report, so a
+value appears only when the evaluator chose to report it. Headings carry only
+the neutral category name (or the authored `category_headers`) and numbers.
+Preferences are unchanged: `show_score: false` hides every number,
+`show_passed_tests` lists passing tests (otherwise a fully passing holder says
+so in one line), `add_report_summary` controls the summary table. The
+formatter module and the unused translation keys are removed. The report is
+still a pure function of tree, preferences and locale, and the outcome wire is
+unchanged; the Markdown text is a breaking change for anyone parsing it
+(goldens: `tests/unit/services/feedback_golden/`,
+`tests/integration/canonical_outcome_golden.json`).
+
+## Bounded writable paths and an explicit runtime (COR-04)
+
+The root filesystem was writable, so a submission writing fsynced files with the
+page cache dropped grew a sandbox's writable layer on host disk (540 MB under
+runc, 1 GiB under gVisor within the probe's time) on the VPS it shares with
+PostgreSQL. Sandboxes now have a read-only root filesystem; the writable paths
+are tmpfs mounts (`/app` 64 MiB, `/tmp` 32 MiB, `/dev/shm` 64 MiB) charged to the
+memory limit, plus runc's in-kernel `/dev/mqueue`, so the per-sandbox host-disk
+bound is 0 bytes. Any error
+mentioning `runsc` used to switch a pool to runc for the rest of its life. The
+runtime is now the host's explicit, required `general.runtime` (`runsc` or
+`runc`), verified and logged when the manager starts; a failed gVisor start
+fails that one acquisition and never downgrades. Migration: the shipped
+configuration says `runsc`, and a daemon without gVisor stops the service at
+startup, loudly, before it reports ready: the control service in its lifespan
+and a local-mode API (production's current shape) in its own startup, which now
+builds its sandbox manager there instead of on the first execution grading. A
+deployment checks that `docker info` lists `runsc` or deploys `runtime: runc`
+deliberately; that check is a precondition of the `refactor/363` release. SANDBOX.md alone states the per-environment
+runtime and Docker-socket exposure, names the supported internet-facing
+topology (remote mode, socket only in the private control service), and maps
+each isolation guarantee to the hostile-submission test that pins it under each
+runtime; CI's isolation job installs the pinned gVisor release so both run. See
+[SANDBOX.md](SANDBOX.md#isolation-profile-and-runtime).
+
+## Action execution on the runner (ENV-03)
+
+The published Action could not grade any execution-based criterion: with no
+mode set, its host defaulted to a remote sandbox service at `localhost:8001`
+that nothing provides, so every I/O, command or setup criterion failed as
+`CAPABILITY_UNAVAILABLE`. `DockerHost.from_environment()` and that default are
+deleted; `DockerHost` now requires an explicit `mode`, and `mode="remote"`
+requires the control API URL.
+
+**Decision.** The Action runs submissions on the GitHub runner's own Docker, in
+the web host's single sandbox profile (`sandbox_manager/docker_profile.py`: no
+network, all capabilities dropped for the unprivileged `sandbox` user,
+`no-new-privileges`, memory/CPU/pids/file-size limits, read-only root with
+memory-bounded tmpfs writable paths, no bind mounts, no environment from the
+Action). GitHub-hosted runners have no gVisor, so the Action's host explicitly
+requests `runc` (`execution_host.runner.RUNNER_RUNTIME`) on every runner; the
+web host's `general.runtime` does not apply to it. As for every host since
+COR-04, the manager verifies at construction, before grading, that the daemon
+offers that runtime, and never switches to another. Each sandbox stops itself
+when the grading's execution budget (COR-02) ends; the host maximum is
+`sandbox_config.yml`'s `running_timeout`, and a definition needing more is
+refused with `EXECUTION_BUDGET_EXCEEDED` before any code runs. #363 allowed the runner VM
+itself as the boundary, but running submissions directly in the Action container
+would put them beside the Action's environment (`ACTIONS_RUNTIME_TOKEN`, the
+cloud token, provider keys) and the mounted Docker socket, which breaks the
+[trust table](../github_action/trust.md#runner-execution-boundary). Under `runc`
+the kernel is shared, so the boundary is Linux namespaces, cgroups, seccomp and
+the dropped capabilities; a kernel escape would reach the runner VM, which
+GitHub discards after the job. Self-hosted runners keep the
+`trusted-self-hosted-runner` rule for publication.
+
+**Host shape.** `execution_host.runner.RunnerHost` serves only the language the
+definition selected: one sandbox, created when the grading acquires it (budget
+1, `pool_size` 0), from the image `sandbox_config.yml` pins, pulled by the Action
+when the runner lacks it. There is no warm pool, control API, orphan reclamation
+or `SANDBOX_*` setting; those stay web-only. The Action constructs the host only
+when the selected language's criteria or preparation execute code; static and
+AI-only definitions never touch Docker. Construction checks Docker before
+grading: without a reachable daemon the Action fails with the documented
+`Docker is not available to the Action` error and writes no outcome, instead of
+grading to `CAPABILITY_UNAVAILABLE`
+([Requirements](../github_action/README.md#requirements)). Grading runs in a
+worker thread while the main thread waits, so `SIGTERM` (turned into
+`SystemExit` by `main`) interrupts only that wait; the host is then closed,
+removing the sandbox (and a container still being created) before the process
+exits, and on every other path before anything is retained or published.
+
+**Pinning.** The Action image ships `sandbox_config.yml`, so each Action
+release pins its runtime image references (content-addressed tags, never
+`:latest` or a local-only tag). `make action-check`, the gate on `main`, now
+also fails unless every pinned runtime image is anonymously pullable.
+
+**Verification.** The `Packaged Action on a hosted runner` job in `verify.yml`
+runs `uses: ./` on `ubuntu-latest` (static, Python I/O, C I/O, a wrong answer
+and a credential probe) and checks outcomes, outputs, one sandbox per execution
+run and none left over (`scripts/action_fixtures.py`). `tests/images/` runs the
+packaged image with the runner's socket: single-runtime provisioning, removal
+on success, failed grading and `SIGTERM`, the probe, the missing-Docker error
+and the pull of an absent runtime image.
+
+Migration: workflows need no change; execution-based definitions now grade on
+Linux GitHub-hosted runners with no extra step. Workflows that set
+`SANDBOX_MODE`, `SANDBOX_API_URL` or `SANDBOX_API_TOKEN` for the Action can drop
+them; they are ignored. Runners must provide Docker (all Linux GitHub-hosted
+runners do; macOS and Windows runners cannot run container actions at all). Each
+runtime package on GHCR must be public before a release that pins it reaches
+`main`. Python callers of `DockerHost()` must pass `mode`, and `mode="remote"` an
+`api_url`.

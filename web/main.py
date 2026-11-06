@@ -97,9 +97,18 @@ def create_app(settings=None, *, session_factory=None, capabilities=None,
     return application
 
 
+# Reads and validates every setting of this host; invalid configuration stops here.
 app = create_app()
 
 
 if __name__ == "__main__":
+    import sys
+
+    if sys.argv[1:] == ["--check"]:
+        # `python -m web.main --check`: the configuration was accepted above, exactly
+        # as at startup (no database, Docker or network access). Deployments run it
+        # with the new image before replacing a running API.
+        print("Autograder API configuration is valid.")
+        sys.exit(0)
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

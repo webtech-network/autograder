@@ -18,7 +18,8 @@ SandboxManager (one owner lease: owner id + hostname + boot:pid:start)
 ```
 
 Each `LanguagePool` manages Docker containers for one language. Containers are
-pre-started ("warm") with `sleep infinity` and run commands through `docker exec`.
+pre-started ("warm") with a bounded `sleep` and run commands through `docker exec`;
+each grant arms the sandbox's own lifetime, after which it stops itself.
 The lifecycle, ownership and control API guarantees are specified in
 [Sandbox ownership and private control API](../contracts/SANDBOX.md); this page
 describes the internals.
@@ -29,9 +30,11 @@ describes the internals.
 
 ### Startup (host-owned)
 
-1. The host constructs `SandboxManager(pool_configs, client=None, max_sandboxes=N)`
+1. The host constructs `SandboxManager(pool_configs, client=None, max_sandboxes=N, runtime="runsc")`
    (or `SandboxManager.from_config(SandboxHostConfig.load_from_yaml(path))`) — for
    example `DockerHost` on first acquisition, or the control API lifespan.
+   It refuses to start when the Docker daemon does not offer the configured
+   runtime (`general.runtime`), and logs the runtime it uses.
 2. Containers of provably dead owners on this host are reclaimed
    (`sandbox_manager.ownership.reclaim_dead_owners`). Other owners are untouched.
 3. A `LanguagePool` is created per configured language, all sharing one
@@ -90,8 +93,9 @@ general:
     # Warm idle containers per language, outside N (at most max_sandboxes)
     pool_size: 1
 
-    # Maximum seconds a handed-out sandbox may live, counted from the grant
-    running_timeout: 120
+    # Host maximum: the longest lifetime granted to a sandbox, counted from the
+    # grant; each grading asks for its own execution budget up to it
+    running_timeout: 900
 
     # Removal attempts for a quarantined container before it stays
     # quarantined for an operator (default 5)
@@ -133,7 +137,7 @@ the removed `scale_limit`/`idle_timeout`, a missing or non-positive
 ## SandboxContainer API
 
 ### `prepare_workdir(submission_files)`
-Copies submission files into the container's `/app` directory. Supports nested directory structures (e.g., `services/service.java` → `/app/services/service.java`).
+Stages submission files into the container's `/app` directory in one transfer (one `tar` exec fed on stdin, whatever the file count or size). Supports nested directory structures (e.g., `services/service.java` → `/app/services/service.java`). See [Staging](../contracts/SANDBOX.md#staging).
 
 ```python
 sandbox.prepare_workdir(submission_files)
@@ -141,7 +145,7 @@ sandbox.prepare_workdir(submission_files)
 ```
 
 ### `inject_assets(resolved_assets)`
-Injects static assets (datasets, fixtures) into the container's `/tmp` directory using a shell-escaped Base64 `exec_run` write path compatible with gVisor.
+Stages a fixture set under the container's `/tmp` directory in one transfer, owned by `root` and read-only (`0444`) when requested.
 
 ```python
 sandbox.inject_assets(resolved_assets)
@@ -233,8 +237,8 @@ Each container is created with:
 - **Network:** Disabled (`network_mode="none"`)
 - **Capabilities:** All dropped except `KILL` and `DAC_OVERRIDE` for `root` control processes; `no-new-privileges`
 - **File size limit:** 10 MB
-- **Filesystem:** tmpfs-based (`/app` 64 MB writable with mode 1777, `/tmp` 32 MB noexec) under both runtimes
-- **Runtime:** gVisor (`runsc`) when available, falls back to default `runc`; the fallback only drops the `runtime` argument
+- **Filesystem:** read-only root; the writable paths are tmpfs (`/app` 64 MiB with mode 1777, `/tmp` 32 MiB noexec, `/dev/shm` 64 MiB) and, under runc, the in-kernel `/dev/mqueue`, so nothing reaches host disk
+- **Runtime:** the host's explicit `general.runtime` (`runsc` for gVisor, or `runc`); never changed at run time (see [isolation](../contracts/SANDBOX.md#isolation-profile-and-runtime))
 - **Labels:** application label plus owner lease (see [ownership](../contracts/SANDBOX.md#owner-leases-and-orphan-reclamation))
 
 All options are declared once in `sandbox_manager/docker_profile.py`.

@@ -8,15 +8,12 @@ display labels containing slashes, bonus and penalty caps and requested feedback
 with a learning resource. Each submission is graded in real Docker sandboxes and
 the full canonical tree and score must match exactly.
 
-Feedback text must match exactly too, with one documented correction (ARC-11):
-the old focus traversal applied a mixed group's ``subjects_weight`` twice, so in
-the "partial" run the failed ``artifact`` criterion (10 points lost) was listed
-after ``imports``/``loops`` (7.5 points each). The shared scoring traversal
-ranks it before them; every block's content is unchanged.
+Feedback text must match exactly too. It was re-recorded once, when the
+default report started to follow the authored tree and explain the score
+(ONB-03); the tree and score in the golden are unchanged by that recording.
 """
 import json
 import os
-import re
 from pathlib import Path
 
 import pytest
@@ -114,15 +111,4 @@ def test_real_container_outcomes_match_the_recorded_golden(docker_host):
         assert actual[key]["score"] == expected["score"], key
         assert actual[key]["tree"] == expected["tree"], key
         assert actual[key]["feedback"]["status"] == expected["feedback"]["status"] == "completed"
-        blocks = feedback_blocks(expected["feedback"]["content"])
-        if key.startswith("partial-"):
-            artifact = next(block for block in blocks if "out.txt" in block and block.startswith("### "))
-            imports = next(block for block in blocks if "'os'" in block)
-            blocks.remove(artifact)
-            blocks.insert(blocks.index(imports), artifact)
-        assert feedback_blocks(actual[key]["feedback"]["content"]) == blocks, key
-
-
-def feedback_blocks(content):
-    """Split a report into its section dividers and per-criterion blocks."""
-    return re.split(r"\n(?=### |---\n)", content)
+        assert actual[key]["feedback"]["content"] == expected["feedback"]["content"], key

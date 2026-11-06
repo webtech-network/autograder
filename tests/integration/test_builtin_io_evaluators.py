@@ -14,7 +14,7 @@ from autograder.models.language import Language
 from tests.web.conftest import db_engine, session_factory  # pylint: disable=unused-import
 from web.core.config import Settings
 from web.main import create_app
-from tests.sandbox_profiles import TEST_SANDBOX_CONFIG
+from tests.sandbox_profiles import sandbox_config
 
 LANGUAGES = ("python", "java", "node", "cpp")
 SOURCE = {"python": "main.py", "java": "Main.java", "node": "main.js", "cpp": "main.cpp"}
@@ -63,7 +63,7 @@ DEFINITION = {
 @pytest.fixture(scope="module")
 def docker_host(tmp_path_factory):
     config = tmp_path_factory.mktemp("sandbox") / "sandbox.yml"
-    config.write_text(TEST_SANDBOX_CONFIG)
+    config.write_text(sandbox_config())
     host = DockerHost(mode="local", config_file=str(config))
     yield host
     host.close()
@@ -116,7 +116,7 @@ def test_compile_failure_stops_before_assessment(docker_host, language):
 async def docker_application(session_factory, tmp_path, monkeypatch):
     monkeypatch.setenv("AUTOGRADER_INTEGRATION_TOKEN", "io-token")
     config = tmp_path / "sandbox.yml"
-    config.write_text(TEST_SANDBOX_CONFIG)
+    config.write_text(sandbox_config())
     owner = DockerHost(mode="local", config_file=str(config))
     app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts"), INTEGRATION_TOKEN="io-token"), session_factory=session_factory,
                      capabilities=owner.capabilities, resource_owner=owner, start_workers=False)

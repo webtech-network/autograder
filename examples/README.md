@@ -3,6 +3,9 @@
 `assets/input_output/criteria_examples/` contains five complete v1 definitions,
 from flat addition checks to weighted nested calculator groups. Web and API
 examples use `assets/web_dev/definition.json` and `assets/api_testing/definition.json`.
+`assets/fixture_io/` grades a program that reads a teacher-provided fixture
+(`fixtures/fixture-io/numbers.txt`, uploaded to the development stack's bucket by
+its `storage-init` service) with `main.py` as a correct submission.
 Student sample sources remain under `assets/input_output/code_examples/`.
 
 Validate all calculator definitions from the repository root:

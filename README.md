@@ -224,7 +224,7 @@ Validates HTML, CSS, and JavaScript files.
 | `has_attribute` | Check element attributes | `attribute`, `required_count` |
 | `css_uses_property` | Validate CSS rules | `prop`, `value` |
 
-And much more! Check the [WebDev Template Documentation](docs/template-library/web_dev.md) for the full list of tests.
+And much more! The generated [evaluator reference](docs/reference/evaluators.md) lists every evaluator with its parameters and defaults.
 #### 4. Custom Templates
 Trusted Python callers can pass their own test functions through the `templates`
 argument to `compile_definition()` or `evaluate_submission()`. Follow
@@ -250,7 +250,7 @@ make verify            # hermetic core/library check: no Docker, no database
 ```
 
 CI runs the same commands, plus the Docker and PostgreSQL tiers
-(`make test-integration`, `make test-e2e`, `make test-postgres`); `make help`
+(`make test-integration`, `make test-e2e`, `make test-http`, `make test-postgres`); `make help`
 lists them all.
 
 To run the system:
@@ -258,10 +258,12 @@ To run the system:
 - **Sandbox images:** the runtime images named in `sandbox_config.yml`
   (`make sandbox-list`) must be present before a host starts: `docker pull` the
   published references, or `make sandbox-build-all` to build them from this checkout.
-- **Web API:** `export SANDBOX_API_TOKEN=<long random secret>` then
-  `make start-autograder` (Docker and Docker Compose; the host-wide sandbox budget
+- **Web API:** export `SANDBOX_API_TOKEN` and `AUTOGRADER_INTEGRATION_TOKEN`
+  (long random secrets), then `make start-autograder`, a development-only stack
+  (Docker and Docker Compose; the host-wide sandbox budget
   `general.max_sandboxes` and the runtimes are configured in `sandbox_config.yml`;
-  size the budget by CPU, about 8 on 12 CPUs, see [JOBS.md](docs/contracts/JOBS.md#sandbox-capacity)). See [Run your first grading workflow](docs/getting-started/first-grading-workflow.md).
+  size the budget by CPU, about 8 on 12 CPUs, see [JOBS.md](docs/contracts/JOBS.md#sandbox-capacity)). See [Run your first grading workflow](docs/getting-started/first-grading-workflow.md);
+  deployments follow [Deploying the HTTP service](docs/operate/deployment.md).
 - **GitHub Action:** see the [GitHub Action](#github-action) section.
 
 ---

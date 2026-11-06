@@ -20,6 +20,8 @@ VERIFY = WORKFLOWS / "verify.yml"
 PINNED = re.compile(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}")
 #: Status functions that would let a job run after a failed dependency.
 STATUS_OVERRIDES = ("always()", "failure()", "cancelled()")
+#: Jobs that publish (deploy the service, release the Action image); every other job verifies.
+PUBLICATION = {"deploy", "action-release"}
 
 
 def makefile_targets() -> tuple[set[str], set[str]]:
@@ -70,6 +72,9 @@ def test_hermetic_path_needs_neither_docker_nor_postgres():
         assert step in plan.stdout
     assert "docker" not in plan.stdout
     assert "not postgres" in plan.stdout
+    # Every test run points DOCKER_HOST nowhere, so CI (which has Docker) catches a daemon lookup.
+    runs = [line for line in plan.stdout.splitlines() if "-m pytest" in line]
+    assert runs and all(line.startswith("DOCKER_HOST=unix:///nonexistent/") for line in runs), runs
 
 
 def test_documented_make_commands_exist():
@@ -90,6 +95,7 @@ def test_ci_runs_on_every_pull_request_and_on_main():
     triggers = workflow(VERIFY)["on"]
     assert triggers["pull_request"] in (None, {})  # no branch or path filter
     assert triggers["push"] == {"branches": ["main"]}
+    assert triggers["workflow_dispatch"] in (None, {})  # the Action release, on any ref
 
 
 def test_ci_invokes_only_make_targets():
@@ -107,14 +113,28 @@ def test_ci_invokes_only_make_targets():
     assert "make test-postgres" in commands["postgres"]
 
 
-def test_deploy_waits_for_every_verification_job():
+
+def test_jobs_that_run_the_shipped_sandbox_configuration_install_its_runtime_first():
+    # `make test-http` starts the Compose stack with the images' own
+    # sandbox_config.yml. Its control service refuses to start when Docker does not
+    # offer that runtime (COR-04), and GitHub's runners ship without gVisor.
+    shipped = yaml.safe_load((ROOT / "sandbox_config.yml").read_text(encoding="utf-8"))["general"]["runtime"]
     jobs = workflow(VERIFY)["jobs"]
-    deploy = jobs["deploy"]
-    assert set(deploy["needs"]) == set(jobs) - {"deploy"}
-    condition = deploy["if"]
-    assert "github.event_name == 'push'" in condition
-    assert "github.ref == 'refs/heads/main'" in condition
-    assert not any(override in condition for override in STATUS_OVERRIDES)
+    for name, job in jobs.items():
+        runs = [step["run"].strip() for step in job.get("steps", []) if "run" in step]
+        for target in ("make test-http", "make test-isolation"):
+            if target in runs and shipped == "runsc":
+                assert "make gvisor-install" in runs[:runs.index(target)], f"{name}: {target} without gVisor"
+
+
+def test_publication_waits_for_every_verification_job():
+    jobs = workflow(VERIFY)["jobs"]
+    for name in PUBLICATION:
+        assert set(jobs[name]["needs"]) == set(jobs) - PUBLICATION, name
+        assert not any(override in jobs[name]["if"] for override in STATUS_OVERRIDES)
+    assert jobs["deploy"]["if"] == "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+    # The Action image is published before main can name it (see the pin check below).
+    assert jobs["action-release"]["if"] == "github.event_name == 'workflow_dispatch'"
     # A red step or job that is allowed to fail would still count as success.
     for name, job in jobs.items():
         assert "continue-on-error" not in job, name
@@ -142,6 +162,46 @@ def test_only_the_gated_job_deploys_the_service():
             text = yaml.safe_dump(job)
             if "SSH_PRIVATE_KEY" in text or "push: true" in text:
                 assert (path, name) == (VERIFY, "deploy")
+
+
+def test_only_the_gated_release_job_publishes_the_action_image():
+    jobs = workflow(VERIFY)["jobs"]
+    release = jobs["action-release"]
+    assert release["concurrency"] == {"group": "action-release", "cancel-in-progress": False}
+    commands = [step["run"].strip() for step in release["steps"] if "run" in step]
+    # It publishes exactly the image it has just built and tested from this commit.
+    assert commands[-2:] == ["make test-images", "make action-publish"]
+    for path in WORKFLOWS.glob("*.yml"):
+        for name, job in workflow(path)["jobs"].items():
+            if "action-publish" in yaml.safe_dump(job):
+                assert (path, name) == (VERIFY, "action-release")
+    assert "make test-images" in [step.get("run", "").strip() for step in jobs["images"]["steps"]]
+
+
+def test_main_only_ever_pins_a_published_action_image():
+    # Every documented consumer uses `webtech-network/autograder@main`: a pull
+    # request into main, and main itself, fail while action.yml pins an image an
+    # anonymous runner cannot pull (missing, or a private package).
+    images = workflow(VERIFY)["jobs"]["images"]
+    gate = [step for step in images["steps"] if step.get("run", "").strip() == "make action-check"]
+    assert len(gate) == 1
+    assert gate[0]["if"] == "github.base_ref == 'main' || github.ref == 'refs/heads/main'"
+    assert "docker/login-action" not in yaml.safe_dump(images)  # anonymous, like a consumer's runner
+    # It asks whether the release tag is an ancestor of this commit: a shallow clone cannot tell.
+    checkout = images["steps"][0]
+    assert checkout["uses"].startswith("actions/checkout@") and checkout["with"]["fetch-depth"] == 0
+
+
+def test_the_documented_required_checks_are_exactly_the_verification_jobs():
+    # A job blocks a merge into main only if the ruleset requires it by name; the
+    # guide's list is what the ruleset is set to, so it must follow verify.yml.
+    jobs = workflow(VERIFY)["jobs"]
+    verification = {job["name"] for name, job in jobs.items() if name not in PUBLICATION}
+    guide = (ROOT / "docs" / "guides" / "development.md").read_text(encoding="utf-8")
+    section = guide.split("### Required checks", 1)[1].split("\n### ", 1)[0]
+    required = set(re.findall(r"^- `([^`]+)`", section, re.M))
+    assert required == verification
+    assert "Service and Action images" in required  # runs `make action-check` into main
 
 
 def test_third_party_actions_are_pinned_to_commits():

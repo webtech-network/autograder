@@ -146,13 +146,39 @@ Workflow artifacts may still be shown to students as unofficial feedback.
 
 ## Runner execution boundary
 
-The Action runs submission code through the same Docker sandbox profile as the
-web host (`SANDBOX_MODE=local` with a docker socket, or `remote`): no network, no
-capabilities, resource limits, only the submission files copied in, and no
-environment variables from the runner. The Action owns its sandboxes for the run
-and disposes them before publishing. `tests/integration/test_action_runner_boundary.py`
-verifies with real Docker that tokens, provider keys and the docker socket are not
-visible to submission code.
+The Action is a container action. The runner gives its container the workspace,
+the Action's inputs and environment (`ACTIONS_RUNTIME_TOKEN`, a cloud token or
+provider key you pass) and the runner's Docker socket. Submission code never
+runs in that container: the Action starts one sandbox of the selected language
+on the runner's Docker and runs the submission there.
+
+| | Action (on the runner) | HTTP service (web host) |
+| --- | --- | --- |
+| Where submissions run | one sandbox on the runner's Docker, created when grading needs it | pooled sandboxes on the service host, local or behind the private control API |
+| Runtime | `runc`, requested explicitly on every runner (GitHub-hosted runners have no gVisor) and checked before grading | `general.runtime` in `sandbox_config.yml` (`runsc` as shipped), checked at startup; never switched |
+| Sandbox profile | the same profile (`sandbox_manager/docker_profile.py`) | the same profile |
+| Network | none (`network_mode: none`) | none |
+| Runner/Action environment and tokens | none: the sandbox gets no environment variable from the Action, so `ACTIONS_RUNTIME_TOKEN`, `GITHUB_TOKEN`, cloud tokens and provider keys stay outside | not applicable |
+| Docker socket | not mounted in the sandbox | not mounted |
+| Files | only the submission files, copied in; not the workspace, `.github/` or the definition | only the submission files |
+| Lifetime | one per run, stopping itself when the grading's execution budget ends; removed before the outcome is retained or published, also after a failed grading or `SIGTERM` | pooled, one use each, stopping itself when its budget ends, then removed |
+| Pool, control API, orphan reclamation | none | yes ([SANDBOX.md](../contracts/SANDBOX.md)) |
+| Boundary if the sandbox is escaped | the runner VM, which GitHub discards after the job | the service host |
+
+Under `runc` the sandbox shares the runner's kernel: the boundary is the
+profile's namespaces, cgroup limits, seccomp, dropped capabilities and
+unprivileged user, not a separate kernel. The runner VM is the outer boundary.
+See the [decision record](../contracts/DECISIONS.md#action-execution-on-the-runner-env-03).
+
+Verification: the `Packaged Action on a hosted runner` CI job runs this
+repository's Action with `uses: ./` on `ubuntu-latest`. A probe submission
+reports what it can see; the job fails if it sees a credential, any `GITHUB_`,
+`RUNNER_`, `ACTIONS_` or `INPUT_` variable, a credential through `/proc/1/environ`
+(the Action's processes are in another PID namespace), the Docker socket or the
+network, if a run creates more than one sandbox, or if
+one survives the run. `tests/images/test_action_runner_host.py` runs the same
+probe through the packaged image with the runner's socket, including removal
+after a failed grading and after `SIGTERM`.
 
 ## Migration
 
