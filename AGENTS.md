@@ -41,7 +41,10 @@ every runner): one on-demand sandbox of the selected language, removed before
 publication, with no pool, control API or reclamation
 ([trust.md](docs/github_action/trust.md#runner-execution-boundary)). Fixtures are an uncached host
 `reference -> bytes` call; `FixtureNotFound` is a non-retryable
-`PREPARATION_ERROR`, other provider failures are retryable.
+`PREPARATION_ERROR`, a store refusing the bucket or credentials is the
+non-retryable `FIXTURE_PROVIDER_UNAVAILABLE`, other provider failures are
+retryable. The HTTP worker retries retryable failures within `WEB_MAX_ATTEMPTS`
+([JOBS.md](docs/contracts/JOBS.md#execution-retry)), the only execution retry layer.
 
 ## Public Python and JSON contracts
 

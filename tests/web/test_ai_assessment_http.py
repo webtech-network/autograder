@@ -11,6 +11,7 @@ from autograder.models.capabilities import HostCapabilities
 from autograder.models.execution import ProviderAssessment
 from web.core.config import Settings
 from tests.grading import FakeProvider
+from tests.web.worker_support import drain
 
 HEADERS = {"Authorization": "Bearer ai-token"}
 
@@ -62,8 +63,7 @@ async def submit(app, client, assignment, files):
         "external_assignment_id": assignment, "external_user_id": "student", "username": "Student",
         "files": [{"filename": name, "content": content} for name, content in files.items()]})
     assert submitted.status_code == 202, submitted.text
-    while await app.state.host.worker.run_once():
-        pass
+    await drain(app.state.host.worker, app.state.host.worker.sessions)
     polled = (await client.get(submitted.headers["Location"])).json()
     details = await client.get(f'/api/v1/submissions/{polled["id"]}/details', headers=HEADERS)
     assert details.status_code == 200, details.text
@@ -106,4 +106,6 @@ async def test_invalid_provider_output_fails_over_http_without_a_grade(ai_client
     assert polled["status"] == "failed" and polled["final_score"] is None
     assert outcome["tree"] is None and outcome["score"] is None
     assert outcome["error"]["code"] == code and outcome["error"]["category"] == "provider"
-    assert len(provider.calls) == 1
+    # Invalid model output may differ on the next call: retryable, one provider call per attempt.
+    assert outcome["error"]["retryable"] is True
+    assert len(provider.calls) == app.state.host.settings.MAX_ATTEMPTS

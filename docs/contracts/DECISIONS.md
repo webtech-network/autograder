@@ -589,8 +589,8 @@ itself then, whatever happens to its owner; owner-lease reclamation only removes
 stopped records. Every process runs before the one AI call, so the sandbox
 lifetime holds only process time. An HTTP attempt's deadline is the session
 lifetime from the grant plus the provider deadline per AI call plus a margin; it
-ends as a retryable `ATTEMPT_DEADLINE_EXCEEDED` without further lease renewal.
-Re-queuing is left to COR-03. See [SANDBOX.md](SANDBOX.md#sandbox-lifetime),
+ends as a retryable `ATTEMPT_DEADLINE_EXCEEDED` without further lease renewal,
+retried within the attempt budget since COR-03. See [SANDBOX.md](SANDBOX.md#sandbox-lifetime),
 [CAPABILITIES.md](CAPABILITIES.md#execution-budget) and
 [JOBS.md](JOBS.md#attempt-deadline).
 
@@ -711,3 +711,29 @@ runners do; macOS and Windows runners cannot run container actions at all). Each
 runtime package on GHCR must be public before a release that pins it reaches
 `main`. Python callers of `DockerHost()` must pass `mode`, and `mode="remote"` an
 `api_url`.
+
+## Retryable failures of accepted work are retried (COR-03)
+
+The engine marked transient failures `retryable: true`, but the HTTP worker
+published every finalized outcome, so a sandbox service restart, a capacity wait
+that expired or a provider outage became a terminal `failed` grade on the first
+attempt; the attempt budget covered only interrupted attempts. The flag also lied
+the other way: a missing fixture bucket or a denied credential was a retryable
+`PREPARATION_ERROR`. Now `retryable` means "can pass without an operator": the
+S3 fixture provider reports a store that refuses the bucket or the credentials as
+the non-retryable `FIXTURE_PROVIDER_UNAVAILABLE` (an unset bucket supplies no
+provider at all), and the Docker host reports a missing runtime or a refused
+sandbox-service token as a non-retryable `CAPABILITY_UNAVAILABLE`. The HTTP
+worker is the one retry layer: a retryable failure with budget left releases the
+claim (fenced by the attempt UUID, the row stays `processing` with no owner) for
+`WEB_RETRY_SECONDS` × 2^(attempt − 1); the last attempt of `WEB_MAX_ATTEMPTS`
+publishes the engine's failure. Assessed results and non-retryable failures
+publish on the first attempt. The fixture client makes one request per fixture
+(no SDK retries). No wire, schema or engine change; see
+[JOBS.md](JOBS.md#execution-retry).
+
+Migration: polling may stay `processing` for up to about 90 s more (defaults: 3
+attempts, 30 s then 60 s) before a transient failure is published, instead of
+reporting it at once; integrators that resubmitted on `retryable: true` can stop.
+A deployment with a missing fixture bucket now fails those gradings with
+`FIXTURE_PROVIDER_UNAVAILABLE` instead of `PREPARATION_ERROR`.
