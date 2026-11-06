@@ -135,7 +135,9 @@ containers per language. **Reference:** 12 logical CPUs, gVisor, PostgreSQL 17 �
 **about 8**. In the investigation behind this budget (#435: 200 five-test Python
 bursts on a shared machine) waiting plus creation outside the lock completed
 181 / 199 / 198 gradings per minute with 8 / 16 / 24 workers and no failures,
-against 106–114 per minute and up to 188 of 200 capacity failures before.
+against 106–114 per minute and up to 188 of 200 capacity failures before. The
+[PRF-01 before/after sweep](#prf-01-beforeafter-sweep) on a quiet host measured
+the knee at about N = 12 (241 gradings per minute, against 155 before).
 
 `tests/e2e/test_sandbox_budget.py` runs a real API process with PostgreSQL and
 Docker, six workers and `max_sandboxes: 2`: every submission of a burst, mixed
@@ -315,3 +317,68 @@ The same command reports the capacity defect of PRF-01 (#435) at this commit:
 `--workload mix` failed 15/200 submissions (7 `CAPABILITY_UNAVAILABLE`, 8
 `SANDBOX_ERROR`) and answered 11 of 12 deliberate executions with 503; python-io
 with `WEB_WORKER_COUNT=6` failed 183/200 with `CAPABILITY_UNAVAILABLE`. Both exit 1.
+
+### PRF-01 before/after sweep
+
+Recorded 2026-11-06 for PRF-01 (#435) on the same host as the reference result:
+Intel Core i5-12400 (6 cores, 12 threads), 31 GiB RAM, Linux 7.2.15 (Fedora 44),
+Docker 29.9.2 with gVisor `runsc` release-20260209.1 for every sandbox, PostgreSQL
+17.11 in a container, Python 3.13.13, one uvicorn process in local sandbox mode,
+default `WEB_POLL_SECONDS`. Unrelated idle services kept running on the host; the
+1-minute load average was 0.4–2.1 before each sweep point and peaked at the value
+shown, almost entirely from the run itself. **Before** is `8c5a0b2` (the parent of
+PRF-01's #453, already shipping this benchmark); **after** is `474386d`, which also
+contains later unrelated changes (COR-04, ONB-03, ENV-03, #469). The same
+`scripts/capacity_benchmark.py` (from `474386d`) drove both: `--workload
+python-io` (5 tests, 1 file), 200-submission bursts, `--runs 3` after an
+unrecorded warm-up burst, a fresh database and API process per point.
+
+Concurrency N sets both `WEB_WORKER_COUNT` and the sandbox bound: before,
+`scale_limit: N` (the only runtime is Python, so it is the host bound), `pool_size:
+1`; after, `max_sandboxes: N`, `pool_size: 1`. Three runs, min / median / max;
+latencies are per-submission medians/p95 of each run:
+
+| N | Code | Completed gradings/min | Failed (per run) | Queue wait p50 / p95 (median run) | Grading p50 / p95 (median run) | Peak sandboxes | Load1 peak |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | before | 19 / 19 / 19 | 0, 0, 0 | 308 / 583 s | 3.09 / 3.37 s | 1 | 3.2 |
+| 1 | after | 17 / 17 / 17 | 0, 0, 0 | 351 / 667 s | 3.51 / 3.84 s | 1 | 2.9 |
+| 2 | before | 43 / 43 / 43 | 0, 0, 0 | 137 / 262 s | 2.75 / 3.23 s | 2 | 5.8 |
+| 2 | after | 38 / 38 / 38 | 0, 0, 0 | 157 / 293 s | 3.06 / 3.70 s | 2 | 4.8 |
+| 4 | before | 90 / 92 / 93 | 0, 0, 0 | 62 / 120 s | 2.45 / 3.21 s | 4 | 5.8 |
+| 4 | after | 83 / 84 / 88 | 0, 0, 0 | 66 / 131 s | 2.67 / 3.60 s | 4 | 6.3 |
+| 8 | before | 134 / 135 / 140 | 0, 0, 1 (`SANDBOX_ERROR`) | 39 / 79 s | 3.13 / 5.11 s | 8 | 8.7 |
+| 8 | after | 200 / 201 / 207 | 0, 0, 0 | 24 / 52 s | 2.04 / 3.04 s | 8 | 11.0 |
+| 12 | before | 147 / 155 / 161 | 0, 0, 0 | 33 / 70 s | 4.22 / 6.91 s | 12 | 8.9 |
+| 12 | after | 234 / 241 / 259 | 0, 0, 0 | 18 / 42 s | 2.51 / 3.79 s | 12 | 15.3 |
+| 16 | before | 163 / 163 / 179 | 0, 0, 0 | 31 / 62 s | 5.30 / 8.55 s | 16 | 10.1 |
+| 16 | after | 245 / 259 / 276 | 0, 0, 0 | 17 / 39 s | 3.12 / 5.31 s | 16 | 20.5 |
+| 24 | before | 158 / 164 / 168 | 0, 0, 0 | 29 / 66 s | 5.15 / 8.96 s | 16 | 8.3 |
+| 24 | after | 270 / 280 / 288 | 0, 0, 0 | 18 / 38 s | 3.13 / 4.87 s | 16–17 | 19.4 |
+| 8, 16 workers | before | 91 / 137 / 142 | **163, 163, 153** (`CAPABILITY_UNAVAILABLE`) | 7 / 11 s | 0.68 / 3.54 s | 8 | 5.2 |
+| 8, 16 workers | after | 175 / 189 / 202 | 0, 0, 0 | 25 / 55 s | 4.52 / 6.59 s | 8 | 11.3 |
+
+Reading it:
+
+- **Throughput rises with N up to the CPU knee, then flattens.** After: 17 → 38 → 84
+  → 201 → 241 gradings per minute from N = 1 to 12 (the logical CPU count), then
+  +7 % at 16 and +8 % at 24 while the load average passes 15–20 on 12 CPUs. Before
+  stops scaling at N ≈ 8–12 (135 → 155 → 163 → 164): creation serialized under the
+  per-language lock caps one language near 1/creation-time, and grading time
+  grows with N (p50 3.1 → 5.3 s) instead of staying near 3 s.
+- **Above N = 4 the budget wins**: +49 % at 8, +55 % at 12, +59 % at 16 and +71 % at
+  24, with about half the queue wait and grading p95. At N ≤ 4, where creation is not
+  the bottleneck, after is 9–12 % slower (p50 +0.2–0.4 s); that cost
+  comes from changes merged after #453, not from the budget.
+- **Saturation waits instead of failing.** With 16 workers on a budget of 8, before
+  failed 479 of 600 submissions with `CAPABILITY_UNAVAILABLE` (its high "rate"
+  counts only the 37–47 that completed per burst); after completed all 600 at the
+  N = 8 rate, the slot wait showing up in grading duration.
+- The single before `SANDBOX_ERROR` at N = 8 is "Process output could not be read
+  back", the exec-stream ordering defect fixed by #469, not capacity.
+- Nominal N = 24 holds at most 16–17 gradings in flight in both versions: gradings
+  run through `asyncio.to_thread`, whose default executor has min(32, CPUs + 4) =
+  16 threads on this host. Workers beyond that wait for a thread, not a sandbox.
+
+On this host the knee is about N = 12, so the `max_sandboxes: 8` default (2/3 of
+the CPUs) gives up about 17 % of peak throughput as shared-machine headroom; raise it
+toward the CPU count only on a dedicated host, as the sizing rule says.
