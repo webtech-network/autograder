@@ -4,6 +4,7 @@ Real hosts construct and shut down their own manager; these suites share one
 per configuration and the integration conftest shuts it down at session end.
 """
 from sandbox_manager.manager import SandboxManager
+from tests.sandbox_profiles import suite_runtime
 
 _manager = None
 
@@ -12,7 +13,7 @@ def start_manager(pool_configs, max_sandboxes):
     """Replace the shared manager (shutting the previous one down)."""
     global _manager
     shutdown_manager()
-    _manager = SandboxManager(pool_configs, max_sandboxes=max_sandboxes)
+    _manager = SandboxManager(pool_configs, runtime=suite_runtime(), max_sandboxes=max_sandboxes)
     return _manager
 
 

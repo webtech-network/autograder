@@ -24,6 +24,15 @@ class RuntimeImageError(RuntimeError):
     """
 
 
+class IsolationRuntimeError(RuntimeError):
+    """The Docker daemon does not offer the OCI runtime the host configured.
+
+    Raised when a :class:`~sandbox_manager.manager.SandboxManager` starts, before
+    it creates any container. A host never falls back to another runtime: the
+    operator installs it or explicitly chooses ``general.runtime: runc``.
+    """
+
+
 class SandboxCapacityTimeout(RuntimeError):
     """No slot of the host sandbox budget became free within the caller's wait.
 

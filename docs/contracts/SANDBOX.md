@@ -62,8 +62,7 @@ manager) alike.
   grant, never during the wait.
 * Docker `create` and `remove` run outside the pool lock, so N cold acquisitions
   take about one creation time. A failed creation returns its slot and wakes the
-  next waiter. Concurrent creations that discover a missing gVisor runtime each
-  remove only their own uniquely named attempt and fall back.
+  next waiter, and removes only its own uniquely named attempt.
 * `pool_size` warm idle containers per language hold no slot (taking one takes a
   slot); warm-up only uses a slot no acquisition is waiting for. Used containers
   are never returned, so idle containers never exceed `pool_size`, which must not
@@ -109,24 +108,117 @@ Every sandbox ends itself; neither its owner nor reclamation has to be alive.
   --dead-host <name>`). Reclamation still force-removes a dead owner's
   containers, running or not; it is no longer what ends a sandbox.
 
+## Isolation profile and runtime
+
 There is one Docker profile (`sandbox_manager/docker_profile.py`): limits,
-tmpfs mounts, `network_mode="none"`, identities, capabilities, ulimits and
-labels are declared once. PID 1 is Docker's init (`init=True`, reaping orphans)
-running a bounded `sleep` as `root`; control execs that can run beside the
-submission also run as `root`. `root` keeps only `KILL` (to end every
-submission process) and `DAC_OVERRIDE` (to read back and remove what the
-submission wrote, whatever its permissions); every other capability is dropped.
-Submission processes run as the image's `sandbox` user with no capabilities,
-under `no-new-privileges`, so they cannot signal PID 1 or a control exec. The
-container holds nothing the submission may not see: its own files, fixtures
-staged readable, and the image. gVisor (`runsc`) is preferred; when the daemon lacks it, the
-same options are used without the `runtime` argument. That is the only allowed
-difference. PID 1 runs a bounded `sleep` (see [Sandbox lifetime](#sandbox-lifetime)).
-Previously the default-runtime path omitted the `/app` tmpfs because
-runc mounts tmpfs `root:root 0755`, which the unprivileged `sandbox` user cannot
-write; `/app` then fell back to an anonymous, unbounded image volume that was
-leaked on removal. `/app` is now `rw,size=64m,exec,mode=1777` under both
-runtimes, and removal passes `v=True`.
+tmpfs mounts, the read-only root filesystem, `network_mode="none"`, identities,
+capabilities, ulimits and labels are declared once. PID 1 is Docker's init
+(`init=True`, reaping orphans) running a bounded `sleep` (see
+[Sandbox lifetime](#sandbox-lifetime)) as `root`; control execs that can run
+beside the submission also run as `root`. `root` keeps only `KILL`
+(to end every submission process) and `DAC_OVERRIDE` (to read back and remove
+what the submission wrote, whatever its permissions); every other capability is
+dropped. Submission processes run as the image's `sandbox` user with no
+capabilities, under `no-new-privileges`, so they cannot signal PID 1 or a
+control exec. The container holds nothing the submission may not see: its own
+files, fixtures staged readable, and the image. Every image is built without
+setuid/setgid files (see [Runtime images](LANGUAGES.md#runtime-images)).
+
+**Storage.** The root filesystem is read-only, so no write reaches the
+container's writable layer on host disk: its `SizeRw` stays 0 under both
+runtimes, and the image's `VOLUME /app` never becomes an anonymous volume. A
+submission can write these in-memory tmpfs mounts, each bounded by its size,
+charged to the container's 128 MiB memory limit (no swap) and removed with the
+container:
+
+| Path | Bound | Use |
+| --- | ---: | --- |
+| `/app` | 64 MiB, `exec`, mode 1777 | the workspace: submission files, build outputs, artifacts |
+| `/tmp` | 32 MiB, `noexec`, mode 1777 | fixtures, per-run stdin/output files, runtime scratch (JVM `hsperfdata`, compiler temporaries) |
+| `/dev/shm` | 64 MiB, `noexec` | POSIX shared memory |
+
+The sizes sum to 160 MiB, intentionally above the 128 MiB memory limit: each
+mount stops at its own size, and together they stop at the memory limit, where
+filling them ends the sandbox as `SandboxExhausted` (an assessed zero) under both
+runtimes. Under runc, and not gVisor, `/dev/mqueue` (POSIX message queues) is
+also writable; it holds no file bytes, only queues in kernel memory bounded per
+user by `RLIMIT_MSGQUEUE` (819200 bytes). No other path is writable.
+
+No single file exceeds 10 MB (`fsize`). Filling `/tmp` can only make the
+submission's own output unreadable; filling memory ends the sandbox as
+`SandboxExhausted` ([PROCESSES.md](PROCESSES.md)). The per-sandbox host-disk
+bound is therefore **0 bytes**, and the memory-backed bound is the memory limit.
+
+**Runtime.** The OCI runtime is one explicit host decision,
+`general.runtime` in `sandbox_config.yml` (`runtime=` for
+`SandboxManager`), with no default:
+
+* `runsc`: gVisor is required. A `SandboxManager` refuses to start
+  (`IsolationRuntimeError`) when the Docker daemon does not offer it, before it
+  creates any container, and logs the decision at startup. Both long-running
+  hosts build their manager when they start, before they report ready: the
+  control service in its lifespan, and a local-mode HTTP API in its startup
+  (`DockerHost.start`). Either one therefore exits at service start with
+  `IsolationRuntimeError` (naming the runtimes the daemon offers) instead of
+  serving and failing every execution grading. Check that `docker info` lists
+  `runsc` before deploying, or deploy `runtime: runc` deliberately. The Action
+  never starts a manager it does not use: its first execution builds it.
+* `runc`: accepted explicitly; submissions share the host kernel. The manager
+  logs a warning at startup.
+
+The runtime argument is the only difference between the two; every sandbox of
+a host uses the configured one. A failed container start, including a
+transient gVisor failure, fails only that acquisition
+(`SandboxUnavailableError`, retryable, its budget slot returned and any
+partially created container removed by its unique name). The next acquisition
+uses the same runtime: there is no fallback.
+
+### Environments and supported topology
+
+The profile's limits are the same in every environment; the environments
+differ in the runtime and in who can reach the Docker daemon.
+
+| Environment | Runtime | Who holds the Docker socket | Exposure |
+| --- | --- | --- | --- |
+| HTTP API, remote mode (`SANDBOX_MODE=remote`) with the control service | `runsc` (the shipped `sandbox_config.yml`) | only the control service | **The supported internet-facing topology.** The API container has no Docker socket; the control service is private (below). |
+| HTTP API, local mode (`SANDBOX_MODE=local`) | `runsc`; `runc` for development (a configuration copy via `SANDBOX_CONFIG_FILE`, see [the development guide](../guides/development.md#running-the-api-locally)) | the API process | Not supported internet-facing: a compromised API process owns the Docker host. Use it for development, tests and private single-host deployments. |
+| GitHub Action | `runc` (hosted runners have no gVisor) | the Action on the runner VM | One run per runner VM; the runner VM is the outer boundary. Submitter, actor and token separation: [trust.md](../github_action/trust.md). |
+| CI and local test suites | `runc` always, and `runsc` where installed | the test process | CI's isolation job installs the pinned gVisor release (`make gvisor-install`) and runs the per-runtime suites below under both (`make test-isolation`); the other Docker suites run under runc. CI's HTTP job also installs it, because `make test-http` runs the shipped images with their own `sandbox_config.yml` (`runsc`), exactly as deployed. |
+
+The supported internet-facing deployment is the repository's
+`docker-compose.yml` shape: the API in remote mode without the Docker socket,
+one `sandbox-manager` service holding the socket on the internal network only,
+and a daemon offering `runsc`. A deployment that mounts `/var/run/docker.sock`
+into an internet-facing API (local mode) is not supported.
+
+### Isolation guarantees
+
+Each guarantee is pinned by a real-Docker test that runs under every runtime
+the daemon offers (`runsc` when installed, `runc` always) unless noted. The
+hostile-submission suite is `tests/integration/test_hostile_submissions.py`.
+
+| Guarantee | Pinned by |
+| --- | --- |
+| Every sandbox uses the configured runtime and this one profile (read-only root, tmpfs, limits, capabilities, `no-new-privileges`) | `tests/integration/test_hostile_submissions.py::test_the_configured_runtime_and_the_one_profile_are_in_effect` |
+| A disk-fill probe (fsync, page cache dropped) writes nothing outside the tmpfs mounts and grows no host storage (`SizeRw` 0, no volume, no log) | `tests/integration/test_hostile_submissions.py::test_disk_fill_never_reaches_host_storage` |
+| Only the declared paths are writable (the tmpfs mounts, and `/dev/mqueue` under runc); no regular file is writable | `tests/integration/test_hostile_submissions.py::test_only_the_declared_paths_are_writable` |
+| Each writable path stops at its size bound, in memory | `tests/integration/test_hostile_submissions.py::test_each_writable_path_is_bounded_in_memory_and_by_its_size` |
+| The submission cannot write the container log | `tests/integration/test_hostile_submissions.py::test_writes_to_the_container_log_are_refused` |
+| No network egress (loopback only, no DNS) | `tests/integration/test_hostile_submissions.py::test_no_network_egress` |
+| No host environment, credentials or Docker socket are visible; PID 1's environment is unreadable | `tests/integration/test_hostile_submissions.py::test_no_host_credentials_environment_or_docker_socket` |
+| No capabilities, `no-new-privileges`, no setuid/setgid path in the running sandbox | `tests/integration/test_hostile_submissions.py::test_no_privileges_capabilities_or_setuid_paths` |
+| No built runtime image carries setuid/setgid files (runtime-independent) | `tests/integration/test_hostile_submissions.py::test_no_built_image_carries_setuid_or_setgid_files` |
+| Signals to PID 1 and control processes are refused | `tests/integration/test_hostile_submissions.py::test_signals_to_control_processes_are_refused`, `tests/integration/test_sandbox_attribution.py::test_student_cannot_signal_the_control_processes` |
+| No file or process of one submission reaches the next | `tests/integration/test_hostile_submissions.py::test_no_residue_reaches_the_next_submission` |
+| The memory limit ends an exhausting submission (`SandboxExhausted`) | `tests/integration/test_hostile_submissions.py::test_memory_limit_ends_an_exhausting_submission` |
+| Memory and process-count exhaustion are one assessed result, repeated 20 times per runtime | `tests/integration/test_sandbox_attribution.py::test_exhaustion_is_one_assessed_result_and_ends_the_sandbox` |
+| Output is bounded where the process runs | `tests/integration/test_process_contract.py::test_output_is_bounded_by_the_executing_host` |
+| Artifacts are bounded and a symbolic link is never an artifact | `tests/integration/test_outcome_size_docker.py::test_flooded_stderr_and_artifact_reports_are_bounded`, `tests/integration/test_sandbox_attribution.py::test_a_symbolic_link_is_no_artifact_under_either_runtime` |
+| A transient gVisor start failure fails one acquisition and never downgrades (`runsc` only) | `tests/integration/test_hostile_submissions.py::test_a_transient_gvisor_failure_fails_one_acquisition_and_never_downgrades` |
+
+`tests/unit/sandbox/test_isolation_contract.py` keeps this table and the suite
+in step: every referenced test exists, and every test of the hostile suite is
+referenced here.
 
 The image is not part of the profile or of the language: the `runtimes:` map
 of `sandbox_config.yml` is the host's only language-to-image table
@@ -336,6 +428,19 @@ server have no hard deadline beyond docker-py's own client timeout.
 
 ## Migration
 
+* **Explicit runtime and read-only root (COR-04).** `general.runtime` is
+  required in `sandbox_config.yml` (`runsc` or `runc`); a configuration without
+  it is rejected at startup with a message naming the choices. The shipped file
+  says `runsc`, so a control service or local-mode API whose Docker daemon lacks
+  gVisor now refuses to start (`IsolationRuntimeError`) instead of silently
+  using runc: before deploying, check that `docker info` lists `runsc`, or set
+  `runtime: runc` deliberately. A local-mode API also starts its sandbox manager
+  (pools, orphan reclaim, runtime images) at startup instead of on its first
+  execution grading. Python callers pass
+  `SandboxManager(..., runtime="runsc"|"runc")`; `is_missing_runtime_error` is
+  gone. Sandboxes now have a read-only root filesystem: a submission or setup
+  command that wrote outside `/app`, `/tmp` or `/dev/shm` (for example under
+  `$HOME`) gets `EROFS`/`EACCES`; write to the workspace instead.
 * **One execution time budget (COR-02).** `running_timeout` is now the host
   maximum: each sandbox lives the lifetime its caller asks for (a grading's
   `budget.session_seconds`) up to it, and stops itself then even if its owner

@@ -231,7 +231,7 @@ signals and call `shutdown()`; the library installs no handlers. Orphan
 reclamation is scoped to owner leases (owner id, hostname, boot/pid/start time)
 and removes only provably dead local owners; an explicit operator command
 handles remote and legacy owners. One Docker profile declares all limits; the
-gVisor fallback only drops the runtime argument. The control API is private
+host's explicit runtime is its only variable (COR-04). The control API is private
 (Compose `expose`), requires a bearer token, uses random bounded expiring
 handles in one worker process, makes acquisition replay-safe by request id,
 tombstones disposed handles, and distinguishes unknown handles from missing
@@ -594,3 +594,28 @@ ends as a retryable `ATTEMPT_DEADLINE_EXCEEDED` without further lease renewal.
 Re-queuing is left to COR-03. See [SANDBOX.md](SANDBOX.md#sandbox-lifetime),
 [CAPABILITIES.md](CAPABILITIES.md#execution-budget) and
 [JOBS.md](JOBS.md#attempt-deadline).
+
+## Bounded writable paths and an explicit runtime (COR-04)
+
+The root filesystem was writable, so a submission writing fsynced files with the
+page cache dropped grew a sandbox's writable layer on host disk (540 MB under
+runc, 1 GiB under gVisor within the probe's time) on the VPS it shares with
+PostgreSQL. Sandboxes now have a read-only root filesystem; the writable paths
+are tmpfs mounts (`/app` 64 MiB, `/tmp` 32 MiB, `/dev/shm` 64 MiB) charged to the
+memory limit, plus runc's in-kernel `/dev/mqueue`, so the per-sandbox host-disk
+bound is 0 bytes. Any error
+mentioning `runsc` used to switch a pool to runc for the rest of its life. The
+runtime is now the host's explicit, required `general.runtime` (`runsc` or
+`runc`), verified and logged when the manager starts; a failed gVisor start
+fails that one acquisition and never downgrades. Migration: the shipped
+configuration says `runsc`, and a daemon without gVisor stops the service at
+startup, loudly, before it reports ready: the control service in its lifespan
+and a local-mode API (production's current shape) in its own startup, which now
+builds its sandbox manager there instead of on the first execution grading. A
+deployment checks that `docker info` lists `runsc` or deploys `runtime: runc`
+deliberately; that check is a precondition of the `refactor/363` release. SANDBOX.md alone states the per-environment
+runtime and Docker-socket exposure, names the supported internet-facing
+topology (remote mode, socket only in the private control service), and maps
+each isolation guarantee to the hostile-submission test that pins it under each
+runtime; CI's isolation job installs the pinned gVisor release so both run. See
+[SANDBOX.md](SANDBOX.md#isolation-profile-and-runtime).

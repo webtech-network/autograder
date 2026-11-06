@@ -17,7 +17,7 @@ from autograder.models.language import Language
 from autograder.models.process import ProcessRequest
 from sandbox_manager.ownership import APP_LABEL_VALUE, LABEL_APP, LABEL_OWNER
 from sandbox_manager.remote_client import ArtifactNotFound, RemoteSandboxManager, SandboxHandleGone
-from tests.sandbox_profiles import TEST_IMAGES
+from tests.sandbox_profiles import TEST_IMAGES, suite_runtime
 
 TOKEN = "integration-token"
 
@@ -33,7 +33,7 @@ def service():
 
     def factory():
         holder["manager"] = SandboxManager([SandboxPoolConfig(
-            language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0, running_timeout=120)], client, max_sandboxes=3)
+            language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON], pool_size=0, running_timeout=120)], client, runtime=suite_runtime(), max_sandboxes=3)
         return holder["manager"]
 
     settings = ControlSettings(token=TOKEN, handle_ttl_seconds=3, reaper_interval_seconds=0.5)

@@ -226,7 +226,7 @@ Docker integration tests exercise real grading isolation. Architecture tests
 (`tests/unit/test_architecture.py`) protect dependency direction, catalog/example
 truthfulness and the extension path. `make verify` is the hermetic path (lint,
 schema drift, strict docs build, unit and SQLite HTTP tests); `make test-postgres`,
-`make test-integration` and `make test-e2e` are the database and Docker tiers. CI
+`make test-integration`, `make test-isolation` and `make test-e2e` are the database and Docker tiers. CI
 runs exactly these targets and deploys only after all pass; see
 [the development guide](docs/guides/development.md#verification). Preserve unrelated work;
 use a clean worktree for delivery. Do not add co-author commit trailers.

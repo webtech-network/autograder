@@ -34,9 +34,7 @@ def manager(runtime: str) -> SandboxManager:
                           boot_id=current.boot_id, pid=current.pid, start_ticks=current.start_ticks)
     created = SandboxManager([SandboxPoolConfig(language=Language.PYTHON, image=TEST_IMAGES[Language.PYTHON],
                                                 pool_size=0, running_timeout=900)],
-                             max_sandboxes=2, owner=owner)
-    if runtime == "runc":
-        created.language_pools[Language.PYTHON]._gvisor_available = False  # pylint: disable=protected-access
+                             max_sandboxes=2, owner=owner, runtime=runtime)
     return created
 
 

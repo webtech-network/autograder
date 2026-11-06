@@ -8,11 +8,11 @@ from unittest.mock import Mock
 import docker
 import pytest
 
-from sandbox_manager.docker_profile import LIFETIME, container_options
+from sandbox_manager.docker_profile import LIFETIME, MEMORY_LIMIT_BYTES, WRITABLE_PATHS, container_options
 from autograder.models.process import ProcessRequest
 from sandbox_manager.errors import (
-    ProcessExecutionError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
-    SandboxLifetimeExceeded,
+    IsolationRuntimeError, ProcessExecutionError, RuntimeUnavailableError, SandboxCapacityTimeout,
+    SandboxInvalidatedError, SandboxLifetimeExceeded,
 )
 from sandbox_manager.language_pool import (
     CREATION_SLACK_SECONDS, LanguagePool, SandboxBudget, SandboxUnavailableError,
@@ -21,12 +21,12 @@ from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
 from autograder.models.language import Language
 from sandbox_manager.ownership import LABEL_OWNER
-from tests.unit.sandbox.fakes import Clock, FakeDocker, owner, pool_config
+from tests.unit.sandbox.fakes import Clock, FakeContainer, FakeDocker, owner, pool_config
 
 
-def make_pool(client=None, clock=None, max_sandboxes=2, **config):
+def make_pool(client=None, clock=None, max_sandboxes=2, runtime="runc", **config):
     return LanguagePool(Language.PYTHON, pool_config(**config), client or FakeDocker(), owner(),
-                        clock=clock or Clock(), budget=SandboxBudget(max_sandboxes))
+                        clock=clock or Clock(), budget=SandboxBudget(max_sandboxes), runtime=runtime)
 
 
 def test_dispose_removes_with_force_and_volumes_then_forgets():
@@ -157,35 +157,62 @@ def test_shutdown_disposes_all_and_reports_failures(caplog):
     assert len(client.live) == 1
 
 
-def test_gvisor_fallback_only_drops_runtime():
-    client = FakeDocker(gvisor=False)
-    pool = make_pool(client)
-    sandbox = pool.acquire()
-    first, second = client.containers.run_calls
-    assert first.pop("runtime") == "runsc"
-    assert "runtime" not in second
-    assert first == second
-    assert second["tmpfs"]["/app"].endswith("mode=1777")
-    assert second["network_mode"] == "none" and second["cap_drop"] == ["ALL"]
-    assert second["labels"][LABEL_OWNER] == "a" * 32
-    pool.acquire()
-    assert "runtime" not in client.containers.run_calls[-1]  # Unavailable runtime is remembered.
-    assert pool.dispose(sandbox) is DisposalStatus.DISPOSED
-
-
-def test_gvisor_available_uses_runtime():
+@pytest.mark.parametrize("runtime", ["runsc", "runc"])
+def test_the_runtime_is_the_only_difference_between_runtimes(runtime):
     client = FakeDocker(gvisor=True)
-    make_pool(client).acquire()
-    assert [call.get("runtime") for call in client.containers.run_calls] == ["runsc"]
+    make_pool(client, runtime=runtime).acquire()
+    (call,) = client.containers.run_calls
+    assert call.pop("runtime") == runtime
+    assert call == container_options(call["image"], call["name"], call["labels"], int(call["command"][1]))
+
+
+def test_a_transient_gvisor_failure_fails_one_acquisition_and_never_downgrades():
+    """The old pool read any error naming runsc as "gVisor missing" and used runc for life."""
+    client = FakeDocker(gvisor=True)
+    client.run_failure = docker.errors.APIError("OCI runtime start failed: runsc: sandbox did not start in time")
+    pool = make_pool(client, runtime="runsc")
+    with pytest.raises(SandboxUnavailableError):
+        pool.acquire()
+    assert pool.budget.held == 0
+    client.run_failure = None
+    for _ in range(2):
+        pool.dispose(pool.acquire())
+    assert [call["runtime"] for call in client.containers.run_calls] == ["runsc"] * 3
+
+
+def test_a_container_left_by_a_failed_start_is_removed_by_its_name():
+    client = FakeDocker(gvisor=True)
+
+    def created_then_failed(kwargs):
+        container = FakeContainer(client, kwargs["name"], kwargs["labels"], kwargs)
+        client.live[container.id] = container
+        raise docker.errors.APIError("OCI runtime start failed: runsc: exit status 1")
+
+    client.on_run = created_then_failed
+    pool = make_pool(client, runtime="runsc")
+    with pytest.raises(SandboxUnavailableError):
+        pool.acquire()
+    assert client.live == {} and pool.get_stats()["total"] == 0
+
+
+def test_an_unknown_runtime_is_refused_at_the_manager_boundary_before_any_container():
+    client = FakeDocker(gvisor=True)
+    with pytest.raises(IsolationRuntimeError, match="Unknown sandbox runtime 'kata'"):
+        SandboxManager([pool_config(pool_size=1)], client, runtime="kata", max_sandboxes=2, owner=owner(),
+                       monitor_interval=60)
+    assert client.containers.run_calls == [] and client.images.get_calls == []
 
 
 def test_profile_is_declared_once():
     options = container_options("registry.local/java:21", "n", {"k": "v"}, 300)
     assert options["image"] == "registry.local/java:21"
     assert options["command"] == ["sleep", "300"]  # PID 1 never lives forever
-    assert options["mem_limit"] == options["memswap_limit"] == "128m"
+    assert options["mem_limit"] == options["memswap_limit"] == MEMORY_LIMIT_BYTES == 128 * 1024 * 1024
     assert options["pids_limit"] == 64
-    assert options["tmpfs"]["/tmp"].endswith("noexec")
+    assert options["read_only"] is True and options["security_opt"] == ["no-new-privileges"]
+    assert set(options["tmpfs"]) | {"/dev/shm"} == set(WRITABLE_PATHS)
+    assert options["tmpfs"]["/tmp"].split(",")[2] == "noexec"
+    assert "runtime" not in options
 
 
 def test_creation_failure_is_unavailable_not_tracked():
@@ -199,13 +226,31 @@ def test_creation_failure_is_unavailable_not_tracked():
 
 # --------------------------------------------------------------------- manager
 
+def test_a_host_requiring_gvisor_refuses_to_start_without_it_and_creates_nothing():
+    client = FakeDocker(gvisor=False)
+    with pytest.raises(IsolationRuntimeError, match="'runsc' .*not offered.*never fall back"):
+        SandboxManager([pool_config(pool_size=1)], client, runtime="runsc", max_sandboxes=2, owner=owner(),
+                       monitor_interval=60)
+    assert client.containers.run_calls == [] and client.images.get_calls == []
+
+
+@pytest.mark.parametrize("runtime,level,text", [("runsc", logging.INFO, "under gVisor (runsc)"),
+                                                 ("runc", logging.WARNING, "under runc")])
+def test_the_runtime_decision_is_logged_at_startup(caplog, runtime, level, text):
+    caplog.set_level(logging.INFO, logger="sandbox_manager.manager")
+    with SandboxManager([pool_config()], FakeDocker(gvisor=True), runtime=runtime, max_sandboxes=1, owner=owner(),
+                        monitor_interval=60) as manager:
+        assert manager.runtime == runtime
+    assert [record.levelno for record in caplog.records if text in record.getMessage()] == [level]
+
+
 def test_manager_installs_no_signal_handlers_and_joins_monitor(monkeypatch):
     before = (signal.getsignal(signal.SIGTERM), signal.getsignal(signal.SIGINT))
     import atexit
     registered = []
     monkeypatch.setattr(atexit, "register", registered.append)
     client = FakeDocker()
-    manager = SandboxManager([pool_config(pool_size=1)], client, max_sandboxes=2, owner=owner(), monitor_interval=0.01)
+    manager = SandboxManager([pool_config(pool_size=1)], client, runtime="runc", max_sandboxes=2, owner=owner(), monitor_interval=0.01)
     assert (signal.getsignal(signal.SIGTERM), signal.getsignal(signal.SIGINT)) == before
     assert registered == []
     assert manager.monitor_thread.is_alive()
@@ -218,7 +263,7 @@ def test_manager_installs_no_signal_handlers_and_joins_monitor(monkeypatch):
 
 def test_manager_dispose_and_context_manager():
     client = FakeDocker()
-    with SandboxManager([pool_config()], client, max_sandboxes=2, owner=owner(), monitor_interval=60) as manager:
+    with SandboxManager([pool_config()], client, runtime="runc", max_sandboxes=2, owner=owner(), monitor_interval=60) as manager:
         with manager.acquire_sandbox(Language.PYTHON) as sandbox:
             assert sandbox.state is SandboxState.ACTIVE
         assert sandbox.state is SandboxState.DISPOSED
@@ -230,7 +275,7 @@ def test_manager_dispose_and_context_manager():
 
 def test_manager_shutdown_with_failing_container_completes(caplog):
     client = FakeDocker()
-    manager = SandboxManager([pool_config()], client, max_sandboxes=2, owner=owner(), monitor_interval=60)
+    manager = SandboxManager([pool_config()], client, runtime="runc", max_sandboxes=2, owner=owner(), monitor_interval=60)
     sandbox = manager.get_sandbox(Language.PYTHON)
     sandbox.container_ref.remove_failures = [docker.errors.APIError("stuck")] * 5
     manager.shutdown()
@@ -241,7 +286,7 @@ def test_manager_shutdown_with_failing_container_completes(caplog):
 
 def test_monitor_retries_quarantine_in_background():
     client = FakeDocker()
-    manager = SandboxManager([pool_config()], client, max_sandboxes=2, owner=owner(), monitor_interval=0.01)
+    manager = SandboxManager([pool_config()], client, runtime="runc", max_sandboxes=2, owner=owner(), monitor_interval=0.01)
     try:
         pool = manager.language_pools[Language.PYTHON]
         sandbox = manager.get_sandbox(Language.PYTHON)
@@ -263,7 +308,7 @@ def test_monitor_retries_quarantine_in_background():
 def test_manager_closes_only_a_client_it_created(monkeypatch):
     client = FakeDocker()
     monkeypatch.setattr(docker, "from_env", lambda: client)
-    manager = SandboxManager([pool_config()], max_sandboxes=2, owner=owner(), monitor_interval=60)
+    manager = SandboxManager([pool_config()], runtime="runc", max_sandboxes=2, owner=owner(), monitor_interval=60)
     manager.shutdown()
     client.close.assert_called_once()
 

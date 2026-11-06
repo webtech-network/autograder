@@ -112,8 +112,10 @@ outcome = evaluate_submission(submission, definition=static_definition)
 ```
 
 HTTP and Actions use the same I/O definition with an explicitly composed Docker
-profile. `DockerHost` lazily constructs its own local or remote manager; static
-work does not initialize it. HTTP owns the host for its application lifetime.
+profile. `DockerHost` constructs its own local or remote manager on its first
+acquisition; static work does not initialize it. HTTP owns the host for its
+application lifetime and calls `DockerHost.start()` at startup, so a local-mode
+API whose sandbox configuration, runtime or images are unusable refuses to start.
 Actions owns it for the command and closes it before publication. HTTP defaults
 to its configured local profile; the container Action defaults to remote execution
 at `http://localhost:8001` and should set an accessible service URL explicitly:

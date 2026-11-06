@@ -114,8 +114,9 @@ jobs:
   docker:
     name: Docker sandboxes (integration and e2e)
     runs-on: ubuntu-latest
-    # Both runtimes for every Docker test: about 32 minutes with COR-01's attribution,
-    # COR-02's lifetime and PRF-03's staging suites, so 30 cancelled passing runs.
+    # About 32 minutes with COR-01's attribution, COR-02's lifetime and PRF-03's
+    # staging suites, so 30 cancelled passing runs; the per-runtime isolation
+    # suites have since moved to the `isolation` job.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -130,6 +131,25 @@ jobs:
       - run: make install
       - run: make test-integration
       - run: make test-e2e
+
+  isolation:
+    name: Sandbox isolation under gVisor and runc
+    runs-on: ubuntu-latest
+    # About 27 minutes on ubuntu-latest: COR-01's 20 repetitions per runtime dominate.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: .tool-versions
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.11.15"
+          enable-cache: true
+      # uv sync --locked fails when pyproject.toml and uv.lock disagree.
+      - run: make install
+      - run: make gvisor-install
+      - run: make test-isolation
 
   http:
     name: HTTP path (Compose stack from this commit)
@@ -146,6 +166,9 @@ jobs:
           enable-cache: true
       # uv sync --locked fails when pyproject.toml and uv.lock disagree.
       - run: make install
+      # The stack runs the shipped sandbox_config.yml (runtime: runsc), as a
+      # deployment does; the control service refuses to start without it.
+      - run: make gvisor-install
       - run: make test-http
 
   # The Action release, run by hand (workflow_dispatch) on the branch that raises
@@ -154,7 +177,7 @@ jobs:
   # the version (scripts/action_image.py, docs/github_action/README.md).
   action-release:
     name: Release Action image
-    needs: [core, postgres, images, docker, http]
+    needs: [core, postgres, images, docker, isolation, http]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -185,7 +208,7 @@ jobs:
 
   deploy:
     name: Deploy API
-    needs: [core, postgres, images, docker, http]
+    needs: [core, postgres, images, docker, isolation, http]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20

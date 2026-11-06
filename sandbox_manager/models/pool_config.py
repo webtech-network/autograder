@@ -7,6 +7,10 @@ no pool, and acquiring it is a capability failure (``RuntimeUnavailableError``).
 Isolation and limits stay in the single Docker profile
 (``sandbox_manager.docker_profile``).
 
+The OCI runtime is one explicit host decision, ``general.runtime``: ``runsc``
+(gVisor, required to be installed) or ``runc`` (accepted without gVisor). It
+has no default and is never changed at run time.
+
 Capacity is one host-wide number, ``general.max_sandboxes`` (N): sandboxes being
 created, in use, being removed or quarantined never exceed N across all
 languages, for grading and deliberate execution alike. ``general.pool_size`` warm
@@ -22,8 +26,9 @@ import yaml
 from autograder.models.abstract.execution_test import RUN_TIMEOUT_SECONDS
 from autograder.models.capabilities import ExecutionBudget
 from autograder.models.language import Language
+from sandbox_manager.docker_profile import RUNTIMES
 
-GENERAL_KEYS = {"max_sandboxes", "pool_size", "running_timeout", "disposal_attempts"}
+GENERAL_KEYS = {"runtime", "max_sandboxes", "pool_size", "running_timeout", "disposal_attempts"}
 #: The shipped host maximum (``general.running_timeout``): up to 26 thirty-second processes.
 DEFAULT_RUNNING_TIMEOUT = 900
 #: The shortest host maximum that can execute anything: one session running one
@@ -50,7 +55,8 @@ class SandboxPoolConfig:
 
 @dataclass(frozen=True)
 class SandboxHostConfig:
-    """Everything ``sandbox_config.yml`` configures: the budget N and one pool per runtime."""
+    """Everything ``sandbox_config.yml`` configures: the OCI runtime, the budget N and one pool per language."""
+    runtime: str
     max_sandboxes: int
     pools: List[SandboxPoolConfig]
 
@@ -84,6 +90,11 @@ class SandboxHostConfig:
                 raise ValueError(f"Invalid sandbox configuration: {REMOVED_KEYS[key]}; remove general.{key}")
             if key not in GENERAL_KEYS:
                 raise ValueError(f"Invalid sandbox configuration: unknown setting general.{key}")
+        runtime = general.get('runtime')
+        if runtime not in RUNTIMES:
+            raise ValueError("Invalid sandbox configuration: general.runtime (the OCI runtime of every sandbox) "
+                             f"is required and must be one of {', '.join(RUNTIMES)}: runsc requires gVisor, "
+                             "runc explicitly accepts running without it")
         if 'max_sandboxes' not in general:
             raise ValueError("Invalid sandbox configuration: general.max_sandboxes (the host sandbox budget) "
                              "is required")
@@ -95,7 +106,7 @@ class SandboxHostConfig:
         running_timeout = _integer(general, 'running_timeout', default=DEFAULT_RUNNING_TIMEOUT,
                                    minimum=MIN_RUNNING_TIMEOUT)
         disposal_attempts = _integer(general, 'disposal_attempts', default=5, minimum=1)
-        return cls(max_sandboxes=max_sandboxes, pools=[SandboxPoolConfig(
+        return cls(runtime=runtime, max_sandboxes=max_sandboxes, pools=[SandboxPoolConfig(
             language=language,
             image=image,
             pool_size=pool_size,
