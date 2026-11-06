@@ -26,9 +26,12 @@ Feedback and focus run only when the definition has `feedback.enabled=true`.
 
 1. The coordinator calls `render_feedback(tree, preferences, locale)` only when
    feedback is enabled; otherwise feedback stays `disabled` and nothing runs.
-2. `find_focus(tree)` ranks criteria by points lost.
+2. `find_focus(tree)` ranks criteria by points lost and gives each its signed
+   points on the final score.
 3. `render_default_report` renders the one implemented `default` mode as Markdown,
-   reading (never modifying) the canonical preferences.
+   reading (never modifying) the canonical preferences. It follows the authored
+   category → subject → test tree, explains every lost or earned point and never
+   renders parameters (see [Requested feedback](../pipeline/07-feedback.md)).
 4. Exceptions or empty content mark feedback `failed` (`FEEDBACK_ERROR`) and
    preserve the grade.
 

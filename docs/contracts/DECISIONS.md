@@ -545,7 +545,6 @@ reported the cgroup counters, is restarted when runc finds no pid to start it,
 and a running container at its pids limit is exhaustion. The outcome wire is
 unchanged. See [PROCESSES.md](PROCESSES.md#who-ended-a-run).
 
-
 ## Explained submission failures (ONB-02)
 
 INT-07 hid infrastructure details from outcomes and, with them, the diagnostics
@@ -594,6 +593,30 @@ ends as a retryable `ATTEMPT_DEADLINE_EXCEEDED` without further lease renewal.
 Re-queuing is left to COR-03. See [SANDBOX.md](SANDBOX.md#sandbox-lifetime),
 [CAPABILITIES.md](CAPABILITIES.md#execution-budget) and
 [JOBS.md](JOBS.md#attempt-deadline).
+
+## The default report explains the rubric and the score (ONB-03)
+
+The `default` Markdown report was a flat list per category with a Python repr
+of every parameter, `Score: 0.0/100` per test and fixed headings ("❌ Points to
+Improve" even when no penalty applied). It now follows the authored tree
+(category, nested subjects, tests) under the authored names, and states the
+points every category, subject and test moved the final score: base and
+penalty points lost, bonus points earned, and the equation
+`100 − base − penalty + bonus = final`, noting when the 0–100 limit applied.
+The values come from the shared scoring module: `criterion_points` (next to
+`final_score`) for categories and focus's per-test `points`; the reporter
+aggregates them and recomputes nothing. Parameters are never rendered; a test
+shows its status, file target, score, points and its evaluator's report, so a
+value appears only when the evaluator chose to report it. Headings carry only
+the neutral category name (or the authored `category_headers`) and numbers.
+Preferences are unchanged: `show_score: false` hides every number,
+`show_passed_tests` lists passing tests (otherwise a fully passing holder says
+so in one line), `add_report_summary` controls the summary table. The
+formatter module and the unused translation keys are removed. The report is
+still a pure function of tree, preferences and locale, and the outcome wire is
+unchanged; the Markdown text is a breaking change for anyone parsing it
+(goldens: `tests/unit/services/feedback_golden/`,
+`tests/integration/canonical_outcome_golden.json`).
 
 ## Bounded writable paths and an explicit runtime (COR-04)
 

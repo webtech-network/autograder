@@ -3,6 +3,10 @@ from unittest.mock import patch
 
 import pytest
 
+from autograder.models.contracts.definition import FeedbackPreferences
+from autograder.models.contracts.outcome import ResultOutcomeTree
+from autograder.services.feedback import render_feedback
+
 HEADERS = {"Authorization": "Bearer feedback-token"}
 
 
@@ -60,18 +64,21 @@ async def test_disabled_feedback_does_no_work_even_when_feedback_services_fail(t
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("locale,title,heading", [(None, "# Your report", "## Requirements"),
-                                                  ("pt_br", "# Your report", "## Requirements")])
-async def test_enabled_feedback_is_rendered_from_the_completed_grade(test_client, application, locale, title, heading):
+@pytest.mark.parametrize("locale,final,lost", [(None, "**Final score: 25.00 / 100**", "−75.00 points"),
+                                               ("pt_br", "**Nota final: 25.00 / 100**", "−75.00 pontos")])
+async def test_enabled_feedback_is_rendered_from_the_completed_grade(test_client, application, locale, final, lost):
     polled, outcome = await grade(test_client, application, f"feedback-on-{locale}", ENABLED, locale)
     assert polled["status"] == "completed" and polled["final_score"] == 25
     assert polled["feedback_status"] == "completed"
     content = outcome["feedback"]["content"]
-    assert content.startswith(title) and heading in content
-    assert content.count("### 🧪 Imports / os ❌") == 1  # the passing criterion is hidden
+    # The stored details round-trip: the text is the pure rendering of the returned tree.
+    preferences = FeedbackPreferences.model_validate(ENABLED["preferences"])
+    assert content == render_feedback(ResultOutcomeTree.model_validate(outcome["tree"]), preferences, locale or "en")
+    assert content.startswith(f"# Your report\n\n{final}\n")
+    assert f"## Requirements · 25.00 / 100 · {lost}" in content and "100 − 75.00 = **25.00 / 100**" in content
+    assert content.count("**Imports / os**") == 1  # the passing criterion is hidden
+    assert "forbidden" not in content and "for_loop" not in content  # parameters are never rendered
     assert "https://example.com/imports" in content and "https://example.com/loops" not in content
-    final = "Final Score" if locale is None else "Nota Final"
-    assert final in content and "25.00 / 100" in content
 
 
 @pytest.mark.asyncio

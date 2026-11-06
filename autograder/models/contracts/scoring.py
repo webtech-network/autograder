@@ -65,6 +65,20 @@ def final_score(base: float, bonus: Optional[Tuple[float, float]] = None,
     return max(0.0, min(100.0, base + bonus_points - penalty_points))
 
 
+def criterion_points(category: str, score: float, share: float) -> float:
+    """Signed points a category, subject or test moves the final score away from 100.
+
+    ``share`` is the fraction of the 0-100 scale the node controls: a
+    category's weight / 100, or a test's share from ``iter_test_shares``. Base
+    and penalty nodes subtract the points they miss, ``(100 - score) * share``;
+    bonus nodes add the points they earn, ``score * share``. The unclamped final
+    score is 100 plus every category's points; ``final_score`` clamps it.
+    """
+    if category == "bonus":
+        return score * share
+    return -(100.0 - score) * share
+
+
 def report_score(score: float) -> float:
     """The documented rounding of every reported score."""
     return round(score, 2)

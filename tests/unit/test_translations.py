@@ -159,6 +159,18 @@ class TestSourceKeyCoverage:
         )
 
 
+class TestFeedbackKeyUsage:
+    """The report catalog holds only keys the default report renders (ONB-03)."""
+
+    def test_every_feedback_key_is_rendered(self, flat_catalogs):
+        source = (SOURCE_ROOT / "services" / "report" / "default_reporter.py").read_text(encoding="utf-8")
+        used = extract_translation_keys_from_source() | {
+            f"feedback.category.{name}" for name in ("base", "bonus", "penalty")
+            if 'f"feedback.category.{name}"' in source}
+        unused = {key for key in flat_catalogs["en"] if key.startswith("feedback.")} - used
+        assert not unused, f"Unused feedback keys: {sorted(unused)}"
+
+
 class TestSubmissionExplanationKeys:
     """Engine failure explanations (``preflight.*``) have no dead or missing keys (ONB-02).
 

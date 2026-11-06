@@ -16,11 +16,30 @@ with the completed `ResultOutcomeTree`, the definition's canonical
 
 Rendering only reads its inputs: titles and category headings fall back to
 localized defaults at render time, so preferences and results are never
-modified and rendering twice gives the same text. The report keeps the
-localized headings, optional summary and final score, hides passed criteria
-unless `show_passed_tests`, orders failed criteria by points lost, and shows a
-learning resource when it links no criteria or when one of its linked criterion
-IDs failed.
+modified and rendering twice gives the same text.
+
+The report explains the grade with the authored rubric:
+
+1. The title and the final score.
+2. A summary table (`add_report_summary`): per category, tests passed and the
+   points it moved the score, then the equation
+   `100 − base − penalty + bonus = final`, noting when the 0–100 limit applied.
+3. One section per category (base, then penalty, then bonus) following the
+   authored tree: each subject is a nested heading with its score and points,
+   and each test shows its status (✅ full, ⚠️ partial, ❌ zero), file target,
+   score, the points it lost (base, penalty) or earned (bonus) and its
+   evaluator's report. A holder's own tests come before its subjects; siblings
+   are ordered by points missed.
+4. Learning resources: a resource shows when it links no criteria or when one
+   of its linked criterion IDs failed.
+
+The numbers come from the shared scoring values (`criterion_points` and
+focus), never recomputed. Parameters are never rendered: a value such as an
+expected output appears only if the evaluator's report includes it. Headings
+hold the neutral category name (or `category_headers`) and numbers, so they
+cannot contradict the status. `show_score: false` hides every number;
+passing tests are listed only with `show_passed_tests`, otherwise a fully
+passing holder says so in one line.
 Every preference, with its type and default, is listed in the generated
 [definition reference](../reference/definition.md#feedbackpreferences).
 
