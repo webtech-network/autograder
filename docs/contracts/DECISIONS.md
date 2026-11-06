@@ -619,6 +619,7 @@ topology (remote mode, socket only in the private control service), and maps
 each isolation guarantee to the hostile-submission test that pins it under each
 runtime; CI's isolation job installs the pinned gVisor release so both run. See
 [SANDBOX.md](SANDBOX.md#isolation-profile-and-runtime).
+
 ## Action execution on the runner (ENV-03)
 
 The published Action could not grade any execution-based criterion: with no
