@@ -24,12 +24,44 @@ language has a separate submission error. A host that supports execution but has
 no runtime profile for the bound language (no `runtimes:` image) also fails with
 `CAPABILITY_UNAVAILABLE`; see [LANGUAGES.md](LANGUAGES.md).
 
+## Execution budget
+
+The same requirement set carries the run's `ExecutionBudget`, derived only from
+deadlines already declared (there is no authoring field): each selected
+evaluator declaring `sandbox_execution` lists the deadline of every process one
+assessment may run in `process_timeouts` (the public `BaseExecutionTest`
+declares its one 30 s run; registration rejects an execution evaluator without
+the declaration), and each setup command of the bound language adds its 30 s
+`SETUP_TIMEOUT_SECONDS`. `budget.process_seconds` is their sum and
+`budget.processes` their count; `budget.ai_calls` is 1 when any AI criterion is
+selected (one provider call for all of them). A session must live
+`budget.session_seconds` = process seconds + 2 s per process + 60 s per session
+(`PROCESS_ALLOWANCE_SECONDS`, `SESSION_ALLOWANCE_SECONDS`) for starting and
+collecting processes and for staging and cleanup.
+
+`HostCapabilities.execution(language, budget)` returns a session that lives at
+least `budget.session_seconds` from its grant, and ends itself then. A host
+states the longest session it grants in `HostCapabilities.max_session_seconds`
+(`None`: no stated maximum); before any provider call the engine refuses a
+longer budget with `capability / EXECUTION_BUDGET_EXCEEDED`, not retryable, and
+a host that refuses at acquisition raises that same `EvaluationError`. Every
+process of the run executes before the one provider call, so the provider's own
+deadline (`AssessmentProvider.deadline_seconds`) is never part of the session.
+The Docker host's maximum is `running_timeout` in `sandbox_config.yml`
+([SANDBOX.md](SANDBOX.md#sandbox-lifetime)); HTTP hosts also check it at
+validation and acceptance and derive each attempt's deadline from the same
+budget ([JOBS.md](JOBS.md#attempt-deadline)).
+
 `ExecutionSession` provides submission staging, process execution
 (`run_process`, see [PROCESSES.md](PROCESSES.md)), relative artifact readback,
 fixture staging and disposal. Its `fixture_root` declares the
-host's fixture root; `stage_fixture(path, bytes, read_only)` receives a relative
-path. Fixture references remain logical and the supplied resolver returns bytes,
-including empty bytes. Core does not select S3 credentials, Docker managers,
+host's fixture root; `stage_fixtures(fixtures)` receives the definition's whole
+fixture set at once as `StagedFixture(path, content, read_only)` values with
+relative paths, so a host can stage it in one transfer (the Docker host makes one
+`inject_assets` call). Core fetches every fixture before staging any, calls
+`stage_fixtures` once and only when the definition declares fixtures, and an
+implementation stages the whole set or raises. Fixture references remain logical
+and the supplied resolver returns bytes, including empty bytes. Core does not select S3 credentials, Docker managers,
 OpenAI clients, secrets or provider models. Concrete shared host composition lives
 under `execution_host/`.
 
@@ -37,7 +69,7 @@ under `execution_host/`.
 
 `HostCapabilities.fixtures` is a callable `reference -> bytes`. It receives only
 the logical reference: destination path and read-only mode are placement and are
-applied by `ExecutionSession.stage_fixture`. `b""` is valid content. A provider
+applied by `ExecutionSession.stage_fixtures`. `b""` is valid content. A provider
 raises `autograder.models.capabilities.FixtureNotFound` when the reference has no
 object; any other exception is a provider failure. Both stop preparation with the
 same safe `capability / PREPARATION_ERROR` outcome; a missing fixture is not
@@ -45,9 +77,10 @@ retryable, a provider failure is. Raw provider errors stay in host logs.
 
 The Docker host composes `execution_host.fixtures.S3FixtureProvider` from
 `EXTERNAL_ASSETS_BUCKET_NAME`, `S3_ENDPOINT_URL`, `AWS_REGION` and
-`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (`AWS_ACCESS_ID` is accepted as a
-legacy alias). Configuration is captured at host construction; one SDK client is
-created on the first selected fixture and reused. Missing keys (`NoSuchKey`/404)
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` ([configuration](../operate/configuration.md)).
+Configuration is captured at host construction, where an endpoint without a
+bucket or half a credential stops the host; one SDK client is created on the
+first selected fixture and reused. Missing keys (`NoSuchKey`/404)
 are `FixtureNotFound`; missing buckets, access denials, transport errors and an
 unset bucket are provider failures. Deliberate execution `assets` use the same
 host provider.
@@ -82,10 +115,13 @@ HTTP and Actions use the same I/O definition and the same Docker sandbox
 profile, each composed by its host. HTTP owns a `DockerHost` for its
 application lifetime: it lazily constructs a local (`mode="local"`) or remote
 (`mode="remote"` with the sandbox control API's `api_url`, which has no default)
-manager, and static work does not initialize it. The Action composes a
-`RunnerHost` (`execution_host/runner.py`) only when the selected language's
-criteria or preparation execute code: one sandbox of that language, created on
-demand on the runner's own Docker and removed before publication
+manager, and static work does not initialize it. HTTP calls `DockerHost.start()`
+at startup, so a local-mode API whose sandbox configuration, runtime or images
+are unusable refuses to start. The Action composes a `RunnerHost`
+(`execution_host/runner.py`) only when the selected language's criteria or
+preparation execute code: one sandbox of that language under `runc`, created on
+demand on the runner's own Docker, bounded by the grading's execution budget and
+removed before publication
 ([Action execution on the runner](DECISIONS.md#action-execution-on-the-runner-env-03)).
 
 ```python
@@ -181,6 +217,20 @@ policy. Current Docker pools disable network and provide no server lifecycle;
 therefore their API outcomes fail with `SERVER_CAPABILITY_UNAVAILABLE` before
 acquisition or scoring. Ordinary I/O pools do not gain network access. A host
 that supports API assessment must supply the complete server profile explicitly.
+
+## Migration
+
+* **One fixture-set call (PRF-03).** `ExecutionSession.stage_fixture(path,
+  content, read_only)`, called once per fixture, is replaced by
+  `stage_fixtures(fixtures: Sequence[StagedFixture])`, called once with the
+  whole set (`StagedFixture` is in `autograder.models.execution`). A host
+  session that implemented `stage_fixture` renames it and loops over the
+  sequence, or better stages the set in one operation. No definition, wire or
+  configuration change. Fixtures are now all fetched before any is staged, so a
+  missing fixture leaves nothing staged; the outcome is unchanged
+  (`capability / PREPARATION_ERROR`). With the Docker host a grading's fixture
+  set went from one `docker exec` per fixture (100 for the 100-fixture maximum,
+  about 3 to 4 s) to one.
 
 ## Earlier architecture issues
 

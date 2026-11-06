@@ -1,16 +1,19 @@
 {
   "preflight": {
     "error": {
-      "required_file_missing": "**Erro:** Arquivo ou diretório obrigatório não encontrado: `'{file}'`",
-      "sandbox_creation_failed": "**Erro:** Falha ao criar sandbox para linguagem `{language}`: `{error}`",
-      "workdir_preparation_failed": "**Erro:** Falha ao preparar workdir na sandbox: `{error}`",
-      "setup_command_missing_sandbox": "O ambiente Sandbox é obrigatório para executar os comandos de configuração mas não foi criado.",
-      "setup_command_missing_field": "**Erro:** Comando de configuração '{command_name}' está faltando o campo 'command'",
-      "setup_command_invalid_format": "**Erro:** Formato de comando de configuração inválido no índice {index}: esperado string ou objeto",
-      "setup_command_failed_execution": "**Erro:** Falha ao executar comando de configuração '{command_name}': `{error}`\n\nComando: `{command}`",
-      "setup_command_failed_exit_code": "**Erro:** Comando de configuração '{command_name}' falhou com código de saída {exit_code}\n\n**Comando:** `{command}`",
-      "missing_sandbox": "Ambiente de sandbox não encontrado para execução dos comandos de configuração.",
-      "unknown": "Erro desconhecido na fase de pré-verificação."
+      "required_file_missing": "Arquivo obrigatório não encontrado: {files}. Envie-o exatamente com este nome e caminho.",
+      "target_file_missing": "O critério '{criterion}' avalia {files}, que não foi enviado. Envie-o exatamente com este nome e caminho.",
+      "too_few_files": "O critério '{criterion}' precisa de pelo menos {minimum} arquivo(s) enviado(s) de um tipo que ele consiga avaliar, mas encontrou {found}.",
+      "ambiguous_file_target": "O critério '{criterion}' avalia no máximo {maximum} arquivo(s), mas {found} arquivos enviados correspondem. Envie apenas o arquivo esperado ou peça ao professor que o indique na atividade.",
+      "parameter_target_conflict": "O critério '{criterion}' está configurado para ler {files}, que não está entre os seus arquivos-alvo. Peça ao professor que corrija a atividade.",
+      "target_outside_scope": "O critério '{criterion}' avalia {files}, que está fora dos arquivos selecionados para esta avaliação.",
+      "unsupported_file_type": "O critério '{criterion}' não consegue avaliar {files}: o tipo de arquivo não é suportado.",
+      "language_required": "Esta atividade aceita várias linguagens. Selecione uma destas: {languages}.",
+      "language_not_allowed": "A linguagem '{language}' não é aceita por esta atividade. Use uma destas: {languages}.",
+      "setup_command_failed_exit_code": "A etapa de preparação '{step}' falhou com código de saída {exit_code}, então a submissão não pôde ser avaliada.",
+      "setup_command_timed_out": "A etapa de preparação '{step}' não terminou em {seconds} segundos, então a submissão não pôde ser avaliada.",
+      "setup_command_exhausted": "A etapa de preparação '{step}' excedeu o limite de memória ou de processos do sandbox, então a submissão não pôde ser avaliada.",
+      "preparation_exhausted": "A submissão excedeu o limite de memória ou de processos do sandbox durante a preparação, então não pôde ser avaliada."
     }
   },
   "feedback": {
@@ -503,11 +506,6 @@
     "template": {
       "name": "Testes de API",
       "description": "Um modelo para avaliar tarefas onde alunos criam uma API web."
-    }
-  },
-  "system": {
-    "error": {
-      "step_interrupted": "Ocorreu um erro inesperado durante a execução da etapa: {error}"
     }
   }
 }

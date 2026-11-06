@@ -84,8 +84,8 @@ def test_action_host_creates_one_sandbox_and_removes_it_before_returning(action_
     created = []
     original = RunnerHost.acquire
 
-    def acquire(self, language):
-        session = original(self, language)
+    def acquire(self, language, budget=None):
+        session = original(self, language, budget)
         created.append(session.sandbox.container_ref.id)
         return session
 

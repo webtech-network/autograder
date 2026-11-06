@@ -125,3 +125,24 @@ async def test_attested_file_targets_match_the_immutable_snapshot(test_client, a
     payload["outcome"]["tree"]["base"]["tests"][0]["file_target"] = attested
     response = await test_client.post("/api/v1/submissions/external-results", headers=HEADERS, json=payload)
     assert response.status_code == status, response.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("error,status", [
+    ({"code": "PREPARATION_FAILED", "category": "submission", "output": "Main.java:3: error: ';' expected\n"}, 200),
+    ({"code": "PREPARATION_FAILED", "category": "submission", "output": "x" * (8 * 1024 + 1)}, 422),
+    ({"code": "SANDBOX_ERROR", "category": "capability", "output": "secret transport detail"}, 422),
+])
+async def test_attested_setup_output_is_bounded_and_submission_only(test_client, error, status):
+    """ONB-02: an attested excerpt obeys the engine's report bound and category rule."""
+    config = await create(test_client)
+    payload = external(config, failed=True)
+    payload["outcome"]["error"].update(error, message="The setup step 'compile' failed with exit code 1.")
+    response = await test_client.post("/api/v1/submissions/external-results", headers=HEADERS, json=payload)
+    assert response.status_code == status, response.text
+    if status == 200:
+        submission_id = response.json()["submission_id"]
+        compact = (await test_client.get(f"/api/v1/submissions/{submission_id}", headers=HEADERS)).json()
+        details = (await test_client.get(f"/api/v1/submissions/{submission_id}/details", headers=HEADERS)).json()
+        assert "output" not in compact["error"]
+        assert details["outcome"]["error"]["output"] == error["output"]

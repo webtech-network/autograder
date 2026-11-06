@@ -87,7 +87,7 @@ class FakeSession:
         """Record the files the run staged."""
         self.files = dict(files)
 
-    def stage_fixture(self, path, content, read_only):
+    def stage_fixtures(self, fixtures):
         """This definition declares no fixtures."""
         raise AssertionError("This definition stages no fixtures")
 
@@ -106,11 +106,13 @@ class FakeSession:
 
 
 def fake_capabilities(result: ProcessResult, sessions: List[FakeSession]) -> HostCapabilities:
-    """``execution`` is called once per run with the bound language; the run owns
-    and closes the returned session."""
-    def acquire(language):
-        """Open one owned session for the bound language."""
-        del language
+    """``execution`` is called once per run with the bound language and the run's
+    execution budget (derived from ``process_timeouts``); the run owns and closes
+    the returned session. A real host grants a session that lives the budget's
+    ``session_seconds`` and states its maximum in ``max_session_seconds``."""
+    def acquire(language, budget):
+        """Open one owned session for the bound language and budget."""
+        del language, budget
         session = FakeSession(result)
         sessions.append(session)
         return session

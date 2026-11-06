@@ -134,7 +134,7 @@ def test_non_editable_wheel_imports_every_first_party_module_outside_the_checkou
         "from autograder.translations import t\n"
         "absent = [name for name in ('tests', 'examples', 'submission_contract')\n"
         "          if importlib.util.find_spec(name) is not None]\n"
-        "print(json.dumps({'modules': modules, 'absent': absent, 'message': t('preflight.error.required_file_missing', locale='en', file='x')}))\n"
+        "print(json.dumps({'modules': modules, 'absent': absent, 'message': t('preflight.error.required_file_missing', locale='en', files='x')}))\n"
     )
     run = subprocess.run([sys.executable, "-I", "-S", "-c", script], cwd=tmp_path, capture_output=True, text=True,
                          check=False)
@@ -144,4 +144,4 @@ def test_non_editable_wheel_imports_every_first_party_module_outside_the_checkou
     assert outside == {}
     assert len(report["modules"]) > 100
     assert report["absent"] == []
-    assert "Required file or directory not found" in report["message"]  # package data is shipped
+    assert report["message"].startswith("Required file not found: x.")  # package data is shipped

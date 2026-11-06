@@ -11,6 +11,7 @@ from autograder import (
 )
 from autograder.models.language import LANGUAGE_IDS
 from autograder.models.contracts.catalog import describe_template
+from autograder.models.contracts.definition import ContractJsonSchema
 from autograder.template_library import BUILTIN_TEMPLATES
 from examples.contracts.custom_evaluator import ContainsText, DEFINITION, TEMPLATE
 from tests.builtin_evaluator_cases import leaves
@@ -22,8 +23,10 @@ def test_every_catalog_evaluator_resolves_and_its_sample_compiles(template):
     assert {item.identifier for item in template.evaluators} == set(instance.get_tests())
     for evaluator in template.evaluators:
         function = instance.get_test(evaluator.identifier)
+        # The compiled contract, with factory defaults published (ONB-04).
         assert evaluator.parameters_schema == {
-            **function.config_schema.model_json_schema(), "additionalProperties": False}
+            **function.config_schema.model_json_schema(schema_generator=ContractJsonSchema),
+            "additionalProperties": False}
         for language in evaluator.supported_languages or LANGUAGE_IDS:
             value = deepcopy(DEFINITION)
             value.update(templates=[template.identifier], languages=[language])
@@ -101,6 +104,7 @@ class RunsProgram(TestFunction):
     name = "runs_program"
     description = "Runs the program in the bound session."
     required_capabilities = ("sandbox_execution",)
+    process_timeouts = (5,)
 
     def execute(self, evaluation: EvaluationInput) -> TestResult:
         return TestResult(self.name, 100, f"session={evaluation.session is not None}")
@@ -135,7 +139,7 @@ class FakeSession:
     def prepare_workdir(self, files):
         self.staged = dict(files)
 
-    def stage_fixture(self, path, content, read_only):
+    def stage_fixtures(self, fixtures):
         raise AssertionError("no fixtures are declared")
 
     def run_process(self, request):
@@ -151,7 +155,7 @@ class FakeSession:
 def run_mixed(*evaluators):
     sessions = []
 
-    def acquire(language):
+    def acquire(language, budget):
         sessions.append(FakeSession())
         return sessions[-1]
 

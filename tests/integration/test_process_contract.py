@@ -26,7 +26,7 @@ from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.remote_client import RemoteSandboxManager, SandboxHandleGone
-from tests.sandbox_profiles import TEST_IMAGES, sandbox_config
+from tests.sandbox_profiles import TEST_IMAGES, sandbox_config, suite_runtime
 from tests.web.conftest import db_engine, session_factory  # pylint: disable=unused-import
 from web.core.config import Settings
 from web.main import create_app as create_web_app
@@ -101,11 +101,11 @@ def serve(app):
 
 @pytest.fixture(scope="module")
 def managers():
-    local = SandboxManager([pool()], max_sandboxes=4)
+    local = SandboxManager([pool()], runtime=suite_runtime(), max_sandboxes=4)
     settings = ControlSettings(token=TOKEN, reaper_interval_seconds=1)
     try:
         # The control service owns (and shuts down) its own real SandboxManager.
-        with serve(create_app(settings, manager_factory=lambda: SandboxManager([pool()], max_sandboxes=4))) as url:
+        with serve(create_app(settings, manager_factory=lambda: SandboxManager([pool()], runtime=suite_runtime(), max_sandboxes=4))) as url:
             remote = RemoteSandboxManager(url, TOKEN)
             yield {"local": local, "remote": remote}
             remote.shutdown()

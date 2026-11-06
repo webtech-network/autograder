@@ -485,6 +485,7 @@
             "SERVER_CAPABILITY_UNAVAILABLE",
             "SANDBOX_ERROR",
             "PROCESS_START_FAILED",
+            "EXECUTION_BUDGET_EXCEEDED",
             "PREPARATION_ERROR",
             "FIXTURE_PROVIDER_UNAVAILABLE",
             "PROVIDER_UNAVAILABLE",
@@ -496,7 +497,8 @@
             "CLEANUP_ERROR",
             "RECOVERY_EXHAUSTED",
             "RECOVERY_INPUT_UNAVAILABLE",
-            "LEGACY_UNVERIFIED"
+            "LEGACY_UNVERIFIED",
+            "ATTEMPT_DEADLINE_EXCEEDED"
           ],
           "title": "Code",
           "type": "string"
@@ -525,6 +527,19 @@
           "minLength": 1,
           "title": "Correlation Id",
           "type": "string"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Excerpt of the failing preparation step's output; submission errors only",
+          "title": "Output"
         }
       },
       "required": [

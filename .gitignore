@@ -110,3 +110,6 @@ dump.rdb
 
 # Private finalized HTTP outcomes awaiting database publication
 data/unpublished-outcomes/
+
+# Local sandbox configuration (e.g. runtime: runc without gVisor)
+sandbox_config.dev.yml

@@ -7,6 +7,12 @@ into shell text. The process itself is ``exec``-ed with its exact argument
 vector, its stdin from a staged file and its outputs redirected to files, so
 output is bounded when it is read back rather than buffered by Docker.
 
+Staging (submission files, a fixture set, stdin above the inline size) is one
+transfer: the host builds a tar archive of regular files from validated paths
+and streams it to the stdin of one ``tar`` exec, so it costs a constant number
+of Docker calls whatever the file count or size. Docker cannot copy an archive
+into the tmpfs mounts ``/app`` and ``/tmp``, so the exec's stdin is the transport.
+
 Who ended a run is decided from host-side evidence, never from an exit code
 (see ``docs/contracts/PROCESSES.md``): the container's own limit counters, the
 pool's disposal record and Docker's record of how the container stopped. A
@@ -14,8 +20,13 @@ submission that exhausts the sandbox raises :class:`SandboxExhausted`; a host
 that stops or removes it raises :class:`ProcessExecutionError`.
 """
 import base64
+import io
+import math
 import os
 import posixpath
+import socket
+import struct
+import tarfile
 import threading
 import time
 import uuid
@@ -29,7 +40,7 @@ from autograder.models.language import Language
 from autograder.models.process import (
     ProcessRequest, ProcessResult, ProcessStatus, SandboxExhausted, decode_output,
 )
-from sandbox_manager.docker_profile import CONTROL_USER
+from sandbox_manager.docker_profile import CONTROL_USER, LIFETIME
 from sandbox_manager.errors import (
     ArtifactReadError, ArtifactTooLargeError, ProcessExecutionError, SandboxInvalidatedError,
 )
@@ -42,8 +53,7 @@ if TYPE_CHECKING:
 
 USER = "sandbox"                    # the submission's processes; control runs as CONTROL_USER
 RUN_ROOT = "/tmp/.autograder-run"
-WRITE_CHUNK_BYTES = 48 * 1024       # 64 KiB of base64: well below the kernel's per-argument limit
-INLINE_STDIN_BYTES = 48 * 1024
+INLINE_STDIN_BYTES = 48 * 1024     # 64 KiB of base64 as one argument; larger stdin is staged
 CONTROL_TIMEOUT_SECONDS = 60        # staging, termination and readback execs
 KILL_GRACE_SECONDS = 10             # wait for the killed process's exec to return
 STOP_SETTLE_SECONDS = 10            # wait for Docker to record a container that stopped
@@ -119,13 +129,10 @@ done
 rm -rf "$d"
 '''
 
-# $1 path, $2 "new" or "append", $3 base64 chunk.
-WRITE = r'''
-f=$1
-mkdir -p "$(dirname "$f")" || exit 1
-if [ "$2" = new ]; then : > "$f" || exit 1; fi
-printf %s "$3" | base64 -d >> "$f"
-'''
+# Extracts the archive on stdin at the root, without a shell. Member names are
+# normalized relative paths built by the host, never caller text; ``-o`` keeps the
+# extracting user as owner (root holds no CHOWN), ``-m`` stamps the current time.
+STAGE = ["tar", "-x", "-m", "-o", "-f", "-", "-C", "/"]
 
 # $1 normalized absolute path, $2 byte limit + 1. Exit 3: no regular file at the
 # path. Runs as root, so it never follows a symbolic link the submission planted
@@ -163,6 +170,23 @@ class _Call:
         return not self._thread.is_alive()
 
 
+class _Exec:  # pylint: disable=too-few-public-methods
+    """The exit code and combined output of an exec, as ``Container.exec_run`` returns them."""
+
+    def __init__(self, exit_code: Optional[int], output: bytes):
+        self.exit_code, self.output = exit_code, output
+
+
+def _demultiplex(stream: bytes) -> bytes:
+    """Join the payloads of Docker's multiplexed (non-TTY) attach stream."""
+    output, offset = bytearray(), 0
+    while offset + 8 <= len(stream):
+        size = struct.unpack(">I", stream[offset + 4:offset + 8])[0]
+        output += stream[offset + 8:offset + 8 + size]
+        offset += 8 + size
+    return bytes(output)
+
+
 class SandboxContainer:
     """Manages a Docker container used as a sandbox for code execution."""
 
@@ -183,11 +207,35 @@ class SandboxContainer:
         self.invalidated: Optional[str] = None
         # Set when the submission exhausted a limit; every later operation raises SandboxExhausted.
         self.exhausted = False
+        # The absolute lifetime armed at the grant (arm_lifetime): seconds, and the
+        # monotonic instant the container stops by itself (never later than its real stop).
+        self.lifetime: Optional[float] = None
+        self.expires_at: Optional[float] = None
 
     def activate(self, now: Optional[float] = None) -> None:
         """Hand the sandbox to one caller; it is disposed after this use."""
         self.state = SandboxState.ACTIVE
         self.activated_at = time.monotonic() if now is None else now
+
+    def arm_lifetime(self, seconds: float) -> None:
+        """Make the container stop itself ``seconds`` from now, whether or not its owner survives.
+
+        A root control exec the submission cannot signal sleeps, then kills every
+        process; PID 1 then exits (see ``docker_profile.LIFETIME``).
+        """
+        expires_at = time.monotonic() + seconds  # taken first: the real stop is never earlier
+        call = _Call(lambda: self.container_ref.exec_run(
+            cmd=["/bin/sh", "-c", LIFETIME, "autograder-lifetime", str(math.ceil(seconds))],
+            user=CONTROL_USER, detach=True)).start()
+        if not call.join(CONTROL_TIMEOUT_SECONDS) or call.error is not None:
+            raise ProcessExecutionError("The sandbox lifetime could not be armed") from call.error
+        self.lifetime = seconds
+        self.expires_at = expires_at
+
+    @property
+    def expired(self) -> bool:
+        """Whether the armed lifetime has passed: the container stopped, or is stopping, by itself."""
+        return self.expires_at is not None and time.monotonic() >= self.expires_at
 
     @property
     def short_id(self) -> str:
@@ -197,6 +245,8 @@ class SandboxContainer:
     def _check_usable(self) -> None:
         if self.exhausted:
             raise SandboxExhausted("The submission exhausted the sandbox's memory or process limit")
+        if self.expired:
+            self._invalidate("the sandbox reached its lifetime")
         if self.invalidated is not None:
             raise SandboxInvalidatedError(f"The sandbox was invalidated: {self.invalidated}")
 
@@ -204,10 +254,14 @@ class SandboxContainer:
         if self.invalidated is None:
             self.invalidated = reason
 
-    def _control(self, cmd: List[str], *, user: str = CONTROL_USER, workdir: str = "/") -> tuple:
-        """A bounded internal exec. Failure to complete it invalidates the sandbox."""
-        call = _Call(lambda: self.container_ref.exec_run(cmd=cmd, user=user, workdir=workdir, demux=False,
-                                                         stdout=True, stderr=True, stdin=False)).start()
+    def _control(self, cmd: List[str], *, user: str = CONTROL_USER, workdir: str = "/",
+                 stdin: Optional[bytes] = None) -> tuple:
+        """A bounded internal exec, fed ``stdin`` when given. Failure to complete it invalidates the sandbox."""
+        if stdin is None:
+            call = _Call(lambda: self.container_ref.exec_run(cmd=cmd, user=user, workdir=workdir, demux=False,
+                                                             stdout=True, stderr=True, stdin=False)).start()
+        else:
+            call = _Call(lambda: self._exec_with_stdin(cmd, user, workdir, stdin)).start()
         if not call.join(CONTROL_TIMEOUT_SECONDS):
             self._invalidate("an internal sandbox operation did not complete")
             raise ProcessExecutionError("A sandbox operation did not complete in time")
@@ -215,6 +269,37 @@ class SandboxContainer:
             self._invalidate("an internal sandbox operation failed")
             raise ProcessExecutionError(f"A sandbox operation failed: {call.error}") from call.error
         return call.result.exit_code, call.result.output or b""
+
+    def _exec_with_stdin(self, cmd: List[str], user: str, workdir: str, data: bytes) -> "_Exec":
+        """Run ``cmd`` with ``data`` as its whole stdin: three Docker calls whatever the size.
+
+        Output is read only after stdin is closed; the staging command writes
+        nothing unless it fails. Each socket operation is bounded. Closing stdin
+        is a half-close of the attach socket, which a TLS connection cannot do,
+        so the daemon must be reached over its unix socket or plain TCP.
+        """
+        api = self.container_ref.client.api
+        if str(getattr(api, "base_url", "")).startswith("https://"):
+            raise ProcessExecutionError("Staging needs the Docker daemon's unix socket or plain TCP, not TLS")
+        exec_id = api.exec_create(self.container_ref.id, cmd, stdout=True, stderr=True, stdin=True,
+                                  user=user, workdir=workdir)["Id"]
+        connection = api.exec_start(exec_id, socket=True)
+        raw = getattr(connection, "_sock", connection)
+        try:
+            raw.settimeout(CONTROL_TIMEOUT_SECONDS)
+            raw.sendall(data)
+            raw.shutdown(socket.SHUT_WR)
+            received = bytearray()
+            while chunk := raw.recv(65536):
+                received += chunk
+        finally:
+            # Close docker-py's HTTP response (it owns the buffered reader over this
+            # socket) before the socket, so its release later has nothing left to flush.
+            response = getattr(connection, "_response", None)
+            if response is not None:
+                response.close()
+            raw.close()
+        return _Exec(api.exec_inspect(exec_id).get("ExitCode"), _demultiplex(bytes(received)))
 
     # ----- staging -------------------------------------------------------------------
     @staticmethod
@@ -237,44 +322,49 @@ class SandboxContainer:
             raise ValueError(f"Asset target must be under /tmp: {path}")
         return normalized
 
-    def _write_file(self, path: str, content: bytes, *, user: str) -> None:
-        """Write exact bytes in bounded chunks (no size limit from argument length)."""
-        chunks = [content[i:i + WRITE_CHUNK_BYTES] for i in range(0, len(content), WRITE_CHUNK_BYTES)] or [b""]
-        for index, chunk in enumerate(chunks):
-            code, output = self._control(["/bin/sh", "-c", WRITE, "autograder-write", path,
-                                          "new" if index == 0 else "append",
-                                          base64.b64encode(chunk).decode("ascii")], user=user)
-            if code != 0:
-                raise RuntimeError(f"Failed to write {path}: {output.decode('utf-8', 'replace')}")
+    def _stage(self, files: List[tuple], *, user: str) -> None:
+        """Write ``(absolute path, bytes, mode)`` regular files in one transfer, as ``user``.
+
+        Missing parent directories are created (``0755`` under Docker's umask);
+        existing ones are left as they are. A transfer that does not complete
+        cleanly may have staged part of the files, so it invalidates the sandbox
+        and raises :class:`ProcessExecutionError`: a partial workdir is never a success.
+        """
+        if not files:
+            return
+        archive = io.BytesIO()
+        with tarfile.open(fileobj=archive, mode="w", format=tarfile.PAX_FORMAT) as tar:
+            for path, content, mode in files:
+                member = tarfile.TarInfo(path.lstrip("/"))
+                member.size, member.mode = len(content), mode
+                tar.addfile(member, io.BytesIO(content))
+        code, output = self._control(STAGE, user=user, stdin=archive.getvalue())
+        if code != 0:
+            self._invalidate("staging did not complete")
+            raise ProcessExecutionError(f"Staging failed ({code}): {output.decode('utf-8', 'replace')[:500]}")
 
     def prepare_workdir(self, submission_files: Dict[str, 'SubmissionFile']) -> None:
-        """Copy submission files into ``/app``, creating parent directories."""
+        """Stage submission files into ``/app`` in one transfer, creating parent directories.
+
+        Every path is validated before anything is transferred.
+        """
         self._check_usable()
         try:
-            for submission_file in (submission_files or {}).values():
-                path = self._normalize_relative_path(submission_file.filename)
-                self._write_file(f"/app/{path}", submission_file.content.encode("utf-8"), user=USER)
+            self._stage([(f"/app/{self._normalize_relative_path(item.filename)}", item.content.encode("utf-8"), 0o644)
+                         for item in (submission_files or {}).values()], user=USER)
         except Exception as e:
             raise RuntimeError(f"Error preparing workdir: {str(e)}") from e
 
     def inject_assets(self, resolved_assets: List['ResolvedAsset']) -> None:
-        """Write resolved fixtures under ``/tmp`` as root, read-only when requested."""
+        """Stage resolved fixtures under ``/tmp`` in one transfer, owned by root, ``0444`` when read-only."""
         self._check_usable()
+        files = []
         for asset in resolved_assets or []:
             target_path = asset.target
             if not target_path.startswith('/tmp/'):
                 target_path = os.path.join('/tmp', target_path.lstrip('/'))
-            target_path = self._normalize_tmp_path(target_path)
-            parent_dir = os.path.dirname(target_path)
-            code, output = self._control(["mkdir", "-p", parent_dir], user="root")
-            if code == 0:
-                code, output = self._control(["chmod", "755", parent_dir], user="root")
-            if code != 0:
-                raise RuntimeError(f"Failed to create asset directory {parent_dir}: {output.decode('utf-8', 'replace')}")
-            self._write_file(target_path, asset.content, user="root")
-            code, output = self._control(["chmod", "444" if asset.read_only else "644", target_path], user="root")
-            if code != 0:
-                raise RuntimeError(f"Failed to set permissions on {target_path}: {output.decode('utf-8', 'replace')}")
+            files.append((self._normalize_tmp_path(target_path), asset.content, 0o444 if asset.read_only else 0o644))
+        self._stage(files, user="root")
 
     # ----- the process contract ------------------------------------------------------
     def run_process(self, request: ProcessRequest) -> ProcessResult:
@@ -293,7 +383,7 @@ class SandboxContainer:
         self._check_usable()
         run_dir = f"{RUN_ROOT}-{uuid.uuid4().hex}"
         if len(request.stdin) > INLINE_STDIN_BYTES:
-            self._write_file(f"{run_dir}/in", request.stdin, user=USER)
+            self._stage([(f"{run_dir}/in", request.stdin, 0o644)], user=USER)
             data = "-"
         else:
             data = base64.b64encode(request.stdin).decode("ascii")
@@ -310,6 +400,11 @@ class SandboxContainer:
         except ProcessExecutionError:
             self._attribute_failed_control()
             raise
+        if self.expired:
+            # The lifetime may have ended this run before the collector reported:
+            # nothing it read back is the submission's own result.
+            self._invalidate("the sandbox reached its lifetime")
+            raise ProcessExecutionError("The sandbox reached its lifetime during the process")
         if not finished and not call.join(KILL_GRACE_SECONDS):
             self._invalidate("a timed-out process did not terminate")
             raise ProcessExecutionError("A timed-out process could not be confirmed terminated")
@@ -346,6 +441,9 @@ class SandboxContainer:
         """
         if self.state in (SandboxState.CLOSING, SandboxState.QUARANTINED, SandboxState.DISPOSED):
             self._invalidate("the host disposed the sandbox")
+            return
+        if self.expired:
+            self._invalidate("the sandbox reached its lifetime")  # it stopped itself: the host's limit
             return
         state: dict = {}
         try:

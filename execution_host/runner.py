@@ -2,11 +2,14 @@
 
 A container action reaches the runner's Docker daemon through the socket the
 runner mounts at ``/var/run/docker.sock``. Submissions run in the web host's
-single sandbox profile (``sandbox_manager.docker_profile``) under the daemon's
-runtime: gVisor when the daemon has it, otherwise its default runtime, which is
-``runc`` on GitHub-hosted runners. The sandbox gets no network, no Docker socket
-and no environment from the Action, so the runner's tokens stay out of reach
-(docs/contracts/DECISIONS.md, "Action execution on the runner").
+single sandbox profile (``sandbox_manager.docker_profile``) under the OCI runtime
+this host explicitly requests, :data:`RUNNER_RUNTIME` (``runc``, which every
+GitHub-hosted runner offers; GitHub-hosted runners have no gVisor). The manager
+verifies the daemon offers it before grading and never switches runtime. The
+sandbox gets no network, no Docker socket and no environment from the Action, so
+the runner's tokens stay out of reach (docs/contracts/DECISIONS.md, "Action
+execution on the runner"). Each sandbox stops itself when the grading's
+execution budget ends, bounded by ``sandbox_config.yml``'s ``running_timeout``.
 
 Unlike the web host it keeps no pool, control API or orphan reclamation: the
 host serves the one language the definition selected, from the versioned image
@@ -22,11 +25,16 @@ import docker
 from autograder.models.capabilities import HostCapabilities
 from execution_host.docker import ConfiguredAssessmentProvider, DockerSession
 from execution_host.fixtures import S3FixtureProvider
+from sandbox_manager.docker_profile import RUNC_RUNTIME
 from sandbox_manager.errors import RuntimeImageError, RuntimeUnavailableError
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxHostConfig
 
 logger = logging.getLogger(__name__)
+
+#: The Action's explicit isolation runtime (the web host's ``general.runtime`` does
+#: not apply): the runner VM, discarded after the job, is the outer boundary.
+RUNNER_RUNTIME = RUNC_RUNTIME
 
 
 class DockerUnavailableError(RuntimeError):
@@ -70,7 +78,8 @@ class RunnerHost:
     """Execution for one language on the runner's Docker: at most one sandbox, created on demand.
 
     Construction connects to Docker and provisions the language's image, so a
-    runner without Docker fails before grading with :class:`DockerUnavailableError`.
+    runner without Docker fails before grading with :class:`DockerUnavailableError`
+    and a daemon that does not offer ``runc`` with ``IsolationRuntimeError``.
     The caller owns the host and calls :meth:`close`, which removes any sandbox
     still present; it is safe to call repeatedly.
     """
@@ -89,7 +98,7 @@ class RunnerHost:
         try:
             ensure_image(client, profile.image)
             self._manager = SandboxManager([replace(profile, pool_size=0)], client, max_sandboxes=1,
-                                           reclaim_orphans=False)
+                                           runtime=RUNNER_RUNTIME, reclaim_orphans=False)
         except BaseException:
             if owns_client:
                 client.close()
@@ -97,13 +106,14 @@ class RunnerHost:
         self._client = client if owns_client else None
         self.language = language
         providers = provider_capabilities()
-        self.capabilities = HostCapabilities(execution=self.acquire, fixtures=providers.fixtures, ai=providers.ai)
+        self.capabilities = HostCapabilities(execution=self.acquire, fixtures=providers.fixtures, ai=providers.ai,
+                                             max_session_seconds=config.running_timeout)
 
-    def acquire(self, language):
-        """The run's sandbox: an owned session the pipeline closes, which removes the container."""
+    def acquire(self, language, budget=None):
+        """The run's sandbox, stopping itself when ``budget`` ends: an owned session the pipeline closes."""
         if language is not self.language:
             raise RuntimeUnavailableError(f"This Action host serves {self.language.value}, not {language.value}")
-        return DockerSession(self._manager, language)
+        return DockerSession(self._manager, language, budget)
 
     def close(self):
         """Remove every sandbox of this host, then release the Docker client."""

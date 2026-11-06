@@ -25,12 +25,31 @@ class RuntimeImageError(RuntimeError):
     """
 
 
+class IsolationRuntimeError(RuntimeError):
+    """The Docker daemon does not offer the OCI runtime the host configured.
+
+    Raised when a :class:`~sandbox_manager.manager.SandboxManager` starts, before
+    it creates any container. A host never falls back to another runtime: the
+    operator installs it or explicitly chooses ``general.runtime: runc``.
+    """
+
+
 class SandboxCapacityTimeout(RuntimeError):
     """No slot of the host sandbox budget became free within the caller's wait.
 
     Saturation is transient: grading reports it as a retryable capability
     failure, never as an assessed result, and deliberate execution answers
     ``503 EXECUTION_BUSY``. The control API answers ``503 CAPACITY_TIMEOUT``.
+    """
+
+
+class SandboxLifetimeExceeded(RuntimeError):
+    """The requested sandbox lifetime is longer than this host grants (``running_timeout``).
+
+    Raised before waiting for a slot or creating a container. It is a property of
+    the definition on this host, not a transient condition: graders report it as
+    the non-retryable ``EXECUTION_BUDGET_EXCEEDED``. The control API answers
+    ``422 LIFETIME_EXCEEDED``.
     """
 
 

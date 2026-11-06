@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import signal
 import stat
 
@@ -106,6 +107,16 @@ def output(key, value):
             handle.write(f"{key}={value}\n")
 
 
+def failure_summary(error):
+    """The outcome's own explanation of a failed grading, for the job summary."""
+    text = f"{error['message']} (`{error['code']}`)\n\n"
+    if error.get("output"):
+        # A fence longer than any backtick run in the output cannot be closed by it.
+        fence = "`" * max(3, 1 + max((len(run) for run in re.findall(r"`+", error["output"])), default=0))
+        text += f"{fence}text\n{error['output']}\n{fence}\n\n"
+    return text
+
+
 def retain_outcome(value):
     value = validate_outcome(value).model_dump(mode="json")
     result_path = workspace_path(".autograder/outcome.json")
@@ -123,6 +134,8 @@ def retain_outcome(value):
             handle.write(f"Status: {value['status']}\n\n")
             if value.get("score") is not None:
                 handle.write(f"Score: {value['score']}/100\n\n")
+            if value.get("error"):
+                handle.write(failure_summary(value["error"]))
             handle.write("Canonical outcome: `.autograder/outcome.json`.\n")
     return result_path
 

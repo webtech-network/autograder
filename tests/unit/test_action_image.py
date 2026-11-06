@@ -134,9 +134,35 @@ def git(cwd, *args):
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout.strip()
 
 
+RELEASED_ACTION = {"runs": {"using": "docker", "image": "docker://ghcr.io/webtech-network/autograder-action:0.6.0",
+                             "env": {"DEFINITION_PATH": "${{ inputs.definition-path }}"}}}
+DOCKERFILE = """FROM python:3.13-slim AS dependencies
+COPY pyproject.toml ./
+FROM python:3.13-slim
+COPY --from=dependencies /opt/venv /opt/venv
+COPY engine \\
+     engine
+"""
+#: The runtime images the fixture's sandbox_config.yml pins; C and C++ share one.
+RUNTIMES = {"python": "ghcr.io/webtech-network/autograder-sandbox-python:1",
+            "c": "ghcr.io/webtech-network/autograder-sandbox-cpp:1",
+            "cpp": "ghcr.io/webtech-network/autograder-sandbox-cpp:1"}
+
+
+def write(clone, files):
+    for name, content in files.items():
+        (clone / name).parent.mkdir(parents=True, exist_ok=True)
+        (clone / name).write_text(content if isinstance(content, str) else yaml.safe_dump(content))
+    git(clone, "add", "-A")
+
+
 @pytest.fixture
-def history(tmp_path, monkeypatch, action):
-    """A real clone of a real ``origin``: ``release`` is the commit the version was built from."""
+def history(tmp_path, monkeypatch):
+    """A real clone of a real ``origin``: ``release`` is the commit the version was built from.
+
+    The release commit raises the pin in a real ``action.yml`` next to the image's
+    sources: a ``Dockerfile.actions`` that copies ``pyproject.toml`` and ``engine``.
+    """
     for key, value in {"GIT_CONFIG_GLOBAL": str(tmp_path / "gitconfig"), "GIT_CONFIG_NOSYSTEM": "1",
                        "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
                        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid"}.items():
@@ -145,10 +171,14 @@ def history(tmp_path, monkeypatch, action):
     origin, clone = tmp_path / "origin.git", tmp_path / "clone"
     subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True)
     subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True, capture_output=True)
-    git(clone, "commit", "-q", "--allow-empty", "-m", "base")
+    write(clone, {"Dockerfile.actions": DOCKERFILE, ".dockerignore": "*\n", "pyproject.toml": "[project]\n",
+                  "engine/grade.py": "SCORE = 100\n", "README.md": "base\n",
+                  "sandbox_config.yml": {"runtimes": RUNTIMES}})
+    git(clone, "commit", "-q", "-m", "base")
     git(clone, "push", "-q", "origin", "HEAD:main")
     git(clone, "switch", "-q", "-c", "release")
-    git(clone, "commit", "-q", "--allow-empty", "-m", "raise the version")
+    write(clone, {"action.yml": RELEASED_ACTION})
+    git(clone, "commit", "-q", "-m", "raise the version")
     monkeypatch.chdir(clone)
     return clone
 
@@ -160,44 +190,50 @@ def tag(clone, *, annotated=False):
 
 @pytest.mark.parametrize("merge", ["merge", "fast-forward"])
 @pytest.mark.parametrize("annotated", [False, True])
-def test_check_passes_for_a_public_image_released_from_this_history(monkeypatch, action, history, capsys,
+def test_check_passes_for_a_public_image_released_from_this_history(monkeypatch, history, capsys,
                                                                     merge, annotated):
     tag(history, annotated=annotated)
     git(history, "switch", "-q", "main")
     git(history, "merge", "-q", *(["--no-ff", "-m", "merge"] if merge == "merge" else ["--ff-only"]), "release")
     registry = Registry()
     monkeypatch.setattr(action_image, "published", registry)
-    action_image.check(action)
+    action_image.check(history)
     # Asked as a consumer's runner asks: with no credentials, even where the caller is logged in.
     # The runtime images the Action pulls on the runner are asked the same way (ENV-03).
     assert registry.configs == [("ghcr.io/webtech-network/autograder-action:0.6.0", True),
-                                *((runtime, True) for runtime in action_image.runtimes())]
+                                ("ghcr.io/webtech-network/autograder-sandbox-cpp:1", True),
+                                ("ghcr.io/webtech-network/autograder-sandbox-python:1", True)]
     assert "public" in capsys.readouterr().out
 
 
-def test_check_refuses_a_private_runtime_image(monkeypatch, action, history, capsys):
+def test_check_refuses_a_private_runtime_image(monkeypatch, history, capsys):
     tag(history)
     git(history, "switch", "-q", "main")
     git(history, "merge", "-q", "--no-ff", "-m", "merge", "release")
-    private = action_image.runtimes()[0]
+    private = RUNTIMES["python"]
     monkeypatch.setattr(action_image, "published", Registry(private=[private]))
     with pytest.raises(SystemExit) as stopped:
-        action_image.check(action)
+        action_image.check(history)
     assert stopped.value.code == 1
     message = capsys.readouterr().err
     assert private in message and "public" in message and "runtime" in message
 
 
-def test_check_refuses_a_pin_that_was_never_released(monkeypatch, action, history, capsys):
+def test_runtimes_are_the_shipped_configurations_distinct_images():
+    pinned = yaml.safe_load((ROOT / "sandbox_config.yml").read_text(encoding="utf-8"))["runtimes"]
+    assert action_image.runtimes() == sorted(set(pinned.values()))
+
+
+def test_check_refuses_a_pin_that_was_never_released(monkeypatch, history, capsys):
     registry = Registry()
     monkeypatch.setattr(action_image, "published", registry)
     with pytest.raises(SystemExit) as stopped:
-        action_image.check(action)
+        action_image.check(history)
     assert stopped.value.code == 1
     assert "not been released" in capsys.readouterr().err and registry.configs == []
 
 
-def test_check_refuses_an_image_released_from_history_main_does_not_contain(monkeypatch, action, history, capsys):
+def test_check_refuses_an_image_released_from_history_main_does_not_contain(monkeypatch, history, capsys):
     # A squash merge (or a force-push) leaves the dispatched commit, and so the
     # image's source, out of main: @main would run code that was never merged.
     tag(history)
@@ -207,25 +243,67 @@ def test_check_refuses_an_image_released_from_history_main_does_not_contain(monk
     registry = Registry()
     monkeypatch.setattr(action_image, "published", registry)
     with pytest.raises(SystemExit) as stopped:
-        action_image.check(action)
+        action_image.check(history)
     assert stopped.value.code == 1
     message = capsys.readouterr().err
     assert "not in this commit's history" in message and "merge commit" in message
     assert registry.configs == []
 
 
-def test_check_refuses_a_missing_or_private_image(monkeypatch, action, history, capsys):
+@pytest.mark.parametrize("change", [
+    {"action.yml": {"runs": {**RELEASED_ACTION["runs"], "env": {"DEFINITION_FILE": "${{ inputs.definition-path }}"}}}},
+    {"engine/grade.py": "SCORE = 0\n"},
+    {"pyproject.toml": "[project]\ndependencies = []\n"},
+    {"Dockerfile.actions": DOCKERFILE + "RUN true\n"},
+    {".dockerignore": "*\n!engine/\n"},
+], ids=["interface", "copied-code", "copied-dependencies", "dockerfile", "build-context"])
+def test_check_refuses_an_action_that_changed_after_its_release(monkeypatch, history, capsys, change):
+    # @main consumers read action.yml from the branch but run the image built at the
+    # tag: a change to either after the release, without a new version, would make
+    # them disagree (e.g. a renamed runs.env key fed to the old entrypoint).
+    tag(history)
+    git(history, "switch", "-q", "main")
+    git(history, "merge", "-q", "--no-ff", "-m", "merge", "release")
+    write(history, change)
+    git(history, "commit", "-q", "-m", "change the Action without a release")
+    registry = Registry()
+    monkeypatch.setattr(action_image, "published", registry)
+    with pytest.raises(SystemExit) as stopped:
+        action_image.check(history)
+    assert stopped.value.code == 1
+    message = capsys.readouterr().err
+    assert "changed after 0.6.0 was released" in message and next(iter(change)) in message
+    assert "Raise the version" in message and registry.configs == []
+
+
+def test_check_ignores_changes_outside_the_release(monkeypatch, history):
+    tag(history)
+    git(history, "switch", "-q", "main")
+    git(history, "merge", "-q", "--no-ff", "-m", "merge", "release")
+    write(history, {"README.md": "docs only\n", "tests/test_engine.py": "pass\n"})
+    git(history, "commit", "-q", "-m", "docs and tests")
+    monkeypatch.setattr(action_image, "published", Registry())
+    action_image.check(history)
+
+
+def test_released_paths_are_what_the_shipped_image_is_built_from():
+    assert action_image.released_paths() == [
+        "action.yml", "Dockerfile.actions", ".dockerignore", "pyproject.toml", "uv.lock", "sandbox_config.yml",
+        "autograder", "execution_host", "sandbox_manager", "github_action"]
+
+
+def test_check_refuses_a_missing_or_private_image(monkeypatch, history, capsys):
     # Without credentials GHCR answers "denied" for a private package, which reads as absent.
     tag(history)
     monkeypatch.setattr(action_image, "published", Registry(public=False))
     with pytest.raises(SystemExit) as stopped:
-        action_image.check(action)
+        action_image.check(history)
     assert stopped.value.code == 1
     message = capsys.readouterr().err
     assert "autograder-action:0.6.0" in message and "public" in message and "workflow_dispatch" in message
 
 
-def test_check_cannot_judge_history_it_does_not_have(monkeypatch, action, history):
+def test_check_cannot_judge_history_it_does_not_have(monkeypatch, history):
     # A shallow clone lacks the tagged commit: an error, never a pass.
     other = history.parent / "other"
     subprocess.run(["git", "init", "-q", str(other)], check=True)
@@ -233,14 +311,14 @@ def test_check_cannot_judge_history_it_does_not_have(monkeypatch, action, histor
     git(other, "push", "-q", str(history.parent / "origin.git"), "HEAD:refs/tags/0.6.0")
     monkeypatch.setattr(action_image, "published", Registry())
     with pytest.raises(RuntimeError, match="cannot tell whether tag 0.6.0"):
-        action_image.check(action)
+        action_image.check(history)
 
 
-def test_check_refuses_a_registry_answer_it_cannot_read(monkeypatch, action, history):
+def test_check_refuses_a_registry_answer_it_cannot_read(monkeypatch, history):
     tag(history)
     monkeypatch.setattr(action_image, "published", Registry(error="cannot tell whether it is published"))
     with pytest.raises(RuntimeError, match="cannot tell"):
-        action_image.check(action)
+        action_image.check(history)
 
 
 def test_published_asks_the_registry_with_the_given_client_configuration(monkeypatch):

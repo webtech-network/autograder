@@ -58,17 +58,19 @@ has pylint false positives to resolve first.
 
 | Command | Needs | Runs |
 | --- | --- | --- |
-| `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas match the models), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Under a minute. |
+| `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas and the generated `docs/reference/` pages match the contracts), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Both test steps set `DOCKER_HOST` to an unreachable socket, so a test that contacts a Docker daemon fails here and in CI, even on a machine that has Docker. Under a minute. |
 | `make test-postgres` | `TEST_POSTGRES_URL` | PostgreSQL claims, publication fencing and concurrent idempotency. Without the URL these tests **error**; they never skip. The role must be able to `CREATE DATABASE` (migration tests). |
-| `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. |
+| `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. Suites run under gVisor when Docker offers `runsc` (else runc; `AUTOGRADER_TEST_RUNTIME` overrides). The per-runtime isolation suites are left to `make test-isolation`. `make gvisor-install` (sudo) installs the pinned gVisor release. |
+| `make test-isolation` | Docker | The per-runtime isolation suites (hostile submissions, sandbox attribution), under every runtime Docker offers; CI runs it after `make gvisor-install`, so under gVisor and runc. |
 | `make test-e2e` | Docker | An API process with real sandboxes. |
-| `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout. |
+| `make test-http` | Docker, `runsc` | The **HTTP path**: builds the images, starts two `docker-compose.yml` stacks side by side from empty volumes (PostgreSQL, migrations, seeded S3 emulator, sandbox manager, API in remote mode), grades the fixture example, recovers a retained outcome receipt across an API recreate without grading again, and checks that the image rejects retired configuration. Removes the stacks, their volumes and sandboxes. |
+| `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout as `<IMAGE_PREFIX>-<name>:<IMAGE_TAG>` (default `autograder-<name>:local`, the names `docker-compose.yml` runs). |
 | `make test-images` | Docker | Builds those images and the Python runtime, and checks exactly them ([Images](#images)), including the packaged Action grading in a sandbox on the Docker socket it is given. |
 | `make action-fixtures`, `make test-action` | Docker, a GitHub runner | The `Packaged Action on a hosted runner` CI job: fixture checkouts graded by `uses: ./` (`action.yml` pointed at `Dockerfile.actions`), then each outcome, its outputs and the runner's sandboxes checked (`scripts/action_fixtures.py`). Not useful outside a workflow. |
-| `make action-check` | Network, full git history | Fails unless the version `action.yml` pins is tagged in this commit's history and its image is anonymously pullable (asked with an empty `DOCKER_CONFIG`, so a GHCR login does not hide a private package). |
+| `make action-check` | Network, full git history | Fails unless the version `action.yml` pins is tagged in this commit's history, nothing released (`action.yml` and the Action image's inputs) changed since that tag, and its image and the runtime images it pins are anonymously pullable (asked with an empty `DOCKER_CONFIG`, so a GHCR login does not hide a private package). |
 
 A bare `pytest` collects all of `tests/`, including `tests/integration/`,
-`tests/e2e/` and `tests/images/`, which fail rather than skip without Docker and
+`tests/e2e/`, `tests/stack/` and `tests/images/`, which fail rather than skip without Docker and
 the images they need. Use the targets above, or name a directory
 (`uv run pytest tests/unit/`).
 
@@ -82,10 +84,10 @@ docker run -d --rm --name autograder-test-postgres -p 127.0.0.1:5433:5432 \
 TEST_POSTGRES_URL=postgresql+asyncpg://autograder:local-test-only@127.0.0.1:5433/autograder make test-postgres
 ```
 
-The HTTP service path (the compose stack built from the commit, with
-migrations and remote sandboxes) and the packaged GitHub Action path will each
-become one more `make` target and CI job; until then the Docker tiers above
-and `make test-images` cover them.
+The packaged GitHub Action path is the `Packaged Action on a hosted runner`
+CI job (`make action-fixtures`, `uses: ./`, `make test-action`); locally,
+`make test-images` builds the Action image from the checkout and grades with it
+on the Docker socket it is given.
 
 `tests/unit/test_architecture.py` checks dependency direction, that discovery and
 the documented examples agree with the registry, and the extension path.
@@ -103,6 +105,8 @@ every verification job of `verify.yml` by its name, from the GitHub Actions app:
 - `PostgreSQL tier`
 - `Service and Action images` (which runs `make action-check` into `main`)
 - `Docker sandboxes (integration and e2e)`
+- `Sandbox isolation under gVisor and runc`
+- `HTTP path (Compose stack from this commit)`
 - `Packaged Action on a hosted runner` (the Action from this commit, `uses: ./`, on `ubuntu-latest`)
 
 The publication jobs (`Release Action image`, `Deploy API`) are skipped on pull
@@ -113,14 +117,16 @@ gh api repos/webtech-network/autograder/rulesets/8901171 \
   --jq '.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
 ```
 
-It must print exactly the names above. Until 0.6.0 it required `pylint` and
-`pytest`, contexts no workflow produces, so no check blocked a merge into
-`main`. Before the first merge of `refactor/363` into `main`, a maintainer
+It must print exactly the names above. Today it still requires `pylint` and
+`pytest`, contexts no workflow produces, so no check blocks a merge into `main`
+yet. Before the first merge of `refactor/363` into `main`, the repository owner
 replaces them (Settings → Rules → Rulesets → `SINGLE_APPROVAL_BPR` → Require
 status checks to pass) and confirms with the command above. A job added to or
 renamed in `verify.yml` changes this list and the ruleset in the same pull
 request. The ruleset's bypass list can still merge past a red check; nobody
-merges into `main` while a required check is red.
+merges into `main` while a required check is red. When editing the ruleset, also
+restrict `main`'s allowed merge methods to `merge`: release pull requests must
+keep the tagged commit in `main`'s history.
 
 ### Images
 
@@ -196,9 +202,11 @@ docs/                documentation (contracts/ are normative)
 # Sandbox images, one per runtime listed in sandbox_config.yml
 make sandbox-build-all
 
-# Database
-docker compose up -d postgres
-export DATABASE_URL=postgresql+asyncpg://autograder:autograder_password@localhost:5432/autograder
+# Database (a disposable one; the compose stack's database is not published)
+docker run -d --rm --name autograder-dev-postgres -p 127.0.0.1:5432:5432 \
+  -e POSTGRES_USER=autograder -e POSTGRES_PASSWORD=development-only -e POSTGRES_DB=autograder \
+  postgres:17-alpine
+export DATABASE_URL=postgresql+asyncpg://autograder:development-only@localhost:5432/autograder
 make db-upgrade               # the API never creates tables; see JOBS.md "Deployment and migration"
 
 # HTTP trust boundary (docs/contracts/AUTH.md): every protected route needs a bearer token
@@ -212,6 +220,21 @@ export OPENAI_API_KEY=your_openai_key_here
 SANDBOX_MODE=local uvicorn web.main:app --reload --port 8000
 ```
 
+**Without gVisor.** The shipped `sandbox_config.yml` requires gVisor
+(`general.runtime: runsc`). If `docker info` does not list `runsc`, install it
+(`make gvisor-install`; Linux, sudo) or choose runc deliberately with a
+development copy: `sed 's/runtime: runsc/runtime: runc/' sandbox_config.yml >
+sandbox_config.dev.yml` (ignored by git), then
+`export SANDBOX_CONFIG_FILE=$PWD/sandbox_config.dev.yml`. Otherwise the local API
+and the control service (`python -m sandbox_manager`, the compose
+`sandbox-manager`) refuse to start with `IsolationRuntimeError`. For
+`make start-autograder` (plain `docker compose up`, which reads
+`docker-compose.override.yml`), give `sandbox-manager` the copy in that override:
+mount `./sandbox_config.dev.yml:/config/sandbox.yml:ro` and set
+`SANDBOX_CONFIG_FILE: /config/sandbox.yml`. `make test-http` names its compose
+files explicitly, so no override applies: it tests the shipped images with
+their own `runsc` configuration and needs `make gvisor-install`, as in CI.
+
 Remote mode runs the private sandbox control API as a separate single-worker
 process and requires its shared token ([SANDBOX.md](../contracts/SANDBOX.md)):
 
@@ -221,10 +244,20 @@ python -m sandbox_manager &                 # 127.0.0.1:8001, one worker
 SANDBOX_MODE=remote SANDBOX_API_URL=http://127.0.0.1:8001 uvicorn web.main:app --port 8000
 ```
 
-`docker compose up -d --build` (or `make start-autograder`) starts PostgreSQL,
-migrates it in the one-shot `migrate` service, then starts the API on port 8000
-and the sandbox manager on the internal network only.
-API docs are served at http://localhost:8000/docs.
+Every variable either process reads is listed in the
+[configuration reference](../operate/configuration.md); an invalid, incoherent or
+retired one stops startup with a message naming it.
+
+`make start-autograder` runs the development stack of `docker-compose.yml` (the
+[supported topology](../operate/deployment.md) with throwaway credentials). Export
+`SANDBOX_API_TOKEN` and `AUTOGRADER_INTEGRATION_TOKEN` first. It migrates the
+database in the one-shot `migrate` service, creates the fixture bucket and
+uploads `examples/fixtures/` in `storage-init`, then starts the sandbox manager on
+the project network only and the API on `127.0.0.1:8000`
+(`AUTOGRADER_HTTP_PORT`; empty picks a free port). API docs are served at
+http://localhost:8000/docs. Another stack runs beside it under another project
+name: `docker compose -p <name> up -d --wait`. `docker compose down -v` deletes
+a stack's data.
 
 ## Making changes
 
@@ -302,7 +335,7 @@ see "Owner leases and orphan reclamation" in [SANDBOX.md](../contracts/SANDBOX.m
 ### Database
 
 ```bash
-docker compose exec postgres psql -U autograder
+docker compose exec postgres psql -U autograder    # the compose stack's database
 ```
 
 ## Sandbox budget tuning

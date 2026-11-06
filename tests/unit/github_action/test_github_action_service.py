@@ -133,3 +133,32 @@ def test_runner_without_docker_fails_with_the_documented_error():
         with pytest.raises(DockerUnavailableError, match="Docker is not available to the Action") as raised:
             RunnerHost(Language.C)
     assert "runs-on: ubuntu-latest" in str(raised.value) and "c code" in str(raised.value)
+
+
+def test_runner_host_requests_runc_explicitly_and_bounds_each_sandbox_by_its_budget():
+    # COR-04: the runtime is an explicit host decision, not the daemon's default and
+    # not the web host's general.runtime; COR-02: the budget reaches the sandbox.
+    from autograder.models.language import Language
+    from execution_host import runner
+    from sandbox_manager.models.pool_config import SandboxHostConfig
+    budget = MagicMock(session_seconds=120)
+    with patch.object(runner, "SandboxManager") as manager:
+        host = runner.RunnerHost(Language.PYTHON, client=MagicMock())
+        session = host.acquire(Language.PYTHON, budget)
+    assert manager.call_args.kwargs["runtime"] == "runc" == runner.RUNNER_RUNTIME
+    assert manager.call_args.kwargs["max_sandboxes"] == 1
+    assert host.capabilities.max_session_seconds == SandboxHostConfig.load_from_yaml().running_timeout
+    manager.return_value.get_sandbox.assert_called_once()
+    assert manager.return_value.get_sandbox.call_args.kwargs["lifetime_seconds"] == 120
+    assert session.sandbox is manager.return_value.get_sandbox.return_value
+    host.close()
+
+
+def test_runner_host_refuses_a_daemon_without_runc_before_grading():
+    from autograder.models.language import Language
+    from execution_host import runner
+    from sandbox_manager.errors import IsolationRuntimeError
+    client = MagicMock()
+    client.info.return_value = {"Runtimes": {"runsc": {}}}
+    with pytest.raises(IsolationRuntimeError, match="runc"):
+        runner.RunnerHost(Language.PYTHON, client=client)

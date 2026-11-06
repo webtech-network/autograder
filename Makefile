@@ -5,7 +5,11 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images test-images action-fixtures test-action action-check action-publish sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+# The hermetic tests run against an unreachable Docker endpoint, so a test that
+# reaches for a daemon fails here and in CI (whose runners have Docker).
+NO_DOCKER := DOCKER_HOST=unix:///nonexistent/hermetic.sock
+
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-isolation test-e2e test-http images test-images action-fixtures test-action action-check action-publish gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -23,33 +27,46 @@ verify: lint contracts docs test test-web ## Hermetic core/library path (no Dock
 lint: ## Pylint the shipped packages, scripts and examples, serially (.pylintrc)
 	$(PYTHON) -m pylint autograder web sandbox_manager execution_host github_action scripts examples
 
-contracts: ## Check that checked-in JSON Schemas match the models
+contracts: ## Check that checked-in JSON Schemas and docs/reference match the contracts
 	$(PYTHON) scripts/generate_contract_schemas.py --check
+	$(PYTHON) scripts/generate_reference.py --check
 
 docs: ## Check documentation links and API routes, then build the site strictly
 	$(PYTHON) scripts/validate_docs.py
 	$(PYTHON) -m mkdocs build --strict --quiet
 
-test: ## Unit tests
-	$(PYTHON) -m pytest tests/unit/
+test: ## Unit tests (no Docker daemon reachable)
+	$(NO_DOCKER) $(PYTHON) -m pytest tests/unit/
 
-test-web: ## HTTP tests on SQLite (the PostgreSQL tier is excluded)
-	$(PYTHON) -m pytest tests/web/ -m "not postgres"
+test-web: ## HTTP tests on SQLite (the PostgreSQL tier is excluded; no Docker daemon reachable)
+	$(NO_DOCKER) $(PYTHON) -m pytest tests/web/ -m "not postgres"
 
 ##@ Docker and database tiers
 
 test-postgres: ## PostgreSQL guarantees; fails unless TEST_POSTGRES_URL is set
 	$(PYTHON) -m pytest tests/web/ -m postgres
 
-test-integration: sandbox-build-all ## Real Docker sandboxes (builds sandbox images)
-	$(PYTHON) -m pytest tests/integration/
+# The per-runtime isolation suites run once, in test-isolation, under every runtime Docker offers.
+ISOLATION_SUITES := tests/integration/test_hostile_submissions.py tests/integration/test_sandbox_attribution.py
+
+test-integration: sandbox-build-all ## Real Docker sandboxes except the isolation suites (builds sandbox images)
+	$(PYTHON) -m pytest tests/integration/ $(addprefix --ignore=,$(ISOLATION_SUITES))
+
+test-isolation: sandbox-build-all ## Per-runtime isolation suites, under every runtime Docker offers (runsc after `make gvisor-install`)
+	$(PYTHON) -m pytest $(ISOLATION_SUITES)
 
 test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 	PYTHON='$(PYTHON)' ./scripts/run_e2e_tests.sh
 
+test-http: images sandbox-build-all ## HTTP path: two Compose stacks from this checkout, fixture grading, receipt recovery (needs runsc)
+	AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' $(PYTHON) -m pytest tests/stack/ -v
+
 # Local names of the service and Action images: $(IMAGE_PREFIX)-<name>:$(IMAGE_TAG).
 IMAGE_PREFIX ?= autograder
 IMAGE_TAG ?= local
+
+gvisor-install: ## Install the pinned gVisor release as Docker's runsc runtime (sudo; CI's isolation and http jobs)
+	./scripts/install_gvisor.sh
 
 images: ## Build the API, sandbox manager and Action images from this checkout
 	docker build -t $(IMAGE_PREFIX)-api:$(IMAGE_TAG) -f Dockerfile.api .
@@ -120,9 +137,14 @@ db-migrate: ## Autogenerate a migration against head: make db-migrate MSG="descr
 docs-serve: ## Serve the docs site with live reload
 	$(PYTHON) -m mkdocs serve
 
-start-autograder: sandbox-build-all ## Start PostgreSQL, the API and the sandbox manager (needs SANDBOX_API_TOKEN)
-	docker compose up -d --build
-	@echo "Autograder API: http://localhost:8000"
+start-autograder: ## Development stack: PostgreSQL, S3 emulator, sandbox manager, API (needs two tokens)
+	@test -n "$$SANDBOX_API_TOKEN" -a -n "$$AUTOGRADER_INTEGRATION_TOKEN" || { \
+	  echo 'Export SANDBOX_API_TOKEN and AUTOGRADER_INTEGRATION_TOKEN first (long random secrets), e.g.'; \
+	  echo '  export SANDBOX_API_TOKEN="$$(openssl rand -hex 32)" AUTOGRADER_INTEGRATION_TOKEN="$$(openssl rand -hex 32)"'; \
+	  exit 2; }
+	$(MAKE) --no-print-directory sandbox-build-all
+	AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' docker compose up -d --build --wait
+	@echo "Autograder API: http://127.0.0.1:$${AUTOGRADER_HTTP_PORT:-8000}"
 
 examples-demo: ## Serve the interactive demo page (needs a running API)
 	cd examples/demo && $(PYTHON) serve_demo.py

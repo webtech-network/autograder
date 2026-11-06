@@ -98,11 +98,14 @@ jobs:
       # Builds the images from scratch (a fresh runner has no cache) and checks
       # exactly those: contents, context leaks, the Action grading an example.
       - run: make test-images
-      # Consumers use `webtech-network/autograder@main`, so main must only ever
-      # pin an Action image released from its own history that a runner can pull
-      # without credentials: an untagged or unmerged release, or a missing or
-      # private package, fails here. It blocks the merge only because the main
-      # ruleset requires this job (docs/guides/development.md#required-checks).
+      # Consumers use `webtech-network/autograder@main`: they read action.yml
+      # from main and run the image built at its <version> tag. So main must pin
+      # an image released from its own history, unchanged since (action.yml and
+      # every input of Dockerfile.actions), that a runner can pull without
+      # credentials: an untagged or unmerged release, a change without a new
+      # version, or a missing or private package fails here. It blocks a merge
+      # only once the main ruleset requires this job
+      # (docs/guides/development.md#required-checks).
       # `deploy` needs this job, so on main such an Action pin also holds back
       # the API deploy, deliberately: that commit is not releasable as a whole.
       - if: github.base_ref == 'main' || github.ref == 'refs/heads/main'
@@ -111,7 +114,10 @@ jobs:
   docker:
     name: Docker sandboxes (integration and e2e)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # About 32 minutes with COR-01's attribution, COR-02's lifetime and PRF-03's
+    # staging suites, so 30 cancelled passing runs; the per-runtime isolation
+    # suites have since moved to the `isolation` job.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -125,6 +131,45 @@ jobs:
       - run: make install
       - run: make test-integration
       - run: make test-e2e
+
+  isolation:
+    name: Sandbox isolation under gVisor and runc
+    runs-on: ubuntu-latest
+    # About 27 minutes on ubuntu-latest: COR-01's 20 repetitions per runtime dominate.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: .tool-versions
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.11.15"
+          enable-cache: true
+      # uv sync --locked fails when pyproject.toml and uv.lock disagree.
+      - run: make install
+      - run: make gvisor-install
+      - run: make test-isolation
+
+  http:
+    name: HTTP path (Compose stack from this commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: .tool-versions
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.11.15"
+          enable-cache: true
+      # uv sync --locked fails when pyproject.toml and uv.lock disagree.
+      - run: make install
+      # The stack runs the shipped sandbox_config.yml (runtime: runsc), as a
+      # deployment does; the control service refuses to start without it.
+      - run: make gvisor-install
+      - run: make test-http
 
   # The packaged Action from this commit, as a consumer's workflow runs it: on a
   # GitHub-hosted runner, `uses: ./` with the quick-start inputs, no setup steps.
@@ -213,17 +258,13 @@ jobs:
           ACTION_RESULT_PATH: ${{ steps.probe.outputs.result-path }}
           REAL_GITHUB_TOKEN: ${{ github.token }}
 
-  # The HTTP path (compose stack from this commit: PostgreSQL, migrations,
-  # remote mode, smoke and e2e) joins here as its own job, running one make
-  # target, and is added to the publication jobs' `needs`.
-
   # The Action release, run by hand (workflow_dispatch) on the branch that raises
   # the version in action.yml, before that branch can merge into main: publish
   # the image built and tested here from that commit, then tag the commit with
   # the version (scripts/action_image.py, docs/github_action/README.md).
   action-release:
     name: Release Action image
-    needs: [core, postgres, images, docker, action]
+    needs: [core, postgres, images, docker, isolation, http, action]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -254,7 +295,7 @@ jobs:
 
   deploy:
     name: Deploy API
-    needs: [core, postgres, images, docker, action]
+    needs: [core, postgres, images, docker, isolation, http, action]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -346,6 +387,13 @@ jobs:
             # 4. Pull and Restart
             echo "🚀 Deploying $SERVICE_NAME..."
             docker compose -f docker-compose.yml pull "$SERVICE_NAME"
+            # The new image refuses retired or incoherent configuration at startup:
+            # check it with the new image first (no database or Docker access), and
+            # keep the running API if it is rejected. docs/operate/deployment.md
+            echo "🔎 Checking configuration..."
+            docker compose -f docker-compose.yml run --rm --no-deps "$SERVICE_NAME" \
+              python -m web.main --check \
+              || { echo "❌ ERROR: Configuration rejected; the running API was not replaced."; docker logout ghcr.io; exit 1; }
             # The new image refuses to serve an unmigrated database: migrate with
             # it first, and keep the running API if the migration fails.
             echo "🗄️ Migrating database schema..."

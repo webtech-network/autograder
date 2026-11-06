@@ -45,10 +45,14 @@ class AcquireSandboxRequest(BaseModel):
     """``request_id`` makes acquisition replay-safe after a lost response.
 
     ``wait_seconds`` is how long the caller accepts to wait for a budget slot
-    before ``503 CAPACITY_TIMEOUT``.
+    before ``503 CAPACITY_TIMEOUT``. ``lifetime_seconds`` is the sandbox's
+    absolute lifetime from its grant; above the host's ``running_timeout`` it is
+    refused with ``422 LIFETIME_EXCEEDED`` before any wait.
     """
     request_id: str = Field(pattern=REQUEST_ID_PATTERN)
     wait_seconds: float = Field(default=0.0, ge=0, le=MAX_ACQUIRE_WAIT_SECONDS)
+    # The sandbox's absolute lifetime from its grant; omitted: the host's running_timeout.
+    lifetime_seconds: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
 
 
 class AcquireSandboxResponse(BaseModel):

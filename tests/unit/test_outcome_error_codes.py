@@ -39,7 +39,7 @@ def emitted_codes(packages):
                 found = set()
                 if isinstance(node, ast.Call):
                     callee = getattr(node.func, "id", getattr(node.func, "attr", None))
-                    if callee == "EvaluationError":
+                    if callee in ("EvaluationError", "_explained"):
                         found = _strings(_argument(node, 0, "code"))
                     elif callee == "OutcomeError":
                         found = _strings(_argument(node, 0, "code"))

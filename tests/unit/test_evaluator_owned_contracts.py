@@ -295,7 +295,7 @@ def test_execution_session_is_bound_only_to_evaluators_that_declare_it():
         "id": "run", "type": "expect_output", "name": "Run",
         "parameters": {"program_command": "CMD", "expected_output": "ok"}}])
     outcome = evaluate_submission(submission(), definition=value, templates={"local": template_with(capture)},
-                                  capabilities=HostCapabilities(execution=lambda language: session))
+                                  capabilities=HostCapabilities(execution=lambda language, budget: session))
     assert outcome.status == "completed" and outcome.score == 100
     assert capture.calls[0].session is None
     assert session.run_process.call_args.args[0].argv == ("python3", "main.py")
