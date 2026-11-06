@@ -55,85 +55,73 @@ run this Action at all.
 
 ## Versions and images
 
-The Action runs a prebuilt image: `action.yml` pins
-`docker://ghcr.io/webtech-network/autograder-action:<version>`, so a job pulls
-it (Python 3.13, the engine, the Action and `git`) and builds nothing. Each
-version is one immutable image and one git tag of the same name, on the commit
-the image was built from:
+There are no releases before 1.0.0: `main` is the only channel. `action.yml`
+runs `docker://ghcr.io/webtech-network/autograder-action:main`, so a job pulls
+that image (Python 3.13, the engine, the Action and `git`) and builds nothing.
+
+Every push to `main` runs the Verify workflow (`.github/workflows/verify.yml`).
+Only after every verification job of that commit passed, its `publish` job
+rebuilds the images from the commit, checks them again (`make test-images`,
+`make sandbox-build-all`) and runs `make publish-images`
+(`scripts/publish_images.py`), which publishes, in this order:
+
+| Image | Published as |
+| --- | --- |
+| Runtime images (`autograder-sandbox-<name>`) | The content-derived references `sandbox_config.yml` pins, each once; a published reference is never overwritten. |
+| API, sandbox manager, Action (`autograder-api`, `autograder-sandbox-manager`, `autograder-action`) | `sha-<commit>` (immutable, the full commit SHA), then `main` (moves to this commit). |
+
+It publishes nothing unless the commit is still the head of `main`: an older
+commit whose verification finished after a newer one never moves `main` back.
+It then confirms each reference as the workflow token sees the registry (a
+push the registry does not serve fails the job) and warns for each package an
+anonymous runner cannot pull yet. A pull request publishes nothing.
 
 | `uses:` | Image |
 | --- | --- |
-| `webtech-network/autograder@<version>` (e.g. `@0.6.0`) | `autograder-action:<version>`, built from that tag. Reproducible: pin this. |
-| `webtech-network/autograder@main` | The version `action.yml` names on `main`: the latest release, not unreleased commits. |
+| `webtech-network/autograder@main` | `autograder-action:main`: built and verified from the newest verified commit of `main`. |
 
-`@main` reads `action.yml` from `main` but runs the image built at the
-`<version>` tag, so the two must be what was released together. The
-`Service and Action images` job of `verify.yml` runs `make action-check` on
-every pull request into `main` and on every push to `main`. It fails unless:
-
-- the `<version>` tag is an ancestor of the checked commit (the image was built
-  from code `main` contains);
-- nothing released changed since that tag: `action.yml`, `Dockerfile.actions`,
-  `.dockerignore`, and every path that Dockerfile copies (`pyproject.toml`,
-  `uv.lock`, `sandbox_config.yml`, `autograder/`, `execution_host/`,
-  `sandbox_manager/`, `github_action/`). A change to any of them needs a new
-  version and release, even one that only changes engine code;
-- the pinned image can be pulled without credentials (it fails for a missing
-  image or a private package);
-- so can every runtime image the release's `sandbox_config.yml` pins: the
-  Action pulls the selected language's image on the runner.
-
-What enforces this today: the pull request's check is red, and `deploy` needs
-that job, so a `main` commit that fails it is not deployed. A red check blocks
-the merge only once the `main` ruleset requires the job
-([Required checks](../guides/development.md#required-checks)); until the
-repository owner adds it, maintainers must not merge into `main` while it is
-red.
-
-### Releasing a version
-
-1. On a branch that is up to date with `main`, raise the version in
-   `action.yml` (`runs.image`) and open the pull request into `main`. Its
-   `make action-check` fails until step 3. Any later commit on the branch (or
-   merged from `main`) that changes a released path makes it fail again: raise
-   the version and release again.
-2. Run the Verify workflow on that branch: Actions → Verify → Run workflow, or
-   `gh workflow run verify.yml --ref <branch>`. After every verification job
-   passed, the `action-release` job builds the image from scratch, checks it
-   (`make test-images`), publishes it (`make action-publish`) and only then
-   tags the commit with the version. A published version is never overwritten,
-   a version already tagged on another commit stops the release, and a re-run
-   resumes an interrupted one. The tag is on the commit the image was built
-   from, which is the branch commit, not the merge commit on `main`.
-3. The first release creates the GHCR package `autograder-action` as private.
-   Make it public once (organization → Packages → `autograder-action` →
-   Package settings → Change visibility → Public). Confirm it as a runner
-   sees it, without credentials:
-   `DOCKER_CONFIG="$(mktemp -d)" docker manifest inspect ghcr.io/webtech-network/autograder-action:<version>`
-   must print a manifest, not `denied` or `unauthorized`. Each runtime package
-   `sandbox_config.yml` pins (`autograder-sandbox-<language>`, published from
-   `main` by `sandbox-images.yml`) must be public the same way;
-   `make action-check` names any that is not.
-4. Re-run the pull request's checks; `make action-check` now passes and the
-   pull request can merge. Merge it with a merge commit, not squash or
-   rebase: those leave the tagged commit out of `main`, and
-   `make action-check` on `main` then fails (and holds back the API deploy)
-   until a new version is released. The check gates the merge only once the
-   ruleset requires it ([Required checks](../guides/development.md#required-checks));
-   until then, confirm it is green yourself before merging.
-5. Release notes stay manual, as for `0.1.0`–`0.5.0`: create the GitHub Release
-   from the existing `<version>` tag (`gh release create <version> --verify-tag`).
-
-Releases are the `x.y.z` tags from `0.1.0` on. The older `1.1.2`, `v1` and
-`v0.0.0-285-test` tags are not releases and do not name this image: do not use
+`@main` reads `action.yml` from the head of `main` and runs the image of the
+newest *verified* commit. While a new commit is being verified (up to about 45
+minutes) the two can differ by that commit; a commit that fails verification
+publishes nothing, so `main` keeps the last verified image. Before 1.0.0 there
+is no reproducible pin: any `uses:` ref, including a commit SHA, runs the
+`main` image. The `0.1.0`–`0.5.0` tags predate this and are not maintained;
+the `1.1.2`, `v1` and `v0.0.0-285-test` tags never named this image. Do not use
 them in `uses:`.
 
-To test an unreleased change, build and run the image locally the way a runner
+**Package visibility.** GitHub creates each package private the first time
+`main` publishes it. A runner pulls without credentials, so an organization
+admin makes each package public once (organization → Packages → the package →
+Package settings → Change visibility → Public): `autograder-action` and every
+runtime image `autograder-sandbox-<name>`, which the Action pulls on the
+runner; `autograder-api` and `autograder-sandbox-manager` too if deployments
+pull them anonymously. The `publish` job names any that is still private in a
+warning. Confirm as a runner sees it:
+`DOCKER_CONFIG="$(mktemp -d)" docker manifest inspect ghcr.io/webtech-network/autograder-action:main`
+must print a manifest, not `denied` or `unauthorized`.
+
+To test a change before it reaches `main`, build and run the image locally the way a runner
 does (`make images`, then `docker run` with the workspace mounted at
 `/github/workspace`, `GITHUB_WORKSPACE=/github/workspace` and the
 `runs.env` variables of `action.yml`; `tests/images/` does exactly this), or,
 in a branch of a fork, set `runs.image` to `Dockerfile.actions` and use
 `<fork>/autograder@<branch>`: the runner then builds the image from that branch.
+
+### The 1.0.0 release (plan)
+
+The first release is 1.0.0, cut once the refactor
+([#363](https://github.com/webtech-network/autograder/issues/363)) is complete.
+Nothing of it runs or is checked before then. The plan, to be implemented with
+the release:
+
+1. Choose a commit `C` of `main` whose `publish` job succeeded.
+2. A hand-run release job re-tags `C`'s verified images `sha-<C>` as `1.0.0`
+   without rebuilding them, never overwriting an existing `1.0.0`.
+3. It commits, on top of `C` and outside `main`, only the change of
+   `runs.image` to `autograder-action:1.0.0`, tags that commit `1.0.0` and
+   creates the GitHub Release from the tag. `@1.0.0` then runs exactly the
+   image verified from `C`, with `C`'s interface; `main` keeps running `:main`.
+
 
 - [Quick start](quick-start.md)
 - [Inputs and outputs](configuration.md)
