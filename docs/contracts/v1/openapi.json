@@ -3329,6 +3329,18 @@
             "type": "string",
             "minLength": 1,
             "title": "Correlation Id"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output",
+            "description": "Excerpt of the failing preparation step's output; submission errors only"
           }
         },
         "additionalProperties": false,
@@ -3549,6 +3561,12 @@
             "minLength": 1,
             "title": "Command",
             "description": "Executable and arguments, split with POSIX quoting and run without a shell. Standalone shell operators (&&, |, ;, >, ...) are rejected: use one setup command per step, and an explicit `sh -c '...'` command only for a real pipeline."
+          },
+          "private_output": {
+            "type": "boolean",
+            "title": "Private Output",
+            "description": "Keep this step's output out of the student-facing failure explanation, for example when it compiles a hidden test harness. By default a failing step's output excerpt is shown.",
+            "default": false
           }
         },
         "additionalProperties": false,

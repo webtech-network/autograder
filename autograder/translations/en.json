@@ -1,16 +1,19 @@
 {
   "preflight": {
     "error": {
-      "required_file_missing": "**Error:** Required file or directory not found: `'{file}'`",
-      "sandbox_creation_failed": "**Error:** Failed to create sandbox for language `{language}`: `{error}`",
-      "workdir_preparation_failed": "**Error:** Failed to prepare workdir in sandbox: `{error}`",
-      "setup_command_missing_sandbox": "Sandbox environment is required for executing setup commands but was not created.",
-      "setup_command_missing_field": "**Error:** Setup command '{command_name}' is missing the 'command' field",
-      "setup_command_invalid_format": "**Error:** Invalid setup command format at index {index}: expected string or object",
-      "setup_command_failed_execution": "**Error:** Setup command '{command_name}' failed to execute: `{error}`\n\nCommand: `{command}`",
-      "setup_command_failed_exit_code": "**Error:** Setup command '{command_name}' failed with exit code {exit_code}\n\n**Command:** `{command}`",
-      "missing_sandbox": "Sandbox environment is required for executing setup commands but was not created.",
-      "unknown": "Unknown preflight error."
+      "required_file_missing": "Required file not found: {files}. Submit it with exactly this name and path.",
+      "target_file_missing": "The criterion '{criterion}' assesses {files}, which was not submitted. Submit it with exactly this name and path.",
+      "too_few_files": "The criterion '{criterion}' needs at least {minimum} submitted file(s) of a type it can assess, but found {found}.",
+      "ambiguous_file_target": "The criterion '{criterion}' assesses at most {maximum} file(s), but {found} submitted files match. Submit only the expected file, or ask the teacher to name it in the assignment.",
+      "parameter_target_conflict": "The criterion '{criterion}' is configured to read {files}, which is not among its target files. Ask the teacher to fix the assignment.",
+      "target_outside_scope": "The criterion '{criterion}' assesses {files}, which is outside the files selected for this evaluation.",
+      "unsupported_file_type": "The criterion '{criterion}' cannot assess {files}: the file type is not supported.",
+      "language_required": "This assignment accepts several languages. Select one of: {languages}.",
+      "language_not_allowed": "The language '{language}' is not accepted by this assignment. Use one of: {languages}.",
+      "setup_command_failed_exit_code": "The setup step '{step}' failed with exit code {exit_code}, so the submission could not be graded.",
+      "setup_command_timed_out": "The setup step '{step}' did not finish within {seconds} seconds, so the submission could not be graded.",
+      "setup_command_exhausted": "The setup step '{step}' exceeded the sandbox's memory or process limit, so the submission could not be graded.",
+      "preparation_exhausted": "The submission exceeded the sandbox's memory or process limit during preparation, so it could not be graded."
     }
   },
   "feedback": {
@@ -503,11 +506,6 @@
     "template": {
       "name": "API Testing",
       "description": "A template for evaluating assignments where students create a web API."
-    }
-  },
-  "system": {
-    "error": {
-      "step_interrupted": "An unexpected error occurred during step execution: {error}"
     }
   }
 }

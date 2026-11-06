@@ -157,3 +157,22 @@ class TestSourceKeyCoverage:
             f"{len(missing)} translation key(s) used in code but missing from en.json:\n"
             + "\n".join(f"  - {k}" for k in sorted(missing))
         )
+
+
+class TestSubmissionExplanationKeys:
+    """Engine failure explanations (``preflight.*``) have no dead or missing keys (ONB-02).
+
+    Explanations are passed as literal keys to ``EvaluationError(explanation=...)``
+    and rendered with ``t`` when the outcome is built, so a literal scan is exact.
+    """
+
+    def test_every_explanation_key_is_used_and_every_used_key_exists(self, flat_catalogs):
+        source = "\n".join(path.read_text(encoding="utf-8") for path in SOURCE_ROOT.rglob("*.py"))
+        used = set(re.findall(r"""["'](preflight\.[\w.]+)["']""", source))
+        for locale, flat in flat_catalogs.items():
+            catalog = {key for key in flat if key.startswith("preflight.")}
+            assert used == catalog, f"{locale}: unused {sorted(catalog - used)}, missing {sorted(used - catalog)}"
+
+    def test_superseded_namespaces_are_gone(self, catalogs):
+        for catalog in catalogs.values():
+            assert "system" not in catalog

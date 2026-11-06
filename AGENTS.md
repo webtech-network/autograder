@@ -118,7 +118,10 @@ Feedback is requested: only `feedback.enabled` calls `render_feedback(tree,
 preferences, locale)` (focus + the one `default` Markdown report, reading the
 canonical preferences); disabled feedback does no work and stays `disabled`.
 
-Required failures produce null score/tree. A student program's nonzero exit or
+Required failures produce null score/tree. Submission-category failures
+(missing file, failed setup step, language) explain themselves in the
+submission's locale, with a bounded setup-output excerpt unless the step is
+`private_output`; other categories keep fixed messages. A student program's nonzero exit or
 timeout during evaluator assessment produces a valid zero; compilation belongs in
 setup commands (`PREPARATION_FAILED`), and a runtime command that cannot start is
 not a zero (`PROCESS_START_FAILED`). Who ended a sandbox comes from host-side

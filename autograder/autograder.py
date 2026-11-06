@@ -7,11 +7,13 @@ from uuid import uuid4
 
 from autograder.models.capabilities import HostCapabilities, requirements_for
 from autograder.models.contracts.definition import CompiledDefinition, compile_definition, select_language, DefinitionValidationError
-from autograder.models.contracts.outcome import CompletedOutcome, FailedOutcome, FeedbackOutcome, OutcomeError
+from autograder.models.contracts.outcome import (
+    MAX_REPORT_BYTES, CompletedOutcome, FailedOutcome, FeedbackOutcome, OutcomeError, bound_text)
 from autograder.models.contracts.verification import OutcomeStructureError, verify_outcome_tree
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import Submission
 from autograder.models.language import LANGUAGE_IDS, Language
+from autograder.models.locale import Locale
 from autograder.models.diagnostics import DiagnosticEvent, DiagnosticObserver
 from autograder.models.evaluation_error import EvaluationError
 from autograder.models.pipeline_execution import PipelineExecution
@@ -19,6 +21,7 @@ from autograder.services.assessment import EXECUTION_CAPABILITIES, assess_criter
 from autograder.services.grading import grade
 from autograder.services.preparation import check_capabilities, prepare_session, validate_submission
 from autograder.services.feedback import render_feedback
+from autograder.translations import t
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +37,30 @@ def _observe(observer: DiagnosticObserver | None, execution_id: str, operation: 
         logger.exception("Diagnostic observer failed (execution_id=%s)", execution_id)
 
 
-def _outcome_error(error: EvaluationError, execution_id: str) -> OutcomeError:
-    return OutcomeError(code=error.code, message=error.message, category=error.category,
-                        retryable=error.retryable, correlation_id=execution_id)
+def _outcome_error(error: EvaluationError, execution_id: str, locale: Locale) -> OutcomeError:
+    """A submission failure is explained in the submission's locale; others keep their fixed message."""
+    key, params = error.explanation or (None, {})
+    return OutcomeError(code=error.code, message=t(key, locale, **params) if key else error.message,
+                        category=error.category, retryable=error.retryable, correlation_id=execution_id,
+                        output=None if error.output is None else bound_text(error.output, MAX_REPORT_BYTES))
+
+
+def _select_language(definition, supplied) -> Language:
+    """``select_language``, with its failure explained to the student as a submission error."""
+    try:
+        return select_language(definition, supplied)
+    except DefinitionValidationError as exc:
+        code = exc.errors()[0]["code"]
+        allowed = ", ".join(definition.languages)
+        if code == "LANGUAGE_REQUIRED":
+            explanation = ("preflight.error.language_required", {"languages": allowed})
+        else:
+            # Only a published identifier is echoed: a Python caller may pass any string.
+            value = getattr(supplied, "value", supplied)
+            explanation = ("preflight.error.language_not_allowed",
+                           {"language": value if value in LANGUAGE_IDS else "?", "languages": allowed})
+        raise EvaluationError(code, "The submission language is not valid for this definition.", "submission",
+                              explanation=explanation) from exc
 
 
 class AutograderPipeline:
@@ -51,7 +75,7 @@ class AutograderPipeline:
 
     # Keep the ordered calls and failure boundaries together instead of hiding
     # them behind a configurable step framework.
-    # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+    # pylint: disable=too-many-locals,too-many-statements
     def run(self, submission: Submission, *, observer: DiagnosticObserver | None = None) -> PipelineExecution:
         """Return a finalized outcome after closing this run's owned session."""
         execution_id = str(uuid4())
@@ -67,7 +91,7 @@ class AutograderPipeline:
         # Required work has one failure boundary. The local session is owned as
         # soon as acquisition returns, even if staging immediately raises.
         try:
-            submission = replace(submission, language=select_language(definition, submission.language))
+            submission = replace(submission, language=_select_language(definition, submission.language))
             requirements = requirements_for(self.compiled, submission.language)
             validate_submission(self.compiled, submission, requirements)
             check_capabilities(requirements.capabilities, self.capabilities)
@@ -123,13 +147,9 @@ class AutograderPipeline:
                     )
                     feedback = FeedbackOutcome(status="failed", error=feedback_error)
                     _observe(observer, execution_id, operation, feedback_error)
-        except DefinitionValidationError as exc:
-            error = OutcomeError(code=exc.errors()[0]["code"],
-                                 message="The submission language is not valid for this definition.",
-                                 category="submission", retryable=False, correlation_id=execution_id)
         except EvaluationError as exc:
             logger.exception("Required evaluation failed (execution_id=%s)", execution_id)
-            error = _outcome_error(exc, execution_id)
+            error = _outcome_error(exc, execution_id, submission.locale)
         except Exception:  # pylint: disable=broad-exception-caught
             logger.exception("Required evaluation failed (execution_id=%s)", execution_id)
             error = OutcomeError(code="EXECUTION_ERROR", message="The grading execution could not complete.",

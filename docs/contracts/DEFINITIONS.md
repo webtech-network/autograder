@@ -119,7 +119,12 @@ IDs give comparison identity; hash equality gives complete definition equality.
 
 Preparation contains `languages` keyed by allowed language. Each language has
 unique relative `required_files` and `setup_commands` with nonempty `name` and
-`command`. Fixtures have logical `reference`, relative fixture-root `path`, and
+`command`, and an optional strict boolean `private_output` (default `false`, and
+omitted from the canonical snapshot while `false`). When a step fails, the
+student sees its `name`, its exit code and an excerpt of its output; set
+`private_output: true` on a step whose output could reveal private content, such
+as compiling a hidden test harness, to show only the name and exit code
+([OUTCOMES.md](OUTCOMES.md#explained-submission-failures)). Fixtures have logical `reference`, relative fixture-root `path`, and
 `read_only` (default true); targets are unique. Paths disallow traversal, absolute
 paths, backslashes and NUL. The current S3 host maps a safe relative reference to
 an object key and mounts fixtures at `/tmp/app/<path>`, separately from student

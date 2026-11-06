@@ -182,6 +182,18 @@ class OutcomeError(ContractModel):
     category: Literal["definition", "submission", "capability", "provider", "internal"]
     retryable: bool = Field(strict=True)
     correlation_id: str = Field(min_length=1)
+    #: Excerpt of the failing preparation step's output (``submission`` errors
+    #: only, see OUTCOMES.md "Explained submission failures"). Absent, not null,
+    #: on the wire when there is none, so other errors serialize as before.
+    output: Annotated[str, _bounded(MAX_REPORT_BYTES)] | None = Field(
+        default=None, exclude_if=lambda value: value is None,
+        description="Excerpt of the failing preparation step's output; submission errors only")
+
+    @model_validator(mode="after")
+    def validate_output(self):
+        if self.output is not None and self.category != "submission":
+            raise ValueError("Only submission errors carry output")
+        return self
 
 
 class TestOutcome(ContractModel):
