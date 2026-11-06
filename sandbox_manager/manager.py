@@ -12,7 +12,8 @@ from typing import Dict, Iterable, Optional
 
 import docker
 
-from sandbox_manager.errors import RuntimeImageError, RuntimeUnavailableError
+from sandbox_manager.docker_profile import GVISOR_RUNTIME, RUNTIMES
+from sandbox_manager.errors import IsolationRuntimeError, RuntimeImageError, RuntimeUnavailableError
 from sandbox_manager.language_pool import LanguagePool, SandboxBudget
 from sandbox_manager.models.pool_config import SandboxHostConfig, SandboxPoolConfig
 from sandbox_manager.models.sandbox_models import DisposalStatus
@@ -48,16 +49,39 @@ def verify_runtime_images(client: docker.DockerClient, configs: Iterable[Sandbox
                 "Map the language to the image built for it in `runtimes:`.")
 
 
+def verify_isolation_runtime(client: docker.DockerClient, runtime: str) -> None:
+    """Require the Docker daemon to offer the configured OCI runtime, and log the decision.
+
+    The runtime is the host's explicit choice; it is never replaced by another one.
+    """
+    if runtime not in RUNTIMES:
+        raise IsolationRuntimeError(f"Unknown sandbox runtime '{runtime}'; set general.runtime to one of "
+                                    f"{', '.join(RUNTIMES)}")
+    offered = client.info().get("Runtimes") or {}
+    if runtime not in offered:
+        raise IsolationRuntimeError(
+            f"The sandbox runtime '{runtime}' this host requests is not offered by this Docker daemon "
+            f"(it offers: {', '.join(sorted(offered)) or 'none'}). Install and register it, or choose another "
+            "runtime explicitly; sandboxes never fall back to a different runtime.")
+    if runtime == GVISOR_RUNTIME:
+        logger.info("[SandboxManager] Sandboxes run under gVisor (runsc), as this host requests")
+    else:
+        logger.warning("[SandboxManager] Sandboxes run under %s, as this host requests: submissions "
+                       "share the host kernel without gVisor's isolation", runtime)
+
+
 class SandboxManager:
     """Owns the language pools, their shared budget, the monitor thread and this process's owner lease.
 
     ``max_sandboxes`` (N) bounds creating + active + closing + quarantined
-    sandboxes across every language; acquisitions beyond it wait.
+    sandboxes across every language; acquisitions beyond it wait. ``runtime``
+    is the OCI runtime every sandbox uses (``runsc`` or ``runc``), the host's
+    explicit decision: the manager refuses to start when the daemon lacks it.
     """
 
     def __init__(self, pool_configs: Iterable[SandboxPoolConfig], client: Optional[docker.DockerClient] = None,
-                 *, max_sandboxes: int, owner: Optional[OwnerIdentity] = None, reclaim_orphans: bool = True,
-                 monitor_interval: float = 1.0):
+                 *, max_sandboxes: int, runtime: str, owner: Optional[OwnerIdentity] = None,
+                 reclaim_orphans: bool = True, monitor_interval: float = 1.0):
         configs = list(pool_configs)
         if not configs:
             raise ValueError("pool_configs must not be empty")
@@ -68,16 +92,19 @@ class SandboxManager:
         self._owns_client = client is None
         self.client = client or docker.from_env()
         try:
+            verify_isolation_runtime(self.client, runtime)
             verify_runtime_images(self.client, configs)
         except Exception:
             if self._owns_client:
                 self.client.close()
             raise
+        self.runtime = runtime
         self.owner = owner or OwnerIdentity.current()
         if reclaim_orphans:
             reclaim_dead_owners(self.client, self.owner)
         self.language_pools: Dict[Language, LanguagePool] = {
-            config.language: LanguagePool(config.language, config, self.client, self.owner, budget=self.budget)
+            config.language: LanguagePool(config.language, config, self.client, self.owner, budget=self.budget,
+                                          runtime=runtime)
             for config in configs
         }
         self._stop = threading.Event()
@@ -94,7 +121,7 @@ class SandboxManager:
     def from_config(cls, config: SandboxHostConfig, client: Optional[docker.DockerClient] = None,
                     **options) -> "SandboxManager":
         """A manager for a loaded ``sandbox_config.yml``."""
-        return cls(config.pools, client, max_sandboxes=config.max_sandboxes, **options)
+        return cls(config.pools, client, max_sandboxes=config.max_sandboxes, runtime=config.runtime, **options)
 
     def _pool(self, lang: Language) -> LanguagePool:
         pool = self.language_pools.get(lang)

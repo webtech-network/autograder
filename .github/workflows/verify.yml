@@ -114,8 +114,9 @@ jobs:
   docker:
     name: Docker sandboxes (integration and e2e)
     runs-on: ubuntu-latest
-    # Both runtimes for every Docker test: about 32 minutes with COR-01's attribution,
-    # COR-02's lifetime and PRF-03's staging suites, so 30 cancelled passing runs.
+    # About 32 minutes with COR-01's attribution, COR-02's lifetime and PRF-03's
+    # staging suites, so 30 cancelled passing runs; the per-runtime isolation
+    # suites have since moved to the `isolation` job.
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -130,6 +131,25 @@ jobs:
       - run: make install
       - run: make test-integration
       - run: make test-e2e
+
+  isolation:
+    name: Sandbox isolation under gVisor and runc
+    runs-on: ubuntu-latest
+    # About 27 minutes on ubuntu-latest: COR-01's 20 repetitions per runtime dominate.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: .tool-versions
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.11.15"
+          enable-cache: true
+      # uv sync --locked fails when pyproject.toml and uv.lock disagree.
+      - run: make install
+      - run: make gvisor-install
+      - run: make test-isolation
 
   http:
     name: HTTP path (Compose stack from this commit)
@@ -146,7 +166,97 @@ jobs:
           enable-cache: true
       # uv sync --locked fails when pyproject.toml and uv.lock disagree.
       - run: make install
+      # The stack runs the shipped sandbox_config.yml (runtime: runsc), as a
+      # deployment does; the control service refuses to start without it.
+      - run: make gvisor-install
       - run: make test-http
+
+  # The packaged Action from this commit, as a consumer's workflow runs it: on a
+  # GitHub-hosted runner, `uses: ./` with the quick-start inputs, no setup steps.
+  # Each fixture is graded by the real container action and then checked
+  # (scripts/action_fixtures.py): outcome and outputs, one sandbox per execution
+  # run and none left over, and a probe that sees no credential, runner variable,
+  # Docker socket or network.
+  action:
+    name: Packaged Action on a hosted runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: .tool-versions
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.11.15"
+          enable-cache: true
+      # uv sync --locked fails when pyproject.toml and uv.lock disagree.
+      - run: make install
+      # Fixture checkouts; action.yml builds Dockerfile.actions from this commit.
+      - run: make action-fixtures
+      - id: static
+        uses: ./
+        with:
+          definition-path: .action-fixtures/static/definition.json
+          submission-root: .action-fixtures/static/submission
+          locale: pt-br
+      - run: make test-action
+        env:
+          ACTION_FIXTURE: static
+          ACTION_STATUS: ${{ steps.static.outputs.status }}
+          ACTION_SCORE: ${{ steps.static.outputs.score }}
+          ACTION_RESULT_PATH: ${{ steps.static.outputs.result-path }}
+      - id: python_io
+        uses: ./
+        with:
+          definition-path: .action-fixtures/python-io/definition.json
+          submission-root: .action-fixtures/python-io/submission
+      - run: make test-action
+        env:
+          ACTION_FIXTURE: python-io
+          ACTION_STATUS: ${{ steps.python_io.outputs.status }}
+          ACTION_SCORE: ${{ steps.python_io.outputs.score }}
+          ACTION_RESULT_PATH: ${{ steps.python_io.outputs.result-path }}
+      - id: c_io
+        uses: ./
+        with:
+          definition-path: .action-fixtures/c-io/definition.json
+          submission-root: .action-fixtures/c-io/submission
+      - run: make test-action
+        env:
+          ACTION_FIXTURE: c-io
+          ACTION_STATUS: ${{ steps.c_io.outputs.status }}
+          ACTION_SCORE: ${{ steps.c_io.outputs.score }}
+          ACTION_RESULT_PATH: ${{ steps.c_io.outputs.result-path }}
+      - id: python_io_wrong
+        uses: ./
+        with:
+          definition-path: .action-fixtures/python-io-wrong/definition.json
+          submission-root: .action-fixtures/python-io-wrong/submission
+      - run: make test-action
+        env:
+          ACTION_FIXTURE: python-io-wrong
+          ACTION_STATUS: ${{ steps.python_io_wrong.outputs.status }}
+          ACTION_SCORE: ${{ steps.python_io_wrong.outputs.score }}
+          ACTION_RESULT_PATH: ${{ steps.python_io_wrong.outputs.result-path }}
+      - id: probe
+        uses: ./
+        with:
+          definition-path: .action-fixtures/probe/definition.json
+          submission-root: .action-fixtures/probe/submission
+          autograder-cloud-token: ENV03-SENTINEL-CLOUD-TOKEN
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          OPENAI_API_KEY: ENV03-SENTINEL-OPENAI-KEY
+      - run: make test-action
+        env:
+          ACTION_FIXTURE: probe
+          ACTION_STATUS: ${{ steps.probe.outputs.status }}
+          ACTION_SCORE: ${{ steps.probe.outputs.score }}
+          ACTION_RESULT_PATH: ${{ steps.probe.outputs.result-path }}
+          REAL_GITHUB_TOKEN: ${{ github.token }}
 
   # The Action release, run by hand (workflow_dispatch) on the branch that raises
   # the version in action.yml, before that branch can merge into main: publish
@@ -154,7 +264,7 @@ jobs:
   # the version (scripts/action_image.py, docs/github_action/README.md).
   action-release:
     name: Release Action image
-    needs: [core, postgres, images, docker, http]
+    needs: [core, postgres, images, docker, isolation, http, action]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -185,7 +295,7 @@ jobs:
 
   deploy:
     name: Deploy API
-    needs: [core, postgres, images, docker, http]
+    needs: [core, postgres, images, docker, isolation, http, action]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20

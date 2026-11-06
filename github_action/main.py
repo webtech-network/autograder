@@ -178,17 +178,22 @@ def run(args):
             output("submission-id", response["submission_id"])
         return payload["outcome"]["status"] == "completed"
     service = GithubActionService()
-    pipeline = service.configure(
-        definition_path=workspace_path(args.definition_path), execution_mode=args.execution_mode,
-        grading_config_id=args.grading_config_id, cloud_url=args.autograder_cloud_url,
-        cloud_token=args.autograder_cloud_token, upload_to_cloud=wants_delivery,
-        language=args.submission_language, locale=args.locale,
-        grading_config_revision=args.grading_config_revision,
-    )
-    identity = resolve_identity(args.submitter_id, args.submitter_name)
-    submission_root = workspace_path(args.submission_root)
-    provenance = run_provenance(submission_root)
-    outcome = service.run_autograder(pipeline, identity, collect_files(submission_root))
+    try:
+        pipeline = service.configure(
+            definition_path=workspace_path(args.definition_path), execution_mode=args.execution_mode,
+            grading_config_id=args.grading_config_id, cloud_url=args.autograder_cloud_url,
+            cloud_token=args.autograder_cloud_token, upload_to_cloud=wants_delivery,
+            language=args.submission_language, locale=args.locale,
+            grading_config_revision=args.grading_config_revision,
+        )
+        identity = resolve_identity(args.submitter_id, args.submitter_name)
+        submission_root = workspace_path(args.submission_root)
+        provenance = run_provenance(submission_root)
+        outcome = service.run_autograder(pipeline, identity, collect_files(submission_root))
+    finally:
+        # The run's sandbox is gone before anything is retained or published,
+        # whatever ended the grading (including SIGTERM, see _exit_on_sigterm).
+        service.close()
     value = outcome.model_dump(mode="json")
     result_path = retain_outcome(value)
     if value["status"] == "failed":
@@ -220,7 +225,11 @@ def main(argv=None):
 
 
 def _exit_on_sigterm(signum, _frame):
-    """The Action host owns signals: unwind through finally blocks so sandboxes are disposed."""
+    """The Action host owns signals: unwind through finally blocks so the sandbox is removed.
+
+    Grading runs in a worker thread (``GithubActionService.run_autograder``), so
+    this exception only ever interrupts the main thread's wait for it.
+    """
     raise SystemExit(128 + signum)
 
 

@@ -496,7 +496,7 @@ def budget_api():
     from tests.unit.sandbox.fakes import FakeDocker, owner, pool_config
 
     docker_client = FakeDocker()
-    real = SandboxManager([pool_config()], docker_client, max_sandboxes=1, owner=owner(), reclaim_orphans=False,
+    real = SandboxManager([pool_config()], docker_client, runtime="runc", max_sandboxes=1, owner=owner(), reclaim_orphans=False,
                           monitor_interval=3600)
     settings = ControlSettings(token=TOKEN, reaper_interval_seconds=3600)
     with TestClient(create_app(settings, lambda: real)) as client, ThreadPoolExecutor(64) as executor:
@@ -569,7 +569,7 @@ def test_acquisitions_are_not_serialized_by_the_registry():
     docker_client = FakeDocker(gvisor=True)
     together = threading.Barrier(2, timeout=30)
     docker_client.on_run = lambda _kwargs: together.wait()
-    real = SandboxManager([pool_config()], docker_client, max_sandboxes=2, owner=owner(), reclaim_orphans=False,
+    real = SandboxManager([pool_config()], docker_client, runtime="runc", max_sandboxes=2, owner=owner(), reclaim_orphans=False,
                           monitor_interval=3600)
     with TestClient(create_app(ControlSettings(token=TOKEN, reaper_interval_seconds=3600), lambda: real)) as client:
         with ThreadPoolExecutor(2) as executor:

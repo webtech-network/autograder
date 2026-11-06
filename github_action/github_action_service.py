@@ -1,9 +1,11 @@
 """One-submission Actions adapter; credentials never enter grading identity."""
 import json
 import logging
+import threading
 from pathlib import Path
 
 from autograder.autograder import build_pipeline
+from autograder.models.capabilities import requirements_for
 from autograder.models.contracts.definition import compile_definition, compile_snapshot, select_language
 from autograder.models.contracts.provenance import DefinitionProvenance
 from autograder.models.dataclass.submission import Submission
@@ -58,24 +60,52 @@ class GithubActionService:
             )
         if upload_to_cloud:
             self.publisher = CloudPublisher(client, int(self.assignment_id), compiled.definition)
-        from execution_host.docker import DockerHost
-        self.host = DockerHost.from_environment()
+        from execution_host.runner import RunnerHost, provider_capabilities
+        # Only a definition that runs code for the selected language touches the
+        # runner's Docker: it is checked and the runtime image provisioned before grading.
+        if "sandbox_execution" in requirements_for(compiled, self.language).capabilities:
+            self.host = RunnerHost(self.language)
+            capabilities = self.host.capabilities
+        else:
+            capabilities = provider_capabilities()
         return build_pipeline(definition=compiled, locale=locale, provenance=provenance,
-                              capabilities=self.host.capabilities)
+                              capabilities=capabilities)
 
     def run_autograder(self, pipeline, identity, submission_files):
         submission = Submission(
             username=identity.submitter_name, user_id=identity.submitter_id, assignment_id=self.assignment_id,
             submission_files=submission_files, language=self.language, locale=self.locale,
         )
+        # Grading runs in a worker thread and this thread only waits for it. The
+        # exception main's SIGTERM handler raises therefore interrupts the wait,
+        # never the sandbox bookkeeping, and close() can remove the sandbox (and
+        # any container still being created) while the worker is mid-flight.
+        result = {}
+
+        def grade():
+            try:
+                result["outcome"] = pipeline.run(submission).outcome
+            except BaseException as exc:  # pylint: disable=broad-exception-caught  # re-raised below
+                result["error"] = exc
+
+        worker = threading.Thread(target=grade, name="grading", daemon=True)
         try:
-            return pipeline.run(submission).outcome
+            worker.start()
+            worker.join()
         finally:
-            if self.host is not None:
-                try:
-                    self.host.close()
-                except Exception:
-                    logger.exception("Actions host cleanup failed after grading")
+            self.close()
+        if "error" in result:
+            raise result["error"]
+        return result["outcome"]
+
+    def close(self):
+        """Remove the run's sandbox, if any. Grading never depends on it; safe to call repeatedly."""
+        host, self.host = self.host, None
+        if host is not None:
+            try:
+                host.close()
+            except Exception:  # pylint: disable=broad-exception-caught
+                logger.exception("Actions host cleanup failed after grading")
 
     def delivery_payload(self, outcome, identity, provenance):
         if self.publisher is None:

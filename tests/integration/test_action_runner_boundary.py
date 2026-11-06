@@ -1,5 +1,8 @@
-"""INT-02 with real Docker: the Action's runner capability keeps credentials out of
-reach of the untrusted submission it grades, without the web host's pool lifecycle."""
+"""INT-02 with real Docker: the Action's runner host keeps credentials out of reach of
+the untrusted submission it grades, without the web host's pool lifecycle.
+
+In-process, so a failure points at the host; tests/images/test_action_runner_host.py
+runs the same probe through the packaged Action image with the runner's socket."""
 import json
 from pathlib import Path
 
@@ -7,7 +10,7 @@ import pytest
 
 from github_action import main
 from autograder.models.language import Language
-from tests.sandbox_profiles import TEST_IMAGES, sandbox_config
+from tests.sandbox_profiles import TEST_IMAGES
 
 PROBE = r'''
 import json, os, socket
@@ -49,13 +52,9 @@ def action_workspace(tmp_path, monkeypatch):
     path = workspace / ".github/autograder/definition.json"
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps(definition))
-    config = tmp_path / "sandbox.yml"
-    config.write_text(sandbox_config())
     monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
     monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "outputs"))
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
-    monkeypatch.setenv("SANDBOX_MODE", "local")
-    monkeypatch.setenv("SANDBOX_CONFIG_FILE", str(config))
     for name, value in SENTINELS.items():
         monkeypatch.setenv(name, value)
     return workspace
@@ -78,23 +77,22 @@ def test_submission_code_cannot_observe_runner_credentials(action_workspace):
     assert observed["workspace_files"] == ["main.py"]
 
 
-def test_action_capability_owns_and_releases_its_sandboxes(action_workspace, monkeypatch):
+def test_action_host_creates_one_sandbox_and_removes_it_before_returning(action_workspace, monkeypatch):
     import docker
-    from execution_host.docker import DockerHost
+    from execution_host.runner import RunnerHost
 
     created = []
-    original = DockerHost.acquire
+    original = RunnerHost.acquire
 
     def acquire(self, language, budget=None):
         session = original(self, language, budget)
         created.append(session.sandbox.container_ref.id)
         return session
 
-    monkeypatch.setattr(DockerHost, "acquire", acquire)
+    monkeypatch.setattr(RunnerHost, "acquire", acquire)
     main.run(main.parser.parse_args([]))
-    assert created
+    assert len(created) == 1
     client = docker.from_env()
-    for container_id in created:
-        # The Action host disposes every sandbox it created before returning.
-        with pytest.raises(docker.errors.NotFound):
-            client.containers.get(container_id)
+    # The Action host disposes the sandbox it created before returning.
+    with pytest.raises(docker.errors.NotFound):
+        client.containers.get(created[0])

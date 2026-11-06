@@ -111,12 +111,18 @@ Static assessment needs no capabilities:
 outcome = evaluate_submission(submission, definition=static_definition)
 ```
 
-HTTP and Actions use the same I/O definition with an explicitly composed Docker
-profile. `DockerHost` lazily constructs its own local or remote manager; static
-work does not initialize it. HTTP owns the host for its application lifetime.
-Actions owns it for the command and closes it before publication. HTTP defaults
-to its configured local profile; the container Action defaults to remote execution
-at `http://localhost:8001` and should set an accessible service URL explicitly:
+HTTP and Actions use the same I/O definition and the same Docker sandbox
+profile, each composed by its host. HTTP owns a `DockerHost` for its
+application lifetime: it lazily constructs a local (`mode="local"`) or remote
+(`mode="remote"` with the sandbox control API's `api_url`, which has no default)
+manager, and static work does not initialize it. HTTP calls `DockerHost.start()`
+at startup, so a local-mode API whose sandbox configuration, runtime or images
+are unusable refuses to start. The Action composes a `RunnerHost`
+(`execution_host/runner.py`) only when the selected language's criteria or
+preparation execute code: one sandbox of that language under `runc`, created on
+demand on the runner's own Docker, bounded by the grading's execution budget and
+removed before publication
+([Action execution on the runner](DECISIONS.md#action-execution-on-the-runner-env-03)).
 
 ```python
 from execution_host.docker import DockerHost
@@ -137,11 +143,9 @@ Use it as the HTTP configuration's `definition` and as the Action's
 `hello` on stdin and expecting `hello` on stdout. HTTP accepts that file through
 its submission endpoint; Actions collects it from `submission-root`.
 
-The Actions container can use an accessible sandbox service through
-`SANDBOX_MODE=remote`, `SANDBOX_API_URL` and `SANDBOX_API_TOKEN`; this avoids
-requiring a nested Docker daemon. The control service is private and token
-protected; see [SANDBOX.md](SANDBOX.md) for its lifecycle, owner leases,
-worker model and recovery rules. Local Docker hosts use `mode="local"` and a sandbox configuration file.
+The sandbox control service is private, token protected and web-only; see
+[SANDBOX.md](SANDBOX.md) for its lifecycle, owner leases, worker model and
+recovery rules. Local Docker hosts use `mode="local"` and a sandbox configuration file.
 Custom runner implementations implement the same session operations; evaluators
 receive no manager or provider identity. Only evaluators declaring `sandbox_execution`
 or `http_network` receive the session, as `evaluation.session`; every other

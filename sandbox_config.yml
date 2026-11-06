@@ -1,5 +1,12 @@
 general:
 
+    # RUNTIME (required): the OCI runtime every sandbox runs under, chosen here once.
+    #   runsc  gVisor; the host refuses to start when Docker does not offer it.
+    #   runc   accepted without gVisor: submissions share the host kernel.
+    # A host never switches runtime by itself: a failed gVisor start fails that one
+    # acquisition (retryable). Per-environment expectations: docs/contracts/SANDBOX.md.
+    runtime: runsc
+
     # MAX SANDBOXES (N): the host-wide sandbox budget, shared by every language,
     # by grading and by deliberate execution (POST /execute).
     # Sandboxes being created, in use, being removed or quarantined never exceed N.
@@ -32,7 +39,7 @@ general:
 # A language left out has no pool: grading or deliberate execution in that language
 # fails as an unavailable capability (never as an invalid language).
 # These are the versioned images built from sandbox_manager/images (see
-# `python scripts/sandbox_images.py list`). Images are never pulled implicitly: run
+# `python scripts/sandbox_images.py list`). The HTTP host never pulls them: run
 # `docker pull <image>` (or `make sandbox-build-all`) first; a missing image, or one
 # whose autograder.runtime.languages label omits the language, stops the host at startup.
 runtimes:

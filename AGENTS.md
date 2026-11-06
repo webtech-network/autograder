@@ -11,7 +11,7 @@ abstractions. Breaking contract changes require migration evidence.
 they collect files, authenticate, select configuration identity, accept work,
 persist/publish results and retry delivery. `sandbox_manager/` supplies execution
 infrastructure. `execution_host/` composes the concrete providers (`DockerHost`,
-`S3FixtureProvider`, the OpenAI provider) into `HostCapabilities`. Core must never
+`RunnerHost`, `S3FixtureProvider`, the OpenAI provider) into `HostCapabilities`. Core must never
 import adapters, infrastructure or provider SDKs, or interpret platform identities,
 repository changes, database IDs, or workflow job names. Dependencies point
 hosts → `execution_host` → `sandbox_manager` → core;
@@ -35,7 +35,11 @@ removal, and a failed removal is quarantined (tracked, counted against capacity,
 retried) and surfaces as a cleanup error that never changes the grade. Containers
 carry owner leases; startup reclaims only provably dead owners and
 `python -m sandbox_manager.reclaim` handles the rest. The control API is private,
-bearer-authenticated and single-worker ([SANDBOX.md](docs/contracts/SANDBOX.md)). Fixtures are an uncached host
+bearer-authenticated and single-worker ([SANDBOX.md](docs/contracts/SANDBOX.md)).
+The Action's `RunnerHost` uses the same profile on the runner's Docker (explicitly `runc` on
+every runner): one on-demand sandbox of the selected language, removed before
+publication, with no pool, control API or reclamation
+([trust.md](docs/github_action/trust.md#runner-execution-boundary)). Fixtures are an uncached host
 `reference -> bytes` call; `FixtureNotFound` is a non-retryable
 `PREPARATION_ERROR`, other provider failures are retryable.
 
@@ -226,7 +230,7 @@ Docker integration tests exercise real grading isolation. Architecture tests
 (`tests/unit/test_architecture.py`) protect dependency direction, catalog/example
 truthfulness and the extension path. `make verify` is the hermetic path (lint,
 schema drift, strict docs build, unit and SQLite HTTP tests); `make test-postgres`,
-`make test-integration` and `make test-e2e` are the database and Docker tiers. CI
+`make test-integration`, `make test-isolation` and `make test-e2e` are the database and Docker tiers. CI
 runs exactly these targets and deploys only after all pass; see
 [the development guide](docs/guides/development.md#verification). Preserve unrelated work;
 use a clean worktree for delivery. Do not add co-author commit trailers.

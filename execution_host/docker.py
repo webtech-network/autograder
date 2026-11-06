@@ -146,17 +146,21 @@ def docker_capabilities(manager):
 
 
 class DockerHost:
-    """Lazy, isolated manager for one host lifetime. Static work starts nothing.
+    """The HTTP host's isolated manager for one host lifetime. Static work starts nothing.
 
+    ``mode="local"`` runs the pools in this process from ``config_file``;
+    ``mode="remote"`` uses the private sandbox control API at ``api_url``, which
+    has no default. The Action uses :class:`execution_host.runner.RunnerHost`.
     The mode, the provider settings and the sandbox configuration's host
     maximum are validated at construction; Docker and the network are first
-    used by the first acquisition.
+    used by :meth:`start` or by the first acquisition.
     """
-    def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml",
-                 api_token=None):
+    def __init__(self, *, mode, api_url=None, config_file="sandbox_config.yml", api_token=None):
         from sandbox_manager.models.pool_config import SandboxHostConfig
         if mode not in ("local", "remote"):
             raise ValueError(f"SANDBOX_MODE must be local or remote, got {mode!r}")
+        if mode == "remote" and not api_url:
+            raise ValueError("Remote sandbox mode needs the sandbox control API URL")
         self.mode = mode
         self.api_url = api_url
         self.api_token = api_token
@@ -178,8 +182,22 @@ class DockerHost:
             ai=ConfiguredAssessmentProvider.from_environment(),
             max_session_seconds=self.max_session_seconds)
 
+    def start(self):
+        """Start a local manager now, so a host that cannot execute fails at service start.
+
+        The manager validates the sandbox configuration, the configured runtime
+        (``IsolationRuntimeError`` when Docker does not offer it) and the runtime
+        images. A long-running service calls this before it reports ready; in
+        remote mode the control service performs the same checks in its own startup.
+        """
+        if self.mode == "local":
+            self._get_manager()
+
     def acquire(self, language, budget=None, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS):
         """An owned session for ``budget``; waits up to ``wait_seconds`` for a slot of the sandbox budget."""
+        return DockerSession(self._get_manager(), language, budget, wait_seconds)
+
+    def _get_manager(self):
         with self._lock:
             if self._manager is None:
                 if self.mode == "remote":
@@ -190,8 +208,7 @@ class DockerHost:
                     from sandbox_manager.models.pool_config import SandboxHostConfig
                     # Reclaims containers of provably dead owners, then starts the pools.
                     self._manager = SandboxManager.from_config(SandboxHostConfig.load_from_yaml(self.config_file))
-            manager = self._manager
-        return DockerSession(manager, language, budget, wait_seconds)
+            return self._manager
 
     def close(self):
         """Shut down the manager this host created. Safe to call repeatedly."""
@@ -199,10 +216,3 @@ class DockerHost:
             manager, self._manager = self._manager, None
         if manager is not None:
             manager.shutdown()
-
-    @classmethod
-    def from_environment(cls):
-        return cls(mode=os.environ.get("SANDBOX_MODE", "remote"),
-                   api_url=os.environ.get("SANDBOX_API_URL", "http://localhost:8001"),
-                   api_token=os.environ.get("SANDBOX_API_TOKEN") or None,
-                   config_file=os.environ.get("SANDBOX_CONFIG_FILE", "sandbox_config.yml"))

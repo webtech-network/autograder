@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 import requests
-from tests.sandbox_profiles import TEST_SANDBOX_CONFIG
+from tests.sandbox_profiles import sandbox_config
 
 
 @pytest.fixture(scope="session")
@@ -18,7 +18,7 @@ def isolated_api(tmp_path_factory):
     directory = tmp_path_factory.mktemp("autograder-e2e")
     database = directory / "api.sqlite3"
     config = directory / "sandbox.yml"
-    config.write_text(TEST_SANDBOX_CONFIG)
+    config.write_text(sandbox_config())
     token = secrets.token_hex(24)
     producer_token = secrets.token_hex(24)
     env = dict(os.environ, DATABASE_URL=f"sqlite+aiosqlite:///{database}",

@@ -1,7 +1,7 @@
 """One execution time budget, granted by the host and enforced by the sandbox (COR-02).
 
 Every test runs under each runtime this daemon offers: gVisor (``runsc``) when it
-is installed, and Docker's default runtime (``runc``), forced. The definitions use
+is installed, and ``runc``, each chosen explicitly as a host does. The definitions use
 the built-in 30 s process deadline and the shipped ``sandbox_config.yml``.
 """
 # pylint: disable=missing-function-docstring,redefined-outer-name
@@ -25,6 +25,7 @@ from sandbox_manager.models.pool_config import SandboxHostConfig
 from sandbox_manager.ownership import APP_FILTER, LABEL_OWNER, LABEL_OWNER_PROCESS
 from sandbox_manager.remote_client import RemoteSandboxManager
 from tests.integration import lifetime_owner
+from tests.sandbox_profiles import offered_runtimes
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -35,16 +36,7 @@ PROGRAMS = {
 }
 
 
-def _daemon_runtimes():
-    client = docker.from_env()
-    try:
-        offered = client.info().get("Runtimes", {})
-    finally:
-        client.close()
-    return [runtime for runtime in ("runsc", "runc") if runtime == "runc" or runtime in offered]
-
-
-@pytest.fixture(scope="module", params=_daemon_runtimes())
+@pytest.fixture(scope="module", params=offered_runtimes())
 def runtime(request):
     return request.param
 
@@ -54,9 +46,7 @@ def manager(runtime):
     """The shipped host configuration, Python only, on the runtime under test."""
     config = SandboxHostConfig.load_from_yaml("sandbox_config.yml")
     pools = [pool for pool in config.pools if pool.language is Language.PYTHON]
-    manager = SandboxManager(pools, max_sandboxes=config.max_sandboxes)
-    if runtime == "runc":
-        manager.language_pools[Language.PYTHON]._gvisor_available = False  # pylint: disable=protected-access
+    manager = SandboxManager(pools, max_sandboxes=config.max_sandboxes, runtime=runtime)
     yield manager
     manager.shutdown()
 

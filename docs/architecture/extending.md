@@ -170,7 +170,7 @@ session the host grants:
 ```python
 from execution_host.docker import DockerHost
 
-host = DockerHost(mode="local")          # or DockerHost.from_environment()
+host = DockerHost(mode="local")          # or mode="remote", api_url=<sandbox control API>
 try:
     outcome = evaluate_submission(submission, definition=compiled, capabilities=host.capabilities)
 finally:

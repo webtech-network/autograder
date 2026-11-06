@@ -172,7 +172,9 @@ async def test_http_details_carry_the_compiler_excerpt_and_polling_stays_compact
         assert DIAGNOSTIC["java"].search(details["outcome"]["error"]["output"])
 
 
-def test_action_summary_and_artifact_carry_the_compiler_excerpt(sandbox_file, tmp_path, monkeypatch):
+def test_action_summary_and_artifact_carry_the_compiler_excerpt(tmp_path, monkeypatch):
+    # The Action's RunnerHost reads the shipped sandbox_config.yml (the same
+    # runtime images) and no SANDBOX_* setting (ENV-03).
     workspace = tmp_path / "workspace"
     (workspace / ".github/autograder").mkdir(parents=True)
     (workspace / "main.c").write_text(BROKEN["c"])
@@ -180,8 +182,6 @@ def test_action_summary_and_artifact_carry_the_compiler_excerpt(sandbox_file, tm
     monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
     monkeypatch.setenv("GITHUB_OUTPUT", str(tmp_path / "outputs"))
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(tmp_path / "summary"))
-    monkeypatch.setenv("SANDBOX_MODE", "local")
-    monkeypatch.setenv("SANDBOX_CONFIG_FILE", str(sandbox_file))
     assert action.run(action.parser.parse_args(["--submitter-id", "alice", "--locale", "pt-br"])) is False
     outcome = json.loads((workspace / ".autograder/outcome.json").read_text(encoding="utf-8"))
     assert outcome["error"]["message"] == MESSAGE["pt-br"]

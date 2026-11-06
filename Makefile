@@ -5,7 +5,11 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e test-http images test-images action-check action-publish sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+# The hermetic tests run against an unreachable Docker endpoint, so a test that
+# reaches for a daemon fails here and in CI (whose runners have Docker).
+NO_DOCKER := DOCKER_HOST=unix:///nonexistent/hermetic.sock
+
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-isolation test-e2e test-http images test-images action-fixtures test-action action-check action-publish gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -31,37 +35,52 @@ docs: ## Check documentation links and API routes, then build the site strictly
 	$(PYTHON) scripts/validate_docs.py
 	$(PYTHON) -m mkdocs build --strict --quiet
 
-test: ## Unit tests
-	$(PYTHON) -m pytest tests/unit/
+test: ## Unit tests (no Docker daemon reachable)
+	$(NO_DOCKER) $(PYTHON) -m pytest tests/unit/
 
-test-web: ## HTTP tests on SQLite (the PostgreSQL tier is excluded)
-	$(PYTHON) -m pytest tests/web/ -m "not postgres"
+test-web: ## HTTP tests on SQLite (the PostgreSQL tier is excluded; no Docker daemon reachable)
+	$(NO_DOCKER) $(PYTHON) -m pytest tests/web/ -m "not postgres"
 
 ##@ Docker and database tiers
 
 test-postgres: ## PostgreSQL guarantees; fails unless TEST_POSTGRES_URL is set
 	$(PYTHON) -m pytest tests/web/ -m postgres
 
-test-integration: sandbox-build-all ## Real Docker sandboxes (builds sandbox images)
-	$(PYTHON) -m pytest tests/integration/
+# The per-runtime isolation suites run once, in test-isolation, under every runtime Docker offers.
+ISOLATION_SUITES := tests/integration/test_hostile_submissions.py tests/integration/test_sandbox_attribution.py
+
+test-integration: sandbox-build-all ## Real Docker sandboxes except the isolation suites (builds sandbox images)
+	$(PYTHON) -m pytest tests/integration/ $(addprefix --ignore=,$(ISOLATION_SUITES))
+
+test-isolation: sandbox-build-all ## Per-runtime isolation suites, under every runtime Docker offers (runsc after `make gvisor-install`)
+	$(PYTHON) -m pytest $(ISOLATION_SUITES)
 
 test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 	PYTHON='$(PYTHON)' ./scripts/run_e2e_tests.sh
 
-test-http: images sandbox-build-all ## HTTP path: two Compose stacks from this checkout, fixture grading, receipt recovery
+test-http: images sandbox-build-all ## HTTP path: two Compose stacks from this checkout, fixture grading, receipt recovery (needs runsc)
 	AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' $(PYTHON) -m pytest tests/stack/ -v
 
 # Local names of the service and Action images: $(IMAGE_PREFIX)-<name>:$(IMAGE_TAG).
 IMAGE_PREFIX ?= autograder
 IMAGE_TAG ?= local
 
+gvisor-install: ## Install the pinned gVisor release as Docker's runsc runtime (sudo; CI's isolation and http jobs)
+	./scripts/install_gvisor.sh
+
 images: ## Build the API, sandbox manager and Action images from this checkout
 	docker build -t $(IMAGE_PREFIX)-api:$(IMAGE_TAG) -f Dockerfile.api .
 	docker build -t $(IMAGE_PREFIX)-sandbox-manager:$(IMAGE_TAG) -f Dockerfile.sandbox .
 	docker build -t $(IMAGE_PREFIX)-action:$(IMAGE_TAG) -f Dockerfile.actions .
 
-test-images: images ## Contents, context leaks and Action grading of exactly those images
+test-images: images sandbox-build-python ## Contents, context leaks and Action grading of exactly those images
 	AUTOGRADER_IMAGE_PREFIX='$(IMAGE_PREFIX)' AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' $(PYTHON) -m pytest tests/images/
+
+action-fixtures: ## Fixture checkouts for the packaged-Action CI job; points action.yml at Dockerfile.actions (CI)
+	$(PYTHON) -m scripts.action_fixtures prepare
+
+test-action: ## Check the outcome and sandboxes of the fixture ACTION_FIXTURE just graded by `uses: ./` (CI)
+	$(PYTHON) -m scripts.action_fixtures check
 
 action-check: ## Fail unless the Action image action.yml pins is published and public (CI, into main)
 	$(PYTHON) -m scripts.action_image check

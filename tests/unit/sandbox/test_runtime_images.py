@@ -122,7 +122,7 @@ def test_publish_stops_when_it_cannot_tell_whether_a_reference_exists(monkeypatc
 # ----- a host refuses to start with a missing or mismatched image ---------------------
 
 def start(client, *configs):
-    return SandboxManager(list(configs), client, max_sandboxes=2, owner=owner(), reclaim_orphans=False, monitor_interval=60)
+    return SandboxManager(list(configs), client, runtime="runc", max_sandboxes=2, owner=owner(), reclaim_orphans=False, monitor_interval=60)
 
 
 def test_missing_runtime_image_fails_at_startup_and_creates_nothing():
@@ -174,7 +174,7 @@ def test_startup_failure_closes_a_client_the_manager_created(monkeypatch):
     client.images.missing.add(TEST_IMAGES[Language.PYTHON])
     monkeypatch.setattr(docker, "from_env", lambda: client)
     with pytest.raises(RuntimeImageError):
-        SandboxManager([pool_config()], max_sandboxes=2, owner=owner(), reclaim_orphans=False,
+        SandboxManager([pool_config()], runtime="runc", max_sandboxes=2, owner=owner(), reclaim_orphans=False,
                        monitor_interval=60)
     client.close.assert_called_once()
 

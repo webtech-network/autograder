@@ -126,7 +126,7 @@ def test_an_unreadable_snapshot_gets_the_margin_only():
 
 def write_host_config(tmp_path, running_timeout):
     path = tmp_path / "sandbox_config.yml"
-    path.write_text(f"general:\n  max_sandboxes: 2\n  running_timeout: {running_timeout}\n"
+    path.write_text(f"general:\n  runtime: runc\n  max_sandboxes: 2\n  running_timeout: {running_timeout}\n"
                     "runtimes:\n  python: sandbox-py:latest\n")
     return str(path)
 
@@ -153,7 +153,7 @@ def test_a_host_config_without_running_timeout_grants_the_shipped_maximum(tmp_pa
     from web.core.config import Settings  # pylint: disable=import-outside-toplevel
     from web.core.host import WebHost  # pylint: disable=import-outside-toplevel
     path = tmp_path / "sandbox_config.yml"
-    path.write_text("general:\n  max_sandboxes: 2\nruntimes:\n  python: sandbox-py:latest\n")
+    path.write_text("general:\n  runtime: runc\n  max_sandboxes: 2\nruntimes:\n  python: sandbox-py:latest\n")
     host = WebHost(Settings(SANDBOX_MODE="remote", SANDBOX_CONFIG_FILE=str(path),
                             RECEIPT_DIR=str(tmp_path / "receipts")), session_factory=Mock(), start_workers=False)
     assert host.capabilities.max_session_seconds == 900

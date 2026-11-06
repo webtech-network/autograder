@@ -25,7 +25,7 @@ LONG_WAIT = 30.0  # Only ever reached if the behaviour under test is broken.
 
 def make_manager(client, max_sandboxes, languages=(PY,), pool_size=0):
     return SandboxManager([pool_config(language, pool_size=pool_size) for language in languages], client,
-                          max_sandboxes=max_sandboxes, owner=owner(), reclaim_orphans=False, monitor_interval=3600)
+                          runtime="runc", max_sandboxes=max_sandboxes, owner=owner(), reclaim_orphans=False, monitor_interval=3600)
 
 
 def wait_until(manager, predicate):
@@ -206,31 +206,6 @@ def test_failed_creation_releases_its_slot_to_the_next_waiter(client):
         manager.shutdown()
 
 
-def test_concurrent_gvisor_fallback_creates_each_container_once(client):
-    """Several creators discover the missing runtime at once; each falls back for its own name only."""
-    attempts = threading.Barrier(3, timeout=LONG_WAIT)
-
-    def run(kwargs):
-        if kwargs.get("runtime") == "runsc":
-            attempts.wait()                               # All three try gVisor before any learns it is absent.
-
-    client.on_run = run
-    manager = make_manager(client, 3)
-    try:
-        with ThreadPoolExecutor(3) as executor:
-            sandboxes = list(executor.map(lambda _: manager.get_sandbox(PY), range(3)))
-        names = sorted(sandbox.container_ref.name for sandbox in sandboxes)
-        assert len(set(names)) == 3 and sorted(container.name for container in client.live.values()) == names
-        assert all("runtime" not in sandbox.container_ref.kwargs for sandbox in sandboxes)
-        client.on_run = None
-        manager.dispose(sandboxes[0])
-        manager.get_sandbox(PY)
-        assert "runtime" not in client.containers.run_calls[-1]  # The fallback is remembered.
-        assert len(client.containers.run_calls) == 7
-    finally:
-        manager.shutdown()
-
-
 # ------------------------------------------------------------------ warm pool
 
 def test_warm_containers_are_outside_the_budget_but_taking_one_takes_a_slot(client):
@@ -308,14 +283,15 @@ def test_shutdown_during_creation_removes_the_new_container_before_returning(cli
 
 # ------------------------------------------------------------------ configuration
 
-def write(tmp_path, general):
+def write(tmp_path, general, runtime="  runtime: runc\n"):
     path = tmp_path / "sandbox.yml"
-    path.write_text(f"general:\n{general}runtimes:\n  python: sandbox-py:latest\n  java: sandbox-java:latest\n")
+    path.write_text(f"general:\n{runtime}{general}runtimes:\n  python: sandbox-py:latest\n  java: sandbox-java:latest\n")
     return str(path)
 
 
-def test_configuration_is_the_budget_plus_warm_pool_size(tmp_path):
+def test_configuration_is_the_runtime_budget_plus_warm_pool_size(tmp_path):
     config = SandboxHostConfig.load_from_yaml(write(tmp_path, "  max_sandboxes: 8\n  pool_size: 1\n"))
+    assert config.runtime == "runc"
     assert config.max_sandboxes == 8
     assert [(pool.language, pool.pool_size) for pool in config.pools] == [(PY, 1), (JAVA, 1)]
 
@@ -336,6 +312,16 @@ def test_configuration_is_the_budget_plus_warm_pool_size(tmp_path):
 def test_unworkable_or_removed_settings_are_rejected_at_startup(tmp_path, general, message):
     with pytest.raises(ValueError, match=message):
         SandboxHostConfig.load_from_yaml(write(tmp_path, general))
+
+
+@pytest.mark.parametrize("runtime", ["", "  runtime: gvisor\n", "  runtime: null\n", "  runtime: kata\n"])
+def test_the_runtime_is_an_explicit_required_choice(tmp_path, runtime):
+    with pytest.raises(ValueError, match="general.runtime .*is required and must be one of runsc, runc"):
+        SandboxHostConfig.load_from_yaml(write(tmp_path, "  max_sandboxes: 2\n", runtime=runtime))
+
+
+def test_the_shipped_configuration_requires_gvisor():
+    assert SandboxHostConfig.load_from_yaml("sandbox_config.yml").runtime == "runsc"
 
 
 def test_running_timeout_defaults_to_the_shipped_maximum_and_admits_the_smallest_session(tmp_path):
