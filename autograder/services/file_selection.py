@@ -9,6 +9,11 @@ from autograder.models.dataclass.submission import EvaluationScope, SubmissionFi
 from autograder.models.evaluation_error import EvaluationError
 
 
+def _explained(code: str, message: str, key: str, test: TestNode, *, files=(), **params) -> EvaluationError:
+    """A submission failure naming the criterion and, when relevant, its files (see OUTCOMES.md)."""
+    return EvaluationError(code, message, "submission", explanation=(
+        key, {"criterion": test.name, "files": ", ".join(files), **params}))
+
 
 def select_files(
     test: TestNode,
@@ -22,14 +27,18 @@ def select_files(
     parameter_targets = [test.parameters[name] for name in evaluator.file_parameters if test.parameters.get(name)]
     if parameter_targets:
         if targets is not None and not set(parameter_targets).issubset(targets):
-            raise EvaluationError("FILE_TARGET_CONFLICT", "Criterion file parameters conflict with its targets.", "submission")
+            raise _explained("FILE_TARGET_CONFLICT", "Criterion file parameters conflict with its targets.",
+                             "preflight.error.parameter_target_conflict", test, files=sorted(set(parameter_targets) - set(targets)))
         targets = parameter_targets
     scoped = set(scope.scoped_files) if scope is not None else None
     if targets is not None:
-        if any(name not in submission_files for name in targets):
-            raise EvaluationError("REQUIRED_FILE_MISSING", "A required assessment file is missing.", "submission")
+        missing = [name for name in targets if name not in submission_files]
+        if missing:
+            raise _explained("REQUIRED_FILE_MISSING", "A required assessment file is missing.",
+                             "preflight.error.target_file_missing", test, files=missing)
         if scoped is not None and not set(targets).issubset(scoped):
-            raise EvaluationError("FILE_TARGET_CONFLICT", "A criterion target is outside the evaluation scope.", "submission")
+            raise _explained("FILE_TARGET_CONFLICT", "A criterion target is outside the evaluation scope.",
+                             "preflight.error.target_outside_scope", test, files=[name for name in targets if name not in scoped])
         names = set(targets)
     elif evaluator.maximum_files == 0:
         names = set()
@@ -39,11 +48,15 @@ def select_files(
         names = scoped & submission_files.keys()
 
     # File types are the evaluator's decision (its parser rules), not a language table.
-    if targets is not None and any(not evaluator.accepts_file(name, language) for name in names):
-        raise EvaluationError("UNSUPPORTED_FILE_TYPE", "A criterion target has an unsupported file type.", "submission")
+    unsupported = sorted(name for name in names if not evaluator.accepts_file(name, language)) if targets is not None else []
+    if unsupported:
+        raise _explained("UNSUPPORTED_FILE_TYPE", "A criterion target has an unsupported file type.",
+                         "preflight.error.unsupported_file_type", test, files=unsupported)
     files = [submission_files[name] for name in sorted(names) if evaluator.accepts_file(name, language)]
     if len(files) < evaluator.minimum_files:
-        raise EvaluationError("REQUIRED_FILE_MISSING", "A required assessment file is missing.", "submission")
+        raise _explained("REQUIRED_FILE_MISSING", "A required assessment file is missing.",
+                         "preflight.error.too_few_files", test, minimum=evaluator.minimum_files, found=len(files))
     if evaluator.maximum_files is not None and len(files) > evaluator.maximum_files:
-        raise EvaluationError("AMBIGUOUS_FILE_TARGET", "This assessment requires an explicit single file target.", "submission")
+        raise _explained("AMBIGUOUS_FILE_TARGET", "This assessment requires an explicit single file target.",
+                         "preflight.error.ambiguous_file_target", test, maximum=evaluator.maximum_files, found=len(files))
     return files

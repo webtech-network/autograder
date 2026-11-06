@@ -5,25 +5,25 @@ from pydantic import BaseModel, Field, JsonValue, model_validator
 
 class SubjectConfig(BaseModel):
     """Configuration for a subject within a grading category."""
-    subject_name: str = Field(..., min_length=1, description="Name of the subject")
+    subject_name: str = Field(..., min_length=1, description="Display name of the subject.")
     weight: float = Field(
-        ..., ge=0, le=100, strict=True, description="Weight of this subject (0-100)"
+        ..., ge=0, le=100, strict=True, description="Weight (0-100) relative to sibling subjects; all-zero siblings share equally."
     )
     tests: Optional[List[TestConfig]] = Field(
-        None, description="Tests under this subject"
+        None, description="Criteria directly under this subject; null when it has none."
     )
     subjects: Optional[List["SubjectConfig"]] = Field(
-        None, description="Nested subjects"
+        None, description="Subjects nested in this subject; null when it has none."
     )
     subjects_weight: Optional[float] = Field(
         None,
         strict=True,
         ge=0,
         le=100,
-        description="Weight of the subject when it is a heterogeneous tree",
+        description="Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise.",
     )
 
-    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+    metadata: dict[str, JsonValue] = Field(default_factory=dict, description="Free-form JSON stored with the definition; never interpreted by grading.")
 
     model_config = {"extra": "forbid", "allow_inf_nan": False}
 

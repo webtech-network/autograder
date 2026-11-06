@@ -87,7 +87,7 @@ class FakeSession:
         """Record the files the run staged."""
         self.files = dict(files)
 
-    def stage_fixture(self, path, content, read_only):
+    def stage_fixtures(self, fixtures):
         """This definition declares no fixtures."""
         raise AssertionError("This definition stages no fixtures")
 

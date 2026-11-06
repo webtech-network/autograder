@@ -126,7 +126,8 @@ proves on PostgreSQL that `upgrade head` from empty equals the models (an empty
 autogenerate diff), so a model change without a migration fails CI.
 
 Set `DATABASE_URL`, `AUTOGRADER_INTEGRATION_TOKEN`, the required sandbox/provider
-configuration, and a persistent `WEB_OUTCOME_RECEIPT_DIR`. Worker settings listed
+configuration, and a persistent `WEB_OUTCOME_RECEIPT_DIR`
+([configuration](../operate/configuration.md), [deployment](../operate/deployment.md)). Worker settings listed
 above are positive values validated during construction. Multiple API processes
 have independent workers and coordinate claims through the same PostgreSQL rows.
 No separate queue product or scheduler service is required.
@@ -200,12 +201,12 @@ the capacity benchmark below measures those.
 `scripts/capacity_benchmark.py` measures an already running stack through its
 public HTTP API with an integration token. It never starts, migrates or configures
 the stack, so the same command works for the compose stack and a production-like
-deployment. Against `docker compose up` (synthetic token `e2e-test-token`):
+deployment. Against `make start-autograder` (project `autograder`, its token exported):
 
 ```sh
-AUTOGRADER_INTEGRATION_TOKEN=e2e-test-token python scripts/capacity_benchmark.py \
+python scripts/capacity_benchmark.py \
   --url http://localhost:8000 --workload python-io \
-  --api-pid "$(docker inspect -f '{{.State.Pid}}' autograder-api)" \
+  --api-pid "$(docker inspect -f '{{.State.Pid}}' "$(docker compose ps -q api)")" \
   --sandbox-label autograder.sandbox.owner_host=autograder-sandbox-manager > result.json
 ```
 
@@ -215,7 +216,7 @@ terminal. Workloads expand the checked-in v1 examples:
 
 | `--workload` | Definition | Submission | Executes in |
 | --- | --- | --- | --- |
-| `python-io` | `python-io.json` with `--tests` (5) stdin/stdout tests | distinct correct `main.py` | one sandbox per grading |
+| `python-io` | `python-io.json` with `--tests` (5) stdin/stdout tests | distinct correct `main.py`, plus `--files` (1) − 1 unused 2 KiB modules | one sandbox per grading |
 | `webdev` | `webdev.json` with `--criteria` (30) `has_tag` checks | distinct correct page of `--page-kb` (20) KiB | the API process |
 | `mix` | both, alternating, plus `--executions` (12) concurrent `POST /execute` | as above | shared sandbox pools |
 

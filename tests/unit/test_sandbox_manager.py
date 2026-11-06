@@ -8,6 +8,7 @@ Tests cover:
 """
 
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, MagicMock, patch
 import base64
 
@@ -19,10 +20,12 @@ from autograder.models.process import ProcessRequest, ProcessStatus, SandboxExha
 from sandbox_manager.errors import (
     ArtifactReadError, ArtifactTooLargeError, ProcessExecutionError, SandboxInvalidatedError,
 )
-from sandbox_manager.sandbox_container import COLLECT, READ, RUNNER, WRITE, SandboxContainer
+from sandbox_manager.sandbox_container import COLLECT, READ, RUNNER, STAGE, SandboxContainer, _demultiplex
 from sandbox_manager.models.sandbox_models import SandboxState, HttpResponse
 from autograder.models.language import Language
+from tests.docker_exec_double import StdinExecApi
 from tests.sandbox_profiles import TEST_IMAGES
+from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.dataclass.submission import SubmissionFile
 import requests
 
@@ -64,6 +67,8 @@ class ScriptedContainer:
         # Docker's record of the container (``State``), consulted only when a control exec fails.
         self.attrs = {"State": state or {"Status": "running", "Running": True, "OOMKilled": False, "ExitCode": 0}}
         self.calls = []
+        # Staging execs, fed on stdin, go through Docker's low-level exec API.
+        self.client = SimpleNamespace(api=StdinExecApi(self.calls))
         self.waited = 0
         self.id, self.name = "abc123def456", "fake"
 
@@ -184,9 +189,8 @@ def test_control_execs_run_as_root_and_the_submission_as_sandbox():
     sandbox.run_process(ProcessRequest(argv=("p",), stdin=b"x" * 60_000))
     with pytest.raises(ArtifactReadError):  # the double answers READ with nothing
         sandbox.extract_file("/app/a.py")
-    users = [(call[0][2] if call[0][:2] == ["/bin/sh", "-c"] else call[0][0], call[1]) for call in container.calls]
-    assert users == [(WRITE, "sandbox"), (WRITE, "sandbox"), (WRITE, "sandbox"), (RUNNER, "sandbox"),
-                     (COLLECT, "root"), (READ, "root")]
+    users = [(call[0][2] if call[0][:2] == ["/bin/sh", "-c"] else call[0], call[1]) for call in container.calls]
+    assert users == [(STAGE, "sandbox"), (STAGE, "sandbox"), (RUNNER, "sandbox"), (COLLECT, "root"), (READ, "root")]
 
 
 class TestSandboxContainer(unittest.TestCase):
@@ -211,22 +215,82 @@ class TestSandboxContainer(unittest.TestCase):
         self.assertIsNotNone(self.sandbox.activated_at)
         self.assertFalse(hasattr(self.sandbox, "release"))
 
-    def test_prepare_workdir_writes_each_file_with_exact_bytes(self):
-        content = "print('ol\u00e1')\n" + "x" * 100_000  # larger than one argument chunk
-        self.sandbox.prepare_workdir({"pkg/main.py": SubmissionFile("pkg/main.py", content)})
-        written = b""
-        for call in self.mock_container.exec_run.call_args_list:
-            cmd = call.kwargs["cmd"]
-            self.assertEqual(cmd[:3], ["/bin/sh", "-c", WRITE])
-            self.assertEqual(cmd[4], "/app/pkg/main.py")
-            written += base64.b64decode(cmd[6])
-        self.assertEqual(written, content.encode("utf-8"))
-        self.assertEqual([call.kwargs["cmd"][5] for call in self.mock_container.exec_run.call_args_list],
-                         ["new", "append", "append"])
+    def test_prepare_workdir_stages_every_file_in_one_transfer(self):
+        container = ScriptedContainer()
+        content = "print('ol\u00e1')\n" + "x" * 100_000
+        files = {"pkg/main.py": content, "\u00e9t\u00e9/\u6587.py": "", **{f"m{i}.py": str(i) for i in range(98)}}
+        SandboxContainer(Language.PYTHON, container).prepare_workdir(
+            {name: SubmissionFile(name, text) for name, text in files.items()})
+        self.assertEqual(container.calls, [(STAGE, "sandbox", "/")])
+        [staged] = container.client.api.archives()
+        self.assertEqual(staged, {f"app/{name}": (text.encode("utf-8"), 0o644) for name, text in files.items()})
 
     def test_prepare_workdir_empty_files(self):
         self.sandbox.prepare_workdir({})
         self.mock_container.exec_run.assert_not_called()
+        self.mock_container.client.api.exec_create.assert_not_called()
+
+    def test_prepare_workdir_validates_every_path_before_transferring_any(self):
+        container = ScriptedContainer()
+        for bad in ("../escape.py", "/etc/passwd", "a/../../b.py", ".."):
+            with self.subTest(path=bad), self.assertRaises(RuntimeError) as raised:
+                SandboxContainer(Language.PYTHON, container).prepare_workdir(
+                    {"ok.py": SubmissionFile("ok.py", "x"), bad: SubmissionFile(bad, "x")})
+            self.assertIsInstance(raised.exception.__cause__, ValueError)
+        self.assertEqual(container.calls, [])
+
+    def test_a_failed_transfer_invalidates_the_sandbox(self):
+        container = ScriptedContainer()
+        container.client.api.exit_code, container.client.api.output = 2, b"tar: write error: No space left\n"
+        sandbox = SandboxContainer(Language.PYTHON, container)
+        with self.assertRaises(RuntimeError) as raised:
+            sandbox.prepare_workdir({"a.py": SubmissionFile("a.py", "x")})
+        self.assertIsInstance(raised.exception.__cause__, ProcessExecutionError)
+        self.assertIn("No space left", str(raised.exception))
+        with self.assertRaises(SandboxInvalidatedError):
+            sandbox.run_process(ProcessRequest(argv=("p",)))
+
+    def test_an_unfinished_exec_is_not_a_success(self):
+        container = ScriptedContainer()
+        container.client.api.exit_code = None  # Docker has no exit code for it
+        sandbox = SandboxContainer(Language.PYTHON, container)
+        with self.assertRaises(ProcessExecutionError):
+            sandbox.inject_assets([ResolvedAsset("/tmp/a", b"x")])
+        self.assertIsNotNone(sandbox.invalidated)
+
+    def test_a_docker_daemon_over_tls_is_refused_before_any_exec(self):
+        """A TLS socket cannot be half-closed, so stdin could never end: refuse, never guess."""
+        container = ScriptedContainer()
+        container.client.api.base_url = "https://docker.example:2376"
+        sandbox = SandboxContainer(Language.PYTHON, container)
+        with self.assertRaises(ProcessExecutionError) as raised:
+            sandbox.inject_assets([ResolvedAsset("/tmp/a", b"x")])
+        self.assertIn("not TLS", str(raised.exception))
+        self.assertEqual(container.calls, [])
+        self.assertIsNotNone(sandbox.invalidated)
+
+    def test_stdin_up_to_the_inline_size_is_an_argument_and_above_it_one_transfer(self):
+        for size, staged in ((48 * 1024, False), (48 * 1024 + 1, True), (1024 * 1024, True)):
+            with self.subTest(size=size):
+                container = ScriptedContainer()
+                stdin = bytes(range(256)) * (size // 256) + b"\x00" * (size % 256)
+                SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(argv=("p",), stdin=stdin))
+                scripts = [call[0] if call[0] == STAGE else call[0][2] for call in container.calls]
+                runner = next(call[0] for call in container.calls if call[0][2:3] == [RUNNER])
+                if staged:
+                    [archive] = container.client.api.archives()
+                    [(name, (data, _))] = archive.items()
+                    self.assertEqual((name, runner[5]), (f"{runner[4][1:]}/in", "-"))
+                    self.assertEqual(data, stdin)
+                    self.assertEqual(scripts, [STAGE, RUNNER, COLLECT])
+                else:
+                    self.assertEqual(base64.b64decode(runner[5]), stdin)
+                    self.assertEqual(scripts, [RUNNER, COLLECT])
+
+    def test_docker_stream_frames_are_joined(self):
+        frames = b"".join(bytes([kind, 0, 0, 0]) + len(data).to_bytes(4, "big") + data
+                          for kind, data in ((1, b"out "), (2, b"err"), (1, b"")))
+        self.assertEqual(_demultiplex(frames), b"out err")
 
     def test_argv_is_passed_as_positional_parameters_never_as_shell_text(self):
         container = ScriptedContainer(stdout=b"ok\n")

@@ -135,7 +135,7 @@ the removed `scale_limit`/`idle_timeout`, a missing or non-positive
 ## SandboxContainer API
 
 ### `prepare_workdir(submission_files)`
-Copies submission files into the container's `/app` directory. Supports nested directory structures (e.g., `services/service.java` → `/app/services/service.java`).
+Stages submission files into the container's `/app` directory in one transfer (one `tar` exec fed on stdin, whatever the file count or size). Supports nested directory structures (e.g., `services/service.java` → `/app/services/service.java`). See [Staging](../contracts/SANDBOX.md#staging).
 
 ```python
 sandbox.prepare_workdir(submission_files)
@@ -143,7 +143,7 @@ sandbox.prepare_workdir(submission_files)
 ```
 
 ### `inject_assets(resolved_assets)`
-Injects static assets (datasets, fixtures) into the container's `/tmp` directory using a shell-escaped Base64 `exec_run` write path compatible with gVisor.
+Stages a fixture set under the container's `/tmp` directory in one transfer, owned by `root` and read-only (`0444`) when requested.
 
 ```python
 sandbox.inject_assets(resolved_assets)

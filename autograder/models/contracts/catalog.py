@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from autograder.models.abstract.template import Template
 from autograder.models.abstract.test_function import TestFunction
+from autograder.models.contracts.definition import ContractJsonSchema
 from autograder.models.language import LanguageId
 
 Capability = Literal["sandbox_execution", "http_network", "ai_provider", "structural_analysis"]
@@ -54,7 +55,7 @@ class TemplateCatalog(BaseModel):
 
 def parameters_schema(function: TestFunction) -> Dict[str, Any]:
     """JSON Schema of the exact contract used by compile_definition."""
-    return {**function.config_schema.model_json_schema(), "additionalProperties": False}
+    return {**function.config_schema.model_json_schema(schema_generator=ContractJsonSchema), "additionalProperties": False}
 
 
 def _sample(schema: Mapping[str, Any], defs: Mapping[str, Any]) -> Any:

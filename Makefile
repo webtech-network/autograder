@@ -5,7 +5,7 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-isolation test-e2e images gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-isolation test-e2e test-http images gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -23,8 +23,9 @@ verify: lint contracts docs test test-web ## Hermetic core/library path (no Dock
 lint: ## Pylint the shipped packages, scripts and examples, serially (.pylintrc)
 	$(PYTHON) -m pylint autograder web sandbox_manager execution_host github_action scripts examples
 
-contracts: ## Check that checked-in JSON Schemas match the models
+contracts: ## Check that checked-in JSON Schemas and docs/reference match the contracts
 	$(PYTHON) scripts/generate_contract_schemas.py --check
+	$(PYTHON) scripts/generate_reference.py --check
 
 docs: ## Check documentation links and API routes, then build the site strictly
 	$(PYTHON) scripts/validate_docs.py
@@ -53,13 +54,19 @@ test-isolation: sandbox-build-all ## Per-runtime isolation suites, under every r
 test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 	PYTHON='$(PYTHON)' ./scripts/run_e2e_tests.sh
 
-gvisor-install: ## Install the pinned gVisor release as Docker's runsc runtime (sudo; CI's isolation job)
+test-http: images sandbox-build-all ## HTTP path: two Compose stacks from this checkout, fixture grading, receipt recovery (needs runsc)
+	AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' $(PYTHON) -m pytest tests/stack/ -v
+
+# Tag of the images `make images` builds, which docker-compose.yml runs (AUTOGRADER_IMAGE_TAG).
+IMAGE_TAG ?= local
+
+gvisor-install: ## Install the pinned gVisor release as Docker's runsc runtime (sudo; CI's isolation and http jobs)
 	./scripts/install_gvisor.sh
 
 images: ## Build the API, sandbox manager and Action images from this checkout
-	docker build -t autograder-api:local -f Dockerfile.api .
-	docker build -t autograder-sandbox-manager:local -f Dockerfile.sandbox .
-	docker build -t autograder-action:local -f Dockerfile.actions .
+	docker build -t autograder-api:$(IMAGE_TAG) -f Dockerfile.api .
+	docker build -t autograder-sandbox-manager:$(IMAGE_TAG) -f Dockerfile.sandbox .
+	docker build -t autograder-action:$(IMAGE_TAG) -f Dockerfile.actions .
 
 # The versioned runtime images named in sandbox_config.yml (scripts/sandbox_images.py).
 SANDBOX_IMAGES = $(PYTHON) scripts/sandbox_images.py
@@ -110,9 +117,14 @@ db-migrate: ## Autogenerate a migration against head: make db-migrate MSG="descr
 docs-serve: ## Serve the docs site with live reload
 	$(PYTHON) -m mkdocs serve
 
-start-autograder: sandbox-build-all ## Start PostgreSQL, the API and the sandbox manager (needs SANDBOX_API_TOKEN)
-	docker compose up -d --build
-	@echo "Autograder API: http://localhost:8000"
+start-autograder: ## Development stack: PostgreSQL, S3 emulator, sandbox manager, API (needs two tokens)
+	@test -n "$$SANDBOX_API_TOKEN" -a -n "$$AUTOGRADER_INTEGRATION_TOKEN" || { \
+	  echo 'Export SANDBOX_API_TOKEN and AUTOGRADER_INTEGRATION_TOKEN first (long random secrets), e.g.'; \
+	  echo '  export SANDBOX_API_TOKEN="$$(openssl rand -hex 32)" AUTOGRADER_INTEGRATION_TOKEN="$$(openssl rand -hex 32)"'; \
+	  exit 2; }
+	$(MAKE) --no-print-directory sandbox-build-all
+	AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' docker compose up -d --build --wait
+	@echo "Autograder API: http://127.0.0.1:$${AUTOGRADER_HTTP_PORT:-8000}"
 
 examples-demo: ## Serve the interactive demo page (needs a running API)
 	cd examples/demo && $(PYTHON) serve_demo.py

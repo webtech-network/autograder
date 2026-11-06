@@ -175,7 +175,7 @@ class CheckInternalLinks(TestFunction):
     minimum_files = 1
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
-                required_count: Annotated[int, Field(ge=1, description="O número mínimo de links válidos.")] = 1,
+                required_count: Annotated[int, Field(ge=1, description="The minimum number of links that point to an existing element ID.")] = 1,
                 ) -> TestResult:
         """Executes the internal link verification."""
         files = evaluation.files
@@ -321,7 +321,7 @@ class CheckInternalLinksToArticle(TestFunction):
     minimum_files = 1
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
-                required_count: Annotated[int, Field(ge=1, description="O número mínimo de links válidos.")] = 1,
+                required_count: Annotated[int, Field(ge=1, description="The minimum number of links that point to the ID of an <article> element.")] = 1,
                 ) -> TestResult:
         """Executes the verification of links to articles."""
         files = evaluation.files

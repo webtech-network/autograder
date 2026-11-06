@@ -40,6 +40,7 @@ We currently follow a **basic Git workflow** and coordinate work through GitHub 
    make test-integration    # changes to execution or evaluators (needs Docker)
    make test-isolation      # changes to the sandbox profile or runtime (needs Docker)
    make test-e2e            # changes to the HTTP service (needs Docker)
+   make test-http           # changes to configuration, images or compose (needs Docker)
    ```
 
    CI runs all of them on every pull request; see

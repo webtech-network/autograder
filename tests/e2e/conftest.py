@@ -24,7 +24,7 @@ def isolated_api(tmp_path_factory):
     env = dict(os.environ, DATABASE_URL=f"sqlite+aiosqlite:///{database}",
         AUTOGRADER_INTEGRATION_TOKEN=token, AUTOGRADER_ATTESTATION_TOKENS=f"actions={producer_token}",
         SANDBOX_MODE="local", SANDBOX_CONFIG_FILE=str(config), LOG_LEVEL="WARNING",
-        APP_ENV="test", PYTHON_DOTENV_DISABLED="1")
+        APP_ENV="test", PYTHON_DOTENV_DISABLED="1", WEB_OUTCOME_RECEIPT_DIR=str(directory / "receipts"))
     # Retain the bound socket through exec, avoiding a free-port discovery race.
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))

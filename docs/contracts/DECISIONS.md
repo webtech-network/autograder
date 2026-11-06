@@ -57,9 +57,10 @@ nonnegative `duration_ms`, `score`, `tree`, `feedback`, and `error`.
 * Optional focus/feedback/comparison enrichment failure preserves a completed
   grade and is represented by its own disabled/completed/failed status.
 
-Safe errors expose code, fixed safe message, category, retryability, and an
+Safe errors expose code, message, category, retryability, and an
 execution correlation ID, never raw exceptions, provider responses or step
-class names. Diagnostics are internal. Criterion IDs identify tree leaves and
+class names. Infrastructure, provider and internal messages are fixed;
+submission failures are explained to the student (ONB-02, below). Diagnostics are internal. Criterion IDs identify tree leaves and
 AI batch outputs, including repeated evaluators and duplicate display labels.
 
 External ingestion is an authenticated host attestation, not proof that this
@@ -491,6 +492,35 @@ artifact, under both runtimes). The collector needs no fork until it has
 reported the cgroup counters, is restarted when runc finds no pid to start it,
 and a running container at its pids limit is exhaustion. The outcome wire is
 unchanged. See [PROCESSES.md](PROCESSES.md#who-ended-a-run).
+
+
+## Explained submission failures (ONB-02)
+
+INT-07 hid infrastructure details from outcomes and, with them, the diagnostics
+students own: a non-compiling submission said only "A required setup command
+failed." A `submission`-category `EvaluationError` may now carry an
+`explanation` (a `preflight.error.*` catalog key and its parameters) and the
+failing step's `output`. The pipeline renders the explanation in the
+submission's locale (COR-07's closed set) as the error `message` and excerpts
+`output` with COR-06's `bound_text` and `MAX_REPORT_BYTES`; `EvaluationError`
+and `OutcomeError` reject both for every other category, so capability,
+provider and internal errors are unchanged byte for byte. Categories, codes,
+`retryable` and the null score/tree are unchanged: an unpreparable submission is
+still a failed grading, never an assessed zero.
+
+The wire change is additive: `OutcomeError.output` is optional and absent (not
+`null`) when there is none, so every outcome without it serializes exactly as
+before, and stored outcomes need no migration. A consumer that validates with
+`additionalProperties: false` against the previous schema must update before it
+receives an outcome with `output` or a snapshot with `private_output`: deploy
+the HTTP host before Actions that attest them. Setup commands gain `private_output` (strict boolean,
+default `false`), omitted from the canonical snapshot while `false`, so existing
+definition hashes and bound snapshots are unchanged. Messages name only
+definition-authored files, steps, criteria and languages, never the setup
+command or submitted file names. The dead `preflight.*` and `system.*` catalog
+keys were replaced by the keys now used; a test keeps that namespace free of
+unused or missing keys in both locales. See
+[OUTCOMES.md](OUTCOMES.md#explained-submission-failures).
 
 ## Bounded writable paths and an explicit runtime (COR-04)
 

@@ -5,12 +5,28 @@ from pathlib import PurePosixPath
 from types import MappingProxyType
 from typing import Literal, Mapping
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, field_validator, model_validator
+from pydantic.json_schema import GenerateJsonSchema
 from autograder.models.abstract.template import Template
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import CriteriaTree
 from autograder.models.frozen import freeze, thaw
 from autograder.models.language import Language, LanguageId
 from autograder.models.process import SHELL_OPERATOR_MESSAGE, shell_operator, split_command
+
+
+class ContractJsonSchema(GenerateJsonSchema):
+    """Publish every default compilation applies, including ``default_factory`` ones.
+
+    Pydantic omits factory defaults (``[]``, ``{}``, nested preference objects)
+    from JSON Schema; discovery, the published schema and the generated
+    reference must state them.
+    """
+
+    def get_default_value(self, schema):
+        factory = schema.get('default_factory')
+        if factory is not None and not schema.get('default_factory_takes_data'):
+            return factory()
+        return super().get_default_value(schema)
 
 
 class StrictModel(BaseModel):
@@ -25,11 +41,17 @@ def relative_path(value: str) -> str:
 
 
 class SetupCommand(StrictModel):
-    name: str = Field(min_length=1)
+    """One preparation step, run once before assessment in the selected language's sandbox."""
+    name: str = Field(min_length=1, description="Label of the step, shown when it fails.")
     command: str = Field(min_length=1, description=(
         "Executable and arguments, split with POSIX quoting and run without a shell. "
         "Standalone shell operators (&&, |, ;, >, ...) are rejected: use one setup command per step, "
         "and an explicit `sh -c '...'` command only for a real pipeline."))
+    # Omitted from the snapshot while false, so definitions written before the
+    # field existed keep their hash.
+    private_output: bool = Field(default=False, exclude_if=lambda value: value is False, description=(
+        "Keep this step's output out of the student-facing failure explanation, for example when it "
+        "compiles a hidden test harness. By default a failing step's output excerpt is shown."))
 
     @field_validator('command')
     @classmethod
@@ -39,8 +61,13 @@ class SetupCommand(StrictModel):
 
 
 class LanguagePreparation(StrictModel):
-    required_files: list[str] = Field(default_factory=list)
-    setup_commands: list[SetupCommand] = Field(default_factory=list)
+    """Preparation for one allowed language."""
+    required_files: list[str] = Field(default_factory=list, description=(
+        "Unique relative submission paths that must exist; a missing one fails with REQUIRED_FILE_MISSING "
+        "before any sandbox is acquired."))
+    setup_commands: list[SetupCommand] = Field(default_factory=list, description=(
+        "Steps run in order after fixtures are staged, for example compilation. A failing step stops "
+        "grading with PREPARATION_FAILED."))
 
     @field_validator('required_files')
     @classmethod
@@ -53,15 +80,17 @@ class LanguagePreparation(StrictModel):
 
 
 class Fixture(StrictModel):
-    reference: str = Field(min_length=1)
+    """A host-provided file staged into the sandbox before setup commands."""
+    reference: str = Field(min_length=1, description=(
+        "Logical relative reference resolved by the host's fixture provider (an object key on the shipped hosts)."))
 
     @field_validator("reference")
     @classmethod
     def validate_reference(cls, value):
         return relative_path(value)
 
-    path: str
-    read_only: bool = True
+    path: str = Field(description="Unique relative destination under the fixture root (/tmp/app on the shipped hosts).")
+    read_only: bool = Field(default=True, description="Whether the staged file is read-only to the submission.")
 
     @field_validator('path')
     @classmethod
@@ -70,8 +99,10 @@ class Fixture(StrictModel):
 
 
 class Preparation(StrictModel):
-    languages: dict[LanguageId, LanguagePreparation] = Field(default_factory=dict)
-    fixtures: list[Fixture] = Field(default_factory=list)
+    """What must exist and run before any criterion is assessed."""
+    languages: dict[LanguageId, LanguagePreparation] = Field(default_factory=dict, description=(
+        "Preparation keyed by allowed language; only the submission's language is used."))
+    fixtures: list[Fixture] = Field(default_factory=list, description="Files staged for every language.")
 
     @model_validator(mode='after')
     def distinct_targets(self):
@@ -83,42 +114,59 @@ class Preparation(StrictModel):
 
 
 class LearningResource(StrictModel):
-    url: str = Field(min_length=1)
-    description: str
-    linked_tests: list[str] = Field(default_factory=list)
+    """A link listed in the feedback report."""
+    url: str = Field(min_length=1, description="Address of the resource.")
+    description: str = Field(description="Link text shown in the report.")
+    linked_tests: list[str] = Field(default_factory=list, description=(
+        "Criterion IDs; the resource is shown only when one of them scored below 100. Empty shows it always."))
 
 
 class GeneralPreferences(StrictModel):
-    report_title: str | None = None
-    show_score: bool = True
-    show_passed_tests: bool = False
-    add_report_summary: bool = True
-    online_content: list[LearningResource] = Field(default_factory=list)
+    """Report options shared by every feedback mode."""
+    report_title: str | None = Field(default=None, description=(
+        "Report heading; null uses the localized default title."))
+    show_score: bool = Field(default=True, description="Whether the report shows the final score.")
+    show_passed_tests: bool = Field(default=False, description=(
+        "Whether criteria that scored 100 are listed; by default only criteria below 100 are."))
+    add_report_summary: bool = Field(default=True, description="Whether the report starts with a score summary.")
+    online_content: list[LearningResource] = Field(default_factory=list, description=(
+        "Learning resources listed at the end of the report."))
 
 
 class DefaultPreferences(StrictModel):
-    category_headers: dict[Literal['base', 'bonus', 'penalty'], str] = Field(default_factory=dict)
+    """Options of the default Markdown report."""
+    category_headers: dict[Literal['base', 'bonus', 'penalty'], str] = Field(default_factory=dict, description=(
+        "Section heading per category; a missing category uses its localized default heading."))
 
 
 class FeedbackPreferences(StrictModel):
-    general: GeneralPreferences = Field(default_factory=GeneralPreferences)
-    default: DefaultPreferences = Field(default_factory=DefaultPreferences)
+    """How the feedback report is written."""
+    general: GeneralPreferences = Field(default_factory=GeneralPreferences, description="Options for every mode.")
+    default: DefaultPreferences = Field(default_factory=DefaultPreferences, description=(
+        "Options of the default mode."))
 
 
 class Feedback(StrictModel):
-    enabled: bool = False
-    mode: Literal['default'] = 'default'
-    preferences: FeedbackPreferences = Field(default_factory=FeedbackPreferences)
+    """Whether and how a feedback report is written for a completed grade."""
+    enabled: bool = Field(default=False, description=(
+        "Whether a feedback report is rendered; disabled feedback does no work."))
+    mode: Literal['default'] = Field(default='default', description="Report format; only the Markdown default exists.")
+    preferences: FeedbackPreferences = Field(default_factory=FeedbackPreferences, description="Report options.")
 
 
 class GradingDefinition(StrictModel):
-    schema_version: Literal['1.0']
-    templates: list[str] = Field(min_length=1)
-    languages: list[LanguageId] = Field(min_length=1)
-    criteria: CriteriaConfig
-    preparation: Preparation = Field(default_factory=Preparation)
-    feedback: Feedback = Field(default_factory=Feedback)
-    metadata: dict[str, JsonValue] = Field(default_factory=dict)
+    """One assignment's complete grading definition (version 1)."""
+    schema_version: Literal['1.0'] = Field(description="Definition format version.")
+    templates: list[str] = Field(min_length=1, description=(
+        "Distinct template identifiers whose evaluators the criteria may use."))
+    languages: list[LanguageId] = Field(min_length=1, description=(
+        "Distinct languages a submission may use; with several, each submission names its language."))
+    criteria: CriteriaConfig = Field(description="The weighted criteria tree.")
+    preparation: Preparation = Field(default_factory=Preparation, description=(
+        "Required files, fixtures and setup commands."))
+    feedback: Feedback = Field(default_factory=Feedback, description="Feedback report policy.")
+    metadata: dict[str, JsonValue] = Field(default_factory=dict, description=(
+        "Free-form JSON stored with the definition; never interpreted by grading."))
 
     @model_validator(mode='after')
     def validate_structure(self):
@@ -370,22 +418,25 @@ def select_language(definition: GradingDefinition | CompiledDefinition, supplied
     value = supplied.value if isinstance(supplied, Language) else supplied
     if value is None and len(definition.languages) == 1:
         value = definition.languages[0]
+    allowed = ', '.join(definition.languages)
     if value is None:
-        raise DefinitionValidationError([_error('LANGUAGE_REQUIRED', ('language',), 'Select one of the allowed languages')])
+        raise DefinitionValidationError([_error('LANGUAGE_REQUIRED', ('language',),
+                                                f'Select one of the allowed languages: {allowed}')])
     if value not in definition.languages:
-        raise DefinitionValidationError([_error('LANGUAGE_NOT_ALLOWED', ('language',), 'Language is not allowed by this definition')])
+        raise DefinitionValidationError([_error('LANGUAGE_NOT_ALLOWED', ('language',),
+                                                f'Language is not allowed by this definition; allowed: {allowed}')])
     return Language(value)
 
 
 def grading_definition_json_schema() -> dict:
     """Structural schema plus evaluator-conditional parameter contracts."""
-    schema = GradingDefinition.model_json_schema()
+    schema = GradingDefinition.model_json_schema(schema_generator=ContractJsonSchema)
     from autograder.template_library import BUILTIN_TEMPLATES
     conditions = []
     definitions = schema['$defs']
     for template in BUILTIN_TEMPLATES.values():
         for name, function in template.get_tests().items():
-            parameters = function.config_schema.model_json_schema()
+            parameters = function.config_schema.model_json_schema(schema_generator=ContractJsonSchema)
             parameters['additionalProperties'] = False
             for key, item in parameters.pop('$defs', {}).items():
                 if key in definitions and definitions[key] != item:
