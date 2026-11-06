@@ -3,7 +3,7 @@
 Run `uvicorn web.main:app`; interactive OpenAPI is at `/docs`.
 The grading definition and outcome each carry their own `schema_version: "1.0"`.
 See [definition contract](contracts/DEFINITIONS.md), [outcomes](contracts/OUTCOMES.md)
-and [Actions migration](github_action/configuration.md).
+and the [GitHub Action configuration](github_action/configuration.md).
 For runnable integration examples and generated OpenAPI, see
 [contract conformance](contracts/CONFORMANCE.md).
 
@@ -26,7 +26,7 @@ and/or `is_active`. Supply `If-Match: "<version>"`. Omitted fields are preserved
 explicit nulls are rejected. Updates validate the full definition and atomically
 check revision. Missing precondition is 428; stale revision is 412; malformed
 precondition/definition is 422. Identical updates are no-ops. Duplicate aliases
-are 409; reactivate the existing resource. PUT is retired.
+are 409; reactivate the existing resource. There is no `PUT`.
 
 ## Submissions and results
 
@@ -73,7 +73,7 @@ both labels, scores, categories, effective weights, `delta` and `status`
 `removed`). Different configurations give 422 `NOT_COMPARABLE`; pending or failed
 outcomes 409 `OUTCOME_NOT_COMPLETED`; unsnapshotted legacy history 409
 `LEGACY_UNVERIFIED`; unknown submissions 404. See the
-[baseline comparison contract](features/baseline_comparison.md) for the full
+[baseline comparison contract](contracts/COMPARISON.md) for the full
 compatibility table and an example.
 
 ## Authentication
@@ -92,18 +92,17 @@ gives 403. All integration principals share all resources. See the
 and typed `parameters_schema` generated from the same executable contracts.
 The OpenAPI models also include validated `sample_parameters`, evaluator-specific
 `required_capabilities` and known `supported_languages`; the list response's
-`capabilities` map explains deployment limitations. Use `evaluators[].identifier`
-in place of the removed `available_tests` list. See the
-[catalog and Python contract](contracts/CATALOG.md) for migration details.
+`capabilities` map explains deployment limitations; evaluators are identified by
+`evaluators[].identifier`. See the [catalog and Python contract](contracts/CATALOG.md).
 Definitions may use input_output, static_analysis, webdev and api. Valid API
-parameters do not imply the selected host has API networking; unavailable host
-capabilities produce structured failed outcomes.
+parameters do not imply the selected host has API networking: no shipped host
+provides it, and such definitions produce structured failed outcomes.
 
 `GET /api/v1/health` returns service health, version and a UTC timestamp.
 `GET /api/v1/ready` returns readiness and a UTC timestamp, with status 503 when the host cannot durably accept work. Execution-provider
 availability is reported separately and does not strand accepted jobs.
 
-`POST /api/v1/execute` is the [bounded deliberate execution API](features/deliberate_code_execution.md).
+`POST /api/v1/execute` is the [bounded deliberate execution API](contracts/EXECUTION.md).
 It requires the integration Bearer token. `test_cases` supplies stdin lines;
 the response separates stdout, stderr, exit status and process category. Invalid
 input is 422, unavailable infrastructure is 503, and the response deadline is

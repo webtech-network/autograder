@@ -99,6 +99,323 @@ own head; it never creates tables. Revisions `001`-`007` are squashed into a
 baseline `007`, so empty databases migrate and databases at `007` upgrade
 unchanged. See [deployment and migration](JOBS.md#deployment-and-migration).
 
+## Migration notes
+
+What changed for existing definitions, deployments and trusted Python code,
+kept here so that the contracts describe only current behaviour.
+
+### Definitions
+
+Convert one legacy definition envelope offline:
+
+```sh
+python -m autograder.services.definition_migration old-definition.json definition.json
+```
+
+Supply `template_name`, `grading_criteria`, `languages` and optional legacy
+setup/feedback fields. Multi-file repository configurations must first be
+assembled into that envelope. The converter assigns deterministic path-based IDs
+once, preserves weights/labels, moves the known `display_name` parameter to the
+label, removes the runtime language placeholder and converts the old file-target `all`
+  sentinel to null, and resolves only unambiguous
+learning-resource labels. Persist these new IDs; do not regenerate them on edits.
+Duplicate pairs, competing encodings, unsupported options and unsafe asset
+relocation require explicit instructor correction. There is no runtime converter.
+
+Migration 005 converts database rows, records rejection evidence, quarantines
+invalid rows inactive, and drops old configuration columns. Future submissions
+retain exact snapshots/hash/revision. Old submissions remain `unverified_legacy`;
+old failed numeric zeros become null grades. The migration is intentionally
+irreversible: back up first, drain old background executions, deploy the matching
+engine/API/Action consumers together, run Alembic upgrade, inspect quarantined rows,
+then reactivate only corrected definitions. Rollback restores the pre-upgrade DB
+backup with the previous code. Automatic schema creation does not migrate a DB.
+
+The old `test_library` envelope is unsupported. Multiple templates use an
+explicit list with collision-checked registry resolution. Evaluator parameters
+have typed contracts and stable criterion IDs. Provider mapping, resource limits,
+and infrastructure scheduling belong to the hosting environment rather than
+the definition schema.
+
+#### Definitions that compile no longer (ONB-01)
+Definitions that compiled before may now be rejected, intentionally: an explicit
+presence threshold of `0`, an empty forbid/find list, or a standalone shell
+operator in a command. Nothing else changes: a stored snapshot lists every
+parameter explicitly, so a valid snapshot keeps its meaning and hash, and a
+raw definition that omitted a threshold now gets 1 instead of an always-passing 0.
+There is no runtime fallback. A stored configuration that became invalid is
+rejected with the exact path (`422` on submission, a failed outcome for a job
+already bound to it) until it is corrected; nothing rewrites it silently.
+
+Before deploying, check every stored definition with the offline converter,
+which compiles v1 input unchanged and prints the precise errors:
+
+```sh
+python -m autograder.services.definition_migration stored.json checked.json
+```
+
+Then correct each rejected definition through the configuration API (`PATCH`
+creates a new revision): set the intended threshold, name the forbidden items or
+delete the criterion, and move compile steps such as `javac A.java && java A`
+into `setup_commands` (`javac A.java`) with `program_command: "java A"`. A
+legacy envelope carrying these values is rejected by the converter in the same
+way, so migration 005 would quarantine such a row.
+
+### Host capabilities
+
+* **One fixture-set call (PRF-03).** `ExecutionSession.stage_fixture(path,
+  content, read_only)`, called once per fixture, is replaced by
+  `stage_fixtures(fixtures: Sequence[StagedFixture])`, called once with the
+  whole set (`StagedFixture` is in `autograder.models.execution`). A host
+  session that implemented `stage_fixture` renames it and loops over the
+  sequence, or better stages the set in one operation. No definition, wire or
+  configuration change. Fixtures are now all fetched before any is staged, so a
+  missing fixture leaves nothing staged; the outcome is unchanged
+  (`capability / PREPARATION_ERROR`). With the Docker host a grading's fixture
+  set went from one `docker exec` per fixture (100 for the 100-fixture maximum,
+  about 3 to 4 s) to one.
+
+#### Earlier architecture issues
+
+The simpler sequence resolves the intent of #302 and #307–#312 through selected
+requirements, pure validation, explicit providers, typed preparation and one
+owner for cleanup. It does not introduce step categories, setup inheritance,
+provider retry, or publication inside the engine. Language-keyed preparation
+already expresses the required variation; a new pipeline framework is unnecessary.
+
+| Earlier proposal | Resolution in the current contract |
+| --- | --- |
+| #302 decompose preflight | Keep the short preparation sequence; resource acquisition and pure validation are separate. |
+| #307 add step categories | Superseded: no runtime behavior needs category labels. |
+| #308 add FileCheckStep | Fulfilled by pure bootstrap validation before any provider call; a separate step class is unnecessary. |
+| #309 add AssetInjectionStep | Fulfilled by typed fixture staging through the acquired session. |
+| #310 add SetupCommandsStep | Fulfilled by typed selected-language commands after fixtures. |
+| #311 merge template setup | Superseded: evaluator capabilities and explicit definition preparation express current requirements without inheritance. |
+| #312 remove PreFlightStep | Completed by ARC-01: typed preparation is a direct function call; the wrapper, legacy parsing and provider construction are removed. |
+
+### Processes (ARC-08, COR-01)
+
+| Before | Now |
+| --- | --- |
+| `run_command(cmd)` split with `shlex`, but malformed quoting silently ran `/bin/sh -c cmd` | `ProcessRequest.command(cmd)` raises. Compilation rejects such definitions (`INVALID_COMMAND`). |
+| `run_commands(inputs, program_command=...)` ran `echo '<joined>' \| cmd` | Exact stdin: `lines_to_stdin(inputs)` |
+| `inputs: []` sent one newline (`echo ''`) | Empty stdin (EOF). Use `[""]` to send one empty line. |
+| An input `-n` (or `-e`, `-E`) could be taken as an `echo` option and lost | Sent literally, as `-n\n` |
+| Exit ≠ 0 with unrecognised stderr was `SYSTEM_ERROR` → `SANDBOX_ERROR`, a failed grade | Assessed zero (`runtime_error`) |
+| Exit 137 was `TIMEOUT` | `runtime_error` with exit code 137 |
+| A container stopped under a process kept the process's exit code (`_stopped_result`): a reaper or `docker kill` turned a correct run into a zero | Host-ended containers raise `ProcessExecutionError` (`SANDBOX_ERROR`); only host evidence of exhaustion is the submission's (`SandboxExhausted`) |
+| PID 1 and the collector ran as `sandbox`: a submission could kill them and turn a bad grade into a retryable `SANDBOX_ERROR` | PID 1 and control execs run as `root`; the submission cannot signal them |
+| A missing or non-executable `./a.out` was `PROCESS_START_FAILED` | Assessed zero (only a runtime command that cannot start is a capability failure) |
+| An artifact the submission made unreadable was `ARTIFACT_READ_FAILED` → `SANDBOX_ERROR` | Read and graded |
+| `compilation_error` from stderr keywords (`error:`, `gcc`, ...) | `runtime_error`. Compile in `setup_commands` to get `PREPARATION_FAILED`. |
+| Unbounded `exec_run` output buffering | Bounded per stream at the host |
+| A timeout stopped waiting but left the process running | The process and its children are killed before the call returns |
+| Control API `POST /run`, `POST /run-batch` | `POST /process` |
+
+Definitions that depended on the old behaviour need these changes:
+
+* An `expect_output` test with `inputs: []` whose program calls `input()` now
+  gets EOF. Add `[""]` if the program must read an empty line.
+* A `program_command` or setup command that relied on shell syntax never ran
+  through a shell before (it was split into arguments) unless its quoting was
+  malformed. Write `sh -c '...'` explicitly. Malformed quoting and standalone
+  shell operators are now rejected when the definition is compiled or loaded.
+* Assignments that expected `compilation_error` from an I/O run should compile
+  in `preparation.languages.<language>.setup_commands`.
+
+### Sandbox ownership and configuration
+
+* **Explicit runtime and read-only root (COR-04).** `general.runtime` is
+  required in `sandbox_config.yml` (`runsc` or `runc`); a configuration without
+  it is rejected at startup with a message naming the choices. The shipped file
+  says `runsc`, so a control service or local-mode API whose Docker daemon lacks
+  gVisor now refuses to start (`IsolationRuntimeError`) instead of silently
+  using runc: before deploying, check that `docker info` lists `runsc`, or set
+  `runtime: runc` deliberately. A local-mode API also starts its sandbox manager
+  (pools, orphan reclaim, runtime images) at startup instead of on its first
+  execution grading. Python callers pass
+  `SandboxManager(..., runtime="runsc"|"runc")`; `is_missing_runtime_error` is
+  gone. Sandboxes now have a read-only root filesystem: a submission or setup
+  command that wrote outside `/app`, `/tmp` or `/dev/shm` (for example under
+  `$HOME`) gets `EROFS`/`EACCES`; write to the workspace instead.
+* **One execution time budget (COR-02).** `running_timeout` is now the host
+  maximum: each sandbox lives the lifetime its caller asks for (a grading's
+  `budget.session_seconds`) up to it, and stops itself then even if its owner
+  died; containers no longer run `sleep infinity`. The shipped value rose from
+  120 s to 900 s so that definitions of up to 26 thirty-second processes are
+  granted; set it from the largest definition you accept. Omitting it now means
+  900 s (it was 60 s), and values below 92 s are rejected at startup (the web host
+  also refuses below 100 s, deliberate execution's budget). Definitions needing
+  more are now refused at validation and acceptance (HTTP 422
+  `EXECUTION_BUDGET_EXCEEDED`) instead of failing with `SANDBOX_ERROR` after the
+  reaper fired. The acquire body gained the optional `lifetime_seconds`
+  (`422 LIFETIME_EXCEEDED` above the maximum); an old client omits it and gets
+  `running_timeout`. In remote mode the API reads the same `sandbox_config.yml`
+  as the service; keep them identical. Custom evaluators declaring
+  `sandbox_execution` must declare `process_timeouts`, and custom
+  `HostCapabilities.execution` callables receive `(language, budget)`. Containers
+  created before the upgrade still run `sleep infinity`: remove them with
+  `python -m sandbox_manager.reclaim` after the old managers stop.
+
+* **Single-transfer staging (PRF-03).** No configuration, wire or definition
+  change. Staging no longer sends one `docker exec` per 48 KiB per file: a
+  100-file submission went from 100 execs to one, 32 MiB of fixtures from about
+  680 to one, and a grading's set of 100 fixtures from 100 to one through the
+  `stage_fixtures` session call ([host capabilities](#host-capabilities));
+  measurements are in the PRF-03 pull request. A failed staging operation now invalidates the sandbox (later operations answer `409
+  SANDBOX_INVALIDATED`) instead of leaving a partially staged sandbox usable,
+  and paths are validated before any file is staged. A fixture staged directly
+  under `/tmp` no longer changes `/tmp` to `0755` (which stopped every later
+  process from staging its run files). A custom runtime image needs `tar`, and
+  the Docker daemon must be reached without TLS.
+* **One sandbox budget (PRF-01).** `general.max_sandboxes` is required in
+  `sandbox_config.yml`; the per-language `scale_limit` and `idle_timeout` are
+  removed and rejected at startup with a message naming the replacement, as are
+  unknown keys and `pool_size > max_sandboxes`. Set `max_sandboxes` from the
+  sizing rule in [JOBS.md](JOBS.md#sandbox-capacity) (about 8 on 12 CPUs), not
+  from the old sum of `scale_limit`s. `SANDBOX_MAX_HANDLES` is removed (the
+  budget bounds handles) and the control service refuses to start while it is
+  set; `429 HANDLE_LIMIT` no longer exists and saturation is `503
+  CAPACITY_TIMEOUT` after the requested wait. Python callers construct
+  `SandboxManager(pool_configs, client, max_sandboxes=N)` or
+  `SandboxManager.from_config(SandboxHostConfig.load_from_yaml(path))`;
+  `SandboxPoolConfig.load_from_yaml` is gone. `get_pool_stats()` no longer
+  reports `scale_limit`/`utilization`; use `get_budget_stats()`. Upgrade the
+  control service and its remote clients together (the acquire body gained
+  `wait_seconds`; an old client gets no wait).
+
+* **Process route (ARC-08).** `POST /sandboxes/{id}/run` and `/run-batch`
+  are replaced by `POST /sandboxes/{id}/process`, whose body and response are
+  the shared process contract (`ProcessRequestModel`/`ProcessResultModel`, see
+  [PROCESSES.md](PROCESSES.md)). Clients of the old routes must upgrade
+  together with the control service.
+* **New required setting.** Set `SANDBOX_API_TOKEN` (a long random secret, for
+  example `python -c "import secrets; print(secrets.token_urlsafe(32))"`) for the
+  control service and every remote client (`web` settings; the GitHub Action
+  no longer uses the control service). Compose fails fast when it is unset. Local development may set
+  `SANDBOX_API_ALLOW_UNAUTHENTICATED=true` on the service instead.
+* **Port no longer published.** Clients outside the Compose network can no
+  longer reach port 8001. The healthcheck uses `/health`; `/stats` needs the token.
+* **Removed Python APIs.** `release_sandbox(lang, sandbox)`,
+  `destroy_sandbox(lang, sandbox)`, `LanguagePool.release`,
+  `LanguagePool.destroy_sandbox`, `LanguagePool.acquire_sandbox`,
+  `SandboxContainer.pickup/release`, `initialize_sandbox_manager`,
+  `get_sandbox_manager` and `_register_shutdown_handlers` are gone. Use
+  `manager.dispose(sandbox)` (or `with manager.acquire_sandbox(lang)`), construct
+  `SandboxManager(pool_configs, client=None)` in the host and call `shutdown()`.
+  `SandboxState.BUSY/STOPPED` became `ACTIVE/CLOSING/QUARANTINED/DISPOSED`.
+* **Removed HTTP routes.** `DELETE /sandboxes/{id}/destroy` and
+  `POST /sandboxes/{id}/request` are gone (pooled sandboxes have no network, so
+  the request route could never succeed). `POST /sandboxes/{language}` now needs
+  a JSON body with `request_id`. Errors use coded `detail` objects.
+* **Remote client.** `RemoteSandboxManager(api_url, token=...)`; missing files
+  raise `ArtifactNotFound`; unknown handles raise `SandboxHandleNotFound`.
+* **Legacy containers.** Containers created before this change have no owner
+  labels and are no longer removed at startup. After upgrading, stop old
+  managers and run `python -m sandbox_manager.reclaim --legacy`.
+* **Test isolation.** Tests no longer rewrite `LABEL_APP`; each test
+  filters by its own owner id.
+
+### Evaluator file declarations
+
+Remove the unused `required_file`/`required_file_type` properties. Optional
+`TestFunction` declarations are `file_extensions`, `minimum_files`,
+`maximum_files`, `uses_context_files`, and `file_parameters`, plus the
+`accepts_file(filename, language)` hook. Defaults allow zero or more scoped files
+without a type restriction; the default hook honours `file_extensions`. Source
+analysers override the hook with their parser rules (`source_files_only` was
+replaced by `accepts_file`; the built-in static evaluators use
+`structural_analysis.is_runtime_source`). Set
+`maximum_files = 0` for endpoint-only checks; set matching extensions and minimum
+and maximum of one for single-file checks. Avoid implementing declarations that
+an evaluator does not need. The former internal structural pipeline step,
+result container and accessor have been removed; the structural evaluator parses
+its own selected sources. Selected files arrive as `evaluation.files` (with their
+`metadata` and `changed_lines`); scope and a separate file-metadata mapping are
+not passed to evaluators. The version 1 JSON shape is unchanged.
+
+### Submission details
+
+Clients previously reading `details.submission_files[name]` as a string must now
+read `.content`. Legacy string-valued stored files project as objects with null
+metadata and changed lines; they are not revalidated or assigned invented change
+information. Old history retains its unverified provenance status.
+
+### Catalog (INT-11, ONB-08)
+
+ONB-08 removes the template-level `requires_sandbox` flag. The catalog wire
+models drop `TemplateDescription.requires_sandbox` and
+`EvaluatorDescription.requires_sandbox` (removed, not deprecated: the field
+duplicated, and for mixed templates contradicted, `required_capabilities`).
+Clients that read it use `"sandbox_execution" in required_capabilities` (or
+`http_network` for API evaluators). `health_check` and `check_response_json`
+now report `["http_network"]` instead of `["http_network", "sandbox_execution"]`.
+Trusted Python callers build templates as `Template(name, description,
+[evaluator, ...])` instead of subclassing with `tests`, `template_name`,
+`template_description` and `requires_sandbox`, and import authoring types from
+`autograder`. A subclass that still sets `tests` without calling
+`super().__init__` is rejected as `INVALID_TEMPLATE` by compilation and
+evaluation (discovery raises `TypeError`). Known external readers of the removed
+field: `prisma-infrastructure/docs/grading-contract/v1/build_artifacts.py` and
+`validate_definition.py` read `template.requires_sandbox`; they target the
+legacy deployed image and must switch to evaluator `required_capabilities`
+before they run against this version. `TemplateLibraryService` is replaced by the read-only
+`autograder.template_library.BUILTIN_TEMPLATES` mapping; the package no longer
+re-exports template classes. Definitions, stored snapshots and their hashes are
+unchanged, so no database migration is needed.
+
+The catalog response removes the redundant `available_tests` list. Consumers use
+`evaluators[].identifier`; language constraints are per evaluator. Python callers
+of the internal library's metadata methods now receive Pydantic models; serialize
+with `model_dump(mode="json")`. The checked-in OpenAPI snapshot includes the new
+models. Deploy catalog clients and server together if a client required the old
+field. No database migration or definition schema-version change is needed.
+
+Remove calls to the never-implemented `load_custom_template()` and pass instances
+through `templates={...}` instead. All public definitions use `templates: [id]`;
+comma-separated strings and plugin/source objects are rejected. The internal load
+step now attaches compiled instances and performs no second registry resolution.
+
+### Baseline comparison
+
+* `autograder.services.result_comparator.ResultComparator`,
+  `autograder.models.dataclass.comparison_result` (`ComparisonResult`,
+  `TestDelta`) and `ResultTree.iter_test_results()` / `ResultTree.to_score_vector()`
+  are removed. Use `compare_outcomes` on canonical outcomes and
+  `outcome_score_vector` for ID-keyed vectors. The old comparator ignored
+  definition revisions and always reported an overall delta.
+* Result rows use `criterion_id` (formerly `path`), carry both labels and
+  categories/effective weights, and add `reweighted`/`redefined` statuses.
+* The unused `TestDeltaResponse` and `ComparisonResultResponse` web schemas are
+  removed; the HTTP response model is `SubmissionComparisonResponse`.
+* The arbitrary `baseline_result_tree` submission input remains removed.
+* `submission_results.score_vector` and `submission_results.comparison` columns
+  are legacy and unused: no code reads or writes them. They are kept to avoid a
+  data-destroying migration; historical values are path-keyed and are never used
+  for comparison.
+* The terminal outcome v1 `comparison` enrichment field is unchanged. Normal
+  grading leaves it `disabled`. An external host may still attest its own
+  completed/failed enrichment, which is stored verbatim and not interpreted by
+  this server; it is not the result of this operation.
+
+### HTTP authentication (INT-01)
+
+This is a breaking change for callers that used configuration creation,
+configuration aliases, listing, submission creation, polling or history without
+a token. Every such caller must send the integration token. Clients that only
+read `/health`, `/ready` or `/templates` are unaffected. Examples in
+`examples/` read `AUTOGRADER_INTEGRATION_TOKEN` from the environment.
+Student-facing applications must proxy through the upstream application; do not
+ship the integration token to browsers or student-controlled runners.
+
+### Terminal outcomes
+
+Operationally, v1 outcomes replace legacy duplicate `root`/`tree` and HTTP
+`children` wrappers. Stored legacy results are not automatically attested with
+current definition hashes. Consumers migrate to the canonical outcome plus
+compact polling/history projections; source files and trees require explicit
+trusted detail retrieval.
+
 ## Discovery and trusted Python extensions
 
 The typed template/evaluator catalog derives parameter schemas and validated
@@ -134,7 +451,7 @@ and deliberate runs. A process failure is a 200 result with stdout, stderr,
 exit status and category; an infrastructure failure is 503, and a connected
 caller past the response deadline gets 504. A cancelled/timed-out HTTP request
 does not cancel its single worker; the worker owns cleanup. See the
-[execution contract](../features/deliberate_code_execution.md) for limits and
+[execution contract](EXECUTION.md) for limits and
 the error matrix. The response deadline does not impose a hard deadline on
 blocked Docker or asset-provider calls.
 
@@ -163,7 +480,7 @@ and optional feedback handling have separate explicit boundaries. Session cleanu
 precedes terminal outcome construction; cleanup errors reach host logging and an
 optional observer without replacing the grade. Disabled feedback calls neither
 focus nor reporting. The supported facades and v1 wire schemas are unchanged.
-See [Python migration and execution order](../core/pipeline-architecture.md).
+See [Python migration and execution order](../architecture/overview.md#run-order).
 
 ## HTTP trust boundary (INT-01)
 
@@ -218,7 +535,7 @@ rejected with explained codes. Attested outcomes are compared under the same
 rules and labelled `attested`, without claiming local execution. The legacy
 `ResultComparator`, its dataclasses, `ResultTree` vector helpers and unused web
 comparison schemas are removed; the `score_vector`/`comparison` result columns
-are unused legacy storage. See [baseline comparison](../features/baseline_comparison.md).
+are unused legacy storage. See [baseline comparison](COMPARISON.md).
 
 ## Sandbox ownership and private control (INT-15/ARC-09)
 

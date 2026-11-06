@@ -1,39 +1,36 @@
-# Runnable grading examples
+# Examples
 
-`assets/input_output/criteria_examples/` contains five complete v1 definitions,
-from flat addition checks to weighted nested calculator groups. Web and API
-examples use `assets/web_dev/definition.json` and `assets/api_testing/definition.json`.
-`assets/fixture_io/` grades a program that reads a teacher-provided fixture
-(`fixtures/fixture-io/numbers.txt`, uploaded to the development stack's bucket by
-its `storage-init` service) with `main.py` as a correct submission.
-Student sample sources remain under `assets/input_output/code_examples/`.
+Every example the documentation, the browser demo and the GitHub Action quick
+start use lives here, and the test suite compiles every definition in this
+directory (`tests/unit/test_shipped_examples.py`).
 
-Validate all calculator definitions from the repository root:
+| Directory | What it holds | Used by |
+| --- | --- | --- |
+| `tutorial/` | The three tutorial assignments, each a `definition.json` with a `good/` and a `bad/` submission, graded in real sandboxes by `tests/integration/test_tutorial_assignments.py` | [Author tutorial](../docs/author/tutorial.md) |
+| `definitions/` | One small definition per kind of assignment (Python and C I/O, several languages, file artifacts, web pages, static and AI checks, nested feedback) and `invalid/` definitions with the exact errors they produce (`invalid/manifest.json`) | [Definitions contract](../docs/contracts/DEFINITIONS.md), [Action quick start](../docs/github_action/quick-start.md), the packaged-Action CI fixtures |
+| `assets/` | The calculator definitions and student programs of the browser demo, plus web, API and fixture examples | Browser demo, `assets/curl_examples.sh` |
+| `fixtures/` | The teacher data file `assets/fixture_io/` reads, uploaded to the development stack's bucket by its `storage-init` service | [Languages, files and setup](../docs/author/preparation.md#teacher-provided-files) |
+| `contracts/` | Runnable trusted-Python examples | [Adding an evaluator](../docs/architecture/extending.md) |
+| `demo/` | The browser demo | See below |
 
-```sh
-python examples/assets/input_output/scripts/validate_criteria.py
-```
+## Trusted Python examples
 
-The [contract fixtures](../docs/contracts/DEFINITIONS.md#examples-and-errors) also
-cover C, artifacts, AI/static analysis and invalid authoring examples. Old split
-criteria/setup/feedback files were retired; use the explicit offline converter.
-
-Trusted Python examples run offline from the repository root:
+Run them offline from the repository root:
 `python -m examples.contracts.custom_evaluator` (a static evaluator),
 `python -m examples.contracts.execution_evaluator` (an evaluator that runs the
 program, taught with a fake execution session),
 `python -m examples.contracts.host_provider` (an AI evaluator with a
 host-supplied provider) and `python -m examples.contracts.requested_feedback`
-(the same grade with feedback disabled and enabled). The recipe they follow is
-[Adding an evaluator](../docs/architecture/extending.md).
+(the same grade with feedback disabled and enabled).
 
-For the browser demo, start the API (`uvicorn web.main:app`) and run
-`python examples/demo/serve_demo.py`. Open `http://localhost:8080/demo/`. The demo
-loads the same checked-in definitions, creates canonical configuration envelopes,
-submits real files and polls compact results. Supply the configured integration
-token on the landing page to fetch protected outcome details. The token stays in
-session storage. Required language commands/setup follow the selected languages.
+## Browser demo
 
-`assets/curl_examples.sh validate-io` exercises validation without saving;
-`create-io` and `create-web` create configuration resources on the chosen API.
-Configure `AUTOGRADER_API_URL` to change its base URL.
+Start the API (`make start-autograder`), then `make examples-demo` and open
+`http://localhost:8080/demo/`. Enter the API's address and its integration
+token (`AUTOGRADER_INTEGRATION_TOKEN`) on the landing page: creating
+configurations, submitting, polling and reading details all require it. The
+token stays in the browser's session storage.
+
+`assets/curl_examples.sh validate-io` validates a calculator definition
+without saving it; `create-io` and `create-web` create configurations.
+`AUTOGRADER_API_URL` changes the API's base URL.

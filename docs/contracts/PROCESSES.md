@@ -160,7 +160,7 @@ never from an exit code alone:
 | A control exec fails; Docker reports the container stopped by itself: `OOMKilled`, or the runtime exited without a signal (gVisor's Sentry cannot continue at the pids limit) | The submission exhausted the sandbox | `SandboxExhausted` |
 | The pool disposed the sandbox (its lifetime passed, shutdown) | The host ended it | `ProcessExecutionError` |
 | The sandbox's own lifetime passed before the run was read back (checked first, so a run it ended is never a result) | The host's limit ended it | `ProcessExecutionError` |
-| Docker no longer has the container, or a signal stopped PID 1 (`docker rm -f`, `kill`, `stop`) | The host ended it | `ProcessExecutionError` |
+| The container is gone from Docker, or a signal stopped PID 1 (`docker rm -f`, `kill`, `stop`) | The host ended it | `ProcessExecutionError` |
 | A control exec fails and the container is still running below its pids limit | Infrastructure (daemon) failure | `ProcessExecutionError` |
 | None of the above; exit code 137 | The program's own exit (`exit(137)`, or a SIGKILL it sent itself) | `exited` 137 |
 
@@ -201,32 +201,3 @@ the control API's limit are 1 MiB. Evaluators assess output up to this bound.
 The terminal outcome keeps only a bounded excerpt of any report that quotes it
 ([OUTCOMES.md](OUTCOMES.md#size-bounds)).
 
-## Migration from `run_command`/`run_commands`
-
-| Before | Now |
-| --- | --- |
-| `run_command(cmd)` split with `shlex`, but malformed quoting silently ran `/bin/sh -c cmd` | `ProcessRequest.command(cmd)` raises. Compilation rejects such definitions (`INVALID_COMMAND`). |
-| `run_commands(inputs, program_command=...)` ran `echo '<joined>' \| cmd` | Exact stdin: `lines_to_stdin(inputs)` |
-| `inputs: []` sent one newline (`echo ''`) | Empty stdin (EOF). Use `[""]` to send one empty line. |
-| An input `-n` (or `-e`, `-E`) could be taken as an `echo` option and lost | Sent literally, as `-n\n` |
-| Exit ≠ 0 with unrecognised stderr was `SYSTEM_ERROR` → `SANDBOX_ERROR`, a failed grade | Assessed zero (`runtime_error`) |
-| Exit 137 was `TIMEOUT` | `runtime_error` with exit code 137 |
-| A container stopped under a process kept the process's exit code (`_stopped_result`): a reaper or `docker kill` turned a correct run into a zero | Host-ended containers raise `ProcessExecutionError` (`SANDBOX_ERROR`); only host evidence of exhaustion is the submission's (`SandboxExhausted`) |
-| PID 1 and the collector ran as `sandbox`: a submission could kill them and turn a bad grade into a retryable `SANDBOX_ERROR` | PID 1 and control execs run as `root`; the submission cannot signal them |
-| A missing or non-executable `./a.out` was `PROCESS_START_FAILED` | Assessed zero (only a runtime command that cannot start is a capability failure) |
-| An artifact the submission made unreadable was `ARTIFACT_READ_FAILED` → `SANDBOX_ERROR` | Read and graded |
-| `compilation_error` from stderr keywords (`error:`, `gcc`, ...) | `runtime_error`. Compile in `setup_commands` to get `PREPARATION_FAILED`. |
-| Unbounded `exec_run` output buffering | Bounded per stream at the host |
-| A timeout stopped waiting but left the process running | The process and its children are killed before the call returns |
-| Control API `POST /run`, `POST /run-batch` | `POST /process` |
-
-Definitions that depended on the old behaviour need these changes:
-
-* An `expect_output` test with `inputs: []` whose program calls `input()` now
-  gets EOF. Add `[""]` if the program must read an empty line.
-* A `program_command` or setup command that relied on shell syntax never ran
-  through a shell before (it was split into arguments) unless its quoting was
-  malformed. Write `sh -c '...'` explicitly. Malformed quoting and standalone
-  shell operators are now rejected when the definition is compiled or loaded.
-* Assignments that expected `compilation_error` from an I/O run should compile
-  in `preparation.languages.<language>.setup_commands`.

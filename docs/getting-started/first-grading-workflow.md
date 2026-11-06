@@ -121,5 +121,5 @@ You ran the full core flow:
 
 `validate -> acquire/prepare? -> assess (one AI batch) -> grade -> requested feedback? -> close -> outcome`
 
-To understand each stage in depth, continue with [Pipeline Architecture](../core/pipeline-architecture.md)
+To understand each stage in depth, continue with the [run order](../architecture/overview.md#run-order)
 and the [responsibility map](../architecture/overview.md).

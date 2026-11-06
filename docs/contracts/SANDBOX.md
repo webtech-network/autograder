@@ -112,7 +112,7 @@ Every sandbox ends itself; neither its owner nor reclamation has to be alive.
   container's record remains until its owner lease is reclaimed (startup
   reclamation on the same hostname, or `python -m sandbox_manager.reclaim
   --dead-host <name>`). Reclamation still force-removes a dead owner's
-  containers, running or not; it is no longer what ends a sandbox.
+  containers, running or not; it is not what ends a sandbox.
 
 ## Isolation profile and runtime
 
@@ -434,95 +434,3 @@ Client transport deadlines: connect 5 s; acquire `wait_seconds` + 90 s (may star
 file/fixture transfer and artifact reads 120 s; dispose 60 s. Docker calls on the
 server have no hard deadline beyond docker-py's own client timeout.
 
-## Migration
-
-* **Explicit runtime and read-only root (COR-04).** `general.runtime` is
-  required in `sandbox_config.yml` (`runsc` or `runc`); a configuration without
-  it is rejected at startup with a message naming the choices. The shipped file
-  says `runsc`, so a control service or local-mode API whose Docker daemon lacks
-  gVisor now refuses to start (`IsolationRuntimeError`) instead of silently
-  using runc: before deploying, check that `docker info` lists `runsc`, or set
-  `runtime: runc` deliberately. A local-mode API also starts its sandbox manager
-  (pools, orphan reclaim, runtime images) at startup instead of on its first
-  execution grading. Python callers pass
-  `SandboxManager(..., runtime="runsc"|"runc")`; `is_missing_runtime_error` is
-  gone. Sandboxes now have a read-only root filesystem: a submission or setup
-  command that wrote outside `/app`, `/tmp` or `/dev/shm` (for example under
-  `$HOME`) gets `EROFS`/`EACCES`; write to the workspace instead.
-* **One execution time budget (COR-02).** `running_timeout` is now the host
-  maximum: each sandbox lives the lifetime its caller asks for (a grading's
-  `budget.session_seconds`) up to it, and stops itself then even if its owner
-  died; containers no longer run `sleep infinity`. The shipped value rose from
-  120 s to 900 s so that definitions of up to 26 thirty-second processes are
-  granted; set it from the largest definition you accept. Omitting it now means
-  900 s (it was 60 s), and values below 92 s are rejected at startup (the web host
-  also refuses below 100 s, deliberate execution's budget). Definitions needing
-  more are now refused at validation and acceptance (HTTP 422
-  `EXECUTION_BUDGET_EXCEEDED`) instead of failing with `SANDBOX_ERROR` after the
-  reaper fired. The acquire body gained the optional `lifetime_seconds`
-  (`422 LIFETIME_EXCEEDED` above the maximum); an old client omits it and gets
-  `running_timeout`. In remote mode the API reads the same `sandbox_config.yml`
-  as the service; keep them identical. Custom evaluators declaring
-  `sandbox_execution` must declare `process_timeouts`, and custom
-  `HostCapabilities.execution` callables receive `(language, budget)`. Containers
-  created before the upgrade still run `sleep infinity`: remove them with
-  `python -m sandbox_manager.reclaim` after the old managers stop.
-
-* **Single-transfer staging (PRF-03).** No configuration, wire or definition
-  change. Staging no longer sends one `docker exec` per 48 KiB per file: a
-  100-file submission went from 100 execs to one, 32 MiB of fixtures from about
-  680 to one, and a grading's set of 100 fixtures from 100 to one through the
-  `stage_fixtures` session call ([CAPABILITIES.md](CAPABILITIES.md#migration));
-  measurements are in the PRF-03 pull request. A failed staging operation now invalidates the sandbox (later operations answer `409
-  SANDBOX_INVALIDATED`) instead of leaving a partially staged sandbox usable,
-  and paths are validated before any file is staged. A fixture staged directly
-  under `/tmp` no longer changes `/tmp` to `0755` (which stopped every later
-  process from staging its run files). A custom runtime image needs `tar`, and
-  the Docker daemon must be reached without TLS.
-* **One sandbox budget (PRF-01).** `general.max_sandboxes` is required in
-  `sandbox_config.yml`; the per-language `scale_limit` and `idle_timeout` are
-  removed and rejected at startup with a message naming the replacement, as are
-  unknown keys and `pool_size > max_sandboxes`. Set `max_sandboxes` from the
-  sizing rule in [JOBS.md](JOBS.md#sandbox-capacity) (about 8 on 12 CPUs), not
-  from the old sum of `scale_limit`s. `SANDBOX_MAX_HANDLES` is removed (the
-  budget bounds handles) and the control service refuses to start while it is
-  set; `429 HANDLE_LIMIT` no longer exists and saturation is `503
-  CAPACITY_TIMEOUT` after the requested wait. Python callers construct
-  `SandboxManager(pool_configs, client, max_sandboxes=N)` or
-  `SandboxManager.from_config(SandboxHostConfig.load_from_yaml(path))`;
-  `SandboxPoolConfig.load_from_yaml` is gone. `get_pool_stats()` no longer
-  reports `scale_limit`/`utilization`; use `get_budget_stats()`. Upgrade the
-  control service and its remote clients together (the acquire body gained
-  `wait_seconds`; an old client gets no wait).
-
-* **Process route (ARC-08).** `POST /sandboxes/{id}/run` and `/run-batch`
-  are replaced by `POST /sandboxes/{id}/process`, whose body and response are
-  the shared process contract (`ProcessRequestModel`/`ProcessResultModel`, see
-  [PROCESSES.md](PROCESSES.md)). Clients of the old routes must upgrade
-  together with the control service.
-* **New required setting.** Set `SANDBOX_API_TOKEN` (a long random secret, for
-  example `python -c "import secrets; print(secrets.token_urlsafe(32))"`) for the
-  control service and every remote client (`web` settings; the GitHub Action
-  no longer uses the control service). Compose fails fast when it is unset. Local development may set
-  `SANDBOX_API_ALLOW_UNAUTHENTICATED=true` on the service instead.
-* **Port no longer published.** Clients outside the Compose network can no
-  longer reach port 8001. The healthcheck uses `/health`; `/stats` needs the token.
-* **Removed Python APIs.** `release_sandbox(lang, sandbox)`,
-  `destroy_sandbox(lang, sandbox)`, `LanguagePool.release`,
-  `LanguagePool.destroy_sandbox`, `LanguagePool.acquire_sandbox`,
-  `SandboxContainer.pickup/release`, `initialize_sandbox_manager`,
-  `get_sandbox_manager` and `_register_shutdown_handlers` are gone. Use
-  `manager.dispose(sandbox)` (or `with manager.acquire_sandbox(lang)`), construct
-  `SandboxManager(pool_configs, client=None)` in the host and call `shutdown()`.
-  `SandboxState.BUSY/STOPPED` became `ACTIVE/CLOSING/QUARANTINED/DISPOSED`.
-* **Removed HTTP routes.** `DELETE /sandboxes/{id}/destroy` and
-  `POST /sandboxes/{id}/request` are gone (pooled sandboxes have no network, so
-  the request route could never succeed). `POST /sandboxes/{language}` now needs
-  a JSON body with `request_id`. Errors use coded `detail` objects.
-* **Remote client.** `RemoteSandboxManager(api_url, token=...)`; missing files
-  raise `ArtifactNotFound`; unknown handles raise `SandboxHandleNotFound`.
-* **Legacy containers.** Containers created before this change have no owner
-  labels and are no longer removed at startup. After upgrading, stop old
-  managers and run `python -m sandbox_manager.reclaim --legacy`.
-* **Test isolation.** Tests no longer rewrite `LABEL_APP`; each test
-  filters by its own owner id.

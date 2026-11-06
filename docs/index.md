@@ -1,54 +1,45 @@
-# Autograder Documentation
+# Autograder documentation
 
-This documentation is organized to be both practical for first-time users and deep enough for maintainers working on the grading engine internals.
+The Autograder grades student submissions against a rubric you write once, a
+*grading definition*, and explains each grade to the student. It runs as an
+HTTP service for many submissions or as a GitHub Action in the student's
+repository. Start from what you want to do.
 
-## Start Here
+## Author: write and test an assignment
 
-1. [Responsibilities and Dependencies](architecture/overview.md): the current map of who owns what
-2. [Pipeline Architecture](core/pipeline-architecture.md)
-3. [Criteria Tree](core/criteria-tree.md)
-4. [Sandbox Management](core/sandbox-management.md)
-5. [Template Library](core/template-library.md)
-6. [Feedback Generation](core/feedback-generation.md)
+For teachers and teaching assistants.
 
-## Learning Paths
+1. [Tutorial: your first assignments](author/tutorial.md) builds a Python
+   program, a web page and a compiled exercise in two languages, each with a
+   good and a bad submission.
+2. [Scores, bonus and penalty](author/scoring.md) explains how the score is
+   computed and how to write penalty criteria.
+3. [Languages, files and setup](author/preparation.md),
+   [student feedback](author/feedback.md),
+   [testing your rubric](author/testing.md) and
+   [reading a result](author/results.md) cover the rest of the work.
+4. The [evaluator reference](reference/evaluators.md) and
+   [definition reference](reference/definition.md) list every check and field.
 
-### Educator or instructional designer
+## Integrate: run grading from another system
 
-- [Educational Criteria Design Guide](guides/criteria-tree-educational-standards.md)
-- [Criteria Configuration Examples](guides/criteria_configuration_examples.md)
-- [Feedback Generation](core/feedback-generation.md)
+For developers connecting an LMS, a course platform or a CI workflow.
+[Run the HTTP service](getting-started/first-grading-workflow.md) for a first
+submission, then read the [REST API](API.md) and the contracts it is built on,
+starting with [definitions](contracts/DEFINITIONS.md),
+[outcomes](contracts/OUTCOMES.md) and [authentication](contracts/AUTH.md).
+The [GitHub Action](github_action/README.md) grades one repository per run.
 
-### Backend maintainer
+## Extend: add an evaluator
 
-- [Responsibilities and Dependencies](architecture/overview.md)
-- [Pipeline Architecture](core/pipeline-architecture.md)
-- [Grading Operations](pipeline/README.md)
-- [Core Values](architecture/core_structures.md)
-- [Sandbox Manager Internals](architecture/sandbox_manager.md)
+For developers adding checks in Python.
+[Adding an evaluator](architecture/extending.md) is the recipe with runnable
+examples; [responsibilities and dependencies](architecture/overview.md) maps
+who owns what in the code.
 
-### Template author
+## Operate and contribute
 
-- [Adding an Evaluator](architecture/extending.md)
-- [Template Library](core/template-library.md)
-- [Input/Output Template](template-library/input_output.md)
-- [API Testing Template](template-library/api_testing.md)
-- [Web Development Template](template-library/web_dev.md)
-- [Static Analysis Template](template-library/static_analysis.md)
-
-### GitHub Actions / CI integrator
-
-- [GitHub Action module overview](github_action/README.md)
-- [GitHub Action configuration reference](github_action/configuration.md)
-- [Demo repository walkthrough](github_action/quick-start.md)
-
-## Quick Access
-
-| Area | Entry Point |
-|------|-------------|
-| API reference | [API.md](API.md) |
-| GitHub Action | [github_action/README.md](github_action/README.md) |
-| Grading operations | [pipeline/README.md](pipeline/README.md) |
-| Integration contracts | [contracts/DECISIONS.md](contracts/DECISIONS.md) |
-| Features | [features/grading_engine.md](features/grading_engine.md) |
-| Development setup | [guides/development.md](guides/development.md) |
+For whoever runs the service or changes the code:
+[deployment](operate/deployment.md), [configuration](operate/configuration.md),
+[sandbox ownership and isolation](contracts/SANDBOX.md) and the
+[development guide](guides/development.md).

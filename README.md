@@ -12,7 +12,7 @@
 [![Verify](https://github.com/webtech-network/autograder/actions/workflows/verify.yml/badge.svg)](https://github.com/webtech-network/autograder/actions/workflows/verify.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-[Features](#features) • [Architecture](#architecture) • [Quick Start](#quick-start) • [Templates](#grading-templates) • [Pipeline](#pipeline-workflow) • [API](#rest-api) • [GitHub Action](#github-action) • [Docs](https://webtech-network.github.io/autograder/) • [Community](#community-standards)
+[Features](#features) • [Write an assignment](#write-an-assignment) • [Quick Start](#quick-start) • [Architecture](#architecture) • [API](#rest-api) • [GitHub Action](#github-action) • [Docs](https://webtech-network.github.io/autograder/) • [Community](#community-standards)
 
 </div>
 
@@ -24,215 +24,94 @@
 
 ## Overview
 
-The **Autograder** is an advanced educational tool designed to efficiently and accurately grade student submissions using actual pedagogical standards. What makes it stand out is its highly elaborated grading methodology that follows teacher-configured rubrics and generates comprehensive, student-friendly feedback reports.
-
-### Why Autograder?
-
-- **Teacher-Controlled Grading**: Complete control over evaluation criteria with tree-structured rubrics
-- **Educational Standards**: Implements proper scoring categories (base, bonus, penalty) with weighted subjects
-- **Multiple Assignment Types**: Native support for Web Development, APIs, Command-Line Programs, and Custom Templates
-- **Secure Code Execution**: Isolated sandbox environments for safe remote code execution
-- **Proven Engagement**: Students treat assignments as iterative learning challenges
-- **Measured Capacity**: One [benchmark command](docs/contracts/JOBS.md#capacity-benchmark) reports throughput and failures on your hardware
-- **Intelligent Feedback**: Focus-based feedback generation that highlights the most impactful improvements
-
----
-
-## Try It Now!
-
-**Want to see it in action?** Run the interactive demo:
-
-```bash
-make examples-demo
-```
-
-Then open **http://localhost:8080** in your browser to:
--  Create grading configurations with visual tree builders
--  Submit code examples in Python, Java, JavaScript, or C++
--  View real-time grading results and score breakdowns
--  Explore all API endpoints interactively
-
-> **Note:** This demo requires the API server to be running. Start it with: `make start-autograder`
-
----
-
-## The Grading Pipeline
-
-A definition is compiled once; each submission then runs through explicit calls:
-
-```
-validate submission → acquire/prepare session (only if needed) → assess (one AI batch)
-                    → grade → requested feedback → close session → terminal outcome
-```
-
-See [Responsibilities and Dependencies](docs/architecture/overview.md) for who owns each part.
-
----
+The **Autograder** grades student submissions against a rubric the teacher
+writes once, a versioned *grading definition*, and explains every grade in a
+report written for the student. It runs as an HTTP service that grades many
+submissions, or as a GitHub Action that grades the repository it runs in.
 
 ## Features
 
-### For Educators
+### For educators
 
-- **Flexible Grading Rubrics**: Create complex, tree-structured grading criteria with unlimited nesting
-  - Base requirements, bonus points, and penalty deductions
-  - Subject grouping with custom weights
-  - Hierarchical test organization
-  
-- **One-Time Configuration**: Configure an assignment once, reuse for all submissions
-  - Store grading configurations as reusable packages
-  - Version control for grading criteria
-  - Template library for common assignment types
+- **Tree-structured rubrics**: required criteria, extra credit and penalties,
+  grouped into weighted subjects at any depth ([how scores work](docs/author/scoring.md)).
+- **Programs and web pages**: run command-line programs in Python, Java,
+  JavaScript (Node.js), C and C++ against expected output; check HTML, CSS and
+  JavaScript files; forbid imports or language constructs.
+- **Multi-language assignments**: one definition accepts several languages,
+  each with its own files and build steps.
+- **Validation before students see it**: a definition is checked completely
+  when you validate or publish it, with the exact place of every mistake.
+- **Configurations with revisions**: the HTTP service stores each assignment's
+  definition and binds every submission to the exact revision it was graded with.
 
-- **Customizable Feedback**: Control how students receive feedback
-  - Structured Markdown reports, generated only when feedback is enabled
-  - Focus-based ordering that highlights the highest-impact improvements
-  - Localized output (English and Brazilian Portuguese)
+### For students
 
-### For Students
+- **A report that explains the score**: every criterion, its points and the
+  reason it failed, ordered by what cost the most, with linked learning resources.
+- **English and Brazilian Portuguese** reports and messages.
+- **Clear failures**: a missing file or a compilation error is explained,
+  never turned into a silent zero.
+- **Progress between attempts**: the HTTP service compares two graded
+  submissions criterion by criterion.
 
-- **Detailed Reports**: Understand exactly why you received a certain score
-- **Actionable Feedback**: Get specific guidance on what to improve
-- **Iterative Learning**: Use feedback to improve and resubmit
-- **Transparent Grading**: See the breakdown of scores across all criteria
-- **Progress Tracking**: Score vector provides a flat, queryable map of every test score for trend analysis across submissions
+### For developers
 
-### For Developers
-
-- **REST API**: Modern FastAPI-based web service
-- **GitHub Action**: One-submission CI grading with canonical result artifacts
-- **Extensible Evaluators**: Add an evaluator with only its implementation, parameter contract and registration ([recipe](docs/architecture/extending.md))
-- **Multiple Languages**: Python, Java, JavaScript/Node.js, C and C++ support
-- **Custom Templates**: Supply trusted Python evaluator implementations
-
----
-
-Read the [versioned definition contract](docs/contracts/DEFINITIONS.md) and
-[terminal outcome contract](docs/contracts/OUTCOMES.md) before integrating.
-
-## Architecture
-
-The core (`autograder/`) owns grading semantics: the versioned definition, the
-evaluator contract, assessment, scoring and feedback. Hosts (`web/`,
-`github_action/`) collect files, authenticate, persist and publish. They pass
-execution, fixture and AI providers to the core as `HostCapabilities`, composed in
-`execution_host/` on top of `sandbox_manager/`. The core imports none of them, and
-a test enforces it. The full map is
-[Responsibilities and Dependencies](docs/architecture/overview.md).
-
-```python
-from autograder import compile_definition, evaluate_submission
-
-# One versioned grading definition, compiled before execution.
-compiled = compile_definition(definition_json)
-outcome = evaluate_submission(submission, definition=compiled).model_dump(mode="json")
-```
-
-#### Criteria Tree
-
-Grading criteria are represented as a tree structure mirroring educational rubrics:
-
-```
-CriteriaTree
-├── Base (weight: 100)
-│   ├── Subject: Functionality (weight: 60)
-│   │   ├── Test: Correct Output (weight: 100)
-│   │   └── Test: Edge Cases (weight: 100)
-│   └── Subject: Code Quality (weight: 40)
-│       ├── Test: Proper Syntax (weight: 50)
-│       └── Test: Good Practices (weight: 50)
-├── Bonus (cap: 10)        adds score/100 × 10
-│   └── Test: Extra Features
-└── Penalty (cap: 20)      subtracts (100 − score)/100 × 20
-    └── Test: Late Submission
-```
-
-Weights are nonnegative; bonus and penalty weights are caps, and every category
-may contain subjects as well as tests. See [Core Values](docs/architecture/core_structures.md).
-
-#### Sandbox Management
-
-The **SandboxManager** provides isolated execution environments:
-
-- **Container Pooling**: Pre-started warm containers, one owned lease per run
-- **Multi-Language**: Python, Java, Node.js, C and C++ runtimes mapped by host configuration
-- **Confirmed Cleanup**: Every lease ends in confirmed removal; dead hosts' containers are reclaimed
-- **Resource Control**: Memory limits, process deadlines and bounded output
-
-#### Template Library
-
-Templates provide evaluators for different assignment contexts:
-
-- **WebDev**: HTML, CSS, JavaScript validation
-- **API Testing**: HTTP request validation (requires a server-capable host)
-- **Input/Output**: Command-line program testing
-- **Static Analysis**: Forbidden imports/keywords and AI algorithm review
-- **Custom**: Register trusted Python evaluator instances ([recipe](docs/architecture/extending.md))
+- **REST API** with durable, restart-safe acceptance of submissions.
+- **GitHub Action** that grades one checkout and keeps a canonical outcome artifact.
+- **Isolated execution**: student code runs in a disposable sandbox per grading,
+  with no network, bounded memory and processes, and confirmed cleanup.
+- **Extensible evaluators**: add one with its implementation, parameter
+  contract and registration ([recipe](docs/architecture/extending.md)).
 
 ---
 
-## Pipeline Workflow
+## Write an assignment
 
-Compilation resolves templates and builds the criteria tree before execution.
-The runtime flow in `autograder/autograder.py` then:
+The [tutorial](docs/author/tutorial.md) builds three assignments, each with a
+good and a bad submission that the test suite grades in real sandboxes. A
+definition is one JSON document:
 
-1. Validates the submission and selected host capabilities.
-2. Opens and prepares a session when required.
-3. Assesses every criterion (selected AI criteria share one provider call) and
-   grades the compiled criteria.
-4. Generates focus and feedback when requested.
-5. Closes the owned session and returns the immutable terminal outcome.
+```json
+{
+  "schema_version": "1.0",
+  "templates": ["input_output"],
+  "languages": ["python"],
+  "criteria": {
+    "base": {
+      "weight": 100,
+      "tests": [
+        {
+          "id": "sum",
+          "type": "expect_output",
+          "name": "Adds two numbers",
+          "parameters": {"program_command": "python3 main.py", "inputs": ["2", "3"], "expected_output": "5"}
+        }
+      ]
+    }
+  },
+  "preparation": {"languages": {"python": {"required_files": ["main.py"]}}},
+  "feedback": {"enabled": true}
+}
+```
 
-Intermediate values pass directly between calls. Optional diagnostic events carry
-no grading data. The hosting adapter publishes the finalized outcome and retries
-delivery independently. See [execution architecture](docs/core/pipeline-architecture.md).
+Every check a criterion `type` can name, with its parameters, is in the
+generated [evaluator reference](docs/reference/evaluators.md). Trusted Python
+code can add its own evaluators ([recipe](docs/architecture/extending.md));
+definitions sent over HTTP or used by the Action use the built-in ones.
 
----
+## Try the demo
 
-## Grading Templates
+The browser demo creates configurations, submits example programs and shows
+the results of a running API:
 
-### Native Templates
+```bash
+make start-autograder   # the API, see Quick Start
+make examples-demo
+```
 
-#### 1. Input/Output Template
-Tests command-line programs by providing inputs and validating outputs.
-
-| Test Name          | Description                                             | Key Parameters                               |
-|--------------------|---------------------------------------------------------|----------------------------------------------|
-| `expect_output`    | Execute program with inputs and verify output           | `inputs`, `expected_output`, `program_command` |
-| `expect_file_artifact` | Execute program and validate a generated output file | `artifact_path`, `expected_content`, `program_command` |
-| `dont_fail`        | Validates that a program does not crash on a given input | `user_input`, `program_command`             |
-
-#### 2. API Testing Template
-Makes HTTP requests to student APIs and validates responses.
-
-| Test Name | Description | Key Parameters |
-|-----------|-------------|----------------|
-| `health_check` | Verify endpoint returns 200 OK | `endpoint` |
-| `check_response_json` | Validate JSON response structure | `endpoint`, `expected_key`, `expected_value` |
-
-API criteria need a host that can start the submission's server; the shipped
-Docker host does not supply one yet, so they fail with
-`SERVER_CAPABILITY_UNAVAILABLE` ([details](docs/template-library/api_testing.md#how-it-works)).
-
-#### 3. Web Development Template
-Validates HTML, CSS, and JavaScript files.
-
-| Test Name | Description | Key Parameters |
-|-----------|-------------|----------------|
-| `has_tag` | Check for HTML tags | `tag`, `required_count` |
-| `has_class` | Validate CSS classes (supports wildcards like `col-*`) | `class_names`, `required_count` |
-| `check_bootstrap_linked` | Verify Bootstrap is linked | none |
-| `has_attribute` | Check element attributes | `attribute`, `required_count` |
-| `css_uses_property` | Validate CSS rules | `prop`, `value` |
-
-And much more! The generated [evaluator reference](docs/reference/evaluators.md) lists every evaluator with its parameters and defaults.
-#### 4. Custom Templates
-Trusted Python callers can pass their own test functions through the `templates`
-argument to `compile_definition()` or `evaluate_submission()`. Follow
-[Adding an evaluator](docs/architecture/extending.md) and its runnable
-[static](examples/contracts/custom_evaluator.py) and
-[execution](examples/contracts/execution_evaluator.py) examples (the latter uses a
-fake execution session, no Docker); see also the [contract guide](docs/contracts/CONFORMANCE.md). HTTP and Actions JSON
-definitions cannot upload Python evaluator code.
+Open **http://localhost:8080/demo/** and enter the API's address and its
+integration token (`AUTOGRADER_INTEGRATION_TOKEN`) on the first page.
 
 ---
 
@@ -265,6 +144,29 @@ To run the system:
   size the budget by CPU, about 8 on 12 CPUs, see [JOBS.md](docs/contracts/JOBS.md#sandbox-capacity)). See [Run your first grading workflow](docs/getting-started/first-grading-workflow.md);
   deployments follow [Deploying the HTTP service](docs/operate/deployment.md).
 - **GitHub Action:** see the [GitHub Action](#github-action) section.
+
+---
+
+## Architecture
+
+The core (`autograder/`) owns grading semantics: the versioned definition, the
+evaluator contract, assessment, scoring and feedback. Hosts (`web/`,
+`github_action/`) collect files, authenticate, persist and publish. They pass
+execution, fixture and AI providers to the core as `HostCapabilities`, composed in
+`execution_host/` on top of `sandbox_manager/`. The core imports none of them, and
+a test enforces it. The full map is
+[Responsibilities and Dependencies](docs/architecture/overview.md).
+
+```python
+from autograder import compile_definition, evaluate_submission
+
+# One versioned grading definition, compiled before execution.
+compiled = compile_definition(definition_json)
+outcome = evaluate_submission(submission, definition=compiled).model_dump(mode="json")
+```
+
+Integrators start with the [definition](docs/contracts/DEFINITIONS.md) and
+[terminal outcome](docs/contracts/OUTCOMES.md) contracts.
 
 ---
 
@@ -317,31 +219,8 @@ jobs:
 
 ## Full Documentation
 
-Full documentation available at [GitHub Pages](https://webtech-network.github.io/autograder/)
-
----
-
-## Use Cases
-
-### Educational Institutions 
-- **Automated Homework Grading**: Grade hundreds of submissions consistently
-- **Immediate Feedback**: Students get instant results to iterate and improve
-- **Scalable Assessment**: Handle courses with large enrollment
-- **Fair Grading**: Eliminate human bias with standardized criteria
-
-### Coding Bootcamps
-- **Skill Assessment**: Evaluate student progress throughout the program
-- **Challenge Labs**: Create engaging, game-like coding challenges
-- **Portfolio Building**: Track student improvement over time
-
-### Corporate Training
-- **Technical Interviews**: Automated coding challenge grading
-- **Employee Onboarding**: Assess technical skills of new hires
-- **Skill Validation**: Verify competencies in specific technologies
-
-### Research
-- **Educational Research**: Study the impact of feedback on learning
-- **Learning Analytics**: Gather data on common student mistakes
+Full documentation is available at [GitHub Pages](https://webtech-network.github.io/autograder/),
+organized by task: author an assignment, integrate, extend, operate.
 
 ---
 

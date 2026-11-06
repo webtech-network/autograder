@@ -61,12 +61,3 @@ Route authentication runs before request-body validation for well-formed JSON;
 a syntactically invalid JSON body may be rejected with 422 first and reveals
 nothing about stored data.
 
-## Migration
-
-This is a breaking change for callers that used configuration creation,
-configuration aliases, listing, submission creation, polling or history without
-a token. Every such caller must send the integration token. Clients that only
-read `/health`, `/ready` or `/templates` are unaffected. Examples in
-`examples/` read `AUTOGRADER_INTEGRATION_TOKEN` from the environment.
-Student-facing applications must proxy through the upstream application; do not
-ship the integration token to browsers or student-controlled runners.

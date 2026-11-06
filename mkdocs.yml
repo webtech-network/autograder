@@ -19,6 +19,44 @@ theme:
 
 plugins:
   - search
+  # Addresses of pages that were merged or removed land on the page that now
+  # holds their content (tests/unit/test_documentation.py checks every target).
+  - redirects:
+      redirect_maps:
+        getting-started/mkdocs-local-development.md: getting-started/first-grading-workflow.md
+        core/pipeline-architecture.md: architecture/overview.md
+        core/criteria-tree.md: author/scoring.md
+        core/sandbox-management.md: contracts/SANDBOX.md
+        core/template-library.md: reference/evaluators.md
+        core/feedback-generation.md: author/feedback.md
+        pipeline/README.md: architecture/overview.md
+        pipeline/01-load-template.md: architecture/overview.md
+        pipeline/02-build-tree.md: architecture/overview.md
+        pipeline/03-sandbox.md: contracts/CAPABILITIES.md
+        pipeline/04-pre-flight.md: author/preparation.md
+        pipeline/04.5-ai-batch.md: contracts/CAPABILITIES.md
+        pipeline/04.8-structural-analysis.md: contracts/FILES.md
+        pipeline/05-grade.md: author/scoring.md
+        pipeline/06-focus.md: author/feedback.md
+        pipeline/07-feedback.md: author/feedback.md
+        pipeline/08-export.md: contracts/OUTCOMES.md
+        features/grading_engine.md: author/scoring.md
+        features/focus_feature.md: author/feedback.md
+        features/score_vector.md: author/results.md
+        features/baseline_comparison.md: contracts/COMPARISON.md
+        features/deliberate_code_execution.md: contracts/EXECUTION.md
+        features/setup_config_feature.md: author/preparation.md
+        features/program_commands.md: author/preparation.md
+        features/localization.md: author/feedback.md
+        template-library/input_output.md: reference/evaluators.md
+        template-library/api_testing.md: reference/evaluators.md
+        template-library/web_dev.md: reference/evaluators.md
+        template-library/static_analysis.md: reference/evaluators.md
+        guides/github_module.md: github_action/README.md
+        guides/criteria_configuration_examples.md: author/tutorial.md
+        guides/criteria-tree-educational-standards.md: author/scoring.md
+        architecture/core_structures.md: architecture/overview.md
+        architecture/pipeline_execution_tracking.md: architecture/overview.md
 
 markdown_extensions:
   - admonition
@@ -37,79 +75,48 @@ markdown_extensions:
       alternate_style: true
 
 nav:
-  - Integration Contracts:
+  - Home: index.md
+  - Author:
+      - "Tutorial: Your First Assignments": author/tutorial.md
+      - Scores, Bonus and Penalty: author/scoring.md
+      - Languages, Files and Setup: author/preparation.md
+      - Student Feedback: author/feedback.md
+      - Test Your Rubric: author/testing.md
+      - Read a Result: author/results.md
+      - Evaluator Reference: reference/evaluators.md
+      - Definition Reference: reference/definition.md
+  - Integrate:
+      - Run the HTTP Service: getting-started/first-grading-workflow.md
+      - REST API: API.md
       - Executable Examples: contracts/CONFORMANCE.md
       - HTTP Trust Boundary: contracts/AUTH.md
       - Replay Safety: contracts/REPLAY.md
       - Submission Input: contracts/SUBMISSIONS.md
       - Evaluator Files: contracts/FILES.md
-      - Host Capabilities: contracts/CAPABILITIES.md
-      - Languages and Runtimes: contracts/LANGUAGES.md
-      - Process Contract: contracts/PROCESSES.md
-      - Sandbox Ownership: contracts/SANDBOX.md
-      - Durable Jobs: contracts/JOBS.md
       - Definitions: contracts/DEFINITIONS.md
-      - Catalog and Python API: contracts/CATALOG.md
+      - Languages and Runtimes: contracts/LANGUAGES.md
       - Outcomes: contracts/OUTCOMES.md
-      - Decisions: contracts/DECISIONS.md
-  - Home: index.md
-  - Getting Started:
-      - Run Your First Grading Workflow: getting-started/first-grading-workflow.md
-      - Development Guide: guides/development.md
-  - Core Concepts:
-      - Pipeline Architecture: core/pipeline-architecture.md
-      - Criteria Tree: core/criteria-tree.md
-      - Sandbox Management: core/sandbox-management.md
-      - Template Library: core/template-library.md
-      - Feedback Generation: core/feedback-generation.md
-      - Educational Criteria Design: guides/criteria-tree-educational-standards.md
-  - API:
-      - REST API Reference: API.md
-  - Operate:
+      - Baseline Comparison: contracts/COMPARISON.md
+      - Deliberate Execution: contracts/EXECUTION.md
+      - Durable Jobs: contracts/JOBS.md
+      - Catalog and Python API: contracts/CATALOG.md
+      - GitHub Action:
+          - Overview: github_action/README.md
+          - Quick Start: github_action/quick-start.md
+          - Configuration Reference: github_action/configuration.md
+          - Cloud Publication: github_action/external-mode.md
+          - Identity and Trust: github_action/trust.md
+          - Cloud Publication Rollout: guides/external-mode-rollout.md
+      - Decisions and Migration Notes: contracts/DECISIONS.md
+  - Extend:
+      - Adding an Evaluator: architecture/extending.md
+      - Responsibilities and Dependencies: architecture/overview.md
+      - Host Capabilities: contracts/CAPABILITIES.md
+      - Process Contract: contracts/PROCESSES.md
+  - Operate and Contribute:
       - Deploying the HTTP Service: operate/deployment.md
       - Configuration Reference: operate/configuration.md
-  - GitHub Action:
-      - Overview: github_action/README.md
-      - Quick Start Guide: github_action/quick-start.md
-      - Configuration Reference: github_action/configuration.md
-      - External Mode: github_action/external-mode.md
-      - Identity and Trust: github_action/trust.md
-      - External Mode Rollout: guides/external-mode-rollout.md
-  - Grading Operations:
-      - Overview: pipeline/README.md
-      - Compile Templates: pipeline/01-load-template.md
-      - Compile Criteria: pipeline/02-build-tree.md
-      - Execution Sessions: pipeline/03-sandbox.md
-      - Preparation: pipeline/04-pre-flight.md
-      - Assess (AI batch): pipeline/04.5-ai-batch.md
-      - Structural Analysis: pipeline/04.8-structural-analysis.md
-      - Grade: pipeline/05-grade.md
-      - Focus: pipeline/06-focus.md
-      - Feedback: pipeline/07-feedback.md
-      - Outcome Publication (adapters): pipeline/08-export.md
-  - Architecture Reference:
-      - Responsibilities and Dependencies: architecture/overview.md
-      - Adding an Evaluator: architecture/extending.md
-      - Core Values: architecture/core_structures.md
-      - Pipeline Execution Tracking: architecture/pipeline_execution_tracking.md
+      - Sandbox Ownership: contracts/SANDBOX.md
+      - Development Guide: guides/development.md
       - Sandbox Manager Internals: architecture/sandbox_manager.md
       - Web Module: architecture/web_module.md
-  - Templates:
-      - Evaluator Reference: reference/evaluators.md
-      - Definition Reference: reference/definition.md
-      - Input Output Template: template-library/input_output.md
-      - API Testing Template: template-library/api_testing.md
-      - Web Development Template: template-library/web_dev.md
-      - Static Analysis Template: template-library/static_analysis.md
-  - Features:
-      - Grading Engine: features/grading_engine.md
-      - Focus Feature: features/focus_feature.md
-      - Score Vector: features/score_vector.md
-      - Baseline Comparison: features/baseline_comparison.md
-      - Deliberate Code Execution: features/deliberate_code_execution.md
-      - Setup Config: features/setup_config_feature.md
-      - Program Commands: features/program_commands.md
-      - Localization: features/localization.md
-  - Guides:
-      - Criteria Configuration Examples: guides/criteria_configuration_examples.md
-      - GitHub Module (legacy): guides/github_module.md

@@ -265,41 +265,6 @@ def test_registration_is_local_and_needs_no_engine_change():
     assert not set(EXAMPLE_TEMPLATES) & set(BUILTIN_TEMPLATES)
 
 
-def test_readme_template_tables_name_registered_evaluators_and_parameters():
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    section = readme[readme.index("## Grading Templates"):readme.index("#### 4. Custom Templates")]
-    evaluators = {e.identifier: e for t in describe_templates().templates for e in t.evaluators}
-    rows = re.findall(r"^\| `(\w+)` +\|[^|]*\|([^|]*)\|", section, re.M)
-    assert len(rows) >= 8
-    for identifier, parameters in rows:
-        assert identifier in evaluators, identifier
-        properties = evaluators[identifier].parameters_schema["properties"]
-        assert set(re.findall(r"`(\w+)`", parameters)) <= set(properties), identifier
-
-
-def test_template_reference_criterion_snippets_compile():
-    """Every criterion snippet in the template reference compiles as written."""
-    catalog = {e.identifier: t.identifier for t in describe_templates().templates for e in t.evaluators}
-    checked = 0
-    for path in sorted((ROOT / "docs/template-library").glob("*.md")):
-        for block in re.findall(r"```json\n(.*?)```", path.read_text(encoding="utf-8"), re.S):
-            criterion = json.loads(block)
-            if not {"type", "parameters"} <= set(criterion):
-                continue
-            definition = {"schema_version": "1.0", "templates": [catalog[criterion["type"]]],
-                          "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [criterion]}}}
-            compile_definition(definition)
-            checked += 1
-    assert checked >= 15
-
-
-def test_criteria_tree_guide_example_compiles():
-    guide = (ROOT / "docs/core/criteria-tree.md").read_text(encoding="utf-8")
-    [block] = [b for b in re.findall(r"```json\n(.*?)```", guide, re.S) if '"base"' in b]
-    compile_definition({"schema_version": "1.0", "templates": ["input_output", "static_analysis"],
-                        "languages": ["python"], "criteria": json.loads(block)})
-
-
 def test_quickstart_configuration_is_a_valid_definition():
     guide = (ROOT / "docs/getting-started/first-grading-workflow.md").read_text(encoding="utf-8")
     body = json.loads(re.findall(r"-d '(\{.*?\})'", guide, re.S)[0])

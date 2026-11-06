@@ -109,9 +109,7 @@ change: edit the Dockerfile, update this table and the documented versions in
   allowed language without a default.
 
 There is no other default table, no upper-case (`PYTHON`) alias for map keys and
-no file-name inference. The removed `CommandResolver` documented inference from a
-"fallback filename" that no caller ever supplied, so the executed `CMD` commands
-are unchanged and no definition needs to migrate.
+no file-name inference.
 
 ## Grammar selection
 

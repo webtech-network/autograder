@@ -51,7 +51,7 @@ The `deploy` job of `.github/workflows/verify.yml` runs steps 2 to 5 for the API
 image of each verified commit on `main`. By hand:
 
 1. **Read the migration notes** of the release: [retired variables](configuration.md#retired-variables),
-   [Sandbox ownership](../contracts/SANDBOX.md#migration) and
+   [Sandbox ownership](../contracts/DECISIONS.md#sandbox-ownership-and-configuration) and
    [Durable jobs](../contracts/JOBS.md#deployment-and-migration).
 2. **Pull** the new `api` and `sandbox-manager` images and the runtime images of
    the new `sandbox_config.yml`.
