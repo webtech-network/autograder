@@ -6,17 +6,24 @@ the shipped Docker profile; the Docker client records every exec it creates, so
 the counts below are the Docker calls the sandbox actually made.
 """
 # pylint: disable=missing-function-docstring,redefined-outer-name,unused-argument
+import gc
 import hashlib
 import json
+import sys
 import time
+import warnings
 
 import docker
 import pytest
 
+from autograder import HostCapabilities, compile_definition
+from autograder.models.capabilities import requirements_for
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.language import Language
 from autograder.models.process import ProcessRequest, ProcessStatus
+from autograder.services.preparation import prepare_session
+from execution_host.docker import DockerSession
 from sandbox_manager.docker_profile import FIXTURE_TMPFS_BYTES, GVISOR_RUNTIME, container_options
 from sandbox_manager.errors import ProcessExecutionError, SandboxInvalidatedError
 from sandbox_manager.sandbox_container import INLINE_STDIN_BYTES, SandboxContainer
@@ -162,6 +169,43 @@ def test_a_fixture_set_at_the_tmpfs_maximum_is_staged_in_one_exec(sandbox, recor
         item.target: [digest(item.content), "0o444" if item.read_only else "0o644", "root"] for item in fixtures}
 
 
+class _Lender:
+    """A manager that lends the test's sandbox to the host session."""
+
+    def __init__(self, sandbox):
+        self.sandbox = sandbox
+
+    def get_sandbox(self, language, wait_seconds):
+        del language, wait_seconds
+        return self.sandbox
+
+
+def _fixture_definition(fixtures):
+    return compile_definition({
+        "schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
+        "criteria": {"base": {"weight": 100, "tests": [{
+            "id": "runs", "type": "expect_output", "name": "Runs",
+            "parameters": {"program_command": "python3 main.py", "inputs": [], "expected_output": "ok"}}]}},
+        "preparation": {"fixtures": [{"reference": reference, "path": path, "read_only": read_only}
+                                     for reference, (path, _, read_only) in fixtures.items()]}})
+
+
+@pytest.mark.parametrize("count, size", [(1, 2048), (10, 2048), (100, 2048), (4, FIXTURE_TMPFS_BYTES // 4)],
+                         ids=["1-fixture", "10-fixtures", "100-fixtures", "32-MiB"])
+def test_grading_stages_the_whole_fixture_set_in_one_exec(sandbox, recorder, count, size):
+    """The grading path (``prepare_session`` through the Docker host's session), not only ``inject_assets``."""
+    fixtures = {f"course/{index}": (f"set/{index % 7}/{index}.bin", bytes([index % 256]) * size, bool(index % 2))
+                for index in range(count)}
+    compiled = _fixture_definition(fixtures)
+    session = DockerSession(_Lender(sandbox), Language.PYTHON)
+    prepare_session(session, compiled, requirements_for(compiled, Language.PYTHON),
+                    HostCapabilities(fixtures=lambda reference: fixtures[reference][1]))
+    assert recorder.execs == 1
+    assert inventory(sandbox, "/tmp/app")["files"] == {
+        f"/tmp/app/{path}": [digest(content), "0o444" if read_only else "0o644", "root"]
+        for path, content, read_only in fixtures.values()}
+
+
 # ----- exact bytes, paths, owners and modes ---------------------------------------
 
 def test_submission_paths_and_bytes_are_exact(sandbox):
@@ -208,6 +252,22 @@ def test_stdin_is_byte_exact_with_a_constant_number_of_execs(sandbox, recorder, 
     assert (result.status, result.exit_code, result.stdout) == (ProcessStatus.EXITED, 0, f"{size} {digest(stdin)}\n")
     # The run and its collector, plus one staging transfer above the inline size.
     assert recorder.execs == (3 if size > INLINE_STDIN_BYTES else 2)
+
+
+def test_staging_releases_its_docker_connection(sandbox, monkeypatch):
+    """Each transfer closes docker-py's response and socket: nothing is left for the
+    garbage collector to report on a worker's stderr (``ResourceWarning`` for the
+    socket, or ``ValueError: I/O operation on closed file`` from the response)."""
+    unraisable = []
+    monkeypatch.setattr(sys, "unraisablehook", lambda report: unraisable.append(repr(report.exc_value)))
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", ResourceWarning)
+        for index in range(20):
+            sandbox.prepare_workdir(submission(1, 10 + index))
+            sandbox.run_process(ProcessRequest(argv=("true",), stdin=b"x" * (INLINE_STDIN_BYTES + 1)))
+        gc.collect()
+    assert unraisable == []
+    assert [str(item.message) for item in caught if issubclass(item.category, ResourceWarning)] == []
 
 
 # ----- failures stage nothing, or invalidate the sandbox -------------------------------

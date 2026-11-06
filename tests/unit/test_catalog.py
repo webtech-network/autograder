@@ -135,7 +135,7 @@ class FakeSession:
     def prepare_workdir(self, files):
         self.staged = dict(files)
 
-    def stage_fixture(self, path, content, read_only):
+    def stage_fixtures(self, fixtures):
         raise AssertionError("no fixtures are declared")
 
     def run_process(self, request):

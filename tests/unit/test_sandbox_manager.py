@@ -258,6 +258,17 @@ class TestSandboxContainer(unittest.TestCase):
             sandbox.inject_assets([ResolvedAsset("/tmp/a", b"x")])
         self.assertIsNotNone(sandbox.invalidated)
 
+    def test_a_docker_daemon_over_tls_is_refused_before_any_exec(self):
+        """A TLS socket cannot be half-closed, so stdin could never end: refuse, never guess."""
+        container = ScriptedContainer()
+        container.client.api.base_url = "https://docker.example:2376"
+        sandbox = SandboxContainer(Language.PYTHON, container)
+        with self.assertRaises(ProcessExecutionError) as raised:
+            sandbox.inject_assets([ResolvedAsset("/tmp/a", b"x")])
+        self.assertIn("not TLS", str(raised.exception))
+        self.assertEqual(container.calls, [])
+        self.assertIsNotNone(sandbox.invalidated)
+
     def test_stdin_up_to_the_inline_size_is_an_argument_and_above_it_one_transfer(self):
         for size, staged in ((48 * 1024, False), (48 * 1024 + 1, True), (1024 * 1024, True)):
             with self.subTest(size=size):

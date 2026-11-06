@@ -155,12 +155,13 @@ runs on. Run it where the Docker daemon is reachable (in Compose:
 
 ## Staging
 
-Submission files (`prepare_workdir`), a fixture set (`inject_assets`) and
-process stdin above 48 KiB are each staged in **one transfer**: the host packs
-the files into a tar archive and streams it to the stdin of a single `tar -x`
-exec, so a staging operation costs the same three Docker calls (create, start,
-inspect the exec) for one file or for the 100-file, 5 MiB submission and 32 MiB
-fixture maxima. Docker's archive upload cannot reach the `/app` and `/tmp`
+Submission files (`prepare_workdir`), a fixture set (`inject_assets`, which
+receives a grading's whole set from one `ExecutionSession.stage_fixtures` call,
+see [CAPABILITIES.md](CAPABILITIES.md)) and process stdin above 48 KiB are each
+staged in **one transfer**: the host packs the files into a tar archive and
+streams it to the stdin of a single `tar -x` exec, so a staging operation costs
+the same three Docker calls (create, start, inspect the exec) for one file or
+for the 100-file, 5 MiB submission and the 100-fixture, 32 MiB fixture maxima. Docker's archive upload cannot reach the `/app` and `/tmp`
 tmpfs mounts, so the exec's stdin is the transport; the command is a fixed
 argument vector and no caller value becomes shell text or an argument.
 
@@ -180,7 +181,11 @@ argument vector and no caller value becomes shell text or an argument.
   bounded by the 60 s control deadline.
 
 The runtime image provides `tar` (BusyBox or GNU) next to the `/bin/sh` tools
-the control scripts already use.
+the control scripts already use. Ending the transfer half-closes the exec's
+attach socket, which a TLS connection cannot do, so the sandbox host reaches the
+Docker daemon over its unix socket (as every shipped deployment does) or plain
+TCP; with a TLS `DOCKER_HOST` staging fails with `ProcessExecutionError` before
+any exec is created.
 
 ## Private control API
 
@@ -293,12 +298,14 @@ server have no hard deadline beyond docker-py's own client timeout.
 * **Single-transfer staging (PRF-03).** No configuration, wire or definition
   change. Staging no longer sends one `docker exec` per 48 KiB per file: a
   100-file submission went from 100 execs to one, 32 MiB of fixtures from about
-  680 to one (measurements in the PRF-03 pull request). A failed staging
-  operation now invalidates the sandbox (later operations answer `409
+  680 to one, and a grading's set of 100 fixtures from 100 to one through the
+  `stage_fixtures` session call ([CAPABILITIES.md](CAPABILITIES.md#migration));
+  measurements are in the PRF-03 pull request. A failed staging operation now invalidates the sandbox (later operations answer `409
   SANDBOX_INVALIDATED`) instead of leaving a partially staged sandbox usable,
   and paths are validated before any file is staged. A fixture staged directly
   under `/tmp` no longer changes `/tmp` to `0755` (which stopped every later
-  process from staging its run files). A custom runtime image needs `tar`.
+  process from staging its run files). A custom runtime image needs `tar`, and
+  the Docker daemon must be reached without TLS.
 * **One sandbox budget (PRF-01).** `general.max_sandboxes` is required in
   `sandbox_config.yml`; the per-language `scale_limit` and `idle_timeout` are
   removed and rejected at startup with a message naming the replacement, as are

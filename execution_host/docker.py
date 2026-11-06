@@ -31,12 +31,14 @@ class DockerSession:
     def prepare_workdir(self, files):
         self.sandbox.prepare_workdir(files)
 
-    def stage_fixture(self, path, content, read_only):
+    def stage_fixtures(self, fixtures):
+        """The whole set as one ``inject_assets`` call: one transfer (one request in remote mode)."""
         self.sandbox.inject_assets([ResolvedAsset(
-            target=f"{self.fixture_root}/{relative_path(path)}", content=content, read_only=read_only)])
+            target=f"{self.fixture_root}/{relative_path(fixture.path)}", content=fixture.content,
+            read_only=fixture.read_only) for fixture in fixtures])
 
     def inject_assets(self, assets):
-        """Legacy deliberate-run host paths; grading uses stage_fixture instead."""
+        """Legacy deliberate-run host paths; grading uses stage_fixtures instead."""
         self.sandbox.inject_assets(assets)
 
     def run_process(self, request):

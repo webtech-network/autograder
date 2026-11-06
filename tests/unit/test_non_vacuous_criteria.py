@@ -41,8 +41,8 @@ class EmptyWorkspace:
     def prepare_workdir(self, files):
         del files
 
-    def stage_fixture(self, path, content, read_only):
-        del path, content, read_only
+    def stage_fixtures(self, fixtures):
+        del fixtures
 
     def run_process(self, request):
         return exited(stderr=f"{request.program[0]}: No such file or directory", code=1)

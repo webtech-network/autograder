@@ -14,6 +14,8 @@ import threading
 class StdinExecApi:
     """Appends ``(cmd, user, workdir)`` of each exec to ``calls``; ``stdin`` maps exec IDs to their input."""
 
+    base_url = "http+docker://localhost"  # docker-py's base URL for the unix socket
+
     def __init__(self, calls=None, exit_code=0, output=b""):
         self.calls = [] if calls is None else calls
         self.stdin = {}

@@ -247,9 +247,13 @@ class SandboxContainer:
         """Run ``cmd`` with ``data`` as its whole stdin: three Docker calls whatever the size.
 
         Output is read only after stdin is closed; the staging command writes
-        nothing unless it fails. Each socket operation is bounded.
+        nothing unless it fails. Each socket operation is bounded. Closing stdin
+        is a half-close of the attach socket, which a TLS connection cannot do,
+        so the daemon must be reached over its unix socket or plain TCP.
         """
         api = self.container_ref.client.api
+        if str(getattr(api, "base_url", "")).startswith("https://"):
+            raise ProcessExecutionError("Staging needs the Docker daemon's unix socket or plain TCP, not TLS")
         exec_id = api.exec_create(self.container_ref.id, cmd, stdout=True, stderr=True, stdin=True,
                                   user=user, workdir=workdir)["Id"]
         connection = api.exec_start(exec_id, socket=True)
@@ -262,7 +266,12 @@ class SandboxContainer:
             while chunk := raw.recv(65536):
                 received += chunk
         finally:
-            raw.close()  # the response object closes its own stream when it is released
+            # Close docker-py's HTTP response (it owns the buffered reader over this
+            # socket) before the socket, so its release later has nothing left to flush.
+            response = getattr(connection, "_response", None)
+            if response is not None:
+                response.close()
+            raw.close()
         return _Exec(api.exec_inspect(exec_id).get("ExitCode"), _demultiplex(bytes(received)))
 
     # ----- staging -------------------------------------------------------------------
