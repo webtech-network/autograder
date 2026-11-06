@@ -291,6 +291,7 @@ async def test_an_attempt_past_its_deadline_is_a_retryable_failure_without_lease
         assert await asyncio.wait_for(worker.run_once(), timeout=15) is True
         elapsed = monotonic() - claimed_at
         assert started.is_set() and not exited.is_set()  # the thread is still blocked
+        [abandoned] = worker.abandoned  # counted while its thread still runs
         assert 1.0 <= elapsed < 1.0 + settings.LEASE_SECONDS  # its deadline, not the thread, ended it
         poll = (await pg_client.get(f"/api/v1/submissions/{submission_id}")).json()
         assert poll["status"] == "failed" and poll["final_score"] is None
@@ -301,6 +302,8 @@ async def test_an_attempt_past_its_deadline_is_a_retryable_failure_without_lease
     finally:
         release.set()
     assert await asyncio.to_thread(exited.wait, 10)
+    await asyncio.wait({abandoned}, timeout=10)
+    assert worker.abandoned == set()  # no longer counted once its thread finished
     async with postgres_sessions() as session:
         row = await session.get(Submission, submission_id)
         assert row.lease_until == renewed_until  # never renewed after the deadline

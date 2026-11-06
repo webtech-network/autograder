@@ -120,3 +120,55 @@ def test_ai_only_and_static_attempts_still_have_a_deadline():
 
 def test_an_unreadable_snapshot_gets_the_margin_only():
     assert 9 < AttemptClock(request({"invalid": True}), None, margin=10).remaining() <= 10
+
+
+# ------------------------------------------------------------------ the host maximum is workable at startup
+
+def write_host_config(tmp_path, running_timeout):
+    path = tmp_path / "sandbox_config.yml"
+    path.write_text(f"general:\n  max_sandboxes: 2\n  running_timeout: {running_timeout}\n"
+                    "runtimes:\n  python: sandbox-py:latest\n")
+    return str(path)
+
+
+def web_host(tmp_path, running_timeout):
+    from web.core.config import Settings  # pylint: disable=import-outside-toplevel
+    from web.core.host import WebHost  # pylint: disable=import-outside-toplevel
+    return WebHost(Settings(SANDBOX_MODE="remote", SANDBOX_CONFIG_FILE=write_host_config(tmp_path, running_timeout),
+                            RECEIPT_DIR=str(tmp_path / "receipts")),
+                   session_factory=Mock(), start_workers=False)
+
+
+def test_a_host_maximum_shorter_than_deliberate_execution_is_refused_at_startup(tmp_path):
+    """92 s loads (one I/O criterion fits) but POST /execute needs 4 x 8 + 4 x 2 + 60 = 100 s: without this
+    refusal every deliberate run would answer 503 EXECUTION_UNAVAILABLE with nothing naming the setting."""
+    from web.service.deliberate_execution_service import EXECUTION_BUDGET  # pylint: disable=import-outside-toplevel
+    assert EXECUTION_BUDGET.session_seconds == 100
+    with pytest.raises(ValueError, match=r"running_timeout \(99 s\) must be at least 100 s"):
+        web_host(tmp_path, 99)
+    assert web_host(tmp_path, 100).capabilities.max_session_seconds == 100
+
+
+def test_a_host_config_without_running_timeout_grants_the_shipped_maximum(tmp_path):
+    from web.core.config import Settings  # pylint: disable=import-outside-toplevel
+    from web.core.host import WebHost  # pylint: disable=import-outside-toplevel
+    path = tmp_path / "sandbox_config.yml"
+    path.write_text("general:\n  max_sandboxes: 2\nruntimes:\n  python: sandbox-py:latest\n")
+    host = WebHost(Settings(SANDBOX_MODE="remote", SANDBOX_CONFIG_FILE=str(path),
+                            RECEIPT_DIR=str(tmp_path / "receipts")), session_factory=Mock(), start_workers=False)
+    assert host.capabilities.max_session_seconds == 900
+
+
+@pytest.mark.parametrize("provider", [SimpleNamespace(), SimpleNamespace(deadline_seconds=0),
+                                      SimpleNamespace(deadline_seconds=float("inf")),
+                                      SimpleNamespace(deadline_seconds="190")])
+def test_an_ai_provider_without_a_deadline_is_refused_not_given_zero_seconds(provider):
+    from web.service.worker import DurableWorker  # pylint: disable=import-outside-toplevel
+    with pytest.raises(TypeError, match="must declare deadline_seconds"):
+        DurableWorker(Mock(), Mock(), HostCapabilities(ai=provider))
+    ai = {"schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
+          "criteria": {"base": {"weight": 100, "tests": [
+              {"id": "sort", "type": "ai_sorting_algorithm", "name": "Sort",
+               "parameters": {"algorithm_name": "Merge Sort"}}]}}}
+    with pytest.raises(TypeError, match="must declare deadline_seconds"):
+        AttemptClock(request(ai), HostCapabilities(ai=provider), margin=60)

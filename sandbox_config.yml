@@ -23,6 +23,8 @@ general:
     # command, + 2 s each + 60 s per session) and then stops itself, even if its
     # owner crashed. A definition needing more is rejected at validation and
     # acceptance with EXECUTION_BUDGET_EXCEEDED. 900 s grants up to 26 processes.
+    # Default 900; at least 92 (one 30 s process), and at least 100 for the web
+    # API, whose deliberate execution (POST /execute) needs 100 s.
     running_timeout: 900
 
 # RUNTIMES: the host's runtime profiles, mapping a domain language identifier to the

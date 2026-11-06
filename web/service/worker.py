@@ -32,6 +32,18 @@ def utc(value):
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
+def ai_deadline(provider) -> float:
+    """The provider's declared deadline for one ``assess`` call; a provider without one is refused.
+
+    Assuming 0 s would silently shorten every AI attempt to the margin.
+    """
+    seconds = getattr(provider, "deadline_seconds", None)
+    if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or not 0 < seconds < float("inf"):
+        raise TypeError(f"{type(provider).__name__} must declare deadline_seconds, the longest one assess call "
+                        f"can take, as a positive finite number (got {seconds!r})")
+    return float(seconds)
+
+
 class AttemptClock:
     """One attempt's deadline, derived from the bound definition like the sandbox's lifetime.
 
@@ -50,9 +62,9 @@ class AttemptClock:
             needs_session = bool(requirements.capabilities & EXECUTION_CAPABILITIES)
         except Exception:  # pylint: disable=broad-exception-caught
             budget, needs_session = ExecutionBudget(), False  # the grading itself fails fast
-        ai_seconds = 0.0
-        if budget.ai_calls:
-            ai_seconds = budget.ai_calls * (getattr(getattr(capabilities, "ai", None), "deadline_seconds", 0.0) or 0.0)
+        ai = getattr(capabilities, "ai", None)
+        # Without a provider the grading fails fast (AI_CAPABILITY_UNAVAILABLE).
+        ai_seconds = budget.ai_calls * ai_deadline(ai) if ai is not None else 0.0
         self.rest = (budget.session_seconds if needs_session else 0.0) + ai_seconds + margin
         self.deadline = monotonic() + (GRADING_CAPACITY_WAIT_SECONDS if needs_session else 0.0) + self.rest
 
@@ -97,7 +109,11 @@ class DurableWorker:
         self.capabilities = capabilities
         self.evaluator = evaluator
         self.attempt_margin = attempt_margin
+        if getattr(capabilities, "ai", None) is not None:
+            ai_deadline(capabilities.ai)  # refuse at startup, not at the first AI attempt
         self.tasks = set()
+        # Gradings abandoned at their deadline whose threads still run (logged; see run_once).
+        self.abandoned = set()
         self.stopping = asyncio.Event()
 
     async def claim(self):
@@ -201,9 +217,12 @@ class DurableWorker:
                 outcome = evaluation.result()
             else:
                 # Its sandbox has already stopped itself; the thread cannot be stopped from here.
-                logger.error("Grading attempt %s of submission %s passed its deadline", attempt_id,
-                             request.submission_id)
+                self.abandoned.add(evaluation)
+                evaluation.add_done_callback(self.abandoned.discard)
                 evaluation.add_done_callback(_discard_late)
+                logger.error("Grading attempt %s of submission %s passed its deadline; %d abandoned grading "
+                             "thread(s) still running in this process", attempt_id, request.submission_id,
+                             len(self.abandoned))
                 outcome = failed_outcome(request, "ATTEMPT_DEADLINE_EXCEEDED",
                                          "The grading attempt did not finish within its deadline.",
                                          category="capability", retryable=True)

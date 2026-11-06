@@ -78,7 +78,10 @@ Every sandbox ends itself; neither its owner nor reclamation has to be alive.
 
 * `get_sandbox(language, wait_seconds, lifetime_seconds)` grants a sandbox for
   `lifetime_seconds` from the grant (default: the host maximum). The host
-  maximum is `general.running_timeout` in `sandbox_config.yml` (shipped: 900 s);
+  maximum is `general.running_timeout` in `sandbox_config.yml` (shipped and
+  default: 900 s). The loader rejects a value below 92 s, the smallest session
+  one execution needs (one 30 s process + 2 s + 60 s), and the web host refuses
+  to start below 100 s, deliberate execution's fixed budget;
   a longer lifetime raises `SandboxLifetimeExceeded` before any wait, and the
   control API answers `422 LIFETIME_EXCEEDED`. Graders ask for the run's
   `budget.session_seconds` (see [CAPABILITIES.md](CAPABILITIES.md#execution-budget))
@@ -92,7 +95,9 @@ Every sandbox ends itself; neither its owner nor reclamation has to be alive.
   its owner (crash, `SIGKILL`, a recreated container with another hostname).
 * PID 1 itself runs `sleep <2 × running_timeout + 60>`: an idle container is
   granted only while younger than `running_timeout`, the monitor disposes older
-  ones, and an orphaned idle container stops by itself at that bound.
+  ones, and an orphaned idle container stops by itself at that bound (1860 s
+  shipped). No submission code has run in an idle container: student processes
+  only ever run in a granted one, which stops at its own lifetime.
 * A run the lifetime ended is an infrastructure failure (`SANDBOX_ERROR`): the
   sandbox records the instant its lifetime passes (never later than the real
   stop), and any operation, control failure or readback after it invalidates the
@@ -101,7 +106,8 @@ Every sandbox ends itself; neither its owner nor reclamation has to be alive.
   control API's reaper then forgets its handle. After a crash, a stopped
   container's record remains until its owner lease is reclaimed (startup
   reclamation on the same hostname, or `python -m sandbox_manager.reclaim
-  --dead-host <name>`); reclamation only removes containers that already ended.
+  --dead-host <name>`). Reclamation still force-removes a dead owner's
+  containers, running or not; it is no longer what ends a sandbox.
 
 There is one Docker profile (`sandbox_manager/docker_profile.py`): limits,
 tmpfs mounts, `network_mode="none"`, identities, capabilities, ulimits and
@@ -335,7 +341,9 @@ server have no hard deadline beyond docker-py's own client timeout.
   `budget.session_seconds`) up to it, and stops itself then even if its owner
   died; containers no longer run `sleep infinity`. The shipped value rose from
   120 s to 900 s so that definitions of up to 26 thirty-second processes are
-  granted; set it from the largest definition you accept. Definitions needing
+  granted; set it from the largest definition you accept. Omitting it now means
+  900 s (it was 60 s), and values below 92 s are rejected at startup (the web host
+  also refuses below 100 s, deliberate execution's budget). Definitions needing
   more are now refused at validation and acceptance (HTTP 422
   `EXECUTION_BUDGET_EXCEEDED`) instead of failing with `SANDBOX_ERROR` after the
   reaper fired. The acquire body gained the optional `lifetime_seconds`

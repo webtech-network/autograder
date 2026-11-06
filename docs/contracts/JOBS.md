@@ -66,8 +66,9 @@ Every attempt has a deadline derived from its bound definition, never from a
 setting: the execution session's lifetime (`budget.session_seconds`, the same
 lifetime the sandbox enforces on itself, see
 [CAPABILITIES.md](CAPABILITIES.md#execution-budget)) plus the AI provider's
-`deadline_seconds` (190 s for the shipped OpenAI provider) for the grading's one
-provider call, plus a 60 s margin (`ATTEMPT_MARGIN_SECONDS` in
+`deadline_seconds` (190 s for the shipped OpenAI provider; a provider that does
+not declare a positive finite one is refused when the worker starts) for the
+grading's one provider call, plus a 60 s margin (`ATTEMPT_MARGIN_SECONDS` in
 `web/service/worker.py`) for grading, feedback and the hand-off. The clock starts
 when the session is granted, so waiting for a sandbox slot does not count (that
 wait is bounded separately by `GRADING_CAPACITY_WAIT_SECONDS`, below). A static
@@ -79,7 +80,9 @@ for its grading thread (which cannot be stopped from outside and whose sandbox
 has already stopped itself) and publishes a failed outcome
 `ATTEMPT_DEADLINE_EXCEEDED`, `category: capability`, `retryable: true`, fenced by
 its attempt UUID like any other publication. A late result of the abandoned
-thread is logged and discarded. Re-queuing retryable failures is COR-03 (#418);
+thread is logged and discarded; each abandonment logs how many abandoned grading
+threads are still running in the process (sandbox and AI paths end by
+themselves; a growing count points at a hung static path). Re-queuing retryable failures is COR-03 (#418);
 until then the failure is terminal.
 
 A definition whose worst case the host could never grant is refused before it is
