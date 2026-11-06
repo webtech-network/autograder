@@ -89,7 +89,8 @@ pulls: a missing image raises `RuntimeImageError` naming the image and the
 `docker pull` command, and an image whose label does not declare the language
 (for example an old unlabelled `sandbox-py:latest`, or the Java image mapped to
 `python`) raises `RuntimeImageError` before any container is created. A custom
-image only needs that label.
+image needs that label and the BusyBox or GNU tools the sandbox control uses
+(`/bin/sh`, `tar`, `base64`, `head`, `stat`, `readlink`), as every Alpine base has.
 
 Changing a student runtime (for example Node.js 24 to 26) is a release-noted
 change: edit the Dockerfile, update this table and the documented versions in

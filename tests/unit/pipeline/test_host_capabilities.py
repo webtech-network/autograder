@@ -6,6 +6,7 @@ import pytest
 from autograder import build_pipeline
 from autograder.models.capabilities import HostCapabilities
 from autograder.models.dataclass.submission import Submission, SubmissionFile
+from autograder.models.execution import StagedFixture
 from autograder.models.process import ProcessRequest
 from tests.process_results import exited, not_started, timed_out
 from autograder.models.language import Language
@@ -70,12 +71,12 @@ def test_setup_and_empty_fixture_use_selected_session_then_close_before_outcome(
     execution = pipeline.run(submission())
     assert execution.outcome.status == "completed" and events == ["closed"]
     acquire.assert_called_once_with(Language.PYTHON)
-    owned.stage_fixture.assert_called_once_with("data.bin", b"", True)
+    owned.stage_fixtures.assert_called_once_with([StagedFixture("data.bin", b"", True)])
     owned.run_process.assert_called_once_with(ProcessRequest(argv=("prepare",), timeout=30))
     owned.close.assert_called_once()
 
 
-@pytest.mark.parametrize("operation", ["prepare_workdir", "stage_fixture", "run_process"])
+@pytest.mark.parametrize("operation", ["prepare_workdir", "stage_fixtures", "run_process"])
 def test_failure_after_ownership_transfer_closes_once(operation):
     owned = session()
     getattr(owned, operation).side_effect = RuntimeError("private details")

@@ -3,7 +3,7 @@ from autograder.models.capabilities import ExecutionRequirements, FixtureNotFoun
 from autograder.models.contracts.definition import CompiledDefinition, SetupCommand
 from autograder.models.dataclass.submission import Submission
 from autograder.models.evaluation_error import EvaluationError
-from autograder.models.execution import ExecutionSession
+from autograder.models.execution import ExecutionSession, StagedFixture
 from autograder.services.file_selection import select_files
 from autograder.models.process import ProcessRequest, ProcessResult, ProcessStatus, SandboxExhausted
 
@@ -69,11 +69,15 @@ def prepare_session(
     """Stage fixtures and setup commands, then start an assessed server if needed."""
     step = None
     try:
+        fixtures = []
         for fixture in compiled.definition.preparation.fixtures:
             content = providers.fixtures(fixture.reference)
             if not isinstance(content, bytes):
                 raise TypeError("Fixture providers must return bytes")
-            session.stage_fixture(fixture.path, content, fixture.read_only)
+            fixtures.append(StagedFixture(fixture.path, content, fixture.read_only))
+        if fixtures:
+            # The whole set in one call: every fetch completes before anything is staged.
+            session.stage_fixtures(fixtures)
         for command in requirements.preparation.setup_commands:
             step = command
             # Same process contract as assessment: argv (no implicit shell), empty stdin.
