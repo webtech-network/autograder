@@ -105,3 +105,38 @@ def test_unconfirmed_local_disposal_keeps_the_completed_grade(caplog):
     finally:
         manager.shutdown()
     assert client.live == {}  # Shutdown's final attempt succeeds once Docker recovers.
+
+
+def test_acquisition_failures_are_retryable_only_when_they_can_pass_without_an_operator(served):
+    """The Docker host session over the real control API (COR-03).
+
+    A refused token or a language the service has no runtime for stays that way
+    until an operator acts; an unavailable or saturated service, or an unreachable
+    one, can recover, and the HTTP host retries those.
+    """
+    url, manager = served
+
+    def grade(acquire_from, language=Language.PYTHON):
+        value = definition(evaluator="check_project_structure")
+        execution = HostCapabilities(execution=lambda lang, budget: DockerSession(acquire_from, lang, budget))
+        # check_project_structure is static; preparation forces a session for this definition.
+        value["preparation"] = {"languages": {language.value: {"setup_commands": [{"name": "s", "command": "true"}]}}}
+        files = {"main.py": submission().submission_files["main.py"]} if language is Language.PYTHON else {
+            "Main.java": submission().submission_files["main.py"]}
+        candidate = submission(language=language, files=files)
+        return evaluate_submission(candidate, definition=value, capabilities=execution).error
+
+    refused = grade(RemoteSandboxManager(url, token="not-the-token"))
+    missing_runtime = grade(RemoteSandboxManager(url, token="wire-token"), Language.JAVA)
+    manager.unavailable = True
+    unavailable = grade(RemoteSandboxManager(url, token="wire-token"))
+    manager.unavailable, manager.saturated = False, True
+    saturated = grade(RemoteSandboxManager(url, token="wire-token"))
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        closed = f"http://127.0.0.1:{probe.getsockname()[1]}"
+    unreachable = grade(RemoteSandboxManager(closed, token="wire-token", acquire_attempts=1))
+    assert [(error.code, error.retryable) for error in (refused, missing_runtime)] == [
+        ("CAPABILITY_UNAVAILABLE", False)] * 2
+    assert [(error.code, error.retryable) for error in (unavailable, saturated, unreachable)] == [
+        ("CAPABILITY_UNAVAILABLE", True)] * 3
