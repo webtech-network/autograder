@@ -10,10 +10,11 @@ the branch that raises ``<version>``; after every verification job passed, CI
 builds and tests the image from scratch (``make test-images``) and ``publish``
 pushes exactly that image under the pinned reference, then tags the commit
 ``<version>``. ``check`` (CI, on pull requests into ``main`` and on ``main``)
-fails unless the ``<version>`` tag is in the checked commit's history and the
-pinned image is anonymously pullable. A version is published
-once: an existing reference is never overwritten, and a ``<version>`` tag on
-another commit stops the release.
+fails unless the ``<version>`` tag is in the checked commit's history, nothing
+the release consists of (``action.yml`` and every input of the image) changed
+since that tag, and the pinned image is anonymously pullable. A version is
+published once: an existing reference is never overwritten, and a ``<version>``
+tag on another commit stops the release.
 
 Run as a module from the repository root: ``python -m scripts.action_image ref``.
 """
@@ -24,7 +25,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import yaml
 
@@ -44,13 +45,35 @@ def pinned(action: Path = ROOT / "action.yml") -> Tuple[str, str]:
     return image.removeprefix("docker://"), match.group(1)
 
 
-def _output(*args: str) -> str:
-    return subprocess.run(list(args), capture_output=True, text=True, check=True).stdout.strip()
+def released_paths(root: Path = ROOT) -> List[str]:
+    """What a release consists of: ``action.yml``, which consumers read from the
+    branch, and everything the Action image is built from (``Dockerfile.actions``,
+    the ``.dockerignore`` filter and each build-context path it copies).
+
+    A change to any of these after the ``<version>`` tag would make ``@main``
+    disagree with the image it pins.
+    """
+    sources = []
+    dockerfile = (root / "Dockerfile.actions").read_text(encoding="utf-8").replace("\\\n", " ")
+    for line in dockerfile.splitlines():
+        words = line.split()
+        if not words or words[0].upper() not in ("COPY", "ADD"):
+            continue
+        if words[1].startswith("["):
+            raise ValueError(f"Dockerfile.actions: write {words[0]} in shell form so its sources can be read: {line!r}")
+        if any(word.startswith("--from") for word in words):
+            continue  # another stage or image, pinned in the Dockerfile itself
+        sources += [word for word in words[1:-1] if not word.startswith("--")]
+    return ["action.yml", "Dockerfile.actions", ".dockerignore", *sources]
 
 
-def _tagged(version: str) -> Optional[str]:
+def _output(*args: str, cwd: Optional[Path] = None) -> str:
+    return subprocess.run(list(args), capture_output=True, text=True, check=True, cwd=cwd).stdout.strip()
+
+
+def _tagged(version: str, cwd: Optional[Path] = None) -> Optional[str]:
     """The commit ``origin``'s ``<version>`` tag names (peeled when annotated), if the tag exists."""
-    listed = _output("git", "ls-remote", "origin", f"refs/tags/{version}", f"refs/tags/{version}^{{}}")
+    listed = _output("git", "ls-remote", "origin", f"refs/tags/{version}", f"refs/tags/{version}^{{}}", cwd=cwd)
     refs = {ref: sha for sha, ref in (line.split() for line in listed.splitlines())}
     return refs.get(f"refs/tags/{version}^{{}}", refs.get(f"refs/tags/{version}"))
 
@@ -60,23 +83,26 @@ def _stop(message: str) -> None:
     sys.exit(1)
 
 
-def check(action: Path = ROOT / "action.yml") -> None:
-    """Exit 1 unless the pinned version was released from this commit's history and is anonymously pullable.
+def check(root: Path = ROOT) -> None:
+    """Exit 1 unless the checked commit is the pinned release: released from its history, unchanged since, public.
 
     The ``<version>`` tag names the commit the image was built from; it must be an
     ancestor of the checked commit, so the image ``@main`` runs provably comes
     from merged history (not from a dispatch on an unmerged or rewritten commit).
+    No released path may differ between that commit and this one, so ``action.yml``
+    and the image ``@main`` runs are exactly what was released together: any
+    change to the interface or the image needs a new version and release.
     The registry is asked with an empty ``DOCKER_CONFIG``, as a consumer's runner
     asks: a private package reads as absent even where the caller is logged in.
     """
-    reference, version = pinned(action)
+    reference, version = pinned(root / "action.yml")
     release = "run the Verify workflow (workflow_dispatch) on the branch that raises the version"
-    tagged = _tagged(version)
+    tagged = _tagged(version, cwd=root)
     if not tagged:
         _stop(f"action.yml pins {version}, which has not been released (no `{version}` tag): {release} "
               "(docs/github_action/README.md#releasing-a-version).")
     ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", tagged, "HEAD"],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, cwd=root)
     if ancestor.returncode == 1:
         _stop(f"tag {version} ({tagged}) is not in this commit's history, so {reference} was not built from "
               "merged code. Merge the release branch with a merge commit (not squash or rebase), or raise the "
@@ -84,6 +110,13 @@ def check(action: Path = ROOT / "action.yml") -> None:
     if ancestor.returncode != 0:
         raise RuntimeError(f"cannot tell whether tag {version} is in this commit's history (a shallow clone needs "
                            f"full history): {ancestor.stderr.strip()}")
+    changed = _output("git", "diff", "--name-only", tagged, "HEAD", "--", *released_paths(root), cwd=root)
+    if changed:
+        files = changed.splitlines()
+        listed = ", ".join(files[:10]) + (f" and {len(files) - 10} more" if len(files) > 10 else "")
+        _stop(f"the Action changed after {version} was released, so `@main` would run this action.yml or code "
+              f"with the {version} image built without it: {listed}. Raise the version "
+              f"in action.yml and {release} (docs/github_action/README.md#releasing-a-version).")
     with tempfile.TemporaryDirectory() as anonymous:
         pullable = published(reference, env={**os.environ, "DOCKER_CONFIG": anonymous})
     if not pullable:
@@ -91,7 +124,8 @@ def check(action: Path = ROOT / "action.yml") -> None:
               "`webtech-network/autograder@main` workflow would fail. Publish it first: "
               f"{release}. A new package must then be made public "
               "(docs/github_action/README.md#releasing-a-version).")
-    print(f"{reference} was released from this history and is published and public", flush=True)
+    print(f"{reference} was released from this history, nothing it consists of changed since, and it is "
+          "published and public", flush=True)
 
 
 def publish(local_image: str, action: Path = ROOT / "action.yml") -> None:
@@ -121,8 +155,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ref", help="print the image reference action.yml pins")
-    commands.add_parser("check", help="fail unless that version was released from this history and is "
-                                        "anonymously pullable")
+    commands.add_parser("check", help="fail unless that version was released from this history, nothing it "
+                                        "consists of changed since, and it is anonymously pullable")
     release = commands.add_parser("publish", help="publish a tested local image under that reference")
     release.add_argument("local_image")
     args = parser.parse_args(argv)

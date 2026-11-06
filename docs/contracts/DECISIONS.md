@@ -448,13 +448,25 @@ so `.env`, `.venv`, `data/` and caches never enter an image. `action.yml` pins
 `Dockerfile.actions` in every job. A version is released once, gated on
 verification, from the branch that raises it (`workflow_dispatch`), before
 that branch can merge: the image is pushed first, then a git tag of the same
-name. `make action-check` (CI, on pull requests into `main` and on `main`)
-fails unless the `<version>` tag is an ancestor of the checked commit and the
-pinned image is pullable with an empty `DOCKER_CONFIG`. It runs in the
-`Service and Action images` job, which the `main` ruleset requires
-([Required checks](../guides/development.md#required-checks)). So `main`, which
-every documented `uses: ...@main` follows, only ever names a published, public
-image built from its own history. Release pull requests merge with a merge
+name. `make action-check` (`scripts/action_image.py check`) fails unless
+the `<version>` tag is an ancestor of the checked commit, no released path
+differs between the tagged commit and the checked one, and the pinned image is
+pullable with an empty `DOCKER_CONFIG`. The released paths are `action.yml`
+(read by consumers from the branch), `Dockerfile.actions`, `.dockerignore` and
+every build-context path that Dockerfile copies (read from it, so a new `COPY`
+joins automatically): any change to the Action interface or the image's inputs
+needs a new version and release, or the check fails. It runs in the
+`Service and Action images` job of `verify.yml` on every pull request into
+`main` and on every push to `main`, where `deploy` needs that job. That is what
+enforces it today: a red job on a pull request into `main`, and no API deploy
+from a `main` commit that fails it. It blocks a merge only once the `main`
+ruleset requires that job; today the ruleset still requires the stale `pylint`
+and `pytest` contexts, which no workflow produces, so the merge block depends on
+the repository owner adding the Verify jobs as required checks
+([Required checks](../guides/development.md#required-checks)). With that in
+place, `main`, which every documented `uses: ...@main` follows, only ever names a
+published, public image built from its own history together with the
+`action.yml` it was released with. Release pull requests merge with a merge
 commit, so the tag stays in that history. `tests/images/`
 (`make test-images`, CI) checks the built images, including a build from a
 checkout with planted secrets and the Action grading the static example.
@@ -466,11 +478,12 @@ released image rather than building the current commit; consumer workflows
 need no change. The first merge of this change into `main` requires
 `autograder-action:0.6.0` to be released from the merging branch and the new
 GHCR package to be made public, verified with an anonymous `docker manifest
-inspect`. Before that merge, the `main` ruleset's required checks, which were
-the stale `pylint` and `pytest` contexts that no workflow produces (so no check
-blocked any merge into `main`), are replaced with the Verify job names and
-confirmed with `gh api`. Only then does a red `make action-check` block the
-merge until both are true. See
+inspect`, and nothing released may change on that branch after the release
+(a later Wave change to `autograder/`, `github_action/` or `action.yml` needs a
+new version). Before that merge, the repository owner replaces the `main`
+ruleset's stale required checks (`pylint`, `pytest`) with the Verify job names
+and confirms them with `gh api`; until then a red `make action-check` is
+visible but does not block the merge. See
 [Releasing a version](../github_action/README.md#releasing-a-version). GitHub
 Release notes remain manual.
 

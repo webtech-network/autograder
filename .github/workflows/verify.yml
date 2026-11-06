@@ -98,11 +98,14 @@ jobs:
       # Builds the images from scratch (a fresh runner has no cache) and checks
       # exactly those: contents, context leaks, the Action grading an example.
       - run: make test-images
-      # Consumers use `webtech-network/autograder@main`, so main must only ever
-      # pin an Action image released from its own history that a runner can pull
-      # without credentials: an untagged or unmerged release, or a missing or
-      # private package, fails here. It blocks the merge only because the main
-      # ruleset requires this job (docs/guides/development.md#required-checks).
+      # Consumers use `webtech-network/autograder@main`: they read action.yml
+      # from main and run the image built at its <version> tag. So main must pin
+      # an image released from its own history, unchanged since (action.yml and
+      # every input of Dockerfile.actions), that a runner can pull without
+      # credentials: an untagged or unmerged release, a change without a new
+      # version, or a missing or private package fails here. It blocks a merge
+      # only once the main ruleset requires this job
+      # (docs/guides/development.md#required-checks).
       # `deploy` needs this job, so on main such an Action pin also holds back
       # the API deploy, deliberately: that commit is not releasable as a whole.
       - if: github.base_ref == 'main' || github.ref == 'refs/heads/main'
