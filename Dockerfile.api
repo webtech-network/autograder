@@ -32,6 +32,9 @@ COPY sandbox_manager sandbox_manager
 COPY web web
 RUN python -m compileall -q /app
 
+# Links the published package to this repository, so main's workflow token can push it.
+LABEL org.opencontainers.image.source="https://github.com/webtech-network/autograder"
+
 # Remote sandbox mode needs no Docker here; local mode talks to a mounted
 # socket through the Docker SDK, never a CLI or daemon in this image.
 EXPOSE 8000
