@@ -2,7 +2,8 @@ import json
 import logging
 from typing import List, Mapping, Sequence
 
-from openai import OpenAI, Timeout
+from openai import (APIStatusError, AuthenticationError, NotFoundError, OpenAI, PermissionDeniedError,
+                    Timeout)
 from autograder.models.execution import AssessmentRequest, ProviderAssessment
 from autograder.translations import t
 from pydantic import BaseModel, Field
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # The one AI request a grading makes is bounded by these waits and never retried
 # by the SDK (whose defaults are a 600 s read and two retries). A provider that
-# stops responding fails the grading with PROVIDER_ERROR after at most
+# stops responding fails the grading with a retryable PROVIDER_ERROR after at most
 # CONNECT_TIMEOUT_SECONDS + REQUEST_TIMEOUT_SECONDS; recovery is the host's choice.
 REQUEST_TIMEOUT_SECONDS = 180.0
 CONNECT_TIMEOUT_SECONDS = 10.0
@@ -37,6 +38,28 @@ class AIResponseModel(BaseModel):
     """Top-level structure of the complete AI response."""
 
     results: List[TestOutput] = Field(description="A list of test results each test performed following the TestOutput format")
+
+
+# Answers that can change without an operator acting: a request timeout, a
+# conflict and throttling. Every other 4xx repeats for the same key, model and input.
+TRANSIENT_CLIENT_STATUSES = frozenset({408, 409, 429})
+
+
+def provider_failure(error: Exception) -> EvaluationError:
+    """Classify one failed provider request by whether repeating it can succeed.
+
+    A refused credential, a forbidden or unknown model are the host's
+    configuration (non-retryable ``PROVIDER_UNAVAILABLE``); any other
+    deterministic 4xx, such as an input over the model's context, is a
+    non-retryable ``PROVIDER_ERROR``. Transport failures, deadlines, 408/409/429
+    and 5xx answers are retryable ``PROVIDER_ERROR``.
+    """
+    if isinstance(error, (AuthenticationError, PermissionDeniedError, NotFoundError)):
+        return EvaluationError("PROVIDER_UNAVAILABLE", "The assessment provider is unavailable.", "provider")
+    retryable = not (isinstance(error, APIStatusError) and 400 <= error.status_code < 500
+                     and error.status_code not in TRANSIENT_CLIENT_STATUSES)
+    return EvaluationError("PROVIDER_ERROR", "The assessment provider could not complete evaluation.", "provider",
+                           retryable)
 
 
 def resolve_api_key(*, api_key, secret_name, region, secret_source=None):
@@ -101,7 +124,7 @@ class AiExecutor:
             parsed = response.output_parsed
         except Exception as e:
             logger.error("AI batch request failed: %s", e)
-            raise EvaluationError("PROVIDER_ERROR", "The assessment provider could not complete evaluation.", "provider", True) from e
+            raise provider_failure(e) from e
         if parsed is None:
             raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
         return [ProviderAssessment(criterion_id=output.criterion_id, score=output.score, report=output.feedback)

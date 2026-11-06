@@ -31,10 +31,12 @@ BUCKET = "fixtures"
 def store():
     try:
         client = docker.from_env()
-        if not client.images.list(STORE_IMAGE):
-            client.images.pull(STORE_IMAGE)
-    except Exception as exc:  # pragma: no cover - environment guard
-        pytest.skip(f"Docker or {STORE_IMAGE} unavailable: {exc}")
+        client.ping()
+    except docker.errors.DockerException as exc:  # pragma: no cover - environment guard
+        pytest.skip(f"Docker unavailable: {exc}")
+    # With Docker present, a failed pull is a failure: this is acceptance evidence, not optional.
+    if not client.images.list(STORE_IMAGE):
+        client.images.pull(STORE_IMAGE)
     container = client.containers.run(STORE_IMAGE, name=f"autograder-test-store-{uuid4().hex[:12]}", detach=True,
                                       ports={"4566/tcp": ("127.0.0.1", None)})
     try:

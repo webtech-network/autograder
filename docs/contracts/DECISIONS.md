@@ -723,7 +723,11 @@ the other way: a missing fixture bucket or a denied credential was a retryable
 S3 fixture provider reports a store that refuses the bucket or the credentials as
 the non-retryable `FIXTURE_PROVIDER_UNAVAILABLE` (an unset bucket supplies no
 provider at all), and the Docker host reports a missing runtime or a refused
-sandbox-service token as a non-retryable `CAPABILITY_UNAVAILABLE`. The HTTP
+sandbox-service token as a non-retryable `CAPABILITY_UNAVAILABLE`. The OpenAI
+provider reports a refused key, access or model (HTTP 401/403/404) as the
+non-retryable `PROVIDER_UNAVAILABLE` and other deterministic 4xx answers as a
+non-retryable `PROVIDER_ERROR`; transport failures, deadlines, 408/409/429 and
+5xx stay retryable. The HTTP
 worker is the one retry layer: a retryable failure with budget left releases the
 claim (fenced by the attempt UUID, the row stays `processing` with no owner) for
 `WEB_RETRY_SECONDS` × 2^(attempt − 1); the last attempt of `WEB_MAX_ATTEMPTS`
@@ -736,4 +740,7 @@ Migration: polling may stay `processing` for up to about 90 s more (defaults: 3
 attempts, 30 s then 60 s) before a transient failure is published, instead of
 reporting it at once; integrators that resubmitted on `retryable: true` can stop.
 A deployment with a missing fixture bucket now fails those gradings with
-`FIXTURE_PROVIDER_UNAVAILABLE` instead of `PREPARATION_ERROR`.
+`FIXTURE_PROVIDER_UNAVAILABLE` instead of `PREPARATION_ERROR`, and one with a
+bad AI key or model with `PROVIDER_UNAVAILABLE` instead of a retryable
+`PROVIDER_ERROR`. A published `retryable: true` means the host's retries are
+exhausted.

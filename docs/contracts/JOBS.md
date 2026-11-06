@@ -58,7 +58,7 @@ and the engine knows nothing about attempts. One budget,
 | --- | --- |
 | A completed grade (including assessed zeros) or a non-retryable failure | Publishes it at once; no further attempt. |
 | A failure with `retryable: true` (OUTCOMES.md: the cause can pass without an operator, such as Docker or the sandbox service restarting, a sandbox capacity wait or `ATTEMPT_DEADLINE_EXCEEDED`, a fixture store or AI provider outage) and budget left | Publishes nothing. It releases the claim with a backoff and the submission stays `processing`. |
-| A retryable failure on the last attempt of the budget | Publishes that failure, with the engine's code. |
+| A retryable failure on the last attempt of the budget | Publishes that failure, with the engine's code. Its `retryable: true` then means the host's retries are exhausted; resubmitting is the integrator's decision, not a loop to automate. |
 | An interruption (the process died or the lease expired) | Reclaims after the lease; with no budget left it publishes `RECOVERY_EXHAUSTED`, null score/tree. |
 
 A release is fenced like publication (only the attempt that owns the row can

@@ -198,8 +198,13 @@ credentials, construct a client or touch the network.
   construction is `PROVIDER_UNAVAILABLE` and is not cached: the next AI grading
   tries again.
 - **Secret rotation needs no restart.** A request rejected as unauthenticated
-  (HTTP 401) fails that grading with `PROVIDER_ERROR` and drops the client; the
-  next AI grading looks the secret up again.
+  (HTTP 401) fails that grading with the non-retryable `PROVIDER_UNAVAILABLE` and
+  drops the client; the next AI grading looks the secret up again.
+- **Classification.** Answers that repeat until an operator changes the key or
+  the model (401, 403, 404) are the non-retryable `PROVIDER_UNAVAILABLE`; any
+  other 4xx except 408/409/429 (for example an input over the model's context)
+  repeats for the same input and is a non-retryable `PROVIDER_ERROR`. Transport
+  failures, deadlines, 408, 409, 429 and 5xx are a retryable `PROVIDER_ERROR`.
 - **Deadline.** `openai_client` sets an explicit deadline and zero SDK retries
   (the SDK defaults are a 600 s read and two retries). Each network wait is
   bounded by `REQUEST_TIMEOUT_SECONDS` (180 s; connecting by
