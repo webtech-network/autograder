@@ -352,6 +352,27 @@ class TestSandboxContainer(unittest.TestCase):
         self.assertEqual((result.status, result.exit_code, result.stdout), (ProcessStatus.TIMED_OUT, None, "partial"))
         self.assertEqual([call[0][2] for call in container.calls], [RUNNER, COLLECT])
 
+    def test_control_reports_are_read_from_stdout_alone(self):
+        """Docker does not order an exec's stderr against its stdout, so control execs never attach it.
+
+        A refused fork in the collector's readback writes to stderr after the
+        report; combined, it could arrive first and displace the report.
+        """
+        container = ScriptedContainer()
+        attached = {}
+        scripted = container.exec_run
+
+        def exec_run(cmd, **kwargs):
+            attached[cmd[2]] = kwargs.get("stderr")
+            return scripted(cmd, **kwargs)
+        container.exec_run = exec_run
+        sandbox = SandboxContainer(Language.PYTHON, container)
+        sandbox.run_process(ProcessRequest(argv=("p",)))
+        with self.assertRaises(ArtifactReadError):  # the scripted READ reports nothing
+            sandbox.extract_file("/app/out.txt")
+        self.assertIs(attached[COLLECT], False)
+        self.assertIs(attached[READ], False)
+
     def test_unparseable_readback_is_an_execution_error(self):
         container = ScriptedContainer()
         container.exec_run = lambda cmd, **kwargs: Mock(exit_code=0, output=b"autograder:started\n" if cmd[2] == RUNNER else b"garbage")
