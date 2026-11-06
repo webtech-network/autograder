@@ -19,8 +19,9 @@ class RuntimeImageError(RuntimeError):
     """A configured runtime image is absent from the Docker host or serves another language.
 
     Raised when a :class:`~sandbox_manager.manager.SandboxManager` starts, before
-    it creates any container. Images are never pulled implicitly: the host
-    operator pulls (or builds) exactly the references in ``sandbox_config.yml``.
+    it creates any container. A manager never pulls: the HTTP host's operator
+    pulls (or builds) exactly the references in ``sandbox_config.yml``, and the
+    Action's ``RunnerHost`` pulls the selected language's reference first.
     """
 
 

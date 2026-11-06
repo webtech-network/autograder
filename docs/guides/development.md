@@ -65,8 +65,9 @@ has pylint false positives to resolve first.
 | `make test-e2e` | Docker | An API process with real sandboxes. |
 | `make test-http` | Docker, `runsc` | The **HTTP path**: builds the images, starts two `docker-compose.yml` stacks side by side from empty volumes (PostgreSQL, migrations, seeded S3 emulator, sandbox manager, API in remote mode), grades the fixture example, recovers a retained outcome receipt across an API recreate without grading again, and checks that the image rejects retired configuration. Removes the stacks, their volumes and sandboxes. |
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout as `<IMAGE_PREFIX>-<name>:<IMAGE_TAG>` (default `autograder-<name>:local`, the names `docker-compose.yml` runs). |
-| `make test-images` | Docker | Builds those images and checks exactly them ([Images](#images)). |
-| `make action-check` | Network, full git history | Fails unless the version `action.yml` pins is tagged in this commit's history, nothing released (`action.yml` and the Action image's inputs) changed since that tag, and its image is anonymously pullable (asked with an empty `DOCKER_CONFIG`, so a GHCR login does not hide a private package). |
+| `make test-images` | Docker | Builds those images and the Python runtime, and checks exactly them ([Images](#images)), including the packaged Action grading in a sandbox on the Docker socket it is given. |
+| `make action-fixtures`, `make test-action` | Docker, a GitHub runner | The `Packaged Action on a hosted runner` CI job: fixture checkouts graded by `uses: ./` (`action.yml` pointed at `Dockerfile.actions`), then each outcome, its outputs and the runner's sandboxes checked (`scripts/action_fixtures.py`). Not useful outside a workflow. |
+| `make action-check` | Network, full git history | Fails unless the version `action.yml` pins is tagged in this commit's history, nothing released (`action.yml` and the Action image's inputs) changed since that tag, and its image and the runtime images it pins are anonymously pullable (asked with an empty `DOCKER_CONFIG`, so a GHCR login does not hide a private package). |
 
 A bare `pytest` collects all of `tests/`, including `tests/integration/`,
 `tests/e2e/`, `tests/stack/` and `tests/images/`, which fail rather than skip without Docker and
@@ -83,8 +84,10 @@ docker run -d --rm --name autograder-test-postgres -p 127.0.0.1:5433:5432 \
 TEST_POSTGRES_URL=postgresql+asyncpg://autograder:local-test-only@127.0.0.1:5433/autograder make test-postgres
 ```
 
-The packaged GitHub Action path is `make test-images`: it builds the Action
-image from the checkout and grades the static example with it.
+The packaged GitHub Action path is the `Packaged Action on a hosted runner`
+CI job (`make action-fixtures`, `uses: ./`, `make test-action`); locally,
+`make test-images` builds the Action image from the checkout and grades with it
+on the Docker socket it is given.
 
 `tests/unit/test_architecture.py` checks dependency direction, that discovery and
 the documented examples agree with the registry, and the extension path.
@@ -104,6 +107,7 @@ every verification job of `verify.yml` by its name, from the GitHub Actions app:
 - `Docker sandboxes (integration and e2e)`
 - `Sandbox isolation under gVisor and runc`
 - `HTTP path (Compose stack from this commit)`
+- `Packaged Action on a hosted runner` (the Action from this commit, `uses: ./`, on `ubuntu-latest`)
 
 The publication jobs (`Release Action image`, `Deploy API`) are skipped on pull
 requests and are not required. Check the setting with:
@@ -355,7 +359,8 @@ runtimes:               # only listed languages get a pool
   host, or its `autograder.runtime.languages` label does not list the language.
   Run `docker pull <image>` for the published references, or
   `make sandbox-build-all` to build this checkout's images under the same
-  references. Images are never pulled automatically.
+  references. The API and sandbox manager never pull images; only the Action
+  pulls the pinned image of the language it grades.
 - **401 from the API**: set `AUTOGRADER_INTEGRATION_TOKEN` and send
   `Authorization: Bearer <token>`.
 - **Remote sandbox manager refuses to start**: set `SANDBOX_API_TOKEN` (or

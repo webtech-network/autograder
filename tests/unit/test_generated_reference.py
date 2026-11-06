@@ -13,6 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Annotated
+from unittest.mock import Mock
 
 import pytest
 import yaml
@@ -199,15 +200,19 @@ def test_generated_criterion_examples_compile_as_written():
                             "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [criterion]}}})
 
 
-def shipped_unavailable():
-    from execution_host.docker import DockerHost  # pylint: disable=import-outside-toplevel
+def unavailable_on(capabilities):
     unavailable = {}
     for capability in CAPABILITY_DESCRIPTIONS:
         try:
-            check_capabilities(frozenset({capability}), DockerHost().capabilities)
+            check_capabilities(frozenset({capability}), capabilities)
         except EvaluationError as error:
             unavailable[capability] = error.code
     return unavailable
+
+
+def shipped_unavailable():
+    from execution_host.docker import DockerHost  # pylint: disable=import-outside-toplevel
+    return unavailable_on(DockerHost(mode="local").capabilities)
 
 
 def test_evaluators_needing_a_capability_no_shipped_host_provides_are_visibly_marked():
@@ -226,9 +231,20 @@ def test_evaluators_needing_a_capability_no_shipped_host_provides_are_visibly_ma
     assert "SERVER_CAPABILITY_UNAVAILABLE" in section(text, "health_check")
 
 
-def test_both_shipped_hosts_compose_the_docker_host_the_reference_describes():
-    for host in ("web/core/host.py", "github_action/github_action_service.py"):
-        assert "from execution_host.docker import DockerHost" in (ROOT / host).read_text(encoding="utf-8"), host
+def test_the_shipped_hosts_compose_the_hosts_the_reference_describes():
+    for host, composed in (("web/core/host.py", "from execution_host.docker import DockerHost"),
+                           ("github_action/github_action_service.py", "from execution_host.runner import RunnerHost")):
+        assert composed in (ROOT / host).read_text(encoding="utf-8"), host
+
+
+def test_the_action_host_lacks_exactly_what_the_http_host_lacks(monkeypatch):
+    # The reference computes availability from DockerHost; the Action's RunnerHost must agree (ENV-03).
+    from autograder.models.language import Language  # pylint: disable=import-outside-toplevel
+    from execution_host import runner  # pylint: disable=import-outside-toplevel
+    monkeypatch.setattr(runner, "SandboxManager", Mock())
+    host = runner.RunnerHost(Language.PYTHON, client=Mock())
+    assert unavailable_on(host.capabilities) == shipped_unavailable()
+    host.close()
 
 
 # --- Definition reference ------------------------------------------------------

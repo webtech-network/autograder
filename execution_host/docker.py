@@ -146,18 +146,21 @@ def docker_capabilities(manager):
 
 
 class DockerHost:
-    """Isolated manager for one host lifetime. Static work starts nothing.
+    """The HTTP host's isolated manager for one host lifetime. Static work starts nothing.
 
+    ``mode="local"`` runs the pools in this process from ``config_file``;
+    ``mode="remote"`` uses the private sandbox control API at ``api_url``, which
+    has no default. The Action uses :class:`execution_host.runner.RunnerHost`.
     The mode, the provider settings and the sandbox configuration's host
     maximum are validated at construction; Docker and the network are first
-    used by :meth:`start` or, for a host that never calls it (the Action), by
-    the first acquisition.
+    used by :meth:`start` or by the first acquisition.
     """
-    def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml",
-                 api_token=None):
+    def __init__(self, *, mode, api_url=None, config_file="sandbox_config.yml", api_token=None):
         from sandbox_manager.models.pool_config import SandboxHostConfig
         if mode not in ("local", "remote"):
             raise ValueError(f"SANDBOX_MODE must be local or remote, got {mode!r}")
+        if mode == "remote" and not api_url:
+            raise ValueError("Remote sandbox mode needs the sandbox control API URL")
         self.mode = mode
         self.api_url = api_url
         self.api_token = api_token
@@ -213,10 +216,3 @@ class DockerHost:
             manager, self._manager = self._manager, None
         if manager is not None:
             manager.shutdown()
-
-    @classmethod
-    def from_environment(cls):
-        return cls(mode=os.environ.get("SANDBOX_MODE", "remote"),
-                   api_url=os.environ.get("SANDBOX_API_URL", "http://localhost:8001"),
-                   api_token=os.environ.get("SANDBOX_API_TOKEN") or None,
-                   config_file=os.environ.get("SANDBOX_CONFIG_FILE", "sandbox_config.yml"))

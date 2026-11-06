@@ -91,6 +91,9 @@ The Action is configured through its inputs
 ([configuration](../github_action/configuration.md)). The runner provides the
 `GITHUB_*`/`RUNNER_*` variables; the others reach the Action only through a
 workflow's `env:`.
+The Action has no `SANDBOX_*` settings: it runs each execution in one sandbox
+on the runner's own Docker, under `runc`, from the runtime images its
+`sandbox_config.yml` pins ([Requirements](../github_action/README.md#requirements)).
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -110,10 +113,6 @@ workflow's `env:`.
 | `GITHUB_ACTOR` | unset | Provenance (never the submitter). |
 | `GITHUB_TRIGGERING_ACTOR` | unset | Provenance. |
 | `RUNNER_ENVIRONMENT` | unset | `github-hosted` unless `trusted-self-hosted-runner` is set ([trust](../github_action/trust.md)). |
-| `SANDBOX_MODE` | `remote` | Execution host mode, as for the API. |
-| `SANDBOX_API_URL` | `http://localhost:8001` | As for the API. |
-| `SANDBOX_API_TOKEN` | unset | As for the API. |
-| `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | As for the API (`local`), read at the first execution instead of at startup. |
 | `EXTERNAL_ASSETS_BUCKET_NAME` | unset | As for the API. |
 | `S3_ENDPOINT_URL` | AWS | As for the API. |
 | `AWS_REGION` | `us-east-1` | As for the API. |

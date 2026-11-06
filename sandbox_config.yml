@@ -39,7 +39,7 @@ general:
 # A language left out has no pool: grading or deliberate execution in that language
 # fails as an unavailable capability (never as an invalid language).
 # These are the versioned images built from sandbox_manager/images (see
-# `python scripts/sandbox_images.py list`). Images are never pulled implicitly: run
+# `python scripts/sandbox_images.py list`). The HTTP host never pulls them: run
 # `docker pull <image>` (or `make sandbox-build-all`) first; a missing image, or one
 # whose autograder.runtime.languages label omits the language, stops the host at startup.
 runtimes:

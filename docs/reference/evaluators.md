@@ -6,7 +6,7 @@ Every evaluator a criterion `type` can name, with the parameters `compile_defini
 
 ## Capabilities {#capabilities}
 
-An evaluator runs only on a host that provides its capabilities. Both shipped hosts (the HTTP API and the GitHub Action) compose `execution_host.docker.DockerHost`.
+An evaluator runs only on a host that provides its capabilities. The HTTP API composes `execution_host.docker.DockerHost`; the GitHub Action composes `execution_host.runner.RunnerHost`, which provides the same capabilities on the runner's Docker.
 
 | Capability | Shipped hosts | Meaning |
 | --- | --- | --- |

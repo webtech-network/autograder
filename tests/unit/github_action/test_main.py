@@ -281,12 +281,16 @@ def test_real_shell_explains_an_ungradable_submission_in_summary_and_artifact(wo
     (workspace / "main.java").write_text("public class Main {}")
     path = workspace / ".github/autograder/definition.json"
     path.parent.mkdir(parents=True)
+    # No criterion executes code: a definition that does would make the Action
+    # check the runner's Docker before grading (ENV-03), which this hermetic tier
+    # lacks. The same explanation with a real sandbox is in
+    # tests/integration/test_submission_explanations_docker.py.
     path.write_text(json.dumps({
-        "schema_version": "1.0", "templates": ["input_output"], "languages": ["java"],
-        "preparation": {"languages": {"java": {"required_files": ["Main.java"],
-                                               "setup_commands": [{"name": "compile", "command": "javac Main.java"}]}}},
+        "schema_version": "1.0", "templates": ["webdev"], "languages": ["java"],
+        "preparation": {"languages": {"java": {"required_files": ["Main.java"]}}},
         "criteria": {"base": {"weight": 100, "tests": [
-            {"id": "runs", "type": "dont_fail", "name": "Runs", "parameters": {"program_command": "java Main"}}]}}}))
+            {"id": "file", "type": "check_project_structure", "name": "Main",
+             "parameters": {"expected_structure": "Main.java"}}]}}}))
     env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],
                GITHUB_ACTOR="alice", SUBMITTER_ID="alice", LOCALE=locale, UPLOAD_TO_CLOUD="false",
                GITHUB_OUTPUT=str(workspace.parent / "explain-output"),

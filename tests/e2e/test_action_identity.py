@@ -11,7 +11,7 @@ from github_action import main as action_main
 from github_action.identity import TrustError
 from tests.e2e.contracts import create_config
 from autograder.models.language import Language
-from tests.sandbox_profiles import TEST_IMAGES, sandbox_config
+from tests.sandbox_profiles import TEST_IMAGES
 
 DEFINITION = json.loads((Path(__file__).resolve().parents[2] / "examples/contracts/input_output.json").read_text())
 
@@ -33,11 +33,7 @@ def checkout(tmp_path, monkeypatch, isolated_api):
         subprocess.run(["git", "-C", str(workspace), *command], check=True, env=environment)
     head = subprocess.run(["git", "-C", str(workspace), "rev-parse", "HEAD"], capture_output=True,
                           text=True, check=True).stdout.strip()
-    sandbox = tmp_path / "sandbox.yml"
-    sandbox.write_text(sandbox_config())
     monkeypatch.setenv("GITHUB_WORKSPACE", str(workspace))
-    monkeypatch.setenv("SANDBOX_MODE", "local")
-    monkeypatch.setenv("SANDBOX_CONFIG_FILE", str(sandbox))
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
     # A hosted push run in a student's repository.
     for name, value in {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted",

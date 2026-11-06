@@ -142,8 +142,9 @@ def render_evaluators(catalog, missing):
              "`GET /api/v1/templates`; the [definition reference](definition.md) describes the rest of a "
              "definition.", "",
              "## Capabilities {#capabilities}", "",
-             f"An evaluator runs only on a host that provides its capabilities. Both shipped hosts "
-             f"({SHIPPED_HOSTS}) compose `execution_host.docker.DockerHost`.", "",
+             "An evaluator runs only on a host that provides its capabilities. The HTTP API composes "
+             "`execution_host.docker.DockerHost`; the GitHub Action composes `execution_host.runner.RunnerHost`, "
+             "which provides the same capabilities on the runner's Docker.", "",
              "| Capability | Shipped hosts | Meaning |", "| --- | --- | --- |"]
     for capability, meaning in catalog.capabilities.items():
         support = f"not provided (`{missing[capability]}`)" if capability in missing else "provided"
@@ -249,7 +250,7 @@ def render_definition(schema):
 
 def render_pages(templates=None):
     """``{file name: Markdown}``; ``templates`` adds trusted templates as in ``describe_templates``."""
-    missing = unavailable_capabilities(DockerHost().capabilities)
+    missing = unavailable_capabilities(DockerHost(mode="local").capabilities)
     return {"definition.md": render_definition(grading_definition_json_schema()),
             "evaluators.md": render_evaluators(describe_templates(templates), missing)}
 

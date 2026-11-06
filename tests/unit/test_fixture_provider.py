@@ -104,7 +104,7 @@ def test_client_is_created_lazily_once_and_shared_by_concurrent_requests():
 def test_host_composition_reads_provider_configuration_from_environment(monkeypatch):
     monkeypatch.setenv("EXTERNAL_ASSETS_BUCKET_NAME", "course-fixtures")
     monkeypatch.setenv("S3_ENDPOINT_URL", "http://ministack:4566")
-    for capabilities in (DockerHost().capabilities, docker_capabilities(Mock())):
+    for capabilities in (DockerHost(mode="local").capabilities, docker_capabilities(Mock())):
         assert isinstance(capabilities.fixtures, S3FixtureProvider)
         assert capabilities.fixtures.bucket == "course-fixtures"
         assert capabilities.fixtures.endpoint_url == "http://ministack:4566"

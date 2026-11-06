@@ -60,13 +60,13 @@ def verify_isolation_runtime(client: docker.DockerClient, runtime: str) -> None:
     offered = client.info().get("Runtimes") or {}
     if runtime not in offered:
         raise IsolationRuntimeError(
-            f"The sandbox runtime '{runtime}' (general.runtime) is not offered by this Docker daemon "
+            f"The sandbox runtime '{runtime}' this host requests is not offered by this Docker daemon "
             f"(it offers: {', '.join(sorted(offered)) or 'none'}). Install and register it, or choose another "
             "runtime explicitly; sandboxes never fall back to a different runtime.")
     if runtime == GVISOR_RUNTIME:
-        logger.info("[SandboxManager] Sandboxes run under gVisor (runsc), as configured by general.runtime")
+        logger.info("[SandboxManager] Sandboxes run under gVisor (runsc), as this host requests")
     else:
-        logger.warning("[SandboxManager] Sandboxes run under %s, as configured by general.runtime: submissions "
+        logger.warning("[SandboxManager] Sandboxes run under %s, as this host requests: submissions "
                        "share the host kernel without gVisor's isolation", runtime)
 
 

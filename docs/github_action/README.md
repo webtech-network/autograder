@@ -29,6 +29,30 @@ Classroom check discovery/dashboard synchronization and automatic `relatorio.md`
 commits are retired. Existing repository rubrics remain migratable through the
 explicit legacy converter; the runtime accepts only the versioned definition.
 
+## Requirements
+
+Static and AI criteria need nothing from the runner. Criteria and preparation
+that run code (I/O, commands, setup and compilation) need Docker on the runner:
+the Action runs the submission in one sandbox of the selected language on the
+runner's Docker daemon, pulling that language's pinned runtime image (from
+about 46 MB for Python to about 364 MB for Java, uncompressed) when the runner
+lacks it, and removes the sandbox before it publishes
+anything. Every Linux GitHub-hosted runner (`runs-on: ubuntu-latest`) qualifies
+with no extra step; no `SANDBOX_*` setting, sandbox service or `docker login` is
+needed. Isolation and its limits are in
+[Runner execution boundary](trust.md#runner-execution-boundary).
+
+Without a reachable Docker daemon (for example a self-hosted runner without
+Docker), such a definition fails before grading, writes no outcome, and the log
+says:
+
+```text
+ERROR: Docker is not available to the Action. This definition runs <language> code, which the Action executes in a sandbox on the runner's Docker daemon (/var/run/docker.sock). ...
+```
+
+Container actions run only on Linux runners; macOS and Windows runners cannot
+run this Action at all.
+
 ## Versions and images
 
 The Action runs a prebuilt image: `action.yml` pins
@@ -55,7 +79,9 @@ every pull request into `main` and on every push to `main`. It fails unless:
   `sandbox_manager/`, `github_action/`). A change to any of them needs a new
   version and release, even one that only changes engine code;
 - the pinned image can be pulled without credentials (it fails for a missing
-  image or a private package).
+  image or a private package);
+- so can every runtime image the release's `sandbox_config.yml` pins: the
+  Action pulls the selected language's image on the runner.
 
 What enforces this today: the pull request's check is red, and `deploy` needs
 that job, so a `main` commit that fails it is not deployed. A red check blocks
@@ -84,7 +110,10 @@ red.
    Package settings → Change visibility → Public). Confirm it as a runner
    sees it, without credentials:
    `DOCKER_CONFIG="$(mktemp -d)" docker manifest inspect ghcr.io/webtech-network/autograder-action:<version>`
-   must print a manifest, not `denied` or `unauthorized`.
+   must print a manifest, not `denied` or `unauthorized`. Each runtime package
+   `sandbox_config.yml` pins (`autograder-sandbox-<language>`, published from
+   `main` by `sandbox-images.yml`) must be public the same way;
+   `make action-check` names any that is not.
 4. Re-run the pull request's checks; `make action-check` now passes and the
    pull request can merge. Merge it with a merge commit, not squash or
    rebase: those leave the tagged commit out of `main`, and

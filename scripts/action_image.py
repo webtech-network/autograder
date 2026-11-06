@@ -12,7 +12,9 @@ pushes exactly that image under the pinned reference, then tags the commit
 ``<version>``. ``check`` (CI, on pull requests into ``main`` and on ``main``)
 fails unless the ``<version>`` tag is in the checked commit's history, nothing
 the release consists of (``action.yml`` and every input of the image) changed
-since that tag, and the pinned image is anonymously pullable. A version is
+since that tag, and the pinned image and the runtime images its
+``sandbox_config.yml`` pins (which the Action pulls on the runner) are
+anonymously pullable. A version is
 published once: an existing reference is never overwritten, and a ``<version>``
 tag on another commit stops the release.
 
@@ -67,6 +69,11 @@ def released_paths(root: Path = ROOT) -> List[str]:
     return ["action.yml", "Dockerfile.actions", ".dockerignore", *sources]
 
 
+def runtimes(config: Path = ROOT / "sandbox_config.yml") -> List[str]:
+    """The runtime image references ``sandbox_config.yml`` pins, which the Action image ships."""
+    return sorted(set(yaml.safe_load(config.read_text(encoding="utf-8"))["runtimes"].values()))
+
+
 def _output(*args: str, cwd: Optional[Path] = None) -> str:
     return subprocess.run(list(args), capture_output=True, text=True, check=True, cwd=cwd).stdout.strip()
 
@@ -94,6 +101,8 @@ def check(root: Path = ROOT) -> None:
     change to the interface or the image needs a new version and release.
     The registry is asked with an empty ``DOCKER_CONFIG``, as a consumer's runner
     asks: a private package reads as absent even where the caller is logged in.
+    The runtime images the release pins must be anonymously pullable too: the
+    Action pulls the selected language's image on the runner (ENV-03).
     """
     reference, version = pinned(root / "action.yml")
     release = "run the Verify workflow (workflow_dispatch) on the branch that raises the version"
@@ -119,13 +128,20 @@ def check(root: Path = ROOT) -> None:
               f"in action.yml and {release} (docs/github_action/README.md#releasing-a-version).")
     with tempfile.TemporaryDirectory() as anonymous:
         pullable = published(reference, env={**os.environ, "DOCKER_CONFIG": anonymous})
+        private = [runtime for runtime in runtimes(root / "sandbox_config.yml")
+                   if not published(runtime, env={**os.environ, "DOCKER_CONFIG": anonymous})]
     if not pullable:
         _stop(f"action.yml pins {reference}, which an anonymous runner cannot pull, so every "
               "`webtech-network/autograder@main` workflow would fail. Publish it first: "
               f"{release}. A new package must then be made public "
               "(docs/github_action/README.md#releasing-a-version).")
+    if private:
+        _stop(f"The Action runs submissions in the runtime images sandbox_config.yml pins, and an anonymous "
+              f"runner cannot pull {', '.join(private)}, so execution-based grading would fail. They are "
+              "published from main (sandbox-images.yml); make each new package public "
+              "(docs/github_action/README.md#releasing-a-version).")
     print(f"{reference} was released from this history, nothing it consists of changed since, and it is "
-          "published and public", flush=True)
+          "published and public, with its runtime images", flush=True)
 
 
 def publish(local_image: str, action: Path = ROOT / "action.yml") -> None:
@@ -156,7 +172,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ref", help="print the image reference action.yml pins")
     commands.add_parser("check", help="fail unless that version was released from this history, nothing it "
-                                        "consists of changed since, and it is anonymously pullable")
+                                        "consists of changed since, and it and its runtime images are "
+                                        "anonymously pullable")
     release = commands.add_parser("publish", help="publish a tested local image under that reference")
     release.add_argument("local_image")
     args = parser.parse_args(argv)

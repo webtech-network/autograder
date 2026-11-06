@@ -71,8 +71,9 @@ bearer-authenticated control API (one worker) with its remote client. Language-t
 
 ## Host composition (`execution_host/`)
 
-Builds the `HostCapabilities` a host passes to the core: `DockerHost` (local or
-remote manager, one `DockerSession` per run), `S3FixtureProvider` (uncached
+Builds the `HostCapabilities` a host passes to the core: `DockerHost` (the HTTP
+host's local or remote manager, one `DockerSession` per run), `RunnerHost` (the
+Action's single on-demand sandbox on the runner's Docker), `S3FixtureProvider` (uncached
 `reference -> bytes`, `FixtureNotFound` for a missing key) and
 `ConfiguredAssessmentProvider` (OpenAI, configured from the environment; one
 lazily built client per host with a 180 s request deadline and no SDK retries). A new
@@ -96,8 +97,9 @@ delivery without grading again.
   [Web Module](web_module.md), [API.md](../API.md) and
   [Deliberate Code Execution](../features/deliberate_code_execution.md).
 - **GitHub Actions** (`github_action/`): compiles the repository definition (or
-  reloads the selected cloud revision's snapshot), grades with
-  `DockerHost.from_environment()`, saves the canonical artifact, then optionally
+  reloads the selected cloud revision's snapshot), grades with a `RunnerHost`
+  (one sandbox of the selected language on the runner's Docker, only when the
+  definition executes code), saves the canonical artifact, then optionally
   publishes it as an attestation. Submitter, actor and producer identities stay
   separate and runner trust is enforced ([Identity and Trust](../github_action/trust.md)).
   See [GitHub Action](../github_action/README.md).
