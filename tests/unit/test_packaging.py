@@ -57,18 +57,27 @@ def third_party_distributions(names):
     return found
 
 
+def extra(name):
+    """An extra's requirements, with the extras it includes (``autograder[...]``) expanded."""
+    names = set()
+    for requirement in PROJECT["optional-dependencies"][name]:
+        included = re.fullmatch(r"autograder\[([\w,-]+)\]", requirement)
+        names |= (set().union(*(extra(item) for item in included.group(1).split(",")))
+                  if included else requirement_names([requirement]))
+    return names
+
+
 def test_runtime_dependencies_are_exactly_what_the_shipped_packages_import():
-    declared = requirement_names(PROJECT["dependencies"]) | requirement_names(
-        PROJECT["optional-dependencies"]["server"])
+    declared = requirement_names(PROJECT["dependencies"]) | extra("server") | extra("sandbox")
     imported = third_party_distributions(
         name for package in PACKAGES for path in first_party_files(package) for name in imported_names(path))
     assert imported | DATABASE_DRIVERS == declared
     assert not declared & {"pytest", "pytest-asyncio", "pytest-cov", "httpx", "pylint", "mkdocs"}
 
 
-def test_action_host_needs_no_server_dependency():
-    """Everything the Action can reach, lazy imports included, installs without the server extra."""
-    pending = first_party_files("github_action")
+def reachable_imports(package):
+    """Every name imported by what ``package`` can reach, lazy imports included."""
+    pending = first_party_files(package)
     seen, names = set(), set()
     while pending:
         path = pending.pop()
@@ -81,7 +90,20 @@ def test_action_host_needs_no_server_dependency():
                 module = ROOT / name.replace(".", "/")
                 pending += [candidate for candidate in (module.with_suffix(".py"), module / "__init__.py")
                             if candidate.is_file()]
-    assert third_party_distributions(names) <= requirement_names(PROJECT["dependencies"])
+    return names
+
+
+def test_action_host_needs_no_server_dependency():
+    """The Action image installs the base dependencies only."""
+    assert third_party_distributions(reachable_imports("github_action")) <= requirement_names(
+        PROJECT["dependencies"])
+
+
+def test_sandbox_manager_needs_only_the_sandbox_extra():
+    """The sandbox manager image installs the base dependencies and the `sandbox` extra only."""
+    reachable = third_party_distributions(reachable_imports("sandbox_manager"))
+    assert reachable <= requirement_names(PROJECT["dependencies"]) | extra("sandbox")
+    assert extra("sandbox") <= reachable  # nothing in the extra is unused
 
 
 def test_non_editable_wheel_imports_every_first_party_module_outside_the_checkout(tmp_path):

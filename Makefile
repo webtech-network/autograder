@@ -5,7 +5,7 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e test-http images sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e test-http images test-images action-check action-publish sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -51,13 +51,23 @@ test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 test-http: images sandbox-build-all ## HTTP path: two Compose stacks from this checkout, fixture grading, receipt recovery
 	AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' $(PYTHON) -m pytest tests/stack/ -v
 
-# Tag of the images `make images` builds, which docker-compose.yml runs (AUTOGRADER_IMAGE_TAG).
+# Local names of the service and Action images: $(IMAGE_PREFIX)-<name>:$(IMAGE_TAG).
+IMAGE_PREFIX ?= autograder
 IMAGE_TAG ?= local
 
 images: ## Build the API, sandbox manager and Action images from this checkout
-	docker build -t autograder-api:$(IMAGE_TAG) -f Dockerfile.api .
-	docker build -t autograder-sandbox-manager:$(IMAGE_TAG) -f Dockerfile.sandbox .
-	docker build -t autograder-action:$(IMAGE_TAG) -f Dockerfile.actions .
+	docker build -t $(IMAGE_PREFIX)-api:$(IMAGE_TAG) -f Dockerfile.api .
+	docker build -t $(IMAGE_PREFIX)-sandbox-manager:$(IMAGE_TAG) -f Dockerfile.sandbox .
+	docker build -t $(IMAGE_PREFIX)-action:$(IMAGE_TAG) -f Dockerfile.actions .
+
+test-images: images ## Contents, context leaks and Action grading of exactly those images
+	AUTOGRADER_IMAGE_PREFIX='$(IMAGE_PREFIX)' AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' $(PYTHON) -m pytest tests/images/
+
+action-check: ## Fail unless the Action image action.yml pins is published and public (CI, into main)
+	$(PYTHON) -m scripts.action_image check
+
+action-publish: ## Release the tested Action image under the version action.yml pins (CI, workflow_dispatch)
+	$(PYTHON) -m scripts.action_image publish $(IMAGE_PREFIX)-action:$(IMAGE_TAG)
 
 # The versioned runtime images named in sandbox_config.yml (scripts/sandbox_images.py).
 SANDBOX_IMAGES = $(PYTHON) scripts/sandbox_images.py

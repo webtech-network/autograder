@@ -432,8 +432,60 @@ names exactly those references; floating local `:latest` tags are gone. A
 present and declares its language in the `autograder.runtime.languages` label,
 and raises `RuntimeImageError` otherwise. Hosts therefore pull or build the
 configured images before starting; an old unlabelled image is rejected rather
-than silently used. Service and Action images are a later change. See
-[LANGUAGES.md](LANGUAGES.md#runtime-images).
+than silently used. See [LANGUAGES.md](LANGUAGES.md#runtime-images).
+
+## Lean service and Action images (ENV-04)
+
+The API, sandbox manager and Action each have an image that holds only what its
+process imports: locked runtime dependencies (`server`, the new `sandbox` extra,
+or the base dependencies) in `/opt/venv` and an allow-listed set of first-party
+directories in `/app`, on a digest-pinned `python:3.13-slim` base. The API and
+sandbox manager images no longer share contents: the sandbox manager has no web
+or database stack. No image has `dockerd`, `containerd`, a Docker CLI, Node.js,
+curl, uv or a test tool. The build context is an allow-list (`.dockerignore`),
+so `.env`, `.venv`, `data/` and caches never enter an image. `action.yml` pins
+`docker://ghcr.io/webtech-network/autograder-action:<version>` instead of building
+`Dockerfile.actions` in every job. A version is released once, gated on
+verification, from the branch that raises it (`workflow_dispatch`), before
+that branch can merge: the image is pushed first, then a git tag of the same
+name. `make action-check` (`scripts/action_image.py check`) fails unless
+the `<version>` tag is an ancestor of the checked commit, no released path
+differs between the tagged commit and the checked one, and the pinned image is
+pullable with an empty `DOCKER_CONFIG`. The released paths are `action.yml`
+(read by consumers from the branch), `Dockerfile.actions`, `.dockerignore` and
+every build-context path that Dockerfile copies (read from it, so a new `COPY`
+joins automatically): any change to the Action interface or the image's inputs
+needs a new version and release, or the check fails. It runs in the
+`Service and Action images` job of `verify.yml` on every pull request into
+`main` and on every push to `main`, where `deploy` needs that job. That is what
+enforces it today: a red job on a pull request into `main`, and no API deploy
+from a `main` commit that fails it. It blocks a merge only once the `main`
+ruleset requires that job; today the ruleset still requires the stale `pylint`
+and `pytest` contexts, which no workflow produces, so the merge block depends on
+the repository owner adding the Verify jobs as required checks
+([Required checks](../guides/development.md#required-checks)). With that in
+place, `main`, which every documented `uses: ...@main` follows, only ever names a
+published, public image built from its own history together with the
+`action.yml` it was released with. Release pull requests merge with a merge
+commit, so the tag stays in that history. `tests/images/`
+(`make test-images`, CI) checks the built images, including a build from a
+checkout with planted secrets and the Action grading the static example.
+
+Migration: Compose health checks use Python instead of curl. Deployments that
+run `curl` inside the API or sandbox manager containers must do the same. The
+Action image no longer contains Node.js or `tree`. `@main` follows the latest
+released image rather than building the current commit; consumer workflows
+need no change. The first merge of this change into `main` requires
+`autograder-action:0.6.0` to be released from the merging branch and the new
+GHCR package to be made public, verified with an anonymous `docker manifest
+inspect`, and nothing released may change on that branch after the release
+(a later Wave change to `autograder/`, `github_action/` or `action.yml` needs a
+new version). Before that merge, the repository owner replaces the `main`
+ruleset's stale required checks (`pylint`, `pytest`) with the Verify job names
+and confirms them with `gh api`; until then a red `make action-check` is
+visible but does not block the merge. See
+[Releasing a version](../github_action/README.md#releasing-a-version). GitHub
+Release notes remain manual.
 
 ## Closed locale and outcome-code vocabularies (COR-07)
 
