@@ -46,7 +46,7 @@ def integration_token(monkeypatch):
 
 @pytest.fixture
 def compiler(application):
-    application.state.host.capabilities = HostCapabilities(execution=lambda language: CompilerSession())
+    application.state.host.capabilities = HostCapabilities(execution=lambda language, budget: CompilerSession())
     application.state.host.worker.capabilities = application.state.host.capabilities
 
 

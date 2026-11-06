@@ -108,6 +108,7 @@ Location: `preparation.languages.<language>.setup_commands[]`
 | --- | --- | --- | --- | --- | --- |
 | `name` | string | yes | — | length ≥ 1 | Label of the step, shown when it fails. |
 | `command` | string | yes | — | length ≥ 1 | Executable and arguments, split with POSIX quoting and run without a shell. Standalone shell operators (&&, \|, ;, >, ...) are rejected: use one setup command per step, and an explicit `sh -c '...'` command only for a real pipeline. |
+| `private_output` | boolean | no | `false` | — | Keep this step's output out of the student-facing failure explanation, for example when it compiles a hidden test harness. By default a failing step's output excerpt is shown. |
 
 ## Fixture {#fixture}
 

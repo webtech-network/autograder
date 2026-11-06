@@ -134,12 +134,12 @@ def test_a_missing_fixture_after_present_ones_stages_nothing_and_no_fixtures_sta
     provider, _ = fake_s3_provider({"present": b"x"})
     owned = session()
     outcome = build_pipeline(definition=fixtures_definition(("present", "p", True), ("absent", "a", True)),
-        capabilities=HostCapabilities(execution=lambda language: owned, fixtures=provider)).run(submission()).outcome
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
     assert outcome.error.code == "PREPARATION_ERROR" and outcome.error.retryable is False
     owned.stage_fixtures.assert_not_called()
     owned = session()
     outcome = build_pipeline(definition=fixtures_definition(),
-        capabilities=HostCapabilities(execution=lambda language: owned, fixtures=provider)).run(submission()).outcome
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
     assert outcome.status == "completed"
     owned.stage_fixtures.assert_not_called()
 
