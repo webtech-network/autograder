@@ -4,7 +4,9 @@ The same normalized definition is accepted by Python, repository files, HTTP
 configuration storage and external-result snapshots. [Decision record](DECISIONS.md)
 and [terminal outcomes](OUTCOMES.md) describe the integration boundaries.
 
-[JSON Schema](v1/grading-definition.schema.json) describes built-in authoring.
+[JSON Schema](v1/grading-definition.schema.json) describes built-in authoring; the
+generated [definition reference](../reference/definition.md) and
+[evaluator reference](../reference/evaluators.md) render it field by field.
 `compile_definition` adds registry, uniqueness, learning-reference and weighted-group
 checks that JSON Schema cannot fully express, plus each evaluator's own semantic
 checks (`validate_parameters`), such as built-in command coverage and AST-rule grammar.

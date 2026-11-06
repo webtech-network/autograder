@@ -1188,7 +1188,7 @@
             "maximum": 100.0,
             "minimum": 0.0,
             "title": "Weight",
-            "description": "Weight of this category (0-100)"
+            "description": "Base must be 100; bonus and penalty weights (0-100) cap the points they add or subtract."
           },
           "tests": {
             "anyOf": [
@@ -1203,7 +1203,7 @@
               }
             ],
             "title": "Tests",
-            "description": "Tests under this subject"
+            "description": "Criteria directly under this category; null when it has none."
           },
           "subjects": {
             "anyOf": [
@@ -1218,7 +1218,7 @@
               }
             ],
             "title": "Subjects",
-            "description": "Nested subjects"
+            "description": "Subjects nested in this category; null when it has none."
           },
           "subjects_weight": {
             "anyOf": [
@@ -1232,14 +1232,15 @@
               }
             ],
             "title": "Subjects Weight",
-            "description": "Weight of the subject when it is a heterogeneous tree"
+            "description": "Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise."
           },
           "metadata": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
           }
         },
         "additionalProperties": false,
@@ -1257,7 +1258,7 @@
             "maximum": 100.0,
             "minimum": 0.0,
             "title": "Weight",
-            "description": "Weight of this category (0-100)"
+            "description": "Base must be 100; bonus and penalty weights (0-100) cap the points they add or subtract."
           },
           "tests": {
             "anyOf": [
@@ -1272,7 +1273,7 @@
               }
             ],
             "title": "Tests",
-            "description": "Tests under this subject"
+            "description": "Criteria directly under this category; null when it has none."
           },
           "subjects": {
             "anyOf": [
@@ -1287,7 +1288,7 @@
               }
             ],
             "title": "Subjects",
-            "description": "Nested subjects"
+            "description": "Subjects nested in this category; null when it has none."
           },
           "subjects_weight": {
             "anyOf": [
@@ -1301,14 +1302,15 @@
               }
             ],
             "title": "Subjects Weight",
-            "description": "Weight of the subject when it is a heterogeneous tree"
+            "description": "Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise."
           },
           "metadata": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
           }
         },
         "additionalProperties": false,
@@ -1768,7 +1770,7 @@
         "properties": {
           "base": {
             "$ref": "#/components/schemas/CategoryConfig-Input",
-            "description": "Base grading criteria (required)"
+            "description": "Criteria that make up the score (weight 100)."
           },
           "bonus": {
             "anyOf": [
@@ -1779,7 +1781,7 @@
                 "type": "null"
               }
             ],
-            "description": "Bonus points criteria"
+            "description": "Criteria whose score adds up to their weight in points."
           },
           "penalty": {
             "anyOf": [
@@ -1790,14 +1792,15 @@
                 "type": "null"
               }
             ],
-            "description": "Penalty criteria"
+            "description": "Criteria whose shortfall subtracts up to their weight in points."
           },
           "metadata": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
           }
         },
         "additionalProperties": false,
@@ -1812,7 +1815,7 @@
         "properties": {
           "base": {
             "$ref": "#/components/schemas/CategoryConfig-Output",
-            "description": "Base grading criteria (required)"
+            "description": "Criteria that make up the score (weight 100)."
           },
           "bonus": {
             "anyOf": [
@@ -1823,7 +1826,7 @@
                 "type": "null"
               }
             ],
-            "description": "Bonus points criteria"
+            "description": "Criteria whose score adds up to their weight in points."
           },
           "penalty": {
             "anyOf": [
@@ -1834,14 +1837,15 @@
                 "type": "null"
               }
             ],
-            "description": "Penalty criteria"
+            "description": "Criteria whose shortfall subtracts up to their weight in points."
           },
           "metadata": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
           }
         },
         "additionalProperties": false,
@@ -2083,12 +2087,14 @@
               ]
             },
             "type": "object",
-            "title": "Category Headers"
+            "title": "Category Headers",
+            "description": "Section heading per category; a missing category uses its localized default heading."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "DefaultPreferences"
+        "title": "DefaultPreferences",
+        "description": "Options of the default Markdown report."
       },
       "DefinitionProvenance": {
         "properties": {
@@ -2753,42 +2759,50 @@
           "enabled": {
             "type": "boolean",
             "title": "Enabled",
+            "description": "Whether a feedback report is rendered; disabled feedback does no work.",
             "default": false
           },
           "mode": {
             "type": "string",
             "const": "default",
             "title": "Mode",
+            "description": "Report format; only the Markdown default exists.",
             "default": "default"
           },
           "preferences": {
-            "$ref": "#/components/schemas/FeedbackPreferences-Input"
+            "$ref": "#/components/schemas/FeedbackPreferences-Input",
+            "description": "Report options."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "Feedback"
+        "title": "Feedback",
+        "description": "Whether and how a feedback report is written for a completed grade."
       },
       "Feedback-Output": {
         "properties": {
           "enabled": {
             "type": "boolean",
             "title": "Enabled",
+            "description": "Whether a feedback report is rendered; disabled feedback does no work.",
             "default": false
           },
           "mode": {
             "type": "string",
             "const": "default",
             "title": "Mode",
+            "description": "Report format; only the Markdown default exists.",
             "default": "default"
           },
           "preferences": {
-            "$ref": "#/components/schemas/FeedbackPreferences-Output"
+            "$ref": "#/components/schemas/FeedbackPreferences-Output",
+            "description": "Report options."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "Feedback"
+        "title": "Feedback",
+        "description": "Whether and how a feedback report is written for a completed grade."
       },
       "FeedbackOutcome": {
         "properties": {
@@ -2831,43 +2845,52 @@
       "FeedbackPreferences-Input": {
         "properties": {
           "general": {
-            "$ref": "#/components/schemas/GeneralPreferences"
+            "$ref": "#/components/schemas/GeneralPreferences",
+            "description": "Options for every mode."
           },
           "default": {
-            "$ref": "#/components/schemas/DefaultPreferences"
+            "$ref": "#/components/schemas/DefaultPreferences",
+            "description": "Options of the default mode."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "FeedbackPreferences"
+        "title": "FeedbackPreferences",
+        "description": "How the feedback report is written."
       },
       "FeedbackPreferences-Output": {
         "properties": {
           "general": {
-            "$ref": "#/components/schemas/GeneralPreferences"
+            "$ref": "#/components/schemas/GeneralPreferences",
+            "description": "Options for every mode."
           },
           "default": {
-            "$ref": "#/components/schemas/DefaultPreferences"
+            "$ref": "#/components/schemas/DefaultPreferences",
+            "description": "Options of the default mode."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "FeedbackPreferences"
+        "title": "FeedbackPreferences",
+        "description": "How the feedback report is written."
       },
       "Fixture": {
         "properties": {
           "reference": {
             "type": "string",
             "minLength": 1,
-            "title": "Reference"
+            "title": "Reference",
+            "description": "Logical relative reference resolved by the host's fixture provider (an object key on the shipped hosts)."
           },
           "path": {
             "type": "string",
-            "title": "Path"
+            "title": "Path",
+            "description": "Unique relative destination under the fixture root (/tmp/app on the shipped hosts)."
           },
           "read_only": {
             "type": "boolean",
             "title": "Read Only",
+            "description": "Whether the staged file is read-only to the submission.",
             "default": true
           }
         },
@@ -2877,7 +2900,8 @@
           "reference",
           "path"
         ],
-        "title": "Fixture"
+        "title": "Fixture",
+        "description": "A host-provided file staged into the sandbox before setup commands."
       },
       "GeneralPreferences": {
         "properties": {
@@ -2890,21 +2914,25 @@
                 "type": "null"
               }
             ],
-            "title": "Report Title"
+            "title": "Report Title",
+            "description": "Report heading; null uses the localized default title."
           },
           "show_score": {
             "type": "boolean",
             "title": "Show Score",
+            "description": "Whether the report shows the final score.",
             "default": true
           },
           "show_passed_tests": {
             "type": "boolean",
             "title": "Show Passed Tests",
+            "description": "Whether criteria that scored 100 are listed; by default only criteria below 100 are.",
             "default": false
           },
           "add_report_summary": {
             "type": "boolean",
             "title": "Add Report Summary",
+            "description": "Whether the report starts with a score summary.",
             "default": true
           },
           "online_content": {
@@ -2912,12 +2940,14 @@
               "$ref": "#/components/schemas/LearningResource"
             },
             "type": "array",
-            "title": "Online Content"
+            "title": "Online Content",
+            "description": "Learning resources listed at the end of the report."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "GeneralPreferences"
+        "title": "GeneralPreferences",
+        "description": "Report options shared by every feedback mode."
       },
       "GradingConfigCreate": {
         "properties": {
@@ -3047,7 +3077,8 @@
           "schema_version": {
             "type": "string",
             "const": "1.0",
-            "title": "Schema Version"
+            "title": "Schema Version",
+            "description": "Definition format version."
           },
           "templates": {
             "items": {
@@ -3055,7 +3086,8 @@
             },
             "type": "array",
             "minItems": 1,
-            "title": "Templates"
+            "title": "Templates",
+            "description": "Distinct template identifiers whose evaluators the criteria may use."
           },
           "languages": {
             "items": {
@@ -3070,23 +3102,28 @@
             },
             "type": "array",
             "minItems": 1,
-            "title": "Languages"
+            "title": "Languages",
+            "description": "Distinct languages a submission may use; with several, each submission names its language."
           },
           "criteria": {
-            "$ref": "#/components/schemas/CriteriaConfig-Input"
+            "$ref": "#/components/schemas/CriteriaConfig-Input",
+            "description": "The weighted criteria tree."
           },
           "preparation": {
-            "$ref": "#/components/schemas/Preparation-Input"
+            "$ref": "#/components/schemas/Preparation-Input",
+            "description": "Required files, fixtures and setup commands."
           },
           "feedback": {
-            "$ref": "#/components/schemas/Feedback-Input"
+            "$ref": "#/components/schemas/Feedback-Input",
+            "description": "Feedback report policy."
           },
           "metadata": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
           }
         },
         "additionalProperties": false,
@@ -3097,14 +3134,16 @@
           "languages",
           "criteria"
         ],
-        "title": "GradingDefinition"
+        "title": "GradingDefinition",
+        "description": "One assignment's complete grading definition (version 1)."
       },
       "GradingDefinition-Output": {
         "properties": {
           "schema_version": {
             "type": "string",
             "const": "1.0",
-            "title": "Schema Version"
+            "title": "Schema Version",
+            "description": "Definition format version."
           },
           "templates": {
             "items": {
@@ -3112,7 +3151,8 @@
             },
             "type": "array",
             "minItems": 1,
-            "title": "Templates"
+            "title": "Templates",
+            "description": "Distinct template identifiers whose evaluators the criteria may use."
           },
           "languages": {
             "items": {
@@ -3127,23 +3167,28 @@
             },
             "type": "array",
             "minItems": 1,
-            "title": "Languages"
+            "title": "Languages",
+            "description": "Distinct languages a submission may use; with several, each submission names its language."
           },
           "criteria": {
-            "$ref": "#/components/schemas/CriteriaConfig-Output"
+            "$ref": "#/components/schemas/CriteriaConfig-Output",
+            "description": "The weighted criteria tree."
           },
           "preparation": {
-            "$ref": "#/components/schemas/Preparation-Output"
+            "$ref": "#/components/schemas/Preparation-Output",
+            "description": "Required files, fixtures and setup commands."
           },
           "feedback": {
-            "$ref": "#/components/schemas/Feedback-Output"
+            "$ref": "#/components/schemas/Feedback-Output",
+            "description": "Feedback report policy."
           },
           "metadata": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
           }
         },
         "additionalProperties": false,
@@ -3154,7 +3199,8 @@
           "languages",
           "criteria"
         ],
-        "title": "GradingDefinition"
+        "title": "GradingDefinition",
+        "description": "One assignment's complete grading definition (version 1)."
       },
       "HTTPValidationError": {
         "properties": {
@@ -3177,37 +3223,43 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Required Files"
+            "title": "Required Files",
+            "description": "Unique relative submission paths that must exist; a missing one fails with REQUIRED_FILE_MISSING before any sandbox is acquired."
           },
           "setup_commands": {
             "items": {
               "$ref": "#/components/schemas/SetupCommand"
             },
             "type": "array",
-            "title": "Setup Commands"
+            "title": "Setup Commands",
+            "description": "Steps run in order after fixtures are staged, for example compilation. A failing step stops grading with PREPARATION_FAILED."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "LanguagePreparation"
+        "title": "LanguagePreparation",
+        "description": "Preparation for one allowed language."
       },
       "LearningResource": {
         "properties": {
           "url": {
             "type": "string",
             "minLength": 1,
-            "title": "Url"
+            "title": "Url",
+            "description": "Address of the resource."
           },
           "description": {
             "type": "string",
-            "title": "Description"
+            "title": "Description",
+            "description": "Link text shown in the report."
           },
           "linked_tests": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "title": "Linked Tests"
+            "title": "Linked Tests",
+            "description": "Criterion IDs; the resource is shown only when one of them scored below 100. Empty shows it always."
           }
         },
         "additionalProperties": false,
@@ -3216,7 +3268,8 @@
           "url",
           "description"
         ],
-        "title": "LearningResource"
+        "title": "LearningResource",
+        "description": "A link listed in the feedback report."
       },
       "OutcomeError": {
         "properties": {
@@ -3305,19 +3358,22 @@
               ]
             },
             "type": "object",
-            "title": "Languages"
+            "title": "Languages",
+            "description": "Preparation keyed by allowed language; only the submission's language is used."
           },
           "fixtures": {
             "items": {
               "$ref": "#/components/schemas/Fixture"
             },
             "type": "array",
-            "title": "Fixtures"
+            "title": "Fixtures",
+            "description": "Files staged for every language."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "Preparation"
+        "title": "Preparation",
+        "description": "What must exist and run before any criterion is assessed."
       },
       "Preparation-Output": {
         "properties": {
@@ -3335,19 +3391,22 @@
               ]
             },
             "type": "object",
-            "title": "Languages"
+            "title": "Languages",
+            "description": "Preparation keyed by allowed language; only the submission's language is used."
           },
           "fixtures": {
             "items": {
               "$ref": "#/components/schemas/Fixture"
             },
             "type": "array",
-            "title": "Fixtures"
+            "title": "Fixtures",
+            "description": "Files staged for every language."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "Preparation"
+        "title": "Preparation",
+        "description": "What must exist and run before any criterion is assessed."
       },
       "ResponseCategory": {
         "type": "string",
@@ -3482,7 +3541,8 @@
           "name": {
             "type": "string",
             "minLength": 1,
-            "title": "Name"
+            "title": "Name",
+            "description": "Label of the step, shown when it fails."
           },
           "command": {
             "type": "string",
@@ -3497,7 +3557,8 @@
           "name",
           "command"
         ],
-        "title": "SetupCommand"
+        "title": "SetupCommand",
+        "description": "One preparation step, run once before assessment in the selected language's sandbox."
       },
       "SubjectConfig-Input": {
         "properties": {
@@ -3505,14 +3566,14 @@
             "type": "string",
             "minLength": 1,
             "title": "Subject Name",
-            "description": "Name of the subject"
+            "description": "Display name of the subject."
           },
           "weight": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
             "title": "Weight",
-            "description": "Weight of this subject (0-100)"
+            "description": "Weight (0-100) relative to sibling subjects; all-zero siblings share equally."
           },
           "tests": {
             "anyOf": [
@@ -3527,7 +3588,7 @@
               }
             ],
             "title": "Tests",
-            "description": "Tests under this subject"
+            "description": "Criteria directly under this subject; null when it has none."
           },
           "subjects": {
             "anyOf": [
@@ -3542,7 +3603,7 @@
               }
             ],
             "title": "Subjects",
-            "description": "Nested subjects"
+            "description": "Subjects nested in this subject; null when it has none."
           },
           "subjects_weight": {
             "anyOf": [
@@ -3556,14 +3617,15 @@
               }
             ],
             "title": "Subjects Weight",
-            "description": "Weight of the subject when it is a heterogeneous tree"
+            "description": "Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise."
           },
           "metadata": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
           }
         },
         "additionalProperties": false,
@@ -3581,14 +3643,14 @@
             "type": "string",
             "minLength": 1,
             "title": "Subject Name",
-            "description": "Name of the subject"
+            "description": "Display name of the subject."
           },
           "weight": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
             "title": "Weight",
-            "description": "Weight of this subject (0-100)"
+            "description": "Weight (0-100) relative to sibling subjects; all-zero siblings share equally."
           },
           "tests": {
             "anyOf": [
@@ -3603,7 +3665,7 @@
               }
             ],
             "title": "Tests",
-            "description": "Tests under this subject"
+            "description": "Criteria directly under this subject; null when it has none."
           },
           "subjects": {
             "anyOf": [
@@ -3618,7 +3680,7 @@
               }
             ],
             "title": "Subjects",
-            "description": "Nested subjects"
+            "description": "Subjects nested in this subject; null when it has none."
           },
           "subjects_weight": {
             "anyOf": [
@@ -3632,14 +3694,15 @@
               }
             ],
             "title": "Subjects Weight",
-            "description": "Weight of the subject when it is a heterogeneous tree"
+            "description": "Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise."
           },
           "metadata": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
           }
         },
         "additionalProperties": false,
@@ -4467,24 +4530,28 @@
             "maxLength": 128,
             "minLength": 1,
             "pattern": "^[A-Za-z0-9_.:-]+$",
-            "title": "Id"
+            "title": "Id",
+            "description": "Stable identifier, unique in the definition; results, feedback links and comparisons use it."
           },
           "type": {
             "type": "string",
             "minLength": 1,
-            "title": "Type"
+            "title": "Type",
+            "description": "Evaluator identifier from one of the listed templates."
           },
           "name": {
             "type": "string",
             "minLength": 1,
-            "title": "Name"
+            "title": "Name",
+            "description": "Display name; may repeat."
           },
           "parameters": {
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Parameters"
+            "title": "Parameters",
+            "description": "The evaluator's parameters ({} when it has none); each evaluator documents its own."
           },
           "file": {
             "anyOf": [
@@ -4496,12 +4563,14 @@
                 "type": "null"
               }
             ],
-            "title": "File"
+            "title": "File",
+            "description": "Exact relative submission path to assess; null selects the evaluator's matching files."
           },
           "weight": {
             "type": "number",
             "minimum": 0.0,
             "title": "Weight",
+            "description": "Weight relative to sibling criteria; all-zero siblings share equally.",
             "default": 100.0
           },
           "metadata": {
@@ -4509,7 +4578,8 @@
               "$ref": "#/components/schemas/JsonValue"
             },
             "type": "object",
-            "title": "Metadata"
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
           }
         },
         "additionalProperties": false,
@@ -4520,7 +4590,8 @@
           "name",
           "parameters"
         ],
-        "title": "TestConfig"
+        "title": "TestConfig",
+        "description": "One criterion: an evaluator invocation with its parameters."
       },
       "TestOutcome": {
         "properties": {

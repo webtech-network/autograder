@@ -57,7 +57,7 @@ has pylint false positives to resolve first.
 
 | Command | Needs | Runs |
 | --- | --- | --- |
-| `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas match the models), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Under a minute. |
+| `make verify` | Python | The **core/library path**: `lint`, `contracts` (checked-in JSON Schemas and the generated `docs/reference/` pages match the contracts), `docs` (link and API-route check, strict MkDocs build), `test` (unit) and `test-web` (HTTP on SQLite). Under a minute. |
 | `make test-postgres` | `TEST_POSTGRES_URL` | PostgreSQL claims, publication fencing and concurrent idempotency. Without the URL these tests **error**; they never skip. The role must be able to `CREATE DATABASE` (migration tests). |
 | `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. |
 | `make test-e2e` | Docker | An API process with real sandboxes. |

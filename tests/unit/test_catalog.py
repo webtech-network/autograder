@@ -11,6 +11,7 @@ from autograder import (
 )
 from autograder.models.language import LANGUAGE_IDS
 from autograder.models.contracts.catalog import describe_template
+from autograder.models.contracts.definition import ContractJsonSchema
 from autograder.template_library import BUILTIN_TEMPLATES
 from examples.contracts.custom_evaluator import ContainsText, DEFINITION, TEMPLATE
 from tests.builtin_evaluator_cases import leaves
@@ -22,8 +23,10 @@ def test_every_catalog_evaluator_resolves_and_its_sample_compiles(template):
     assert {item.identifier for item in template.evaluators} == set(instance.get_tests())
     for evaluator in template.evaluators:
         function = instance.get_test(evaluator.identifier)
+        # The compiled contract, with factory defaults published (ONB-04).
         assert evaluator.parameters_schema == {
-            **function.config_schema.model_json_schema(), "additionalProperties": False}
+            **function.config_schema.model_json_schema(schema_generator=ContractJsonSchema),
+            "additionalProperties": False}
         for language in evaluator.supported_languages or LANGUAGE_IDS:
             value = deepcopy(DEFINITION)
             value.update(templates=[template.identifier], languages=[language])
