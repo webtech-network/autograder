@@ -126,10 +126,22 @@ jobs:
       - run: make test-integration
       - run: make test-e2e
 
-  # The HTTP path (compose stack from this commit: PostgreSQL, migrations,
-  # remote mode, smoke and e2e) and the packaged Action path join here as their
-  # own jobs, each running one make target, and are added to the publication
-  # jobs' `needs`.
+  http:
+    name: HTTP path (Compose stack from this commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: .tool-versions
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.11.15"
+          enable-cache: true
+      # uv sync --locked fails when pyproject.toml and uv.lock disagree.
+      - run: make install
+      - run: make test-http
 
   # The Action release, run by hand (workflow_dispatch) on the branch that raises
   # the version in action.yml, before that branch can merge into main: publish
@@ -137,7 +149,7 @@ jobs:
   # the version (scripts/action_image.py, docs/github_action/README.md).
   action-release:
     name: Release Action image
-    needs: [core, postgres, images, docker]
+    needs: [core, postgres, images, docker, http]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -168,7 +180,7 @@ jobs:
 
   deploy:
     name: Deploy API
-    needs: [core, postgres, images, docker]
+    needs: [core, postgres, images, docker, http]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -260,6 +272,13 @@ jobs:
             # 4. Pull and Restart
             echo "🚀 Deploying $SERVICE_NAME..."
             docker compose -f docker-compose.yml pull "$SERVICE_NAME"
+            # The new image refuses retired or incoherent configuration at startup:
+            # check it with the new image first (no database or Docker access), and
+            # keep the running API if it is rejected. docs/operate/deployment.md
+            echo "🔎 Checking configuration..."
+            docker compose -f docker-compose.yml run --rm --no-deps "$SERVICE_NAME" \
+              python -m web.main --check \
+              || { echo "❌ ERROR: Configuration rejected; the running API was not replaced."; docker logout ghcr.io; exit 1; }
             # The new image refuses to serve an unmigrated database: migrate with
             # it first, and keep the running API if the migration fails.
             echo "🗄️ Migrating database schema..."

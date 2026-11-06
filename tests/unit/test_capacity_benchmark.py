@@ -27,6 +27,15 @@ def test_python_io_cases_are_distinct_and_match_the_submitted_program():
     assert "nonce" in program and "print(a + b)" in program
 
 
+def test_python_io_projects_have_the_requested_file_count():
+    files = bench.python_io_files("nonce", 100)
+    assert len({item["filename"] for item in files}) == 100
+    assert all(len(item["content"]) == 2048 for item in files[1:])
+    args = bench.parse_args(["--token", "t", "--files", "10", "--submissions", "1"])
+    [(_, submitted)] = list(bench.plan(args)[1]("run"))
+    assert len(submitted) == 10
+
+
 def test_webdev_pages_are_sized_unique_and_score_full_marks_offline():
     first, second = (bench.webdev_files(nonce, 20)[0] for nonce in ("run-0", "run-1"))
     assert first["content"] != second["content"]

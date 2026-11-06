@@ -5,7 +5,7 @@
 # another interpreter, e.g. `make verify PYTHON=python` inside an activated venv.
 PYTHON ?= uv run --locked python
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e images test-images action-check action-publish sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-e2e test-http images test-images action-check action-publish sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -23,8 +23,9 @@ verify: lint contracts docs test test-web ## Hermetic core/library path (no Dock
 lint: ## Pylint the shipped packages, scripts and examples, serially (.pylintrc)
 	$(PYTHON) -m pylint autograder web sandbox_manager execution_host github_action scripts examples
 
-contracts: ## Check that checked-in JSON Schemas match the models
+contracts: ## Check that checked-in JSON Schemas and docs/reference match the contracts
 	$(PYTHON) scripts/generate_contract_schemas.py --check
+	$(PYTHON) scripts/generate_reference.py --check
 
 docs: ## Check documentation links and API routes, then build the site strictly
 	$(PYTHON) scripts/validate_docs.py
@@ -46,6 +47,9 @@ test-integration: sandbox-build-all ## Real Docker sandboxes (builds sandbox ima
 
 test-e2e: sandbox-build-all ## API process with real Docker sandboxes
 	PYTHON='$(PYTHON)' ./scripts/run_e2e_tests.sh
+
+test-http: images sandbox-build-all ## HTTP path: two Compose stacks from this checkout, fixture grading, receipt recovery
+	AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' $(PYTHON) -m pytest tests/stack/ -v
 
 # Local names of the service and Action images: $(IMAGE_PREFIX)-<name>:$(IMAGE_TAG).
 IMAGE_PREFIX ?= autograder
@@ -114,9 +118,14 @@ db-migrate: ## Autogenerate a migration against head: make db-migrate MSG="descr
 docs-serve: ## Serve the docs site with live reload
 	$(PYTHON) -m mkdocs serve
 
-start-autograder: sandbox-build-all ## Start PostgreSQL, the API and the sandbox manager (needs SANDBOX_API_TOKEN)
-	docker compose up -d --build
-	@echo "Autograder API: http://localhost:8000"
+start-autograder: ## Development stack: PostgreSQL, S3 emulator, sandbox manager, API (needs two tokens)
+	@test -n "$$SANDBOX_API_TOKEN" -a -n "$$AUTOGRADER_INTEGRATION_TOKEN" || { \
+	  echo 'Export SANDBOX_API_TOKEN and AUTOGRADER_INTEGRATION_TOKEN first (long random secrets), e.g.'; \
+	  echo '  export SANDBOX_API_TOKEN="$$(openssl rand -hex 32)" AUTOGRADER_INTEGRATION_TOKEN="$$(openssl rand -hex 32)"'; \
+	  exit 2; }
+	$(MAKE) --no-print-directory sandbox-build-all
+	AUTOGRADER_IMAGE_TAG='$(IMAGE_TAG)' docker compose up -d --build --wait
+	@echo "Autograder API: http://127.0.0.1:$${AUTOGRADER_HTTP_PORT:-8000}"
 
 examples-demo: ## Serve the interactive demo page (needs a running API)
 	cd examples/demo && $(PYTHON) serve_demo.py

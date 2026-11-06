@@ -84,12 +84,70 @@ status/content; inability to obtain a response is a capability failure. These
 conservative classifications avoid claiming that unavailable infrastructure
 proved student code incorrect.
 
-Public errors expose stable codes, fixed safe engine messages, categories
+Public errors expose stable codes, messages, categories
 (`definition`, `submission`, `capability`, `provider`, `internal`), retryability,
-and correlation IDs. Raw exceptions, provider responses, setup stderr, and
-internal step names remain in host-controlled diagnostics/logs. Authenticated
-external hosts may attest their own safe messages using the published codes; that
-attestation does not prove the local server executed the grade.
+and correlation IDs. `capability`, `provider`, `internal` and `definition` errors
+carry fixed safe engine messages; raw exceptions, provider responses and internal
+step names remain in host-controlled diagnostics/logs. `submission` errors
+explain themselves to the student instead (see [Explained submission
+failures](#explained-submission-failures)). Authenticated external hosts may
+attest their own safe messages using the published codes; that attestation does
+not prove the local server executed the grade.
+
+## Explained submission failures
+
+A submission the engine cannot grade because of the submission itself stays a
+failed grading: the categories, codes, `retryable`, null `score` and `tree` and
+the matrix rows above are unchanged. Its error `message` is an actionable
+explanation in the submission's `locale` (`en` or `pt-br`), built from catalog
+keys `preflight.error.*` in `autograder/translations`:
+
+| Code | The message names |
+| --- | --- |
+| `REQUIRED_FILE_MISSING` | the missing required files, or the criterion and its missing target, or how many assessable files a criterion needs and found |
+| `PREPARATION_FAILED` | the failing setup step's `name` and its exit code, its 30 s deadline, or that it exhausted the sandbox |
+| `LANGUAGE_REQUIRED` / `LANGUAGE_NOT_ALLOWED` | the definition's allowed languages (and the rejected one) |
+| `FILE_TARGET_CONFLICT` | the criterion and the target outside the evaluation scope (or its conflicting file parameter) |
+| `UNSUPPORTED_FILE_TYPE` | the criterion and the target it cannot assess |
+| `AMBIGUOUS_FILE_TARGET` | the criterion, how many files it assesses and how many submitted files match |
+
+A `submission` error an evaluator raises without an explanation (only reachable
+outside a compiled plan, such as `MISSING_LANGUAGE_COMMAND`) keeps its fixed
+message. Messages contain only definition-authored names (files, steps, criteria,
+languages) and counts, never submitted file names or contents, so their size is
+a function of the definition. The setup command itself is not shown.
+
+A failed setup step also returns an excerpt of its output (standard output, then
+standard error) as `error.output`:
+
+```json
+{"code": "PREPARATION_FAILED", "category": "submission", "retryable": false,
+ "message": "The setup step 'compile' failed with exit code 1, so the submission could not be graded.",
+ "output": "Main.java:3: error: ';' expected\n    int x = 1\n             ^\n1 error\n",
+ "correlation_id": "..."}
+```
+
+`output` uses the report bound and excerpt of [Size bounds](#size-bounds)
+(`MAX_REPORT_BYTES`, head and tail around the omitted-bytes marker); an attested
+`output` above it is rejected with `text_too_large`. Only `submission` errors may
+carry `output`, and it is absent from the wire, not `null`, when there is none,
+so every other error serializes exactly as before. A step that exhausted the
+sandbox has no output.
+
+Setup output can contain author-private content, for example compiler messages
+quoting a hidden test harness staged as a fixture. By default a failing step's
+output is shown; a setup command with `"private_output": true`
+([DEFINITIONS.md](DEFINITIONS.md)) still names the step and exit code but never
+returns its output. The flag is validated at compilation (a strict boolean) and
+is omitted from the snapshot while `false`, so definitions written before it
+keep their hash.
+
+Hosts: HTTP compact polling and history keep `error.message` but omit
+`error.output`; authenticated details return the full outcome with it. The
+Action writes the outcome to `.autograder/outcome.json` and the message and
+fenced output to the job summary. Hosts that validate the language at
+acceptance (HTTP 422, Action configuration) report `LANGUAGE_REQUIRED` and
+`LANGUAGE_NOT_ALLOWED` before grading, naming the allowed languages.
 
 The tree has one root representation. Categories retain the base/bonus/penalty
 score semantics; holder scores must equal the weighted average of their children
@@ -180,7 +238,8 @@ for criteria `removed` since the baseline name criteria that are not nodes of
 this definition and have no allowance. An attestation whose comparison lists
 enough of them to exceed the bound is rejected with `OUTCOME_TOO_LARGE`. The
 16 KiB covers identifiers, provenance, timestamps, statuses and a structured
-error.
+error. A failed outcome has no tree and no feedback, so its bounded `output`
+(at most `6 * 8 KiB` escaped) is always inside the same bound.
 
 An attestation carries the definition snapshot and the outcome. Compilation
 (`compile_definition` and `compile_snapshot`) therefore rejects with

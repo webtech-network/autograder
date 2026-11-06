@@ -48,6 +48,9 @@ def project_submission(row, *, details=False):
     result = row.result
     outcome = result.outcome if result else None
     error = outcome.get("error") if outcome else None
+    if error:
+        # Compact projections stay small: a setup step's output excerpt is read from the details outcome.
+        error = {key: value for key, value in error.items() if key != "output"}
     if not outcome and row.status == SubmissionStatus.FAILED:
         error = {
             "code": "LEGACY_UNVERIFIED" if result else "RECOVERY_INPUT_UNAVAILABLE",

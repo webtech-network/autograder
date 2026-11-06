@@ -2,9 +2,16 @@
 
 The API Testing template validates student-built web APIs by making HTTP requests to a running server inside a sandbox container and checking the responses.
 
+!!! warning "Not available on the shipped hosts"
+    API criteria need the `http_network` capability. The HTTP API and the GitHub
+    Action do not provide it, so a definition using them fails with
+    `SERVER_CAPABILITY_UNAVAILABLE` before any sandbox is acquired (see
+    [How it works](#how-it-works)).
+
+Parameters, defaults, constraints and capabilities of every evaluator below are in the generated [evaluator reference](../reference/evaluators.md#api); this page explains what the checks mean.
+
 > **Template name for configs:** `api`  
-> **Requires sandbox:** Yes  
-> **Communication:** HTTP requests to the containerized application via `SandboxContainer.make_request()`
+> **Requires:** a host-supplied server session (`ServerSession.make_request()`)
 
 ---
 
@@ -13,10 +20,6 @@ The API Testing template validates student-built web APIs by making HTTP request
 ### `health_check`
 
 Sends a GET request to an endpoint and verifies it returns HTTP status 200.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `endpoint` | string | ✓ | The endpoint to test (e.g., `"/health"`, `"/api/status"`) |
 
 **Scoring:** 100 if status code is 200, 0 otherwise.
 
@@ -38,12 +41,6 @@ Sends a GET request to an endpoint and verifies it returns HTTP status 200.
 ### `check_response_json`
 
 Sends a GET request to an endpoint and verifies the JSON response contains a specific key-value pair.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `endpoint` | string | ✓ | The API endpoint to test |
-| `expected_key` | string | ✓ | JSON key to check in the response |
-| `expected_value` | any | ✓ | Expected value for that key |
 
 **Scoring:** 100 if the response is valid JSON and contains the expected key-value pair, 0 otherwise.
 

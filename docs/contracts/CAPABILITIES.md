@@ -27,9 +27,13 @@ no runtime profile for the bound language (no `runtimes:` image) also fails with
 `ExecutionSession` provides submission staging, process execution
 (`run_process`, see [PROCESSES.md](PROCESSES.md)), relative artifact readback,
 fixture staging and disposal. Its `fixture_root` declares the
-host's fixture root; `stage_fixture(path, bytes, read_only)` receives a relative
-path. Fixture references remain logical and the supplied resolver returns bytes,
-including empty bytes. Core does not select S3 credentials, Docker managers,
+host's fixture root; `stage_fixtures(fixtures)` receives the definition's whole
+fixture set at once as `StagedFixture(path, content, read_only)` values with
+relative paths, so a host can stage it in one transfer (the Docker host makes one
+`inject_assets` call). Core fetches every fixture before staging any, calls
+`stage_fixtures` once and only when the definition declares fixtures, and an
+implementation stages the whole set or raises. Fixture references remain logical
+and the supplied resolver returns bytes, including empty bytes. Core does not select S3 credentials, Docker managers,
 OpenAI clients, secrets or provider models. Concrete shared host composition lives
 under `execution_host/`.
 
@@ -37,7 +41,7 @@ under `execution_host/`.
 
 `HostCapabilities.fixtures` is a callable `reference -> bytes`. It receives only
 the logical reference: destination path and read-only mode are placement and are
-applied by `ExecutionSession.stage_fixture`. `b""` is valid content. A provider
+applied by `ExecutionSession.stage_fixtures`. `b""` is valid content. A provider
 raises `autograder.models.capabilities.FixtureNotFound` when the reference has no
 object; any other exception is a provider failure. Both stop preparation with the
 same safe `capability / PREPARATION_ERROR` outcome; a missing fixture is not
@@ -45,9 +49,10 @@ retryable, a provider failure is. Raw provider errors stay in host logs.
 
 The Docker host composes `execution_host.fixtures.S3FixtureProvider` from
 `EXTERNAL_ASSETS_BUCKET_NAME`, `S3_ENDPOINT_URL`, `AWS_REGION` and
-`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (`AWS_ACCESS_ID` is accepted as a
-legacy alias). Configuration is captured at host construction; one SDK client is
-created on the first selected fixture and reused. Missing keys (`NoSuchKey`/404)
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` ([configuration](../operate/configuration.md)).
+Configuration is captured at host construction, where an endpoint without a
+bucket or half a credential stops the host; one SDK client is created on the
+first selected fixture and reused. Missing keys (`NoSuchKey`/404)
 are `FixtureNotFound`; missing buckets, access denials, transport errors and an
 unset bucket are provider failures. Deliberate execution `assets` use the same
 host provider.
@@ -180,6 +185,20 @@ policy. Current Docker pools disable network and provide no server lifecycle;
 therefore their API outcomes fail with `SERVER_CAPABILITY_UNAVAILABLE` before
 acquisition or scoring. Ordinary I/O pools do not gain network access. A host
 that supports API assessment must supply the complete server profile explicitly.
+
+## Migration
+
+* **One fixture-set call (PRF-03).** `ExecutionSession.stage_fixture(path,
+  content, read_only)`, called once per fixture, is replaced by
+  `stage_fixtures(fixtures: Sequence[StagedFixture])`, called once with the
+  whole set (`StagedFixture` is in `autograder.models.execution`). A host
+  session that implemented `stage_fixture` renames it and loops over the
+  sequence, or better stages the set in one operation. No definition, wire or
+  configuration change. Fixtures are now all fetched before any is staged, so a
+  missing fixture leaves nothing staged; the outcome is unchanged
+  (`capability / PREPARATION_ERROR`). With the Docker host a grading's fixture
+  set went from one `docker exec` per fixture (100 for the 100-fixture maximum,
+  about 3 to 4 s) to one.
 
 ## Earlier architecture issues
 

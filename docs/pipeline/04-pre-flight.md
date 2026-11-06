@@ -13,7 +13,10 @@ argument vector with no implicit shell; write `sh -c '...'` for shell syntax, se
 [PROCESSES.md](../contracts/PROCESSES.md)). Fixtures are fetched by reference,
 uncached, from the host's fixture provider.
 
-A student setup failure is `PREPARATION_FAILED`; a setup command that cannot
+A student setup failure is `PREPARATION_FAILED`, explained in the submission's
+locale with the step name and an excerpt of its output unless the step is
+`private_output` (see [OUTCOMES.md](../contracts/OUTCOMES.md#explained-submission-failures));
+a setup command that cannot
 start, transport failures and fixture failures are capability failures
 (`PREPARATION_ERROR`; a missing fixture is not retryable). No assessment runs after preparation fails, and the
 owned session still closes before a failed outcome is returned.

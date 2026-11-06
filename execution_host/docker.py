@@ -31,12 +31,14 @@ class DockerSession:
     def prepare_workdir(self, files):
         self.sandbox.prepare_workdir(files)
 
-    def stage_fixture(self, path, content, read_only):
+    def stage_fixtures(self, fixtures):
+        """The whole set as one ``inject_assets`` call: one transfer (one request in remote mode)."""
         self.sandbox.inject_assets([ResolvedAsset(
-            target=f"{self.fixture_root}/{relative_path(path)}", content=content, read_only=read_only)])
+            target=f"{self.fixture_root}/{relative_path(fixture.path)}", content=fixture.content,
+            read_only=fixture.read_only) for fixture in fixtures])
 
     def inject_assets(self, assets):
-        """Legacy deliberate-run host paths; grading uses stage_fixture instead."""
+        """Legacy deliberate-run host paths; grading uses stage_fixtures instead."""
         self.sandbox.inject_assets(assets)
 
     def run_process(self, request):
@@ -124,9 +126,16 @@ def docker_capabilities(manager):
 
 
 class DockerHost:
-    """Lazy, isolated manager for one host lifetime. Static work starts nothing."""
+    """Lazy, isolated manager for one host lifetime. Static work starts nothing.
+
+    The mode and the provider settings are validated at construction; the
+    sandbox configuration, Docker and the network are first used by the first
+    acquisition.
+    """
     def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml",
                  api_token=None):
+        if mode not in ("local", "remote"):
+            raise ValueError(f"SANDBOX_MODE must be local or remote, got {mode!r}")
         self.mode = mode
         self.api_url = api_url
         self.api_token = api_token
@@ -144,13 +153,11 @@ class DockerHost:
                 if self.mode == "remote":
                     from sandbox_manager.remote_client import RemoteSandboxManager
                     self._manager = RemoteSandboxManager(api_url=self.api_url, token=self.api_token)
-                elif self.mode == "local":
+                else:
                     from sandbox_manager.manager import SandboxManager
                     from sandbox_manager.models.pool_config import SandboxHostConfig
                     # Reclaims containers of provably dead owners, then starts the pools.
                     self._manager = SandboxManager.from_config(SandboxHostConfig.load_from_yaml(self.config_file))
-                else:
-                    raise ValueError("Unsupported sandbox host mode")
             manager = self._manager
         return DockerSession(manager, language, wait_seconds)
 

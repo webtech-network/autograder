@@ -21,6 +21,8 @@ localized headings, optional summary and final score, hides passed criteria
 unless `show_passed_tests`, orders failed criteria by points lost, and shows a
 learning resource when it links no criteria or when one of its linked criterion
 IDs failed.
+Every preference, with its type and default, is listed in the generated
+[definition reference](../reference/definition.md#feedbackpreferences).
 
 Publication happens after cleanup and finalization in the
 [hosting adapter](08-export.md), outside grading.

@@ -1,6 +1,7 @@
 # Allow-list build context for Dockerfile.api, Dockerfile.sandbox and
 # Dockerfile.actions: everything is excluded unless listed below, so local
-# secrets and state (.env, .venv, data/, *.db, keys, caches) never reach an image.
+# secrets and state (.env, .venv, data/, *.db, keys, caches) never reach an image:
+# an API started from an image must not publish a development checkout's receipts.
 # Each Dockerfile then copies only the paths its process needs.
 # tests/images/ builds the images from a checkout with planted secrets.
 *
