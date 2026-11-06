@@ -62,7 +62,7 @@ has pylint false positives to resolve first.
 | `make test-integration` | Docker | Real sandboxes; builds the sandbox images first. Suites run under gVisor when Docker offers `runsc` (else runc; `AUTOGRADER_TEST_RUNTIME` overrides). The per-runtime isolation suites are left to `make test-isolation`. `make gvisor-install` (sudo) installs the pinned gVisor release. |
 | `make test-isolation` | Docker | The per-runtime isolation suites (hostile submissions, sandbox attribution), under every runtime Docker offers; CI runs it after `make gvisor-install`, so under gVisor and runc. |
 | `make test-e2e` | Docker | An API process with real sandboxes. |
-| `make test-http` | Docker | The **HTTP path**: builds the images, starts two `docker-compose.yml` stacks side by side from empty volumes (PostgreSQL, migrations, seeded S3 emulator, sandbox manager, API in remote mode), grades the fixture example, recovers a retained outcome receipt across an API recreate without grading again, and checks that the image rejects retired configuration. Removes the stacks, their volumes and sandboxes. |
+| `make test-http` | Docker, `runsc` | The **HTTP path**: builds the images, starts two `docker-compose.yml` stacks side by side from empty volumes (PostgreSQL, migrations, seeded S3 emulator, sandbox manager, API in remote mode), grades the fixture example, recovers a retained outcome receipt across an API recreate without grading again, and checks that the image rejects retired configuration. Removes the stacks, their volumes and sandboxes. |
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout (`IMAGE_TAG`, default `local`). |
 
 The PostgreSQL tier needs a disposable database; every test creates and drops
@@ -143,11 +143,14 @@ SANDBOX_MODE=local uvicorn web.main:app --reload --port 8000
 development copy: `sed 's/runtime: runsc/runtime: runc/' sandbox_config.yml >
 sandbox_config.dev.yml` (ignored by git), then
 `export SANDBOX_CONFIG_FILE=$PWD/sandbox_config.dev.yml`. Otherwise the local API
-starts but fails every execution grading with `IsolationRuntimeError`, and the
-control service (`python -m sandbox_manager`, the compose `sandbox-manager`)
-refuses to start. For compose, give `sandbox-manager` the copy in a
-`docker-compose.override.yml`: mount `./sandbox_config.dev.yml:/config/sandbox.yml:ro`
-and set `SANDBOX_CONFIG_FILE: /config/sandbox.yml`.
+and the control service (`python -m sandbox_manager`, the compose
+`sandbox-manager`) refuse to start with `IsolationRuntimeError`. For
+`make start-autograder` (plain `docker compose up`, which reads
+`docker-compose.override.yml`), give `sandbox-manager` the copy in that override:
+mount `./sandbox_config.dev.yml:/config/sandbox.yml:ro` and set
+`SANDBOX_CONFIG_FILE: /config/sandbox.yml`. `make test-http` names its compose
+files explicitly, so no override applies: it tests the shipped images with
+their own `runsc` configuration and needs `make gvisor-install`, as in CI.
 
 Remote mode runs the private sandbox control API as a separate single-worker
 process and requires its shared token ([SANDBOX.md](../contracts/SANDBOX.md)):

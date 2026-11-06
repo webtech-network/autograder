@@ -534,11 +534,13 @@ bound is 0 bytes. Any error
 mentioning `runsc` used to switch a pool to runc for the rest of its life. The
 runtime is now the host's explicit, required `general.runtime` (`runsc` or
 `runc`), verified and logged when the manager starts; a failed gVisor start
-fails that one acquisition and never downgrades. Migration: a daemon without
-gVisor stops the control service at startup, while a local-mode API (production's
-current shape) starts and fails every execution grading until `docker info` lists
-`runsc` or `runtime: runc` is deployed deliberately; the shipped configuration
-says `runsc`. SANDBOX.md alone states the per-environment
+fails that one acquisition and never downgrades. Migration: the shipped
+configuration says `runsc`, and a daemon without gVisor stops the service at
+startup, loudly, before it reports ready: the control service in its lifespan
+and a local-mode API (production's current shape) in its own startup, which now
+builds its sandbox manager there instead of on the first execution grading. A
+deployment checks that `docker info` lists `runsc` or deploys `runtime: runc`
+deliberately; that check is a precondition of the `refactor/363` release. SANDBOX.md alone states the per-environment
 runtime and Docker-socket exposure, names the supported internet-facing
 topology (remote mode, socket only in the private control service), and maps
 each isolation guarantee to the hostile-submission test that pins it under each

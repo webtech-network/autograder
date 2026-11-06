@@ -76,6 +76,11 @@ class WebHost:
         if self.engine is not None:
             # Migrations own the schema; refuse to serve a database at another revision.
             await require_current_schema(self.engine)
+        # A local-mode host starts its sandbox manager here, so an absent runtime or
+        # image stops the service at startup instead of failing every execution grading.
+        start = getattr(self.resource_owner, "start", None)
+        if start is not None:
+            await asyncio.to_thread(start)
         self.ready = True
         if self.start_workers:
             self.worker.start()

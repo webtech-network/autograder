@@ -116,12 +116,14 @@ bound is therefore **0 bytes**, and the memory-backed bound is the memory limit.
 
 * `runsc`: gVisor is required. A `SandboxManager` refuses to start
   (`IsolationRuntimeError`) when the Docker daemon does not offer it, before it
-  creates any container, and logs the decision at startup. The control service
-  builds its manager in its lifespan, so it does not start. A local-mode HTTP
-  API builds its manager on the first execution grading, so it starts and
-  serves, and every execution grading fails with `IsolationRuntimeError` until
-  the daemon offers `runsc` or the configuration says `runc`: check
-  `docker info` lists `runsc` before deploying.
+  creates any container, and logs the decision at startup. Both long-running
+  hosts build their manager when they start, before they report ready: the
+  control service in its lifespan, and a local-mode HTTP API in its startup
+  (`DockerHost.start`). Either one therefore exits at service start with
+  `IsolationRuntimeError` (naming the runtimes the daemon offers) instead of
+  serving and failing every execution grading. Check that `docker info` lists
+  `runsc` before deploying, or deploy `runtime: runc` deliberately. The Action
+  never starts a manager it does not use: its first execution builds it.
 * `runc`: accepted explicitly; submissions share the host kernel. The manager
   logs a warning at startup.
 
@@ -142,7 +144,7 @@ differ in the runtime and in who can reach the Docker daemon.
 | HTTP API, remote mode (`SANDBOX_MODE=remote`) with the control service | `runsc` (the shipped `sandbox_config.yml`) | only the control service | **The supported internet-facing topology.** The API container has no Docker socket; the control service is private (below). |
 | HTTP API, local mode (`SANDBOX_MODE=local`) | `runsc`; `runc` for development (a configuration copy via `SANDBOX_CONFIG_FILE`, see [the development guide](../guides/development.md#running-the-api-locally)) | the API process | Not supported internet-facing: a compromised API process owns the Docker host. Use it for development, tests and private single-host deployments. |
 | GitHub Action | `runc` (hosted runners have no gVisor) | the Action on the runner VM | One run per runner VM; the runner VM is the outer boundary. Submitter, actor and token separation: [trust.md](../github_action/trust.md). |
-| CI and local test suites | `runc` always, and `runsc` where installed | the test process | CI's isolation job installs the pinned gVisor release (`make gvisor-install`) and runs the per-runtime suites below under both (`make test-isolation`); the other Docker suites run under runc. |
+| CI and local test suites | `runc` always, and `runsc` where installed | the test process | CI's isolation job installs the pinned gVisor release (`make gvisor-install`) and runs the per-runtime suites below under both (`make test-isolation`); the other Docker suites run under runc. CI's HTTP job also installs it, because `make test-http` runs the shipped images with their own `sandbox_config.yml` (`runsc`), exactly as deployed. |
 
 The supported internet-facing deployment is the repository's
 `docker-compose.yml` shape: the API in remote mode without the Docker socket,
@@ -400,9 +402,12 @@ server have no hard deadline beyond docker-py's own client timeout.
 * **Explicit runtime and read-only root (COR-04).** `general.runtime` is
   required in `sandbox_config.yml` (`runsc` or `runc`); a configuration without
   it is rejected at startup with a message naming the choices. The shipped file
-  says `runsc`, so a host whose Docker daemon lacks gVisor now refuses to start
-  (`IsolationRuntimeError`) instead of silently using runc: install gVisor or set
-  `runtime: runc` deliberately. Python callers pass
+  says `runsc`, so a control service or local-mode API whose Docker daemon lacks
+  gVisor now refuses to start (`IsolationRuntimeError`) instead of silently
+  using runc: before deploying, check that `docker info` lists `runsc`, or set
+  `runtime: runc` deliberately. A local-mode API also starts its sandbox manager
+  (pools, orphan reclaim, runtime images) at startup instead of on its first
+  execution grading. Python callers pass
   `SandboxManager(..., runtime="runsc"|"runc")`; `is_missing_runtime_error` is
   gone. Sandboxes now have a read-only root filesystem: a submission or setup
   command that wrote outside `/app`, `/tmp` or `/dev/shm` (for example under

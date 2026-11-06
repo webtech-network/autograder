@@ -107,6 +107,20 @@ def test_ci_invokes_only_make_targets():
     assert "make test-postgres" in commands["postgres"]
 
 
+
+def test_jobs_that_run_the_shipped_sandbox_configuration_install_its_runtime_first():
+    # `make test-http` starts the Compose stack with the images' own
+    # sandbox_config.yml. Its control service refuses to start when Docker does not
+    # offer that runtime (COR-04), and GitHub's runners ship without gVisor.
+    shipped = yaml.safe_load((ROOT / "sandbox_config.yml").read_text(encoding="utf-8"))["general"]["runtime"]
+    jobs = workflow(VERIFY)["jobs"]
+    for name, job in jobs.items():
+        runs = [step["run"].strip() for step in job.get("steps", []) if "run" in step]
+        for target in ("make test-http", "make test-isolation"):
+            if target in runs and shipped == "runsc":
+                assert "make gvisor-install" in runs[:runs.index(target)], f"{name}: {target} without gVisor"
+
+
 def test_deploy_waits_for_every_verification_job():
     jobs = workflow(VERIFY)["jobs"]
     deploy = jobs["deploy"]

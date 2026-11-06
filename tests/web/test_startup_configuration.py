@@ -122,3 +122,33 @@ def test_the_check_command_rejects_retired_configuration():
     result = check(SANDBOX_POOL_SIZE="3")
     assert result.returncode != 0
     assert "SANDBOX_POOL_SIZE" in result.stderr and "max_sandboxes" in result.stderr
+
+
+class DaemonWithoutGvisor:
+    """A Docker client whose daemon offers only runc; any other call is a test failure."""
+    closed = False
+
+    def info(self):
+        return {"Runtimes": {"runc": {}}}
+
+    def close(self):
+        self.closed = True
+
+
+@pytest.mark.asyncio
+async def test_a_local_host_without_its_configured_runtime_refuses_to_start(monkeypatch, session_factory):
+    # Before: the API started, reported ready and failed every execution grading
+    # with IsolationRuntimeError on its first acquisition (COR-04, #419).
+    from sandbox_manager import manager as sandbox_manager_module
+    from sandbox_manager.errors import IsolationRuntimeError
+    daemon = DaemonWithoutGvisor()
+    monkeypatch.setattr(sandbox_manager_module.docker, "from_env", lambda: daemon)
+    app = create_app(session_factory=session_factory, start_workers=False)  # shipped sandbox_config.yml: runsc
+    host = app.state.host
+    assert host.settings.SANDBOX_MODE == "local"
+    with pytest.raises(IsolationRuntimeError, match="'runsc' .* not offered by this Docker daemon"):
+        async with app.router.lifespan_context(app):
+            pass
+    assert host.ready is False
+    assert daemon.closed
+

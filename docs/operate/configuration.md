@@ -44,7 +44,7 @@ marked *required* have no working default for a deployment.
 | `SANDBOX_MODE` | `local` | `local`: the API process owns its sandboxes through the Docker socket (development and tests). `remote`: sandboxes come from the private sandbox manager (the supported deployment, see [Deployment](deployment.md)). |
 | `SANDBOX_API_URL` | `http://localhost:8001` | Sandbox manager URL (`remote`). |
 | `SANDBOX_API_TOKEN` | empty | Sandbox manager bearer token (`remote`); the same value as the manager's. |
-| `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | Sandbox budget, pools and runtime images (`local`); relative paths resolve from the project root. Read when the first sandbox is acquired. |
+| `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | Sandbox runtime (`general.runtime`), budget, pools and runtime images (`local`); relative paths resolve from the project root. Read at startup, which fails when Docker does not offer the runtime ([environments](../contracts/SANDBOX.md#environments-and-supported-topology)). |
 | `EXTERNAL_ASSETS_BUCKET_NAME` | unset | S3 bucket holding definition fixtures. Unset, the host has no fixture store and fixture assignments fail preparation. |
 | `S3_ENDPOINT_URL` | AWS | S3-compatible endpoint. Setting it without a bucket stops startup. |
 | `AWS_REGION` | `us-east-1` | Region of the fixture bucket and of the AI secret. |
@@ -71,7 +71,7 @@ host ([Sandbox ownership](../contracts/SANDBOX.md#private-control-api)).
 | --- | --- | --- |
 | `SANDBOX_API_TOKEN` | unset | *Required.* Bearer token every client must send. |
 | `SANDBOX_API_ALLOW_UNAUTHENTICATED` | `false` | Run without a token. Local development only. |
-| `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | Sandbox budget, pools and runtime images. |
+| `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | Sandbox runtime (`general.runtime`), budget, pools and runtime images; startup fails when Docker does not offer the runtime ([environments](../contracts/SANDBOX.md#environments-and-supported-topology)). |
 | `SANDBOX_HANDLE_TTL_SECONDS` | `600` | Idle time before a handle expires. |
 | `SANDBOX_HANDLE_TOMBSTONE_SECONDS` | `3600` | How long closed handles are remembered. |
 | `WEB_CONCURRENCY` | `1` | Must be `1`: handles live in process memory (Uvicorn also reads it). |
@@ -106,7 +106,7 @@ workflow's `env:`.
 | `SANDBOX_MODE` | `remote` | Execution host mode, as for the API. |
 | `SANDBOX_API_URL` | `http://localhost:8001` | As for the API. |
 | `SANDBOX_API_TOKEN` | unset | As for the API. |
-| `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | As for the API. |
+| `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | As for the API (`local`), read at the first execution instead of at startup. |
 | `EXTERNAL_ASSETS_BUCKET_NAME` | unset | As for the API. |
 | `S3_ENDPOINT_URL` | AWS | As for the API. |
 | `AWS_REGION` | `us-east-1` | As for the API. |

@@ -126,10 +126,11 @@ def docker_capabilities(manager):
 
 
 class DockerHost:
-    """Lazy, isolated manager for one host lifetime. Static work starts nothing.
+    """Isolated manager for one host lifetime. Static work starts nothing.
 
     The mode and the provider settings are validated at construction; the
-    sandbox configuration, Docker and the network are first used by the first
+    sandbox configuration, Docker and the network are first used by
+    :meth:`start` or, for a host that never calls it (the Action), by the first
     acquisition.
     """
     def __init__(self, *, mode="remote", api_url="http://localhost:8001", config_file="sandbox_config.yml",
@@ -146,8 +147,22 @@ class DockerHost:
             fixtures=S3FixtureProvider.from_environment(),
             ai=ConfiguredAssessmentProvider.from_environment())
 
+    def start(self):
+        """Start a local manager now, so a host that cannot execute fails at service start.
+
+        The manager validates the sandbox configuration, the configured runtime
+        (``IsolationRuntimeError`` when Docker does not offer it) and the runtime
+        images. A long-running service calls this before it reports ready; in
+        remote mode the control service performs the same checks in its own startup.
+        """
+        if self.mode == "local":
+            self._get_manager()
+
     def acquire(self, language, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS):
         """An owned session; waits up to ``wait_seconds`` for a slot of the sandbox budget."""
+        return DockerSession(self._get_manager(), language, wait_seconds)
+
+    def _get_manager(self):
         with self._lock:
             if self._manager is None:
                 if self.mode == "remote":
@@ -158,8 +173,7 @@ class DockerHost:
                     from sandbox_manager.models.pool_config import SandboxHostConfig
                     # Reclaims containers of provably dead owners, then starts the pools.
                     self._manager = SandboxManager.from_config(SandboxHostConfig.load_from_yaml(self.config_file))
-            manager = self._manager
-        return DockerSession(manager, language, wait_seconds)
+            return self._manager
 
     def close(self):
         """Shut down the manager this host created. Safe to call repeatedly."""

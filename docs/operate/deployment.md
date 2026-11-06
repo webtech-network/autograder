@@ -17,7 +17,11 @@ One Docker host runs:
 | Fixture store (optional) | S3 or compatible | `EXTERNAL_ASSETS_BUCKET_NAME`. |
 
 The runtime images named under `runtimes:` in `sandbox_config.yml` must be
-pulled on the Docker host before `sandbox-manager` starts. How sandboxes are
+pulled on the Docker host before `sandbox-manager` starts, and the Docker daemon
+must offer the OCI runtime named by `general.runtime`: the shipped file says
+`runsc` (gVisor), so check that `docker info` lists `runsc`, or deploy a
+configuration with `runtime: runc` deliberately. Otherwise the manager refuses
+to start ([environments and runtimes](../contracts/SANDBOX.md#environments-and-supported-topology)). How sandboxes are
 isolated and bounded, and why only the manager holds the socket, is
 [Sandbox ownership](../contracts/SANDBOX.md).
 
