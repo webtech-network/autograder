@@ -102,7 +102,8 @@ jobs:
   isolation:
     name: Sandbox isolation under gVisor and runc
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # About 27 minutes on ubuntu-latest: COR-01's 20 repetitions per runtime dominate.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
