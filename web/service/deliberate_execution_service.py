@@ -4,6 +4,7 @@ import asyncio
 import logging
 from time import monotonic
 
+from autograder.models.capabilities import ExecutionBudget
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.process import ProcessRequest, ProcessStatus, ResponseCategory, SandboxExhausted, lines_to_stdin
@@ -11,6 +12,7 @@ from autograder.models.language import Language
 from sandbox_manager.errors import SandboxCapacityTimeout
 from web.schemas.execution import (
     CASE_TIMEOUT_SECONDS,
+    MAX_CASES,
     MAX_OUTPUT_BYTES,
     MAX_TOTAL_FILE_BYTES,
     REQUEST_DEADLINE_SECONDS,
@@ -29,6 +31,9 @@ class ExecutionServiceError(Exception):
         self.message = message
         self.status_code = status_code
 
+
+# Every case at its own deadline: the sandbox stops by itself after this budget.
+EXECUTION_BUDGET = ExecutionBudget(MAX_CASES * CASE_TIMEOUT_SECONDS, MAX_CASES)
 
 UNAVAILABLE = ("EXECUTION_UNAVAILABLE", "Execution service is unavailable.", 503)
 DEADLINE = ("EXECUTION_DEADLINE_EXCEEDED", "Execution deadline exceeded.", 504)
@@ -77,7 +82,7 @@ def _execute_in_worker(request: DeliberateCodeExecutionRequest, deadline_at: flo
     sandbox = None
     try:
         try:
-            sandbox = capabilities.execution(language)
+            sandbox = capabilities.execution(language, EXECUTION_BUDGET)
         except SandboxCapacityTimeout as exc:
             raise ExecutionServiceError(*BUSY) from exc
         if monotonic() >= deadline_at:

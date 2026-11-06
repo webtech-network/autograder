@@ -3,8 +3,9 @@
 from datetime import timezone
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from sqlalchemy.exc import IntegrityError
-from web.api.deps import get_db_session
+from web.api.deps import get_db_session, get_host
 from web.repositories import GradingConfigRepository
+from web.service.submission_operations import OperationError, ensure_host_grants
 from web.schemas.assignment import (
     GradingConfigCreate,
     GradingConfigUpdate,
@@ -19,11 +20,16 @@ from autograder.models.contracts.definition import (
 router = APIRouter(prefix="/configs", tags=["Grading Configurations"])
 
 
-def _compile(value):
+def _compile(value, host):
+    """Compile, and refuse a definition this host could never grade in any allowed language."""
     try:
-        return compile_definition(value)
+        compiled = compile_definition(value)
+        ensure_host_grants(compiled, compiled.definition.languages, host.capabilities.max_session_seconds)
     except DefinitionValidationError as exc:
         raise HTTPException(422, detail=exc.errors()) from exc
+    except OperationError as exc:
+        raise HTTPException(exc.status_code, detail=exc.detail) from exc
+    return compiled
 
 
 def _response(config, response):
@@ -45,8 +51,8 @@ def _response(config, response):
 
 
 @router.post("/validate")
-async def validate_definition(definition: GradingDefinition):
-    compiled = _compile(definition)
+async def validate_definition(definition: GradingDefinition, host=Depends(get_host)):
+    compiled = _compile(definition, host)
     return {
         "definition": compiled.definition.model_dump(mode="json"),
         "definition_hash": compiled.definition_hash,
@@ -55,9 +61,9 @@ async def validate_definition(definition: GradingDefinition):
 
 @router.post("", response_model=GradingConfigResponse)
 async def create_grading_config(
-    config: GradingConfigCreate, response: Response, session=Depends(get_db_session)
+    config: GradingConfigCreate, response: Response, session=Depends(get_db_session), host=Depends(get_host)
 ):
-    compiled = _compile(config.definition)
+    compiled = _compile(config.definition, host)
     repo = GradingConfigRepository(session)
     if await repo.get_by_external_id(config.external_assignment_id):
         raise HTTPException(
@@ -131,11 +137,11 @@ def _revision(if_match):
     return int(if_match[1:-1])
 
 
-async def _patch(repo, row, payload, if_match, response):
+async def _patch(repo, row, payload, if_match, response, host):
     expected = _revision(if_match)
     changes = payload.model_dump(exclude_unset=True)
     if "definition" in changes:
-        compiled = _compile(changes["definition"])
+        compiled = _compile(changes["definition"], host)
         changes["definition"] = compiled.definition.model_dump(mode="json")
         changes["definition_hash"] = compiled.definition_hash
         changes["migration_error"] = None
@@ -163,6 +169,7 @@ async def update_grading_config_external(
     response: Response,
     if_match: str | None = Header(None),
     session=Depends(get_db_session),
+    host=Depends(get_host),
 ):
     repo = GradingConfigRepository(session)
     return await _patch(
@@ -171,6 +178,7 @@ async def update_grading_config_external(
         update,
         if_match,
         response,
+        host,
     )
 
 
@@ -181,8 +189,9 @@ async def update_grading_config(
     response: Response,
     if_match: str | None = Header(None),
     session=Depends(get_db_session),
+    host=Depends(get_host),
 ):
     repo = GradingConfigRepository(session)
     return await _patch(
-        repo, await _get(repo, config_id=config_id), update, if_match, response
+        repo, await _get(repo, config_id=config_id), update, if_match, response, host
     )

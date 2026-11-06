@@ -1,7 +1,7 @@
 """HTTP transport for durable acceptance, history and authenticated outcomes."""
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 
-from web.api.deps import Principal, get_db_session, require_attestation, require_integration_token
+from web.api.deps import Principal, get_db_session, get_host, require_attestation, require_integration_token
 from web.database.models.submission import SubmissionStatus
 from web.schemas import (
     SubmissionCreate, SubmissionResponse, SubmissionDetailResponse,
@@ -44,9 +44,10 @@ async def _operation(awaitable):
 async def create_submission(submission: SubmissionCreate, response: Response,
                             idempotency_key: str | None = IDEMPOTENCY_KEY,
                             principal: Principal = Depends(require_integration_token),
-                            session=Depends(get_db_session)):
+                            session=Depends(get_db_session), host=Depends(get_host)):
     row, replayed = await _operation(
-        accept_submission(session, submission, _idempotency(principal, idempotency_key)))
+        accept_submission(session, submission, _idempotency(principal, idempotency_key),
+                          max_session_seconds=host.capabilities.max_session_seconds))
     response.headers["Location"] = f"/api/v1/submissions/{row.id}"
     _mark_replay(response, replayed)
     return project_submission(row)

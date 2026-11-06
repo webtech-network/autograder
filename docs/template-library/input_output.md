@@ -2,9 +2,11 @@
 
 The Input/Output template tests command-line programs by providing stdin inputs and validating stdout output. It requires a sandbox for code execution.
 
+Parameters, defaults, constraints and capabilities of every evaluator below are in the generated [evaluator reference](../reference/evaluators.md#input_output); this page explains what the checks mean.
+
 > **Template name for configs:** `input_output`  
 > **Requires sandbox:** Yes  
-> **Supported languages:** Python, Java, Node.js, C++
+> **Supported languages:** Python, Java, Node.js, C, C++
 
 ---
 
@@ -13,12 +15,6 @@ The Input/Output template tests command-line programs by providing stdin inputs 
 ### `expect_output`
 
 Executes a program with a series of stdin inputs and compares the program's stdout against an expected output string.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `inputs` | list[string] | ✗ | Lines sent to stdin exactly; each is followed by `\n`. `[]` (the default) is empty stdin and `[""]` is one empty line. |
-| `expected_output` | string | ✓ | Exact string the program should print to stdout |
-| `program_command` | string | ✗ | Command to execute. Can be a plain string (e.g., `"python main.py"`), a dict for multi-language support, or `"CMD"` for auto-resolution based on submission language. |
 
 **Scoring:** 100 if output matches exactly (after trimming whitespace), 0 otherwise.
 
@@ -31,7 +27,8 @@ Malformed quoting is rejected when the definition is compiled
   report shows stderr, or the exit code when stderr is empty. A timed-out
   program, and any process it started, is killed before the next criterion runs.
 - Compile in `preparation` setup commands; a failed setup command stops grading
-  with `PREPARATION_FAILED`.
+  with `PREPARATION_FAILED`, and the student sees the step name, exit code and
+  an excerpt of the compiler output (unless the step sets `private_output`).
 - A program in the workspace (`./a.out`) that is missing or not executable
   scores 0. Exhausting the sandbox's memory or process limit scores 0 for that
   criterion and every later one (the sandbox is spent).
@@ -79,11 +76,6 @@ Malformed quoting is rejected when the definition is compiled
 ### `dont_fail`
 
 Executes a program with a specific input and verifies it completes **without crashing**. The program's stdout is ignored — this test only validates that execution succeeds. Useful for testing error handling (e.g., sending invalid input).
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `user_input` | string | ✗ | One line sent to stdin (followed by `\n`); empty (the default) sends nothing |
-| `program_command` | string | ✗ | Command to execute (same format as `expect_output`) |
 
 **Scoring:** 100 if program completes without error, 0 if it crashes/times out.
 

@@ -28,19 +28,12 @@ name, a description and evaluator instances registered under their own `name`.
 Templates declare no requirements; each evaluator declares its own
 `required_capabilities`.
 
-## Static Analysis Template (`static_analysis`)
-
-Static analysis runs on submission files without executing code (no sandbox required). It includes both rule-based checks and AI-assisted algorithm validation.
-
-Available tests:
-
-- `forbidden_import` — Parameters: `forbidden_imports` (list of strings). Submission language is runtime context, never an authored parameter.
-- `forbidden_keyword` — Parameters: `forbidden_keywords` (list of strings), `custom_ast_grep_rules` (list of rule dicts).
-- `ai_sorting_algorithm` — Parameters: `algorithm_name` (string).
-- `ai_search_algorithm` — Parameters: `algorithm_name` (string).
-- `ai_graph_algorithm` — Parameters: `algorithm_name` (string).
-
-AI algorithm tests require a valid `OPENAI_API_KEY` to be configured in the API environment.
+Every evaluator of these templates, with its parameters, defaults, constraints,
+required capabilities and an example, is listed in the generated
+[evaluator reference](../reference/evaluators.md). It is rendered from the same
+contracts `compile_definition` validates against, so it cannot disagree with the
+compiler; `make contracts` (part of `make verify`) fails when a contract changes
+without `python scripts/generate_reference.py`.
 
 ## How it integrates with the pipeline
 
@@ -74,11 +67,13 @@ for migration, deployment limits and the runnable offline example.
 ## Common mistakes
 
 - Reusing test names with different semantics across templates
-- Skipping documentation for template parameters
+- Leaving a parameter without an English `description` (a unit test rejects it; the description is the documentation)
 - Using `evaluation.session` in an evaluator that does not declare `sandbox_execution` or `http_network` (it receives `None`)
 
 ## Continue reading
 
+- [Evaluator reference](../reference/evaluators.md)
+- [Definition reference](../reference/definition.md)
 - [Adding an evaluator](../architecture/extending.md)
 - [Compile templates](../pipeline/01-load-template.md)
 - [Input/Output Template](../template-library/input_output.md)

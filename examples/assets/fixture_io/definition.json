@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "templates": ["input_output"],
+  "languages": ["python"],
+  "criteria": {
+    "base": {
+      "weight": 100,
+      "tests": [
+        {
+          "id": "sum-teacher-data",
+          "type": "expect_output",
+          "name": "Prints the sum of the teacher's data file",
+          "parameters": {
+            "program_command": "python3 main.py",
+            "inputs": [],
+            "expected_output": "60"
+          }
+        }
+      ]
+    }
+  },
+  "preparation": {
+    "languages": {"python": {"required_files": ["main.py"]}},
+    "fixtures": [
+      {"reference": "fixture-io/numbers.txt", "path": "numbers.txt", "read_only": true}
+    ]
+  }
+}

@@ -1,10 +1,17 @@
 """Bounded PostgreSQL workers recover saved input and fence expired attempts."""
 import asyncio
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from time import monotonic
 from uuid import uuid4
 
 from sqlalchemy import and_, func, or_, select, update
+
+from autograder.models.capabilities import ExecutionBudget, requirements_for
+from autograder.models.contracts.definition import compile_snapshot
+from autograder.models.language import Language
+from autograder.services.assessment import EXECUTION_CAPABILITIES
 
 from web.config.logging import get_logger
 from web.database.models.submission import Submission, SubmissionStatus
@@ -17,18 +24,96 @@ from web.service.outcome_delivery import (
 logger = get_logger(__name__)
 
 
+#: Beyond the session and provider deadlines: grading, feedback and handing the outcome back.
+ATTEMPT_MARGIN_SECONDS = 60.0
+
+
 def utc(value):
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
+def ai_deadline(provider) -> float:
+    """The provider's declared deadline for one ``assess`` call; a provider without one is refused.
+
+    Assuming 0 s would silently shorten every AI attempt to the margin.
+    """
+    seconds = getattr(provider, "deadline_seconds", None)
+    if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or not 0 < seconds < float("inf"):
+        raise TypeError(f"{type(provider).__name__} must declare deadline_seconds, the longest one assess call "
+                        f"can take, as a positive finite number (got {seconds!r})")
+    return float(seconds)
+
+
+class AttemptClock:
+    """One attempt's deadline, derived from the bound definition like the sandbox's lifetime.
+
+    The deadline is the execution session's lifetime (``budget.session_seconds``)
+    plus the provider's deadline for each AI call plus ``margin``. It is clocked
+    from the session's grant, so waiting for sandbox capacity does not count:
+    until the grant the bound is the host's capacity wait (PRF-01) on top. A
+    definition without execution (static or AI-only) is clocked from the claim.
+    """
+
+    def __init__(self, request, capabilities, margin):
+        from execution_host.docker import GRADING_CAPACITY_WAIT_SECONDS
+        try:
+            requirements = requirements_for(compile_snapshot(request.definition), Language(request.language))
+            budget = requirements.budget
+            needs_session = bool(requirements.capabilities & EXECUTION_CAPABILITIES)
+        except Exception:  # pylint: disable=broad-exception-caught
+            budget, needs_session = ExecutionBudget(), False  # the grading itself fails fast
+        ai = getattr(capabilities, "ai", None)
+        # Without a provider the grading fails fast (AI_CAPABILITY_UNAVAILABLE).
+        ai_seconds = budget.ai_calls * ai_deadline(ai) if ai is not None else 0.0
+        self.rest = (budget.session_seconds if needs_session else 0.0) + ai_seconds + margin
+        self.deadline = monotonic() + (GRADING_CAPACITY_WAIT_SECONDS if needs_session else 0.0) + self.rest
+
+    def remaining(self) -> float:
+        """Seconds until the deadline (negative once it passed)."""
+        return self.deadline - monotonic()
+
+    def watch(self, capabilities):
+        """The same capabilities; a granted session restarts the clock (thread-safe: one assignment)."""
+        if capabilities is None:
+            return None
+
+        def clocked(acquire):
+            if acquire is None:
+                return None
+
+            def acquire_and_clock(language, budget):
+                session = acquire(language, budget)
+                self.deadline = monotonic() + self.rest
+                return session
+            return acquire_and_clock
+        return replace(capabilities, execution=clocked(capabilities.execution),
+                       server_execution=clocked(capabilities.server_execution))
+
+
+def _discard_late(task):
+    """A grading abandoned at its deadline may still finish; its result is never published."""
+    if task.cancelled():
+        return
+    if task.exception() is not None:
+        logger.warning("A grading abandoned at its attempt deadline later failed: %r", task.exception())
+    else:
+        logger.warning("A grading abandoned at its attempt deadline finished late; its outcome is discarded")
+
+
 class DurableWorker:
     """A process owns bounded workers; PostgreSQL owns the durable work state."""
-    def __init__(self, session_factory, settings, capabilities=None, *, evaluator=evaluate):
+    def __init__(self, session_factory, settings, capabilities=None, *, evaluator=evaluate,
+                 attempt_margin=ATTEMPT_MARGIN_SECONDS):
         self.sessions = session_factory
         self.settings = settings
         self.capabilities = capabilities
         self.evaluator = evaluator
+        self.attempt_margin = attempt_margin
+        if getattr(capabilities, "ai", None) is not None:
+            ai_deadline(capabilities.ai)  # refuse at startup, not at the first AI attempt
         self.tasks = set()
+        # Gradings abandoned at their deadline whose threads still run (logged; see run_once).
+        self.abandoned = set()
         self.stopping = asyncio.Event()
 
     async def claim(self):
@@ -84,13 +169,15 @@ class DurableWorker:
                 await session.rollback()
                 raise
 
-    async def heartbeat(self, submission_id, attempt_id, finished):
+    async def heartbeat(self, submission_id, attempt_id, finished, clock=None):
         while not finished.is_set():
             try:
                 await asyncio.wait_for(finished.wait(), timeout=self.settings.LEASE_SECONDS / 3)
                 return
             except asyncio.TimeoutError:
                 pass
+            if clock is not None and clock.remaining() <= 0:
+                return  # An attempt past its deadline never renews its lease.
             try:
                 async with self.sessions() as session:
                     now = utc(await session.scalar(select(func.now())))
@@ -112,18 +199,33 @@ class DurableWorker:
         if claimed is None:
             return False
         request, attempt_id = claimed
+        clock = AttemptClock(request, self.capabilities, self.attempt_margin)
         finished = asyncio.Event()
-        renewer = asyncio.create_task(self.heartbeat(request.submission_id, attempt_id, finished))
+        renewer = asyncio.create_task(self.heartbeat(request.submission_id, attempt_id, finished, clock))
         cancelled = False
         try:
-            evaluation = asyncio.create_task(self.evaluator(request, self.capabilities))
-            try:
-                outcome = await asyncio.shield(evaluation)
-            except asyncio.CancelledError:
-                # Cancellation of a wrapper does not stop a grading thread. Keep
-                # its lease and providers alive, drain it and retain its outcome.
-                cancelled = True
-                outcome = await evaluation
+            evaluation = asyncio.create_task(self.evaluator(request, clock.watch(self.capabilities)))
+            while not evaluation.done() and clock.remaining() > 0:
+                try:
+                    # Short waits: a session grant moves the deadline.
+                    await asyncio.wait({evaluation}, timeout=min(clock.remaining(), self.settings.LEASE_SECONDS / 3))
+                except asyncio.CancelledError:
+                    # Cancellation of a wrapper does not stop a grading thread. Keep its
+                    # lease and providers alive and drain it, up to its deadline.
+                    cancelled = True
+            if evaluation.done():
+                outcome = evaluation.result()
+            else:
+                # Its sandbox has already stopped itself; the thread cannot be stopped from here.
+                self.abandoned.add(evaluation)
+                evaluation.add_done_callback(self.abandoned.discard)
+                evaluation.add_done_callback(_discard_late)
+                logger.error("Grading attempt %s of submission %s passed its deadline; %d abandoned grading "
+                             "thread(s) still running in this process", attempt_id, request.submission_id,
+                             len(self.abandoned))
+                outcome = failed_outcome(request, "ATTEMPT_DEADLINE_EXCEEDED",
+                                         "The grading attempt did not finish within its deadline.",
+                                         category="capability", retryable=True)
             await publish_finalized(self.sessions, request.submission_id, outcome,
                                     directory=self.settings.RECEIPT_DIR, attempt_id=attempt_id)
         except StaleAttemptError:

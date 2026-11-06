@@ -40,6 +40,8 @@ hold the neutral category name (or `category_headers`) and numbers, so they
 cannot contradict the status. `show_score: false` hides every number;
 passing tests are listed only with `show_passed_tests`, otherwise a fully
 passing holder says so in one line.
+Every preference, with its type and default, is listed in the generated
+[definition reference](../reference/definition.md#feedbackpreferences).
 
 Publication happens after cleanup and finalization in the
 [hosting adapter](08-export.md), outside grading.

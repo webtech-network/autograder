@@ -153,7 +153,7 @@ def test_preparation_and_every_execution_evaluator_use_run_process():
                       {"id": "file", "type": "expect_file_artifact", "name": "file", "parameters": {
                           "program_command": "python3 main.py 'two words'", "artifact_path": "o.txt",
                           "expected_content": "x"}}]}}}
-    outcome = build_pipeline(definition=definition, capabilities=HostCapabilities(execution=lambda _: session)).run(
+    outcome = build_pipeline(definition=definition, capabilities=HostCapabilities(execution=lambda _, __: session)).run(
         Submission("s", "s", "a", {"main.py": SubmissionFile("main.py", "")}, language=Language.PYTHON)).outcome
     assert outcome.status == "completed"
     requests = [call.args[0] for call in session.run_process.call_args_list]
@@ -245,7 +245,7 @@ def test_a_setup_command_that_exhausts_the_sandbox_fails_the_submission():
                   "preparation": {"languages": {"python": {"setup_commands": [{"name": "build", "command": "make"}]}}},
                   "criteria": {"base": {"weight": 100, "tests": [
                       {"id": "ok", "type": "dont_fail", "name": "ok", "parameters": {"program_command": "CMD"}}]}}}
-    outcome = build_pipeline(definition=definition, capabilities=HostCapabilities(execution=lambda _: session)).run(
+    outcome = build_pipeline(definition=definition, capabilities=HostCapabilities(execution=lambda _, __: session)).run(
         Submission("s", "s", "a", {"main.py": SubmissionFile("main.py", "")}, language=Language.PYTHON)).outcome
     assert outcome.status == "failed" and outcome.score is None
     assert (outcome.error.code, outcome.error.category) == ("PREPARATION_FAILED", "submission")

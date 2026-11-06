@@ -4,8 +4,9 @@ from unittest.mock import Mock
 import pytest
 
 from autograder import build_pipeline
-from autograder.models.capabilities import HostCapabilities
+from autograder.models.capabilities import ExecutionBudget, HostCapabilities
 from autograder.models.dataclass.submission import Submission, SubmissionFile
+from autograder.models.execution import StagedFixture
 from autograder.models.process import ProcessRequest
 from tests.process_results import exited, not_started, timed_out
 from autograder.models.language import Language
@@ -69,20 +70,20 @@ def test_setup_and_empty_fixture_use_selected_session_then_close_before_outcome(
         capabilities=HostCapabilities(execution=acquire, fixtures=fixtures))
     execution = pipeline.run(submission())
     assert execution.outcome.status == "completed" and events == ["closed"]
-    acquire.assert_called_once_with(Language.PYTHON)
-    owned.stage_fixture.assert_called_once_with("data.bin", b"", True)
+    acquire.assert_called_once_with(Language.PYTHON, ExecutionBudget(30.0, 1))  # one setup command
+    owned.stage_fixtures.assert_called_once_with([StagedFixture("data.bin", b"", True)])
     owned.run_process.assert_called_once_with(ProcessRequest(argv=("prepare",), timeout=30))
     owned.close.assert_called_once()
 
 
-@pytest.mark.parametrize("operation", ["prepare_workdir", "stage_fixture", "run_process"])
+@pytest.mark.parametrize("operation", ["prepare_workdir", "stage_fixtures", "run_process"])
 def test_failure_after_ownership_transfer_closes_once(operation):
     owned = session()
     getattr(owned, operation).side_effect = RuntimeError("private details")
     pipeline = build_pipeline(definition=definition(preparation={"languages": {"python": {
         "setup_commands": [{"name": "setup", "command": "prepare"}]}},
         "fixtures": [{"reference": "fixture", "path": "file"}]}),
-        capabilities=HostCapabilities(execution=lambda language: owned, fixtures=lambda reference: b"data"))
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=lambda reference: b"data"))
     outcome = pipeline.run(submission()).outcome
     assert outcome.status == "failed" and outcome.score is None
     assert "private" not in outcome.error.message
@@ -105,7 +106,7 @@ def test_setup_student_failure_stops_before_assessment(result):
     owned.run_process.return_value = result
     pipeline = build_pipeline(definition=definition(preparation={"languages": {"python": {
         "setup_commands": [{"name": "setup", "command": "prepare"}]}}}),
-        capabilities=HostCapabilities(execution=lambda language: owned))
+        capabilities=HostCapabilities(execution=lambda language, budget: owned))
     outcome = pipeline.run(submission()).outcome
     assert outcome.status == "failed" and outcome.score is None
     assert outcome.error.code == "PREPARATION_FAILED"
@@ -117,7 +118,7 @@ def test_setup_command_that_cannot_start_is_not_a_student_failure():
     owned.run_process.return_value = not_started("prepare")
     pipeline = build_pipeline(definition=definition(preparation={"languages": {"python": {
         "setup_commands": [{"name": "setup", "command": "prepare"}]}}}),
-        capabilities=HostCapabilities(execution=lambda language: owned))
+        capabilities=HostCapabilities(execution=lambda language, budget: owned))
     outcome = pipeline.run(submission()).outcome
     assert outcome.status == "failed" and outcome.error.code == "PREPARATION_ERROR"
     assert outcome.error.category == "capability"
@@ -138,7 +139,7 @@ def test_close_failure_preserves_completed_grade_and_attempts_once():
     owned.close.side_effect = RuntimeError("cleanup error")
     pipeline = build_pipeline(definition=definition(preparation={"languages": {"python": {
         "setup_commands": [{"name": "setup", "command": "prepare"}]}}}),
-        capabilities=HostCapabilities(execution=lambda language: owned))
+        capabilities=HostCapabilities(execution=lambda language, budget: owned))
     assert pipeline.run(submission()).outcome.status == "completed"
     owned.close.assert_called_once()
 
@@ -152,7 +153,7 @@ def test_server_profile_owns_startup_readiness_requests_and_teardown(failure):
         getattr(owned, failure).side_effect = RuntimeError("server details")
     value = definition(templates=["api"], evaluator="health_check", parameters={"endpoint": "/health"})
     pipeline = build_pipeline(definition=value,
-        capabilities=HostCapabilities(server_execution=lambda language: owned))
+        capabilities=HostCapabilities(server_execution=lambda language, budget: owned))
     result = pipeline.run(submission()).outcome
     assert result.status == ("failed" if failure else "completed")
     owned.close.assert_called_once()

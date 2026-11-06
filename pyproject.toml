@@ -22,16 +22,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# The HTTP service (web/) and the private sandbox control API.
-server = [
-    "aiosqlite~=0.20.0",
-    "alembic~=1.13.0",
+# The private sandbox control API (sandbox_manager.api): the sandbox manager image.
+sandbox = [
     # Imported directly by the sandbox control API (its acquisition capacity limiter).
     "anyio~=4.16",
-    "asyncpg~=0.30",
     "fastapi~=0.115.0",
-    "sqlalchemy[asyncio]~=2.0.0",
     "uvicorn[standard]~=0.32.0",
+]
+# The HTTP service (web/), which can also host the sandboxes in-process: the API image.
+server = [
+    "autograder[sandbox]",
+    "aiosqlite~=0.20.0",
+    "alembic~=1.13.0",
+    "asyncpg~=0.30",
+    "sqlalchemy[asyncio]~=2.0.0",
 ]
 
 [dependency-groups]

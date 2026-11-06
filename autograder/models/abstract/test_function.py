@@ -72,6 +72,9 @@ class TestFunction(ABC):
     #: Host capabilities this evaluator needs (see catalog.Capability). Evaluators
     #: declaring sandbox_execution or http_network receive the execution session.
     required_capabilities: Tuple[str, ...] = ()
+    #: With ``sandbox_execution``: the deadline (seconds) of every process one
+    #: assessment may run. The grading's execution budget is derived from them.
+    process_timeouts: Tuple[float, ...] = ()
     #: Known evaluator language constraints; None declares no specific restriction.
     supported_languages: Optional[List[str]] = None
     #: Optional catalog example; otherwise required fields are synthesized from config_schema.

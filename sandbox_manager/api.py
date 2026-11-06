@@ -41,6 +41,7 @@ from sandbox_manager.errors import (
     RuntimeUnavailableError,
     SandboxCapacityTimeout,
     SandboxInvalidatedError,
+    SandboxLifetimeExceeded,
 )
 from sandbox_manager.language_pool import SandboxUnavailableError
 from sandbox_manager.models.api_models import (
@@ -66,9 +67,31 @@ TRUE_VALUES = {"1", "true", "yes"}
 ACQUIRE_THREADS = 256
 
 
+#: Names the control service no longer reads, with what replaced them. Setting
+#: one to a non-empty value stops startup.
+RETIRED = {
+    "SANDBOX_MAX_HANDLES": "open handles are bounded by the host sandbox budget "
+                           "(general.max_sandboxes in sandbox_config.yml)",
+}
+
+
+def _setting(name, default, kind=str):
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        return kind(value)
+    except ValueError:
+        raise RuntimeError(f"{name} must be a{'n integer' if kind is int else ' number'}, got {value!r}") from None
+
+
 @dataclass(frozen=True)
 class ControlSettings:
-    """Startup policy of the control service, read from the environment."""
+    """Startup policy of the control service, read once from the environment.
+
+    ``docs/operate/configuration.md`` lists every variable (kept equal by
+    ``tests/unit/test_settings_contract.py``).
+    """
     token: Optional[str] = field(default=None, repr=False)
     allow_unauthenticated: bool = False
     handle_ttl_seconds: float = 600.0          # Idle time before a handle expires.
@@ -76,18 +99,21 @@ class ControlSettings:
     max_tombstones: int = 10_000
     reaper_interval_seconds: float = 5.0
     worker_count: int = 1
+    config_file: str = "sandbox_config.yml"
 
     @classmethod
     def from_env(cls) -> "ControlSettings":
-        if os.getenv("SANDBOX_MAX_HANDLES") is not None:
-            raise RuntimeError("SANDBOX_MAX_HANDLES was removed: open handles are bounded by the host sandbox "
-                               "budget (general.max_sandboxes in sandbox_config.yml). Unset it.")
+        retired = sorted(name for name, value in os.environ.items() if name in RETIRED and value.strip())
+        if retired:
+            raise RuntimeError("Retired configuration is set; unset it: "
+                               + "; ".join(f"{name} was removed: {RETIRED[name]}" for name in retired))
         return cls(
-            token=os.getenv("SANDBOX_API_TOKEN") or None,
-            allow_unauthenticated=os.getenv("SANDBOX_API_ALLOW_UNAUTHENTICATED", "").lower() in TRUE_VALUES,
-            handle_ttl_seconds=float(os.getenv("SANDBOX_HANDLE_TTL_SECONDS", "600")),
-            tombstone_seconds=float(os.getenv("SANDBOX_HANDLE_TOMBSTONE_SECONDS", "3600")),
-            worker_count=int(os.getenv("WEB_CONCURRENCY", "1")),
+            token=_setting("SANDBOX_API_TOKEN", None),
+            allow_unauthenticated=_setting("SANDBOX_API_ALLOW_UNAUTHENTICATED", "").lower() in TRUE_VALUES,
+            handle_ttl_seconds=_setting("SANDBOX_HANDLE_TTL_SECONDS", 600.0, float),
+            tombstone_seconds=_setting("SANDBOX_HANDLE_TOMBSTONE_SECONDS", 3600.0, float),
+            worker_count=_setting("WEB_CONCURRENCY", 1, int),
+            config_file=_setting("SANDBOX_CONFIG_FILE", "sandbox_config.yml"),
         )
 
     def validate(self) -> None:
@@ -176,7 +202,8 @@ class HandleRegistry:
                     "tombstones": len(self._tombstones)}
 
     # -------------------------------------------------------------- operations
-    def acquire(self, language: Language, request_id: str, wait_seconds: float = 0.0) -> Handle:
+    def acquire(self, language: Language, request_id: str, wait_seconds: float = 0.0,
+                lifetime_seconds: Optional[float] = None) -> Handle:
         """Hand out a new handle, or the existing one for a replayed ``request_id``.
 
         Acquisitions run concurrently; a replay of one still in progress waits
@@ -207,7 +234,11 @@ class HandleRegistry:
             pending[1].wait()  # The original attempt ends within its own wait; then look again.
         try:
             try:
-                sandbox = self.manager.get_sandbox(language, wait_seconds=wait_seconds)
+                sandbox = self.manager.get_sandbox(language, wait_seconds=wait_seconds,
+                                                   lifetime_seconds=lifetime_seconds)
+            except SandboxLifetimeExceeded as exc:
+                raise ControlError(422, "LIFETIME_EXCEEDED",
+                                   "The requested lifetime exceeds this host's running_timeout.") from exc
             except SandboxCapacityTimeout as exc:
                 raise ControlError(status.HTTP_503_SERVICE_UNAVAILABLE, "CAPACITY_TIMEOUT",
                                    "No sandbox slot became free within the requested wait.") from exc
@@ -240,9 +271,9 @@ class HandleRegistry:
             if handle.state != "active":
                 raise ControlError(status.HTTP_410_GONE, "HANDLE_CLOSED", "Sandbox handle is closing.")
             if getattr(handle.sandbox, "state", SandboxState.ACTIVE) is not SandboxState.ACTIVE:
-                # The pool disposed it (running timeout); the reaper will tombstone it.
+                # The pool disposed it (its lifetime passed); the reaper will tombstone it.
                 raise ControlError(status.HTTP_410_GONE, "HANDLE_EXPIRED",
-                                   "Sandbox exceeded its running timeout and was disposed.")
+                                   "Sandbox reached its lifetime and was disposed.")
             handle.in_flight += 1
         try:
             yield handle
@@ -392,7 +423,7 @@ router = APIRouter(dependencies=[Depends(require_token)])
 async def acquire_sandbox(language: Language, body: AcquireSandboxRequest, request: Request):
     registry = _registry(request)
     handle = await anyio.to_thread.run_sync(registry.acquire, language, body.request_id, body.wait_seconds,
-                                            limiter=request.app.state.acquire_limiter)
+                                            body.lifetime_seconds, limiter=request.app.state.acquire_limiter)
     return AcquireSandboxResponse(sandbox_id=handle.handle_id, request_id=handle.request_id,
                                   expires_in=int(registry.ttl))
 
@@ -478,11 +509,10 @@ def get_stats(request: Request):
             "handles": _registry(request).stats()}
 
 
-def _default_manager():
+def _default_manager(config_file):
     from sandbox_manager.manager import SandboxManager
     from sandbox_manager.models.pool_config import SandboxHostConfig
-    return SandboxManager.from_config(
-        SandboxHostConfig.load_from_yaml(os.getenv("SANDBOX_CONFIG_FILE", "sandbox_config.yml")))
+    return SandboxManager.from_config(SandboxHostConfig.load_from_yaml(config_file))
 
 
 def create_app(settings: Optional[ControlSettings] = None,
@@ -495,7 +525,7 @@ def create_app(settings: Optional[ControlSettings] = None,
         control = settings or ControlSettings.from_env()
         control.validate()
         application.state.control = control
-        manager = (manager_factory or _default_manager)()
+        manager = manager_factory() if manager_factory else _default_manager(control.config_file)
         stop = threading.Event()
         reaper = None
         try:

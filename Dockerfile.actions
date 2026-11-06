@@ -1,33 +1,41 @@
-# 1. Use an official Python image as the base
-FROM python:3.13-slim
+# The GitHub Action (github_action/): grades one checkout. Released as
+# ghcr.io/webtech-network/autograder-action:<version>, the image action.yml pins.
+#
+# Build context: the repository root, filtered by the allow-list in .dockerignore.
+# Python dependencies come only from uv.lock (base dependencies only: no web,
+# database or test stack).
+# The final stage holds the virtual environment and the first-party paths below:
+# no uv, compilers, tests or docs. Bases are pinned by digest; see
+# docs/guides/development.md#images.
+FROM ghcr.io/astral-sh/uv:0.11.15@sha256:e590846f4776907b254ac0f44b5b380347af5d90d668138ca7938d1b0c2f98d3 AS uv
 
-# 2. Python dependencies come only from the committed lock (uv.lock)
-COPY --from=ghcr.io/astral-sh/uv:0.11.15 /uv /usr/local/bin/uv
-ENV PYTHONUNBUFFERED=1 \
-    UV_COMPILE_BYTECODE=1 \
+FROM python:3.13-slim-trixie@sha256:09a17cad02668ae61ece136b4fd36ac3849e14f670ebedb637ea3e15580525bc AS dependencies
+COPY --from=uv /uv /usr/local/bin/uv
+ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_PROJECT_ENVIRONMENT=/opt/venv \
-    PATH=/opt/venv/bin:$PATH
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+WORKDIR /build
+COPY pyproject.toml uv.lock ./
+RUN uv sync --locked --no-dev --no-install-project --no-cache
 
-# 3. Install Node.js and other necessary tools
-RUN apt-get update && \
-    apt-get install -y tree curl gnupg git && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs
-
-# 4. Set the working directory for the rest of the build
+FROM python:3.13-slim-trixie@sha256:09a17cad02668ae61ece136b4fd36ac3849e14f670ebedb637ea3e15580525bc
+ENV PATH=/opt/venv/bin:$PATH \
+    PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+# git reads the graded commit for run provenance (github_action/identity.py).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=dependencies /opt/venv /opt/venv
 WORKDIR /app
+COPY sandbox_config.yml ./
+COPY autograder autograder
+COPY execution_host execution_host
+COPY sandbox_manager sandbox_manager
+COPY github_action github_action
+RUN python -m compileall -q /app
 
-# 5. Copy the rest of your application code
-COPY . .
-
-# 6. Install the project (editable) and its locked engine and Action
-#    dependencies: no server extra, no test, lint or docs tools
-RUN uv sync --locked --no-dev --no-cache
-
-# 7. Make the repository entrypoint executable
-RUN chmod +x github_action/entrypoint.sh
-
-# 8. Set the entrypoint for the container
+LABEL org.opencontainers.image.source="https://github.com/webtech-network/autograder"
 ENTRYPOINT ["/app/github_action/entrypoint.sh"]
-

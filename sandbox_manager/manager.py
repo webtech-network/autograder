@@ -102,13 +102,22 @@ class SandboxManager:
             raise RuntimeUnavailableError(f"No sandbox runtime is configured for {lang.value}")
         return pool
 
-    def get_sandbox(self, lang: Language, wait_seconds: float = 0.0) -> SandboxContainer:
+    @property
+    def running_timeout(self) -> int:
+        """The longest lifetime this host grants a sandbox, counted from the grant."""
+        return min(pool.config.running_timeout for pool in self.language_pools.values())
+
+    def get_sandbox(self, lang: Language, wait_seconds: float = 0.0,
+                    lifetime_seconds: Optional[float] = None) -> SandboxContainer:
         """Acquire a fresh sandbox; the caller must :meth:`dispose` it.
 
         Waits up to ``wait_seconds`` for a budget slot, then raises
-        :class:`~sandbox_manager.errors.SandboxCapacityTimeout`.
+        :class:`~sandbox_manager.errors.SandboxCapacityTimeout`. The sandbox
+        stops by itself ``lifetime_seconds`` after the grant (default:
+        ``running_timeout``; longer raises
+        :class:`~sandbox_manager.errors.SandboxLifetimeExceeded` before waiting).
         """
-        return self._pool(lang).acquire(wait_seconds)
+        return self._pool(lang).acquire(wait_seconds, lifetime_seconds)
 
     def dispose(self, sandbox: SandboxContainer) -> DisposalStatus:
         """Destroy a used sandbox. Idempotent; see :class:`DisposalStatus`."""
@@ -118,9 +127,9 @@ class SandboxManager:
         return pool.dispose(sandbox)
 
     @contextmanager
-    def acquire_sandbox(self, lang: Language, wait_seconds: float = 0.0):
+    def acquire_sandbox(self, lang: Language, wait_seconds: float = 0.0, lifetime_seconds: Optional[float] = None):
         """Acquire a sandbox and dispose it when the block exits."""
-        sandbox = self.get_sandbox(lang, wait_seconds)
+        sandbox = self.get_sandbox(lang, wait_seconds, lifetime_seconds)
         try:
             yield sandbox
         finally:

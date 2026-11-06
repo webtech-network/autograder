@@ -24,7 +24,12 @@ typed preparation, and closes each owned session before returning its outcome.
 See [CAPABILITIES.md](docs/contracts/CAPABILITIES.md).
 
 With the Docker host a session is one sandbox owned by the run from
-`SandboxManager.get_sandbox(language)` to `dispose(sandbox)`. Used sandboxes are
+`SandboxManager.get_sandbox(language, lifetime_seconds=...)` to `dispose(sandbox)`.
+Every sandbox stops itself at its lifetime (the run's execution budget, derived
+from declared process deadlines, at most `running_timeout`) even if its owner
+dies; budgets beyond the host maximum fail before execution with
+`EXECUTION_BUDGET_EXCEEDED` (HTTP: 422 at validation/acceptance), and each HTTP
+attempt has a derived deadline ([JOBS.md](docs/contracts/JOBS.md#attempt-deadline)). Used sandboxes are
 never returned to a pool; disposal forgets a sandbox only after Docker confirms
 removal, and a failed removal is quarantined (tracked, counted against capacity,
 retried) and surfaces as a cleanup error that never changes the grade. Containers
@@ -118,7 +123,10 @@ Feedback is requested: only `feedback.enabled` calls `render_feedback(tree,
 preferences, locale)` (focus + the one `default` Markdown report, reading the
 canonical preferences); disabled feedback does no work and stays `disabled`.
 
-Required failures produce null score/tree. A student program's nonzero exit or
+Required failures produce null score/tree. Submission-category failures
+(missing file, failed setup step, language) explain themselves in the
+submission's locale, with a bounded setup-output excerpt unless the step is
+`private_output`; other categories keep fixed messages. A student program's nonzero exit or
 timeout during evaluator assessment produces a valid zero; compilation belongs in
 setup commands (`PREPARATION_FAILED`), and a runtime command that cannot start is
 not a zero (`PROCESS_START_FAILED`). Who ended a sandbox comes from host-side
@@ -149,6 +157,9 @@ are its runnable examples, executed by `tests/unit/test_architecture.py`.
    (`AiTestFunction`: `build_prompt` with the same shape). `evaluation` is the typed
    `EvaluationInput` (`files`, `language`, `locale`, `session`); keyword-only
    parameters are the normalized configuration. No `*args`/`**kwargs`.
+   An evaluator declaring `sandbox_execution` also declares `process_timeouts`
+   (the deadline of each process one assessment may run; `BaseExecutionTest`
+   declares its one run).
 2. The annotated keyword-only parameters are the contract (or supply an explicit
    `config_schema` with the same fields). Declare constraints and descriptions with
    `Annotated[..., Field(...)]`; primitive types imply none. Put cross-field or

@@ -60,6 +60,7 @@ class BaseExecutionTest(TestFunction):  # pylint: disable=abstract-method
 
     uses_context_files = True
     required_capabilities = ("sandbox_execution",)
+    process_timeouts = (RUN_TIMEOUT_SECONDS,)  # one run_program per assessment
 
     def validate_parameters(self, parameters: Dict[str, Any], *,
                             languages: Tuple[str, ...]) -> Iterable[ParameterIssue]:

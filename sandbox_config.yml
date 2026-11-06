@@ -16,9 +16,16 @@ general:
     # Taking a warm container still takes a budget slot. Must not exceed max_sandboxes.
     pool_size: 1
 
-    # RUNNING TIMEOUT: maximum seconds a handed-out sandbox may live, counted from
-    # the moment it was granted (time spent waiting for a slot does not count).
-    running_timeout: 120
+    # RUNNING TIMEOUT: the host maximum, the longest lifetime this host grants one
+    # sandbox, counted from the grant (time spent waiting for a slot does not count).
+    # Each grading's sandbox lives exactly the execution budget derived from its
+    # definition (every declared process deadline, 30 s per I/O criterion or setup
+    # command, + 2 s each + 60 s per session) and then stops itself, even if its
+    # owner crashed. A definition needing more is rejected at validation and
+    # acceptance with EXECUTION_BUDGET_EXCEEDED. 900 s grants up to 26 processes.
+    # Default 900; at least 92 (one 30 s process), and at least 100 for the web
+    # API, whose deliberate execution (POST /execute) needs 100 s.
+    running_timeout: 900
 
 # RUNTIMES: the host's runtime profiles, mapping a domain language identifier to the
 # sandbox image this host runs for it. Replacing an image changes only this map.

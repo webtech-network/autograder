@@ -12,8 +12,15 @@ unbounded anonymous volume that ``remove()`` without ``v=True`` leaked. Mounting
 ``/app`` with ``mode=1777`` keeps it writable under both runtimes, bounded by
 size, and removed with the container.
 
+Lifetime: no container outlives a bound it enforces itself, whether or not its
+owner is alive. PID 1 (Docker's init) runs ``sleep <bound>``, the outer bound of
+an idle container. When a sandbox is granted, a control exec arms its absolute
+lifetime (:data:`LIFETIME`): it sleeps, then kills every other process, so
+PID 1's child exits and the container stops with nothing left running. Owner
+reclamation only removes stopped records.
+
 Control and submission identities: PID 1 (Docker's init, which reaps orphans,
-running ``sleep infinity``) and every control exec that may run beside a
+running ``sleep``) and every control exec that may run beside a
 submission's processes (termination sweep, output and artifact readback) run
 as ``root``. Submission processes run as the image's unprivileged ``sandbox``
 user, so they cannot signal PID 1 or a control exec. ``root`` keeps exactly
@@ -39,10 +46,18 @@ CONTROL_USER = "root"
 CONTROL_CAPABILITIES = ["DAC_OVERRIDE", "KILL"]
 
 
-def container_options(image: str, name: str, labels: Dict[str, str]) -> dict:
+# Run as root, which the submission cannot signal: $1 seconds after the grant,
+# kill every process except PID 1 and this shell (kill -1 needs no fork, so a
+# submission at its pids limit cannot stop it). PID 1's child dies, so PID 1
+# exits and the container stops.
+LIFETIME = 'sleep "$1"; kill -KILL -1'
+
+
+def container_options(image: str, name: str, labels: Dict[str, str], bound_seconds: int) -> dict:
     """Keyword arguments for ``client.containers.run`` without a runtime.
 
-    ``image`` comes from the host runtime profile (``SandboxPoolConfig.image``).
+    ``image`` comes from the host runtime profile (``SandboxPoolConfig.image``);
+    the container stops by itself ``bound_seconds`` after it starts.
     """
     return {
         "image": image,
@@ -50,7 +65,7 @@ def container_options(image: str, name: str, labels: Dict[str, str]) -> dict:
         "detach": True,
         "user": CONTROL_USER,
         "init": True,                 # PID 1 reaps orphans: killed processes never pin the pids limit.
-        "command": "sleep infinity",  # Keep the container alive for exec commands.
+        "command": ["sleep", str(int(bound_seconds))],  # Alive for exec commands, never forever.
         "mem_limit": MEMORY_LIMIT,
         "memswap_limit": MEMORY_LIMIT,
         "nano_cpus": NANO_CPUS,

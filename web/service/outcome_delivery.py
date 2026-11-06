@@ -49,9 +49,10 @@ async def persist_outcome(result_repo, submission_repo, submission_id, outcome, 
     return normalized
 
 
-def write_receipt(submission_id, outcome, *, directory=None, attempt_id=None):
+def write_receipt(submission_id, outcome, *, directory, attempt_id=None):
+    """Fsync a receipt into the host's receipt directory (``Settings.RECEIPT_DIR``)."""
     receipt = OutcomeReceipt(submission_id=submission_id, outcome=outcome, attempt_id=attempt_id)
-    directory = Path(directory or os.getenv("WEB_OUTCOME_RECEIPT_DIR", "data/unpublished-outcomes"))
+    directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     suffix = hashlib.sha256(receipt.outcome.execution_id.encode()).hexdigest()[:16]
     target = directory / f"submission-{submission_id}-{suffix}.json"
@@ -120,7 +121,7 @@ async def store_receipt(session, receipt, *, row=None):
             attempt.finished_at = datetime.now(timezone.utc)
 
 
-async def publish_finalized(session_factory, submission_id, outcome, *, directory=None, attempt_id=None):
+async def publish_finalized(session_factory, submission_id, outcome, *, directory, attempt_id=None):
     path = await asyncio.to_thread(write_receipt, submission_id, outcome, directory=directory, attempt_id=attempt_id)
     try:
         await republish_receipt(path, session_factory)

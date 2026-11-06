@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from sandbox_manager.api import ControlSettings, HandleRegistry, create_app
 from sandbox_manager.errors import (
     ArtifactReadError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
+    SandboxLifetimeExceeded,
 )
 from sandbox_manager.language_pool import SandboxUnavailableError
 from autograder.models.process import MAX_STDIN_BYTES, ProcessRequest, ProcessResult, ProcessStatus
@@ -52,10 +53,14 @@ class FakeManager:
         self.unavailable = False
         self.saturated = False
         self.waits = []
+        self.lifetimes = []
         self.shutdown = Mock()
 
-    def get_sandbox(self, language, wait_seconds=0.0):
+    def get_sandbox(self, language, wait_seconds=0.0, lifetime_seconds=None):
         self.waits.append(wait_seconds)
+        self.lifetimes.append(lifetime_seconds)
+        if lifetime_seconds is not None and lifetime_seconds > 120:
+            raise SandboxLifetimeExceeded("longer than running_timeout")
         if language not in self.language_pools:
             raise RuntimeUnavailableError("no runtime")
         if self.unavailable:
@@ -171,6 +176,27 @@ def test_removed_handle_limit_setting_is_rejected_at_startup(monkeypatch):
         ControlSettings.from_env()
 
 
+@pytest.mark.parametrize(("variable", "value", "message"), [
+    ("SANDBOX_HANDLE_TTL_SECONDS", "ten", "SANDBOX_HANDLE_TTL_SECONDS must be a number, got 'ten'"),
+    ("WEB_CONCURRENCY", "1.5", "WEB_CONCURRENCY must be an integer, got '1.5'"),
+])
+def test_malformed_setting_is_rejected_naming_the_variable(monkeypatch, variable, value, message):
+    monkeypatch.setenv(variable, value)
+    with pytest.raises(RuntimeError, match=message):
+        ControlSettings.from_env()
+
+
+def test_sandbox_configuration_file_is_a_validated_startup_setting(monkeypatch, tmp_path):
+    # Read with the other settings, and a missing file stops startup before Docker is touched.
+    monkeypatch.setenv("SANDBOX_API_TOKEN", "t")
+    monkeypatch.setenv("SANDBOX_CONFIG_FILE", str(tmp_path / "missing.yml"))
+    settings = ControlSettings.from_env()
+    assert settings.config_file == str(tmp_path / "missing.yml")
+    with pytest.raises(FileNotFoundError, match="missing.yml"):
+        with TestClient(create_app(settings)):
+            pass
+
+
 # ------------------------------------------------------------------ handles
 
 def test_handles_are_random_and_not_container_ids(api, manager):
@@ -219,6 +245,21 @@ def test_acquire_passes_the_requested_wait_and_reports_capacity_timeout(api, man
     assert acquire(api, "request-0002").status_code == 200  # A failed attempt is not remembered.
     for wait in (-1, 901):
         response = api.post("/sandboxes/python", json={"request_id": "request-0003", "wait_seconds": wait},
+                            headers=AUTH)
+        assert response.status_code == 422 and code(response) == "INVALID_REQUEST"
+
+
+def test_acquire_forwards_the_lifetime_and_refuses_one_beyond_the_host_maximum(api, manager):
+    response = api.post("/sandboxes/python", json={"request_id": "request-0001", "lifetime_seconds": 92.5},
+                        headers=AUTH)
+    assert response.status_code == 200
+    response = api.post("/sandboxes/python", json={"request_id": "request-0002", "lifetime_seconds": 121},
+                        headers=AUTH)
+    assert response.status_code == 422 and code(response) == "LIFETIME_EXCEEDED"
+    assert acquire(api, "request-0003").status_code == 200  # omitted: the host's running_timeout
+    assert manager.lifetimes == [92.5, 121, None] and len(manager.acquired) == 2
+    for lifetime in (0, -1, "inf"):
+        response = api.post("/sandboxes/python", json={"request_id": "request-0004", "lifetime_seconds": lifetime},
                             headers=AUTH)
         assert response.status_code == 422 and code(response) == "INVALID_REQUEST"
 
