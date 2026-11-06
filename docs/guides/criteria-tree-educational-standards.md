@@ -36,7 +36,8 @@ A suggested calibration process:
 1. Rank outcomes by instructional importance.
 2. Convert ranking into percentages.
 3. Verify total category and sibling weights make sense to humans.
-4. Validate the rubric with 3-5 representative submissions.
+4. Validate the rubric with 3-5 representative submissions: grade each with
+   [`python -m execution_host.check`](../github_action/quick-start.md#check-the-definition-first).
 
 ## 5. Build explainable feedback paths
 
