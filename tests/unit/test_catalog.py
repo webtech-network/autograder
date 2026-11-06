@@ -104,6 +104,7 @@ class RunsProgram(TestFunction):
     name = "runs_program"
     description = "Runs the program in the bound session."
     required_capabilities = ("sandbox_execution",)
+    process_timeouts = (5,)
 
     def execute(self, evaluation: EvaluationInput) -> TestResult:
         return TestResult(self.name, 100, f"session={evaluation.session is not None}")
@@ -154,7 +155,7 @@ class FakeSession:
 def run_mixed(*evaluators):
     sessions = []
 
-    def acquire(language):
+    def acquire(language, budget):
         sessions.append(FakeSession())
         return sessions[-1]
 

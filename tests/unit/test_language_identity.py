@@ -130,7 +130,7 @@ def test_the_bound_language_reaches_the_evaluator_and_the_outcome():
 
     from autograder import HostCapabilities
     acquired = []
-    capabilities = HostCapabilities(execution=lambda language: acquired.append(language) or Session())
+    capabilities = HostCapabilities(execution=lambda language, budget: acquired.append(language) or Session())
     pipeline = build_pipeline(definition=definition(["java"]), capabilities=capabilities)
     outcome = pipeline.run(Submission("s", "s", "a", {"Main.java": SubmissionFile("Main.java", "")})).outcome
     assert outcome.status == "completed" and outcome.language == "java"

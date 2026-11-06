@@ -21,6 +21,7 @@ that stops or removes it raises :class:`ProcessExecutionError`.
 """
 import base64
 import io
+import math
 import os
 import posixpath
 import socket
@@ -39,7 +40,7 @@ from autograder.models.language import Language
 from autograder.models.process import (
     ProcessRequest, ProcessResult, ProcessStatus, SandboxExhausted, decode_output,
 )
-from sandbox_manager.docker_profile import CONTROL_USER
+from sandbox_manager.docker_profile import CONTROL_USER, LIFETIME
 from sandbox_manager.errors import (
     ArtifactReadError, ArtifactTooLargeError, ProcessExecutionError, SandboxInvalidatedError,
 )
@@ -206,11 +207,35 @@ class SandboxContainer:
         self.invalidated: Optional[str] = None
         # Set when the submission exhausted a limit; every later operation raises SandboxExhausted.
         self.exhausted = False
+        # The absolute lifetime armed at the grant (arm_lifetime): seconds, and the
+        # monotonic instant the container stops by itself (never later than its real stop).
+        self.lifetime: Optional[float] = None
+        self.expires_at: Optional[float] = None
 
     def activate(self, now: Optional[float] = None) -> None:
         """Hand the sandbox to one caller; it is disposed after this use."""
         self.state = SandboxState.ACTIVE
         self.activated_at = time.monotonic() if now is None else now
+
+    def arm_lifetime(self, seconds: float) -> None:
+        """Make the container stop itself ``seconds`` from now, whether or not its owner survives.
+
+        A root control exec the submission cannot signal sleeps, then kills every
+        process; PID 1 then exits (see ``docker_profile.LIFETIME``).
+        """
+        expires_at = time.monotonic() + seconds  # taken first: the real stop is never earlier
+        call = _Call(lambda: self.container_ref.exec_run(
+            cmd=["/bin/sh", "-c", LIFETIME, "autograder-lifetime", str(math.ceil(seconds))],
+            user=CONTROL_USER, detach=True)).start()
+        if not call.join(CONTROL_TIMEOUT_SECONDS) or call.error is not None:
+            raise ProcessExecutionError("The sandbox lifetime could not be armed") from call.error
+        self.lifetime = seconds
+        self.expires_at = expires_at
+
+    @property
+    def expired(self) -> bool:
+        """Whether the armed lifetime has passed: the container stopped, or is stopping, by itself."""
+        return self.expires_at is not None and time.monotonic() >= self.expires_at
 
     @property
     def short_id(self) -> str:
@@ -220,6 +245,8 @@ class SandboxContainer:
     def _check_usable(self) -> None:
         if self.exhausted:
             raise SandboxExhausted("The submission exhausted the sandbox's memory or process limit")
+        if self.expired:
+            self._invalidate("the sandbox reached its lifetime")
         if self.invalidated is not None:
             raise SandboxInvalidatedError(f"The sandbox was invalidated: {self.invalidated}")
 
@@ -373,6 +400,11 @@ class SandboxContainer:
         except ProcessExecutionError:
             self._attribute_failed_control()
             raise
+        if self.expired:
+            # The lifetime may have ended this run before the collector reported:
+            # nothing it read back is the submission's own result.
+            self._invalidate("the sandbox reached its lifetime")
+            raise ProcessExecutionError("The sandbox reached its lifetime during the process")
         if not finished and not call.join(KILL_GRACE_SECONDS):
             self._invalidate("a timed-out process did not terminate")
             raise ProcessExecutionError("A timed-out process could not be confirmed terminated")
@@ -409,6 +441,9 @@ class SandboxContainer:
         """
         if self.state in (SandboxState.CLOSING, SandboxState.QUARANTINED, SandboxState.DISPOSED):
             self._invalidate("the host disposed the sandbox")
+            return
+        if self.expired:
+            self._invalidate("the sandbox reached its lifetime")  # it stopped itself: the host's limit
             return
         state: dict = {}
         try:

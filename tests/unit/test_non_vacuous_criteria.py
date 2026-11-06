@@ -67,8 +67,8 @@ class EmptyWorkspace:
         return _NotFound()
 
 
-HOST = HostCapabilities(execution=lambda language: EmptyWorkspace(),
-                        server_execution=lambda language: EmptyWorkspace())
+HOST = HostCapabilities(execution=lambda language, budget: EmptyWorkspace(),
+                        server_execution=lambda language, budget: EmptyWorkspace())
 
 
 def single(template, evaluator, parameters, language="node"):

@@ -485,6 +485,7 @@
             "SERVER_CAPABILITY_UNAVAILABLE",
             "SANDBOX_ERROR",
             "PROCESS_START_FAILED",
+            "EXECUTION_BUDGET_EXCEEDED",
             "PREPARATION_ERROR",
             "FIXTURE_PROVIDER_UNAVAILABLE",
             "PROVIDER_UNAVAILABLE",
@@ -496,7 +497,8 @@
             "CLEANUP_ERROR",
             "RECOVERY_EXHAUSTED",
             "RECOVERY_INPUT_UNAVAILABLE",
-            "LEGACY_UNVERIFIED"
+            "LEGACY_UNVERIFIED",
+            "ATTEMPT_DEADLINE_EXCEEDED"
           ],
           "title": "Code",
           "type": "string"

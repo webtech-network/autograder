@@ -6,10 +6,13 @@ from unittest.mock import Mock
 import pytest
 import requests
 
+from autograder.models.capabilities import ExecutionBudget
+from autograder.models.evaluation_error import EvaluationError
 from execution_host.docker import DockerSession
 from autograder.models.process import ProcessRequest, ProcessStatus, SandboxExhausted
 from sandbox_manager.errors import (
     ArtifactReadError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
+    SandboxLifetimeExceeded,
 )
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS
 from sandbox_manager.models.sandbox_models import DisposalStatus
@@ -105,6 +108,25 @@ def test_missing_runtime_raises_the_local_capability_error(manager):
     with pytest.raises(RuntimeUnavailableError):
         manager.get_sandbox(Language.C)
     assert manager._session.post.call_count == 1  # pylint: disable=protected-access
+
+
+def test_acquire_sends_the_lifetime_and_maps_its_refusal_to_the_local_error(manager):
+    manager._session.post = Mock(return_value=acquired())  # pylint: disable=protected-access
+    manager.get_sandbox(Language.PYTHON, lifetime_seconds=92.5)
+    assert manager._session.post.call_args.kwargs["json"]["lifetime_seconds"] == 92.5  # pylint: disable=protected-access
+    manager._session.post = Mock(return_value=error(422, "LIFETIME_EXCEEDED"))  # pylint: disable=protected-access
+    with pytest.raises(SandboxLifetimeExceeded):
+        manager.get_sandbox(Language.PYTHON, lifetime_seconds=10_000)
+    assert manager._session.post.call_count == 1  # pylint: disable=protected-access
+
+
+def test_a_refused_budget_is_the_non_retryable_engine_code():
+    refusing = Mock()
+    refusing.get_sandbox.side_effect = SandboxLifetimeExceeded("too long")
+    with pytest.raises(EvaluationError) as raised:
+        DockerSession(refusing, Language.PYTHON, ExecutionBudget(900.0, 30))
+    assert (raised.value.code, raised.value.retryable) == ("EXECUTION_BUDGET_EXCEEDED", False)
+    assert refusing.get_sandbox.call_args.kwargs["lifetime_seconds"] == ExecutionBudget(900.0, 30).session_seconds
 
 
 def handle(manager):

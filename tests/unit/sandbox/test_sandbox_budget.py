@@ -9,11 +9,13 @@ from concurrent.futures import ThreadPoolExecutor
 import docker
 import pytest
 
+from autograder.models.abstract.execution_test import RUN_TIMEOUT_SECONDS
+from autograder.models.capabilities import ExecutionBudget
 from autograder.models.language import Language
 from sandbox_manager.errors import SandboxCapacityTimeout
 from sandbox_manager.language_pool import SandboxUnavailableError
 from sandbox_manager.manager import SandboxManager
-from sandbox_manager.models.pool_config import SandboxHostConfig
+from sandbox_manager.models.pool_config import DEFAULT_RUNNING_TIMEOUT, MIN_RUNNING_TIMEOUT, SandboxHostConfig
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
 from tests.unit.sandbox.fakes import FakeDocker, owner, pool_config
 
@@ -326,10 +328,23 @@ def test_configuration_is_the_budget_plus_warm_pool_size(tmp_path):
     ("  max_sandboxes: 2\n  scale_limit: 3\n", "replaced by the host-wide general.max_sandboxes"),
     ("  max_sandboxes: 2\n  idle_timeout: 300\n", "idle_timeout was removed"),
     ("  max_sandboxes: 2\n  pool_sise: 1\n", "unknown setting general.pool_sise"),
+    # The old default: every execution definition would need longer than the host grants.
+    ("  max_sandboxes: 2\n  running_timeout: 60\n", "running_timeout must be an integer >= 92 \\(the smallest"),
+    ("  max_sandboxes: 2\n  running_timeout: 91\n", "running_timeout must be an integer >= 92"),
+    ("  max_sandboxes: 2\n  running_timeout: 900.5\n", "running_timeout must be an integer >= 92"),
 ])
 def test_unworkable_or_removed_settings_are_rejected_at_startup(tmp_path, general, message):
     with pytest.raises(ValueError, match=message):
         SandboxHostConfig.load_from_yaml(write(tmp_path, general))
+
+
+def test_running_timeout_defaults_to_the_shipped_maximum_and_admits_the_smallest_session(tmp_path):
+    omitted = SandboxHostConfig.load_from_yaml(write(tmp_path, "  max_sandboxes: 2\n"))
+    assert omitted.running_timeout == DEFAULT_RUNNING_TIMEOUT == 900
+    smallest = ExecutionBudget(RUN_TIMEOUT_SECONDS, 1).session_seconds  # one I/O criterion: 30 + 2 + 60
+    assert MIN_RUNNING_TIMEOUT == smallest == 92
+    config = SandboxHostConfig.load_from_yaml(write(tmp_path, "  max_sandboxes: 2\n  running_timeout: 92\n"))
+    assert config.running_timeout == 92
 
 
 def test_manager_rejects_an_empty_budget(client):

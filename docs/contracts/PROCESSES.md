@@ -20,7 +20,7 @@ implement the same contract and agree byte for byte.
 | `shell` | Instead of `argv`: an explicit trusted script, run as `/bin/sh -c <script>`. |
 | `stdin` | The exact bytes on standard input (at most 1 MiB). `b""` means immediate EOF. |
 | `cwd` | A normalized absolute working directory, `/app` by default. |
-| `timeout` | Process deadline in seconds (0–600; the control API also requires at most the pool's `running_timeout`). |
+| `timeout` | Process deadline in seconds (0–600; the control API also requires at most the pool's `running_timeout`). Evaluators declare the deadlines they use in `process_timeouts`; they make up the run's execution budget ([CAPABILITIES.md](CAPABILITIES.md#execution-budget)). |
 | `max_output_bytes` | Bound for each of stdout and stderr (1 B–8 MiB, 1 MiB by default). |
 
 A request has exactly one of `argv` or `shell`. `ProcessRequest.command(text)`
@@ -154,7 +154,8 @@ never from an exit code alone:
 | The sweep runs; the container's cgroup counts its memory limit reached (`memory.events oom`) or a refused fork (`pids.events max`) (runc) | The submission exhausted memory or processes | `SandboxExhausted` |
 | The collector exec cannot start and Docker reports the running container's `pids_stats.current` at its limit (runc) | The submission left no pid for control | `SandboxExhausted` |
 | A control exec fails; Docker reports the container stopped by itself: `OOMKilled`, or the runtime exited without a signal (gVisor's Sentry cannot continue at the pids limit) | The submission exhausted the sandbox | `SandboxExhausted` |
-| The pool disposed the sandbox (running timeout, shutdown) | The host ended it | `ProcessExecutionError` |
+| The pool disposed the sandbox (its lifetime passed, shutdown) | The host ended it | `ProcessExecutionError` |
+| The sandbox's own lifetime passed before the run was read back (checked first, so a run it ended is never a result) | The host's limit ended it | `ProcessExecutionError` |
 | Docker no longer has the container, or a signal stopped PID 1 (`docker rm -f`, `kill`, `stop`) | The host ended it | `ProcessExecutionError` |
 | A control exec fails and the container is still running below its pids limit | Infrastructure (daemon) failure | `ProcessExecutionError` |
 | None of the above; exit code 137 | The program's own exit (`exit(137)`, or a SIGKILL it sent itself) | `exited` 137 |

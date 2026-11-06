@@ -186,7 +186,7 @@ def test_static_and_io_gradings_never_construct_the_provider(monkeypatch, defini
     monkeypatch.setattr("execution_host.openai_provider.OpenAI", construct)
     monkeypatch.setattr("execution_host.openai_provider.fetch_secret", construct)
     host = DockerHost()
-    monkeypatch.setattr(host, "acquire", lambda language: FakeSession())
+    monkeypatch.setattr(host, "acquire", lambda language, budget: FakeSession())
     capabilities = HostCapabilities(execution=host.acquire, ai=host.capabilities.ai)
     submission = Submission("s", "s", "a", {name: SubmissionFile(name, text) for name, text in files.items()})
     outcome = build_pipeline(definition=definition, capabilities=capabilities).run(submission).outcome

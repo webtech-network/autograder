@@ -45,7 +45,8 @@ class GradingRequest:
                                     reference=str(self.grading_config_id), revision=self.configuration_version)
 
 
-def failed_outcome(request, code="EXECUTION_ERROR", message="The grading execution could not complete.", *, started=None, duration_ms=0):
+def failed_outcome(request, code="EXECUTION_ERROR", message="The grading execution could not complete.", *,
+                   started=None, duration_ms=0, category="internal", retryable=False):
     execution_id = str(uuid4())
     finished = datetime.now(timezone.utc)
     return {
@@ -54,8 +55,8 @@ def failed_outcome(request, code="EXECUTION_ERROR", message="The grading executi
         "started_at": (started or finished).isoformat(), "finished_at": finished.isoformat(),
         "duration_ms": duration_ms, "score": None, "tree": None,
         "feedback": {"status": "disabled"}, "comparison": {"status": "disabled"},
-        "error": {"code": code, "message": message, "category": "internal",
-                  "retryable": False, "correlation_id": execution_id},
+        "error": {"code": code, "message": message, "category": category,
+                  "retryable": retryable, "correlation_id": execution_id},
     }
 
 

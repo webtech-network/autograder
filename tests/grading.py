@@ -21,6 +21,7 @@ class FakeProvider:
 
     ``answer(requests)`` may return any provider output, including invalid ones.
     """
+    deadline_seconds = 1.0
 
     def __init__(self, answer=None, score=100.0):
         self.calls = []

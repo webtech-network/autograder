@@ -41,6 +41,7 @@ from sandbox_manager.errors import (
     RuntimeUnavailableError,
     SandboxCapacityTimeout,
     SandboxInvalidatedError,
+    SandboxLifetimeExceeded,
 )
 from sandbox_manager.language_pool import SandboxUnavailableError
 from sandbox_manager.models.api_models import (
@@ -201,7 +202,8 @@ class HandleRegistry:
                     "tombstones": len(self._tombstones)}
 
     # -------------------------------------------------------------- operations
-    def acquire(self, language: Language, request_id: str, wait_seconds: float = 0.0) -> Handle:
+    def acquire(self, language: Language, request_id: str, wait_seconds: float = 0.0,
+                lifetime_seconds: Optional[float] = None) -> Handle:
         """Hand out a new handle, or the existing one for a replayed ``request_id``.
 
         Acquisitions run concurrently; a replay of one still in progress waits
@@ -232,7 +234,11 @@ class HandleRegistry:
             pending[1].wait()  # The original attempt ends within its own wait; then look again.
         try:
             try:
-                sandbox = self.manager.get_sandbox(language, wait_seconds=wait_seconds)
+                sandbox = self.manager.get_sandbox(language, wait_seconds=wait_seconds,
+                                                   lifetime_seconds=lifetime_seconds)
+            except SandboxLifetimeExceeded as exc:
+                raise ControlError(422, "LIFETIME_EXCEEDED",
+                                   "The requested lifetime exceeds this host's running_timeout.") from exc
             except SandboxCapacityTimeout as exc:
                 raise ControlError(status.HTTP_503_SERVICE_UNAVAILABLE, "CAPACITY_TIMEOUT",
                                    "No sandbox slot became free within the requested wait.") from exc
@@ -265,9 +271,9 @@ class HandleRegistry:
             if handle.state != "active":
                 raise ControlError(status.HTTP_410_GONE, "HANDLE_CLOSED", "Sandbox handle is closing.")
             if getattr(handle.sandbox, "state", SandboxState.ACTIVE) is not SandboxState.ACTIVE:
-                # The pool disposed it (running timeout); the reaper will tombstone it.
+                # The pool disposed it (its lifetime passed); the reaper will tombstone it.
                 raise ControlError(status.HTTP_410_GONE, "HANDLE_EXPIRED",
-                                   "Sandbox exceeded its running timeout and was disposed.")
+                                   "Sandbox reached its lifetime and was disposed.")
             handle.in_flight += 1
         try:
             yield handle
@@ -417,7 +423,7 @@ router = APIRouter(dependencies=[Depends(require_token)])
 async def acquire_sandbox(language: Language, body: AcquireSandboxRequest, request: Request):
     registry = _registry(request)
     handle = await anyio.to_thread.run_sync(registry.acquire, language, body.request_id, body.wait_seconds,
-                                            limiter=request.app.state.acquire_limiter)
+                                            body.lifetime_seconds, limiter=request.app.state.acquire_limiter)
     return AcquireSandboxResponse(sandbox_id=handle.handle_id, request_id=handle.request_id,
                                   expires_in=int(registry.ttl))
 
