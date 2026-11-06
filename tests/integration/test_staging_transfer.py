@@ -115,7 +115,7 @@ def recorder():
 @pytest.fixture
 def sandbox(runtime, recorder):
     options = container_options(TEST_IMAGES[Language.PYTHON], f"prf03-staging-{runtime}-{time.monotonic_ns()}",
-                                {"prf03": "test"})
+                                {"prf03": "test"}, 600)
     if runtime == "runsc":
         options["runtime"] = GVISOR_RUNTIME
     container = recorder.client.containers.run(**options)
@@ -175,8 +175,8 @@ class _Lender:
     def __init__(self, sandbox):
         self.sandbox = sandbox
 
-    def get_sandbox(self, language, wait_seconds):
-        del language, wait_seconds
+    def get_sandbox(self, language, wait_seconds, lifetime_seconds=None):
+        del language, wait_seconds, lifetime_seconds
         return self.sandbox
 
 
