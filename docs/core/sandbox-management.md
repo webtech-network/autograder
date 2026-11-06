@@ -45,7 +45,7 @@ explicit `general.runtime` (`runsc` for gVisor, or `runc`), never a fallback. Se
 |------|------------|
 | Faster first response | Increase `pool_size` |
 | Higher concurrency (up to the CPU knee) | Increase `max_sandboxes` |
-| Faster stuck-process recovery | Lower `running_timeout` |
+| Accept definitions with more or longer processes | Raise `running_timeout` (the host maximum; each sandbox lives its definition's budget) |
 
 These values are defined in `sandbox_config.yml`.
 

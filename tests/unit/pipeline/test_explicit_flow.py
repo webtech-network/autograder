@@ -45,7 +45,7 @@ def test_diagnostics_do_not_supply_data_or_change_execution_order():
                 raise RuntimeError("observer failed")
 
         outcome = build_pipeline(definition=io_definition(), capabilities=HostCapabilities(
-            execution=lambda language, owned=owned: owned)).run(
+            execution=lambda language, budget, owned=owned: owned)).run(
                 submission(), observer=None if observer_kind == "disabled" else observe).outcome
         assert outcome.status == "completed"
         outcomes.append(grade_payload(outcome))
@@ -94,7 +94,7 @@ def test_close_precedes_terminal_construction_on_all_owned_paths(failure):
         owned.close.assert_called_once()
         return FailedOutcome(**kwargs)
 
-    pipeline = build_pipeline(definition=value, capabilities=HostCapabilities(execution=lambda language: owned))
+    pipeline = build_pipeline(definition=value, capabilities=HostCapabilities(execution=lambda language, budget: owned))
     with patch("autograder.autograder.CompletedOutcome", side_effect=completed), \
          patch("autograder.autograder.FailedOutcome", side_effect=failed), \
          patch("autograder.template_library.static_analysis.ForbiddenImportTest.execute",
@@ -116,7 +116,7 @@ def test_cleanup_failure_is_observable_without_replacing_the_grade(required_fail
     value = definition(preparation={"languages": {"python": {
         "setup_commands": [{"name": "prepare", "command": "prepare"}]}}})
     outcome = evaluate_submission(submission(), definition=value,
-        capabilities=HostCapabilities(execution=lambda language: owned), observer=events.append)
+        capabilities=HostCapabilities(execution=lambda language, budget: owned), observer=events.append)
     assert outcome.status == ("failed" if required_failure else "completed")
     assert events[-1].operation == "close_session"
     assert events[-1].error.code == "CLEANUP_ERROR"
@@ -186,7 +186,7 @@ def test_invalid_result_snapshot_fails_before_feedback_and_still_closes():
     owned = session()
     value = definition(feedback=True, preparation={"languages": {"python": {
         "setup_commands": [{"name": "prepare", "command": "prepare"}]}}})
-    pipeline = build_pipeline(definition=value, capabilities=HostCapabilities(execution=lambda language: owned))
+    pipeline = build_pipeline(definition=value, capabilities=HostCapabilities(execution=lambda language, budget: owned))
     with patch("autograder.services.grading.final_score", return_value=101.0), \
          patch("autograder.autograder.render_feedback") as focus:
         outcome = pipeline.run(submission()).outcome

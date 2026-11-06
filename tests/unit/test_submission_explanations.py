@@ -44,7 +44,7 @@ def session(*results):
 
 
 def run(value, *, files=None, language=Language.JAVA, locale="en", execution=None, fixtures=None, scope=None):
-    capabilities = HostCapabilities(execution=(lambda _language: execution) if execution else None, fixtures=fixtures)
+    capabilities = HostCapabilities(execution=(lambda _language, _budget: execution) if execution else None, fixtures=fixtures)
     outcome = build_pipeline(definition=value, capabilities=capabilities).run(Submission(
         "student", 1, 1, SUBMITTED if files is None else files, language=language, locale=locale,
         evaluation_scope=scope)).outcome
@@ -235,11 +235,11 @@ def _provider(error):
 
 @pytest.mark.parametrize("make,expected", [
     # Assessment-time seam: the sandbox transport fails while the evaluator runs.
-    (lambda: (definition(), HostCapabilities(execution=lambda _language: session(RuntimeError("/var/lib/docker secret")))),
+    (lambda: (definition(), HostCapabilities(execution=lambda _language, _budget: session(RuntimeError("/var/lib/docker secret")))),
      {"code": "SANDBOX_ERROR", "message": "The execution environment could not complete evaluation.",
       "category": "capability", "retryable": True}),
     # The host returns something that is not a process result: an unexpected engine failure.
-    (lambda: (definition(), HostCapabilities(execution=lambda _language: Mock(**{"run_process.return_value": "junk"}))),
+    (lambda: (definition(), HostCapabilities(execution=lambda _language, _budget: Mock(**{"run_process.return_value": "junk"}))),
      {"code": "EXECUTION_ERROR", "message": "The grading execution could not complete.",
       "category": "internal", "retryable": False}),
     (lambda: (_ai_definition(), HostCapabilities()),

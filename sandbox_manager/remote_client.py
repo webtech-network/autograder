@@ -18,9 +18,11 @@ Recovery rules:
 * a submission that exhausted its sandbox raises the core
   :class:`~autograder.models.process.SandboxExhausted`, as the local backend does;
 * a language this host has no runtime for raises
-  :class:`~sandbox_manager.errors.RuntimeUnavailableError`, and a full sandbox
+  :class:`~sandbox_manager.errors.RuntimeUnavailableError`, a full sandbox
   budget after the requested wait raises
-  :class:`~sandbox_manager.errors.SandboxCapacityTimeout`, as the local manager does.
+  :class:`~sandbox_manager.errors.SandboxCapacityTimeout`, and a lifetime above
+  the service's ``running_timeout`` raises
+  :class:`~sandbox_manager.errors.SandboxLifetimeExceeded`, as the local manager does.
 """
 import base64
 import uuid
@@ -33,6 +35,7 @@ from autograder.models.language import Language
 from autograder.models.process import ProcessRequest, ProcessResult, SandboxExhausted
 from sandbox_manager.errors import (
     ArtifactReadError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
+    SandboxLifetimeExceeded,
 )
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS, ProcessRequestModel, ProcessResultModel
 from autograder.models.execution import ExtractedFile
@@ -107,6 +110,8 @@ def _checked(response: requests.Response, *, artifact_path: Optional[str] = None
         raise RuntimeUnavailableError(f"The sandbox service has no runtime for this language: {message}")
     if code == "CAPACITY_TIMEOUT":
         raise SandboxCapacityTimeout(text)
+    if code == "LIFETIME_EXCEEDED":
+        raise SandboxLifetimeExceeded(text)
     if code == "SANDBOX_UNAVAILABLE":
         raise SandboxUnavailable(text, status_code=response.status_code, code=code)
     raise RemoteSandboxError(text, status_code=response.status_code, code=code)
@@ -196,14 +201,17 @@ class RemoteSandboxManager:
                                              code="TRANSPORT_ERROR") from exc
         raise AssertionError("unreachable")
 
-    def get_sandbox(self, lang: Language, wait_seconds: float = 0.0) -> RemoteSandboxContainer:
+    def get_sandbox(self, lang: Language, wait_seconds: float = 0.0,
+                    lifetime_seconds: Optional[float] = None) -> RemoteSandboxContainer:
         """Acquire a handle, letting the service wait up to ``wait_seconds`` for a budget slot.
 
-        Transport retries reuse one request id (no duplicate containers).
+        The service's sandbox stops by itself ``lifetime_seconds`` after the grant
+        (default: the service's ``running_timeout``). Transport retries reuse one
+        request id (no duplicate containers).
         """
         request_id = uuid.uuid4().hex
         url = f"{self.api_url}/sandboxes/{lang.value}"
-        body = {"request_id": request_id, "wait_seconds": wait_seconds}
+        body = {"request_id": request_id, "wait_seconds": wait_seconds, "lifetime_seconds": lifetime_seconds}
         response = self._with_transport_retry(self.acquire_attempts, lambda: self._session.post(
             url, json=body, timeout=(CONNECT_TIMEOUT_SECONDS, wait_seconds + ACQUIRE_TIMEOUT_SECONDS)))
         data = _checked(response)
@@ -225,9 +233,9 @@ class RemoteSandboxManager:
             sandbox.close()
 
     @contextmanager
-    def acquire_sandbox(self, lang: Language, wait_seconds: float = 0.0):
+    def acquire_sandbox(self, lang: Language, wait_seconds: float = 0.0, lifetime_seconds: Optional[float] = None):
         """Acquire a handle and dispose it when the block exits."""
-        sandbox = self.get_sandbox(lang, wait_seconds)
+        sandbox = self.get_sandbox(lang, wait_seconds, lifetime_seconds)
         try:
             yield sandbox
         finally:

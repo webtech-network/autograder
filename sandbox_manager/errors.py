@@ -42,6 +42,16 @@ class SandboxCapacityTimeout(RuntimeError):
     """
 
 
+class SandboxLifetimeExceeded(RuntimeError):
+    """The requested sandbox lifetime is longer than this host grants (``running_timeout``).
+
+    Raised before waiting for a slot or creating a container. It is a property of
+    the definition on this host, not a transient condition: graders report it as
+    the non-retryable ``EXECUTION_BUDGET_EXCEEDED``. The control API answers
+    ``422 LIFETIME_EXCEEDED``.
+    """
+
+
 class SandboxInvalidatedError(RuntimeError):
     """The sandbox can no longer be trusted.
 

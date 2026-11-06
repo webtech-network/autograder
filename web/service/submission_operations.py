@@ -6,8 +6,11 @@ import json
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from autograder.models.capabilities import requirements_for
 from autograder.models.contracts.comparison import ComparisonError, compare_outcomes
 from autograder.models.contracts.definition import compile_snapshot, select_language, DefinitionValidationError
+from autograder.models.language import Language
+from autograder.services.assessment import EXECUTION_CAPABILITIES
 from autograder.models.contracts.verification import (
     OutcomeStructureError, OutcomeTooLargeError, verify_outcome_size, verify_outcome_tree,
 )
@@ -131,6 +134,27 @@ def _compile_snapshot(value):
         raise OperationError(422, detail=exc.errors()) from exc
 
 
+def ensure_host_grants(compiled, languages, max_session_seconds):
+    """Reject, before anything is stored or queued, a definition whose execution budget
+    in any of ``languages`` is longer than this host grants (``running_timeout``)."""
+    if max_session_seconds is None:
+        return
+    problems = []
+    for language in languages:
+        requirements = requirements_for(compiled, Language(language))
+        seconds = requirements.budget.session_seconds
+        if requirements.capabilities & EXECUTION_CAPABILITIES and seconds > max_session_seconds:
+            problems.append({
+                "code": "EXECUTION_BUDGET_EXCEEDED", "path": ["languages", str(language)],
+                "message": (f"In {language}, the worst case of the declared process deadlines "
+                            f"({requirements.budget.processes} processes, {requirements.budget.process_seconds:g} s) "
+                            f"needs a {seconds:g} s sandbox; this host grants at most {max_session_seconds:g} s. "
+                            "Remove criteria or setup commands, or raise the host's running_timeout."),
+            })
+    if problems:
+        raise OperationError(422, detail=problems)
+
+
 def _check_attested_tree(outcome, compiled):
     """Attestation may not exceed its definition's size bound, change criterion
     placement or change scoring ratios (core contract checks)."""
@@ -206,11 +230,16 @@ async def _run_keyed(session, operation, idempotency, request, create):
         raise
 
 
-async def accept_submission(session, submission, idempotency: Idempotency | None = None):
-    """Accept work once; return (submission row, replayed)."""
+async def accept_submission(session, submission, idempotency: Idempotency | None = None, *,
+                            max_session_seconds: float | None = None):
+    """Accept work once; return (submission row, replayed).
+
+    Work this host could never grade within its execution maximum is refused
+    here (422 ``EXECUTION_BUDGET_EXCEEDED``), never after queueing.
+    """
     submission_id, replayed = await _run_keyed(
         session, ACCEPT_OPERATION, idempotency, submission,
-        lambda: _accept_submission(session, submission))
+        lambda: _accept_submission(session, submission, max_session_seconds))
     return await SubmissionRepository(session).get_by_id_with_result(submission_id), replayed
 
 
@@ -305,7 +334,7 @@ async def compare_submissions(session, submission_id, baseline_submission_id):
     return data
 
 
-async def _accept_submission(session, submission):
+async def _accept_submission(session, submission, max_session_seconds=None):
     config = await GradingConfigRepository(session).get_by_external_id(
         submission.external_assignment_id
     )
@@ -327,6 +356,7 @@ async def _accept_submission(session, submission):
                 {"code": "INVALID_LANGUAGE", "path": ["language"], "message": str(exc)}
             ],
         ) from exc
+    ensure_host_grants(compiled, [language.value], max_session_seconds)
     files = {file.filename: file.model_dump() for file in submission.files}
     repo = SubmissionRepository(session)
     row = await repo.create(

@@ -7,9 +7,16 @@ set variables in the service definition (Compose `environment:`) or the process
 environment. `tests/unit/test_settings_contract.py` fails when code reads a
 variable missing from this page, or this page lists one that code does not read.
 
-Sandbox pools and the host sandbox budget are not environment variables: they
-live in the YAML file named by `SANDBOX_CONFIG_FILE`
-(see [Sandbox ownership](../contracts/SANDBOX.md#one-host-wide-sandbox-budget)).
+Sandbox pools, the host sandbox budget and the host maximum sandbox lifetime
+(`general.running_timeout`) are not environment variables: they live in the
+YAML file named by `SANDBOX_CONFIG_FILE`
+(see [Sandbox ownership](../contracts/SANDBOX.md#one-host-wide-sandbox-budget)
+and [Sandbox lifetime](../contracts/SANDBOX.md#sandbox-lifetime)). Each host
+validates that file when it starts: `running_timeout` must be an integer of at
+least 92 s (one 30 s process), and the API also refuses a value below 100 s, the
+lifetime deliberate execution needs. Definitions whose
+[execution budget](../contracts/CAPABILITIES.md#execution-budget) exceeds it are
+refused at validation and acceptance (`EXECUTION_BUDGET_EXCEEDED`).
 Optional providers stay lazy: the fixture store and the AI provider are first
 contacted by the first grading that needs them
 ([Host capabilities](../contracts/CAPABILITIES.md)).
@@ -44,7 +51,7 @@ marked *required* have no working default for a deployment.
 | `SANDBOX_MODE` | `local` | `local`: the API process owns its sandboxes through the Docker socket (development and tests). `remote`: sandboxes come from the private sandbox manager (the supported deployment, see [Deployment](deployment.md)). |
 | `SANDBOX_API_URL` | `http://localhost:8001` | Sandbox manager URL (`remote`). |
 | `SANDBOX_API_TOKEN` | empty | Sandbox manager bearer token (`remote`); the same value as the manager's. |
-| `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | Sandbox runtime (`general.runtime`), budget, pools and runtime images (`local`); relative paths resolve from the project root. Read at startup, which fails when Docker does not offer the runtime ([environments](../contracts/SANDBOX.md#environments-and-supported-topology)). |
+| `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | Sandbox runtime (`general.runtime`), budget, pools, runtime images and host maximum lifetime; relative paths resolve from the project root. Validated at startup in both modes for `general.running_timeout` (in `remote` mode keep it identical to the sandbox manager's). In `local` mode the API also starts its sandbox manager at startup, which fails when Docker does not offer the runtime ([environments](../contracts/SANDBOX.md#environments-and-supported-topology)). Missing, budgets are checked only at acquisition. |
 | `EXTERNAL_ASSETS_BUCKET_NAME` | unset | S3 bucket holding definition fixtures. Unset, the host has no fixture store and fixture assignments fail preparation. |
 | `S3_ENDPOINT_URL` | AWS | S3-compatible endpoint. Setting it without a bucket stops startup. |
 | `AWS_REGION` | `us-east-1` | Region of the fixture bucket and of the AI secret. |

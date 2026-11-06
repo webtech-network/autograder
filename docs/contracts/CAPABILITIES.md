@@ -24,6 +24,34 @@ language has a separate submission error. A host that supports execution but has
 no runtime profile for the bound language (no `runtimes:` image) also fails with
 `CAPABILITY_UNAVAILABLE`; see [LANGUAGES.md](LANGUAGES.md).
 
+## Execution budget
+
+The same requirement set carries the run's `ExecutionBudget`, derived only from
+deadlines already declared (there is no authoring field): each selected
+evaluator declaring `sandbox_execution` lists the deadline of every process one
+assessment may run in `process_timeouts` (the public `BaseExecutionTest`
+declares its one 30 s run; registration rejects an execution evaluator without
+the declaration), and each setup command of the bound language adds its 30 s
+`SETUP_TIMEOUT_SECONDS`. `budget.process_seconds` is their sum and
+`budget.processes` their count; `budget.ai_calls` is 1 when any AI criterion is
+selected (one provider call for all of them). A session must live
+`budget.session_seconds` = process seconds + 2 s per process + 60 s per session
+(`PROCESS_ALLOWANCE_SECONDS`, `SESSION_ALLOWANCE_SECONDS`) for starting and
+collecting processes and for staging and cleanup.
+
+`HostCapabilities.execution(language, budget)` returns a session that lives at
+least `budget.session_seconds` from its grant, and ends itself then. A host
+states the longest session it grants in `HostCapabilities.max_session_seconds`
+(`None`: no stated maximum); before any provider call the engine refuses a
+longer budget with `capability / EXECUTION_BUDGET_EXCEEDED`, not retryable, and
+a host that refuses at acquisition raises that same `EvaluationError`. Every
+process of the run executes before the one provider call, so the provider's own
+deadline (`AssessmentProvider.deadline_seconds`) is never part of the session.
+The Docker host's maximum is `running_timeout` in `sandbox_config.yml`
+([SANDBOX.md](SANDBOX.md#sandbox-lifetime)); HTTP hosts also check it at
+validation and acceptance and derive each attempt's deadline from the same
+budget ([JOBS.md](JOBS.md#attempt-deadline)).
+
 `ExecutionSession` provides submission staging, process execution
 (`run_process`, see [PROCESSES.md](PROCESSES.md)), relative artifact readback,
 fixture staging and disposal. Its `fixture_root` declares the

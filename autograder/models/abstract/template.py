@@ -2,6 +2,20 @@
 from typing import Dict, Iterable
 
 from autograder.models.abstract.test_function import TestFunction
+from autograder.models.process import MAX_TIMEOUT_SECONDS
+
+
+def check_process_timeouts(evaluator: TestFunction) -> None:
+    """An evaluator that runs processes declares each one's deadline (the execution budget's source)."""
+    timeouts = evaluator.process_timeouts
+    if not isinstance(timeouts, tuple) or any(
+            isinstance(value, bool) or not isinstance(value, (int, float))
+            or not 0 < value <= MAX_TIMEOUT_SECONDS for value in timeouts):
+        raise TypeError(f"Evaluator '{evaluator.name}': process_timeouts must be a tuple of deadlines "
+                        f"in (0, {MAX_TIMEOUT_SECONDS}] seconds.")
+    if "sandbox_execution" in evaluator.required_capabilities and not timeouts:
+        raise TypeError(f"Evaluator '{evaluator.name}' declares sandbox_execution, so it must declare "
+                        "process_timeouts: the deadline of every process one assessment may run.")
 
 
 class Template:
@@ -45,6 +59,7 @@ class Template:
                 raise ValueError(f"Duplicate evaluator identifier in template: {evaluator.name}")
             seen.add(evaluator.name)
             check_invocation(evaluator)
+            check_process_timeouts(evaluator)
         # Compilation and discovery read get_tests(); it must be exactly the evaluators by name.
         registry = self.get_tests()
         if registry.keys() != seen or any(registry[e.name] is not e for e in self.evaluators):

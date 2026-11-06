@@ -14,7 +14,7 @@ class TestMultiLanguageCommandResolution:
     def test_pipeline_resolves_python_command(self):
         """Test that Python submissions get Python command."""
         # Mock sandbox
-        mock_manager = Mock()
+        mock_manager = Mock(running_timeout=900)
         mock_sandbox = Mock()
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
@@ -84,7 +84,7 @@ class TestMultiLanguageCommandResolution:
     def test_pipeline_resolves_java_command(self):
         """Test that Java submissions get Java command."""
         # Mock sandbox
-        mock_manager = Mock()
+        mock_manager = Mock(running_timeout=900)
         mock_sandbox = Mock()
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
@@ -154,7 +154,7 @@ class TestMultiLanguageCommandResolution:
     def test_pipeline_resolves_cmd_placeholder(self):
         """Test that CMD placeholder auto-resolves based on language."""
         # Mock sandbox
-        mock_manager = Mock()
+        mock_manager = Mock(running_timeout=900)
         mock_sandbox = Mock()
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None
@@ -217,7 +217,7 @@ class TestMultiLanguageCommandResolution:
     def test_pipeline_grading_with_multi_language_commands(self):
         """Test full grading flow with multi-language commands."""
         # Mock sandbox
-        mock_manager = Mock()
+        mock_manager = Mock(running_timeout=900)
         mock_sandbox = Mock()
         mock_manager.get_sandbox.return_value = mock_sandbox
         mock_sandbox.prepare_workdir.return_value = None

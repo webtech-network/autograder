@@ -51,7 +51,8 @@ unexpected failure in the engine and in every host.
 | No program command is defined for the selected language | Failed, no score | submission / `MISSING_LANGUAGE_COMMAND` |
 | Required sandbox cannot be provisioned, or no sandbox budget slot frees up within the grading wait (retryable) | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
 | Host cannot start and reach an assessed server | Failed, no score | capability / `SERVER_CAPABILITY_UNAVAILABLE` |
-| Sandbox system/transport or artifact extraction failure, or a host/operator that stopped or removed the sandbox (running timeout, `docker kill`/`rm`) | Failed, no score, retryable | capability / `SANDBOX_ERROR` |
+| Sandbox system/transport or artifact extraction failure, or a host/operator that stopped or removed the sandbox (its lifetime passed, `docker kill`/`rm`) | Failed, no score, retryable | capability / `SANDBOX_ERROR` |
+| The definition's execution budget (its declared process deadlines) needs a longer session than the host grants (`running_timeout`); refused before any code runs, and by HTTP hosts at validation and acceptance (422) | Failed, no score | capability / `EXECUTION_BUDGET_EXCEEDED` |
 | Runtime command (`python3`) cannot be started | Failed, no score | capability / `PROCESS_START_FAILED` |
 | Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / `PREPARATION_ERROR` |
 | Required fixture provider is not supplied by the host | Failed, no score | capability / `FIXTURE_PROVIDER_UNAVAILABLE` |
@@ -65,6 +66,7 @@ unexpected failure in the engine and in every host.
 | Optional focus or feedback fails | Completed, original grade preserved | feedback.error / `FEEDBACK_ERROR` |
 | Owned execution session cannot be closed | Outcome unchanged | Diagnostic observation only / `CLEANUP_ERROR` |
 | HTTP: interrupted work exhausts its recovery attempts (host-only) | Failed, no score | internal / `RECOVERY_EXHAUSTED` |
+| HTTP: an attempt passes its deadline (session lifetime from the grant + provider deadline per AI call + margin, see [JOBS.md](JOBS.md#attempt-deadline)); its lease is not renewed (host-only) | Failed, no score, retryable | capability / `ATTEMPT_DEADLINE_EXCEEDED` |
 | HTTP: unfinished historical submission lacks replayable input (host-only projection) | Failed, no score | internal / `RECOVERY_INPUT_UNAVAILABLE` |
 | HTTP: historical failure predates the verified outcome contract (host-only projection) | Failed, no score | internal / `LEGACY_UNVERIFIED` |
 | Feedback disabled (even if feedback services would fail) | Completed; no focus or report work | feedback.status = disabled |

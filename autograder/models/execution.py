@@ -89,9 +89,14 @@ class ProviderAssessment:
 class AssessmentProvider(Protocol):
     """A host-supplied AI provider (model, credentials and deadline are host-owned).
 
+    ``deadline_seconds`` is the longest one ``assess`` call can take; HTTP hosts
+    add it to an attempt's deadline for each call.
+
     ``assess`` receives one batch of requests and returns one assessment per
     request. The engine validates exact criterion-ID coverage and every score;
     providers must not retry, drop or invent criteria.
     """
+    deadline_seconds: float
+
     def assess(self, requests: Sequence[AssessmentRequest], *, context_files: Mapping[str, str],
                locale: str) -> Sequence[ProviderAssessment]: ...

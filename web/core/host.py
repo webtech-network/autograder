@@ -26,6 +26,19 @@ class BuiltinCatalog:
         raise KeyError(f"Template '{name}' not found")
 
 
+def ensure_deliberate_execution_fits(max_session_seconds):
+    """Refuse at startup a host maximum shorter than deliberate execution's fixed budget.
+
+    Otherwise every ``POST /execute`` would be refused at acquisition and answer
+    503 with nothing pointing at ``running_timeout``.
+    """
+    from web.service.deliberate_execution_service import EXECUTION_BUDGET
+    needed = EXECUTION_BUDGET.session_seconds
+    if max_session_seconds is not None and max_session_seconds < needed:
+        raise ValueError(f"Invalid sandbox configuration: general.running_timeout ({max_session_seconds:g} s) "
+                         f"must be at least {needed:g} s, the sandbox lifetime deliberate execution needs")
+
+
 class WebHost:
     def __init__(self, settings=None, *, session_factory=None, capabilities=None,
                  resource_owner=None, evaluator=None, start_workers=True):
@@ -47,6 +60,7 @@ class WebHost:
                 config_file=self.settings.SANDBOX_CONFIG_FILE,
             )
             capabilities = self.resource_owner.capabilities
+        ensure_deliberate_execution_fits(capabilities.max_session_seconds)
         self.capabilities = capabilities
         self.templates = BuiltinCatalog()
         self.start_workers = start_workers

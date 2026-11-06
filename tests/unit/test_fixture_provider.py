@@ -121,7 +121,7 @@ def test_pipeline_stages_the_fetched_set_in_one_call_with_placement_chosen_by_th
     outcome = build_pipeline(definition=fixtures_definition(
         ("a_b", "under.txt", True), ("a/b", "slash.txt", False), ("empty", "empty.txt", True),
         ("a/b", "copy/slash.txt", True)),
-        capabilities=HostCapabilities(execution=lambda language: owned, fixtures=provider)).run(submission()).outcome
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
     assert outcome.status == "completed"
     owned.stage_fixtures.assert_called_once_with([
         StagedFixture("under.txt", b"underscore content", True), StagedFixture("slash.txt", b"slash content", False),
@@ -134,12 +134,12 @@ def test_a_missing_fixture_after_present_ones_stages_nothing_and_no_fixtures_sta
     provider, _ = fake_s3_provider({"present": b"x"})
     owned = session()
     outcome = build_pipeline(definition=fixtures_definition(("present", "p", True), ("absent", "a", True)),
-        capabilities=HostCapabilities(execution=lambda language: owned, fixtures=provider)).run(submission()).outcome
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
     assert outcome.error.code == "PREPARATION_ERROR" and outcome.error.retryable is False
     owned.stage_fixtures.assert_not_called()
     owned = session()
     outcome = build_pipeline(definition=fixtures_definition(),
-        capabilities=HostCapabilities(execution=lambda language: owned, fixtures=provider)).run(submission()).outcome
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
     assert outcome.status == "completed"
     owned.stage_fixtures.assert_not_called()
 
@@ -150,7 +150,7 @@ def test_missing_and_failed_fixtures_share_the_safe_preparation_outcome(unreacha
     client.unreachable = unreachable
     owned = session()
     outcome = build_pipeline(definition=fixtures_definition(("absent" if not unreachable else "present", "f", True)),
-        capabilities=HostCapabilities(execution=lambda language: owned, fixtures=provider)).run(submission()).outcome
+        capabilities=HostCapabilities(execution=lambda language, budget: owned, fixtures=provider)).run(submission()).outcome
     assert outcome.status == "failed" and outcome.score is None and outcome.tree is None
     assert (outcome.error.category, outcome.error.code) == ("capability", "PREPARATION_ERROR")
     assert outcome.error.message == "Assignment preparation could not complete."

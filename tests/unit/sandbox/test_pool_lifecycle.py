@@ -2,13 +2,21 @@
 import logging
 import signal
 import threading
+import time
+from unittest.mock import Mock
 
 import docker
 import pytest
 
-from sandbox_manager.docker_profile import MEMORY_LIMIT_BYTES, WRITABLE_PATHS, container_options
-from sandbox_manager.errors import IsolationRuntimeError, RuntimeUnavailableError, SandboxCapacityTimeout
-from sandbox_manager.language_pool import LanguagePool, SandboxBudget, SandboxUnavailableError
+from sandbox_manager.docker_profile import LIFETIME, MEMORY_LIMIT_BYTES, WRITABLE_PATHS, container_options
+from autograder.models.process import ProcessRequest
+from sandbox_manager.errors import (
+    IsolationRuntimeError, ProcessExecutionError, RuntimeUnavailableError, SandboxCapacityTimeout,
+    SandboxInvalidatedError, SandboxLifetimeExceeded,
+)
+from sandbox_manager.language_pool import (
+    CREATION_SLACK_SECONDS, LanguagePool, SandboxBudget, SandboxUnavailableError,
+)
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
 from autograder.models.language import Language
@@ -155,7 +163,7 @@ def test_the_runtime_is_the_only_difference_between_runtimes(runtime):
     make_pool(client, runtime=runtime).acquire()
     (call,) = client.containers.run_calls
     assert call.pop("runtime") == runtime
-    assert call == container_options(call["image"], call["name"], call["labels"])
+    assert call == container_options(call["image"], call["name"], call["labels"], int(call["command"][1]))
 
 
 def test_a_transient_gvisor_failure_fails_one_acquisition_and_never_downgrades():
@@ -196,8 +204,9 @@ def test_an_unknown_runtime_is_refused_at_the_manager_boundary_before_any_contai
 
 
 def test_profile_is_declared_once():
-    options = container_options("registry.local/java:21", "n", {"k": "v"})
+    options = container_options("registry.local/java:21", "n", {"k": "v"}, 300)
     assert options["image"] == "registry.local/java:21"
+    assert options["command"] == ["sleep", "300"]  # PID 1 never lives forever
     assert options["mem_limit"] == options["memswap_limit"] == MEMORY_LIMIT_BYTES == 128 * 1024 * 1024
     assert options["pids_limit"] == 64
     assert options["read_only"] is True and options["security_opt"] == ["no-new-privileges"]
@@ -302,3 +311,85 @@ def test_manager_closes_only_a_client_it_created(monkeypatch):
     manager = SandboxManager([pool_config()], runtime="runc", max_sandboxes=2, owner=owner(), monitor_interval=60)
     manager.shutdown()
     client.close.assert_called_once()
+
+
+# --------------------------------------------------------------------- lifetime (COR-02)
+
+def test_a_grant_arms_the_sandbox_lifetime_inside_the_container():
+    client = FakeDocker()
+    pool = make_pool(client, running_timeout=300)
+    sandbox = pool.acquire(lifetime=92.5)
+    [armed] = sandbox.container_ref.exec_calls
+    assert armed["detach"] is True and armed["user"] == "root"
+    assert armed["cmd"][:3] == ["/bin/sh", "-c", LIFETIME] and armed["cmd"][-1] == "93"
+    assert sandbox.lifetime == 92.5 and sandbox.expires_at is not None
+    # PID 1 is bounded too: an idle container is never granted past running_timeout of age.
+    assert client.containers.run_calls[0]["command"] == ["sleep", str(2 * 300 + CREATION_SLACK_SECONDS)]
+
+
+def test_the_default_lifetime_is_the_host_maximum():
+    pool = make_pool(running_timeout=300)
+    assert pool.acquire().lifetime == 300
+
+
+@pytest.mark.parametrize("lifetime", [301, 0, -1])
+def test_a_lifetime_beyond_the_host_maximum_is_refused_before_taking_a_slot(lifetime):
+    client = FakeDocker()
+    pool = make_pool(client, running_timeout=300)
+    with pytest.raises(SandboxLifetimeExceeded):
+        pool.acquire(lifetime=lifetime)
+    assert client.containers.run_calls == [] and pool.budget.held == 0
+
+
+def test_a_lifetime_that_cannot_be_armed_disposes_the_sandbox_and_frees_its_slot():
+    client = FakeDocker()
+    client.exec_failure = docker.errors.APIError("exec failed")
+    pool = make_pool(client)
+    with pytest.raises(SandboxUnavailableError):
+        pool.acquire(lifetime=60)
+    assert client.live == {} and pool.budget.held == 0 and pool.get_stats()["total"] == 0
+
+
+def test_the_reaper_uses_each_sandbox_own_lifetime():
+    clock = Clock()
+    pool = make_pool(clock=clock, running_timeout=300)
+    short, long = pool.acquire(lifetime=10), pool.acquire(lifetime=100)
+    clock.now += 11
+    pool.check_ttls()
+    assert short.state is SandboxState.DISPOSED and long.state is SandboxState.ACTIVE
+
+
+def test_idle_sandboxes_too_old_for_a_grant_are_never_handed_out_and_are_recycled():
+    client = FakeDocker()
+    clock = Clock()
+    pool = make_pool(client, clock=clock, running_timeout=300, pool_size=1)
+    pool.replenish()
+    [old] = list(pool.idle_sandboxes)
+    clock.now += 300
+    fresh = pool.acquire(lifetime=300)
+    assert fresh is not old and old in pool.idle_sandboxes  # a new container instead
+    pool.check_ttls()
+    assert old.state is SandboxState.DISPOSED
+
+
+def test_an_expired_sandbox_runs_nothing_more():
+    sandbox = make_pool().acquire(lifetime=5)
+    sandbox.expires_at = time.monotonic() - 1
+    with pytest.raises(SandboxInvalidatedError, match="lifetime"):
+        sandbox.run_process(ProcessRequest.command("true"))
+
+
+def test_a_run_ended_by_the_lifetime_is_never_a_process_result():
+    """The lifetime kills every process: whatever the collector reads back is not the program's result."""
+    client = FakeDocker()
+    sandbox = make_pool(client).acquire(lifetime=5)
+
+    def answer(kwargs):
+        if "autograder-collect" in kwargs["cmd"]:
+            sandbox.expires_at = time.monotonic()  # the lifetime passed during the run
+            return Mock(exit_code=0, output=b"survivors 0\nlimits 0 0\nout 0\n\nerr 0\n\n")
+        return Mock(exit_code=137, output=b"autograder:started\n")
+    client.on_exec = answer
+    with pytest.raises(ProcessExecutionError, match="lifetime"):
+        sandbox.run_process(ProcessRequest.command("python3 main.py"))
+    assert "lifetime" in sandbox.invalidated

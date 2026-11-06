@@ -37,8 +37,7 @@ def suite_runtime() -> str:
     return GVISOR_RUNTIME if GVISOR_RUNTIME in offered_runtimes() else RUNC_RUNTIME
 
 
-
-def sandbox_config(languages=tuple(TEST_IMAGES), pool_size=0, max_sandboxes=2, running_timeout=60, runtime=None):
+def sandbox_config(languages=tuple(TEST_IMAGES), pool_size=0, max_sandboxes=2, running_timeout=900, runtime=None):
     """A sandbox_config.yml text offering runtimes only for ``languages`` (``runtime``: see :func:`suite_runtime`)."""
     images = "".join(f"  {language.value}: {TEST_IMAGES[language]}\n" for language in languages)
     return (f"general:\n  runtime: {runtime or suite_runtime()}\n  max_sandboxes: {max_sandboxes}\n"

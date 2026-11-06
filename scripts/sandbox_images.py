@@ -18,7 +18,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Mapping, Optional, Sequence, Tuple
 
 REGISTRY = "ghcr.io/webtech-network"
 SOURCE = "https://github.com/webtech-network/autograder"  # links each package to this repository
@@ -75,9 +75,10 @@ def build(images: Sequence[RuntimeImage], *, no_cache: bool = False) -> None:
         subprocess.run(args + ["-"], input=image.content, check=True)
 
 
-def published(ref: str) -> bool:
+def published(ref: str, env: Optional[Mapping[str, str]] = None) -> bool:
     """Whether the registry has ``ref``. An unexpected answer is an error, never "absent"."""
-    found = subprocess.run(["docker", "manifest", "inspect", ref], capture_output=True, text=True, check=False)
+    found = subprocess.run(["docker", "manifest", "inspect", ref], capture_output=True, text=True, check=False,
+                           env=env)
     if found.returncode == 0:
         return True
     if _ABSENT.search(found.stderr):

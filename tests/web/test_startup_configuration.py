@@ -152,3 +152,11 @@ async def test_a_local_host_without_its_configured_runtime_refuses_to_start(monk
     assert host.ready is False
     assert daemon.closed
 
+
+def test_the_check_command_rejects_an_unworkable_host_maximum(tmp_path):
+    # COR-02: general.running_timeout bounds every sandbox lifetime; the API needs 100 s for POST /execute.
+    config = tmp_path / "sandbox_config.yml"
+    config.write_text("general:\n  runtime: runc\n  max_sandboxes: 2\n  running_timeout: 99\nruntimes:\n  python: sandbox-py:latest\n")
+    result = check(SANDBOX_CONFIG_FILE=str(config))
+    assert result.returncode != 0
+    assert "general.running_timeout (99 s) must be at least 100 s" in result.stderr

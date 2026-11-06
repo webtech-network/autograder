@@ -50,7 +50,7 @@ def manager_profile(return_value=None, side_effect=None, fixtures=None):
     factory = Mock(return_value=return_value, side_effect=side_effect)
     previous = app.state.host.capabilities
     app.state.host.capabilities = HostCapabilities(
-        execution=lambda language: DockerSession(factory(), language), fixtures=fixtures)
+        execution=lambda language, budget: DockerSession(factory(), language), fixtures=fixtures)
     try:
         yield factory
     finally:

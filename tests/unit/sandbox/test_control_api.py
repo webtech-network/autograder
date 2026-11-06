@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from sandbox_manager.api import ControlSettings, HandleRegistry, create_app
 from sandbox_manager.errors import (
     ArtifactReadError, RuntimeUnavailableError, SandboxCapacityTimeout, SandboxInvalidatedError,
+    SandboxLifetimeExceeded,
 )
 from sandbox_manager.language_pool import SandboxUnavailableError
 from autograder.models.process import MAX_STDIN_BYTES, ProcessRequest, ProcessResult, ProcessStatus
@@ -52,10 +53,14 @@ class FakeManager:
         self.unavailable = False
         self.saturated = False
         self.waits = []
+        self.lifetimes = []
         self.shutdown = Mock()
 
-    def get_sandbox(self, language, wait_seconds=0.0):
+    def get_sandbox(self, language, wait_seconds=0.0, lifetime_seconds=None):
         self.waits.append(wait_seconds)
+        self.lifetimes.append(lifetime_seconds)
+        if lifetime_seconds is not None and lifetime_seconds > 120:
+            raise SandboxLifetimeExceeded("longer than running_timeout")
         if language not in self.language_pools:
             raise RuntimeUnavailableError("no runtime")
         if self.unavailable:
@@ -240,6 +245,21 @@ def test_acquire_passes_the_requested_wait_and_reports_capacity_timeout(api, man
     assert acquire(api, "request-0002").status_code == 200  # A failed attempt is not remembered.
     for wait in (-1, 901):
         response = api.post("/sandboxes/python", json={"request_id": "request-0003", "wait_seconds": wait},
+                            headers=AUTH)
+        assert response.status_code == 422 and code(response) == "INVALID_REQUEST"
+
+
+def test_acquire_forwards_the_lifetime_and_refuses_one_beyond_the_host_maximum(api, manager):
+    response = api.post("/sandboxes/python", json={"request_id": "request-0001", "lifetime_seconds": 92.5},
+                        headers=AUTH)
+    assert response.status_code == 200
+    response = api.post("/sandboxes/python", json={"request_id": "request-0002", "lifetime_seconds": 121},
+                        headers=AUTH)
+    assert response.status_code == 422 and code(response) == "LIFETIME_EXCEEDED"
+    assert acquire(api, "request-0003").status_code == 200  # omitted: the host's running_timeout
+    assert manager.lifetimes == [92.5, 121, None] and len(manager.acquired) == 2
+    for lifetime in (0, -1, "inf"):
+        response = api.post("/sandboxes/python", json={"request_id": "request-0004", "lifetime_seconds": lifetime},
                             headers=AUTH)
         assert response.status_code == 422 and code(response) == "INVALID_REQUEST"
 

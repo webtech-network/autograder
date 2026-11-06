@@ -85,8 +85,8 @@ def test_action_capability_owns_and_releases_its_sandboxes(action_workspace, mon
     created = []
     original = DockerHost.acquire
 
-    def acquire(self, language):
-        session = original(self, language)
+    def acquire(self, language, budget=None):
+        session = original(self, language, budget)
         created.append(session.sandbox.container_ref.id)
         return session
 

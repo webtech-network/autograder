@@ -11,13 +11,14 @@ same under both runtimes.
 import json
 import threading
 import time
+from types import SimpleNamespace
 
 import docker
 import pytest
 
-from autograder import Submission, SubmissionFile, build_pipeline
+from autograder import HostCapabilities, Submission, SubmissionFile, build_pipeline
 from autograder.models.language import Language
-from execution_host.docker import docker_capabilities
+from execution_host.docker import DockerSession, docker_capabilities
 from sandbox_manager.docker_profile import container_options
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.sandbox_container import COLLECT
@@ -29,7 +30,7 @@ REPETITIONS = 20
 
 PROGRAMS = {
     "correct.py": "print('ok')\n",
-    # Correct, but slower than the reaper's running_timeout below.
+    # Correct, but slower than the short sandbox lifetime below.
     "slow.py": "import time\ntime.sleep(25)\nprint('ok')\n",
     # Correct, and blocks until something outside stops it.
     "wait.py": "import time\nprint('started', flush=True)\ntime.sleep(25)\nprint('ok')\n",
@@ -71,7 +72,7 @@ def _pool(running_timeout):
                              running_timeout=running_timeout)
 
 
-def _manager(runtime, running_timeout=120):
+def _manager(runtime, running_timeout=900):
     return SandboxManager([_pool(running_timeout)], max_sandboxes=4, runtime=runtime)
 
 
@@ -94,10 +95,10 @@ def _test(test_id, command, expected=None):
             "parameters": {"program_command": command, "expected_output": expected}}
 
 
-def grade(manager, tests, files=tuple(PROGRAMS)):
+def grade(manager, tests, files=tuple(PROGRAMS), capabilities=None):
     definition = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
                   "criteria": {"base": {"weight": 100, "tests": tests}}}
-    pipeline = build_pipeline(definition=definition, capabilities=docker_capabilities(manager))
+    pipeline = build_pipeline(definition=definition, capabilities=capabilities or docker_capabilities(manager))
     submission = Submission("s", "s", "a", {name: SubmissionFile(name, PROGRAMS[name]) for name in files},
                             language=Language.PYTHON)
     return pipeline.run(submission).outcome
@@ -178,11 +179,18 @@ def test_pool_disposal_during_a_correct_program_is_an_infrastructure_failure(man
     assert_infrastructure_failure(outcome)
 
 
-def test_the_reaper_never_turns_a_correct_program_into_a_zero(runtime):
-    """running_timeout passes during the second of two correct criteria."""
-    manager = _manager(runtime, running_timeout=3)
+def test_the_sandbox_lifetime_never_turns_a_correct_program_into_a_zero(runtime):
+    """The sandbox's own lifetime (and the reaper) passes during the second of two correct criteria.
+
+    A host that grants less than the definition's budget is a host failure: the
+    sandbox stops itself and the grading fails, it never scores the program.
+    """
+    manager = _manager(runtime)
+    short = SimpleNamespace(session_seconds=8)  # a grant shorter than slow.py needs
+    capabilities = HostCapabilities(execution=lambda language, budget: DockerSession(manager, language, short))
     try:
-        outcome = grade(manager, [_test("quick", "python3 correct.py", "ok"), _test("slow", "python3 slow.py", "ok")])
+        outcome = grade(manager, [_test("quick", "python3 correct.py", "ok"), _test("slow", "python3 slow.py", "ok")],
+                        capabilities=capabilities)
     finally:
         manager.shutdown()
     assert_infrastructure_failure(outcome)
@@ -246,7 +254,7 @@ def test_the_collector_sweeps_and_reports_without_forking(runtime):
     """At the pids limit busybox ash aborts on any fork, so the sweep, its wait and the counters use none."""
     client = docker.from_env()
     options = container_options(TEST_IMAGES[Language.PYTHON], f"cor-01-nofork-{runtime}-{time.monotonic_ns()}",
-                                {"cor-01": "test"})
+                                {"cor-01": "test"}, 600)
     options.update(init=False, security_opt=options["security_opt"] + [f"seccomp={NO_FORK}"])
     container = client.containers.run(runtime=runtime, **options)
     try:

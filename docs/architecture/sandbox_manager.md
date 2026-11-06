@@ -18,7 +18,8 @@ SandboxManager (one owner lease: owner id + hostname + boot:pid:start)
 ```
 
 Each `LanguagePool` manages Docker containers for one language. Containers are
-pre-started ("warm") with `sleep infinity` and run commands through `docker exec`.
+pre-started ("warm") with a bounded `sleep` and run commands through `docker exec`;
+each grant arms the sandbox's own lifetime, after which it stops itself.
 The lifecycle, ownership and control API guarantees are specified in
 [Sandbox ownership and private control API](../contracts/SANDBOX.md); this page
 describes the internals.
@@ -92,8 +93,9 @@ general:
     # Warm idle containers per language, outside N (at most max_sandboxes)
     pool_size: 1
 
-    # Maximum seconds a handed-out sandbox may live, counted from the grant
-    running_timeout: 120
+    # Host maximum: the longest lifetime granted to a sandbox, counted from the
+    # grant; each grading asks for its own execution budget up to it
+    running_timeout: 900
 
     # Removal attempts for a quarantined container before it stays
     # quarantined for an operator (default 5)

@@ -130,14 +130,19 @@ The only difference is a declaration on the evaluator. An evaluator with
 execution session for the bound language, stage the files and preparation, and
 pass it as `evaluation.session`; other evaluators, including static ones in the
 same template, receive `None`, and a run that selects none of them acquires
-nothing. Run every process through `session.run_process(ProcessRequest...)`
-(explicit argv or an explicit shell, exact stdin, a deadline) and grade the
+nothing. Such an evaluator also declares `process_timeouts`, the deadline of
+every process one assessment may run (for example `(30,)`; registration rejects
+an execution evaluator without it): the run's execution budget, and so the
+sandbox's lifetime, is derived from these declarations
+([CAPABILITIES.md](../contracts/CAPABILITIES.md#execution-budget)). Run every
+process through `session.run_process(ProcessRequest...)` (explicit argv or an
+explicit shell, exact stdin, a deadline within the declared ones) and grade the
 returned `ProcessResult`. A program that exits non-zero or times out is an
 assessed result; `not_started` and session exceptions are infrastructure
 failures. See [PROCESSES.md](../contracts/PROCESSES.md).
 
 Most execution evaluators subclass `BaseExecutionTest`, which declares the
-capability and supplies the shared steps: `run_program(evaluation,
+capability and its one 30 s run and supplies the shared steps: `run_program(evaluation,
 program_command, inputs)` runs the bound language's command (a string, a
 language map or `CMD`, checked at compilation) with exact stdin lines, and
 `assessed_failure(result, locale)` returns the assessed zero for a timeout or
@@ -157,7 +162,10 @@ split, and that a host without the capability fails before acquisition.
 ### Host composition
 
 Evaluator code never chooses a host. Hosts pass `HostCapabilities` whose
-`execution` is a callable from `Language` to an owned session:
+`execution` is a callable from the bound `Language` and the run's
+`ExecutionBudget` to an owned session that lives at least
+`budget.session_seconds`, and whose `max_session_seconds` states the longest
+session the host grants:
 
 ```python
 from execution_host.docker import DockerHost

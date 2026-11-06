@@ -54,7 +54,7 @@ def store(application):
                                          "course/empty": b""})
     sessions = []
     application.state.host.capabilities = HostCapabilities(
-        execution=lambda language: RecordingSession(sessions), fixtures=provider)
+        execution=lambda language, budget: RecordingSession(sessions), fixtures=provider)
     application.state.host.worker.capabilities = application.state.host.capabilities
     return client, sessions
 

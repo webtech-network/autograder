@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from autograder.models.capabilities import HostCapabilities, requirements_for
+from autograder.models.capabilities import HostCapabilities, check_budget, requirements_for
 from autograder.models.contracts.definition import CompiledDefinition, compile_definition, select_language, DefinitionValidationError
 from autograder.models.contracts.outcome import (
     MAX_REPORT_BYTES, CompletedOutcome, FailedOutcome, FeedbackOutcome, OutcomeError, bound_text)
@@ -95,16 +95,22 @@ class AutograderPipeline:
             requirements = requirements_for(self.compiled, submission.language)
             validate_submission(self.compiled, submission, requirements)
             check_capabilities(requirements.capabilities, self.capabilities)
+            needs_session = bool(requirements.capabilities & EXECUTION_CAPABILITIES)
+            if needs_session:
+                check_budget(requirements.budget, self.capabilities.max_session_seconds)
             _observe(observer, execution_id, operation)
 
-            # Only selected evaluators (and preparation) that declare execution acquire a session.
-            if requirements.capabilities & EXECUTION_CAPABILITIES:
+            # Only selected evaluators (and preparation) that declare execution acquire a session,
+            # granted for the budget their declared deadlines add up to.
+            if needs_session:
                 operation = "open_session"
                 acquire = (self.capabilities.server_execution if "http_network" in requirements.capabilities
                            else self.capabilities.execution)
                 try:
-                    session = acquire(submission.language)
+                    session = acquire(submission.language, requirements.budget)
                     session.prepare_workdir(submission.submission_files)
+                except EvaluationError:
+                    raise  # the host refused the budget: not a transient capability failure
                 except Exception as exc:
                     raise EvaluationError("CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.", "capability", True) from exc
                 _observe(observer, execution_id, operation)

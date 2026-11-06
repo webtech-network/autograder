@@ -131,7 +131,7 @@ class FailingTransport:
 @pytest.mark.parametrize("locale", ["en", "pt-br"])
 @pytest.mark.parametrize("language", LANGUAGES)
 def test_infrastructure_failure_at_the_session_seam_exposes_no_detail(docker_host, language, locale):
-    capabilities = HostCapabilities(execution=lambda lang: FailingTransport(docker_host.capabilities.execution(lang)))
+    capabilities = HostCapabilities(execution=lambda lang, budget: FailingTransport(docker_host.capabilities.execution(lang, budget)))
     error = grade(capabilities, language, {SOURCE[language]: BROKEN[language]}, locale=locale)
     data = error.model_dump(mode="json")
     data.pop("correlation_id")

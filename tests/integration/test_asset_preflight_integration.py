@@ -15,7 +15,7 @@ def test_typed_fixture_maps_to_host_root_and_closes_owned_session():
     resolver = Mock(return_value=b"asset bytes")
     pipeline = build_pipeline(definition=definition(preparation={"fixtures": [
         {"reference": "datasets/data.csv", "path": "data.csv", "read_only": True}]}),
-        capabilities=HostCapabilities(execution=lambda language: session, fixtures=resolver))
+        capabilities=HostCapabilities(execution=lambda language, budget: session, fixtures=resolver))
     assert pipeline.run(submission()).outcome.status == "completed"
     resolver.assert_called_once_with("datasets/data.csv")
     assets = concrete.inject_assets.call_args.args[0]

@@ -177,7 +177,7 @@ def test_html_and_io_pipelines_do_no_structural_parsing():
         io = build_pipeline(definition={"schema_version": "1.0", "templates": ["input_output"],
             "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [{
                 "id": "io", "type": "dont_fail", "name": "Run", "parameters": {"program_command": "python3 main.py"}}]}}},
-            capabilities=HostCapabilities(execution=lambda _: session))
+            capabilities=HostCapabilities(execution=lambda _, __: session))
         submitted = files(("main.py", "import helper"), ("helper.py", "x=1"), ("README.md", "docs"))
         assert io.run(submission(submitted, EvaluationScope(scoped_files=["main.py"]))).outcome.score == 100
         session.prepare_workdir.assert_called_once_with(submitted)

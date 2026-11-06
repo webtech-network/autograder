@@ -16,16 +16,25 @@ created, in use, being removed or quarantined never exceed N across all
 languages, for grading and deliberate execution alike. ``general.pool_size`` warm
 idle containers per language are kept outside N.
 """
+import math
 import os
 from dataclasses import dataclass
 from typing import Dict, List
 
 import yaml
 
+from autograder.models.abstract.execution_test import RUN_TIMEOUT_SECONDS
+from autograder.models.capabilities import ExecutionBudget
 from autograder.models.language import Language
 from sandbox_manager.docker_profile import RUNTIMES
 
 GENERAL_KEYS = {"runtime", "max_sandboxes", "pool_size", "running_timeout", "disposal_attempts"}
+#: The shipped host maximum (``general.running_timeout``): up to 26 thirty-second processes.
+DEFAULT_RUNNING_TIMEOUT = 900
+#: The shortest host maximum that can execute anything: one session running one
+#: process at the assessed-run deadline (30 + 2 + 60 = 92 s). Below it every
+#: execution definition would be refused with EXECUTION_BUDGET_EXCEEDED.
+MIN_RUNNING_TIMEOUT = math.ceil(ExecutionBudget(RUN_TIMEOUT_SECONDS, 1).session_seconds)
 REMOVED_KEYS = {
     "scale_limit": "per-language scale_limit was replaced by the host-wide general.max_sandboxes",
     "idle_timeout": "idle_timeout was removed: warm containers never exceed pool_size, so none expire",
@@ -38,7 +47,7 @@ class SandboxPoolConfig:
     language: Language
     image: str
     pool_size: int        # Warm idle containers kept for this language (outside the budget).
-    running_timeout: int  # Seconds a handed-out sandbox may live, counted from the grant.
+    running_timeout: int  # The longest lifetime granted to a sandbox, counted from the grant.
     # Bounded attempts to remove a quarantined container before it stays
     # quarantined (still holding its budget slot) for an operator.
     disposal_attempts: int = 5
@@ -50,6 +59,11 @@ class SandboxHostConfig:
     runtime: str
     max_sandboxes: int
     pools: List[SandboxPoolConfig]
+
+    @property
+    def running_timeout(self) -> int:
+        """The longest lifetime this host grants a sandbox (``general.running_timeout``)."""
+        return min(pool.running_timeout for pool in self.pools)
 
     @classmethod
     def load_from_yaml(cls, config_path: str = "sandbox_config.yml") -> "SandboxHostConfig":
@@ -89,7 +103,8 @@ class SandboxHostConfig:
         if pool_size > max_sandboxes:
             raise ValueError(f"Invalid sandbox configuration: pool_size ({pool_size}) cannot exceed "
                              f"max_sandboxes ({max_sandboxes}); warm containers beyond N can never be used")
-        running_timeout = _integer(general, 'running_timeout', default=60, minimum=1)
+        running_timeout = _integer(general, 'running_timeout', default=DEFAULT_RUNNING_TIMEOUT,
+                                   minimum=MIN_RUNNING_TIMEOUT)
         disposal_attempts = _integer(general, 'disposal_attempts', default=5, minimum=1)
         return cls(runtime=runtime, max_sandboxes=max_sandboxes, pools=[SandboxPoolConfig(
             language=language,
@@ -103,7 +118,9 @@ class SandboxHostConfig:
 def _integer(general: dict, key: str, *, minimum: int, default=None) -> int:
     value = general.get(key, default)
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
-        raise ValueError(f"Invalid sandbox configuration: general.{key} must be an integer >= {minimum}")
+        reason = (f" (the smallest session one execution needs; {key} is the longest sandbox lifetime "
+                  "this host grants)" if key == "running_timeout" else "")
+        raise ValueError(f"Invalid sandbox configuration: general.{key} must be an integer >= {minimum}{reason}")
     return value
 
 

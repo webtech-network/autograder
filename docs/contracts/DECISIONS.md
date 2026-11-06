@@ -432,8 +432,60 @@ names exactly those references; floating local `:latest` tags are gone. A
 present and declares its language in the `autograder.runtime.languages` label,
 and raises `RuntimeImageError` otherwise. Hosts therefore pull or build the
 configured images before starting; an old unlabelled image is rejected rather
-than silently used. Service and Action images are a later change. See
-[LANGUAGES.md](LANGUAGES.md#runtime-images).
+than silently used. See [LANGUAGES.md](LANGUAGES.md#runtime-images).
+
+## Lean service and Action images (ENV-04)
+
+The API, sandbox manager and Action each have an image that holds only what its
+process imports: locked runtime dependencies (`server`, the new `sandbox` extra,
+or the base dependencies) in `/opt/venv` and an allow-listed set of first-party
+directories in `/app`, on a digest-pinned `python:3.13-slim` base. The API and
+sandbox manager images no longer share contents: the sandbox manager has no web
+or database stack. No image has `dockerd`, `containerd`, a Docker CLI, Node.js,
+curl, uv or a test tool. The build context is an allow-list (`.dockerignore`),
+so `.env`, `.venv`, `data/` and caches never enter an image. `action.yml` pins
+`docker://ghcr.io/webtech-network/autograder-action:<version>` instead of building
+`Dockerfile.actions` in every job. A version is released once, gated on
+verification, from the branch that raises it (`workflow_dispatch`), before
+that branch can merge: the image is pushed first, then a git tag of the same
+name. `make action-check` (`scripts/action_image.py check`) fails unless
+the `<version>` tag is an ancestor of the checked commit, no released path
+differs between the tagged commit and the checked one, and the pinned image is
+pullable with an empty `DOCKER_CONFIG`. The released paths are `action.yml`
+(read by consumers from the branch), `Dockerfile.actions`, `.dockerignore` and
+every build-context path that Dockerfile copies (read from it, so a new `COPY`
+joins automatically): any change to the Action interface or the image's inputs
+needs a new version and release, or the check fails. It runs in the
+`Service and Action images` job of `verify.yml` on every pull request into
+`main` and on every push to `main`, where `deploy` needs that job. That is what
+enforces it today: a red job on a pull request into `main`, and no API deploy
+from a `main` commit that fails it. It blocks a merge only once the `main`
+ruleset requires that job; today the ruleset still requires the stale `pylint`
+and `pytest` contexts, which no workflow produces, so the merge block depends on
+the repository owner adding the Verify jobs as required checks
+([Required checks](../guides/development.md#required-checks)). With that in
+place, `main`, which every documented `uses: ...@main` follows, only ever names a
+published, public image built from its own history together with the
+`action.yml` it was released with. Release pull requests merge with a merge
+commit, so the tag stays in that history. `tests/images/`
+(`make test-images`, CI) checks the built images, including a build from a
+checkout with planted secrets and the Action grading the static example.
+
+Migration: Compose health checks use Python instead of curl. Deployments that
+run `curl` inside the API or sandbox manager containers must do the same. The
+Action image no longer contains Node.js or `tree`. `@main` follows the latest
+released image rather than building the current commit; consumer workflows
+need no change. The first merge of this change into `main` requires
+`autograder-action:0.6.0` to be released from the merging branch and the new
+GHCR package to be made public, verified with an anonymous `docker manifest
+inspect`, and nothing released may change on that branch after the release
+(a later Wave change to `autograder/`, `github_action/` or `action.yml` needs a
+new version). Before that merge, the repository owner replaces the `main`
+ruleset's stale required checks (`pylint`, `pytest`) with the Verify job names
+and confirms them with `gh api`; until then a red `make action-check` is
+visible but does not block the merge. See
+[Releasing a version](../github_action/README.md#releasing-a-version). GitHub
+Release notes remain manual.
 
 ## Closed locale and outcome-code vocabularies (COR-07)
 
@@ -521,6 +573,27 @@ command or submitted file names. The dead `preflight.*` and `system.*` catalog
 keys were replaced by the keys now used; a test keeps that namespace free of
 unused or missing keys in both locales. See
 [OUTCOMES.md](OUTCOMES.md#explained-submission-failures).
+
+## One execution time budget (COR-02)
+
+Four unrelated clocks bounded a grading (per-process deadlines, the reaper's
+`running_timeout`, an unbounded HTTP lease and `sleep infinity`), so a legitimate
+worst case longer than `running_timeout` failed with `SANDBOX_ERROR`, and a
+crashed owner left its student processes running until something reclaimed
+them. Now compilation derives one `ExecutionBudget` from deadlines already
+declared (evaluator `process_timeouts`, 30 s per setup command; no authoring
+field), and the one host knob is the maximum `running_timeout`. A budget the host
+cannot grant is refused before any code runs (`EXECUTION_BUDGET_EXCEEDED`; HTTP
+422 at validation and acceptance, never after queueing). Each granted sandbox
+arms its own lifetime with a root exec the submission cannot signal and stops
+itself then, whatever happens to its owner; owner-lease reclamation only removes
+stopped records. Every process runs before the one AI call, so the sandbox
+lifetime holds only process time. An HTTP attempt's deadline is the session
+lifetime from the grant plus the provider deadline per AI call plus a margin; it
+ends as a retryable `ATTEMPT_DEADLINE_EXCEEDED` without further lease renewal.
+Re-queuing is left to COR-03. See [SANDBOX.md](SANDBOX.md#sandbox-lifetime),
+[CAPABILITIES.md](CAPABILITIES.md#execution-budget) and
+[JOBS.md](JOBS.md#attempt-deadline).
 
 ## Bounded writable paths and an explicit runtime (COR-04)
 
