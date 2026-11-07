@@ -73,11 +73,11 @@ def test_bonus_and_penalty_caps_are_validated_against_leaf_scores():
     value['criteria']['base']['tests'][0]['parameters']={'forbidden_imports':['sys']}
     test = deepcopy(value['criteria']['base']['tests'][0])
     test['id'] = 'bonus'
-    value['criteria']['bonus']={'weight':25,'tests':[test]}
+    value['criteria']['bonus']={'max_points':25,'tests':[test]}
     test = deepcopy(test)
     test['id'] = 'penalty'
     test['parameters']={'forbidden_imports':['os']}
-    value['criteria']['penalty']={'weight':50,'tests':[test]}
+    value['criteria']['penalty']={'max_points':50,'tests':[test]}
     execution = build_pipeline(definition=value).run(submission('import os'))
     assert execution.outcome.score == 75
     assert outcome_score_vector(execution.outcome) == {'imports':100,'bonus':100,'penalty':0}
