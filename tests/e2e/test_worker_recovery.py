@@ -49,7 +49,7 @@ def program(sleep_seconds=0.0):
     return f"import time\nname = input()\ntime.sleep({sleep_seconds})\nprint(f'Hello, {{name}}')\n"
 
 
-DEFINITION = definition(template="input_output", tests=[
+DEFINITION = definition(tests=[
     {"id": "greets", "name": "Greets", "type": "expect_output",
      "parameters": {"program_command": "python3 main.py", "inputs": ["Ada"], "expected_output": "Hello, Ada"}}])
 
