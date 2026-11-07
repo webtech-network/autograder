@@ -39,6 +39,60 @@ and none of the workflow's tokens, and removes it before the step ends
 ([requirements](README.md#requirements)). CI runs exactly this workflow on every
 change to the Action.
 
+## Check the definition first
+
+Before students push, check the definition and grade a reference solution with
+it. From a checkout of this repository (`uv sync`), with the reference solution
+in a directory:
+
+```sh
+python -m execution_host.check .github/autograder/definition.json --submission solution
+```
+
+The command compiles the definition exactly as the Action and the HTTP service
+do and prints each error at its JSON path, for example
+``templates[0]: Unknown template `web_dev`; did you mean `webdev`? [UNKNOWN_TEMPLATE]``.
+It states the sandbox time the definition needs per language and the most this
+host grants. Each `--submission` directory (repeatable) is read as the Action
+reads a checkout and graded through the same pipeline; criteria that run code
+use one sandbox at a time on the local Docker, as the Action does on the runner.
+It prints every criterion's score and report, then the rendered feedback (or
+`Feedback: disabled`). A failed grading prints its code, explanation and, for a
+failed setup step, the step's output. `--language` selects the language when
+the definition allows several, `--locale` the feedback language, and
+`--min-score N` fails a reference that completes below `N`.
+
+| Exit status | Meaning |
+| --- | --- |
+| `0` | The definition is valid and every reference completed (at or above `--min-score`). |
+| `1` | The definition is invalid, or a reference failed to grade or scored below `--min-score`. |
+| `2` | The check could not run: a usage error, an unreadable file or directory, or no Docker, runtime image or AI provider for grading. |
+
+As an optional CI step in the repository that holds the definition and its
+reference solution, run the same command from the Action's image, giving it the
+runner's Docker:
+
+```yaml
+name: Check definition
+on: [pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate the definition and grade the reference solution
+        run: >
+          docker run --rm --volume "$PWD:/work" --workdir /work
+          --volume /var/run/docker.sock:/var/run/docker.sock
+          --entrypoint python ghcr.io/webtech-network/autograder-action:main
+          -m execution_host.check .github/autograder/definition.json
+          --submission solution --min-score 100
+```
+
+Omit `--submission` (and the Docker socket) to validate only.
+
 ## Results
 
 The Action summary shows status and authoritative score. The artifact contains

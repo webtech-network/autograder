@@ -8,11 +8,14 @@ examples use `assets/web_dev/definition.json` and `assets/api_testing/definition
 its `storage-init` service) with `main.py` as a correct submission.
 Student sample sources remain under `assets/input_output/code_examples/`.
 
-Validate all calculator definitions from the repository root:
+Check a definition, then grade a reference solution with it (code-running
+criteria use a sandbox on the local Docker), from the repository root:
 
 ```sh
-python examples/assets/input_output/scripts/validate_criteria.py
+python -m execution_host.check examples/assets/web_dev/definition.json --submission examples/assets/web_dev
 ```
+
+See [Check the definition first](../docs/github_action/quick-start.md#check-the-definition-first).
 
 The [contract fixtures](../docs/contracts/DEFINITIONS.md#examples-and-errors) also
 cover C, artifacts, AI/static analysis and invalid authoring examples. Old split
