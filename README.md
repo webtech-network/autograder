@@ -224,6 +224,19 @@ organized by task: author an assignment, integrate, extend, operate.
 
 ---
 
+## Versions
+
+Releases follow Semantic Versioning, from 1.0.0.
+[Versions and stability](docs/contracts/STABILITY.md) states which surfaces a
+version promises and how breaking changes and deprecations are handled,
+[CHANGELOG.md](CHANGELOG.md) lists each release's changes, and
+[upgrading to 1.0.0](docs/contracts/DECISIONS.md#upgrading-to-100) covers earlier
+tags and deployments. Pin a release in `uses:`
+(`webtech-network/autograder@<version>`) for reproducible grading; `@main`
+follows the newest verified commit of `main`.
+
+---
+
 ## Performance
 
 Capacity depends on hardware, configuration and assignments, so the project

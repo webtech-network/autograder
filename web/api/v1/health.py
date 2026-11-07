@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from fastapi.responses import JSONResponse
 
+from autograder import __version__
 from web.config.logging import get_logger
 from web.api.deps import configured_principals, get_host
 
@@ -21,7 +22,7 @@ async def health_check():
     return {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "version": "1.0.0"
+        "version": __version__,
     }
 
 

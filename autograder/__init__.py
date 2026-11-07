@@ -1,4 +1,7 @@
 """Supported Python facade for definitions, discovery and terminal results."""
+#: The release version, as ``pyproject.toml`` declares it (``tests/unit/test_release.py`` keeps them equal).
+__version__ = "1.0.0"
+
 from autograder.autograder import build_pipeline
 from autograder.models.capabilities import HostCapabilities
 from autograder.models.execution import (

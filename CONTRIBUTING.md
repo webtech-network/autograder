@@ -68,6 +68,16 @@ We currently follow a **basic Git workflow** and coordinate work through GitHub 
 - Keep PRs focused and reviewable.
 - Address review feedback from maintainers.
 
+## Compatibility
+
+Public surfaces (the grading definition, terminal outcome, Python API, HTTP API,
+Action inputs and outputs, and host configuration) follow
+[Versions and stability](docs/contracts/STABILITY.md): a breaking change needs a
+major release and a deprecation first. Add each user-visible change to the
+`[Unreleased]` section of [CHANGELOG.md](CHANGELOG.md) in the same pull request,
+with migration steps in [DECISIONS.md](docs/contracts/DECISIONS.md#migration-notes)
+when users must act.
+
 ## Review and Merge
 
 Once your PR is open, maintainers will review it. After requested changes are addressed and approvals are in place, the PR can be merged.

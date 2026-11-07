@@ -107,6 +107,7 @@ nav:
           - Cloud Publication: github_action/external-mode.md
           - Identity and Trust: github_action/trust.md
           - Cloud Publication Rollout: guides/external-mode-rollout.md
+      - Versions and Stability: contracts/STABILITY.md
       - Decisions and Migration Notes: contracts/DECISIONS.md
   - Extend:
       - Adding an Evaluator: architecture/extending.md

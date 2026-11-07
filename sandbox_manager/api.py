@@ -32,6 +32,7 @@ from fastapi import APIRouter, Depends, FastAPI, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from autograder import __version__
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.dataclass.submission import SubmissionFile
 from autograder.models.process import SandboxExhausted
@@ -549,7 +550,7 @@ def create_app(settings: Optional[ControlSettings] = None,
 
     application = FastAPI(title="Sandbox Manager API",
                           description="Private control API for sandbox containers",
-                          version="2.0.0", lifespan=lifespan)
+                          version=__version__, lifespan=lifespan)
     application.add_middleware(BodyLimitMiddleware)
 
     @application.exception_handler(ControlError)

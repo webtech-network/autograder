@@ -2,7 +2,9 @@
 
 ## Supported Versions
 
-Security fixes are currently prioritized for the latest code on the `main` branch.
+Security fixes go to the latest release, as a new patch or minor release, and to
+`main`. Earlier releases are not patched; see
+[Versions and stability](docs/contracts/STABILITY.md#supported-versions).
 
 ## Reporting a Vulnerability
 
