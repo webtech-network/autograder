@@ -94,16 +94,11 @@ provider.
 
 There is no fixture cache. Every run reads the current object for each reference,
 so distinct references (for example `a/b` and `a_b`) cannot alias, replacing an
-object needs no invalidation, and no process writes cache files. The former
-in-memory/disk cache (`EXTERNAL_ASSETS_IN_MEMORY_CACHE_LIMIT`,
-`/tmp/autograder_assets_cache`) was removed because no measurement established a
-latency or cost benefit; a host that needs one must key it by full provider
-identity (endpoint, bucket, key and object version), write atomically, and
-document invalidation, size and lifetime.
+object needs no invalidation, and no process writes cache files. A host that
+needs a cache must key it by full provider identity (endpoint, bucket, key and
+object version), write atomically, and document invalidation, size and lifetime.
 
-The public `Preparation` model is consumed directly. `runtime_setup` and the
-permissive parallel `SetupConfig` parser have been removed. Definitions continue
-to use `preparation.languages.<language>.required_files`, typed named
+The public `Preparation` model is consumed directly. Definitions use `preparation.languages.<language>.required_files`, typed named
 `setup_commands`, and `fixtures` with logical `reference` and relative `path`.
 Docker maps fixtures to `/tmp/app/<path>` and artifacts to the submission root
 `/app`. Commands that read fixtures must use the host's declared root. Preparation
@@ -230,34 +225,3 @@ therefore their API outcomes fail with `SERVER_CAPABILITY_UNAVAILABLE` before
 acquisition or scoring. Ordinary I/O pools do not gain network access. A host
 that supports API assessment must supply the complete server profile explicitly.
 
-## Migration
-
-* **One fixture-set call (PRF-03).** `ExecutionSession.stage_fixture(path,
-  content, read_only)`, called once per fixture, is replaced by
-  `stage_fixtures(fixtures: Sequence[StagedFixture])`, called once with the
-  whole set (`StagedFixture` is in `autograder.models.execution`). A host
-  session that implemented `stage_fixture` renames it and loops over the
-  sequence, or better stages the set in one operation. No definition, wire or
-  configuration change. Fixtures are now all fetched before any is staged, so a
-  missing fixture leaves nothing staged; the outcome is unchanged
-  (`capability / PREPARATION_ERROR`). With the Docker host a grading's fixture
-  set went from one `docker exec` per fixture (100 for the 100-fixture maximum,
-  about 3 to 4 s) to one.
-
-## Earlier architecture issues
-
-The simpler sequence resolves the intent of #302 and #307–#312 through selected
-requirements, pure validation, explicit providers, typed preparation and one
-owner for cleanup. It does not introduce step categories, setup inheritance,
-provider retry, or publication inside the engine. Language-keyed preparation
-already expresses the required variation; a new pipeline framework is unnecessary.
-
-| Earlier proposal | Resolution in the current contract |
-| --- | --- |
-| #302 decompose preflight | Keep the short preparation sequence; resource acquisition and pure validation are separate. |
-| #307 add step categories | Superseded: no runtime behavior needs category labels. |
-| #308 add FileCheckStep | Fulfilled by pure bootstrap validation before any provider call; a separate step class is unnecessary. |
-| #309 add AssetInjectionStep | Fulfilled by typed fixture staging through the acquired session. |
-| #310 add SetupCommandsStep | Fulfilled by typed selected-language commands after fixtures. |
-| #311 merge template setup | Superseded: evaluator capabilities and explicit definition preparation express current requirements without inheritance. |
-| #312 remove PreFlightStep | Completed by ARC-01: typed preparation is a direct function call; the wrapper, legacy parsing and provider construction are removed. |

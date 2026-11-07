@@ -63,7 +63,7 @@ and the engine knows nothing about attempts. One budget,
 
 A release is fenced like publication (only the attempt that owns the row can
 release it), records the attempt as `released`, logs its error code, removes the
-attempt's ownership (its lease is no longer renewed) and sets the lease to expire
+attempt's ownership (nothing renews its lease) and sets the lease to expire
 after `WEB_RETRY_SECONDS` (**30 s**) × 2^(attempt − 1), at most one hour: 30 s
 after the first attempt, 60 s after the second. Any worker's ordinary reclaim then
 starts the next attempt, on the same saved input. A retryable failure is

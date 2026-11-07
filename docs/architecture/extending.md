@@ -110,17 +110,18 @@ exists.
 | Discovery reports exactly the capabilities the evaluator declares | `tests/unit/test_catalog.py::test_discovery_capabilities_come_only_from_evaluators_including_mixed_templates` |
 | Every `t("key")` exists in `autograder/translations/en.json` and `pt_br.json`, with the same placeholders | `tests/unit/test_translations.py::test_all_source_keys_exist`, `tests/unit/test_translations.py::test_placeholders_match` |
 | Static evaluators (no `ai_provider`): a passing and a failing case in `tests/builtin_evaluator_cases.py`, recorded in `tests/builtin_evaluator_golden.json` | `tests/unit/test_builtin_evaluator_golden.py::test_golden_cases_cover_every_static_builtin_with_both_outcomes` |
-| Regenerate the wire schemas with `python scripts/generate_contract_schemas.py` (the definition schema carries every evaluator's parameters) | `tests/unit/test_config_models.py::test_checked_in_examples_and_schema_are_current`, `tests/web/test_template_catalog.py::test_openapi_gives_typed_template_and_evaluator_models` |
+| Regenerate the wire schemas with `python scripts/generate_contract_schemas.py` (the definition schema carries every evaluator's parameters) | `tests/unit/test_config_models.py::test_checked_in_schema_is_current`, `tests/web/test_template_catalog.py::test_openapi_gives_typed_template_and_evaluator_models` |
 | Give every parameter an English `description` and regenerate the [evaluator reference](../reference/evaluators.md) with `python scripts/generate_reference.py` (`make contracts` fails on a stale page) | `tests/unit/test_generated_reference.py::test_every_discovery_text_is_a_nonempty_default_locale_description`, `tests/unit/test_generated_reference.py::test_checked_in_reference_matches_the_contracts` |
-| Criterion snippets in `docs/template-library/` and the README template tables name registered evaluators and compile | `tests/unit/test_architecture.py::test_template_reference_criterion_snippets_compile`, `tests/unit/test_architecture.py::test_readme_template_tables_name_registered_evaluators_and_parameters` |
+| The reference's example criterion for the evaluator compiles as written | `tests/unit/test_generated_reference.py::test_generated_criterion_examples_compile_as_written` |
 
 `tests/unit/test_non_vacuous_criteria.py` also checks that, with only its
 required parameters, no presence check passes an irrelevant project.
 
 Not enforced, so reviewers check them: execution and API evaluators get a real
 Docker case beside `tests/integration/test_builtin_io_evaluators.py` (golden
-cases cover static evaluators only); scoring semantics the contract cannot
-state are explained in its `docs/template-library/` page; runtime-only failures are moved to compilation
+cases cover static evaluators only); scoring semantics the parameters cannot
+state are explained in its `description` (and `absence_check`), which the
+[evaluator reference](../reference/evaluators.md) renders; runtime-only failures are moved to compilation
 (see step 2).
 
 ## Evaluators that run code

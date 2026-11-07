@@ -58,8 +58,8 @@ a rollback name one verified commit. `docker-compose.yml` runs the local names
 lines to the published references (or `docker tag` them to those names). There
 are no versioned releases before 1.0.0.
 
-1. **Read the migration notes** of the commits you upgrade across ([decisions](../contracts/DECISIONS.md)): [retired variables](configuration.md#retired-variables),
-   [Sandbox ownership](../contracts/SANDBOX.md#migration) and
+1. **Read the migration notes** of the commits you upgrade across ([decisions](../contracts/DECISIONS.md#migration-notes)): [retired variables](configuration.md#retired-variables),
+   [Sandbox ownership](../contracts/DECISIONS.md#sandbox-ownership-and-configuration) and
    [Durable jobs](../contracts/JOBS.md#deployment-and-migration).
 2. **Pull** the new `api` and `sandbox-manager` images and the runtime images of
    the new `sandbox_config.yml`.

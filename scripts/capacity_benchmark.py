@@ -51,7 +51,7 @@ from pathlib import Path
 
 import httpx
 
-EXAMPLES = Path(__file__).resolve().parents[1] / "docs" / "contracts" / "v1" / "examples"
+EXAMPLES = Path(__file__).resolve().parents[1] / "examples" / "definitions"
 WORKLOADS = ("python-io", "webdev", "mix")
 ALIASES = {"python-io": "capacity-benchmark-python-io", "webdev": "capacity-benchmark-webdev"}
 TERMINAL = ("completed", "failed")

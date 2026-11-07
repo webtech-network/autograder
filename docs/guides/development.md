@@ -281,7 +281,7 @@ For cross-cutting execution changes, update the explicit call sequence in
 Keep required assessment failures separate from optional enrichment failures,
 and close owned sessions before constructing the terminal outcome.
 Do not add step registries or store intermediate artifacts in diagnostic events.
-See [the grading flow](../core/pipeline-architecture.md).
+See [the grading flow](../architecture/overview.md#run-order).
 
 ### Changing the database schema
 
@@ -310,7 +310,7 @@ for the issue and pull request workflow.
 ### Grading runs
 
 `evaluate_submission(..., observer=events.append)` and `pipeline.run(submission,
-observer=...)` accept an optional observer that receives frozen [diagnostic observations](../architecture/pipeline_execution_tracking.md)
+observer=...)` accept an optional observer that receives frozen [diagnostic observations](../architecture/overview.md#diagnostics)
 (no grading data). The terminal outcome's `error` carries a safe code and
 message for failed runs.
 

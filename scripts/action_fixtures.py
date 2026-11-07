@@ -83,18 +83,18 @@ class Fixture:
 
 
 FIXTURES = {
-    "static": Fixture("docs/contracts/v1/examples/static-conformance.json",
+    "static": Fixture("examples/definitions/static-conformance.json",
                       {"index.html": "<!doctype html><title>ok</title>\n"}, "completed", 100, sandboxes=0),
-    "python-io": Fixture("docs/contracts/v1/examples/python-io.json",
+    "python-io": Fixture("examples/definitions/python-io.json",
                          {"main.py": "a = int(input())\nb = int(input())\nprint(a + b)\n"},
                          "completed", 100, sandboxes=1),
-    "c-io": Fixture("docs/contracts/v1/examples/c-io.json",
+    "c-io": Fixture("examples/definitions/c-io.json",
                     {"main.c": '#include <stdio.h>\nint main(void) {\n  int a, b;\n'
                                '  if (scanf("%d %d", &a, &b) != 2) return 1;\n  printf("%d\\n", a + b);\n'
                                '  return 0;\n}\n'},
                     "completed", 100, sandboxes=1),
     # A wrong answer is an assessed zero: the Action succeeds and reports it.
-    "python-io-wrong": Fixture("docs/contracts/v1/examples/python-io.json", {"main.py": "print(0)\n"},
+    "python-io-wrong": Fixture("examples/definitions/python-io.json", {"main.py": "print(0)\n"},
                                "completed", 0, sandboxes=1),
     "probe": Fixture("examples/contracts/input_output.json", {"main.py": PROBE}, "completed", 0, sandboxes=1,
                      probe=True),

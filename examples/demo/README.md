@@ -1,10 +1,13 @@
 # Browser demo
 
-Start the local API, then run `python examples/demo/serve_demo.py` from the
-repository root and open `http://localhost:8080/demo/`. The server also exposes
-checked-in definitions/student sources used by the demo. Configuration, PATCH,
-submission and polling requests use the canonical v1 integration contracts.
+Start the local API (`make start-autograder`), then run `make examples-demo`
+and open `http://localhost:8080/demo/`. The demo server also serves the
+checked-in definitions and student programs under `examples/assets/` that the
+demo loads. Configuration, submission and polling requests use the v1
+integration contracts.
 
-Set the API base URL and its integration token on the landing page. Full outcome
-details require that token; compact status polling does not. See the
-[example instructions](../README.md).
+Enter the API's address and its integration token on the landing page. Every
+request the demo makes except the health check and the template catalog,
+including polling a submission, requires that token
+([AUTH.md](../../docs/contracts/AUTH.md)). See the
+[examples overview](../README.md).

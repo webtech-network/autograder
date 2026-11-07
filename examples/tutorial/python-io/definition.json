@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "templates": ["input_output", "static_analysis"],
+  "languages": ["python"],
+  "criteria": {
+    "base": {
+      "weight": 100,
+      "subjects": [
+        {
+          "subject_name": "Adds two numbers",
+          "weight": 80,
+          "tests": [
+            {
+              "id": "sum-positive",
+              "type": "expect_output",
+              "name": "Adds two positive numbers",
+              "parameters": {
+                "program_command": "python3 main.py",
+                "inputs": ["2", "3"],
+                "expected_output": "5"
+              }
+            },
+            {
+              "id": "sum-negative",
+              "type": "expect_output",
+              "name": "Adds a negative number",
+              "parameters": {
+                "program_command": "python3 main.py",
+                "inputs": ["-7", "4"],
+                "expected_output": "-3"
+              }
+            }
+          ]
+        },
+        {
+          "subject_name": "Handles bad input",
+          "weight": 20,
+          "tests": [
+            {
+              "id": "text-input",
+              "type": "dont_fail",
+              "name": "Does not crash on text input",
+              "parameters": {"program_command": "python3 main.py", "user_input": "abc"}
+            }
+          ]
+        }
+      ]
+    },
+    "penalty": {
+      "weight": 20,
+      "tests": [
+        {
+          "id": "no-eval",
+          "type": "forbidden_keyword",
+          "name": "Does not call eval",
+          "parameters": {"forbidden_keywords": ["eval_call"]}
+        }
+      ]
+    }
+  },
+  "preparation": {"languages": {"python": {"required_files": ["main.py"]}}},
+  "feedback": {"enabled": true}
+}

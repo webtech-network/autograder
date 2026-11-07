@@ -110,7 +110,7 @@ Generated artifacts are outputs read through the execution session after the
 program runs; they are not extra submitted source or an implicit upload channel.
 See [host capabilities](CAPABILITIES.md) for ownership and workspace mapping.
 
-## Details and migration
+## Details
 
 Compact polling and history omit files, metadata, scope and the result tree.
 Authenticated `GET /api/v1/submissions/{id}/details` returns each stored file as
@@ -132,14 +132,9 @@ an object under its filename key:
 }
 ```
 
-Clients previously reading `details.submission_files[name]` as a string must now
-read `.content`. Legacy string-valued stored files project as objects with null
-metadata and changed lines; they are not revalidated or assigned invented change
-information. Old history retains its unverified provenance status.
-
-Before upgrading clients, send canonical names, remove empty scopes, and omit
+Clients send canonical names, remove empty scopes, and omit
 changed-line data when unavailable rather than sending stale or deleted-file line
 numbers. Put binary fixtures in trusted host fixture storage; restrict the Action
-submission root to the intended text inputs. HTTP acceptance now returns 202
-with a `Location` status URL after commit; clients should poll it to completion.
+submission root to the intended text inputs. HTTP acceptance returns 202
+with a `Location` status URL after commit; clients poll it to completion.
 See [durable jobs](JOBS.md) for restart, attempt and delivery behavior.

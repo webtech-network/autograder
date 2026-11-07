@@ -1,6 +1,6 @@
-# Example assets
+# Demo and HTTP example assets
 
-Use complete versioned definition files, never split criteria/setup/feedback
-inputs. Calculator examples live under `input_output/criteria_examples/`, and
-web/API examples in their respective `definition.json` files. See the
-[example instructions](../README.md) and [contract](../../docs/contracts/DEFINITIONS.md).
+Complete v1 definitions with student programs for the browser demo and
+`curl_examples.sh`: the calculator under `input_output/`, a web page under
+`web_dev/`, an API under `api_testing/` and a fixture-reading program under
+`fixture_io/`. See the [examples overview](../README.md).
