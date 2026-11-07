@@ -68,7 +68,8 @@ network access or credentials and is not an availability/health endpoint.
 | TemplateDescription | `identifier`, display `name`, `description`, `evaluators` |
 | EvaluatorDescription | `identifier`, `description`, `parameters_schema`, `sample_parameters`, `required_capabilities`, `supported_languages`, `absence_check` |
 
-`identifier` is the actual registry key accepted as a template or criterion `type`.
+A template `identifier` is its key in `BUILTIN_TEMPLATES` (or in `templates={...}`); an
+evaluator `identifier` is the criterion `type` that selects it.
 `parameters_schema` is generated from the evaluator's `config_schema` (explicit
 or derived from the annotated keyword-only parameters of `execute`/`build_prompt`),
 including each field's `description`, with unknown top-level parameters forbidden exactly as

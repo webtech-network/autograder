@@ -1,7 +1,9 @@
 # HTTP API v1 integration contracts
 
 Run `uvicorn web.main:app`; interactive OpenAPI is at `/docs`.
-The grading definition and outcome each carry their own `schema_version: "1.0"`.
+The grading definition carries `schema_version: "2.0"` and the outcome its own
+`schema_version: "1.0"`; an outcome's `provenance.schema_version` names the
+format of the definition it is bound to.
 See [definition contract](contracts/DEFINITIONS.md), [outcomes](contracts/OUTCOMES.md)
 and the [GitHub Action configuration](github_action/configuration.md).
 For runnable integration examples and generated OpenAPI, see

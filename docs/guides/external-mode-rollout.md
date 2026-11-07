@@ -1,7 +1,7 @@
 # External mode rollout
 
-The v1 definition/outcome contract requires coordinated workflow and server
-migration. Runtime support for the old split-file/parameter-list format is
+The definition (format 2.0) and outcome contracts require coordinated workflow
+and server migration. Runtime support for the old split-file/parameter-list format is
 removed; use the explicit offline converter and review its output first.
 
 1. Aggregate legacy assignment settings into one JSON object containing

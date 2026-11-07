@@ -58,11 +58,9 @@ is answered with:
 
 The `path` leads from the top of the definition to the field: here, the
 first criterion of `base`. Rules that relate several fields point at the field
-to change too: a `base` weight other than 100 at `["criteria","base","weight"]`,
-preparation for a language the definition does not allow at
-`["preparation","languages","java"]`. A misspelled template, evaluator or
-parameter names the closest correct one, and an evaluator from a template the
-definition does not list names that template. Publishing a definition
+to change too: preparation for a language the definition does not allow at
+`["preparation","languages","java"]`. A misspelled evaluator or parameter names
+the closest correct one. Publishing a definition
 (`POST /api/v1/configs`) applies the same checks, so a definition that
 validates is one the service accepts.
 
@@ -73,7 +71,7 @@ without a service, one line per error at its JSON path:
 python -m execution_host.check examples/tutorial/python-io/definition.json
 ```
 
-For example ``templates[0]: Unknown template `web_dev`; did you mean `webdev`? [UNKNOWN_TEMPLATE]``.
+For example ``criteria.base.tests[0].type: Unknown evaluator `has_tags`; did you mean `has_tag`? [UNKNOWN_EVALUATOR]``.
 For a valid definition it also states the sandbox time the definition needs per
 language and the most this machine's `sandbox_config.yml` grants.
 

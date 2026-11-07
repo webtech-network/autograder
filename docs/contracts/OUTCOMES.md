@@ -153,8 +153,10 @@ acceptance (HTTP 422, Action configuration) report `LANGUAGE_REQUIRED` and
 
 The tree has one root representation. Categories retain the base/bonus/penalty
 score semantics; holder scores must equal the weighted average of their children
-and the root must equal the capped combination of its categories. Base weight is
-100. Tests identify their evaluator and globally unique criterion `id`; display
+and the root must equal the capped combination of its categories. A category's
+`weight` is the points it moves: 100 for base, the definition's `max_points` for
+bonus and penalty. `provenance.schema_version` is the format of the bound
+definition: `"2.0"`, or `"1.0"` for an outcome graded before format 2.0. Tests identify their evaluator and globally unique criterion `id`; display
 names and grouping are presentation. Serialization rounds scores to two decimal
 places, and validation allows only the resulting small arithmetic rounding
 error. `outcome_score_vector(completed)` derives an ID-to-score projection from

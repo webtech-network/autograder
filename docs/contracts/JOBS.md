@@ -250,7 +250,7 @@ python scripts/capacity_benchmark.py \
 
 Each run fires one burst (`--submissions`, default 200) of concurrent submissions
 and waits, by polling the run's history, until every accepted submission is
-terminal. Workloads expand the checked-in v1 examples:
+terminal. Workloads expand the checked-in examples:
 
 | `--workload` | Definition | Submission | Executes in |
 | --- | --- | --- | --- |

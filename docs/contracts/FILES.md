@@ -23,7 +23,7 @@ files fail explicitly. Scope does not remove context or execution dependencies.
 | Default trusted evaluator | Zero or more selected files of any type |
 | HTML, CSS, single-file JavaScript checks | Exactly one matching file; use `file` when several match |
 | `forbidden_import`, `forbidden_keyword` | One or more source files matching the submission language |
-| Multi-file CSS/framework checks | Exact files named by their `html_file`, `css_file`, `js_file` parameters; missing files fail |
+| Multi-file CSS/framework checks (`count_unused_css_classes`, `has_no_js_framework`) | Every HTML and CSS (or JavaScript) file of the submission, whatever the scope; `file` narrows to one |
 | I/O and project-structure checks | Whole submission when no explicit target is supplied; scope is available separately |
 | HTTP/API checks | Zero files; assessment depends on the endpoint |
 
@@ -56,10 +56,9 @@ The same definition works with HTTP and Actions:
 
 ```json
 {
-  "schema_version": "1.0",
-  "templates": ["static_analysis"],
+  "schema_version": "2.0",
   "languages": ["python"],
-  "criteria": {"base": {"weight": 100, "tests": [{
+  "criteria": {"base": {"tests": [{
     "id": "no-loops", "type": "forbidden_keyword", "name": "No loops",
     "file": "main.py", "parameters": {"forbidden_keywords": ["for_loop"]}
   }]}}
@@ -102,7 +101,7 @@ hosts; `helper.py` and `README.md` remain context and execution input.
 ## File declarations for trusted evaluators
 
 Optional `TestFunction` declarations are `file_extensions`, `minimum_files`,
-`maximum_files`, `uses_context_files` and `file_parameters`, plus the
+`maximum_files` and `uses_context_files`, plus the
 `accepts_file(filename, language)` hook. Defaults allow zero or more scoped files
 without a type restriction; the default hook honours `file_extensions`. Source
 analysers override the hook with their parser rules (the built-in static

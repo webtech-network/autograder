@@ -39,7 +39,7 @@ types stay distinct.
 | Criterion only in baseline | `cross_revision` | — | `removed` | `null` |
 
 *Effective weight* is the criterion's possible contribution to the final score in
-points: the category weight (base 100, bonus/penalty cap) multiplied by the
+points: the category's points (100 for base, `max_points` for bonus/penalty) multiplied by the
 criterion's normalized share of that category, using the engine's sibling
 ratio, all-zero-equal-share and `subjects_weight` rules. Proportionally rescaling
 sibling weights (1:1 to 50:50) is not a reweight; regrouping into a renamed
@@ -48,10 +48,16 @@ sibling's weight changes the shares of all its siblings, so they are all
 `reweighted`.
 
 Any hash difference makes the overall score not comparable as a whole, even if
-only preparation, templates, languages or feedback changed, because those can
+only preparation, languages or feedback changed, because those can
 alter grading meaning outside individual criteria. `changed_definition_sections`
 lists which top-level definition sections differ, and `explanation` states the
 rule that applied. Per-criterion rows remain useful across revisions.
+
+An outcome bound to a format 1.0 snapshot (graded before format 2.0) keeps that
+snapshot: its hash is checked on the snapshot as stored, then the snapshot is
+read through the offline converter's structural step, so its criteria join a
+2.0 outcome's by ID. Such a comparison is `cross_revision` and lists
+`schema_version` among the changed sections.
 
 Externally attested and locally executed outcomes follow identical rules. Each
 side reports `source`: `executed` (this server graded accepted source files) or
@@ -93,11 +99,11 @@ label to "Welcome" and added `farewell`:
   "compatibility": "cross_revision",
   "baseline": {"submission_id": 17, "source": "executed", "execution_id": "4c0e…",
                "score": 60.0,
-               "provenance": {"schema_version": "1.0", "definition_hash": "<64 hex, revision 1>",
+               "provenance": {"schema_version": "2.0", "definition_hash": "<64 hex, revision 1>",
                               "reference": "7", "revision": 1}},
   "head": {"submission_id": 42, "source": "attested", "execution_id": "run-981",
            "score": 65.0,
-           "provenance": {"schema_version": "1.0", "definition_hash": "<64 hex, revision 2>",
+           "provenance": {"schema_version": "2.0", "definition_hash": "<64 hex, revision 2>",
                           "reference": "7", "revision": 2}},
   "score_delta": null,
   "improved": null,
