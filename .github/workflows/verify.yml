@@ -4,7 +4,8 @@
 # docs/guides/development.md). The `publish` job needs every verification job,
 # so a push to main publishes its images only after all of its verification
 # succeeded; a test enforces that new jobs join its `needs`. Nothing deploys,
-# and before 1.0.0 nothing is released (docs/github_action/README.md#versions-and-images).
+# and nothing is released here: release.yml re-tags what `publish` published
+# (docs/github_action/README.md#versions-and-images).
 #
 # Third-party actions are pinned to release commits (the tag is in the comment).
 name: Verify

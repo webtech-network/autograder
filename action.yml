@@ -63,9 +63,9 @@ outputs:
     description: "delivered, failed or uncertain when publication was requested. Uncertain means the server may have stored it; retrying delivery.json is safe."
 runs:
   using: docker
-  # A prebuilt image: jobs pull it and build nothing. `main` is the image built
-  # and verified from the newest verified commit of main (scripts/publish_images.py);
-  # there are no versioned releases before 1.0.0. See
+  # A prebuilt image: jobs pull it and build nothing. On main this is `:main`, the
+  # image of the newest verified commit of main (scripts/publish_images.py); the
+  # commit a release tag names pins it to that version (scripts/release.py). See
   # docs/github_action/README.md#versions-and-images.
   image: "docker://ghcr.io/webtech-network/autograder-action:main"
   env:

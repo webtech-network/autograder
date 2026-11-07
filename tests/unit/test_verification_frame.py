@@ -1,9 +1,9 @@
-"""Verification commands, their CI wiring and the publication gate (ENV-06 #427, ENV-07 #472).
+"""Verification commands, their CI wiring, the publication gate and the release job (ENV-06 #427, ENV-07 #472, REL-01 #478).
 
 Contributors and CI run the same Makefile targets. CI runs on every pull
 request, invokes only those targets, and image publication waits for every
-verification job of the same commit. Nothing deploys, and before 1.0.0 nothing
-is released.
+verification job of the same commit. Nothing deploys. Only the hand-run Release
+workflow releases, and it re-tags what publication verified instead of building.
 """
 # pylint: disable=missing-function-docstring
 import os
@@ -14,9 +14,12 @@ from pathlib import Path
 
 import yaml
 
+from scripts import release
+
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
 VERIFY = WORKFLOWS / "verify.yml"
+RELEASE = WORKFLOWS / "release.yml"
 #: A third-party action reference fixed to one immutable commit.
 PINNED = re.compile(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}")
 #: Status functions that would let a job run after a failed dependency.
@@ -96,13 +99,13 @@ def test_ci_runs_on_every_pull_request_and_on_main():
     triggers = workflow(VERIFY)["on"]
     assert triggers["pull_request"] in (None, {})  # no branch or path filter
     assert triggers["push"] == {"branches": ["main"]}
-    # No hand-run release before 1.0.0: only pull requests and main run, and publish.
+    # Nothing verifies or publishes by hand: only pull requests and main run, and publish.
     assert set(triggers) == {"pull_request", "push"}
 
 
 def test_ci_invokes_only_make_targets():
     defined, _ = makefile_targets()
-    jobs = workflow(VERIFY)["jobs"]
+    jobs = {**workflow(VERIFY)["jobs"], **workflow(RELEASE)["jobs"]}
     commands = {name: [line.strip() for step in job["steps"] if "run" in step
                        for line in step["run"].strip().splitlines()]
                 for name, job in jobs.items()}
@@ -113,7 +116,6 @@ def test_ci_invokes_only_make_targets():
             assert set(line.split()[1:]) <= defined, f"{name}: {line}"
     assert "make verify" in commands["core"]
     assert "make test-postgres" in commands["postgres"]
-
 
 
 def test_jobs_that_run_the_shipped_sandbox_configuration_install_its_runtime_first():
@@ -155,29 +157,73 @@ def test_publication_pushes_exactly_the_images_it_has_just_built_and_checked():
     assert publish["permissions"] == {"contents": "read", "packages": "write"}
 
 
-def test_only_the_gated_job_can_push_images():
+def test_only_the_gated_jobs_can_push_images():
+    # The publish job pushes what verification passed; the release job only re-tags it.
     for path in WORKFLOWS.glob("*.yml"):
         data = workflow(path)
         for name, job in data["jobs"].items():
             text = yaml.safe_dump(job)
             if ("packages" in job.get("permissions", {}) or "docker/login-action" in text
                     or "push: true" in text or "publish-images" in text):
-                assert (path, name) == (VERIFY, "publish"), f"{path.name}: {name}"
+                assert (path, name) in {(VERIFY, "publish"), (RELEASE, "release")}, f"{path.name}: {name}"
         assert "packages" not in data.get("permissions", {}), path.name
 
 
-def test_nothing_deploys_and_nothing_is_released_before_1_0_0():
-    # ENV-07: the VPS deployment is retired, and there is no versioned release,
-    # git tag or GitHub Release before 1.0.0, so no check waits for one.
+def test_nothing_deploys_and_only_the_release_job_can_write_the_repository():
+    # ENV-07: the VPS deployment is retired. REL-01: tags and GitHub Releases come
+    # only from the release job, and only through `make release` (scripts/release.py).
     for path in WORKFLOWS.glob("*.yml"):
+        data = workflow(path)
         text = path.read_text(encoding="utf-8")
         assert "ssh-action" not in text and "SSH_PRIVATE_KEY" not in text, path.name
         assert not re.findall(r"secrets\.(?!GITHUB_TOKEN\b)\w+", text), path.name
-        for forbidden in ("git tag", "git push", "gh release", "action-check", "action-publish"):
-            assert forbidden not in text, f"{path.name}: {forbidden}"
+        for forbidden in ("git tag", "git push", "gh release", "action-check", "action-publish", "make release"):
+            if (path, forbidden) != (RELEASE, "make release"):
+                assert forbidden not in text, f"{path.name}: {forbidden}"
+        assert data.get("permissions", {}).get("contents", "read") == "read", path.name
+        for name, job in data["jobs"].items():
+            if job.get("permissions", {}).get("contents", "read") != "read":
+                assert (path, name) == (RELEASE, "release"), f"{path.name}: {name}"
     assert set(workflow(VERIFY)["jobs"]) & {"deploy", "action-release"} == set()
     defined, _ = makefile_targets()
     assert defined & {"action-check", "action-publish"} == set()
+
+
+def test_the_release_runs_only_by_hand_from_main():
+    data = workflow(RELEASE)
+    # Never triggered by a push, tag, schedule, pull request or another workflow.
+    assert set(data["on"]) == {"workflow_dispatch"}
+    inputs = data["on"]["workflow_dispatch"]["inputs"]
+    assert set(inputs) == {"commit", "version"}
+    assert all(spec["required"] is True and spec["type"] == "string" for spec in inputs.values())
+    [(name, job)] = data["jobs"].items()
+    assert name == "release"
+    # The scripts that run are main's, never those of the ref it is dispatched from.
+    assert job["if"] == "github.ref == 'refs/heads/main'"
+    assert data["concurrency"] == {"group": "release", "cancel-in-progress": False}
+    assert job["permissions"] == {"actions": "read", "contents": "write", "packages": "write"}
+
+
+def test_the_release_builds_nothing_and_needs_the_published_images_of_its_commit():
+    job = workflow(RELEASE)["jobs"]["release"]
+    # No `needs`: it depends on the `publish` job of the chosen commit's Verify run,
+    # which scripts/release.py looks up by the job's name, and on the sha-<commit>
+    # images that job published; it refuses a commit without both.
+    assert "needs" not in job
+    publish = workflow(VERIFY)["jobs"]["publish"]
+    assert publish["name"] == release.PUBLISH_JOB
+    commands = [step["run"].strip() for step in job["steps"] if "run" in step]
+    assert commands == ["make install", "make release"]
+    [checkout] = [step for step in job["steps"] if step.get("uses", "").startswith("actions/checkout@")]
+    assert checkout["with"] == {"fetch-depth": 0}  # the chosen commit and main's history
+    # Inputs reach the script only as environment variables, never as shell text.
+    [run] = [step for step in job["steps"] if step.get("run", "").strip() == "make release"]
+    assert run["env"]["RELEASE_COMMIT"] == "${{ inputs.commit }}"
+    assert run["env"]["RELEASE_VERSION"] == "${{ inputs.version }}"
+    for step in job["steps"]:
+        assert "inputs." not in step.get("run", ""), step
+    recipe = make("-n", "release").stdout
+    assert "scripts.release" in recipe and '"$RELEASE_COMMIT" "$RELEASE_VERSION"' in recipe
 
 
 def test_the_documented_required_checks_are_exactly_the_verification_jobs():

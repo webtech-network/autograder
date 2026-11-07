@@ -1,0 +1,75 @@
+# Releases a verified commit of main as a version. Run by hand only, from main:
+#
+#   gh workflow run release.yml --ref main -f commit=<full SHA> -f version=<MAJOR.MINOR.PATCH>
+#
+# It builds nothing. `make release` (scripts/release.py) refuses unless the
+# commit is on main, its `Publish images from main` job succeeded (so its
+# sha-<commit> images are the ones verify.yml verified and published),
+# pyproject.toml there declares the version, CHANGELOG.md has its section and
+# no tag or other image of that version exists. It then tags those images as
+# the version by digest, tags a commit on top of the chosen one, outside main,
+# whose only change pins action.yml's runs.image to the version, and creates the
+# GitHub Release from the changelog section
+# (docs/github_action/README.md#releases).
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Full SHA of the commit of main to release (its Publish images from main job succeeded)"
+        required: true
+        type: string
+      version:
+        description: "Version to release, MAJOR.MINOR.PATCH, as pyproject.toml declares it at that commit"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # One release at a time; a queued one is never cancelled by a running one.
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release a verified commit of main
+    # The workflow and scripts/release.py run as main has them, never a branch's.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read      # the publish job of the chosen commit
+      contents: write    # the release tag and the GitHub Release
+      packages: write    # the version tags of the verified images
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version-file: .tool-versions
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          version: "0.11.15"
+          enable-cache: true
+      # uv sync --locked fails when pyproject.toml and uv.lock disagree.
+      - run: make install
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Inputs reach the script as environment variables, never as shell text.
+      - run: make release
+        env:
+          RELEASE_COMMIT: ${{ inputs.commit }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com

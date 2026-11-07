@@ -104,6 +104,79 @@ unchanged. See [deployment and migration](JOBS.md#deployment-and-migration).
 What changed for existing definitions, deployments and trusted Python code,
 kept here so that the contracts describe only current behaviour.
 
+### Upgrading to 1.0.0
+
+1.0.0 is the first release. The tags before it (`0.0.2`–`0.5.0`, `1.1.2`, `v1`,
+`v2`, `v0.0.0-285-test`) and the deployments built from `main` before the
+refactor ([#363](https://github.com/webtech-network/autograder/issues/363)) are
+not maintained, and nothing of them is compatible with 1.0.0. The
+[changelog](https://github.com/webtech-network/autograder/blob/main/CHANGELOG.md)
+lists every change; these are the steps.
+
+**GitHub Action consumers.** Those tags read `criteria.json`, `feedback.json`
+and `setup.json` from `.github/autograder/` (or a `template-preset` or
+`custom-template` input) and built their image from a Dockerfile in every job.
+
+1. Convert the rubric into one definition, `.github/autograder/definition.json`:
+   assemble the old files into the legacy envelope and run the offline
+   converter ([Definitions](#definitions)), then check the result and grade a
+   reference solution with `python -m execution_host.check`
+   ([Test your rubric](../author/testing.md)). Feedback settings move into the
+   definition's `feedback`.
+2. Pin the release: `uses: webtech-network/autograder@1.0.0`.
+3. Remove the inputs `template-preset`, `custom-template`, `feedback-type`,
+   `include-feedback`, `github-token`, `app-token` and `openai-key` (and
+   `redis_url`, `redis_token` and the underscore spellings of `v1` and `v2`).
+   AI criteria read `OPENAI_API_KEY` from the step's `env`. The job needs only
+   `contents: read`: nothing commits feedback or updates Classroom checks.
+4. Read the `status`, `score` and `result-path` outputs instead of `result`
+   (base64) and `total_score`, and upload `.autograder/` with
+   `actions/upload-artifact` to keep the outcome
+   ([Inputs and outputs](../github_action/configuration.md)).
+5. With the cloud, keep `execution-mode: external` and `grading-config-id`,
+   and add `upload-to-cloud: "true"` where results must be published; the
+   server must run 1.0.0 too. Its identity rules are in
+   [Identity and trust](../github_action/trust.md).
+
+Definitions that run code need Docker on the runner; every Linux GitHub-hosted
+runner has it ([Requirements](../github_action/README.md#requirements)).
+
+**HTTP integrators.**
+
+1. Send `Authorization: Bearer <integration token>` on every route except
+   health, readiness and the template catalog
+   ([HTTP authentication](#http-authentication-int-01)).
+2. Create configurations with one v1 definition (validate first with
+   `POST /api/v1/configs/validate`) and update them with conditional `PATCH`
+   ([REST API](../API.md)).
+3. Treat `POST /api/v1/submissions` as acceptance (`202` and `Location`), poll
+   the compact status, read files and trees from the authenticated details
+   ([Submission details](#submission-details)), and send an `Idempotency-Key` so
+   that retries are safe ([Replay safety](REPLAY.md)).
+4. Read results as the terminal outcome: `failed` has a null score and a coded
+   error ([Terminal outcomes](#terminal-outcomes), [Outcomes](OUTCOMES.md));
+   do not resubmit on `retryable: true` ([Execution retry](#execution-retry-cor-03)).
+   Send `locale` as `en` or `pt-br`.
+5. Read the catalog's `evaluators[].identifier` and `required_capabilities`
+   ([Catalog](#catalog-int-11-onb-08)).
+
+**Operators of the HTTP service.**
+
+1. Back up the database and drain the old API, then bring the schema under
+   migrations ([Existing databases](JOBS.md#existing-databases)).
+2. Remove the [retired variables](../operate/configuration.md#retired-variables),
+   set `AUTOGRADER_INTEGRATION_TOKEN` and `SANDBOX_API_TOKEN`, and write
+   `sandbox_config.yml` from the shipped one: `general.runtime`,
+   `general.max_sandboxes`, `running_timeout` and the `runtimes:` map
+   ([Sandbox ownership and configuration](#sandbox-ownership-and-configuration)).
+   With `runtime: runsc`, Docker must list gVisor.
+3. Deploy the `1.0.0` images of `autograder-api` and
+   `autograder-sandbox-manager` and the runtime images `sandbox_config.yml`
+   pins, following the [upgrade runbook](../operate/deployment.md#upgrade-runbook)
+   (`python -m web.main --check`, then the migrations).
+4. Remove containers of the old sandbox managers:
+   `python -m sandbox_manager.reclaim --legacy`.
+
 ### Definitions
 
 Convert one legacy definition envelope offline:
@@ -1065,7 +1138,7 @@ by that commit; a commit that fails verification publishes nothing. Before
 1.0.0 no `uses:` ref is reproducible: every ref runs `:main`. The 1.0.0 release
 re-tags a verified commit's `sha-<commit>` images as `1.0.0` and tags a commit,
 outside `main`, whose only change pins `runs.image` to that version
-([The 1.0.0 release](../github_action/README.md#the-100-release-plan)).
+([Releases](../github_action/README.md#releases)).
 
 Migration: consumer workflows need no change. An organization admin makes each
 package public once, after `main` first publishes it (`autograder-action` and
@@ -1103,3 +1176,36 @@ publish on the first attempt. The fixture client makes one request per fixture
 (no SDK retries). No wire, schema or engine change; see
 [JOBS.md](JOBS.md#execution-retry) and the
 [migration note](#execution-retry-cor-03).
+
+## Releases re-tag verified images (REL-01)
+
+A release is cut by hand, once, from a commit `C` of `main` whose `publish`
+job succeeded: the Release workflow (`.github/workflows/release.yml`, `make
+release`, `scripts/release.py`) re-tags `C`'s `sha-<C>` images as the version,
+by digest and without rebuilding, then tags a commit on top of `C`, outside
+`main`, whose only change pins `action.yml`'s `runs.image` to that version, and
+creates the GitHub Release with the version's `CHANGELOG.md` section as notes
+([Releases](../github_action/README.md#releases)). Rebuilding at release time
+would ship bytes nothing verified, and pinning `runs.image` on `main` would make
+`@main` run a release instead of the newest verified commit, so the pin lives
+only in the tagged commit. The workflow runs only on `workflow_dispatch` from
+`main`; the script checks every precondition before it changes anything and
+refuses a commit not on `main`, a commit without a successful publish job or
+`sha-<C>` images, a version `pyproject.toml` does not declare or the changelog
+does not describe, an existing tag, and an existing image tag with other bytes.
+An image tag identical to `sha-<C>` (an interrupted run of the same release) is
+kept, so a re-run completes it.
+
+`sha-<commit>` is now immutable in fact: the `publish` job pushes it only when
+the registry does not have it and moves `main` to that manifest in the registry
+(`docker buildx imagetools create --prefer-index=false`, which keeps the digest),
+so re-running the job for a commit cannot change what a release re-tags, and
+`main` always serves the bytes of its `sha-<commit>`.
+
+The version is declared once in `pyproject.toml`; `autograder.__version__`,
+the HTTP API (health and OpenAPI) and the sandbox control API report it, and a
+test keeps them equal. [STABILITY.md](STABILITY.md) states what a version
+promises. Frame tests check that the release workflow is dispatch-only, runs
+from `main` and only `make install` and `make release`, and that only it and the
+`publish` job can push images; script tests run against real git repositories
+with the registry and `gh` faked at the subprocess boundary.

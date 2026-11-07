@@ -67,7 +67,8 @@ has pylint false positives to resolve first.
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout as `<IMAGE_PREFIX>-<name>:<IMAGE_TAG>` (default `autograder-<name>:local`, the names `docker-compose.yml` runs). |
 | `make test-images` | Docker | Builds those images and the Python runtime, and checks exactly them ([Images](#images)), including the packaged Action grading in a sandbox on the Docker socket it is given. |
 | `make action-fixtures`, `make test-action` | Docker, a GitHub runner | The `Packaged Action on a hosted runner` CI job: fixture checkouts graded by `uses: ./` (`action.yml` pointed at `Dockerfile.actions`), then each outcome, its outputs and the runner's sandboxes checked (`scripts/action_fixtures.py`). Not useful outside a workflow. |
-| `make publish-images` | Docker, a GHCR login with `packages: write` | The `Publish images from main` CI job, after `make test-images` and `make sandbox-build-all`: unless this commit is still the head of `origin`'s `main`, publishes nothing; otherwise pushes the runtime images not yet published, then the API, sandbox manager and Action images as `sha-<commit>` and `main` (`scripts/publish_images.py`, [Versions and images](../github_action/README.md#versions-and-images)). Not useful outside a workflow. |
+| `make publish-images` | Docker, a GHCR login with `packages: write` | The `Publish images from main` CI job, after `make test-images` and `make sandbox-build-all`: unless this commit is still the head of `origin`'s `main`, publishes nothing; otherwise pushes the runtime images not yet published, then the API, sandbox manager and Action images as `sha-<commit>` unless already published, and points `main` at them (`scripts/publish_images.py`, [Versions and images](../github_action/README.md#versions-and-images)). Not useful outside a workflow. |
+| `make release` | git, `gh`, a GHCR login with `packages: write`, a token with `contents: write` and `actions: read` | The hand-run Release workflow: releases `RELEASE_COMMIT` of `main` as `RELEASE_VERSION` from its published images ([Releasing](#releasing)). Not useful outside that workflow. |
 
 A bare `pytest` collects all of `tests/`, including `tests/integration/`,
 `tests/e2e/`, `tests/stack/` and `tests/images/`, which fail rather than skip without Docker and
@@ -93,7 +94,8 @@ on the Docker socket it is given.
 the documented examples agree with the registry, and the extension path.
 `tests/unit/test_verification_frame.py` checks that `make help`, the docs and
 CI name only existing targets, that image publication waits for every
-verification job, and that nothing deploys or releases.
+verification job, that nothing deploys, and that only the hand-run release job
+tags, releases or writes the repository.
 
 ### Required checks
 
@@ -110,7 +112,7 @@ every verification job of `verify.yml` by its name, from the GitHub Actions app:
 - `Packaged Action on a hosted runner` (the Action from this commit, `uses: ./`, on `ubuntu-latest`)
 
 The publication job (`Publish images from main`) is skipped on pull requests
-and is not required. Check the setting with:
+and is not required, nor is the Release workflow, which runs only by hand. Check the setting with:
 
 ```bash
 gh api repos/webtech-network/autograder/rulesets/8901171 \
@@ -162,8 +164,38 @@ images (`make test-images IMAGE_PREFIX=mine`).
 
 To change a base, replace its digest (`docker buildx imagetools inspect
 python:3.13-slim-trixie`) in all three Dockerfiles. Every verified push to
-`main` publishes these images and the runtime images; there are no releases
-before 1.0.0. See [Versions and images](../github_action/README.md#versions-and-images).
+`main` publishes these images and the runtime images, and a release re-tags
+them. See [Versions and images](../github_action/README.md#versions-and-images).
+
+### Releasing
+
+The version, its changelog section and the release are separate steps, so a
+release only ever names a commit that verification has already published:
+
+1. **Prepare the version in a pull request into `main`.** Set `version` in
+   `pyproject.toml` and `__version__` in `autograder/__init__.py` (a test keeps
+   them equal), run `uv lock` and `uv run python scripts/generate_contract_schemas.py`
+   (the OpenAPI document carries the version; `make contracts` checks it), and
+   move the `[Unreleased]` entries of
+   `CHANGELOG.md` under `## [<version>] - <date>` with its link at the bottom.
+   The level follows [Versions and stability](../contracts/STABILITY.md).
+   Merge it once every required check is green.
+2. **Wait for the `Publish images from main` job** of that merge commit `C`
+   (Actions → Verify → the push run of `C`) to succeed. If a newer commit
+   reached `main` first, `C` published nothing; release that newer commit
+   instead, if it declares the same version.
+3. **Run the Release workflow** from `main` (Actions → Release → Run workflow,
+   or `gh workflow run release.yml --ref main -f commit=<full SHA of C> -f version=<version>`).
+   It refuses, with the reason in its log and nothing changed, unless every
+   check of [Releases](../github_action/README.md#releases) passes.
+4. **Check the result:** the GitHub Release `<version>`, the tag's commit
+   (`git show <version>` changes only `runs.image`), and, as a runner sees it,
+   `DOCKER_CONFIG="$(mktemp -d)" docker manifest inspect ghcr.io/webtech-network/autograder-action:<version>`.
+
+If the run fails after tagging images (for example a lost connection), run it
+again with the same inputs: identical image tags are kept and the rest follows.
+If only the GitHub Release is missing, create it from the existing tag with the
+changelog section as notes (`gh release create <version> --verify-tag --notes-file <file>`).
 
 ### Documentation site
 
