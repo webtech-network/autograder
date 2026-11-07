@@ -387,7 +387,7 @@ def test_a_run_ended_by_the_lifetime_is_never_a_process_result():
     def answer(kwargs):
         if "autograder-collect" in kwargs["cmd"]:
             sandbox.expires_at = time.monotonic()  # the lifetime passed during the run
-            return Mock(exit_code=0, output=b"survivors 0\nlimits 0 0\nout 0\n\nerr 0\n\n")
+            return Mock(exit_code=0, output=b"survivors 0\nlimits 0 0\nout 0\nerr 0\n")
         return Mock(exit_code=137, output=b"autograder:started\n")
     client.on_exec = answer
     with pytest.raises(ProcessExecutionError, match="lifetime"):
