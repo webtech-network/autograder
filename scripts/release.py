@@ -18,9 +18,11 @@ checks everything before it changes anything and refuses unless:
 Then it tags the ``sha-<C>`` manifests as ``V`` in the registry (by digest,
 Action last), commits on top of ``C`` the one change that pins ``action.yml``'s
 ``runs.image`` to ``autograder-action:V``, pushes only the annotated tag ``V``
-(the commit stays outside ``main``), and creates the GitHub Release ``V`` with
-the changelog section as notes. ``@V`` therefore runs exactly the image verified
-from ``C``, with ``C``'s interface.
+(the commit stays outside ``main``), and creates the GitHub Release ``V`` as a
+draft, for a maintainer to read and publish. Its notes are ``C``'s
+``.github/release-notes/V.md`` when it has one, otherwise the changelog section.
+``@V`` runs exactly the image verified from ``C``, with ``C``'s interface, as
+soon as the tag is pushed.
 
 Run as a module from the repository root:
 ``python -m scripts.release <commit> <version>``.
@@ -46,6 +48,8 @@ VERSION = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)")
 COMMIT = re.compile(r"[0-9a-f]{40}")
 #: The name of the job in ``.github/workflows/verify.yml`` that publishes ``sha-<commit>``.
 PUBLISH_JOB = "Publish images from main"
+#: Hand-written release notes, ``<version>.md``; without one a release's notes are its changelog section.
+NOTES = ".github/release-notes"
 
 
 class Refused(Exception):
@@ -74,6 +78,12 @@ def _show(root: Path, commit: str, path: str) -> str:
         return _git(root, "show", f"{commit}:{path}")
     except subprocess.CalledProcessError:
         raise Refused(f"{commit} has no {path}") from None
+
+
+def _show_optional(root: Path, commit: str, path: str) -> Optional[str]:
+    """``path`` at ``commit``, or None when ``commit`` has no such file."""
+    shown = subprocess.run(["git", "cat-file", "-e", f"{commit}:{path}"], cwd=root, capture_output=True, check=False)
+    return _git(root, "show", f"{commit}:{path}") if shown.returncode == 0 else None
 
 
 def _image_line(tag: str) -> str:
@@ -144,7 +154,10 @@ def check(commit: str, version: str, root: Path = ROOT) -> Release:
         if existing not in (None, digests[service]):
             raise Refused(f"{reference(service, version)} already exists with other bytes ({existing}); "
                           "a released image is never overwritten")
-    return Release(commit, version, release_notes(section, version), digests)
+    written = _show_optional(root, commit, f"{NOTES}/{version}.md")
+    if written is not None and not written.strip():
+        raise Refused(f"{NOTES}/{version}.md at {commit} is empty")
+    return Release(commit, version, release_notes(written.strip() if written else section, version), digests)
 
 
 def pin_action(root: Path, commit: str, version: str) -> str:
@@ -177,9 +190,11 @@ def release(commit: str, version: str, root: Path = ROOT) -> Release:
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".md") as notes:
         notes.write(checked.notes)
         notes.flush()
-        _gh(root, "release", "create", version, "--verify-tag", "--title", version, "--notes-file", notes.name)
+        _gh(root, "release", "create", version, "--verify-tag", "--draft", "--title", version,
+            "--notes-file", notes.name)
     print(f"Released {commit} as {version}: tag {version} at {pinned}; "
-          + ", ".join(reference(service, version) for service in SERVICES), flush=True)
+          + ", ".join(reference(service, version) for service in SERVICES)
+          + f". The GitHub Release {version} is a draft: read it and publish it.", flush=True)
     return checked
 
 

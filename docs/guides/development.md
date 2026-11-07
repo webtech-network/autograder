@@ -179,6 +179,10 @@ release only ever names a commit that verification has already published:
    move the `[Unreleased]` entries of
    `CHANGELOG.md` under `## [<version>] - <date>` with its link at the bottom.
    The level follows [Versions and stability](../contracts/STABILITY.md).
+   For a release worth an introduction, add `.github/release-notes/<version>.md`:
+   the Release's notes, written for readers rather than as a change list
+   (what the project is, the highlights, how to upgrade), with absolute links
+   at `blob/<version>/`; without it the notes are the changelog section.
    Merge it once every required check is green.
 2. **Wait for the `Publish images from main` job** of that merge commit `C`
    (Actions → Verify → the push run of `C`) to succeed. If a newer commit
@@ -188,14 +192,17 @@ release only ever names a commit that verification has already published:
    or `gh workflow run release.yml --ref main -f commit=<full SHA of C> -f version=<version>`).
    It refuses, with the reason in its log and nothing changed, unless every
    check of [Releases](../github_action/README.md#releases) passes.
-4. **Check the result:** the GitHub Release `<version>`, the tag's commit
+4. **Read and publish the draft Release** (Releases → `<version>` → Edit →
+   Publish release). The tag and the images are already live; only the
+   Release page waits for you.
+5. **Check the result:** the GitHub Release `<version>`, the tag's commit
    (`git show <version>` changes only `runs.image`), and, as a runner sees it,
    `DOCKER_CONFIG="$(mktemp -d)" docker manifest inspect ghcr.io/webtech-network/autograder-action:<version>`.
 
 If the run fails after tagging images (for example a lost connection), run it
 again with the same inputs: identical image tags are kept and the rest follows.
 If only the GitHub Release is missing, create it from the existing tag with the
-changelog section as notes (`gh release create <version> --verify-tag --notes-file <file>`).
+same notes (`gh release create <version> --verify-tag --draft --notes-file <file>`).
 
 ### Documentation site
 
