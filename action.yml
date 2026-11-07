@@ -7,7 +7,7 @@ inputs:
     required: false
     default: "repo"
   definition-path:
-    description: "Canonical v1 definition JSON path, relative to the workspace or absolute. Used in repo mode."
+    description: "Grading definition JSON path, relative to the workspace or absolute. Used in repo mode."
     required: false
     default: ".github/autograder/definition.json"
   submission-root:
