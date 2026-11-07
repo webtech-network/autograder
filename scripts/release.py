@@ -136,6 +136,10 @@ def check(commit: str, version: str, root: Path = ROOT) -> Release:
     section = changelog_section(_show(root, commit, "CHANGELOG.md"), version)
     if section is None:
         raise Refused(f"CHANGELOG.md at {commit} has no non-empty ## [{version}] section")
+    written = _show_optional(root, commit, f"{NOTES}/{version}.md")
+    if written is not None and not written.strip():
+        raise Refused(f"{NOTES}/{version}.md at {commit} is empty")
+    notes = written.strip() if written else section
     action = _show(root, commit, "action.yml")
     image = yaml.safe_load(action)["runs"]["image"]
     if image != f"docker://{reference('action', CHANNEL)}" or action.count(_image_line(CHANNEL)) != 1:
@@ -154,10 +158,7 @@ def check(commit: str, version: str, root: Path = ROOT) -> Release:
         if existing not in (None, digests[service]):
             raise Refused(f"{reference(service, version)} already exists with other bytes ({existing}); "
                           "a released image is never overwritten")
-    written = _show_optional(root, commit, f"{NOTES}/{version}.md")
-    if written is not None and not written.strip():
-        raise Refused(f"{NOTES}/{version}.md at {commit} is empty")
-    return Release(commit, version, release_notes(written.strip() if written else section, version), digests)
+    return Release(commit, version, release_notes(notes, version), digests)
 
 
 def pin_action(root: Path, commit: str, version: str) -> str:

@@ -202,7 +202,9 @@ release only ever names a commit that verification has already published:
 If the run fails after tagging images (for example a lost connection), run it
 again with the same inputs: identical image tags are kept and the rest follows.
 If only the GitHub Release is missing, create it from the existing tag with the
-same notes (`gh release create <version> --verify-tag --draft --notes-file <file>`).
+same notes: `.github/release-notes/<version>.md` (its links are already
+absolute), or the changelog section with its links pointed at the tag
+(`gh release create <version> --verify-tag --draft --title <version> --notes-file <file>`).
 
 ### Documentation site
 
