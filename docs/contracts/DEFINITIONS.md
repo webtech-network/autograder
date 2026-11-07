@@ -44,8 +44,12 @@ parameters must list every contract field explicitly (`NON_CANONICAL_PARAMETERS`
 
 ## Normalization and validation
 
-* Version is exactly `"2.0"`; a `"1.0"` definition fails with
-  `UNSUPPORTED_SCHEMA_VERSION`, naming the [converter](#definitions-in-an-earlier-format).
+* Version is exactly `"2.0"`; a `"1.0"` definition fails with one
+  `UNSUPPORTED_SCHEMA_VERSION` error at `schema_version`, naming the
+  [converter](#definitions-in-an-earlier-format), and no other error. Every HTTP
+  route that receives a definition (`/configs/validate`, creating or updating a
+  configuration, an external result's `definition_snapshot`) answers 422 with that
+  error at the body path (for example `["body", "definition", "schema_version"]`).
 * A criterion's `type` alone names its evaluator: built-in evaluator identifiers
   are unique across the built-in templates, and a definition lists no templates.
   Trusted Python templates passed as `templates={identifier: Template}` join the

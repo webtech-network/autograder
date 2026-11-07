@@ -200,8 +200,8 @@ authoring input and `convert_snapshot(snapshot)` for a stored canonical
 snapshot (renamed, never normalized again); both return `(definition, notes)`.
 Trusted Python templates pass `templates={...}` to `convert_definition`.
 
-A 1.0 definition given to the engine fails with `UNSUPPORTED_SCHEMA_VERSION`
-naming the command. The removed fields in a 2.0 definition fail at their path
+A 1.0 definition given to the engine or to any HTTP route fails with one
+`UNSUPPORTED_SCHEMA_VERSION` error naming the command. The removed fields in a 2.0 definition fail at their path
 with what replaced them. There is no runtime alias.
 
 **Stored data (HTTP host).** Alembic revision `011` converts with

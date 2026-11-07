@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import Literal, Mapping
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, field_validator, model_validator
 from pydantic.json_schema import GenerateJsonSchema
+from pydantic_core import PydanticCustomError
 from autograder.models.abstract.template import Template
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import CriteriaTree
@@ -161,6 +162,9 @@ SCHEMA_VERSION = '2.0'
 #: How to bring a definition in an earlier format to this one; nothing converts at runtime.
 CONVERT_COMMAND = 'python -m autograder.services.definition_migration old.json definition.json'
 
+#: The error code of a definition in format 1.0, wherever it is validated (engine or HTTP body).
+UNSUPPORTED_SCHEMA_VERSION = 'UNSUPPORTED_SCHEMA_VERSION'
+
 
 class GradingDefinition(StrictModel):
     """One assignment's complete grading definition (version 2.0)."""
@@ -173,6 +177,17 @@ class GradingDefinition(StrictModel):
     feedback: Feedback = Field(default_factory=Feedback, description="Feedback report policy.")
     metadata: dict[str, JsonValue] = Field(default_factory=dict, description=(
         "Free-form JSON stored with the definition; never interpreted by grading."))
+
+    @model_validator(mode='before')
+    @classmethod
+    def refuse_earlier_format(cls, value):
+        # Before any field: a 1.0 definition gets one error naming the converter,
+        # not a literal mismatch plus one error per renamed field.
+        if isinstance(value, dict) and value.get('schema_version') == '1.0':
+            raise PydanticCustomError(UNSUPPORTED_SCHEMA_VERSION, (
+                f"This engine reads definition format {SCHEMA_VERSION}; convert this definition offline with "
+                f"`{CONVERT_COMMAND}`"))
+        return value
 
     @model_validator(mode='after')
     def validate_structure(self):
@@ -215,8 +230,11 @@ def validation_error_detail(item: dict) -> tuple[tuple, str]:
 
     A :class:`FieldError` extends the path to its field; a validator's own
     message is returned without pydantic's "Value error, " prefix; a field
-    removed in format 2.0 names its replacement.
+    removed in format 2.0 names its replacement; a 1.0 definition is reported
+    at its ``schema_version``.
     """
+    if item['type'] == UNSUPPORTED_SCHEMA_VERSION:
+        return (*item['loc'], 'schema_version'), item['msg']
     if item['type'] == 'extra_forbidden':
         for suffix, message in REMOVED_FIELDS.items():
             if tuple(item['loc'][-len(suffix):]) == suffix:
@@ -249,8 +267,11 @@ def _error(code, path, message):
 
 
 def _pydantic_errors(exc, prefix=()):
-    errors = [_error('INVALID_DEFINITION', (*prefix, *path), message)
-              for path, message in map(validation_error_detail, exc.errors(include_url=False, include_input=False))]
+    errors = []
+    for item in exc.errors(include_url=False, include_input=False):
+        path, message = validation_error_detail(item)
+        code = UNSUPPORTED_SCHEMA_VERSION if item['type'] == UNSUPPORTED_SCHEMA_VERSION else 'INVALID_DEFINITION'
+        errors.append(_error(code, (*prefix, *path), message))
     # A field removed in 2.0 explains the missing field that replaced it, so it comes first.
     return sorted(errors, key=lambda error: error['message'] not in REMOVED_FIELDS.values())
 
@@ -383,10 +404,6 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
     # pylint: disable=too-many-locals,too-many-branches,too-many-statements
     if isinstance(value, GradingDefinition):
         value = value.model_dump(mode='json')
-    if isinstance(value, dict) and value.get('schema_version') == '1.0':
-        raise DefinitionValidationError([_error('UNSUPPORTED_SCHEMA_VERSION', ('schema_version',), (
-            f"This engine reads definition format {SCHEMA_VERSION}; convert this definition offline with "
-            f"`{CONVERT_COMMAND}`"))])
     try:
         definition = GradingDefinition.model_validate(value)
     except ValidationError as exc:
