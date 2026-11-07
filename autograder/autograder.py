@@ -197,6 +197,7 @@ def build_pipeline(*, definition, locale="en", provenance=None, templates=None, 
     """
     compiled = compile_definition(definition, templates=templates)
     provenance = provenance or DefinitionProvenance(definition_hash=compiled.definition_hash)
-    if provenance.definition_hash != compiled.definition_hash:
-        raise ValueError("Provenance hash must identify the compiled definition")
+    if (provenance.definition_hash, provenance.schema_version) != (compiled.definition_hash,
+                                                                    compiled.definition.schema_version):
+        raise ValueError("Provenance hash and format version must identify the compiled definition")
     return AutograderPipeline(compiled, provenance, capabilities or HostCapabilities())

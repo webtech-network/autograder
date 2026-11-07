@@ -42,7 +42,7 @@ class ExpectOutputParameters(BaseModel):
 
 class DontFailParameters(BaseModel):
     model_config = STRICT
-    user_input: str = Field(default="", description="Single line sent to the program's standard input; empty sends nothing.")
+    inputs: List[str] = Field(default_factory=list, description=t("io.dont_fail.params.inputs"))
     program_command: Command = Field(description=PROGRAM_COMMAND)
 
 
@@ -137,13 +137,13 @@ class DontFailTest(BaseExecutionTest):
     def description(self):
         return t("io.dont_fail.description")
 
-    def execute(self, evaluation: EvaluationInput, *, program_command: Any, user_input: str = "") -> TestResult:
+    def execute(self, evaluation: EvaluationInput, *, program_command: Any,
+                inputs: Optional[List[str]] = None) -> TestResult:
         """
         Execute the test by verifying the program doesn't crash with given input.
         """
         locale = evaluation.locale
-        # One line of stdin, or empty stdin when user_input is empty.
-        result = self.run_program(evaluation, program_command, [user_input] if user_input else [])
+        result = self.run_program(evaluation, program_command, inputs)
         failure = self.assessed_failure(result, locale)
         if failure:
             return failure

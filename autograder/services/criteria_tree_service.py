@@ -7,11 +7,13 @@ normalization happens exactly once, in ``compile_definition``.
 from typing import List, Mapping
 
 from autograder.models.abstract.test_function import TestFunction
-from autograder.models.config.category import CategoryConfig
 from autograder.models.config.criteria import CriteriaConfig
-from autograder.models.config.subject import SubjectConfig
+from autograder.models.config.subject import GroupConfig, SubjectConfig
 from autograder.models.config.test import TestConfig
 from autograder.models.criteria_tree import CategoryNode, CriteriaTree, SubjectNode, TestNode
+
+#: The base category is the 0-100 score itself.
+BASE_POINTS = 100.0
 
 
 def build_criteria_tree(criteria: CriteriaConfig,
@@ -33,7 +35,7 @@ def build_criteria_tree(criteria: CriteriaConfig,
         scaled_total = sum(config.weight / maximum for config in configs) if maximum > 0 else 0
         return tuple(
             SubjectNode(
-                name=config.subject_name,
+                name=config.name,
                 weight=(config.weight / maximum) / scaled_total * 100 if maximum > 0 else config.weight,
                 subjects=subjects(config.subjects) if config.subjects else (),
                 tests=tuple(test(item) for item in config.tests or ()),
@@ -42,17 +44,17 @@ def build_criteria_tree(criteria: CriteriaConfig,
             for config in configs
         )
 
-    def category(name: str, config: CategoryConfig) -> CategoryNode:
+    def category(name: str, config: GroupConfig, points: float) -> CategoryNode:
         return CategoryNode(
             name=name,
-            weight=config.weight,
+            weight=points,
             subjects=subjects(config.subjects) if config.subjects else (),
             tests=tuple(test(item) for item in config.tests or ()),
             subjects_weight=config.subjects_weight,
         )
 
     return CriteriaTree(
-        base=category("base", criteria.base),
-        bonus=category("bonus", criteria.bonus) if criteria.bonus else None,
-        penalty=category("penalty", criteria.penalty) if criteria.penalty else None,
+        base=category("base", criteria.base, BASE_POINTS),
+        bonus=category("bonus", criteria.bonus, criteria.bonus.max_points) if criteria.bonus else None,
+        penalty=category("penalty", criteria.penalty, criteria.penalty.max_points) if criteria.penalty else None,
     )

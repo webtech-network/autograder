@@ -21,7 +21,6 @@ def grade_payload(outcome):
 
 def io_definition():
     value = definition()
-    value["templates"] = ["input_output"]
     value["criteria"]["base"]["tests"] = [{
         "id": "runs", "type": "dont_fail", "name": "Runs",
         "parameters": {"program_command": "python main.py"},

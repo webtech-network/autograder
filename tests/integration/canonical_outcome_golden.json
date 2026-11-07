@@ -65,8 +65,10 @@
                 "metadata": {},
                 "name": "Does not crash",
                 "parameters": {
-                  "program_command": "python3 main.py",
-                  "user_input": "4"
+                  "inputs": [
+                    "4"
+                  ],
+                  "program_command": "python3 main.py"
                 },
                 "report": "FAILURE: Your program crashed during execution.\nError:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 3, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n",
                 "score": 0.0,
@@ -296,8 +298,10 @@
                 "metadata": {},
                 "name": "Does not crash",
                 "parameters": {
-                  "program_command": "python3 main.py",
-                  "user_input": "4"
+                  "inputs": [
+                    "4"
+                  ],
+                  "program_command": "python3 main.py"
                 },
                 "report": "FALHA: O programa falhou durante a execução (crash).\nErro:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 3, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n",
                 "score": 0.0,
@@ -527,8 +531,10 @@
                 "metadata": {},
                 "name": "Does not crash",
                 "parameters": {
-                  "program_command": "python3 main.py",
-                  "user_input": "4"
+                  "inputs": [
+                    "4"
+                  ],
+                  "program_command": "python3 main.py"
                 },
                 "report": "FAILURE: Your program crashed during execution.\nError:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 5, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n",
                 "score": 0.0,
@@ -758,8 +764,10 @@
                 "metadata": {},
                 "name": "Does not crash",
                 "parameters": {
-                  "program_command": "python3 main.py",
-                  "user_input": "4"
+                  "inputs": [
+                    "4"
+                  ],
+                  "program_command": "python3 main.py"
                 },
                 "report": "FALHA: O programa falhou durante a execução (crash).\nErro:\nTraceback (most recent call last):\n  File \"/app/main.py\", line 5, in <module>\n    t = int(values[0]) + int(values[1])\n                             ~~~~~~^^^\nIndexError: list index out of range\n",
                 "score": 0.0,
@@ -989,8 +997,10 @@
                 "metadata": {},
                 "name": "Does not crash",
                 "parameters": {
-                  "program_command": "python3 main.py",
-                  "user_input": "4"
+                  "inputs": [
+                    "4"
+                  ],
+                  "program_command": "python3 main.py"
                 },
                 "report": "Success: Program executed without errors.",
                 "score": 100.0,
@@ -1220,8 +1230,10 @@
                 "metadata": {},
                 "name": "Does not crash",
                 "parameters": {
-                  "program_command": "python3 main.py",
-                  "user_input": "4"
+                  "inputs": [
+                    "4"
+                  ],
+                  "program_command": "python3 main.py"
                 },
                 "report": "Sucesso: O programa foi executado sem erros.",
                 "score": 100.0,

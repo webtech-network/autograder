@@ -1,14 +1,10 @@
 {
-  "schema_version": "1.0",
-  "templates": [
-    "input_output"
-  ],
+  "schema_version": "2.0",
   "languages": [
     "python"
   ],
   "criteria": {
     "base": {
-      "weight": 100.0,
       "tests": [
         {
           "id": "base-tests-0",
@@ -30,7 +26,7 @@
       ],
       "subjects": [
         {
-          "subject_name": "Nested/topic",
+          "name": "Nested/topic",
           "weight": 1.0,
           "tests": [
             {

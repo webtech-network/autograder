@@ -294,8 +294,12 @@
       "additionalProperties": false,
       "properties": {
         "schema_version": {
-          "const": "1.0",
-          "default": "1.0",
+          "default": "2.0",
+          "description": "Format version of the bound definition snapshot.",
+          "enum": [
+            "1.0",
+            "2.0"
+          ],
           "title": "Schema Version",
           "type": "string"
         },

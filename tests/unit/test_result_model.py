@@ -44,7 +44,7 @@ def t(identity, score, weight=1, name=None, **extra):
 
 
 def s(name, weight, *, tests=(), subjects=(), subjects_weight=None):
-    value = {"subject_name": name, "weight": weight}
+    value = {"name": name, "weight": weight}
     if tests:
         value["tests"] = list(tests)
     if subjects:
@@ -55,12 +55,12 @@ def s(name, weight, *, tests=(), subjects=(), subjects_weight=None):
 
 
 def run(base, bonus=None, penalty=None, feedback=None):
-    criteria = {"base": {"weight": 100, **base}}
+    criteria = {"base": {**base}}
     if bonus:
         criteria["bonus"] = bonus
     if penalty:
         criteria["penalty"] = penalty
-    definition = {"schema_version": "1.0", "templates": ["local"], "languages": ["python"], "criteria": criteria}
+    definition = {"schema_version": "2.0", "languages": ["python"], "criteria": criteria}
     if feedback:
         definition["feedback"] = feedback
     pipeline = build_pipeline(definition=definition, templates={"local": local_template()})
@@ -117,8 +117,8 @@ def test_zero_weight_siblings():
 ])
 def test_bonus_and_penalty_caps_and_clamping(base, bonus, penalty, final):
     _, outcome = run({"tests": [t("base", base)]},
-                     bonus={"weight": bonus[0], "tests": [t("bonus", bonus[1])]} if bonus else None,
-                     penalty={"weight": penalty[0], "tests": [t("penalty", penalty[1])]} if penalty else None)
+                     bonus={"max_points": bonus[0], "tests": [t("bonus", bonus[1])]} if bonus else None,
+                     penalty={"max_points": penalty[0], "tests": [t("penalty", penalty[1])]} if penalty else None)
     assert outcome.score == final
     if bonus:
         assert (outcome.tree.bonus.weight, outcome.tree.bonus.score) == bonus
@@ -194,7 +194,7 @@ def test_locally_graded_trees_pass_the_shared_structural_check(case):
         "zero": {"tests": [t("z", 0, 0), t("n", 100, 0)]},
         "caps": {"tests": [t("base", 50)]},
     }[case]
-    pipeline, outcome = run(base, bonus={"weight": 10, "tests": [t("bonus", 100)]} if case == "caps" else None)
+    pipeline, outcome = run(base, bonus={"max_points": 10, "tests": [t("bonus", 100)]} if case == "caps" else None)
     verify_outcome_tree(pipeline.compiled.criteria_tree, outcome.tree)
     tampered = outcome.tree.model_dump(mode="json")
     if tampered["base"].get("subjects"):

@@ -64,8 +64,8 @@ class TestCmdPlaceholderResolution:
     def test_cmd_without_default_is_rejected_at_compilation(self, monkeypatch):
         from autograder.models.abstract import execution_test
         monkeypatch.setattr(execution_test, "DEFAULT_COMMANDS", {Language.PYTHON: "python3 main.py"})
-        value = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python", "java"],
-                 "criteria": {"base": {"weight": 100, "tests": [{"id": "run", "name": "Run", "type": "dont_fail",
+        value = {"schema_version": "2.0", "languages": ["python", "java"],
+                 "criteria": {"base": {"tests": [{"id": "run", "name": "Run", "type": "dont_fail",
                                                                  "parameters": {"program_command": "CMD"}}]}}}
         with pytest.raises(DefinitionValidationError) as failure:
             compile_definition(value)
@@ -89,8 +89,8 @@ class TestStringAndMissingLanguage:
 
     def test_map_alias_keys_are_not_accepted(self):
         """Only canonical identifiers select commands; there is no upper-case alias."""
-        value = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-                 "criteria": {"base": {"weight": 100, "tests": [{"id": "run", "name": "Run", "type": "dont_fail",
+        value = {"schema_version": "2.0", "languages": ["python"],
+                 "criteria": {"base": {"tests": [{"id": "run", "name": "Run", "type": "dont_fail",
                                                                  "parameters": {"program_command": {"PYTHON": "python3 main.py"}}}]}}}
         with pytest.raises(DefinitionValidationError):
             compile_definition(value)
@@ -132,8 +132,8 @@ class TestForbiddenImportLanguageInput:
 
 
 def test_definition_cannot_supply_runtime_language():
-    value = {"schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
-             "criteria": {"base": {"weight": 100, "tests": [{"id": "imports", "name": "Imports",
+    value = {"schema_version": "2.0", "languages": ["python"],
+             "criteria": {"base": {"tests": [{"id": "imports", "name": "Imports",
                 "type": "forbidden_import", "parameters": {"forbidden_imports": ["os"], "submission_language": "java"}}]}}}
     with pytest.raises(DefinitionValidationError) as failure:
         compile_definition(value)
@@ -157,8 +157,8 @@ def test_execution_evaluator_without_a_program_command_parameter_compiles():
     evaluator = RunsEntryPoint()
     assert list(evaluator.validate_parameters({"marker": "x"}, languages=("python", "java"))) == []
     definition = {
-        "schema_version": "1.0", "templates": ["local"], "languages": ["python", "java"],
-        "criteria": {"base": {"weight": 100, "tests": [{
+        "schema_version": "2.0", "languages": ["python", "java"],
+        "criteria": {"base": {"tests": [{
             "id": "runs", "type": "runs_entry_point", "name": "Runs", "parameters": {"marker": "x"}}]}},
     }
     compiled = compile_definition(definition, templates={"local": Template("Local", "Local", [evaluator])})

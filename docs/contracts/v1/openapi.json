@@ -1181,14 +1181,14 @@
   },
   "components": {
     "schemas": {
-      "CategoryConfig-Input": {
+      "CappedCategoryConfig-Input": {
         "properties": {
-          "weight": {
+          "max_points": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Weight",
-            "description": "Base must be 100; bonus and penalty weights (0-100) cap the points they add or subtract."
+            "title": "Max Points",
+            "description": "The most points this category adds to (bonus) or subtracts from (penalty) the base score."
           },
           "tests": {
             "anyOf": [
@@ -1203,7 +1203,7 @@
               }
             ],
             "title": "Tests",
-            "description": "Criteria directly under this category; null when it has none."
+            "description": "Criteria directly in this group; null when it has none."
           },
           "subjects": {
             "anyOf": [
@@ -1218,7 +1218,7 @@
               }
             ],
             "title": "Subjects",
-            "description": "Subjects nested in this category; null when it has none."
+            "description": "Subjects nested in this group; null when it has none."
           },
           "subjects_weight": {
             "anyOf": [
@@ -1246,19 +1246,19 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "weight"
+          "max_points"
         ],
-        "title": "CategoryConfig",
-        "description": "Configuration for a grading category (base, bonus, or penalty)."
+        "title": "CappedCategoryConfig",
+        "description": "A bonus or penalty category: its criteria move the score by at most `max_points`."
       },
-      "CategoryConfig-Output": {
+      "CappedCategoryConfig-Output": {
         "properties": {
-          "weight": {
+          "max_points": {
             "type": "number",
             "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Weight",
-            "description": "Base must be 100; bonus and penalty weights (0-100) cap the points they add or subtract."
+            "title": "Max Points",
+            "description": "The most points this category adds to (bonus) or subtracts from (penalty) the base score."
           },
           "tests": {
             "anyOf": [
@@ -1273,7 +1273,7 @@
               }
             ],
             "title": "Tests",
-            "description": "Criteria directly under this category; null when it has none."
+            "description": "Criteria directly in this group; null when it has none."
           },
           "subjects": {
             "anyOf": [
@@ -1288,7 +1288,7 @@
               }
             ],
             "title": "Subjects",
-            "description": "Subjects nested in this category; null when it has none."
+            "description": "Subjects nested in this group; null when it has none."
           },
           "subjects_weight": {
             "anyOf": [
@@ -1316,10 +1316,10 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "weight"
+          "max_points"
         ],
-        "title": "CategoryConfig",
-        "description": "Configuration for a grading category (base, bonus, or penalty)."
+        "title": "CappedCategoryConfig",
+        "description": "A bonus or penalty category: its criteria move the score by at most `max_points`."
       },
       "CategoryOutcome-Input": {
         "properties": {
@@ -1769,30 +1769,30 @@
       "CriteriaConfig-Input": {
         "properties": {
           "base": {
-            "$ref": "#/components/schemas/CategoryConfig-Input",
-            "description": "Criteria that make up the score (weight 100)."
+            "$ref": "#/components/schemas/GroupConfig-Input",
+            "description": "Criteria that make up the score (0-100)."
           },
           "bonus": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/CategoryConfig-Input"
+                "$ref": "#/components/schemas/CappedCategoryConfig-Input"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Criteria whose score adds up to their weight in points."
+            "description": "Criteria whose score adds up to max_points."
           },
           "penalty": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/CategoryConfig-Input"
+                "$ref": "#/components/schemas/CappedCategoryConfig-Input"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Criteria whose shortfall subtracts up to their weight in points."
+            "description": "Criteria whose shortfall subtracts up to max_points."
           },
           "metadata": {
             "additionalProperties": {
@@ -1814,30 +1814,30 @@
       "CriteriaConfig-Output": {
         "properties": {
           "base": {
-            "$ref": "#/components/schemas/CategoryConfig-Output",
-            "description": "Criteria that make up the score (weight 100)."
+            "$ref": "#/components/schemas/GroupConfig-Output",
+            "description": "Criteria that make up the score (0-100)."
           },
           "bonus": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/CategoryConfig-Output"
+                "$ref": "#/components/schemas/CappedCategoryConfig-Output"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Criteria whose score adds up to their weight in points."
+            "description": "Criteria whose score adds up to max_points."
           },
           "penalty": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/CategoryConfig-Output"
+                "$ref": "#/components/schemas/CappedCategoryConfig-Output"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Criteria whose shortfall subtracts up to their weight in points."
+            "description": "Criteria whose shortfall subtracts up to max_points."
           },
           "metadata": {
             "additionalProperties": {
@@ -2100,9 +2100,13 @@
         "properties": {
           "schema_version": {
             "type": "string",
-            "const": "1.0",
+            "enum": [
+              "1.0",
+              "2.0"
+            ],
             "title": "Schema Version",
-            "default": "1.0"
+            "description": "Format version of the bound definition snapshot.",
+            "default": "2.0"
           },
           "definition_hash": {
             "type": "string",
@@ -3076,18 +3080,9 @@
         "properties": {
           "schema_version": {
             "type": "string",
-            "const": "1.0",
+            "const": "2.0",
             "title": "Schema Version",
             "description": "Definition format version."
-          },
-          "templates": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "minItems": 1,
-            "title": "Templates",
-            "description": "Distinct template identifiers whose evaluators the criteria may use."
           },
           "languages": {
             "items": {
@@ -3130,29 +3125,19 @@
         "type": "object",
         "required": [
           "schema_version",
-          "templates",
           "languages",
           "criteria"
         ],
         "title": "GradingDefinition",
-        "description": "One assignment's complete grading definition (version 1)."
+        "description": "One assignment's complete grading definition (version 2.0)."
       },
       "GradingDefinition-Output": {
         "properties": {
           "schema_version": {
             "type": "string",
-            "const": "1.0",
+            "const": "2.0",
             "title": "Schema Version",
             "description": "Definition format version."
-          },
-          "templates": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "minItems": 1,
-            "title": "Templates",
-            "description": "Distinct template identifiers whose evaluators the criteria may use."
           },
           "languages": {
             "items": {
@@ -3195,12 +3180,131 @@
         "type": "object",
         "required": [
           "schema_version",
-          "templates",
           "languages",
           "criteria"
         ],
         "title": "GradingDefinition",
-        "description": "One assignment's complete grading definition (version 1)."
+        "description": "One assignment's complete grading definition (version 2.0)."
+      },
+      "GroupConfig-Input": {
+        "properties": {
+          "tests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TestConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tests",
+            "description": "Criteria directly in this group; null when it has none."
+          },
+          "subjects": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SubjectConfig-Input"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects",
+            "description": "Subjects nested in this group; null when it has none."
+          },
+          "subjects_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects Weight",
+            "description": "Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise."
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GroupConfig",
+        "description": "A group of criteria, such as the base category: its own tests, nested subjects, or both."
+      },
+      "GroupConfig-Output": {
+        "properties": {
+          "tests": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TestConfig"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tests",
+            "description": "Criteria directly in this group; null when it has none."
+          },
+          "subjects": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SubjectConfig-Output"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects",
+            "description": "Subjects nested in this group; null when it has none."
+          },
+          "subjects_weight": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subjects Weight",
+            "description": "Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise."
+          },
+          "metadata": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Metadata",
+            "description": "Free-form JSON stored with the definition; never interpreted by grading."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GroupConfig",
+        "description": "A group of criteria, such as the base category: its own tests, nested subjects, or both."
       },
       "HTTPValidationError": {
         "properties": {
@@ -3582,18 +3686,18 @@
       },
       "SubjectConfig-Input": {
         "properties": {
-          "subject_name": {
+          "name": {
             "type": "string",
             "minLength": 1,
-            "title": "Subject Name",
-            "description": "Display name of the subject."
+            "title": "Name",
+            "description": "Display name of the subject; may repeat."
           },
           "weight": {
             "type": "number",
-            "maximum": 100.0,
             "minimum": 0.0,
             "title": "Weight",
-            "description": "Weight (0-100) relative to sibling subjects; all-zero siblings share equally."
+            "description": "Weight relative to sibling criteria or subjects (any nonnegative ratio); all-zero siblings share equally.",
+            "default": 100.0
           },
           "tests": {
             "anyOf": [
@@ -3608,7 +3712,7 @@
               }
             ],
             "title": "Tests",
-            "description": "Criteria directly under this subject; null when it has none."
+            "description": "Criteria directly in this group; null when it has none."
           },
           "subjects": {
             "anyOf": [
@@ -3623,7 +3727,7 @@
               }
             ],
             "title": "Subjects",
-            "description": "Subjects nested in this subject; null when it has none."
+            "description": "Subjects nested in this group; null when it has none."
           },
           "subjects_weight": {
             "anyOf": [
@@ -3651,26 +3755,25 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "subject_name",
-          "weight"
+          "name"
         ],
         "title": "SubjectConfig",
-        "description": "Configuration for a subject within a grading category."
+        "description": "A named group of criteria inside a category or another subject."
       },
       "SubjectConfig-Output": {
         "properties": {
-          "subject_name": {
+          "name": {
             "type": "string",
             "minLength": 1,
-            "title": "Subject Name",
-            "description": "Display name of the subject."
+            "title": "Name",
+            "description": "Display name of the subject; may repeat."
           },
           "weight": {
             "type": "number",
-            "maximum": 100.0,
             "minimum": 0.0,
             "title": "Weight",
-            "description": "Weight (0-100) relative to sibling subjects; all-zero siblings share equally."
+            "description": "Weight relative to sibling criteria or subjects (any nonnegative ratio); all-zero siblings share equally.",
+            "default": 100.0
           },
           "tests": {
             "anyOf": [
@@ -3685,7 +3788,7 @@
               }
             ],
             "title": "Tests",
-            "description": "Criteria directly under this subject; null when it has none."
+            "description": "Criteria directly in this group; null when it has none."
           },
           "subjects": {
             "anyOf": [
@@ -3700,7 +3803,7 @@
               }
             ],
             "title": "Subjects",
-            "description": "Subjects nested in this subject; null when it has none."
+            "description": "Subjects nested in this group; null when it has none."
           },
           "subjects_weight": {
             "anyOf": [
@@ -3728,11 +3831,10 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "subject_name",
-          "weight"
+          "name"
         ],
         "title": "SubjectConfig",
-        "description": "Configuration for a subject within a grading category."
+        "description": "A named group of criteria inside a category or another subject."
       },
       "SubjectOutcome-Input": {
         "properties": {
@@ -4169,12 +4271,15 @@
           "definition_snapshot": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/GradingDefinition-Output"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Definition Snapshot",
+            "description": "The exact definition snapshot this execution is bound to, as stored, in the format version its outcome's provenance names (`schema_version` 1.0 for executions bound before format 2.0)."
           },
           "outcome": {
             "anyOf": [
@@ -4557,7 +4662,7 @@
             "type": "string",
             "minLength": 1,
             "title": "Type",
-            "description": "Evaluator identifier from one of the listed templates."
+            "description": "Evaluator identifier (see the evaluator reference)."
           },
           "name": {
             "type": "string",
@@ -4590,7 +4695,7 @@
             "type": "number",
             "minimum": 0.0,
             "title": "Weight",
-            "description": "Weight relative to sibling criteria; all-zero siblings share equally.",
+            "description": "Weight relative to sibling criteria or subjects (any nonnegative ratio); all-zero siblings share equally.",
             "default": 100.0
           },
           "metadata": {

@@ -65,8 +65,8 @@ def ai(criterion_id, focus, name="Review"):
 
 
 def definition(*tests):
-    return {"schema_version": "1.0", "templates": ["local"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": list(tests)}}}
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": list(tests)}}}
 
 
 def run(provider, *tests, static=None):

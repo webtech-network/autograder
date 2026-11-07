@@ -125,8 +125,8 @@ def Local():  # pylint: disable=invalid-name
 
 
 def flood_definition(count, size=1_000_000, feedback=False, score=0.0):
-    return {"schema_version": "1.0", "templates": ["local"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": [
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": [
                 {"id": f"c{index}", "type": "flood", "name": f"Criterion {index}",
                  "parameters": {"size": size, "score": score}} for index in range(count)]}},
             "feedback": {"enabled": feedback, "preferences": {"general": {"show_passed_tests": True}}}}
@@ -179,8 +179,8 @@ def sized_definition(count, padding=0):
                              "normalization": True}}
              for index in range(count)]
     tests[0]["parameters"]["expected_output"] = "\x01" * padding
-    return {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": tests}}}
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": tests}}}
 
 
 def largest(build, upper):

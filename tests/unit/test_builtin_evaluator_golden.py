@@ -3,6 +3,7 @@ import pytest
 
 from autograder import Submission, SubmissionFile, build_pipeline, compile_snapshot
 from autograder.models.language import Language
+from autograder.template_library import BUILTIN_TEMPLATES
 from tests.builtin_evaluator_cases import DEFINITION, SUBMISSIONS, golden, leaves
 
 
@@ -22,7 +23,7 @@ def test_golden_cases_cover_every_static_builtin_with_both_outcomes():
     compiled = compile_snapshot(build_pipeline(definition=DEFINITION).compiled.definition.model_dump(mode="json"))
     evaluators = {test.criterion_id: test.test_function.name for test in compiled.criteria_tree.get_all_tests()}
     static = {name for identifier in ("webdev", "static_analysis")
-              for name, function in compiled.templates[identifier].get_tests().items()
+              for name, function in BUILTIN_TEMPLATES[identifier].get_tests().items()
               if "ai_provider" not in function.required_capabilities}
     assert set(evaluators.values()) == static
     recorded = golden()

@@ -1,8 +1,5 @@
 {
-  "schema_version": "1.0",
-  "templates": [
-    "input_output"
-  ],
+  "schema_version": "2.0",
   "languages": [
     "python",
     "java",
@@ -11,16 +8,15 @@
   ],
   "criteria": {
     "base": {
-      "weight": 100.0,
       "tests": null,
       "subjects": [
         {
-          "subject_name": "Basic Operations",
+          "name": "Basic Operations",
           "weight": 60.0,
           "tests": null,
           "subjects": [
             {
-              "subject_name": "Addition",
+              "name": "Addition",
               "weight": 50.0,
               "tests": [
                 {
@@ -98,7 +94,7 @@
               "metadata": {}
             },
             {
-              "subject_name": "Subtraction",
+              "name": "Subtraction",
               "weight": 50.0,
               "tests": [
                 {
@@ -180,12 +176,12 @@
           "metadata": {}
         },
         {
-          "subject_name": "Advanced Operations",
+          "name": "Advanced Operations",
           "weight": 40.0,
           "tests": null,
           "subjects": [
             {
-              "subject_name": "Multiplication",
+              "name": "Multiplication",
               "weight": 50.0,
               "tests": [
                 {
@@ -263,7 +259,7 @@
               "metadata": {}
             },
             {
-              "subject_name": "Division",
+              "name": "Division",
               "weight": 50.0,
               "tests": [
                 {
@@ -349,7 +345,7 @@
       "metadata": {}
     },
     "bonus": {
-      "weight": 20.0,
+      "max_points": 20.0,
       "tests": [
         {
           "id": "bonus-tests-0",
@@ -425,7 +421,7 @@
       "metadata": {}
     },
     "penalty": {
-      "weight": 15.0,
+      "max_points": 15.0,
       "tests": [
         {
           "id": "penalty-tests-0",

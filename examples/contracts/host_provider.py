@@ -28,8 +28,8 @@ class DemonstrationProvider:
         return [ProviderAssessment(request.criterion_id, 100, "Demonstration assessment.") for request in requests]
 
 
-DEFINITION = {"schema_version": "1.0", "templates": ["review"], "languages": ["python"],
-              "criteria": {"base": {"weight": 100, "tests": [
+DEFINITION = {"schema_version": "2.0", "languages": ["python"],
+              "criteria": {"base": {"tests": [
                   {"id": "clarity", "type": "review", "name": "Code clarity", "parameters": {}}]}}}
 
 

@@ -24,8 +24,8 @@ API_PARAMETERS = {"health_check": {}, "check_response_json": {"expected_key": "s
 
 def definition(*, feedback=False, preparation=None):
     value = {
-        'schema_version': '1.0', 'templates': ['static_analysis'], 'languages': ['python'],
-        'criteria': {'base': {'weight': 100, 'tests': [
+        'schema_version': '2.0', 'languages': ['python'],
+        'criteria': {'base': {'tests': [
             {'id': 'imports', 'type': 'forbidden_import', 'name': 'Imports',
              'parameters': {'forbidden_imports': ['os']}}]}},
         'feedback': {'enabled': feedback},

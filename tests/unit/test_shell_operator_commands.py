@@ -14,8 +14,8 @@ TEST = ["criteria", "base", "tests", 0, "parameters"]
 
 
 def definition(program_command="python3 main.py", setup=(), languages=("python",)):
-    value = {"schema_version": "1.0", "templates": ["input_output"], "languages": list(languages),
-             "criteria": {"base": {"weight": 100, "tests": [{
+    value = {"schema_version": "2.0", "languages": list(languages),
+             "criteria": {"base": {"tests": [{
                  "id": "run", "type": "dont_fail", "name": "Runs", "weight": 100,
                  "parameters": {"program_command": program_command}}]}}}
     if setup:

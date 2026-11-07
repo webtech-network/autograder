@@ -7,9 +7,9 @@ import requests
 from autograder.models.contracts.outcome import validate_outcome
 
 
-def definition(template="static_analysis", language="python", tests=None, preparation=None):
-    value = {"schema_version": "1.0", "templates": [template], "languages": [language],
-        "criteria": {"base": {"weight": 100, "tests": tests or [
+def definition(language="python", tests=None, preparation=None):
+    value = {"schema_version": "2.0", "languages": [language],
+        "criteria": {"base": {"tests": tests or [
             {"id": "imports", "name": "Imports", "type": "forbidden_import",
              "parameters": {"forbidden_imports": ["os"]}}]}}}
     if preparation:

@@ -53,7 +53,6 @@ def _static_analysis_criteria(forbidden_imports: list) -> dict:
     """Build a criteria config for static_analysis with forbidden imports."""
     return {
         "base": {
-            "weight": 100.0,
             "tests": [
                 {
                     "id": f"no_{imp}",
@@ -121,8 +120,7 @@ class TestEvaluationScopeIntegration:
         )
 
         pipeline = build_pipeline(
-            definition={"schema_version": "1.0", "templates": ["static_analysis"],
-                        "languages": ["python"], "criteria": criteria},
+            definition={"schema_version": "2.0", "languages": ["python"], "criteria": criteria},
         )
         execution = pipeline.run(submission)
 
@@ -183,8 +181,7 @@ class TestEvaluationScopeIntegration:
         )
 
         pipeline = build_pipeline(
-            definition={"schema_version": "1.0", "templates": ["static_analysis"],
-                        "languages": ["python"], "criteria": criteria},
+            definition={"schema_version": "2.0", "languages": ["python"], "criteria": criteria},
         )
         execution = pipeline.run(submission)
 
@@ -249,8 +246,7 @@ class TestChangedLinesIntegration:
         )
 
         pipeline = build_pipeline(
-            definition={"schema_version": "1.0", "templates": ["static_analysis"],
-                        "languages": ["python"], "criteria": criteria},
+            definition={"schema_version": "2.0", "languages": ["python"], "criteria": criteria},
         )
         execution = pipeline.run(submission)
 
@@ -278,8 +274,7 @@ class TestChangedLinesIntegration:
         )
 
         pipeline = build_pipeline(
-            definition={"schema_version": "1.0", "templates": ["static_analysis"],
-                        "languages": ["python"], "criteria": criteria},
+            definition={"schema_version": "2.0", "languages": ["python"], "criteria": criteria},
         )
         execution = pipeline.run(submission)
 
@@ -412,8 +407,7 @@ class TestGradingServiceContributionAware:
     """Hydration remains correct at the adapter-to-engine boundary."""
 
     async def _capture(self, file_values, evaluation_scope=None):
-        definition = compile_definition({"schema_version": "1.0", "templates": ["static_analysis"],
-            "languages": ["python"], "criteria": _static_analysis_criteria(["os"])})
+        definition = compile_definition({"schema_version": "2.0", "languages": ["python"], "criteria": _static_analysis_criteria(["os"])})
         request = GradingRequest(submission_id=1, grading_config_id=1,
             definition=definition.definition.model_dump(mode="json"), configuration_version=1,
             definition_hash=definition.definition_hash, language="python", username="student",

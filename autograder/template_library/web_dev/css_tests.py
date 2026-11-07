@@ -13,8 +13,9 @@ from autograder.translations import t
 class CountUnusedCssClasses(TestFunction):
     """Analyzes unused CSS classes in the HTML."""
     absence_check = "Limit: passes while no CSS class is left unused."
-
-    file_parameters = ("html_file", "css_file")
+    # Classes are defined and used across the whole project, whatever the scope.
+    file_extensions = (".html", ".htm", ".css")
+    uses_context_files = True
     @property
     def name(self):
         return "count_unused_css_classes"
@@ -58,17 +59,12 @@ class CountUnusedCssClasses(TestFunction):
                     used_classes.add(cls)
         return used_classes
 
-    def execute(self, evaluation: EvaluationInput, *,
-                html_file: Annotated[str, Field(min_length=1, description=t("web_dev.css.count_unused_css_classes.param.html_file"))],
-                css_file: Annotated[str, Field(min_length=1, description=t("web_dev.css.count_unused_css_classes.param.css_file"))],
-                ) -> TestResult:
-        """Executes the unused CSS class verification."""
-        files = evaluation.files
-        submission_files = {file.filename: file for file in files or []}
-        html = submission_files.get(html_file)
-        html_content = html.content if html is not None else ""
-        css_content = submission_files[css_file].content if css_file in submission_files else ""
-        
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
+        """Compares the classes the CSS files define with those the HTML files use."""
+        pages = [file for file in evaluation.files if not file.filename.lower().endswith(".css")]
+        css_content = "\n".join(file.content for file in evaluation.files if file.filename.lower().endswith(".css"))
+        html_content = "".join(page.content for page in pages)
+
         if not html_content and not css_content:
             return TestResult(
                 self.name, 
@@ -77,7 +73,7 @@ class CountUnusedCssClasses(TestFunction):
             )
 
         css_classes = self._extract_css_classes(css_content)
-        used_classes = self._extract_html_classes(html)
+        used_classes = set().union(*(self._extract_html_classes(page) for page in pages))
         
         html_found, css_found = bool(html_content), bool(css_content)
         if html_found and css_found:
@@ -265,7 +261,7 @@ class HasStyle(TestFunction):
     maximum_files = 1
     def execute(self, evaluation: EvaluationInput, *,
                 style: Annotated[str, Field(min_length=1, description=t("web_dev.css.has_style.param.style"))],
-                count: Annotated[int, Field(ge=1, description=t("web_dev.css.has_style.param.count"))] = 1,
+                required_count: Annotated[int, Field(ge=1, description=t("web_dev.css.has_style.param.required_count"))] = 1,
                 ) -> TestResult:
         """Executes the search for style rules."""
         files = evaluation.files
@@ -274,8 +270,9 @@ class HasStyle(TestFunction):
 
         css_content = files[0].content
         found_count = len(re.findall(rf"{re.escape(style)}\s*:\s*[^;]+;", css_content, re.IGNORECASE))
-        score = min(100, int((found_count / count) * 100)) if count > 0 else 100
-        report = t("web_dev.css.has_style.report", locale=evaluation.locale, found_count=found_count, count=count, style=style)
+        score = min(100, int((found_count / required_count) * 100))
+        report = t("web_dev.css.has_style.report", locale=evaluation.locale, found_count=found_count,
+                   required_count=required_count, style=style)
         return TestResult(
             test_name=self.name,
             score=score,

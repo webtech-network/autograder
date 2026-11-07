@@ -1,14 +1,10 @@
 {
-  "schema_version": "1.0",
-  "templates": [
-    "webdev"
-  ],
+  "schema_version": "2.0",
   "languages": [
     "node"
   ],
   "criteria": {
     "base": {
-      "weight": 100.0,
       "tests": [
         {
           "id": "base-tests-0",

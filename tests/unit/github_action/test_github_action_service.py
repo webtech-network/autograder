@@ -9,8 +9,8 @@ from github_action.github_action_service import GithubActionService
 
 
 def definition(languages=None):
-    return {"schema_version": "1.0", "templates": ["webdev"], "languages": languages or ["node"],
-            "criteria": {"base": {"weight": 100, "tests": [{"id": "file", "type": "check_project_structure",
+    return {"schema_version": "2.0", "languages": languages or ["node"],
+            "criteria": {"base": {"tests": [{"id": "file", "type": "check_project_structure",
                 "name": "HTML entry", "parameters": {"expected_structure": "index.html"}}]}}}
 
 
@@ -29,7 +29,7 @@ def test_repo_mode_selects_single_language_and_locale_without_github_or_secrets(
         configure(service, path)
     assert service.language.value == "node"
     assert service.locale == "pt-br"
-    assert build.call_args.kwargs["definition"].definition.templates == ["webdev"]
+    assert build.call_args.kwargs["definition"].definition.criteria.base.tests[0].type == definition()["criteria"]["base"]["tests"][0]["type"]
     assert build.call_args.kwargs["locale"] == "pt-br"
     pipeline = MagicMock()
     from github_action.identity import SubmissionIdentity
@@ -89,8 +89,8 @@ def test_restricted_producer_publishes_named_revision_without_reading_configurat
 
 
 def io_definition():
-    return {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": [{"id": "echo", "type": "expect_output", "name": "Echo",
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": [{"id": "echo", "type": "expect_output", "name": "Echo",
                 "parameters": {"program_command": "python main.py", "inputs": ["hi"], "expected_output": "hi"}}]}}}
 
 

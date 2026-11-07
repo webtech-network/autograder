@@ -42,30 +42,21 @@ class CountGlobalVars(TestFunction):
 class HasNoJsFramework(TestFunction):
     """Checks if forbidden JS frameworks are present."""
     absence_check = "Prohibition: passes while no JavaScript framework is referenced."
-
-    file_parameters = ("html_file", "js_file")
+    # A framework referenced anywhere in the project counts, whatever the scope.
+    file_extensions = (".html", ".htm", ".js", ".mjs", ".cjs")
+    uses_context_files = True
     @property
     def name(self):
         return "has_no_js_framework"
     @property
     def description(self):
         return t("web_dev.js.has_no_js_framework.description")
-    def execute(self, evaluation: EvaluationInput, *,
-                html_file: Annotated[str, Field(min_length=1, description=t("web_dev.js.has_no_js_framework.param.html_file"))],
-                js_file: Annotated[str, Field(min_length=1, description=t("web_dev.js.has_no_js_framework.param.js_file"))],
-                ) -> TestResult:
-        """Executes the framework verification."""
+    def execute(self, evaluation: EvaluationInput) -> TestResult:
+        """Searches every HTML and JavaScript file for a framework reference."""
         files = evaluation.files
         if not files:
             return TestResult(self.name, 0, t("web_dev.error.no_files", locale=evaluation.locale))
-
-        # Build a dictionary of files
-        submission_files = {f.filename: f.content for f in files}
-
-        # Combine content for a single search
-        html_content = submission_files.get(html_file, "")
-        js_content = submission_files.get(js_file, "")
-        combined_content = html_content + js_content
+        combined_content = "\n".join(file.content for file in files)
         forbidden_patterns = [
             "react.js", "react.dom", "ReactDOM.render",  # React
             "vue.js", "new Vue",  # Vue

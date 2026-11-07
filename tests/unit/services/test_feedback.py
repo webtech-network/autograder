@@ -43,14 +43,14 @@ def fixed(identity, score, weight=1, name=None, report="", **parameters):
 
 
 def subject(name, weight, *, tests=(), subjects=(), subjects_weight=None):
-    value = {"subject_name": name, "weight": weight, "tests": list(tests), "subjects": list(subjects)}
+    value = {"name": name, "weight": weight, "tests": list(tests), "subjects": list(subjects)}
     if subjects_weight is not None:
         value["subjects_weight"] = subjects_weight
     return {key: item for key, item in value.items() if item != []}
 
 
 def outcome(criteria, feedback=None, locale="en"):
-    definition = {"schema_version": "1.0", "templates": ["local"], "languages": ["python"], "criteria": criteria,
+    definition = {"schema_version": "2.0", "languages": ["python"], "criteria": criteria,
                   "feedback": {"enabled": True, **(feedback or {})}}
     pipeline = build_pipeline(definition=definition, templates={"local": Template("Local", "Fixed.", [Fixed()])})
     result = pipeline.run(Submission("u", "u", "a", {"main.py": SubmissionFile("main.py", "")}, locale=locale)).outcome
@@ -69,7 +69,7 @@ def rubric():
     """Nested subjects, a mixed ``subjects_weight`` group, all-zero siblings, a zero-weight
     test, repeated slash labels, partial scores, bonus and penalty."""
     return {
-        "base": {"weight": 100, "subjects": [
+        "base": {"subjects": [
             subject("Program / IO", 3, tests=[
                 fixed("sum", 0, 2, "Check / output", "Expected: 5\nActual: 4", secret="EXPECTED-5"),
                 fixed("sum-large", 100, 1, "Check / output", "Output matches."),
@@ -80,8 +80,8 @@ def rubric():
                 subject("Keywords", 0, tests=[fixed("loops", 100, name="No loops", report="No loops found.")]),
             ], tests=[fixed("artifact", 50, name="Writes result", report="out.txt differs on line 2")]),
         ]},
-        "bonus": {"weight": 10, "tests": [fixed("bonus-sum", 50, name="Bonus / large", report="1 of 2 large sums")]},
-        "penalty": {"weight": 20, "subjects": [subject("Style", 1, tests=[
+        "bonus": {"max_points": 10, "tests": [fixed("bonus-sum", 50, name="Bonus / large", report="1 of 2 large sums")]},
+        "penalty": {"max_points": 20, "subjects": [subject("Style", 1, tests=[
             fixed("no-subprocess", 0, name="Avoid subprocess", report="Forbidden import: subprocess"),
             fixed("no-eval", 100, name="Avoid eval", report="No eval found.")])]},
     }
@@ -89,15 +89,15 @@ def rubric():
 
 def perfect():
     """Every criterion passed and the bonus earned: the final score is capped at 100."""
-    return {"base": {"weight": 100, "tests": [fixed("a", 100, name="Runs"), fixed("b", 100, name="Prints")]},
-            "bonus": {"weight": 15, "tests": [fixed("extra", 100, name="Extra")]},
-            "penalty": {"weight": 10, "tests": [fixed("style", 100, name="Style")]}}
+    return {"base": {"tests": [fixed("a", 100, name="Runs"), fixed("b", 100, name="Prints")]},
+            "bonus": {"max_points": 15, "tests": [fixed("extra", 100, name="Extra")]},
+            "penalty": {"max_points": 10, "tests": [fixed("style", 100, name="Style")]}}
 
 
 def floored():
     """A penalty larger than the base score: the final score is floored at 0."""
-    return {"base": {"weight": 100, "tests": [fixed("a", 10, name="Runs", report="Crashed.")]},
-            "penalty": {"weight": 40, "tests": [fixed("copy", 0, name="Original work", report="Copied.")]}}
+    return {"base": {"tests": [fixed("a", 10, name="Runs", report="Crashed.")]},
+            "penalty": {"max_points": 40, "tests": [fixed("copy", 0, name="Original work", report="Copied.")]}}
 
 
 CASES = {
@@ -157,7 +157,7 @@ def test_headings_are_neutral_and_never_contradict_status():
 
 
 def test_no_parameter_value_appears_unless_the_evaluator_report_includes_it():
-    criteria = {"base": {"weight": 100, "tests": [
+    criteria = {"base": {"tests": [
         fixed("hidden", 0, secret="HIDDEN-EXPECTED-OUTPUT", report="Wrong answer."),
         fixed("shown", 0, secret="SHOWN-VALUE", report="Expected SHOWN-VALUE.")]}}
     for show_passed in (False, True):
@@ -191,7 +191,7 @@ def test_multiline_reports_stay_inside_their_criterion():
 def random_holder(rng, depth, counter):
     holder = {}
     if depth < 3 and rng.random() < 0.5:
-        holder["subjects"] = [{"subject_name": f"S{next(counter)}", "weight": rng.choice([0, 0, 1, 2, 3.5]),
+        holder["subjects"] = [{"name": f"S{next(counter)}", "weight": rng.choice([0, 0, 1, 2, 3.5]),
                                **random_holder(rng, depth + 1, counter)} for _ in range(rng.randint(1, 3))]
     if "subjects" not in holder or rng.random() < 0.4:
         holder["tests"] = [fixed(f"t{next(counter)}", rng.choice([0, 100, round(rng.uniform(0, 100), 2)]),
@@ -203,10 +203,10 @@ def random_holder(rng, depth, counter):
 
 def random_criteria(rng):
     counter = iter(range(10_000))
-    criteria = {"base": {"weight": 100, **random_holder(rng, 1, counter)}}
+    criteria = {"base": {**random_holder(rng, 1, counter)}}
     for name in ("bonus", "penalty"):
         if rng.random() < 0.6:
-            criteria[name] = {"weight": rng.choice([5, 10, 30, 100]), **random_holder(rng, 1, counter)}
+            criteria[name] = {"max_points": rng.choice([5, 10, 30, 100]), **random_holder(rng, 1, counter)}
     return criteria
 
 

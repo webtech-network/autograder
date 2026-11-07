@@ -4,7 +4,7 @@ from autograder.template_library.web_dev.html_tests import (
     HasAttribute, CheckNoUnclosedTags, CheckNoInlineStyles, UsesSemanticTags,
     CheckCssLinked, CheckHeadDetails, CheckAttributeAndValue, CheckInternalLinksToArticle,
     CheckTagNotInside, CheckHeadingsSequential, CheckAllImagesHaveAlt,
-    CheckHtmlDirectChildren, LinkPointsToPageWithQueryParam, CheckBootstrapUsage
+    CheckHtmlDirectChildren, LinkPointsToPageWithQueryParam, HasNoBootstrap
 )
 from autograder.template_library.web_dev.css_tests import (
     CssUsesProperty, CountOverUsage, HasStyle, CheckIdSelectorOverUsage,
@@ -34,7 +34,7 @@ class WebDevTemplate(Template):
                 CheckHtmlDirectChildren(), CheckTagNotInside(), CheckInternalLinksToArticle(), HasStyle(),
                 CheckHeadDetails(), CheckAttributeAndValue(), CheckDirExists(), CheckProjectStructure(),
                 CheckIdSelectorOverUsage(), UsesRelativeUnits(), CheckMediaQueries(), CheckFlexboxUsage(),
-                CheckBootstrapUsage(), LinkPointsToPageWithQueryParam(), JsUsesQueryStringParsing(),
+                HasNoBootstrap(), LinkPointsToPageWithQueryParam(), JsUsesQueryStringParsing(),
                 JsHasJsonArrayWithId(), JsUsesDomManipulation(), HasNoJsFramework(), CountUnusedCssClasses(),
             ],
         )

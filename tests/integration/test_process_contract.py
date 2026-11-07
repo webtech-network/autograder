@@ -323,8 +323,8 @@ def test_missing_artifact_and_unknown_handle_are_distinct(session, managers):
 # ----- the real evaluator and preparation paths ------------------------------------
 
 def grade(host, tests, files, preparation=None):
-    definition = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-                  "criteria": {"base": {"weight": 100, "tests": tests}}}
+    definition = {"schema_version": "2.0", "languages": ["python"],
+                  "criteria": {"base": {"tests": tests}}}
     if preparation:
         definition["preparation"] = preparation
     pipeline = build_pipeline(definition=definition, capabilities=host.capabilities)
@@ -429,17 +429,17 @@ async def test_http_grading_assesses_a_silent_failure_and_rejects_malformed_comm
     headers = {"Authorization": "Bearer process-token"}
     async with AsyncClient(transport=ASGITransport(app=web_application), base_url="http://test",
                            headers=headers) as client:
-        bad = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-               "criteria": {"base": {"weight": 100, "tests": [dont_fail("bad", "python3 'main.py")]}}}
+        bad = {"schema_version": "2.0", "languages": ["python"],
+               "criteria": {"base": {"tests": [dont_fail("bad", "python3 'main.py")]}}}
         rejected = await client.post("/api/v1/configs", json={"external_assignment_id": "bad", "definition": bad})
         assert rejected.status_code == 422 and rejected.json()["detail"][0]["code"] == "INVALID_COMMAND"
-        bad_setup = dict(bad, criteria={"base": {"weight": 100, "tests": [dont_fail("ok", "python3 fail.py")]}},
+        bad_setup = dict(bad, criteria={"base": {"tests": [dont_fail("ok", "python3 fail.py")]}},
                          preparation={"languages": {"python": {"setup_commands": [
                              {"name": "x", "command": "make 'all"}]}}})
         rejected = await client.post("/api/v1/configs", json={"external_assignment_id": "bad2", "definition": bad_setup})
         assert rejected.status_code == 422
 
-        good = dict(bad, criteria={"base": {"weight": 100, "tests": [dont_fail("silent", "python3 fail.py")]}})
+        good = dict(bad, criteria={"base": {"tests": [dont_fail("silent", "python3 fail.py")]}})
         assert (await client.post("/api/v1/configs", json={"external_assignment_id": "silent",
                                                            "definition": good})).status_code == 200
         accepted = await client.post("/api/v1/submissions", json={
