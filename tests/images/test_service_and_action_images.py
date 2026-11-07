@@ -71,6 +71,14 @@ def built_images():
 
 
 @pytest.mark.parametrize("name", IMAGES)
+def test_image_links_its_published_package_to_this_repository(name):
+    # main publishes every one of these images (scripts/publish_images.py, ENV-07);
+    # GHCR grants the repository's workflow token write access through this label.
+    labels = json.loads(docker("image", "inspect", "--format", "{{json .Config.Labels}}", image(name)).stdout)
+    assert labels["org.opencontainers.image.source"] == "https://github.com/webtech-network/autograder"
+
+
+@pytest.mark.parametrize("name", IMAGES)
 def test_image_holds_one_python_and_no_development_web_or_database_stack(name):
     assert run(image(name), "python", "--version").startswith("Python 3.13.")
     installed = set(json.loads(run(image(name), "python", "-c", DISTRIBUTIONS)))

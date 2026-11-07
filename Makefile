@@ -9,7 +9,7 @@ PYTHON ?= uv run --locked python
 # reaches for a daemon fails here and in CI (whose runners have Docker).
 NO_DOCKER := DOCKER_HOST=unix:///nonexistent/hermetic.sock
 
-.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-isolation test-e2e test-http images test-images action-fixtures test-action action-check action-publish gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
+.PHONY: help install verify lint contracts docs test test-web test-postgres test-integration test-isolation test-e2e test-http images test-images action-fixtures test-action publish-images gvisor-install sandbox-build-all sandbox-build-python sandbox-build-java sandbox-build-node sandbox-build-cpp sandbox-list sandbox-clean db-upgrade db-downgrade db-current db-history db-migrate docs-serve start-autograder examples-demo
 
 help: ## Show this list
 	@echo "Usage: make <target>"
@@ -82,11 +82,8 @@ action-fixtures: ## Fixture checkouts for the packaged-Action CI job; points act
 test-action: ## Check the outcome and sandboxes of the fixture ACTION_FIXTURE just graded by `uses: ./` (CI)
 	$(PYTHON) -m scripts.action_fixtures check
 
-action-check: ## Fail unless the Action image action.yml pins is published and public (CI, into main)
-	$(PYTHON) -m scripts.action_image check
-
-action-publish: ## Release the tested Action image under the version action.yml pins (CI, workflow_dispatch)
-	$(PYTHON) -m scripts.action_image publish $(IMAGE_PREFIX)-action:$(IMAGE_TAG)
+publish-images: ## Push the built images as sha-<commit> and main, if this is the head of main (CI, push to main)
+	$(PYTHON) -m scripts.publish_images '$(IMAGE_PREFIX)' '$(IMAGE_TAG)'
 
 # The versioned runtime images named in sandbox_config.yml (scripts/sandbox_images.py).
 SANDBOX_IMAGES = $(PYTHON) scripts/sandbox_images.py

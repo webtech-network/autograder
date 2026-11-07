@@ -156,8 +156,8 @@ uvicorn web.main:app --host 0.0.0.0 --port 8000
 ```
 
 Compose runs the same command in its `migrate` service before `api` starts, and
-the deploy workflow runs it with the pulled image before replacing the running
-API. Startup never creates or alters tables. It compares the database revision
+the [upgrade runbook](../operate/deployment.md#upgrade-runbook) runs it with the
+pulled image before replacing the running API. Startup never creates or alters tables. It compares the database revision
 with the build's head revision and refuses to start, naming the command to run,
 when the database is empty, behind, ahead or unversioned. `tests/web/test_migrations.py`
 proves on PostgreSQL that `upgrade head` from empty equals the models (an empty

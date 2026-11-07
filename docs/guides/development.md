@@ -45,9 +45,9 @@ the declared runtime dependencies are exactly the imported ones.
 ## Verification
 
 CI ([`verify.yml`](https://github.com/webtech-network/autograder/blob/main/.github/workflows/verify.yml))
-runs exactly these targets on every pull request and on `main`, and deploys the
-API only after all of them pass for that commit and only while it is still
-the head of `main`. Run the same command locally
+runs exactly these targets on every pull request and on `main`, and publishes
+the images of a `main` commit only after all of them pass for that commit and
+only while it is still the head of `main`. Nothing is deployed. Run the same command locally
 before opening a pull request. `make verify` stops at the first failing step;
 `make -k verify` runs every step and reports all failures. `make lint` fails on
 any pylint error (`fail-on` in `.pylintrc`), whatever the repository score. It
@@ -67,7 +67,7 @@ has pylint false positives to resolve first.
 | `make images` | Docker | Builds the API, sandbox manager and Action images from the checkout as `<IMAGE_PREFIX>-<name>:<IMAGE_TAG>` (default `autograder-<name>:local`, the names `docker-compose.yml` runs). |
 | `make test-images` | Docker | Builds those images and the Python runtime, and checks exactly them ([Images](#images)), including the packaged Action grading in a sandbox on the Docker socket it is given. |
 | `make action-fixtures`, `make test-action` | Docker, a GitHub runner | The `Packaged Action on a hosted runner` CI job: fixture checkouts graded by `uses: ./` (`action.yml` pointed at `Dockerfile.actions`), then each outcome, its outputs and the runner's sandboxes checked (`scripts/action_fixtures.py`). Not useful outside a workflow. |
-| `make action-check` | Network, full git history | Fails unless the version `action.yml` pins is tagged in this commit's history, nothing released (`action.yml` and the Action image's inputs) changed since that tag, and its image and the runtime images it pins are anonymously pullable (asked with an empty `DOCKER_CONFIG`, so a GHCR login does not hide a private package). |
+| `make publish-images` | Docker, a GHCR login with `packages: write` | The `Publish images from main` CI job, after `make test-images` and `make sandbox-build-all`: unless this commit is still the head of `origin`'s `main`, publishes nothing; otherwise pushes the runtime images not yet published, then the API, sandbox manager and Action images as `sha-<commit>` and `main` (`scripts/publish_images.py`, [Versions and images](../github_action/README.md#versions-and-images)). Not useful outside a workflow. |
 
 A bare `pytest` collects all of `tests/`, including `tests/integration/`,
 `tests/e2e/`, `tests/stack/` and `tests/images/`, which fail rather than skip without Docker and
@@ -92,8 +92,8 @@ on the Docker socket it is given.
 `tests/unit/test_architecture.py` checks dependency direction, that discovery and
 the documented examples agree with the registry, and the extension path.
 `tests/unit/test_verification_frame.py` checks that `make help`, the docs and
-CI name only existing targets, and that deployment and the Action release wait
-for every verification job.
+CI name only existing targets, that image publication waits for every
+verification job, and that nothing deploys or releases.
 
 ### Required checks
 
@@ -103,14 +103,14 @@ every verification job of `verify.yml` by its name, from the GitHub Actions app:
 
 - `Core path (make verify)`
 - `PostgreSQL tier`
-- `Service and Action images` (which runs `make action-check` into `main`)
+- `Service and Action images`
 - `Docker sandboxes (integration and e2e)`
 - `Sandbox isolation under gVisor and runc`
 - `HTTP path (Compose stack from this commit)`
 - `Packaged Action on a hosted runner` (the Action from this commit, `uses: ./`, on `ubuntu-latest`)
 
-The publication jobs (`Release Action image`, `Deploy API`) are skipped on pull
-requests and are not required. Check the setting with:
+The publication job (`Publish images from main`) is skipped on pull requests
+and is not required. Check the setting with:
 
 ```bash
 gh api repos/webtech-network/autograder/rulesets/8901171 \
@@ -124,9 +124,7 @@ replaces them (Settings → Rules → Rulesets → `SINGLE_APPROVAL_BPR` → Req
 status checks to pass) and confirms with the command above. A job added to or
 renamed in `verify.yml` changes this list and the ruleset in the same pull
 request. The ruleset's bypass list can still merge past a red check; nobody
-merges into `main` while a required check is red. When editing the ruleset, also
-restrict `main`'s allowed merge methods to `merge`: release pull requests must
-keep the tagged commit in `main`'s history.
+merges into `main` while a required check is red.
 
 ### Images
 
@@ -163,9 +161,9 @@ runs it on every pull request; `IMAGE_PREFIX` and `IMAGE_TAG` rename the local
 images (`make test-images IMAGE_PREFIX=mine`).
 
 To change a base, replace its digest (`docker buildx imagetools inspect
-python:3.13-slim-trixie`) in all three Dockerfiles. The Action image is released
-from the branch that raises its version in `action.yml`, before that branch
-merges; see [Releasing a version](../github_action/README.md#releasing-a-version).
+python:3.13-slim-trixie`) in all three Dockerfiles. Every verified push to
+`main` publishes these images and the runtime images; there are no releases
+before 1.0.0. See [Versions and images](../github_action/README.md#versions-and-images).
 
 ### Documentation site
 

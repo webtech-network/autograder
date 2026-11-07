@@ -30,6 +30,9 @@ COPY autograder autograder
 COPY sandbox_manager sandbox_manager
 RUN python -m compileall -q /app
 
+# Links the published package to this repository, so main's workflow token can push it.
+LABEL org.opencontainers.image.source="https://github.com/webtech-network/autograder"
+
 # It manages sandboxes through the mounted Docker socket with the Docker SDK.
 # The private control API port: do not publish it; keep it on an internal
 # network and set SANDBOX_API_TOKEN (the service refuses to start without it).

@@ -70,8 +70,8 @@ def ensure_image(client, reference):
     except docker.errors.APIError as exc:
         raise RuntimeImageError(
             f"Sandbox image '{reference}' could not be pulled: {exc.explanation or exc}. The Action runs the "
-            "runtime images its release pins; they must be public (see "
-            "docs/github_action/README.md#releasing-a-version).") from None
+            "runtime images its sandbox_config.yml pins; they must be public (see "
+            "docs/github_action/README.md#versions-and-images).") from None
 
 
 class RunnerHost:
