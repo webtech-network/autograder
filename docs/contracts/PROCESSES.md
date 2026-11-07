@@ -160,7 +160,7 @@ never from an exit code alone:
 | A control exec fails; Docker reports the container stopped by itself: `OOMKilled`, or the runtime exited without a signal (gVisor's Sentry cannot continue at the pids limit) | The submission exhausted the sandbox | `SandboxExhausted` |
 | The pool disposed the sandbox (its lifetime passed, shutdown) | The host ended it | `ProcessExecutionError` |
 | The sandbox's own lifetime passed before the run was read back (checked first, so a run it ended is never a result) | The host's limit ended it | `ProcessExecutionError` |
-| Docker no longer has the container, or a signal stopped PID 1 (`docker rm -f`, `kill`, `stop`) | The host ended it | `ProcessExecutionError` |
+| The container is gone from Docker, or a signal stopped PID 1 (`docker rm -f`, `kill`, `stop`) | The host ended it | `ProcessExecutionError` |
 | A control exec fails and the container is still running below its pids limit | Infrastructure (daemon) failure | `ProcessExecutionError` |
 | None of the above; exit code 137 | The program's own exit (`exit(137)`, or a SIGKILL it sent itself) | `exited` 137 |
 
@@ -220,60 +220,29 @@ test's wall time is roughly twice the CPU it uses. Under gVisor each helper
 process that a script forks costs about as much CPU as a small program (about 3
 ms, so about 6 ms of wall time). The runner therefore forks nothing: text stdin
 up to 48 KiB is one argument, written with a shell builtin. The collector forks
-five helpers, a `stat` and a `head` for each output and one `rm`, where it used
-to fork fourteen. Outputs come back as raw bytes, whose sizes the collector
-reports first, not as base64. A real-container test counts the pids a run
-allocates and keeps the number of helpers at five or fewer.
+five helpers, a `stat` and a `head` for each output and one `rm`. Outputs come
+back as raw bytes, whose sizes the collector reports first, not as base64. A
+real-container test counts the pids a run allocates and keeps the number of
+helpers at five or fewer.
 
 Medians of `run_process` for a program that upper-cases one line, over 3 rounds
 of 40 runs each, under the shipped profile (Intel Core i5-12400, 12 threads,
-Docker 29.9, gVisor release-20260209.1, load average 2–4 from other jobs).
-Before the change, then after:
+Docker 29.9, gVisor release-20260209.1, load average 2–4 from other jobs):
 
 | Runtime | Python | Java | C |
 | --- | --- | --- | --- |
-| gVisor | 195 → 122 ms | 290 → 164 ms | 100 → 67 ms |
-| runc | 106 → 103 ms | 118 → 110 ms | 95 → 83 ms |
+| gVisor | 122 ms | 164 ms | 67 ms |
+| runc | 103 ms | 110 ms | 83 ms |
 
-The same change in complete gradings uses the capacity benchmark's python-io
-workload ([JOBS.md](JOBS.md#capacity-benchmark)), run in process with one warm
-sandbox. A test's marginal cost is the difference between 21 tests and 1 test,
-divided by 20, as the median of 3 rounds of 5 gradings. Under gVisor it fell from
-216 to 126 ms, and a 21-test grading went from 5.0 to 2.8 s. Under runc it went
-from 160 to 154 ms.
+In complete gradings of the capacity benchmark's python-io workload
+([JOBS.md](JOBS.md#capacity-benchmark)), run in process with one warm sandbox,
+a test's marginal cost (the difference between 21 tests and 1 test, divided by
+20, as the median of 3 rounds of 5 gradings) is 126 ms under gVisor, where a
+21-test grading takes 2.8 s, and 154 ms under runc
+([decisions](DECISIONS.md#per-test-sandbox-cost-prf-08)).
 
 The rest of a test's cost is the program itself and the two exec round trips.
 One exec round trip takes about 30 ms under either runtime. Under runc it also
 charges about 18 ms of CPU to the container, because runc sets up each exec
 inside it. Starting the interpreter or JVM takes about 60–70 ms. With runc,
 forks are cheap, so most of the remaining cost is the two execs.
-
-## Migration from `run_command`/`run_commands`
-
-| Before | Now |
-| --- | --- |
-| `run_command(cmd)` split with `shlex`, but malformed quoting silently ran `/bin/sh -c cmd` | `ProcessRequest.command(cmd)` raises. Compilation rejects such definitions (`INVALID_COMMAND`). |
-| `run_commands(inputs, program_command=...)` ran `echo '<joined>' \| cmd` | Exact stdin: `lines_to_stdin(inputs)` |
-| `inputs: []` sent one newline (`echo ''`) | Empty stdin (EOF). Use `[""]` to send one empty line. |
-| An input `-n` (or `-e`, `-E`) could be taken as an `echo` option and lost | Sent literally, as `-n\n` |
-| Exit ≠ 0 with unrecognised stderr was `SYSTEM_ERROR` → `SANDBOX_ERROR`, a failed grade | Assessed zero (`runtime_error`) |
-| Exit 137 was `TIMEOUT` | `runtime_error` with exit code 137 |
-| A container stopped under a process kept the process's exit code (`_stopped_result`): a reaper or `docker kill` turned a correct run into a zero | Host-ended containers raise `ProcessExecutionError` (`SANDBOX_ERROR`); only host evidence of exhaustion is the submission's (`SandboxExhausted`) |
-| PID 1 and the collector ran as `sandbox`: a submission could kill them and turn a bad grade into a retryable `SANDBOX_ERROR` | PID 1 and control execs run as `root`; the submission cannot signal them |
-| A missing or non-executable `./a.out` was `PROCESS_START_FAILED` | Assessed zero (only a runtime command that cannot start is a capability failure) |
-| An artifact the submission made unreadable was `ARTIFACT_READ_FAILED` → `SANDBOX_ERROR` | Read and graded |
-| `compilation_error` from stderr keywords (`error:`, `gcc`, ...) | `runtime_error`. Compile in `setup_commands` to get `PREPARATION_FAILED`. |
-| Unbounded `exec_run` output buffering | Bounded per stream at the host |
-| A timeout stopped waiting but left the process running | The process and its children are killed before the call returns |
-| Control API `POST /run`, `POST /run-batch` | `POST /process` |
-
-Definitions that depended on the old behaviour need these changes:
-
-* An `expect_output` test with `inputs: []` whose program calls `input()` now
-  gets EOF. Add `[""]` if the program must read an empty line.
-* A `program_command` or setup command that relied on shell syntax never ran
-  through a shell before (it was split into arguments) unless its quoting was
-  malformed. Write `sh -c '...'` explicitly. Malformed quoting and standalone
-  shell operators are now rejected when the definition is compiled or loaded.
-* Assignments that expected `compilation_error` from an I/O run should compile
-  in `preparation.languages.<language>.setup_commands`.

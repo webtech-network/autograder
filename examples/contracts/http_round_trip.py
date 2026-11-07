@@ -12,7 +12,7 @@ import httpx
 
 DEFINITION = (
     Path(__file__).resolve().parents[2]
-    / "docs/contracts/v1/examples/static-conformance.json"
+    / "examples/definitions/static-conformance.json"
 )
 
 

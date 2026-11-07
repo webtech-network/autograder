@@ -99,20 +99,15 @@ Actions collects the root's accepted text files and does not expose an evaluatio
 scope input. The definition's explicit `file: "main.py"` limits assessment in both
 hosts; `helper.py` and `README.md` remain context and execution input.
 
-## Trusted Python migration
+## File declarations for trusted evaluators
 
-Remove the unused `required_file`/`required_file_type` properties. Optional
-`TestFunction` declarations are `file_extensions`, `minimum_files`,
-`maximum_files`, `uses_context_files`, and `file_parameters`, plus the
+Optional `TestFunction` declarations are `file_extensions`, `minimum_files`,
+`maximum_files`, `uses_context_files` and `file_parameters`, plus the
 `accepts_file(filename, language)` hook. Defaults allow zero or more scoped files
 without a type restriction; the default hook honours `file_extensions`. Source
-analysers override the hook with their parser rules (`source_files_only` was
-replaced by `accepts_file`; the built-in static evaluators use
-`structural_analysis.is_runtime_source`). Set
-`maximum_files = 0` for endpoint-only checks; set matching extensions and minimum
-and maximum of one for single-file checks. Avoid implementing declarations that
-an evaluator does not need. The former internal structural pipeline step,
-result container and accessor have been removed; the structural evaluator parses
-its own selected sources. Selected files arrive as `evaluation.files` (with their
-`metadata` and `changed_lines`); scope and a separate file-metadata mapping are
-not passed to evaluators. The version 1 JSON shape is unchanged.
+analysers override the hook with their parser rules (the built-in static
+evaluators use `structural_analysis.is_runtime_source`). Set `maximum_files = 0`
+for endpoint-only checks; set matching extensions and a minimum and maximum of
+one for single-file checks. Declare only what an evaluator needs. Selected files
+arrive as `evaluation.files` (with their `metadata` and `changed_lines`); scope
+and a separate file-metadata mapping are not passed to evaluators.

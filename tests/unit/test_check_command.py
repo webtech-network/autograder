@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-EXAMPLES = ROOT / "docs/contracts/v1/examples"
+EXAMPLES = ROOT / "examples/definitions"
 WEB_REFERENCE = ROOT / "examples/assets/web_dev"
 NO_DOCKER = "unix:///nonexistent/onb06-check.sock"
 

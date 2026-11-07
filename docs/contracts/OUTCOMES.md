@@ -160,12 +160,10 @@ places, and validation allows only the resulting small arithmetic rounding
 error. `outcome_score_vector(completed)` derives an ID-to-score projection from
 the authoritative tree.
 
-Scoring arithmetic has one definition (`autograder/models/contracts/scoring.py`):
-effective sibling weights are ratios scaled to 100 (all-zero siblings share
-equally; a mixed holder splits 100 by `subjects_weight`), holder scores are the
-weighted mean of unrounded child scores, the final score is
-`base + bonus/100*cap - (100-penalty)/100*cap` clamped to 0–100 (equivalently,
-100 plus each category's signed `criterion_points`), every reported
+Scoring arithmetic has one implementation (`autograder/models/contracts/scoring.py`)
+and one description, [Scores](../author/scoring.md). On the wire, effective
+weights are the normalized sibling ratios (summing to 100 within a group),
+holder scores are the weighted mean of unrounded child scores, every reported
 score is rounded to two decimals and effective weights are not rounded. The
 canonical criterion order is base, bonus, penalty and, inside a holder, nested
 subjects before direct tests.
@@ -189,12 +187,6 @@ The frozen `PipelineExecution` return envelope holds only `outcome`; intermediat
 assessment data remains local to the coordinator. Optional diagnostic events
 are separate from the grading artifact. Cleanup failures reach host logging and
 an optional observer without replacing the completed or failed grading outcome.
-
-Operationally, v1 outcomes replace legacy duplicate `root`/`tree` and HTTP
-`children` wrappers. Stored legacy results are not automatically attested with
-current definition hashes. Consumers migrate to the canonical outcome plus
-compact polling/history projections; source files and trees require explicit
-trusted detail retrieval.
 
 
 ## Size bounds
@@ -305,5 +297,5 @@ criteria are `introduced`/`removed`. Failed or pending outcomes are
 `OUTCOME_NOT_COMPLETED`; history without a bound snapshot or canonical outcome is
 `LEGACY_UNVERIFIED`; different configuration resources are `NOT_COMPARABLE`.
 Attested and executed outcomes follow identical rules and are labelled by
-`source`. See [baseline comparison](../features/baseline_comparison.md) for the
-complete table, example and migration notes.
+`source`. See [baseline comparison](COMPARISON.md) for the
+complete table and example.

@@ -143,16 +143,16 @@ The unimplemented AI reporter and unknown preferences are rejected.
 
 | Assignment | Valid example | Invalid example |
 |---|---|---|
-| Python I/O | [python-io](v1/examples/python-io.json) | [unknown input option](v1/examples/invalid/io-input-alias.json) |
-| Multilanguage I/O | [multi-language](v1/examples/multi-language-io.json) | [missing command](v1/examples/invalid/missing-command-language.json), [shell operator](v1/examples/invalid/shell-operator-command.json) |
-| Artifact | [file artifact](v1/examples/file-artifact.json) | Absolute/traversal artifact paths are invalid |
-| API | [API](v1/examples/api.json) | [endpoint type](v1/examples/invalid/api-invalid-endpoint.json) |
-| Web/static | [webdev](v1/examples/webdev.json), [import penalty](v1/examples/io-with-import-penalty.json) | [parameter typo](v1/examples/invalid/web-parameter-typo.json), [zero threshold](v1/examples/invalid/zero-presence-threshold.json), [misspelled template](v1/examples/invalid/misspelled-template.json) |
-| Structure | [python-io](v1/examples/python-io.json) | [base weight](v1/examples/invalid/base-weight-not-100.json), [unused preparation language](v1/examples/invalid/preparation-language-not-allowed.json) |
-| AI/static | [AI algorithm](v1/examples/static-ai.json) | [empty algorithm](v1/examples/invalid/ai-empty-algorithm.json) |
-| Nested feedback | [weighted groups](v1/examples/nested-with-feedback.json) | [duplicate ID](v1/examples/invalid/duplicate-criterion-id.json) |
+| Python I/O | [python-io](https://github.com/webtech-network/autograder/blob/main/examples/definitions/python-io.json) | [unknown input option](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/io-input-alias.json) |
+| Multilanguage I/O | [multi-language](https://github.com/webtech-network/autograder/blob/main/examples/definitions/multi-language-io.json) | [missing command](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/missing-command-language.json), [shell operator](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/shell-operator-command.json) |
+| Artifact | [file artifact](https://github.com/webtech-network/autograder/blob/main/examples/definitions/file-artifact.json) | Absolute/traversal artifact paths are invalid |
+| API | [API](https://github.com/webtech-network/autograder/blob/main/examples/definitions/api.json) | [endpoint type](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/api-invalid-endpoint.json) |
+| Web/static | [webdev](https://github.com/webtech-network/autograder/blob/main/examples/definitions/webdev.json), [import penalty](https://github.com/webtech-network/autograder/blob/main/examples/definitions/io-with-import-penalty.json) | [parameter typo](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/web-parameter-typo.json), [zero threshold](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/zero-presence-threshold.json), [misspelled template](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/misspelled-template.json) |
+| Structure | [python-io](https://github.com/webtech-network/autograder/blob/main/examples/definitions/python-io.json) | [base weight](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/base-weight-not-100.json), [unused preparation language](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/preparation-language-not-allowed.json) |
+| AI/static | [AI algorithm](https://github.com/webtech-network/autograder/blob/main/examples/definitions/static-ai.json) | [empty algorithm](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/ai-empty-algorithm.json) |
+| Nested feedback | [weighted groups](https://github.com/webtech-network/autograder/blob/main/examples/definitions/nested-with-feedback.json) | [duplicate ID](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/duplicate-criterion-id.json) |
 
-[Invalid-example manifest](v1/examples/invalid/manifest.json) records exact errors.
+[Invalid-example manifest](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/manifest.json) records exact errors.
 For example: ``{"code":"INVALID_DEFINITION","path":["criteria","base","tests",0,"parameters","input"],"message":"`expect_output` has no parameter `input`; did you mean `inputs`?"}``.
 Each error's path names the offending field, cross-field rules included (base
 weight: `["criteria","base","weight"]`; an unused preparation language:
@@ -162,65 +162,19 @@ template that provides an evaluator the definition does not list. HTTP adds
 envelope/body components to paths for Pydantic request errors and reports their
 Pydantic type as `code`. Errors never echo input files/provider credentials.
 `python -m execution_host.check` prints the same errors offline
-([Action quick start](../github_action/quick-start.md#check-the-definition-first)).
+([Test your rubric](../author/testing.md)).
 
-## Legacy definition migration
+## Definitions in the pre-v1 format
 
-Convert one legacy definition envelope offline:
+The offline converter turns a pre-v1 definition into a v1 one, or prints the
+exact errors that stop it; nothing converts at runtime:
 
 ```sh
 python -m autograder.services.definition_migration old-definition.json definition.json
 ```
 
-Supply `template_name`, `grading_criteria`, `languages` and optional legacy
-setup/feedback fields. Multi-file repository configurations must first be
-assembled into that envelope. The converter assigns deterministic path-based IDs
-once, preserves weights/labels, moves the known `display_name` parameter to the
-label, removes the runtime language placeholder and converts the old file-target `all`
-  sentinel to null, and resolves only unambiguous
-learning-resource labels. Persist these new IDs; do not regenerate them on edits.
-Duplicate pairs, competing encodings, unsupported options and unsafe asset
-relocation require explicit instructor correction. There is no runtime converter.
+How it assigns IDs and what it rejects is in the
+[migration notes](DECISIONS.md#definitions).
 
-Migration 005 converts database rows, records rejection evidence, quarantines
-invalid rows inactive, and drops old configuration columns. Future submissions
-retain exact snapshots/hash/revision. Old submissions remain `unverified_legacy`;
-old failed numeric zeros become null grades. The migration is intentionally
-irreversible: back up first, drain old background executions, deploy the matching
-engine/API/Action consumers together, run Alembic upgrade, inspect quarantined rows,
-then reactivate only corrected definitions. Rollback restores the pre-upgrade DB
-backup with the previous code. Automatic schema creation does not migrate a DB.
-
-### Definitions that compile no longer (ONB-01)
-
-Definitions that compiled before may now be rejected, intentionally: an explicit
-presence threshold of `0`, an empty forbid/find list, or a standalone shell
-operator in a command. Nothing else changes: a stored snapshot lists every
-parameter explicitly, so a valid snapshot keeps its meaning and hash, and a
-raw definition that omitted a threshold now gets 1 instead of an always-passing 0.
-There is no runtime fallback. A stored configuration that became invalid is
-rejected with the exact path (`422` on submission, a failed outcome for a job
-already bound to it) until it is corrected; nothing rewrites it silently.
-
-Before deploying, check every stored definition with the offline converter,
-which compiles v1 input unchanged and prints the precise errors:
-
-```sh
-python -m autograder.services.definition_migration stored.json checked.json
-```
-
-Then correct each rejected definition through the configuration API (`PATCH`
-creates a new revision): set the intended threshold, name the forbidden items or
-delete the criterion, and move compile steps such as `javac A.java && java A`
-into `setup_commands` (`javac A.java`) with `program_command: "java A"`. A
-legacy envelope carrying these values is rejected by the converter in the same
-way, so migration 005 would quarantine such a row.
-
-The old `test_library` envelope is unsupported. Multiple templates use an
-explicit list with collision-checked registry resolution. Evaluator parameters
-have typed contracts and stable criterion IDs. Provider mapping, resource limits,
-and infrastructure scheduling belong to the hosting environment rather than
-the definition schema.
-
-Assessment file targets, scope, context and trusted Python migration are defined
+Assessment file targets, scope, context and trusted Python file declarations are defined
 in [the file-selection contract](FILES.md).

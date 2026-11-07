@@ -27,7 +27,7 @@ from scripts.action_fixtures import PROBE
 from tests.images.test_service_and_action_images import ROOT, action_environment, docker, image, run as run_in
 
 RUNTIMES = yaml.safe_load((ROOT / "sandbox_config.yml").read_text(encoding="utf-8"))["runtimes"]
-PYTHON_IO = json.loads((ROOT / "docs/contracts/v1/examples/python-io.json").read_text(encoding="utf-8"))
+PYTHON_IO = json.loads((ROOT / "examples/definitions/python-io.json").read_text(encoding="utf-8"))
 SUM = "a = int(input())\nb = int(input())\nprint(a + b)\n"
 OWNER_HOST_LABEL = "autograder.sandbox.owner_host"
 DOCUMENTED_ERROR = "Docker is not available to the Action"

@@ -7,7 +7,7 @@ They depend only on the shape shared by compiled criteria and assessed trees:
 ``base``/``bonus``/``penalty`` categories whose holders have ``subjects`` and
 ``tests``.
 
-Arithmetic contract (documented in OUTCOMES.md):
+Arithmetic contract (described for authors in docs/author/scoring.md):
 
 * Sibling weights are ratios; all-zero siblings share equally. A holder with
   both subjects and tests splits 100 by ``subjects_weight``.

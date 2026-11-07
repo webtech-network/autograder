@@ -109,12 +109,9 @@ def test_offline_converter_preserves_names_weights_and_rejects_ambiguity():
     assert failure.value.errors()[0]['code']=='LEGACY_CONVERSION_REJECTED'
 
 
-def test_checked_in_examples_and_schema_are_current():
-    directory=Path('docs/contracts/v1')
-    schema=json.loads((directory/'grading-definition.schema.json').read_text())
+def test_checked_in_schema_is_current():
+    schema=json.loads(Path('docs/contracts/v1/grading-definition.schema.json').read_text())
     assert schema==grading_definition_json_schema()
-    for path in (directory/'examples').glob('*.json'):
-        compile_definition(json.loads(path.read_text()))
 
 
 @pytest.mark.parametrize('rule',[{'regex':'['},{'all':[{'unknown':'value'}]},{'kind':42}])
@@ -126,7 +123,7 @@ def test_custom_ast_rule_must_compile_before_acceptance(rule):
 
 
 def test_invalid_examples_have_documented_error_paths():
-    directory=Path('docs/contracts/v1/examples/invalid')
+    directory=Path('examples/definitions/invalid')
     for expected in json.loads((directory/'manifest.json').read_text()):
         with pytest.raises(DefinitionValidationError) as failure:
             compile_definition(json.loads((directory/expected['file']).read_text()))

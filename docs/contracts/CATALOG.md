@@ -100,28 +100,7 @@ user-uploaded catalog storage. Python discovery may merge trusted local instance
 using `describe_templates(templates={...})`. Custom examples remain author-owned;
 compilation is authoritative for cross-field and language-specific checks.
 
-## Deployment and migration
-
-ONB-08 removes the template-level `requires_sandbox` flag. The catalog wire
-models drop `TemplateDescription.requires_sandbox` and
-`EvaluatorDescription.requires_sandbox` (removed, not deprecated: the field
-duplicated, and for mixed templates contradicted, `required_capabilities`).
-Clients that read it use `"sandbox_execution" in required_capabilities` (or
-`http_network` for API evaluators). `health_check` and `check_response_json`
-now report `["http_network"]` instead of `["http_network", "sandbox_execution"]`.
-Trusted Python callers build templates as `Template(name, description,
-[evaluator, ...])` instead of subclassing with `tests`, `template_name`,
-`template_description` and `requires_sandbox`, and import authoring types from
-`autograder`. A subclass that still sets `tests` without calling
-`super().__init__` is rejected as `INVALID_TEMPLATE` by compilation and
-evaluation (discovery raises `TypeError`). Known external readers of the removed
-field: `prisma-infrastructure/docs/grading-contract/v1/build_artifacts.py` and
-`validate_definition.py` read `template.requires_sandbox`; they target the
-legacy deployed image and must switch to evaluator `required_capabilities`
-before they run against this version. `TemplateLibraryService` is replaced by the read-only
-`autograder.template_library.BUILTIN_TEMPLATES` mapping; the package no longer
-re-exports template classes. Definitions, stored snapshots and their hashes are
-unchanged, so no database migration is needed.
+## Host requirements
 
 Static checks need no sandbox or AI setup. Execution still uses the configured
 host's sandbox manager and supported language pools. API evaluators need an HTTP
@@ -130,21 +109,8 @@ a host-supplied assessment provider; structural rules need `ast-grep-py`. Missin
 resources fail execution rather than becoming student zeroes. Requirements for
 unused evaluators do not cause sandbox or AI provisioning for a static assignment.
 
-The catalog response removes the redundant `available_tests` list. Consumers use
-`evaluators[].identifier`; language constraints are per evaluator. Python callers
-of the internal library's metadata methods now receive Pydantic models; serialize
-with `model_dump(mode="json")`. The checked-in OpenAPI snapshot includes the new
-models. Deploy catalog clients and server together if a client required the old
-field. No database migration or definition schema-version change is needed.
-
-Remove calls to the never-implemented `load_custom_template()` and pass instances
-through `templates={...}` instead. All public definitions use `templates: [id]`;
-comma-separated strings and plugin/source objects are rejected. The internal load
-step now attaches compiled instances and performs no second registry resolution.
-
 ## File selection and host composition
 
-The unused `required_file` and `required_file_type` properties have been removed.
 See [evaluator file selection](FILES.md) for explicit targets, source types,
 zero/one/many requirements and context. These declarations control assessment
 input and are separate from execution capability requirements.
@@ -155,6 +121,4 @@ read credentials or choose an AI model. HTTP and Actions compose their concrete
 services outside the core. See [host capabilities](CAPABILITIES.md) for typed
 preparation, ownership, cleanup and missing-capability behavior.
 
-These changes complete the overlapping file/capability work tracked by #228 and
-#376 without claiming that the broader #363 investigation or other phase work is
-complete. Transport/storage validation is documented in [submission input](SUBMISSIONS.md).
+Transport/storage validation is documented in [submission input](SUBMISSIONS.md).

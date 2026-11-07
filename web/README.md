@@ -76,7 +76,7 @@ has `provenance_status: "unverified_legacy"`; new accepted/imported snapshots us
 The old arbitrary `baseline_result_tree` submission input is removed. Authenticated
 `GET /api/v1/submissions/{id}/comparison?baseline_submission_id={baseline}` compares
 two stored canonical outcomes on demand without grading or storing anything; see
-[baseline comparison](../docs/features/baseline_comparison.md).
+[baseline comparison](../docs/contracts/COMPARISON.md).
 
 Authenticated `POST /api/v1/submissions/external-results` accepts
 `grading_config_id`, external user identity, username, language,

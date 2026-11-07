@@ -168,7 +168,7 @@ def action_environment(**inputs: str) -> dict:
 def test_action_grades_the_static_example_in_its_image(tmp_path):
     workspace = tmp_path / "workspace"
     (workspace / ".github/autograder").mkdir(parents=True)
-    shutil.copy(ROOT / "docs/contracts/v1/examples/static-conformance.json",
+    shutil.copy(ROOT / "examples/definitions/static-conformance.json",
                 workspace / ".github/autograder/definition.json")
     (workspace / "index.html").write_text("<!doctype html><title>ok</title>\n", encoding="utf-8")
     commands = tmp_path / "file_commands"
