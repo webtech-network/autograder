@@ -3,15 +3,20 @@
 import inspect
 import io
 from concurrent.futures import ThreadPoolExecutor
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 from unittest.mock import Mock
 
 import boto3
 import pytest
+from botocore.config import Config
+from botocore.exceptions import NoCredentialsError
 from botocore.response import StreamingBody
 from botocore.stub import Stubber
 
 from autograder import build_pipeline
 from autograder.models.capabilities import FixtureNotFound, HostCapabilities
+from autograder.models.evaluation_error import EvaluationError
 from autograder.models.execution import StagedFixture
 from execution_host.docker import DockerHost, docker_capabilities
 from execution_host.fixtures import FixtureProviderError, S3FixtureProvider
@@ -53,15 +58,25 @@ def test_missing_reference_is_distinct_from_provider_failure():
     assert not isinstance(failure.value, FixtureNotFound)
 
 
-def test_wrong_bucket_and_missing_configuration_are_provider_failures():
+def test_a_missing_bucket_needs_an_operator_and_is_not_retryable():
     _, client = fake_s3_provider({"key": b"x"}, bucket="real")
     wrong = S3FixtureProvider(bucket="other", client_factory=lambda: client)
-    with pytest.raises(FixtureProviderError):
+    with pytest.raises(EvaluationError) as refused:
         wrong("key")
-    factory = Mock()
-    with pytest.raises(FixtureProviderError):
-        S3FixtureProvider(bucket=None, client_factory=factory)("key")
-    factory.assert_not_called()
+    assert (refused.value.code, refused.value.category, refused.value.retryable) == (
+        "FIXTURE_PROVIDER_UNAVAILABLE", "capability", False)
+
+
+def test_without_a_bucket_the_host_supplies_no_fixture_store():
+    # Before COR-03 an unset bucket was a provider that failed every fixture as a retryable PREPARATION_ERROR.
+    assert S3FixtureProvider.from_environment({}) is None
+    with pytest.raises(ValueError, match="needs a bucket"):
+        S3FixtureProvider(bucket=None, client_factory=Mock())
+    owned = session()
+    outcome = build_pipeline(definition=fixtures_definition(("data.csv", "data.csv", True)),
+        capabilities=HostCapabilities(execution=lambda language, budget: owned,
+                                      fixtures=S3FixtureProvider.from_environment({}))).run(submission()).outcome
+    assert (outcome.error.code, outcome.error.retryable) == ("FIXTURE_PROVIDER_UNAVAILABLE", False)
 
 
 def test_retrieval_accepts_only_a_logical_reference():
@@ -80,12 +95,17 @@ def test_real_boto3_client_responses_and_errors_are_mapped():
                               expected_params={"Bucket": "fixtures", "Key": "missing"})
         stub.add_client_error("get_object", "AccessDenied", http_status_code=403,
                               expected_params={"Bucket": "fixtures", "Key": "private"})
+        stub.add_client_error("get_object", "SlowDown", http_status_code=503,
+                              expected_params={"Bucket": "fixtures", "Key": "busy"})
         assert provider("a/b") == b"slash"
         assert provider("a_b") == b""
         with pytest.raises(FixtureNotFound):
             provider("missing")
-        with pytest.raises(FixtureProviderError):
+        with pytest.raises(EvaluationError) as denied:
             provider("private")
+        assert (denied.value.code, denied.value.retryable) == ("FIXTURE_PROVIDER_UNAVAILABLE", False)
+        with pytest.raises(FixtureProviderError):
+            provider("busy")
         stub.assert_no_pending_responses()
 
 
@@ -157,3 +177,64 @@ def test_missing_and_failed_fixtures_share_the_safe_preparation_outcome(unreacha
     assert outcome.error.retryable is retryable
     owned.stage_fixtures.assert_not_called()
     owned.close.assert_called_once()
+
+
+class _S3ErrorServer(ThreadingHTTPServer):
+    """A local HTTP endpoint answering every GET with one S3 error document, counting requests."""
+    def __init__(self, status, code):
+        self.status, self.code, self.requests = status, code, 0
+        super().__init__(("127.0.0.1", 0), _S3ErrorHandler)
+
+
+class _S3ErrorHandler(BaseHTTPRequestHandler):
+    def do_GET(self):  # pylint: disable=invalid-name  # http.server's handler name
+        self.server.requests += 1
+        body = (f'<?xml version="1.0" encoding="UTF-8"?><Error><Code>{self.server.code}</Code>'
+                f'<Message>refused</Message><RequestId>1</RequestId></Error>').encode()
+        self.send_response(self.server.status)
+        self.send_header("Content-Type", "application/xml")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):  # pylint: disable=arguments-differ
+        pass
+
+
+@pytest.mark.parametrize("status, code, retryable", [
+    (403, "AccessDenied", False), (404, "NoSuchBucket", False), (403, "InvalidAccessKeyId", False),
+    (403, "SignatureDoesNotMatch", False), (503, "SlowDown", True), (500, "InternalError", True)])
+def test_store_answers_over_http_are_classified_and_never_retried_by_the_sdk(status, code, retryable):
+    """The shipped boto3 client over real HTTP: a refusal needs an operator, a 5xx can pass.
+
+    Either way the provider asks once; the HTTP host's job retry is the only retry layer.
+    """
+    server = _S3ErrorServer(status, code)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        provider = S3FixtureProvider(bucket="fixtures", endpoint_url=f"http://127.0.0.1:{server.server_address[1]}",
+                                     access_key="test", secret_key="test")
+        with pytest.raises((EvaluationError, FixtureProviderError)) as failure:
+            provider("course/data.csv")
+    finally:
+        server.shutdown()
+        server.server_close()
+    if retryable:
+        assert type(failure.value) is FixtureProviderError  # pylint: disable=unidiomatic-typecheck
+    else:
+        assert (failure.value.code, failure.value.retryable) == ("FIXTURE_PROVIDER_UNAVAILABLE", False)
+    assert server.requests == 1
+
+
+def test_missing_credentials_are_not_retryable():
+    client = boto3.client("s3", region_name="us-east-1", config=Config(signature_version="s3v4"))
+    client.meta.events.register("before-sign.s3.*", raise_no_credentials)
+    provider = S3FixtureProvider(bucket="fixtures", client_factory=lambda: client)
+    with pytest.raises(EvaluationError) as refused:
+        provider("course/data.csv")
+    assert (refused.value.code, refused.value.retryable) == ("FIXTURE_PROVIDER_UNAVAILABLE", False)
+
+
+def raise_no_credentials(**_):
+    raise NoCredentialsError()

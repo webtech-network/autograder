@@ -31,6 +31,7 @@ from web.repositories import SubmissionRepository
 from web.service.grading_service import failed_outcome
 from web.service.outcome_delivery import StaleAttemptError, publish_finalized, write_receipt
 from web.service.worker import DurableWorker
+from tests.process_results import exited
 from tests.web.test_contracts_v1 import definition
 
 
@@ -283,7 +284,8 @@ async def test_an_attempt_past_its_deadline_is_a_retryable_failure_without_lease
     async def evaluate_blocked(request, capabilities):
         return await asyncio.to_thread(blocked, request)
 
-    settings = pg_app.state.host.settings
+    # One attempt: on the last attempt of the budget the retryable failure is published.
+    settings = replace(pg_app.state.host.settings, MAX_ATTEMPTS=1)
     worker = DurableWorker(postgres_sessions, settings, HostCapabilities(), evaluator=evaluate_blocked,
                            attempt_margin=1.0)
     claimed_at = monotonic()
@@ -323,3 +325,177 @@ async def test_an_expired_attempt_stops_renewing_even_while_its_thread_runs(pg_a
     await asyncio.wait_for(renewer, timeout=pg_app.state.host.settings.LEASE_SECONDS * 3)
     async with postgres_sessions() as session:
         assert (await session.get(Submission, submission_id)).lease_until == claimed
+
+
+# ----- execution retry (COR-03): retryable failures are retried within the attempt budget -----
+
+class FakeSession:
+    """An execution session whose program prints ``output``."""
+    def __init__(self, output):
+        self.output = output
+
+    def prepare_workdir(self, files):
+        pass
+
+    def run_process(self, request):
+        return exited(self.output)
+
+    def close(self):
+        pass
+
+
+class FlakyExecution:
+    """An execution capability unavailable for its first ``failures`` acquisitions (``None``: always)."""
+    def __init__(self, failures=None, output="Hello"):
+        self.failures, self.output, self.acquisitions = failures, output, 0
+
+    def __call__(self, language, budget):
+        self.acquisitions += 1
+        if self.failures is None or self.acquisitions <= self.failures:
+            raise ConnectionError("the sandbox service is restarting")
+        return FakeSession(self.output)
+
+
+def retrying_worker(sessions, settings, execution, **overrides):
+    return DurableWorker(sessions, replace(settings, **{"MAX_ATTEMPTS": 3, "RETRY_SECONDS": 7.0, **overrides}),
+                         HostCapabilities(execution=execution))
+
+
+async def attempt_history(sessions, submission_id):
+    async with sessions() as session:
+        return [(attempt.number, attempt.status) for attempt in (await session.scalars(
+            select(GradingAttempt).where(GradingAttempt.submission_id == submission_id)
+            .order_by(GradingAttempt.number))).all()]
+
+
+async def released_state(sessions, submission_id):
+    """The row and its last attempt after a release: (status, owner, backoff seconds, stored results)."""
+    async with sessions() as session:
+        row = await session.get(Submission, submission_id)
+        last = await session.scalar(select(GradingAttempt).where(GradingAttempt.submission_id == submission_id)
+                                    .order_by(GradingAttempt.number.desc()).limit(1))
+        results = await session.scalar(select(func.count()).select_from(SubmissionResult)
+                                       .where(SubmissionResult.submission_id == submission_id))
+        return row.status, row.attempt_id, (row.lease_until - last.finished_at).total_seconds(), results
+
+
+@pytest.mark.asyncio
+async def test_retryable_failures_then_success_publish_one_completed_grade_with_attempt_history(
+        pg_app, pg_client, postgres_sessions):
+    """Before COR-03 the first CAPABILITY_UNAVAILABLE was published as the terminal outcome."""
+    _, submission_id, _ = await accept(pg_client)
+    execution = FlakyExecution(failures=2)
+    worker = retrying_worker(postgres_sessions, pg_app.state.host.settings, execution)
+    for attempt, backoff in ((1, 7.0), (2, 14.0)):
+        assert await worker.run_once() is True
+        # Not yet graded: no terminal row, polling unchanged, nobody owns the row during the backoff.
+        assert await released_state(postgres_sessions, submission_id) == (
+            SubmissionStatus.PROCESSING, None, backoff, 0)
+        assert (await pg_client.get(f"/api/v1/submissions/{submission_id}")).json()["status"] == "processing"
+        assert await worker.claim() is None  # the backoff holds the next attempt back
+        assert execution.acquisitions == attempt
+        await expire(postgres_sessions, submission_id)
+    assert await worker.run_once() is True
+    poll = (await pg_client.get(f"/api/v1/submissions/{submission_id}")).json()
+    assert poll["status"] == "completed" and poll["final_score"] == 100
+    assert await attempt_history(postgres_sessions, submission_id) == [
+        (1, "released"), (2, "released"), (3, "published")]
+    async with postgres_sessions() as session:
+        assert await session.scalar(select(func.count()).select_from(SubmissionResult)) == 1
+    assert await worker.claim() is None and execution.acquisitions == 3
+
+
+@pytest.mark.asyncio
+async def test_a_permanently_retryable_failure_publishes_the_last_engine_code_at_exhaustion(
+        pg_app, pg_client, postgres_sessions):
+    _, submission_id, _ = await accept(pg_client)
+    execution = FlakyExecution(failures=None)
+    worker = retrying_worker(postgres_sessions, pg_app.state.host.settings, execution)
+    for _ in range(2):
+        assert await worker.run_once() is True
+        await expire(postgres_sessions, submission_id)
+    assert await worker.run_once() is True
+    poll = (await pg_client.get(f"/api/v1/submissions/{submission_id}")).json()
+    assert poll["status"] == "failed" and poll["final_score"] is None
+    assert (poll["error"]["code"], poll["error"]["retryable"]) == ("CAPABILITY_UNAVAILABLE", True)
+    assert await attempt_history(postgres_sessions, submission_id) == [
+        (1, "released"), (2, "released"), (3, "published")]
+    await expire(postgres_sessions, submission_id)
+    assert await worker.claim() is None and execution.acquisitions == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("output, capabilities, status, code", [
+    ("Goodbye", "execution", "completed", None),  # an assessed zero
+    ("Hello", "none", "failed", "CAPABILITY_UNAVAILABLE"),  # the host supplies no execution: not retryable
+])
+async def test_assessed_zeros_and_non_retryable_failures_publish_on_the_first_attempt(
+        pg_app, pg_client, postgres_sessions, output, capabilities, status, code):
+    _, submission_id, _ = await accept(pg_client)
+    execution = FlakyExecution(failures=0, output=output)
+    worker = retrying_worker(postgres_sessions, pg_app.state.host.settings, execution)
+    if capabilities == "none":
+        worker.capabilities = HostCapabilities()
+    assert await worker.run_once() is True
+    poll = (await pg_client.get(f"/api/v1/submissions/{submission_id}")).json()
+    assert poll["status"] == status and (poll["error"] or {}).get("code") == code
+    if status == "completed":
+        assert poll["final_score"] == 0
+    else:
+        assert poll["error"]["retryable"] is False
+    assert await attempt_history(postgres_sessions, submission_id) == [(1, "published")]
+    await expire(postgres_sessions, submission_id)
+    assert await worker.claim() is None
+    assert execution.acquisitions == (1 if capabilities == "execution" else 0)
+
+
+@pytest.mark.asyncio
+async def test_interrupted_and_retryable_attempts_share_one_budget(pg_app, pg_client, postgres_sessions):
+    _, submission_id, payload = await accept(pg_client)
+    execution = FlakyExecution(failures=None)
+    worker = retrying_worker(postgres_sessions, pg_app.state.host.settings, execution)
+    assert await worker.claim() is not None  # attempt 1 is interrupted: its process died
+    await expire(postgres_sessions, submission_id)
+    assert await worker.run_once() is True  # attempt 2: retryable, released
+    assert await released_state(postgres_sessions, submission_id) == (SubmissionStatus.PROCESSING, None, 14.0, 0)
+    await expire(postgres_sessions, submission_id)
+    assert await worker.run_once() is True  # attempt 3, the last: published
+    assert await attempt_history(postgres_sessions, submission_id) == [
+        (1, "expired"), (2, "released"), (3, "published")]
+    # A released attempt then interrupted on the last attempt ends in RECOVERY_EXHAUSTED.
+    other = (await pg_client.post("/api/v1/submissions", json=payload)).json()["id"]
+    worker.settings = replace(worker.settings, MAX_ATTEMPTS=2)
+    assert await worker.run_once() is True
+    await expire(postgres_sessions, other)
+    assert await worker.claim() is not None
+    await expire(postgres_sessions, other)
+    assert await worker.claim() is None
+    poll = (await pg_client.get(f"/api/v1/submissions/{other}")).json()
+    assert poll["error"]["code"] == "RECOVERY_EXHAUSTED"
+    assert await attempt_history(postgres_sessions, other) == [(1, "released"), (2, "expired")]
+
+
+@pytest.mark.asyncio
+async def test_only_the_owning_attempt_can_release_and_a_released_lease_is_never_renewed(
+        pg_app, pg_client, postgres_sessions):
+    _, submission_id, _ = await accept(pg_client)
+    worker = retrying_worker(postgres_sessions, pg_app.state.host.settings, FlakyExecution())
+    first = await worker.claim()
+    await expire(postgres_sessions, submission_id)
+    second = await worker.claim()
+    retry = failed_outcome(first[0], "CAPABILITY_UNAVAILABLE", category="capability", retryable=True)
+    with pytest.raises(StaleAttemptError):
+        await worker.release(submission_id, first[1])
+    assert await worker.release(submission_id, second[1]) is True
+    with pytest.raises(StaleAttemptError):  # a release ends the attempt's ownership
+        await worker.release(submission_id, second[1])
+    with pytest.raises(StaleAttemptError):
+        await publish_finalized(postgres_sessions, submission_id, retry,
+                                directory=pg_app.state.host.settings.RECEIPT_DIR, attempt_id=second[1])
+    async with postgres_sessions() as session:
+        released_until = (await session.get(Submission, submission_id)).lease_until
+    # The released attempt's renewer finds no row it owns and stops without touching the lease.
+    await asyncio.wait_for(worker.heartbeat(submission_id, second[1], asyncio.Event()),
+                           timeout=pg_app.state.host.settings.LEASE_SECONDS * 3)
+    async with postgres_sessions() as session:
+        assert (await session.get(Submission, submission_id)).lease_until == released_until

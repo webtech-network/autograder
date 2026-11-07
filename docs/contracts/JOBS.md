@@ -43,12 +43,37 @@ UUID. An old worker may finish cleanup, but cannot overwrite a newer attempt's
 chosen outcome. An expired lease permits reclaim; the UUID remains authoritative
 until another claim replaces it. Database clock time controls claim eligibility.
 
-`WEB_MAX_ATTEMPTS` defaults to **3**. This budget covers interrupted attempts,
-not ordinary assessed failures or failed student criteria. On exhaustion the host
-stores a terminal `RECOVERY_EXHAUSTED` failure with null score/tree. An engine
-failure already represented by a finalized outcome is published as that outcome.
 `WEB_POLL_SECONDS` defaults to **1 second**. Database outages delay claims and
 lease renewal; accepted rows remain durable.
+
+## Execution retry
+
+This is the only execution retry layer: the engine and the fixture and AI
+providers never retry a failed operation (the remote sandbox client only resends
+an acquisition or disposal across a transport error, under the same request id),
+and the engine knows nothing about attempts. One budget,
+`WEB_MAX_ATTEMPTS` (default **3**), counts every attempt of a submission:
+
+| An attempt ends with | The host |
+| --- | --- |
+| A completed grade (including assessed zeros) or a non-retryable failure | Publishes it at once; no further attempt. |
+| A failure with `retryable: true` (OUTCOMES.md: the cause can pass without an operator, such as Docker or the sandbox service restarting, a sandbox capacity wait or `ATTEMPT_DEADLINE_EXCEEDED`, a fixture store or AI provider outage) and budget left | Publishes nothing. It releases the claim with a backoff and the submission stays `processing`. |
+| A retryable failure on the last attempt of the budget | Publishes that failure, with the engine's code. Its `retryable: true` then means the host's retries are exhausted; resubmitting is the integrator's decision, not a loop to automate. |
+| An interruption (the process died or the lease expired) | Reclaims after the lease; with no budget left it publishes `RECOVERY_EXHAUSTED`, null score/tree. |
+
+A release is fenced like publication (only the attempt that owns the row can
+release it), records the attempt as `released`, logs its error code, removes the
+attempt's ownership (nothing renews its lease) and sets the lease to expire
+after `WEB_RETRY_SECONDS` (**30 s**) × 2^(attempt − 1), at most one hour: 30 s
+after the first attempt, 60 s after the second. Any worker's ordinary reclaim then
+starts the next attempt, on the same saved input. A retryable failure is
+therefore never stored while budget remains: polling shows `processing` until a
+grade or a terminal failure is published, exactly as for one long attempt.
+Internal attempt history (`grading_attempts`: number, `running`, `published`,
+`released` or `expired`, and timestamps) records every attempt.
+
+This is separate from delivery retry: a finalized outcome whose publication fails
+is retained as a receipt and published again (below) without grading again.
 
 Before database publication, the host fsyncs a private outcome receipt in
 `WEB_OUTCOME_RECEIPT_DIR` (default `data/unpublished-outcomes`). A recovered claim
@@ -82,8 +107,8 @@ has already stopped itself) and publishes a failed outcome
 its attempt UUID like any other publication. A late result of the abandoned
 thread is logged and discarded; each abandonment logs how many abandoned grading
 threads are still running in the process (sandbox and AI paths end by
-themselves; a growing count points at a hung static path). Re-queuing retryable failures is COR-03 (#418);
-until then the failure is terminal.
+themselves; a growing count points at a hung static path). The failure is retried
+like any other retryable one ([execution retry](#execution-retry)).
 
 A definition whose worst case the host could never grant is refused before it is
 stored or queued: `POST /api/v1/configs`, `POST /api/v1/configs/validate`,
@@ -122,7 +147,7 @@ Grading and `POST /execute` of every language share it; see
 sandbox service). A grading that finds every slot held waits for one while its
 lease keeps renewing; it is never failed for capacity. The wait is bounded by
 `GRADING_CAPACITY_WAIT_SECONDS` (600 s); expiry is a retryable
-`CAPABILITY_UNAVAILABLE` with no score (re-queuing it is COR-03 (#418)). Sandbox
+`CAPABILITY_UNAVAILABLE`, retried after a backoff ([execution retry](#execution-retry)). Sandbox
 clocks start when the slot is granted. A deliberate run waits 10 s, then answers
 `503 EXECUTION_BUSY` with `Retry-After: 5`.
 
@@ -220,7 +245,14 @@ retrying an API request is a different operation from replaying a finalized grad
 `tests/web/test_durable_workers.py` uses real PostgreSQL through
 `TEST_POSTGRES_URL`, creates a private schema for every test, and verifies
 concurrent claims, lease recovery, stale publications, retry exhaustion, saved
-receipt replay, transaction rollback and cancellation with a real worker thread.
+receipt replay, transaction rollback and cancellation with a real worker thread,
+and the execution retry policy through the real pipeline: a provider that fails
+N times then succeeds, one that always fails, backoff growth, fencing and
+non-retryable failures on the first attempt. `tests/e2e/test_worker_recovery.py`
+runs a real API process on PostgreSQL in remote sandbox mode: submissions accepted
+while the sandbox service is stopped all complete once it is restarted, and work
+whose API process is killed with SIGKILL completes after another API process
+reclaims it.
 SQLite tests cover HTTP projections and isolated operation behavior, not
 PostgreSQL locking guarantees.
 

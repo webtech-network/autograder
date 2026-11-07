@@ -282,6 +282,23 @@ def test_server_errors_and_rate_limits_make_exactly_one_request(stub, monkeypatc
     assert len(stub.wait_for_requests(1)) == 1
 
 
+@pytest.mark.parametrize("status, code, error_type", [
+    (401, "PROVIDER_UNAVAILABLE", "invalid_request_error"),  # invalid or revoked key
+    (403, "PROVIDER_UNAVAILABLE", "permission_denied"),  # key without access to the model
+    (404, "PROVIDER_UNAVAILABLE", "invalid_request_error"),  # misspelled model
+    (400, "PROVIDER_ERROR", "invalid_request_error"),  # e.g. input over the model's context
+    (422, "PROVIDER_ERROR", "invalid_request_error"),
+])
+def test_deterministic_client_errors_are_not_retryable(stub, monkeypatch, status, code, error_type):
+    """Answers that repeat for the same key, model and input: one request, retryable false."""
+    stub.replies = [(status, {"error": {"message": "upstream detail", "type": error_type}})] * 3
+    outcome = grade_ai(wired(stub, monkeypatch))
+    assert outcome.status == "failed" and outcome.score is None and outcome.tree is None
+    assert (outcome.error.code, outcome.error.category, outcome.error.retryable) == (code, "provider", False)
+    assert "upstream detail" not in outcome.error.message
+    assert len(stub.wait_for_requests(1)) == 1
+
+
 def test_production_composition_does_not_retry(stub, monkeypatch):
     """The provider the shipped host builds from its environment, over real HTTP."""
     monkeypatch.setenv("OPENAI_API_KEY", "env-key")
@@ -315,7 +332,7 @@ def test_rejected_credential_is_looked_up_again_on_the_next_grading(stub, monkey
                     (200, structured(("sort", 100.0), ("sort-again", 100.0))),
                     (200, structured(("sort", 100.0), ("sort-again", 100.0)))]
     rejected = grade_ai(provider)
-    assert (rejected.error.code, rejected.error.retryable) == ("PROVIDER_ERROR", True)
+    assert (rejected.error.code, rejected.error.retryable) == ("PROVIDER_UNAVAILABLE", False)
     assert [grade_ai(provider).score for _ in range(2)] == [100.0, 100.0]
     assert [request["authorization"] for request in stub.wait_for_requests(3)] == [
         "Bearer old-key", "Bearer new-key", "Bearer new-key"]
