@@ -27,7 +27,7 @@ from scripts.action_fixtures import PROBE
 from tests.images.test_service_and_action_images import ROOT, action_environment, docker, image, run as run_in
 
 RUNTIMES = yaml.safe_load((ROOT / "sandbox_config.yml").read_text(encoding="utf-8"))["runtimes"]
-PYTHON_IO = json.loads((ROOT / "docs/contracts/v1/examples/python-io.json").read_text(encoding="utf-8"))
+PYTHON_IO = json.loads((ROOT / "examples/definitions/python-io.json").read_text(encoding="utf-8"))
 SUM = "a = int(input())\nb = int(input())\nprint(a + b)\n"
 OWNER_HOST_LABEL = "autograder.sandbox.owner_host"
 DOCUMENTED_ERROR = "Docker is not available to the Action"
@@ -224,3 +224,41 @@ def test_action_pulls_a_runtime_image_the_runner_does_not_have(action_run, tmp_p
         docker("rm", "--force", "--volumes", registry, check=False)
         if reference:
             docker("image", "rm", "--force", reference, check=False)
+
+
+def test_the_documented_definition_check_runs_from_the_action_image(tmp_path):
+    """ONB-06: the optional CI step of the Action quick start, as a course repository runs it:
+    the Action image's own Python checks the definition and grades the reference solution in a
+    sandbox on the runner's Docker; a broken definition fails the step with the error's path."""
+    workspace = tmp_path / "course"
+    (workspace / ".github/autograder").mkdir(parents=True)
+    (workspace / ".github/autograder/definition.json").write_text(json.dumps(PYTHON_IO), encoding="utf-8")
+    (workspace / "solution").mkdir()
+    (workspace / "solution/main.py").write_text(SUM, encoding="utf-8")
+    broken = json.loads(json.dumps(PYTHON_IO))
+    broken["criteria"]["base"]["tests"][0]["type"] = "expect_outptu"
+    (workspace / "broken.json").write_text(json.dumps(broken), encoding="utf-8")
+    name = f"onb06-check-{uuid.uuid4().hex[:12]}"
+
+    def step(*arguments):
+        return docker("run", "--rm", "--name", name, "--hostname", name, "--security-opt", "label=disable",
+                      "--volume", f"{workspace}:/work", "--workdir", "/work",
+                      "--volume", "/var/run/docker.sock:/var/run/docker.sock",
+                      "--entrypoint", "python", image("action"), "-m", "execution_host.check", *arguments,
+                      check=False, timeout=300)
+
+    try:
+        result = step(".github/autograder/definition.json", "--submission", "solution", "--min-score", "100")
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "python: 1 process, sandbox lifetime up to 92 s; this host grants 900 s" in result.stdout
+        assert "Reference solution (python): completed, score 100.00/100" in result.stdout
+        result = step("broken.json")
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert ("criteria.base.tests[0].type: Unknown evaluator `expect_outptu`; did you mean `expect_output`?"
+                in result.stdout)
+    finally:
+        docker("rm", "--force", name, check=False)
+        sandboxes = docker("ps", "--all", "--quiet", "--filter", f"label={OWNER_HOST_LABEL}={name}").stdout.split()
+        for container in sandboxes:
+            docker("rm", "--force", container, check=False)
+    assert sandboxes == []  # the sandbox was removed before the check exited

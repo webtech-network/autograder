@@ -1,0 +1,14 @@
+.books {
+  display: flex;
+  gap: 1rem;
+}
+
+.book {
+  flex: 1;
+}
+
+@media (max-width: 600px) {
+  .books {
+    flex-direction: column;
+  }
+}

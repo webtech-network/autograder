@@ -32,8 +32,7 @@ def static(test_id="tag"):
 
 
 def definition(tests, *, languages=("python",), preparation=None):
-    return {"schema_version": "1.0", "templates": ["input_output", "static_analysis", "webdev"],
-            "languages": list(languages), "criteria": {"base": {"weight": 100, "tests": tests}},
+    return {"schema_version": "2.0", "languages": list(languages), "criteria": {"base": {"tests": tests}},
             "preparation": preparation or {}}
 
 
@@ -156,8 +155,8 @@ class Declared(Undeclared):
 
 
 def custom(evaluator):
-    return {"schema_version": "1.0", "templates": ["custom"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": [
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": [
                 {"id": "x", "type": evaluator.name, "name": "x", "parameters": {}}]}}}
 
 

@@ -1,18 +1,14 @@
 {
-  "schema_version": "1.0",
-  "templates": [
-    "webdev"
-  ],
+  "schema_version": "2.0",
   "languages": [
     "node"
   ],
   "criteria": {
     "base": {
-      "weight": 100.0,
       "tests": null,
       "subjects": [
         {
-          "subject_name": "html_structure",
+          "name": "html_structure",
           "weight": 40.0,
           "tests": [
             {
@@ -69,7 +65,7 @@
           "metadata": {}
         },
         {
-          "subject_name": "css_styling",
+          "name": "css_styling",
           "weight": 30.0,
           "tests": [
             {

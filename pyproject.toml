@@ -1,6 +1,6 @@
 [project]
 name = "autograder"
-version = "0.1.0"
+version = "1.0.0"
 description = "General-purpose grading engine with an HTTP service and a GitHub Action host."
 readme = "README.md"
 license = "Apache-2.0"
@@ -50,6 +50,7 @@ lint = ["pylint~=4.0"]
 docs = [
     "mkdocs~=1.6",
     "mkdocs-material~=9.6",
+    "mkdocs-redirects==1.2.2",
     "pymdown-extensions~=10.0",
 ]
 # `uv sync` installs this group by default: a complete development environment.

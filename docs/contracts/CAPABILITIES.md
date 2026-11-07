@@ -73,30 +73,32 @@ applied by `ExecutionSession.stage_fixtures`. `b""` is valid content. A provider
 raises `autograder.models.capabilities.FixtureNotFound` when the reference has no
 object; any other exception is a provider failure. Both stop preparation with the
 same safe `capability / PREPARATION_ERROR` outcome; a missing fixture is not
-retryable, a provider failure is. Raw provider errors stay in host logs.
+retryable, a provider failure is. A provider that knows a failure needs an
+operator raises `EvaluationError` with a published code instead, which preparation
+keeps unchanged. Raw provider errors stay in host logs.
 
 The Docker host composes `execution_host.fixtures.S3FixtureProvider` from
 `EXTERNAL_ASSETS_BUCKET_NAME`, `S3_ENDPOINT_URL`, `AWS_REGION` and
 `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` ([configuration](../operate/configuration.md)).
 Configuration is captured at host construction, where an endpoint without a
 bucket or half a credential stops the host; one SDK client is created on the
-first selected fixture and reused. Missing keys (`NoSuchKey`/404)
-are `FixtureNotFound`; missing buckets, access denials, transport errors and an
-unset bucket are provider failures. Deliberate execution `assets` use the same
-host provider.
+first selected fixture and reused. Without `EXTERNAL_ASSETS_BUCKET_NAME` the host
+supplies no fixture provider (`FIXTURE_PROVIDER_UNAVAILABLE`). Missing keys
+(`NoSuchKey`/404) are `FixtureNotFound`. Answers that stay the same until an
+operator changes the bucket, its policy or the credentials (`NoSuchBucket`,
+`AccessDenied`/403, `InvalidAccessKeyId`, `SignatureDoesNotMatch`, a wrong-region
+redirect, no credentials) are the non-retryable `capability /
+FIXTURE_PROVIDER_UNAVAILABLE`. Transport errors, throttling and 5xx answers are
+retryable provider failures. Deliberate execution `assets` use the same host
+provider.
 
 There is no fixture cache. Every run reads the current object for each reference,
 so distinct references (for example `a/b` and `a_b`) cannot alias, replacing an
-object needs no invalidation, and no process writes cache files. The former
-in-memory/disk cache (`EXTERNAL_ASSETS_IN_MEMORY_CACHE_LIMIT`,
-`/tmp/autograder_assets_cache`) was removed because no measurement established a
-latency or cost benefit; a host that needs one must key it by full provider
-identity (endpoint, bucket, key and object version), write atomically, and
-document invalidation, size and lifetime.
+object needs no invalidation, and no process writes cache files. A host that
+needs a cache must key it by full provider identity (endpoint, bucket, key and
+object version), write atomically, and document invalidation, size and lifetime.
 
-The public `Preparation` model is consumed directly. `runtime_setup` and the
-permissive parallel `SetupConfig` parser have been removed. Definitions continue
-to use `preparation.languages.<language>.required_files`, typed named
+The public `Preparation` model is consumed directly. Definitions use `preparation.languages.<language>.required_files`, typed named
 `setup_commands`, and `fixtures` with logical `reference` and relative `path`.
 Docker maps fixtures to `/tmp/app/<path>` and artifacts to the submission root
 `/app`. Commands that read fixtures must use the host's declared root. Preparation
@@ -191,8 +193,13 @@ credentials, construct a client or touch the network.
   construction is `PROVIDER_UNAVAILABLE` and is not cached: the next AI grading
   tries again.
 - **Secret rotation needs no restart.** A request rejected as unauthenticated
-  (HTTP 401) fails that grading with `PROVIDER_ERROR` and drops the client; the
-  next AI grading looks the secret up again.
+  (HTTP 401) fails that grading with the non-retryable `PROVIDER_UNAVAILABLE` and
+  drops the client; the next AI grading looks the secret up again.
+- **Classification.** Answers that repeat until an operator changes the key or
+  the model (401, 403, 404) are the non-retryable `PROVIDER_UNAVAILABLE`; any
+  other 4xx except 408/409/429 (for example an input over the model's context)
+  repeats for the same input and is a non-retryable `PROVIDER_ERROR`. Transport
+  failures, deadlines, 408, 409, 429 and 5xx are a retryable `PROVIDER_ERROR`.
 - **Deadline.** `openai_client` sets an explicit deadline and zero SDK retries
   (the SDK defaults are a 600 s read and two retries). Each network wait is
   bounded by `REQUEST_TIMEOUT_SECONDS` (180 s; connecting by
@@ -218,34 +225,3 @@ therefore their API outcomes fail with `SERVER_CAPABILITY_UNAVAILABLE` before
 acquisition or scoring. Ordinary I/O pools do not gain network access. A host
 that supports API assessment must supply the complete server profile explicitly.
 
-## Migration
-
-* **One fixture-set call (PRF-03).** `ExecutionSession.stage_fixture(path,
-  content, read_only)`, called once per fixture, is replaced by
-  `stage_fixtures(fixtures: Sequence[StagedFixture])`, called once with the
-  whole set (`StagedFixture` is in `autograder.models.execution`). A host
-  session that implemented `stage_fixture` renames it and loops over the
-  sequence, or better stages the set in one operation. No definition, wire or
-  configuration change. Fixtures are now all fetched before any is staged, so a
-  missing fixture leaves nothing staged; the outcome is unchanged
-  (`capability / PREPARATION_ERROR`). With the Docker host a grading's fixture
-  set went from one `docker exec` per fixture (100 for the 100-fixture maximum,
-  about 3 to 4 s) to one.
-
-## Earlier architecture issues
-
-The simpler sequence resolves the intent of #302 and #307–#312 through selected
-requirements, pure validation, explicit providers, typed preparation and one
-owner for cleanup. It does not introduce step categories, setup inheritance,
-provider retry, or publication inside the engine. Language-keyed preparation
-already expresses the required variation; a new pipeline framework is unnecessary.
-
-| Earlier proposal | Resolution in the current contract |
-| --- | --- |
-| #302 decompose preflight | Keep the short preparation sequence; resource acquisition and pure validation are separate. |
-| #307 add step categories | Superseded: no runtime behavior needs category labels. |
-| #308 add FileCheckStep | Fulfilled by pure bootstrap validation before any provider call; a separate step class is unnecessary. |
-| #309 add AssetInjectionStep | Fulfilled by typed fixture staging through the acquired session. |
-| #310 add SetupCommandsStep | Fulfilled by typed selected-language commands after fixtures. |
-| #311 merge template setup | Superseded: evaluator capabilities and explicit definition preparation express current requirements without inheritance. |
-| #312 remove PreFlightStep | Completed by ARC-01: typed preparation is a direct function call; the wrapper, legacy parsing and provider construction are removed. |

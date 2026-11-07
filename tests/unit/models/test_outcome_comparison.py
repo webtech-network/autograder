@@ -8,7 +8,9 @@ from pydantic import ValidationError
 from autograder import ComparisonError, OutcomeComparison, compare_outcomes, compile_definition
 from autograder.models.contracts.comparison import CriterionComparison
 from autograder.models.contracts.outcome import outcome_score_vector, validate_outcome
+from autograder.models.contracts.definition import snapshot_hash
 from autograder.models.contracts.scoring import normalized_sibling_weights
+from autograder.services.definition_migration import upgrade_v1
 
 
 def criterion(identity, *, name=None, imports=("os",), weight=100, file=None, type_="forbidden_import"):
@@ -21,14 +23,14 @@ def criterion(identity, *, name=None, imports=("os",), weight=100, file=None, ty
 
 
 def definition(*tests, bonus=None, penalty=None, preparation=None, subjects=None, subjects_weight=None):
-    base = {"weight": 100}
+    base = {}
     if tests:
         base["tests"] = list(tests)
     if subjects:
         base["subjects"] = subjects
     if subjects_weight is not None:
         base["subjects_weight"] = subjects_weight
-    value = {"schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
+    value = {"schema_version": "2.0", "languages": ["python"],
              "criteria": {"base": base}}
     if bonus:
         value["criteria"]["bonus"] = bonus
@@ -41,7 +43,7 @@ def definition(*tests, bonus=None, penalty=None, preparation=None, subjects=None
 
 def build_outcome(compiled, scores, *, execution_id="execution", revision=None, reference=None, failed=False):
     """Build a valid canonical outcome for a compiled definition with chosen criterion scores."""
-    provenance = {"schema_version": "1.0", "definition_hash": compiled.definition_hash,
+    provenance = {"schema_version": "2.0", "definition_hash": compiled.definition_hash,
                   "reference": reference, "revision": revision}
     value = {"schema_version": "1.0", "execution_id": execution_id, "language": "python",
              "provenance": provenance, "started_at": "2026-10-04T12:00:00Z",
@@ -62,7 +64,7 @@ def build_outcome(compiled, scores, *, execution_id="execution", revision=None, 
         test_nodes = [{"id": t.id, "evaluator": t.type, "type": "test", "name": t.name, "score": float(scores[t.id]),
                        "weight": w, "report": "", "file_target": [t.file] if t.file else None,
                        "parameters": t.parameters} for t, w in zip(tests, test_weights)]
-        subject_nodes = [holder(s, s.subject_name, "subject", w) for s, w in zip(subjects, subject_weights)]
+        subject_nodes = [holder(s, s.name, "subject", w) for s, w in zip(subjects, subject_weights)]
         children = test_nodes + subject_nodes
         score = sum(c["score"] * c["weight"] for c in children) / sum(c["weight"] for c in children)
         return {"name": name, "type": kind, "score": round(score, 2), "weight": weight,
@@ -75,14 +77,15 @@ def build_outcome(compiled, scores, *, execution_id="execution", revision=None, 
         category = getattr(criteria, name)
         if category is None:
             continue
-        node = holder(category, name, "category", category.weight)
+        points = 100 if name == "base" else category.max_points
+        node = holder(category, name, "category", points)
         tree[name] = node
         if name == "base":
             total += node["score"]
         elif name == "bonus":
-            total += node["score"] / 100 * category.weight
+            total += node["score"] / 100 * points
         else:
-            total -= (100 - node["score"]) / 100 * category.weight
+            total -= (100 - node["score"]) / 100 * points
     tree["score"] = round(min(100.0, max(0.0, total)), 2)
     return validate_outcome({**value, "status": "completed", "score": tree["score"], "tree": tree, "error": None})
 
@@ -154,7 +157,7 @@ def test_repeated_evaluator_types_are_distinct_criteria():
 
 def test_reordered_and_regrouped_labels_keep_identity_and_weight():
     old = definition(criterion("a"), criterion("b", imports=["sys"]))
-    subjects = [{"subject_name": "Renamed group", "weight": 1, "tests": [criterion("b", name="New B", imports=["sys"]),
+    subjects = [{"name": "Renamed group", "weight": 1, "tests": [criterion("b", name="New B", imports=["sys"]),
                                                                        criterion("a", name="New A")]}]
     new = definition(subjects=subjects)
     result = compare_outcomes(build_outcome(old, {"a": 0, "b": 100}),
@@ -221,7 +224,7 @@ def test_proportional_weight_rescaling_is_not_a_reweight():
 
 def test_moving_a_criterion_to_bonus_is_a_placement_change():
     old = definition(criterion("a"), criterion("extra", imports=["sys"]))
-    new = definition(criterion("a"), bonus={"weight": 10, "tests": [criterion("extra", imports=["sys"])]})
+    new = definition(criterion("a"), bonus={"max_points": 10, "tests": [criterion("extra", imports=["sys"])]})
     row = rows(compare_outcomes(build_outcome(old, {"a": 100, "extra": 100}),
                                 build_outcome(new, {"a": 100, "extra": 100}), old, new))["extra"]
     assert (row.status, row.baseline_category, row.head_category, row.delta) == ("reweighted", "base", "bonus", 0)
@@ -229,8 +232,8 @@ def test_moving_a_criterion_to_bonus_is_a_placement_change():
 
 
 def test_changed_category_cap_reweights_its_criteria():
-    old = definition(criterion("a"), penalty={"weight": 10, "tests": [criterion("late", imports=["sys"])]})
-    new = definition(criterion("a"), penalty={"weight": 20, "tests": [criterion("late", imports=["sys"])]})
+    old = definition(criterion("a"), penalty={"max_points": 10, "tests": [criterion("late", imports=["sys"])]})
+    new = definition(criterion("a"), penalty={"max_points": 20, "tests": [criterion("late", imports=["sys"])]})
     row = rows(compare_outcomes(build_outcome(old, {"a": 100, "late": 0}),
                                 build_outcome(new, {"a": 100, "late": 0}), old, new))["late"]
     assert (row.status, row.baseline_weight, row.head_weight) == ("reweighted", 10, 20)
@@ -238,7 +241,7 @@ def test_changed_category_cap_reweights_its_criteria():
 
 def test_mixed_group_split_change_reweights():
     def mixed(split):
-        return definition(criterion("direct"), subjects=[{"subject_name": "Group", "weight": 1,
+        return definition(criterion("direct"), subjects=[{"name": "Group", "weight": 1,
                           "tests": [criterion("nested", imports=["sys"])]}], subjects_weight=split)
     old, new = mixed(25), mixed(50)
     result = compare_outcomes(build_outcome(old, {"direct": 100, "nested": 0}),
@@ -350,3 +353,26 @@ def test_real_engine_outcomes_compare_without_regrading():
     assert (result.score_delta, result.criteria[0].status) == (100, "improved")
     assert (result.baseline.execution_id, result.head.execution_id) == (before.execution_id, after.execution_id)
     assert before.comparison.status == after.comparison.status == "disabled"
+
+
+def test_an_outcome_bound_to_a_1_0_snapshot_compares_with_current_ones_by_criterion_id():
+    """History graded before format 2.0 keeps its snapshot; it is verified as stored, then read as 2.0."""
+    v1 = {"schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
+          "criteria": {"base": {"weight": 100, "subjects": [
+              {"subject_name": "Imports", "weight": 1, "tests": [criterion("a")]}]},
+              "bonus": {"weight": 10, "tests": [criterion("b", imports=["sys"])]}}}
+    current = compile_definition(upgrade_v1(v1).definition)
+    stored = build_outcome(current, {"a": 0, "b": 100}).model_dump(mode="json")
+    stored["provenance"] = {"schema_version": "1.0", "definition_hash": snapshot_hash(v1)}
+    head = build_outcome(current, {"a": 100, "b": 100})
+    result = compare_outcomes(stored, head, v1, current)
+    assert result.compatibility == "cross_revision" and result.changed_definition_sections == ("schema_version",)
+    assert {row.criterion_id: (row.status, row.delta) for row in result.criteria} == {
+        "a": ("improved", 100), "b": ("unchanged", 0)}
+    tampered = deepcopy(v1)
+    tampered["criteria"]["bonus"]["weight"] = 20
+    unbound = {**stored, "provenance": {**stored["provenance"], "schema_version": "2.0"}}
+    for definition, outcome in ((tampered, stored), (v1, unbound)):
+        with pytest.raises(ComparisonError) as failure:
+            compare_outcomes(outcome, head, definition, current)
+        assert (failure.value.code, failure.value.side) == ("DEFINITION_MISMATCH", "baseline")

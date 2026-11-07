@@ -6,15 +6,14 @@ import pytest
 from autograder.autograder import build_pipeline
 from autograder.models.contracts.definition import compile_definition, DefinitionValidationError
 from autograder.models.dataclass.submission import Submission, SubmissionFile
-from autograder.services.definition_migration import convert_legacy_definition
+from autograder.services.definition_migration import convert_definition
 from autograder.models.language import Language
 
 
 def web_definition():
-    return {"schema_version": "1.0", "templates": ["webdev"], "languages": ["node"],
-        "criteria": {"base": {"weight": 100, "tests": [{"id": "style-usage",
-            "type": "count_unused_css_classes", "name": "Style usage",
-            "parameters": {"html_file": "index.html", "css_file": "styles.css"}}]}}}
+    return {"schema_version": "2.0", "languages": ["node"],
+        "criteria": {"base": {"tests": [{"id": "style-usage",
+            "type": "count_unused_css_classes", "name": "Style usage", "parameters": {}}]}}}
 
 
 def run_web(value, css):
@@ -57,14 +56,14 @@ def test_converter_rejects_ignored_and_ambiguous_preparation(setup):
     value["setup_config"] = setup
     before = deepcopy(value)
     with pytest.raises(DefinitionValidationError):
-        convert_legacy_definition(value)
+        convert_definition(value)
     assert value == before
 
 
 @pytest.mark.parametrize("path", ["/etc/output", "../output", "a/../output", "a//output", "."])
 def test_artifact_path_rejected_before_execution(path):
-    value = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-        "criteria": {"base": {"weight": 100, "tests": [{"id": "artifact", "type": "expect_file_artifact",
+    value = {"schema_version": "2.0", "languages": ["python"],
+        "criteria": {"base": {"tests": [{"id": "artifact", "type": "expect_file_artifact",
             "name": "Output", "parameters": {"program_command": "python3 main.py", "artifact_path": path,
                                                   "expected_content": "ok"}}]}}}
     with pytest.raises(DefinitionValidationError) as failure:

@@ -1,0 +1,206 @@
+[
+  {
+    "file": "io-input-alias.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "input"
+        ],
+        "message": "`expect_output` has no parameter `input`; did you mean `inputs`?"
+      }
+    ]
+  },
+  {
+    "file": "api-invalid-endpoint.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "endpoint"
+        ],
+        "message": "Input should be a valid string"
+      }
+    ]
+  },
+  {
+    "file": "web-parameter-typo.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "tagg"
+        ],
+        "message": "`has_tag` has no parameter `tagg`; did you mean `tag`?"
+      }
+    ]
+  },
+  {
+    "file": "ai-empty-algorithm.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "algorithm_name"
+        ],
+        "message": "String should have at least 1 character"
+      }
+    ]
+  },
+  {
+    "file": "duplicate-criterion-id.json",
+    "errors": [
+      {
+        "code": "DUPLICATE_CRITERION_ID",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          1,
+          "id"
+        ],
+        "message": "Criterion IDs must be unique throughout the definition"
+      }
+    ]
+  },
+  {
+    "file": "unsupported-feedback-mode.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "feedback",
+          "mode"
+        ],
+        "message": "Input should be 'default'"
+      }
+    ]
+  },
+  {
+    "file": "null-preparation.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "preparation"
+        ],
+        "message": "Input should be a valid dictionary or instance of Preparation"
+      }
+    ]
+  },
+  {
+    "file": "missing-command-language.json",
+    "errors": [
+      {
+        "code": "MISSING_LANGUAGE_COMMAND",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "program_command"
+        ],
+        "message": "Command map must cover every allowed language"
+      }
+    ]
+  },
+  {
+    "file": "zero-presence-threshold.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "required_count"
+        ],
+        "message": "Input should be greater than or equal to 1"
+      }
+    ]
+  },
+  {
+    "file": "shell-operator-command.json",
+    "errors": [
+      {
+        "code": "SHELL_OPERATOR",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "parameters",
+          "program_command"
+        ],
+        "message": "`&&` is shell syntax, but commands run without a shell, so it would reach the program as an argument. Put build steps such as compilation in preparation.setup_commands (one command each), quote the operator to pass it literally, or use sh -c '...' only for a real pipeline."
+      }
+    ]
+  },
+  {
+    "file": "removed-base-weight.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "weight"
+        ],
+        "message": "The base category has no weight: it is the 0-100 score (bonus and penalty categories set `max_points`)"
+      }
+    ]
+  },
+  {
+    "file": "preparation-language-not-allowed.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "preparation",
+          "languages",
+          "java"
+        ],
+        "message": "preparation for `java` is never used: add it to `languages` (python) or remove it"
+      }
+    ]
+  },
+  {
+    "file": "misspelled-evaluator.json",
+    "errors": [
+      {
+        "code": "UNKNOWN_EVALUATOR",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "type"
+        ],
+        "message": "Unknown evaluator `has_tags`; did you mean `has_tag`?"
+      }
+    ]
+  }
+]

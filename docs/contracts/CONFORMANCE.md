@@ -3,7 +3,8 @@
 The source of truth for HTTP requests and responses is the [generated OpenAPI
 document](v1/openapi.json). The [definition](v1/grading-definition.schema.json)
 and [terminal outcome](v1/terminal-outcome.schema.json) schemas are generated from
-the same typed Python models. All three use contract version `1.0`; run
+the same typed Python models: the definition is format `2.0`, the outcome and
+the HTTP API version `1.0`. Run
 `make contracts` after changing their models. CI runs this check and the
 conformance tests. Regenerate with
 `uv run python scripts/generate_contract_schemas.py` when a model
@@ -20,7 +21,7 @@ For a local HTTP service with its configured database, run
 python -m examples.contracts.http_round_trip --base-url http://127.0.0.1:8000
 ```
 
-This executable example sends the complete [static definition](v1/examples/static-conformance.json)
+This executable example sends the complete [static definition](https://github.com/webtech-network/autograder/blob/main/examples/definitions/static-conformance.json)
 to `POST /api/v1/configs/validate`, creates it at `POST /api/v1/configs`, sends
 `files` as a **list** to `POST /api/v1/submissions`, and polls
 `GET /api/v1/submissions/{submission_id}` until `completed` or `failed`. It uses
@@ -41,7 +42,7 @@ publication races; see [durable jobs](JOBS.md).
 
 ## GitHub Actions: ordinary checkout and cloud publication
 
-Copy the same [static definition](v1/examples/static-conformance.json)
+Copy the same [static definition](https://github.com/webtech-network/autograder/blob/main/examples/definitions/static-conformance.json)
 to `.github/autograder/definition.json` in the repository being graded. The
 [ordinary Action workflow](../github_action/quick-start.md) grades a checkout
 and writes `.autograder/outcome.json`. The [cloud workflow](../github_action/external-mode.md)
@@ -62,7 +63,7 @@ both artifacts and never changes a completed grade into a failed grade.
 [Adding an evaluator](../architecture/extending.md) is the recipe; its examples are
 executed by `tests/unit/test_architecture.py`.
 Run `python -m examples.contracts.custom_evaluator` for a complete
-local `TestFunction` and `Template` example. It compiles a v1 definition with
+local `TestFunction` and `Template` example. It compiles a definition with
 `templates={"trusted_text": TEMPLATE}`, grades an in-memory
 submission, and prints the terminal outcome. Only a trusted Python caller can
 inject executable evaluator code. JSON sent to HTTP or Actions cannot load a
@@ -82,14 +83,14 @@ for explicit execution/provider composition.
 | Custom Python evaluator | Trusted local Python process with repository requirements | Actual pipeline run, passing and assessed zero-score cases |
 
 These tests do not establish production PostgreSQL recovery, live provider
-availability, or runner isolation properties. The contract version is `1.0`.
+availability, or runner isolation properties.
 
 ## HTTP client integration
 
 An HTTP client creates a configuration with `external_assignment_id` and one
 `definition`. It can validate the definition first at
 `POST /api/v1/configs/validate` without saving it. For an accepted example,
-wrap [static-conformance.json](v1/examples/static-conformance.json) as
+wrap [static-conformance.json](https://github.com/webtech-network/autograder/blob/main/examples/definitions/static-conformance.json) as
 `{"external_assignment_id":"assignment-1","definition":<file contents>}`.
 Updates use PATCH with the quoted revision `ETag` in `If-Match`.
 
@@ -101,7 +102,7 @@ and diagnostics. A completed zero is an assessed grade; a failed null score
 means grading did not produce a grade.
 
 For pre-submission program runs, use the
-[deliberate execution contract](../features/deliberate_code_execution.md).
+[deliberate execution contract](EXECUTION.md).
 It defines stdin cases, process output, request limits, and service failures.
-The [legacy definition converter](DEFINITIONS.md#legacy-definition-migration)
+The [legacy definition converter](DEFINITIONS.md#definitions-in-the-pre-v1-format)
 is an offline tool for deployments with older definition files.

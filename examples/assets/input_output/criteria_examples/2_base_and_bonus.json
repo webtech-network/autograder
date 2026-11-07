@@ -1,8 +1,5 @@
 {
-  "schema_version": "1.0",
-  "templates": [
-    "input_output"
-  ],
+  "schema_version": "2.0",
   "languages": [
     "python",
     "java",
@@ -11,7 +8,6 @@
   ],
   "criteria": {
     "base": {
-      "weight": 100.0,
       "tests": [
         {
           "id": "base-tests-0",
@@ -85,7 +81,7 @@
       "metadata": {}
     },
     "bonus": {
-      "weight": 15.0,
+      "max_points": 15.0,
       "tests": [
         {
           "id": "bonus-tests-0",

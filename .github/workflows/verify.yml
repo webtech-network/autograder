@@ -1,11 +1,11 @@
-# One workflow verifies every commit and is the only path to production.
+# One workflow verifies every commit and is the only path that publishes images.
 #
-# Each verification job runs Makefile targets only, exactly as contributors do
-# (see docs/guides/development.md). The publication jobs (`deploy`,
-# `action-release`) need every verification job, so a commit is deployed or
-# released only after all of its verification succeeded; a test enforces that
-# new jobs join their `needs`. `workflow_dispatch` (on any ref) runs the
-# verification and then the Action release.
+# Every job runs Makefile targets only, exactly as contributors do (see
+# docs/guides/development.md). The `publish` job needs every verification job,
+# so a push to main publishes its images only after all of its verification
+# succeeded; a test enforces that new jobs join its `needs`. Nothing deploys,
+# and nothing is released here: release.yml re-tags what `publish` published
+# (docs/github_action/README.md#versions-and-images).
 #
 # Third-party actions are pinned to release commits (the tag is in the comment).
 name: Verify
@@ -14,14 +14,13 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   # A new push to a pull request cancels its superseded run; every commit on
-  # main gets its own group, so main runs (and their deploys) are never cancelled.
+  # main gets its own group, so main runs (and their publication) are never cancelled.
   group: verify-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
@@ -81,11 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      # Full history and tags: `make action-check` asks whether the release tag
-      # is an ancestor of this commit.
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version-file: .tool-versions
@@ -98,18 +93,6 @@ jobs:
       # Builds the images from scratch (a fresh runner has no cache) and checks
       # exactly those: contents, context leaks, the Action grading an example.
       - run: make test-images
-      # Consumers use `webtech-network/autograder@main`: they read action.yml
-      # from main and run the image built at its <version> tag. So main must pin
-      # an image released from its own history, unchanged since (action.yml and
-      # every input of Dockerfile.actions), that a runner can pull without
-      # credentials: an untagged or unmerged release, a change without a new
-      # version, or a missing or private package fails here. It blocks a merge
-      # only once the main ruleset requires this job
-      # (docs/guides/development.md#required-checks).
-      # `deploy` needs this job, so on main such an Action pin also holds back
-      # the API deploy, deliberately: that commit is not releasable as a whole.
-      - if: github.base_ref == 'main' || github.ref == 'refs/heads/main'
-        run: make action-check
 
   docker:
     name: Docker sandboxes (integration and e2e)
@@ -118,6 +101,24 @@ jobs:
     # staging suites, so 30 cancelled passing runs; the per-runtime isolation
     # suites have since moved to the `isolation` job.
     timeout-minutes: 45
+    # The HTTP e2e suites that need real PostgreSQL locking (the sandbox budget and
+    # worker recovery) run their API processes against this database.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: autograder
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: autograder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U autograder"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_POSTGRES_URL: postgresql+asyncpg://autograder:local-test-only@127.0.0.1:5432/autograder
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -258,21 +259,25 @@ jobs:
           ACTION_RESULT_PATH: ${{ steps.probe.outputs.result-path }}
           REAL_GITHUB_TOKEN: ${{ github.token }}
 
-  # The Action release, run by hand (workflow_dispatch) on the branch that raises
-  # the version in action.yml, before that branch can merge into main: publish
-  # the image built and tested here from that commit, then tag the commit with
-  # the version (scripts/action_image.py, docs/github_action/README.md).
-  action-release:
-    name: Release Action image
+  # Every verified push to main publishes the images it verified: the runtime
+  # images sandbox_config.yml pins (each reference once), and the API, sandbox
+  # manager and Action images as sha-<commit> and main, the tag action.yml runs.
+  # It rebuilds and checks them from this commit first, exactly as the `images`
+  # job did, and publishes nothing unless this commit is still the head of main:
+  # an older commit whose verification finished last must not move `main` back
+  # (scripts/publish_images.py). Packages are made public once by an
+  # organization admin; until then this job warns.
+  publish:
+    name: Publish images from main
     needs: [core, postgres, images, docker, isolation, http, action]
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     permissions:
-      contents: write
+      contents: read
       packages: write
     concurrency:
-      group: action-release
+      group: publish-main
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -291,117 +296,5 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - run: make test-images
-      - run: make action-publish
-
-  deploy:
-    name: Deploy API
-    needs: [core, postgres, images, docker, isolation, http, action]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      packages: write
-    concurrency:
-      group: deploy-production
-      cancel-in-progress: false
-    steps:
-      # Verification takes a different time per commit, so an older commit can
-      # finish after a newer one. Deploying it then would roll production and
-      # `latest` back; only the current head of main deploys.
-      - name: Skip unless this commit is still the head of main
-        id: head
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          head="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
-          if [ "$head" = "$GITHUB_SHA" ]; then
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::main moved to $head; $GITHUB_SHA is not deployed."
-            echo "current=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        if: steps.head.outputs.current == 'true'
-
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-        if: steps.head.outputs.current == 'true'
-
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        if: steps.head.outputs.current == 'true'
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - id: meta
-        if: steps.head.outputs.current == 'true'
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/autograder-api
-          tags: |
-            type=sha,prefix=sha-
-            type=raw,value=latest
-
-      - uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
-        if: steps.head.outputs.current == 'true'
-        with:
-          context: .
-          file: ./Dockerfile.api
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Update the VPS
-        if: steps.head.outputs.current == 'true'
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-        env:
-          SERVICE_NAME: "autograder-api"
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: SERVICE_NAME,DEPLOY_PATH,PULL_TOKEN
-          script: |
-            # 1. Validation Check
-            if [ -z "$PULL_TOKEN" ]; then
-              echo "❌ ERROR: GHCR_PULL_TOKEN is empty. Check your GitHub Secrets!"
-              exit 1
-            fi
-
-            # 2. Navigate and Update Config
-            cd "$DEPLOY_PATH" || { echo "❌ ERROR: Could not find directory $DEPLOY_PATH"; exit 1; }
-            
-            echo "📥 Updating infrastructure repository..."
-            git pull origin main || echo "⚠️ Warning: git pull failed, using existing local config."
-
-            # 3. Docker Authentication
-            echo "🔑 Logging into GHCR..."
-            echo "$PULL_TOKEN" | docker login ghcr.io -u autograder-webtech --password-stdin
-
-            # 4. Pull and Restart
-            echo "🚀 Deploying $SERVICE_NAME..."
-            docker compose -f docker-compose.yml pull "$SERVICE_NAME"
-            # The new image refuses retired or incoherent configuration at startup:
-            # check it with the new image first (no database or Docker access), and
-            # keep the running API if it is rejected. docs/operate/deployment.md
-            echo "🔎 Checking configuration..."
-            docker compose -f docker-compose.yml run --rm --no-deps "$SERVICE_NAME" \
-              python -m web.main --check \
-              || { echo "❌ ERROR: Configuration rejected; the running API was not replaced."; docker logout ghcr.io; exit 1; }
-            # The new image refuses to serve an unmigrated database: migrate with
-            # it first, and keep the running API if the migration fails.
-            echo "🗄️ Migrating database schema..."
-            docker compose -f docker-compose.yml run --rm --no-deps "$SERVICE_NAME" \
-              alembic -c web/alembic.ini upgrade head \
-              || { echo "❌ ERROR: Migration failed; the running API was not replaced."; docker logout ghcr.io; exit 1; }
-            docker compose -f docker-compose.yml up -d --no-deps "$SERVICE_NAME"
-              
-            # 5. Cleanup
-            docker logout ghcr.io
-            echo "✅ Deployment finished successfully!"
+      - run: make sandbox-build-all
+      - run: make publish-images

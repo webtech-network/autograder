@@ -104,7 +104,7 @@ async def test_create_grading_config(client):
     assert response.status_code == 200
     data = response.json()
     assert data["external_assignment_id"] == "test-assignment-1"
-    assert data["definition"]["templates"] == ["input_output"]
+    assert data["definition"]["schema_version"] == "2.0" and "templates" not in data["definition"]
     assert data["definition"]["languages"] == ["python"]
     assert data["is_active"] is True
 
@@ -121,7 +121,7 @@ async def test_get_grading_config(client):
     assert response.status_code == 200
     data = response.json()
     assert data["external_assignment_id"] == "test-assignment-2"
-    assert data["definition"]["templates"] == ["input_output"]
+    assert data["definition"]["schema_version"] == "2.0" and "templates" not in data["definition"]
 
 
 @pytest.mark.asyncio

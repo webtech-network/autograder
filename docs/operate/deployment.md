@@ -47,11 +47,21 @@ gradings, which are retried within `WEB_MAX_ATTEMPTS`.
 
 ## Upgrade runbook
 
-The `deploy` job of `.github/workflows/verify.yml` runs steps 2 to 5 for the API
-image of each verified commit on `main`. By hand:
+CI deploys nothing: an operator upgrades by hand. Every verified push to `main`
+publishes `ghcr.io/webtech-network/autograder-api` and
+`ghcr.io/webtech-network/autograder-sandbox-manager` as `sha-<commit>` and
+`main`, and the runtime images under the references its `sandbox_config.yml`
+pins; a release tags the same images with its version
+([Versions and images](../github_action/README.md#versions-and-images)).
+Deploy a release version (`1.0.0`), or a `sha-<commit>` reference, never the
+moving `main`, so every service and a rollback name one verified commit; the
+[changelog](https://github.com/webtech-network/autograder/blob/main/CHANGELOG.md)
+lists what changed between releases. `docker-compose.yml` runs the local names
+`autograder-<name>:${AUTOGRADER_IMAGE_TAG}`: set your deployment's `image:`
+lines to the published references (or `docker tag` them to those names).
 
-1. **Read the migration notes** of the release: [retired variables](configuration.md#retired-variables),
-   [Sandbox ownership](../contracts/SANDBOX.md#migration) and
+1. **Read the migration notes** of the commits you upgrade across ([decisions](../contracts/DECISIONS.md#migration-notes)): [retired variables](configuration.md#retired-variables),
+   [Sandbox ownership](../contracts/DECISIONS.md#sandbox-ownership-and-configuration) and
    [Durable jobs](../contracts/JOBS.md#deployment-and-migration).
 2. **Pull** the new `api` and `sandbox-manager` images and the runtime images of
    the new `sandbox_config.yml`.

@@ -8,11 +8,11 @@ from tests.e2e.contracts import create_config, definition, poll, submit
 @pytest.mark.parametrize("code,evaluator,parameters,score", [
     ("print('HELLO')", "expect_output", {"inputs": [], "expected_output": "HELLO", "program_command": "python3 main.py"}, 100),
     ("print('WRONG')", "expect_output", {"inputs": [], "expected_output": "HELLO", "program_command": "python3 main.py"}, 0),
-    ("import sys; sys.exit(0)", "dont_fail", {"user_input": "", "program_command": "python3 main.py"}, 100),
+    ("import sys; sys.exit(0)", "dont_fail", {"inputs": [], "program_command": "python3 main.py"}, 100),
     ("if True print('HI')", "expect_output", {"inputs": [], "expected_output": "HELLO", "program_command": "python3 main.py"}, 0),
 ])
 def test_io_scenarios(api_base_url, auth_headers, code, evaluator, parameters, score):
-    config = create_config(api_base_url, auth_headers, definition("input_output", tests=[
+    config = create_config(api_base_url, auth_headers, definition(tests=[
         {"id": "program", "name": "Program", "type": evaluator, "parameters": parameters}]))
     accepted = submit(api_base_url, auth_headers, config, [{"filename": "main.py", "content": code}])
     result = poll(api_base_url, auth_headers, accepted["id"])
@@ -30,14 +30,14 @@ def test_io_scenarios(api_base_url, auth_headers, code, evaluator, parameters, s
     ("index.html", "<blink></blink>", "has_forbidden_tag", {"tag": "blink"}, 0),
 ])
 def test_web_dev_variations(api_base_url, auth_headers, filename, content, evaluator, parameters, score):
-    config = create_config(api_base_url, auth_headers, definition("webdev", "node", tests=[
+    config = create_config(api_base_url, auth_headers, definition("node", tests=[
         {"id": "markup", "name": "Markup", "type": evaluator, "parameters": parameters}]))
     accepted = submit(api_base_url, auth_headers, config, [{"filename": filename, "content": content}])
     assert poll(api_base_url, auth_headers, accepted["id"])["outcome"]["score"] == score
 
 
 def test_api_missing_http_host_capability_is_failed_not_assessed_zero(api_base_url, auth_headers):
-    config = create_config(api_base_url, auth_headers, definition("api", tests=[
+    config = create_config(api_base_url, auth_headers, definition(tests=[
         {"id": "health", "name": "Health", "type": "health_check", "parameters": {"endpoint": "/health"}}]))
     accepted = submit(api_base_url, auth_headers, config, [{"filename": "server.py", "content": "pass"}])
     outcome = poll(api_base_url, auth_headers, accepted["id"])["outcome"]

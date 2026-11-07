@@ -32,8 +32,8 @@ def criterion(identity, kind, **parameters):
 
 
 def definition(criteria):
-    return {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": criteria}}}
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": criteria}}}
 
 
 @pytest.fixture(scope="module")
@@ -85,7 +85,7 @@ def test_issue_reproduction_four_flooded_expect_output_criteria(docker_host):
 
 def test_flooded_stderr_and_artifact_reports_are_bounded(docker_host):
     pipeline, outcome = run(docker_host, [
-        criterion("crash", "dont_fail", user_input="1"),
+        criterion("crash", "dont_fail", inputs=["1"]),
         criterion("artifact", "expect_file_artifact", artifact_path="out.txt", expected_content="sum=5"),
         criterion("passes", "dont_fail"),
     ])

@@ -35,8 +35,8 @@ EXPECTED = "slash bytes|underscore bytes|0|0o444|0o644|denied"
 
 
 def definition(fixtures):
-    return {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": [{"id": "fixtures", "name": "Reads fixtures",
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": [{"id": "fixtures", "name": "Reads fixtures",
                 "type": "expect_output", "parameters": {"program_command": "python main.py",
                                                         "inputs": [], "expected_output": EXPECTED}}]}},
             "preparation": {"languages": {"python": {"required_files": ["main.py"], "setup_commands": [

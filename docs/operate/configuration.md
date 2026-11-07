@@ -46,13 +46,14 @@ marked *required* have no working default for a deployment.
 | `WEB_OUTCOME_RECEIPT_DIR` | `data/unpublished-outcomes` | *Persistent.* Directory of finalized outcomes not yet published to the database; relative to the working directory (`/app` in the image). Mount it on a volume ([Durable jobs](../contracts/JOBS.md)). |
 | `WEB_WORKER_COUNT` | `2` | Grading workers per API process. |
 | `WEB_LEASE_SECONDS` | `60` | Lease of a claimed job; renewed every third. |
-| `WEB_MAX_ATTEMPTS` | `3` | Interrupted attempts before `RECOVERY_EXHAUSTED`. |
+| `WEB_MAX_ATTEMPTS` | `3` | Attempts per submission, interrupted or ended by a retryable failure; then the last failure (or `RECOVERY_EXHAUSTED`) is published ([execution retry](../contracts/JOBS.md#execution-retry)). |
+| `WEB_RETRY_SECONDS` | `30` | Backoff before the attempt after a retryable failure; doubles with each attempt, at most one hour. |
 | `WEB_POLL_SECONDS` | `1` | Idle worker polling interval. |
 | `SANDBOX_MODE` | `local` | `local`: the API process owns its sandboxes through the Docker socket (development and tests). `remote`: sandboxes come from the private sandbox manager (the supported deployment, see [Deployment](deployment.md)). |
 | `SANDBOX_API_URL` | `http://localhost:8001` | Sandbox manager URL (`remote`). |
 | `SANDBOX_API_TOKEN` | empty | Sandbox manager bearer token (`remote`); the same value as the manager's. |
 | `SANDBOX_CONFIG_FILE` | `sandbox_config.yml` | Sandbox runtime (`general.runtime`), budget, pools, runtime images and host maximum lifetime; relative paths resolve from the project root. Validated at startup in both modes for `general.running_timeout` (in `remote` mode keep it identical to the sandbox manager's). In `local` mode the API also starts its sandbox manager at startup, which fails when Docker does not offer the runtime ([environments](../contracts/SANDBOX.md#environments-and-supported-topology)). Missing, budgets are checked only at acquisition. |
-| `EXTERNAL_ASSETS_BUCKET_NAME` | unset | S3 bucket holding definition fixtures. Unset, the host has no fixture store and fixture assignments fail preparation. |
+| `EXTERNAL_ASSETS_BUCKET_NAME` | unset | S3 bucket holding definition fixtures. Unset, the host has no fixture store and fixture assignments fail with the non-retryable `FIXTURE_PROVIDER_UNAVAILABLE`, as they do when the store answers that the bucket is missing or access is denied. |
 | `S3_ENDPOINT_URL` | AWS | S3-compatible endpoint. Setting it without a bucket stops startup. |
 | `AWS_REGION` | `us-east-1` | Region of the fixture bucket and of the AI secret. |
 | `AWS_ACCESS_KEY_ID` | SDK default chain | Fixture store credential; set together with the secret key or neither. |

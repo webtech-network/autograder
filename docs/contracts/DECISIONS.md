@@ -2,17 +2,19 @@
 
 Grading semantics belong to the engine. Transport, persistence, credentials,
 acceptance, publication, and submission identity belong to hosting adapters.
-The version 1 wire contract has one parser and one terminal outcome format.
+The wire contract has one definition parser (format 2.0) and one terminal outcome format (1.0).
 
 ## Definition
 
-`schema_version: "1.0"`, `templates: [identifier]`, `languages: [language]`,
-`criteria`, optional `preparation`, `feedback`, and optional `metadata` constitute
-one definition. Structural unknown fields are errors. Criteria retain base,
-bonus, penalty, nested subjects, relative sibling weights, and the explicit
-`subjects_weight` split. Tests require `id`, `type`, `name`, and object-valued
-`parameters`; IDs are globally unique within a definition. Display names are
-never identities. Base weight is 100; bonus and penalty weights are caps.
+`schema_version: "2.0"`, `languages: [language]`, `criteria`, optional
+`preparation`, `feedback`, and optional `metadata` constitute one definition.
+Structural unknown fields are errors. Criteria retain base, bonus, penalty,
+nested subjects, relative sibling weights, and the explicit `subjects_weight`
+split. Tests require `id`, `type`, `name`, and object-valued `parameters`; IDs
+are globally unique within a definition, and `type` alone names the evaluator.
+Subjects and tests are labelled with `name`. Display names are never identities.
+The base category is the 0–100 score; bonus and penalty categories set
+`max_points`.
 
 Preparation has language-keyed required files and named setup commands, and
 fixtures identified by logical reference and a relative fixture-root path. Required-file paths are relative to the submission root.
@@ -99,6 +101,517 @@ own head; it never creates tables. Revisions `001`-`007` are squashed into a
 baseline `007`, so empty databases migrate and databases at `007` upgrade
 unchanged. See [deployment and migration](JOBS.md#deployment-and-migration).
 
+## Migration notes
+
+What changed for existing definitions, deployments and trusted Python code,
+kept here so that the contracts describe only current behaviour.
+
+### Upgrading to 1.0.0
+
+1.0.0 is the first release. The tags before it (`0.0.2`–`0.5.0`, `1.1.2`, `v1`,
+`v0.0.0-285-test`) and the deployments built from `main` before the
+refactor ([#363](https://github.com/webtech-network/autograder/issues/363)) are
+not maintained, and nothing of them is compatible with 1.0.0. The
+[changelog](https://github.com/webtech-network/autograder/blob/main/CHANGELOG.md)
+lists every change; these are the steps.
+
+**GitHub Action consumers.** Those tags read `criteria.json`, `feedback.json`
+and `setup.json` from `.github/autograder/` (or a `template-preset` or
+`custom-template` input) and built their image from a Dockerfile in every job.
+
+1. Convert the rubric into one definition, `.github/autograder/definition.json`:
+   assemble the old files into the legacy envelope and run the offline
+   converter ([Definitions](#definitions)), then check the result and grade a
+   reference solution with `python -m execution_host.check`
+   ([Test your rubric](../author/testing.md)). Feedback settings move into the
+   definition's `feedback`. A repository that followed `main` with a format
+   1.0 `definition.json` runs the same converter on it: the result is format
+   2.0 with the same criterion IDs, weights and scores.
+2. Pin the release: `uses: webtech-network/autograder@1.0.0`.
+3. Remove the inputs `template-preset`, `custom-template`, `feedback-type`,
+   `include-feedback`, `github-token`, `app-token` and `openai-key` (and
+   `redis_url`, `redis_token` and the underscore spellings of `v1`).
+   AI criteria read `OPENAI_API_KEY` from the step's `env`. The job needs only
+   `contents: read`: nothing commits feedback or updates Classroom checks.
+4. Read the `status`, `score` and `result-path` outputs instead of `result`
+   (base64) and `total_score`, and upload `.autograder/` with
+   `actions/upload-artifact` to keep the outcome
+   ([Inputs and outputs](../github_action/configuration.md)).
+5. With the cloud, keep `execution-mode: external` and `grading-config-id`,
+   and add `upload-to-cloud: "true"` where results must be published; the
+   server must run 1.0.0 too. Its identity rules are in
+   [Identity and trust](../github_action/trust.md).
+
+Definitions that run code need Docker on the runner; every Linux GitHub-hosted
+runner has it ([Requirements](../github_action/README.md#requirements)).
+
+**HTTP integrators.**
+
+1. Send `Authorization: Bearer <integration token>` on every route except
+   health, readiness and the template catalog
+   ([HTTP authentication](#http-authentication-int-01)).
+2. Create configurations with one format 2.0 definition (validate first with
+   `POST /api/v1/configs/validate`) and update them with conditional `PATCH`
+   ([REST API](../API.md)).
+3. Treat `POST /api/v1/submissions` as acceptance (`202` and `Location`), poll
+   the compact status, read files and trees from the authenticated details
+   ([Submission details](#submission-details)), and send an `Idempotency-Key` so
+   that retries are safe ([Replay safety](REPLAY.md)).
+4. Read results as the terminal outcome: `failed` has a null score and a coded
+   error ([Terminal outcomes](#terminal-outcomes), [Outcomes](OUTCOMES.md));
+   do not resubmit on `retryable: true` ([Execution retry](#execution-retry-cor-03)).
+   Send `locale` as `en` or `pt-br`.
+5. Read the catalog's `evaluators[].identifier` and `required_capabilities`
+   ([Catalog](#catalog-int-11-onb-08)).
+6. Send and store format 2.0 definitions, and re-read stored configurations
+   after the upgrade: the server converts them into a new revision, so a stale
+   `If-Match` gets `412`. Accept `provenance.schema_version` `"1.0"` (history)
+   or `"2.0"`, read `definition_snapshot` in the format that provenance names,
+   and attest only 2.0 snapshots ([Definitions](#definitions)).
+
+**Operators of the HTTP service.**
+
+1. Back up the database and drain the old API, then bring the schema under
+   migrations ([Existing databases](JOBS.md#existing-databases)). The
+   migrations convert stored definitions to format 2.0 and log the
+   configurations they quarantine; PATCH a corrected definition and reactivate
+   each one ([Definitions](#definitions)).
+2. Remove the [retired variables](../operate/configuration.md#retired-variables),
+   set `AUTOGRADER_INTEGRATION_TOKEN` and `SANDBOX_API_TOKEN`, and write
+   `sandbox_config.yml` from the shipped one: `general.runtime`,
+   `general.max_sandboxes`, `running_timeout` and the `runtimes:` map
+   ([Sandbox ownership and configuration](#sandbox-ownership-and-configuration)).
+   With `runtime: runsc`, Docker must list gVisor.
+3. Deploy the `1.0.0` images of `autograder-api` and
+   `autograder-sandbox-manager` and the runtime images `sandbox_config.yml`
+   pins, following the [upgrade runbook](../operate/deployment.md#upgrade-runbook)
+   (`python -m web.main --check`, then the migrations).
+4. Remove containers of the old sandbox managers:
+   `python -m sandbox_manager.reclaim --legacy`.
+
+### Definitions
+
+Convert one legacy definition envelope offline:
+
+```sh
+python -m autograder.services.definition_migration old-definition.json definition.json
+```
+
+Supply `template_name`, `grading_criteria`, `languages` and optional legacy
+setup/feedback fields. Multi-file repository configurations must first be
+assembled into that envelope. The converter assigns deterministic path-based IDs
+once, preserves weights/labels, moves the known `display_name` parameter to the
+label, removes the runtime language placeholder and converts the old file-target `all`
+  sentinel to null, and resolves only unambiguous
+learning-resource labels. Persist these new IDs; do not regenerate them on edits.
+Duplicate pairs, competing encodings, unsupported options and unsafe asset
+relocation require explicit instructor correction. There is no runtime converter.
+
+Migration 005 converts database rows, records rejection evidence, quarantines
+invalid rows inactive, and drops old configuration columns. Future submissions
+retain exact snapshots/hash/revision. Old submissions remain `unverified_legacy`;
+old failed numeric zeros become null grades. The migration is intentionally
+irreversible: back up first, drain old background executions, deploy the matching
+engine/API/Action consumers together, run Alembic upgrade, inspect quarantined rows,
+then reactivate only corrected definitions. Rollback restores the pre-upgrade DB
+backup with the previous code. Automatic schema creation does not migrate a DB.
+
+The old `test_library` envelope is unsupported. Format 1.0 listed the templates
+explicitly; format 2.0 lists none (below). Evaluator parameters
+have typed contracts and stable criterion IDs. Provider mapping, resource limits,
+and infrastructure scheduling belong to the hosting environment rather than
+the definition schema.
+
+#### Definitions that compile no longer (ONB-01)
+Definitions that compiled before may now be rejected, intentionally: an explicit
+presence threshold of `0`, an empty forbid/find list, or a standalone shell
+operator in a command. Nothing else changes: a stored snapshot lists every
+parameter explicitly, so a valid snapshot keeps its meaning and hash, and a
+raw definition that omitted a threshold now gets 1 instead of an always-passing 0.
+There is no runtime fallback. A stored configuration that became invalid is
+rejected with the exact path (`422` on submission, a failed outcome for a job
+already bound to it) until it is corrected; nothing rewrites it silently.
+
+Before deploying, check every stored definition with the offline converter,
+which compiles v1 input unchanged and prints the precise errors:
+
+```sh
+python -m autograder.services.definition_migration stored.json checked.json
+```
+
+Then correct each rejected definition through the configuration API (`PATCH`
+creates a new revision): set the intended threshold, name the forbidden items or
+delete the criterion, and move compile steps such as `javac A.java && java A`
+into `setup_commands` (`javac A.java`) with `program_command: "java A"`. A
+legacy envelope carrying these values is rejected by the converter in the same
+way, so migration 005 would quarantine such a row.
+
+#### Definition format 2.0 (ONB-07)
+
+Format 2.0 removes the authoring fields that carried no information and gives
+each idea one name. Every change, and what the converter does with it:
+
+| Format 1.0 | Format 2.0 | Converter |
+| --- | --- | --- |
+| `"schema_version": "1.0"` | `"2.0"` | rewritten |
+| `templates: [...]` | absent: `type` alone names the evaluator | dropped |
+| `criteria.base.weight` (had to be 100) | absent: base is the 0–100 score | dropped; anything but 100 is rejected (the 1.0 definition was invalid) |
+| bonus/penalty `weight` (a cap) | `max_points` | renamed |
+| subject `subject_name` | `name`, as on criteria | renamed |
+| subject `weight` 0–100, required | ratio ≥ 0, unbounded, default 100, as on criteria | kept |
+| `dont_fail.user_input: "x"` | `inputs: ["x"]` (`""` becomes `[]`), as on `expect_output` | rewritten; identical stdin bytes |
+| `has_style.count` | `required_count`, as on every presence check | renamed |
+| `check_bootstrap_usage` (100 when Bootstrap is absent) | `has_no_bootstrap` | renamed |
+| `has_no_js_framework` `html_file`/`js_file`, `count_unused_css_classes` `html_file`/`css_file` | no parameters: they read every HTML and JS (or CSS) file, whatever the scope; `file` still narrows to one | dropped, with a note |
+
+Convert a definition file (format 1.0, or the pre-1.0 envelope above):
+
+```sh
+python -m autograder.services.definition_migration old.json definition.json
+```
+
+Every mapping is deterministic and only renames: no parameter value changes,
+so criterion IDs, weights, labels and scores stay as they were. The converter
+prints `{"errors": [...]}` with exact paths for what it cannot convert (a base
+weight other than 100, an old and a new name both given, a non-string
+`user_input`, anything that does not compile today), and `{"notes": [...]}` on
+standard error for what it converted but assesses differently: only the two
+multi-file web checks, which now read all of the project's HTML and CSS (or
+JavaScript) files instead of the two named ones (the same result when the
+project has one of each). Python callers use `convert_definition(value)` for
+authoring input and `convert_snapshot(snapshot)` for a stored canonical
+snapshot (renamed, never normalized again); both return `(definition, notes)`.
+Trusted Python templates pass `templates={...}` to `convert_definition`.
+
+A 1.0 definition given to the engine or to any HTTP route fails with one
+`UNSUPPORTED_SCHEMA_VERSION` error naming the command. The removed fields in a 2.0 definition fail at their path
+with what replaced them. There is no runtime alias.
+
+**Stored data (HTTP host).** Alembic revision `011` converts with
+`convert_snapshot`:
+
+* each stored 1.0 configuration becomes a new revision (`version + 1`, a new
+  `definition_hash`), so a revision never names two hashes. Clients holding the
+  old `ETag` get `412` on their next PATCH and refetch. A definition that does
+  not convert (for example one ONB-01 made invalid) is quarantined: inactive,
+  `definition` and its hash cleared, and `migration_error` holding
+  `{"schema_version": "1.0", "definition": <the 1.0 definition>, "errors":
+  [...]}`. Submissions to it answer `409` until a corrected definition is
+  PATCHed and the configuration reactivated;
+* queued submissions (pending or processing) are rebound to the converted
+  snapshot and its hash and keep their revision, so they grade as before;
+* finished submissions keep their 1.0 snapshot, hash and outcome untouched.
+  `GET /submissions/{id}/details` returns that snapshot as stored
+  (`definition_snapshot` is plain JSON in any format), its outcome's
+  `provenance.schema_version` stays `"1.0"`, and the hash still verifies
+  against it. Comparison reads such a baseline by checking the hash on the
+  stored snapshot, then reading it through the converter's structural step,
+  so a pre-upgrade baseline compares with a new head by criterion ID
+  (`cross_revision`, `schema_version` in the changed sections).
+
+Upgrade: back up the database, stop the old API, run `alembic -c
+web/alembic.ini upgrade head`, read the warnings it logs (quarantined
+configurations, and the notes for the two web checks), then start the new
+release. Downgrading below `011` refuses while any 2.0 definition is stored:
+roll back by restoring that backup together with the previous release.
+
+**Integrators (Prisma, Actions repositories, the demo).** Send and store
+format 2.0 definitions: run the converter over each definition file in a
+repository (`.github/autograder/definition.json`) and over the definitions a
+client generates. Read stored configurations again after the upgrade (their
+revision moved). Accept outcomes whose `provenance.schema_version` is `"1.0"`
+(history) or `"2.0"`, and treat `definition_snapshot` in submission details as
+the snapshot in the format its provenance names. An attestation must bind a 2.0
+snapshot, with `provenance.schema_version` `"2.0"`. The terminal outcome
+format is unchanged (`schema_version` `"1.0"`); its category `weight` remains
+the points a category moves (100 for base, `max_points` otherwise).
+
+### Host capabilities
+
+* **One fixture-set call (PRF-03).** `ExecutionSession.stage_fixture(path,
+  content, read_only)`, called once per fixture, is replaced by
+  `stage_fixtures(fixtures: Sequence[StagedFixture])`, called once with the
+  whole set (`StagedFixture` is in `autograder.models.execution`). A host
+  session that implemented `stage_fixture` renames it and loops over the
+  sequence, or better stages the set in one operation. No definition, wire or
+  configuration change. Fixtures are now all fetched before any is staged, so a
+  missing fixture leaves nothing staged; the outcome is unchanged
+  (`capability / PREPARATION_ERROR`). With the Docker host a grading's fixture
+  set went from one `docker exec` per fixture (100 for the 100-fixture maximum,
+  about 3 to 4 s) to one.
+
+#### Earlier architecture issues
+
+The simpler sequence resolves the intent of #302 and #307–#312 through selected
+requirements, pure validation, explicit providers, typed preparation and one
+owner for cleanup. It does not introduce step categories, setup inheritance,
+provider retry, or publication inside the engine. Language-keyed preparation
+already expresses the required variation; a new pipeline framework is unnecessary.
+
+| Earlier proposal | Resolution in the current contract |
+| --- | --- |
+| #302 decompose preflight | Keep the short preparation sequence; resource acquisition and pure validation are separate. |
+| #307 add step categories | Superseded: no runtime behavior needs category labels. |
+| #308 add FileCheckStep | Fulfilled by pure bootstrap validation before any provider call; a separate step class is unnecessary. |
+| #309 add AssetInjectionStep | Fulfilled by typed fixture staging through the acquired session. |
+| #310 add SetupCommandsStep | Fulfilled by typed selected-language commands after fixtures. |
+| #311 merge template setup | Superseded: evaluator capabilities and explicit definition preparation express current requirements without inheritance. |
+| #312 remove PreFlightStep | Completed by ARC-01: typed preparation is a direct function call; the wrapper, legacy parsing and provider construction are removed. |
+
+### Processes (ARC-08, COR-01)
+
+| Before | Now |
+| --- | --- |
+| `run_command(cmd)` split with `shlex`, but malformed quoting silently ran `/bin/sh -c cmd` | `ProcessRequest.command(cmd)` raises. Compilation rejects such definitions (`INVALID_COMMAND`). |
+| `run_commands(inputs, program_command=...)` ran `echo '<joined>' \| cmd` | Exact stdin: `lines_to_stdin(inputs)` |
+| `inputs: []` sent one newline (`echo ''`) | Empty stdin (EOF). Use `[""]` to send one empty line. |
+| An input `-n` (or `-e`, `-E`) could be taken as an `echo` option and lost | Sent literally, as `-n\n` |
+| Exit ≠ 0 with unrecognised stderr was `SYSTEM_ERROR` → `SANDBOX_ERROR`, a failed grade | Assessed zero (`runtime_error`) |
+| Exit 137 was `TIMEOUT` | `runtime_error` with exit code 137 |
+| A container stopped under a process kept the process's exit code (`_stopped_result`): a reaper or `docker kill` turned a correct run into a zero | Host-ended containers raise `ProcessExecutionError` (`SANDBOX_ERROR`); only host evidence of exhaustion is the submission's (`SandboxExhausted`) |
+| PID 1 and the collector ran as `sandbox`: a submission could kill them and turn a bad grade into a retryable `SANDBOX_ERROR` | PID 1 and control execs run as `root`; the submission cannot signal them |
+| A missing or non-executable `./a.out` was `PROCESS_START_FAILED` | Assessed zero (only a runtime command that cannot start is a capability failure) |
+| An artifact the submission made unreadable was `ARTIFACT_READ_FAILED` → `SANDBOX_ERROR` | Read and graded |
+| `compilation_error` from stderr keywords (`error:`, `gcc`, ...) | `runtime_error`. Compile in `setup_commands` to get `PREPARATION_FAILED`. |
+| Unbounded `exec_run` output buffering | Bounded per stream at the host |
+| A timeout stopped waiting but left the process running | The process and its children are killed before the call returns |
+| Control API `POST /run`, `POST /run-batch` | `POST /process` |
+
+Definitions that depended on the old behaviour need these changes:
+
+* An `expect_output` test with `inputs: []` whose program calls `input()` now
+  gets EOF. Add `[""]` if the program must read an empty line.
+* A `program_command` or setup command that relied on shell syntax never ran
+  through a shell before (it was split into arguments) unless its quoting was
+  malformed. Write `sh -c '...'` explicitly. Malformed quoting and standalone
+  shell operators are now rejected when the definition is compiled or loaded.
+* Assignments that expected `compilation_error` from an I/O run should compile
+  in `preparation.languages.<language>.setup_commands`.
+
+### Per-test sandbox cost (PRF-08)
+
+The runner forked `mkdir` and `base64` to write stdin (sent as base64) and the
+collector forked fourteen helpers,
+returning outputs as base64. The runner now forks none (text stdin up to 48 KiB
+is one argument) and the collector five, returning raw bytes; see
+[Cost of a process](PROCESSES.md#cost-of-a-process). Medians of `run_process`
+for a program that upper-cases one line, on the same machine and profile,
+before and after:
+
+| Runtime | Python | Java | C |
+| --- | --- | --- | --- |
+| gVisor | 195 → 122 ms | 290 → 164 ms | 100 → 67 ms |
+| runc | 106 → 103 ms | 118 → 110 ms | 95 → 83 ms |
+
+A test's marginal cost in complete python-io gradings fell from 216 to 126 ms
+under gVisor (a 21-test grading from 5.0 to 2.8 s) and from 160 to 154 ms
+under runc. Nothing changes for definitions or deployments.
+
+### Sandbox ownership and configuration
+
+* **Explicit runtime and read-only root (COR-04).** `general.runtime` is
+  required in `sandbox_config.yml` (`runsc` or `runc`); a configuration without
+  it is rejected at startup with a message naming the choices. The shipped file
+  says `runsc`, so a control service or local-mode API whose Docker daemon lacks
+  gVisor now refuses to start (`IsolationRuntimeError`) instead of silently
+  using runc: before deploying, check that `docker info` lists `runsc`, or set
+  `runtime: runc` deliberately. A local-mode API also starts its sandbox manager
+  (pools, orphan reclaim, runtime images) at startup instead of on its first
+  execution grading. Python callers pass
+  `SandboxManager(..., runtime="runsc"|"runc")`; `is_missing_runtime_error` is
+  gone. Sandboxes now have a read-only root filesystem: a submission or setup
+  command that wrote outside `/app`, `/tmp` or `/dev/shm` (for example under
+  `$HOME`) gets `EROFS`/`EACCES`; write to the workspace instead.
+* **One execution time budget (COR-02).** `running_timeout` is now the host
+  maximum: each sandbox lives the lifetime its caller asks for (a grading's
+  `budget.session_seconds`) up to it, and stops itself then even if its owner
+  died; containers no longer run `sleep infinity`. The shipped value rose from
+  120 s to 900 s so that definitions of up to 26 thirty-second processes are
+  granted; set it from the largest definition you accept. Omitting it now means
+  900 s (it was 60 s), and values below 92 s are rejected at startup (the web host
+  also refuses below 100 s, deliberate execution's budget). Definitions needing
+  more are now refused at validation and acceptance (HTTP 422
+  `EXECUTION_BUDGET_EXCEEDED`) instead of failing with `SANDBOX_ERROR` after the
+  reaper fired. The acquire body gained the optional `lifetime_seconds`
+  (`422 LIFETIME_EXCEEDED` above the maximum); an old client omits it and gets
+  `running_timeout`. In remote mode the API reads the same `sandbox_config.yml`
+  as the service; keep them identical. Custom evaluators declaring
+  `sandbox_execution` must declare `process_timeouts`, and custom
+  `HostCapabilities.execution` callables receive `(language, budget)`. Containers
+  created before the upgrade still run `sleep infinity`: remove them with
+  `python -m sandbox_manager.reclaim` after the old managers stop.
+
+* **Single-transfer staging (PRF-03).** No configuration, wire or definition
+  change. Staging no longer sends one `docker exec` per 48 KiB per file: a
+  100-file submission went from 100 execs to one, 32 MiB of fixtures from about
+  680 to one, and a grading's set of 100 fixtures from 100 to one through the
+  `stage_fixtures` session call ([host capabilities](#host-capabilities));
+  measurements are in the PRF-03 pull request. A failed staging operation now invalidates the sandbox (later operations answer `409
+  SANDBOX_INVALIDATED`) instead of leaving a partially staged sandbox usable,
+  and paths are validated before any file is staged. A fixture staged directly
+  under `/tmp` no longer changes `/tmp` to `0755` (which stopped every later
+  process from staging its run files). A custom runtime image needs `tar`, and
+  the Docker daemon must be reached without TLS.
+* **One sandbox budget (PRF-01).** `general.max_sandboxes` is required in
+  `sandbox_config.yml`; the per-language `scale_limit` and `idle_timeout` are
+  removed and rejected at startup with a message naming the replacement, as are
+  unknown keys and `pool_size > max_sandboxes`. Set `max_sandboxes` from the
+  sizing rule in [JOBS.md](JOBS.md#sandbox-capacity) (about 8 on 12 CPUs), not
+  from the old sum of `scale_limit`s. `SANDBOX_MAX_HANDLES` is removed (the
+  budget bounds handles) and the control service refuses to start while it is
+  set; `429 HANDLE_LIMIT` no longer exists and saturation is `503
+  CAPACITY_TIMEOUT` after the requested wait. Python callers construct
+  `SandboxManager(pool_configs, client, max_sandboxes=N)` or
+  `SandboxManager.from_config(SandboxHostConfig.load_from_yaml(path))`;
+  `SandboxPoolConfig.load_from_yaml` is gone. `get_pool_stats()` no longer
+  reports `scale_limit`/`utilization`; use `get_budget_stats()`. Upgrade the
+  control service and its remote clients together (the acquire body gained
+  `wait_seconds`; an old client gets no wait).
+
+* **Process route (ARC-08).** `POST /sandboxes/{id}/run` and `/run-batch`
+  are replaced by `POST /sandboxes/{id}/process`, whose body and response are
+  the shared process contract (`ProcessRequestModel`/`ProcessResultModel`, see
+  [PROCESSES.md](PROCESSES.md)). Clients of the old routes must upgrade
+  together with the control service.
+* **New required setting.** Set `SANDBOX_API_TOKEN` (a long random secret, for
+  example `python -c "import secrets; print(secrets.token_urlsafe(32))"`) for the
+  control service and every remote client (`web` settings; the GitHub Action
+  no longer uses the control service). Compose fails fast when it is unset. Local development may set
+  `SANDBOX_API_ALLOW_UNAUTHENTICATED=true` on the service instead.
+* **Port no longer published.** Clients outside the Compose network can no
+  longer reach port 8001. The healthcheck uses `/health`; `/stats` needs the token.
+* **Removed Python APIs.** `release_sandbox(lang, sandbox)`,
+  `destroy_sandbox(lang, sandbox)`, `LanguagePool.release`,
+  `LanguagePool.destroy_sandbox`, `LanguagePool.acquire_sandbox`,
+  `SandboxContainer.pickup/release`, `initialize_sandbox_manager`,
+  `get_sandbox_manager` and `_register_shutdown_handlers` are gone. Use
+  `manager.dispose(sandbox)` (or `with manager.acquire_sandbox(lang)`), construct
+  `SandboxManager(pool_configs, client=None)` in the host and call `shutdown()`.
+  `SandboxState.BUSY/STOPPED` became `ACTIVE/CLOSING/QUARANTINED/DISPOSED`.
+* **Removed HTTP routes.** `DELETE /sandboxes/{id}/destroy` and
+  `POST /sandboxes/{id}/request` are gone (pooled sandboxes have no network, so
+  the request route could never succeed). `POST /sandboxes/{language}` now needs
+  a JSON body with `request_id`. Errors use coded `detail` objects.
+* **Remote client.** `RemoteSandboxManager(api_url, token=...)`; missing files
+  raise `ArtifactNotFound`; unknown handles raise `SandboxHandleNotFound`.
+* **Legacy containers.** Containers created before this change have no owner
+  labels and are no longer removed at startup. After upgrading, stop old
+  managers and run `python -m sandbox_manager.reclaim --legacy`.
+* **Test isolation.** Tests no longer rewrite `LABEL_APP`; each test
+  filters by its own owner id.
+
+### Evaluator file declarations
+
+Remove the unused `required_file`/`required_file_type` properties. Optional
+`TestFunction` declarations are `file_extensions`, `minimum_files`,
+`maximum_files`, `uses_context_files`, and `file_parameters` (dropped again by
+ONB-07: no built-in evaluator names files in its parameters), plus the
+`accepts_file(filename, language)` hook. Defaults allow zero or more scoped files
+without a type restriction; the default hook honours `file_extensions`. Source
+analysers override the hook with their parser rules (`source_files_only` was
+replaced by `accepts_file`; the built-in static evaluators use
+`structural_analysis.is_runtime_source`). Set
+`maximum_files = 0` for endpoint-only checks; set matching extensions and minimum
+and maximum of one for single-file checks. Avoid implementing declarations that
+an evaluator does not need. The former internal structural pipeline step,
+result container and accessor have been removed; the structural evaluator parses
+its own selected sources. Selected files arrive as `evaluation.files` (with their
+`metadata` and `changed_lines`); scope and a separate file-metadata mapping are
+not passed to evaluators. The version 1 JSON shape is unchanged.
+
+### Submission details
+
+Clients previously reading `details.submission_files[name]` as a string must now
+read `.content`. Legacy string-valued stored files project as objects with null
+metadata and changed lines; they are not revalidated or assigned invented change
+information. Old history retains its unverified provenance status.
+
+### Catalog (INT-11, ONB-08)
+
+ONB-08 removes the template-level `requires_sandbox` flag. The catalog wire
+models drop `TemplateDescription.requires_sandbox` and
+`EvaluatorDescription.requires_sandbox` (removed, not deprecated: the field
+duplicated, and for mixed templates contradicted, `required_capabilities`).
+Clients that read it use `"sandbox_execution" in required_capabilities` (or
+`http_network` for API evaluators). `health_check` and `check_response_json`
+now report `["http_network"]` instead of `["http_network", "sandbox_execution"]`.
+Trusted Python callers build templates as `Template(name, description,
+[evaluator, ...])` instead of subclassing with `tests`, `template_name`,
+`template_description` and `requires_sandbox`, and import authoring types from
+`autograder`. A subclass that still sets `tests` without calling
+`super().__init__` is rejected as `INVALID_TEMPLATE` by compilation and
+evaluation (discovery raises `TypeError`). Known external readers of the removed
+field: `prisma-infrastructure/docs/grading-contract/v1/build_artifacts.py` and
+`validate_definition.py` read `template.requires_sandbox`; they target the
+legacy deployed image and must switch to evaluator `required_capabilities`
+before they run against this version. `TemplateLibraryService` is replaced by the read-only
+`autograder.template_library.BUILTIN_TEMPLATES` mapping; the package no longer
+re-exports template classes. Definitions, stored snapshots and their hashes are
+unchanged, so no database migration is needed.
+
+The catalog response removes the redundant `available_tests` list. Consumers use
+`evaluators[].identifier`; language constraints are per evaluator. Python callers
+of the internal library's metadata methods now receive Pydantic models; serialize
+with `model_dump(mode="json")`. The checked-in OpenAPI snapshot includes the new
+models. Deploy catalog clients and server together if a client required the old
+field. No database migration or definition schema-version change is needed.
+
+Remove calls to the never-implemented `load_custom_template()` and pass instances
+through `templates={...}` instead. All public definitions use `templates: [id]`;
+comma-separated strings and plugin/source objects are rejected. The internal load
+step now attaches compiled instances and performs no second registry resolution.
+
+### Baseline comparison
+
+* `autograder.services.result_comparator.ResultComparator`,
+  `autograder.models.dataclass.comparison_result` (`ComparisonResult`,
+  `TestDelta`) and `ResultTree.iter_test_results()` / `ResultTree.to_score_vector()`
+  are removed. Use `compare_outcomes` on canonical outcomes and
+  `outcome_score_vector` for ID-keyed vectors. The old comparator ignored
+  definition revisions and always reported an overall delta.
+* Result rows use `criterion_id` (formerly `path`), carry both labels and
+  categories/effective weights, and add `reweighted`/`redefined` statuses.
+* The unused `TestDeltaResponse` and `ComparisonResultResponse` web schemas are
+  removed; the HTTP response model is `SubmissionComparisonResponse`.
+* The arbitrary `baseline_result_tree` submission input remains removed.
+* `submission_results.score_vector` and `submission_results.comparison` columns
+  are legacy and unused: no code reads or writes them. They are kept to avoid a
+  data-destroying migration; historical values are path-keyed and are never used
+  for comparison.
+* The terminal outcome v1 `comparison` enrichment field is unchanged. Normal
+  grading leaves it `disabled`. An external host may still attest its own
+  completed/failed enrichment, which is stored verbatim and not interpreted by
+  this server; it is not the result of this operation.
+
+### HTTP authentication (INT-01)
+
+This is a breaking change for callers that used configuration creation,
+configuration aliases, listing, submission creation, polling or history without
+a token. Every such caller must send the integration token. Clients that only
+read `/health`, `/ready` or `/templates` are unaffected. Examples in
+`examples/` read `AUTOGRADER_INTEGRATION_TOKEN` from the environment.
+Student-facing applications must proxy through the upstream application; do not
+ship the integration token to browsers or student-controlled runners.
+
+### Terminal outcomes
+
+Operationally, v1 outcomes replace legacy duplicate `root`/`tree` and HTTP
+`children` wrappers. Stored legacy results are not automatically attested with
+current definition hashes. Consumers migrate to the canonical outcome plus
+compact polling/history projections; source files and trees require explicit
+trusted detail retrieval.
+
+### Execution retry (COR-03)
+
+Polling may stay `processing` for up to about 90 s more (defaults: 3
+attempts, 30 s then 60 s) before a transient failure is published, instead of
+reporting it at once; integrators that resubmitted on `retryable: true` can stop.
+A deployment with a missing fixture bucket now fails those gradings with
+`FIXTURE_PROVIDER_UNAVAILABLE` instead of `PREPARATION_ERROR`, and one with a
+bad AI key or model with `PROVIDER_UNAVAILABLE` instead of a retryable
+`PROVIDER_ERROR`. A published `retryable: true` means the host's retries are
+exhausted.
+
 ## Discovery and trusted Python extensions
 
 The typed template/evaluator catalog derives parameter schemas and validated
@@ -134,7 +647,7 @@ and deliberate runs. A process failure is a 200 result with stdout, stderr,
 exit status and category; an infrastructure failure is 503, and a connected
 caller past the response deadline gets 504. A cancelled/timed-out HTTP request
 does not cancel its single worker; the worker owns cleanup. See the
-[execution contract](../features/deliberate_code_execution.md) for limits and
+[execution contract](EXECUTION.md) for limits and
 the error matrix. The response deadline does not impose a hard deadline on
 blocked Docker or asset-provider calls.
 
@@ -163,7 +676,7 @@ and optional feedback handling have separate explicit boundaries. Session cleanu
 precedes terminal outcome construction; cleanup errors reach host logging and an
 optional observer without replacing the grade. Disabled feedback calls neither
 focus nor reporting. The supported facades and v1 wire schemas are unchanged.
-See [Python migration and execution order](../core/pipeline-architecture.md).
+See [Python migration and execution order](../architecture/overview.md#run-order).
 
 ## HTTP trust boundary (INT-01)
 
@@ -218,7 +731,7 @@ rejected with explained codes. Attested outcomes are compared under the same
 rules and labelled `attested`, without claiming local execution. The legacy
 `ResultComparator`, its dataclasses, `ResultTree` vector helpers and unused web
 comparison schemas are removed; the `score_vector`/`comparison` result columns
-are unused legacy storage. See [baseline comparison](../features/baseline_comparison.md).
+are unused legacy storage. See [baseline comparison](COMPARISON.md).
 
 ## Sandbox ownership and private control (INT-15/ARC-09)
 
@@ -444,48 +957,17 @@ sandbox manager images no longer share contents: the sandbox manager has no web
 or database stack. No image has `dockerd`, `containerd`, a Docker CLI, Node.js,
 curl, uv or a test tool. The build context is an allow-list (`.dockerignore`),
 so `.env`, `.venv`, `data/` and caches never enter an image. `action.yml` pins
-`docker://ghcr.io/webtech-network/autograder-action:<version>` instead of building
-`Dockerfile.actions` in every job. A version is released once, gated on
-verification, from the branch that raises it (`workflow_dispatch`), before
-that branch can merge: the image is pushed first, then a git tag of the same
-name. `make action-check` (`scripts/action_image.py check`) fails unless
-the `<version>` tag is an ancestor of the checked commit, no released path
-differs between the tagged commit and the checked one, and the pinned image is
-pullable with an empty `DOCKER_CONFIG`. The released paths are `action.yml`
-(read by consumers from the branch), `Dockerfile.actions`, `.dockerignore` and
-every build-context path that Dockerfile copies (read from it, so a new `COPY`
-joins automatically): any change to the Action interface or the image's inputs
-needs a new version and release, or the check fails. It runs in the
-`Service and Action images` job of `verify.yml` on every pull request into
-`main` and on every push to `main`, where `deploy` needs that job. That is what
-enforces it today: a red job on a pull request into `main`, and no API deploy
-from a `main` commit that fails it. It blocks a merge only once the `main`
-ruleset requires that job; today the ruleset still requires the stale `pylint`
-and `pytest` contexts, which no workflow produces, so the merge block depends on
-the repository owner adding the Verify jobs as required checks
-([Required checks](../guides/development.md#required-checks)). With that in
-place, `main`, which every documented `uses: ...@main` follows, only ever names a
-published, public image built from its own history together with the
-`action.yml` it was released with. Release pull requests merge with a merge
-commit, so the tag stays in that history. `tests/images/`
-(`make test-images`, CI) checks the built images, including a build from a
-checkout with planted secrets and the Action grading the static example.
+a prebuilt image instead of building `Dockerfile.actions` in every job; which
+image, and how it is published, is
+[ENV-07](#images-published-from-verified-main-no-releases-before-100-env-07)
+(ENV-04's versioned release before each merge and its `action-check` gate are
+retired). `tests/images/` (`make test-images`, CI) checks the built images,
+including a build from a checkout with planted secrets and the Action grading
+the static example.
 
 Migration: Compose health checks use Python instead of curl. Deployments that
 run `curl` inside the API or sandbox manager containers must do the same. The
-Action image no longer contains Node.js or `tree`. `@main` follows the latest
-released image rather than building the current commit; consumer workflows
-need no change. The first merge of this change into `main` requires
-`autograder-action:0.6.0` to be released from the merging branch and the new
-GHCR package to be made public, verified with an anonymous `docker manifest
-inspect`, and nothing released may change on that branch after the release
-(a later Wave change to `autograder/`, `github_action/` or `action.yml` needs a
-new version). Before that merge, the repository owner replaces the `main`
-ruleset's stale required checks (`pylint`, `pytest`) with the Verify job names
-and confirms them with `gh api`; until then a red `make action-check` is
-visible but does not block the merge. See
-[Releasing a version](../github_action/README.md#releasing-a-version). GitHub
-Release notes remain manual.
+Action image no longer contains Node.js or `tree`.
 
 ## Closed locale and outcome-code vocabularies (COR-07)
 
@@ -589,8 +1071,8 @@ itself then, whatever happens to its owner; owner-lease reclamation only removes
 stopped records. Every process runs before the one AI call, so the sandbox
 lifetime holds only process time. An HTTP attempt's deadline is the session
 lifetime from the grant plus the provider deadline per AI call plus a margin; it
-ends as a retryable `ATTEMPT_DEADLINE_EXCEEDED` without further lease renewal.
-Re-queuing is left to COR-03. See [SANDBOX.md](SANDBOX.md#sandbox-lifetime),
+ends as a retryable `ATTEMPT_DEADLINE_EXCEEDED` without further lease renewal,
+retried within the attempt budget since COR-03. See [SANDBOX.md](SANDBOX.md#sandbox-lifetime),
 [CAPABILITIES.md](CAPABILITIES.md#execution-budget) and
 [JOBS.md](JOBS.md#attempt-deadline).
 
@@ -690,10 +1172,10 @@ worker thread while the main thread waits, so `SIGTERM` (turned into
 removing the sandbox (and a container still being created) before the process
 exits, and on every other path before anything is retained or published.
 
-**Pinning.** The Action image ships `sandbox_config.yml`, so each Action
-release pins its runtime image references (content-addressed tags, never
-`:latest` or a local-only tag). `make action-check`, the gate on `main`, now
-also fails unless every pinned runtime image is anonymously pullable.
+**Pinning.** The Action image ships `sandbox_config.yml`, so each published
+Action image pins its runtime image references (content-addressed tags, never
+`:latest` or a local-only tag), and `main` publishes those runtime images with
+it ([ENV-07](#images-published-from-verified-main-no-releases-before-100-env-07)).
 
 **Verification.** The `Packaged Action on a hosted runner` job in `verify.yml`
 runs `uses: ./` on `ubuntu-latest` (static, Python I/O, C I/O, a wrong answer
@@ -708,6 +1190,151 @@ Linux GitHub-hosted runners with no extra step. Workflows that set
 `SANDBOX_MODE`, `SANDBOX_API_URL` or `SANDBOX_API_TOKEN` for the Action can drop
 them; they are ignored. Runners must provide Docker (all Linux GitHub-hosted
 runners do; macOS and Windows runners cannot run container actions at all). Each
-runtime package on GHCR must be public before a release that pins it reaches
-`main`. Python callers of `DockerHost()` must pass `mode`, and `mode="remote"` an
+runtime package on GHCR must be public for the Action to pull it. Python callers of `DockerHost()` must pass `mode`, and `mode="remote"` an
 `api_url`.
+
+## Images published from verified main; no releases before 1.0.0 (ENV-07)
+
+The maintainers decided there are no releases until the refactor is complete;
+the first is 1.0.0. ENV-04's flow (a versioned image released from a branch
+before it merges, and the `action-check` gate failing `main` until it was) left
+`action.yml` on `main` naming `autograder-action:0.6.0`, which was never
+published, so every `webtech-network/autograder@main` workflow failed to pull
+it and every pull request into `main` was red. Automated deployment of the API
+to a VPS is retired as well.
+
+`main` is now the channel. In `.github/workflows/verify.yml`, the `publish`
+job (`Publish images from main`) needs every verification job and runs only
+for pushes to `main`. It rebuilds and checks the images from that commit
+(`make test-images`, `make sandbox-build-all`) and runs `make publish-images`
+(`scripts/publish_images.py`), which publishes nothing unless the commit is
+still the head of `origin`'s `main`, then pushes the runtime images not yet
+published (content-derived references, never overwritten), then the API,
+sandbox manager and Action images as `sha-<commit>` (immutable) and `main`
+(moving), and confirms each with the registry as the workflow token sees it.
+Publications run one at a time (`publish-main` concurrency group). `action.yml`
+runs `docker://ghcr.io/webtech-network/autograder-action:main`. A test ties
+that reference to what the script publishes, and frame tests check the job
+graph: publication needs every verification job, no job deploys, uses a
+secret other than `GITHUB_TOKEN`, tags, releases or runs the retired
+`action-check`, and only the `publish` job can push images. `sandbox-images.yml`
+is folded in: its pull-request run duplicated the `docker` job, and its
+publication is this job's first step. The images carry
+`org.opencontainers.image.source`, so GHCR links each package to this
+repository and the workflow token can push it. No check depends on a release
+or on package visibility: a still-private package is a warning of the publish
+job, never a red pull request.
+
+`@main` reads `action.yml` from the head of `main` but runs the image of the
+newest verified commit, so while a commit is being verified the two can differ
+by that commit; a commit that fails verification publishes nothing. Before
+1.0.0 no `uses:` ref is reproducible: every ref runs `:main`. The 1.0.0 release
+re-tags a verified commit's `sha-<commit>` images as `1.0.0` and tags a commit,
+outside `main`, whose only change pins `runs.image` to that version
+([Releases](../github_action/README.md#releases)).
+
+Migration: consumer workflows need no change. An organization admin makes each
+package public once, after `main` first publishes it (`autograder-action` and
+every `autograder-sandbox-<name>` for runners; `autograder-api` and
+`autograder-sandbox-manager` if deployments pull anonymously). The `Deploy API`
+job, its secrets (`SERVER_HOST`, `SERVER_USER`, `SSH_PRIVATE_KEY`,
+`DEPLOY_PATH`, `GHCR_PULL_TOKEN`) and the `autograder-api:latest` tag are gone:
+operators upgrade by hand ([Upgrade runbook](../operate/deployment.md#upgrade-runbook))
+from a published `sha-<commit>`, and the repository secrets can be deleted.
+The `Release Action image` and `Deploy API` jobs leave the publication side of
+the [required checks](../guides/development.md#required-checks); the required
+verification jobs are unchanged.
+
+## Retryable failures of accepted work are retried (COR-03)
+
+The engine marked transient failures `retryable: true`, but the HTTP worker
+published every finalized outcome, so a sandbox service restart, a capacity wait
+that expired or a provider outage became a terminal `failed` grade on the first
+attempt; the attempt budget covered only interrupted attempts. The flag also lied
+the other way: a missing fixture bucket or a denied credential was a retryable
+`PREPARATION_ERROR`. Now `retryable` means "can pass without an operator": the
+S3 fixture provider reports a store that refuses the bucket or the credentials as
+the non-retryable `FIXTURE_PROVIDER_UNAVAILABLE` (an unset bucket supplies no
+provider at all), and the Docker host reports a missing runtime or a refused
+sandbox-service token as a non-retryable `CAPABILITY_UNAVAILABLE`. The OpenAI
+provider reports a refused key, access or model (HTTP 401/403/404) as the
+non-retryable `PROVIDER_UNAVAILABLE` and other deterministic 4xx answers as a
+non-retryable `PROVIDER_ERROR`; transport failures, deadlines, 408/409/429 and
+5xx stay retryable. The HTTP
+worker is the one retry layer: a retryable failure with budget left releases the
+claim (fenced by the attempt UUID, the row stays `processing` with no owner) for
+`WEB_RETRY_SECONDS` × 2^(attempt − 1); the last attempt of `WEB_MAX_ATTEMPTS`
+publishes the engine's failure. Assessed results and non-retryable failures
+publish on the first attempt. The fixture client makes one request per fixture
+(no SDK retries). No wire, schema or engine change; see
+[JOBS.md](JOBS.md#execution-retry) and the
+[migration note](#execution-retry-cor-03).
+
+## Definition format 2.0 (ONB-07)
+
+The authoring shape carried fields with no information (`templates`, a base
+weight that had to be 100) and several names for one idea (`subject_name` and
+`name`, `user_input` and `inputs`, `count` and `required_count`, `weight` as a
+ratio and as a cap). Six of the 35 realistic mistakes in the Phase 5 probe
+traced to them; format 2.0 removes them (see the [migration notes](#definition-format-20-onb-07)).
+
+**Version.** The definition hash covers every field, and outcome provenance
+records the definition's `schema_version` with that hash. Renaming fields
+under `"1.0"` would give one version label two incompatible shapes, so a
+reader of a stored snapshot or an attestation could not tell which parser
+applies. The change is therefore `2.0`: the engine reads only 2.0, a 1.0
+snapshot stays verifiable as stored, and provenance names the format of the
+snapshot it is bound to. The outcome format does not change and stays `1.0`.
+
+**Resolution.** Templates group evaluators for discovery and for trusted Python
+injection; they are not part of a definition. Built-in evaluator identifiers
+are unique across built-in templates, and a criterion `type` provided by two
+available templates is `AMBIGUOUS_EVALUATOR`, so injection never silently
+shadows a built-in evaluator.
+
+**Renamed evaluators.** One rename, on evidence: `check_bootstrap_usage` ran
+the same detection as `check_bootstrap_linked` with the opposite score and a
+description ("Checks if Bootstrap is being used") that did not say which; it is
+now `has_no_bootstrap`, like `has_no_js_framework`. The other prohibition and
+limit checks keep their names: their names (`forbidden`, `no`, `max_allowed`)
+and the `absence_check` published in the reference already state what scores
+100, and no confusion was reported. `min_items` keeps its name: it counts array
+items, not occurrences of the checked text.
+
+**Not changed.** The terminal outcome, its tree and its category `weight`
+(stored outcomes and attestations stay valid without a migration); the
+criterion `file` target; evaluator semantics, except that the two multi-file
+web checks read every file of their types instead of two named ones.
+
+## Releases re-tag verified images (REL-01)
+
+A release is cut by hand, once, from a commit `C` of `main` whose `publish`
+job succeeded: the Release workflow (`.github/workflows/release.yml`, `make
+release`, `scripts/release.py`) re-tags `C`'s `sha-<C>` images as the version,
+by digest and without rebuilding, then tags a commit on top of `C`, outside
+`main`, whose only change pins `action.yml`'s `runs.image` to that version, and
+creates the GitHub Release with the version's `CHANGELOG.md` section as notes
+([Releases](../github_action/README.md#releases)). Rebuilding at release time
+would ship bytes nothing verified, and pinning `runs.image` on `main` would make
+`@main` run a release instead of the newest verified commit, so the pin lives
+only in the tagged commit. The workflow runs only on `workflow_dispatch` from
+`main`; the script checks every precondition before it changes anything and
+refuses a commit not on `main`, a commit without a successful publish job or
+`sha-<C>` images, a version `pyproject.toml` does not declare or the changelog
+does not describe, an existing tag, and an existing image tag with other bytes.
+An image tag identical to `sha-<C>` (an interrupted run of the same release) is
+kept, so a re-run completes it.
+
+`sha-<commit>` is now immutable in fact: the `publish` job pushes it only when
+the registry does not have it and moves `main` to that manifest in the registry
+(`docker buildx imagetools create --prefer-index=false`, which keeps the digest),
+so re-running the job for a commit cannot change what a release re-tags, and
+`main` always serves the bytes of its `sha-<commit>`.
+
+The version is declared once in `pyproject.toml`; `autograder.__version__`,
+the HTTP API (health and OpenAPI) and the sandbox control API report it, and a
+test keeps them equal. [STABILITY.md](STABILITY.md) states what a version
+promises. Frame tests check that the release workflow is dispatch-only, runs
+from `main` and only `make install` and `make release`, and that only it and the
+`publish` job can push images; script tests run against real git repositories
+with the registry and `gh` faked at the subprocess boundary.

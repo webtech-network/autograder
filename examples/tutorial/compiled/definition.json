@@ -1,0 +1,70 @@
+{
+  "schema_version": "2.0",
+  "languages": ["c", "java"],
+  "criteria": {
+    "base": {
+      "tests": [
+        {
+          "id": "zero",
+          "type": "expect_output",
+          "name": "0! is 1",
+          "parameters": {
+            "program_command": {"c": "./factorial", "java": "java Main"},
+            "inputs": ["0"],
+            "expected_output": "1"
+          }
+        },
+        {
+          "id": "five",
+          "type": "expect_output",
+          "name": "5! is 120",
+          "parameters": {
+            "program_command": {"c": "./factorial", "java": "java Main"},
+            "inputs": ["5"],
+            "expected_output": "120"
+          }
+        },
+        {
+          "id": "ten",
+          "type": "expect_output",
+          "name": "10! is 3628800",
+          "parameters": {
+            "program_command": {"c": "./factorial", "java": "java Main"},
+            "inputs": ["10"],
+            "expected_output": "3628800"
+          }
+        }
+      ]
+    },
+    "bonus": {
+      "max_points": 10,
+      "tests": [
+        {
+          "id": "twenty",
+          "type": "expect_output",
+          "name": "20! does not overflow",
+          "parameters": {
+            "program_command": {"c": "./factorial", "java": "java Main"},
+            "inputs": ["20"],
+            "expected_output": "2432902008176640000"
+          }
+        }
+      ]
+    }
+  },
+  "preparation": {
+    "languages": {
+      "c": {
+        "required_files": ["main.c"],
+        "setup_commands": [
+          {"name": "Compile main.c", "command": "gcc main.c -o factorial"}
+        ]
+      },
+      "java": {
+        "required_files": ["Main.java"],
+        "setup_commands": [{"name": "Compile Main.java", "command": "javac Main.java"}]
+      }
+    }
+  },
+  "feedback": {"enabled": true}
+}

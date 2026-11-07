@@ -77,17 +77,15 @@ def test_scoped_source_selection_retains_context_for_execution_and_project_check
     assert select_files(criterion(HealthCheckTest()), submitted, scope) == []
 
 
-def test_named_multi_file_inputs_are_required_and_respect_explicit_targets():
-    """Multi-file checks require every named input and consistent targets."""
-    submitted = files(("index.html", ""), ("site.css", ""), ("README.md", "docs"))
-    test = criterion(CountUnusedCssClasses(), parameters={"html_file": "index.html", "css_file": "site.css"})
-    assert [f.filename for f in select_files(test, submitted)] == ["index.html", "site.css"]
+def test_project_checks_read_every_file_of_their_types_and_honour_an_explicit_target():
+    """Multi-file checks name no files in parameters: they read their file types, whatever the scope."""
+    submitted = files(("index.html", ""), ("about.html", ""), ("site.css", ""), ("README.md", "docs"))
+    test = criterion(CountUnusedCssClasses(), parameters={})
+    scope = EvaluationScope(scoped_files=["README.md"])
+    assert [f.filename for f in select_files(test, submitted, scope)] == ["about.html", "index.html", "site.css"]
+    assert [f.filename for f in select_files(replace(test, file_target=["index.html"]), submitted)] == ["index.html"]
     with pytest.raises(EvaluationError) as error:
-        select_files(replace(test, file_target=["index.html"]), submitted)
-    assert error.value.code == "FILE_TARGET_CONFLICT"
-    del submitted["site.css"]
-    with pytest.raises(EvaluationError) as error:
-        select_files(test, submitted)
+        select_files(replace(test, file_target=["missing.css"]), submitted)
     assert error.value.code == "REQUIRED_FILE_MISSING"
 
 
@@ -112,8 +110,7 @@ def test_ai_and_ordinary_assessment_share_scoped_selection():
 
 def static_pipeline(*tests):
     """Build a real static assessment pipeline from the public definition."""
-    return build_pipeline(definition={"schema_version": "1.0", "templates": ["static_analysis"],
-        "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": list(tests)}}})
+    return build_pipeline(definition={"schema_version": "2.0", "languages": ["python"], "criteria": {"base": {"tests": list(tests)}}})
 
 
 def keyword(criterion_id="keyword", **kwargs):
@@ -168,14 +165,12 @@ def test_unneeded_ast_is_never_created_and_missing_target_has_no_grade():
 def test_html_and_io_pipelines_do_no_structural_parsing():
     """HTML and I/O execution never request AST roots from their context files."""
     with patch("autograder.services.structural_analysis.SgRoot", side_effect=AssertionError("Unexpected parse")) as parser:
-        html = build_pipeline(definition={"schema_version": "1.0", "templates": ["webdev"],
-            "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [{
+        html = build_pipeline(definition={"schema_version": "2.0", "languages": ["python"], "criteria": {"base": {"tests": [{
                 "id": "html", "type": "has_tag", "name": "Main", "parameters": {"tag": "main", "required_count": 1}}]}}})
         assert html.run(submission(files(("index.html", "<main/>"), ("README.md", "docs")))).outcome.score == 100
         session = MagicMock()
         session.run_process.return_value = exited()
-        io = build_pipeline(definition={"schema_version": "1.0", "templates": ["input_output"],
-            "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [{
+        io = build_pipeline(definition={"schema_version": "2.0", "languages": ["python"], "criteria": {"base": {"tests": [{
                 "id": "io", "type": "dont_fail", "name": "Run", "parameters": {"program_command": "python3 main.py"}}]}}},
             capabilities=HostCapabilities(execution=lambda _, __: session))
         submitted = files(("main.py", "import helper"), ("helper.py", "x=1"), ("README.md", "docs"))
@@ -188,8 +183,7 @@ def test_html_and_io_pipelines_do_no_structural_parsing():
 def test_ai_batch_assesses_scoped_sources_with_other_files_as_context():
     """The prompt names assessed files while the provider retains complete context."""
     provider = FakeProvider()
-    pipeline = build_pipeline(definition={"schema_version": "1.0", "templates": ["static_analysis"],
-        "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [{
+    pipeline = build_pipeline(definition={"schema_version": "2.0", "languages": ["python"], "criteria": {"base": {"tests": [{
             "id": "algorithm", "type": "ai_sorting_algorithm", "name": "Sorting",
             "parameters": {"algorithm_name": "merge sort"}}]}}}, capabilities=HostCapabilities(ai=provider))
     submitted = files(("main.py", "x=1"), ("helper.py", "x=2"), ("README.md", "docs"))

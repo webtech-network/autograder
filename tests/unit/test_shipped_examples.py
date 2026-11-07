@@ -9,10 +9,31 @@ from autograder import compile_definition
 from autograder.models.contracts.outcome import ComparisonContent, CriterionDelta
 
 
-@pytest.mark.parametrize('path', sorted(Path('examples/assets').glob('**/definition.json')) +
-    sorted(Path('examples/assets/input_output/criteria_examples').glob('*.json')))
-def test_shipped_definition_compiles(path):
+#: The one example directory: docs, the demo and the Action quick start read from here.
+EXAMPLES = Path('examples')
+#: JSON files under examples/ that are not grading definitions.
+NOT_DEFINITIONS = {Path('examples/assets/api_testing/package.json'), Path('examples/definitions/invalid/manifest.json')}
+
+
+def example_json():
+    return sorted(EXAMPLES.rglob('*.json'))
+
+
+@pytest.mark.parametrize('path', [p for p in example_json() if p not in NOT_DEFINITIONS and 'invalid' not in p.parts],
+                         ids=str)
+def test_every_example_definition_compiles(path):
     compile_definition(json.loads(path.read_text()))
+
+
+def test_every_example_json_file_is_a_definition_or_a_documented_invalid_one():
+    invalid = {EXAMPLES / 'definitions/invalid' / entry['file'] for entry in
+               json.loads(Path('examples/definitions/invalid/manifest.json').read_text())}
+    for path in example_json():
+        if path in NOT_DEFINITIONS:
+            continue
+        assert 'schema_version' in json.loads(path.read_text()), path
+        assert ('invalid' in path.parts) == (path in invalid), path
+    assert len(example_json()) >= 25
 
 
 @pytest.mark.skipif(shutil.which('node') is None, reason='Browser authoring test requires Node')

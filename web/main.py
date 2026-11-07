@@ -8,6 +8,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from autograder import __version__
+from autograder.models.contracts.definition import validation_error_detail
 from web.api import api_router
 from web.config.body_limit import RequestBodyLimitMiddleware
 from web.config.logging import get_logger, setup_logging
@@ -24,20 +26,14 @@ logger = get_logger(__name__)
 
 async def safe_validation_error(request: Request, exc: RequestValidationError):
     # Inputs can contain source code, credentials, or nonfinite numbers. Return paths,
-    # stable error types and explanations without echoing the rejected payload.
-    return JSONResponse(
-        status_code=422,
-        content={
-            "detail": [
-                {
-                    "path": list(error["loc"]),
-                    "code": error["type"],
-                    "message": error["msg"],
-                }
-                for error in exc.errors()
-            ]
-        },
-    )
+    # stable error types and explanations without echoing the rejected payload. Paths
+    # and messages are rendered as compile_definition renders them (the offending field,
+    # no pydantic prefix).
+    details = []
+    for error in exc.errors():
+        path, message = validation_error_detail(error)
+        details.append({"path": list(path), "code": error["type"], "message": message})
+    return JSONResponse(status_code=422, content={"detail": details})
 
 
 async def correlation_logging_middleware(request: Request, call_next):
@@ -84,7 +80,7 @@ def create_app(settings=None, *, session_factory=None, capabilities=None,
     setup_logging(json_logs=settings.JSON_LOGS, service_name=settings.SERVICE_NAME,
                   app_env=settings.APP_ENV, log_level=settings.LOG_LEVEL)
     application = FastAPI(title=settings.API_TITLE, description=settings.API_DESCRIPTION,
-                          version=settings.API_VERSION, lifespan=lifespan)
+                          version=__version__, lifespan=lifespan)
     application.state.host = host
     application.add_exception_handler(RequestValidationError, safe_validation_error)
     application.add_middleware(RequestBodyLimitMiddleware)

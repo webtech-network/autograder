@@ -52,8 +52,8 @@ if TYPE_CHECKING:
     from autograder.models.dataclass.submission import SubmissionFile
 
 USER = "sandbox"                    # the submission's processes; control runs as CONTROL_USER
-RUN_ROOT = "/tmp/.autograder-run"
-INLINE_STDIN_BYTES = 48 * 1024     # 64 KiB of base64 as one argument; larger stdin is staged
+RUN_ROOT = "/tmp/.autograder-run"  # a run's files: <RUN_ROOT>-<id>.in, .out and .err
+INLINE_STDIN_BYTES = 48 * 1024     # text stdin up to this size is one argument; other stdin is staged
 CONTROL_TIMEOUT_SECONDS = 60        # staging, termination and readback execs
 KILL_GRACE_SECONDS = 10             # wait for the killed process's exec to return
 STOP_SETTLE_SECONDS = 10            # wait for Docker to record a container that stopped
@@ -61,18 +61,20 @@ COLLECT_ATTEMPTS = 5                # starts of the collector while the pids lim
 PIDS_SAMPLES = 5                    # Docker stats samples taken when a control exec still failed
 DEFAULT_ARTIFACT_BYTES = 1_048_576
 
-# $1 run dir, $2 base64 stdin or "-" when staged; the rest is the exact argv.
-# Runs as the submission's user. Its processes are the kernel's first choice
-# when the container's memory runs out, so control execs are never starved.
+# $1 the run's file prefix, $2 "-" when stdin was staged, else "=" and the stdin
+# text; the rest is the exact argv. Runs as the submission's user. Its
+# processes are the kernel's first choice when the container's memory runs out,
+# so control execs are never starved. It forks nothing: every step is a shell
+# builtin, so its only process is the one it ``exec``s.
 RUNNER = r'''
-d=$1; data=$2; shift 2
+f=$1; data=$2; shift 2
 if [ "$data" != - ]; then
-  mkdir -p "$d" && printf %s "$data" | base64 -d > "$d/in" || { printf 'autograder:staging-failed\n'; exit 125; }
+  printf %s "${data#=}" > "$f.in" || { printf 'autograder:staging-failed\n'; exit 125; }
 fi
 { printf 1000 > /proc/self/oom_score_adj; } 2>/dev/null
 command -v "$1" >/dev/null 2>&1 || { printf 'autograder:not-found\n'; exit 127; }
 printf 'autograder:started\n'
-exec "$@" < "$d/in" > "$d/out" 2> "$d/err"
+exec "$@" < "$f.in" > "$f.out" 2> "$f.err"
 '''
 
 # Runs as root, which the submission cannot signal. Kills every non-root
@@ -83,11 +85,16 @@ exec "$@" < "$d/in" > "$d/out" 2> "$d/err"
 # up the pids limit leaves no pid for a child and busybox ash aborts the script
 # on a failed fork. Reports the cgroup's own count of memory-limit OOMs and
 # refused forks (cgroup v2 under runc; gVisor has none, and its container stops
-# instead) before anything that forks, then reads back at most $2 bytes of each
-# output and removes the run dir. Its report is its stdout alone (see _control):
-# when the readback cannot fork, ash's complaint must never displace the report.
+# instead) before anything that forks. Then, with no process of the submission
+# left to change them, it reports each output's size (-1 when it is not a regular
+# file: /tmp belongs to root, so only the file itself can be a planted link),
+# writes at most $2 raw bytes of each, out first, and removes the run's files.
+# The readback forks five helpers in all (a stat and a head per output, one rm);
+# under gVisor each costs about as much CPU as a small program, charged to the
+# submission's CPU quota. Its report is its stdout alone (see _control): when the
+# readback cannot fork, ash's complaint must never displace the report.
 COLLECT = r'''
-d=$1; n=$2; me=$$
+f=$1; n=$2; me=$$
 sweep() {
   live=0; dead=0
   for p in /proc/[0-9]*; do
@@ -118,16 +125,12 @@ count /sys/fs/cgroup/memory.events oom; oom=$c
 count /sys/fs/cgroup/pids.events max; forks=$c
 printf 'survivors %s\nlimits %s %s\n' "$live" "$oom" "$forks"
 for s in out err; do
-  f="$d/$s"
-  if [ -f "$f" ] && [ ! -L "$f" ] && [ "$(readlink -f "$f")" = "$f" ]; then
-    printf '%s %s\n' "$s" "$(stat -c %s "$f")"
-    head -c "$n" "$f" | base64 | tr -d '\n'
-    printf '\n'
-  else
-    printf '%s -1\n\n' "$s"
-  fi
+  if [ -f "$f.$s" ] && [ ! -L "$f.$s" ]; then printf '%s %s\n' "$s" "$(stat -c %s "$f.$s")"; else printf '%s -1\n' "$s"; fi
 done
-rm -rf "$d"
+for s in out err; do
+  if [ -f "$f.$s" ] && [ ! -L "$f.$s" ]; then head -c "$n" "$f.$s"; fi
+done
+rm -f "$f.in" "$f.out" "$f.err"
 '''
 
 # Extracts the archive on stdin at the root, without a shell. Member names are
@@ -176,6 +179,21 @@ class _Exec:  # pylint: disable=too-few-public-methods
 
     def __init__(self, exit_code: Optional[int], output: bytes):
         self.exit_code, self.output = exit_code, output
+
+
+def _inline_text(stdin: bytes) -> Optional[str]:
+    """The runner's stdin argument (``=`` and the text) when ``stdin`` can be one; ``None`` to stage it.
+
+    An argument carries text exactly: UTF-8 without NUL, up to
+    :data:`INLINE_STDIN_BYTES`. The runner writes it with a shell builtin, so it
+    needs no helper process; any other stdin is staged in one transfer.
+    """
+    if len(stdin) > INLINE_STDIN_BYTES or b"\x00" in stdin:
+        return None
+    try:
+        return "=" + stdin.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
 
 
 def _demultiplex(stream: bytes) -> bytes:
@@ -389,13 +407,12 @@ class SandboxContainer:
         removed the container or could not complete an operation.
         """
         self._check_usable()
-        run_dir = f"{RUN_ROOT}-{uuid.uuid4().hex}"
-        if len(request.stdin) > INLINE_STDIN_BYTES:
-            self._stage([(f"{run_dir}/in", request.stdin, 0o644)], user=USER)
+        run = f"{RUN_ROOT}-{uuid.uuid4().hex}"
+        data = _inline_text(request.stdin)
+        if data is None:
+            self._stage([(f"{run}.in", request.stdin, 0o644)], user=USER)
             data = "-"
-        else:
-            data = base64.b64encode(request.stdin).decode("ascii")
-        command = ["/bin/sh", "-c", RUNNER, "autograder-run", run_dir, data, *request.program]
+        command = ["/bin/sh", "-c", RUNNER, "autograder-run", run, data, *request.program]
         started = time.monotonic()
         call = _Call(lambda: self.container_ref.exec_run(
             cmd=command, workdir=request.cwd, user=USER, demux=False,
@@ -404,7 +421,7 @@ class SandboxContainer:
         duration = time.monotonic() - started
         # Kill whatever remains (the timed-out process, or orphans) and read outputs back.
         try:
-            survivors, outputs = self._collect(run_dir, request.max_output_bytes)
+            survivors, outputs = self._collect(run, request.max_output_bytes)
         except ProcessExecutionError:
             self._attribute_failed_control()
             raise
@@ -504,17 +521,22 @@ class SandboxContainer:
         self.exhausted = True
         raise SandboxExhausted("The submission exhausted the sandbox's memory or process limit")
 
-    def _collect(self, run_dir: str, limit: int):
+    def _collect(self, run: str, limit: int):
+        """Run the collector; return the survivors and each output as ``(bytes, truncated)``.
+
+        Outputs are read only when no process survived: a survivor could still
+        change them, and the run then fails anyway.
+        """
         for _ in range(COLLECT_ATTEMPTS):
-            code, output = self._control(["/bin/sh", "-c", COLLECT, "autograder-collect", run_dir, str(limit)])
+            code, output = self._control(["/bin/sh", "-c", COLLECT, "autograder-collect", run, str(limit)])
             if output.startswith(b"survivors "):
                 break
             # The collector never reported: under runc, a submission at its pids limit
             # leaves no pid to start an exec. It removes nothing before it reports, so
             # starting it again is safe.
-        lines = output.decode("ascii", "replace").split("\n")
+        lines = output.split(b"\n", 4)
         try:
-            if len(lines) < 2 or not lines[0].startswith("survivors ") or not lines[1].startswith("limits "):
+            if len(lines) < 2 or not lines[0].startswith(b"survivors ") or not lines[1].startswith(b"limits "):
                 raise ValueError("unexpected collector output")
             survivors = int(lines[0].split()[1])
             limit_ooms, refused_forks = (int(value) for value in lines[1].split()[1:])
@@ -524,16 +546,24 @@ class SandboxContainer:
         if limit_ooms or refused_forks:
             # The container's cgroup recorded the limit; outputs may be unreadable now.
             self._exhaust()
+        if survivors:
+            return survivors, None
         try:
-            if code != 0:
+            if code != 0 or len(lines) != 5:
                 raise ValueError("unexpected collector output")
-            streams = []
-            for index, name in ((2, "out"), (4, "err")):
-                label, size = lines[index].split()
-                if label != name:
+            sizes = []
+            for line, name in ((lines[2], b"out"), (lines[3], b"err")):
+                label, size = line.split(b" ")
+                if label != name or int(size) < -1:
                     raise ValueError("unexpected collector output")
-                data = base64.b64decode(lines[index + 1]) if int(size) >= 0 else b""
-                streams.append((data, int(size) > len(data)))
+                sizes.append(int(size))
+            data, offset, streams = lines[4], 0, []
+            for size in sizes:
+                length = min(max(size, 0), limit)
+                streams.append((data[offset:offset + length], size > limit))
+                offset += length
+            if offset != len(data):
+                raise ValueError("the collector read back a different number of bytes than it reported")
         except (ValueError, IndexError) as exc:
             self._invalidate("process output readback failed")
             raise ProcessExecutionError("Process output could not be read back") from exc

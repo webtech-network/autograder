@@ -23,7 +23,8 @@ from typing import Annotated, Any, Literal, Mapping
 
 from pydantic import Field, ValidationError, model_validator
 
-from autograder.models.contracts.definition import CompiledDefinition, GradingDefinition, definition_hash
+from autograder.models.contracts.definition import CompiledDefinition, GradingDefinition, definition_hash, snapshot_hash
+from autograder.models.contracts.definition import DefinitionValidationError
 from autograder.models.contracts.outcome import (
     CompletedOutcome, ContractModel, FailedOutcome, Score, validate_outcome,
 )
@@ -44,7 +45,7 @@ CROSS_REVISION_EXPLANATION = (
     "reweighted criteria changed effective weight or category, redefined criteria changed "
     "evaluator type, normalized parameters or file target and carry no delta."
 )
-DEFINITION_SECTIONS = ("schema_version", "templates", "languages", "criteria", "preparation", "feedback", "metadata")
+DEFINITION_SECTIONS = ("schema_version", "languages", "criteria", "preparation", "feedback", "metadata")
 
 
 class ComparisonError(ValueError):
@@ -185,18 +186,29 @@ def _definition_criteria(definition: GradingDefinition):
     for name in ("base", "bonus", "penalty"):
         category = getattr(definition.criteria, name)
         if category is not None:
+            points = 100.0 if name == "base" else category.max_points
             for test, share in walk(category, 1.0):
-                yield test, name, category.weight * share
+                yield test, name, points * share
 
 
-def _definition(side, value) -> GradingDefinition:
+def _definition(side, value) -> tuple[GradingDefinition, str, str]:
+    """The definition to compare, and the hash and format version its outcome must carry.
+
+    An outcome recorded before format 2.0 is bound to a 1.0 snapshot: its hash
+    is checked on that snapshot as stored, then the snapshot is mapped onto
+    2.0 by the offline converter's structural step so criteria join by ID.
+    """
     if isinstance(value, CompiledDefinition):
         value = value.definition
     if isinstance(value, GradingDefinition):
         value = value.model_dump(mode="json")
     try:
-        return GradingDefinition.model_validate(value)
-    except ValidationError as exc:
+        if isinstance(value, Mapping) and value.get("schema_version") == "1.0":
+            from autograder.services.definition_migration import upgrade_v1
+            return GradingDefinition.model_validate(upgrade_v1(value).definition), snapshot_hash(value), "1.0"
+        definition = GradingDefinition.model_validate(value)
+        return definition, definition_hash(definition), definition.schema_version
+    except (ValidationError, DefinitionValidationError) as exc:
         raise ComparisonError("INVALID_DEFINITION", f"The {side} definition is not a valid grading definition",
                               side=side) from exc
 
@@ -216,8 +228,8 @@ def _bind(side, outcome_value, definition_value) -> _Bound:
     if outcome.status != "completed":
         raise ComparisonError("OUTCOME_NOT_COMPLETED",
                               f"The {side} outcome failed and has no authoritative grade", side=side)
-    definition = _definition(side, definition_value)
-    if definition_hash(definition) != outcome.provenance.definition_hash:
+    definition, bound_hash, version = _definition(side, definition_value)
+    if (bound_hash, version) != (outcome.provenance.definition_hash, outcome.provenance.schema_version):
         raise ComparisonError("DEFINITION_MISMATCH",
                               f"The {side} definition is not the normalized definition bound to its outcome",
                               side=side)
@@ -281,7 +293,9 @@ def compare_outcomes(baseline_outcome: CompletedOutcome | FailedOutcome | Mappin
         overall = {"score_delta": score_delta, "improved": score_delta > 0, "explanation": SAME_DEFINITION_EXPLANATION}
         changed = ()
     else:
-        before, after = baseline.definition.model_dump(mode="json"), head.definition.model_dump(mode="json")
+        # Compared in the current format; the format each outcome was bound to is a section too.
+        before, after = ({**bound.definition.model_dump(mode="json"),
+                          "schema_version": bound.outcome.provenance.schema_version} for bound in (baseline, head))
         overall = {"score_delta": None, "improved": None, "explanation": CROSS_REVISION_EXPLANATION}
         changed = tuple(section for section in DEFINITION_SECTIONS if before.get(section) != after.get(section))
 

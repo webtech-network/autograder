@@ -1,0 +1,93 @@
+{
+  "schema_version": "2.0",
+  "languages": ["node"],
+  "criteria": {
+    "base": {
+      "subjects": [
+        {
+          "name": "HTML structure",
+          "weight": 40,
+          "tests": [
+            {
+              "id": "main-heading",
+              "type": "has_tag",
+              "name": "Has a main heading",
+              "parameters": {"tag": "h1"}
+            },
+            {
+              "id": "semantic-tags",
+              "type": "uses_semantic_tags",
+              "name": "Uses semantic tags",
+              "parameters": {}
+            },
+            {
+              "id": "image-alt",
+              "type": "check_all_images_have_alt",
+              "name": "Every image has alt text",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "name": "Styling",
+          "weight": 30,
+          "tests": [
+            {
+              "id": "stylesheet",
+              "type": "check_css_linked",
+              "name": "Links a stylesheet",
+              "parameters": {}
+            },
+            {
+              "id": "flexbox",
+              "type": "check_flexbox_usage",
+              "name": "Lays out with flexbox",
+              "parameters": {}
+            }
+          ]
+        },
+        {
+          "name": "Interactivity",
+          "weight": 30,
+          "tests": [
+            {
+              "id": "dom-updates",
+              "type": "js_uses_dom_manipulation",
+              "name": "Adds elements from JavaScript",
+              "parameters": {
+                "methods": ["createElement", "appendChild"],
+                "required_count": 2
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "bonus": {
+      "max_points": 10,
+      "tests": [
+        {
+          "id": "responsive",
+          "type": "check_media_queries",
+          "name": "Adapts to small screens",
+          "parameters": {}
+        }
+      ]
+    },
+    "penalty": {
+      "max_points": 10,
+      "tests": [
+        {
+          "id": "no-inline-styles",
+          "type": "check_no_inline_styles",
+          "name": "Keeps styles out of the HTML",
+          "parameters": {}
+        }
+      ]
+    }
+  },
+  "preparation": {
+    "languages": {"node": {"required_files": ["index.html", "style.css", "script.js"]}}
+  },
+  "feedback": {"enabled": true}
+}

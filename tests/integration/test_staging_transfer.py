@@ -182,8 +182,8 @@ class _Lender:
 
 def _fixture_definition(fixtures):
     return compile_definition({
-        "schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-        "criteria": {"base": {"weight": 100, "tests": [{
+        "schema_version": "2.0", "languages": ["python"],
+        "criteria": {"base": {"tests": [{
             "id": "runs", "type": "expect_output", "name": "Runs",
             "parameters": {"program_command": "python3 main.py", "inputs": [], "expected_output": "ok"}}]}},
         "preparation": {"fixtures": [{"reference": reference, "path": path, "read_only": read_only}
@@ -244,14 +244,23 @@ def test_fixtures_keep_bytes_owner_and_mode_and_the_submission_cannot_write_read
     assert inventory(sandbox, "/tmp")["files"] == state["files"]
 
 
-@pytest.mark.parametrize("size", [INLINE_STDIN_BYTES, INLINE_STDIN_BYTES + 1, MIB],
-                         ids=["48KiB", "48KiB+1", "1MiB"])
-def test_stdin_is_byte_exact_with_a_constant_number_of_execs(sandbox, recorder, size):
-    stdin = (bytes(range(256)) * (size // 256 + 1))[:size]
+#: Text: every printable ASCII character, newlines and a two-byte character.
+TEXT = ("".join(map(chr, range(32, 127))) + "\n\u00e9\n").encode()
+
+
+@pytest.mark.parametrize("size, binary", [(INLINE_STDIN_BYTES, False), (INLINE_STDIN_BYTES + 1, False), (MIB, False),
+                                          (INLINE_STDIN_BYTES, True), (1, True)],
+                         ids=["48KiB", "48KiB+1", "1MiB", "48KiB-binary", "NUL"])
+def test_stdin_is_byte_exact_with_a_constant_number_of_execs(sandbox, recorder, size, binary):
+    stdin = (bytes(range(256)) * (size // 256 + 1))[:size] if binary else (TEXT * (size // len(TEXT) + 1))[:size]
+    if not binary:
+        stdin = stdin.decode("utf-8", "ignore").encode()  # never cut the two-byte character
+        stdin += b"x" * (size - len(stdin))
     result = sandbox.run_process(ProcessRequest(argv=STDIN_PROBE, cwd="/app", stdin=stdin))
     assert (result.status, result.exit_code, result.stdout) == (ProcessStatus.EXITED, 0, f"{size} {digest(stdin)}\n")
-    # The run and its collector, plus one staging transfer above the inline size.
-    assert recorder.execs == (3 if size > INLINE_STDIN_BYTES else 2)
+    # The run and its collector, plus one staging transfer for stdin above the inline
+    # size or not text (NUL or invalid UTF-8) that an argument cannot carry.
+    assert recorder.execs == (3 if binary or size > INLINE_STDIN_BYTES else 2)
 
 
 def test_staging_releases_its_docker_connection(sandbox, monkeypatch):

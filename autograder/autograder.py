@@ -110,7 +110,7 @@ class AutograderPipeline:
                     session = acquire(submission.language, requirements.budget)
                     session.prepare_workdir(submission.submission_files)
                 except EvaluationError:
-                    raise  # the host refused the budget: not a transient capability failure
+                    raise  # the host classified it (refused budget, missing runtime, refused token)
                 except Exception as exc:
                     raise EvaluationError("CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.", "capability", True) from exc
                 _observe(observer, execution_id, operation)
@@ -197,6 +197,7 @@ def build_pipeline(*, definition, locale="en", provenance=None, templates=None, 
     """
     compiled = compile_definition(definition, templates=templates)
     provenance = provenance or DefinitionProvenance(definition_hash=compiled.definition_hash)
-    if provenance.definition_hash != compiled.definition_hash:
-        raise ValueError("Provenance hash must identify the compiled definition")
+    if (provenance.definition_hash, provenance.schema_version) != (compiled.definition_hash,
+                                                                    compiled.definition.schema_version):
+        raise ValueError("Provenance hash and format version must identify the compiled definition")
     return AutograderPipeline(compiled, provenance, capabilities or HostCapabilities())

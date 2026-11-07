@@ -26,9 +26,9 @@ ROOT = Path(__file__).resolve().parents[2]
 TOKEN = "language-token-" + "z" * 20
 
 
-def definition(languages, tests=None, templates=("input_output",)):
-    return {"schema_version": "1.0", "templates": list(templates), "languages": list(languages),
-            "criteria": {"base": {"weight": 100, "tests": tests or [
+def definition(languages, tests=None):
+    return {"schema_version": "2.0", "languages": list(languages),
+            "criteria": {"base": {"tests": tests or [
                 {"id": "run", "type": "dont_fail", "name": "Runs", "parameters": {"program_command": "CMD"}}]}}}
 
 
@@ -233,7 +233,7 @@ def web_definition(extra_tests=()):
          "parameters": {"forbidden_keywords": ["for_loop", "while_loop"], "custom_ast_grep_rules": []}},
         *extra_tests,
     ]
-    return definition(["node"], tests, templates=("webdev", "static_analysis"))
+    return definition(["node"], tests)
 
 
 def run_web(files, extra_tests=()):

@@ -6,11 +6,9 @@ import json
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from autograder.models.capabilities import requirements_for
+from autograder.models.capabilities import budget_problems
 from autograder.models.contracts.comparison import ComparisonError, compare_outcomes
-from autograder.models.contracts.definition import compile_snapshot, select_language, DefinitionValidationError
-from autograder.models.language import Language
-from autograder.services.assessment import EXECUTION_CAPABILITIES
+from autograder.models.contracts.definition import SCHEMA_VERSION, compile_snapshot, select_language, DefinitionValidationError
 from autograder.models.contracts.verification import (
     OutcomeStructureError, OutcomeTooLargeError, verify_outcome_size, verify_outcome_tree,
 )
@@ -93,7 +91,8 @@ def project_submission(row, *, details=False):
             if outcome
             else (
                 {
-                    "schema_version": "1.0",
+                    # Only queued work lacks an outcome, and queued work is bound to the current format.
+                    "schema_version": SCHEMA_VERSION,
                     "definition_hash": row.definition_hash,
                     "reference": str(row.grading_config_id),
                     "revision": row.configuration_version,
@@ -137,20 +136,7 @@ def _compile_snapshot(value):
 def ensure_host_grants(compiled, languages, max_session_seconds):
     """Reject, before anything is stored or queued, a definition whose execution budget
     in any of ``languages`` is longer than this host grants (``running_timeout``)."""
-    if max_session_seconds is None:
-        return
-    problems = []
-    for language in languages:
-        requirements = requirements_for(compiled, Language(language))
-        seconds = requirements.budget.session_seconds
-        if requirements.capabilities & EXECUTION_CAPABILITIES and seconds > max_session_seconds:
-            problems.append({
-                "code": "EXECUTION_BUDGET_EXCEEDED", "path": ["languages", str(language)],
-                "message": (f"In {language}, the worst case of the declared process deadlines "
-                            f"({requirements.budget.processes} processes, {requirements.budget.process_seconds:g} s) "
-                            f"needs a {seconds:g} s sandbox; this host grants at most {max_session_seconds:g} s. "
-                            "Remove criteria or setup commands, or raise the host's running_timeout."),
-            })
+    problems = budget_problems(compiled, languages, max_session_seconds)
     if problems:
         raise OperationError(422, detail=problems)
 
@@ -382,9 +368,9 @@ async def _ingest_attested_outcome(session, payload):
     compiled = _compile_snapshot(payload.definition_snapshot)
     outcome = payload.outcome.model_dump(mode="json")
     provenance = outcome["provenance"]
-    if provenance["definition_hash"] != compiled.definition_hash or provenance.get(
-        "reference"
-    ) != str(config.id):
+    if (provenance["definition_hash"], provenance["schema_version"]) != (
+        compiled.definition_hash, compiled.definition.schema_version
+    ) or provenance.get("reference") != str(config.id):
         raise OperationError(
             422, "Outcome provenance does not match its definition snapshot/resource"
         )

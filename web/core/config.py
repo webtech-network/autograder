@@ -78,7 +78,6 @@ def parse_attestation_tokens(value: str) -> dict[str, str]:
 
 @dataclass(frozen=True)
 class Settings:
-    API_VERSION: str = "1.0.0"
     API_TITLE: str = "Autograder Web API"
     API_DESCRIPTION: str = "RESTful API for code submission grading"
     CORS_ORIGINS: list[str] = field(default_factory=lambda: ["*"])
@@ -103,6 +102,8 @@ class Settings:
     WORKER_COUNT: int = field(default_factory=lambda: _number("WEB_WORKER_COUNT", 2))
     LEASE_SECONDS: float = field(default_factory=lambda: _number("WEB_LEASE_SECONDS", 60.0, float))
     MAX_ATTEMPTS: int = field(default_factory=lambda: _number("WEB_MAX_ATTEMPTS", 3))
+    # Delay before retrying a retryable failure; it doubles with each attempt.
+    RETRY_SECONDS: float = field(default_factory=lambda: _number("WEB_RETRY_SECONDS", 30.0, float))
     POLL_SECONDS: float = field(default_factory=lambda: _number("WEB_POLL_SECONDS", 1.0, float))
     SANDBOX_CONFIG_FILE: str = field(default_factory=lambda: _text("SANDBOX_CONFIG_FILE", "sandbox_config.yml"))
     # The API owns its sandboxes in-process unless told to use a sandbox manager.
@@ -126,8 +127,8 @@ class Settings:
             raise ValueError("DATABASE_URL must not be empty")
         if self.WORKER_COUNT < 1 or self.MAX_ATTEMPTS < 1:
             raise ValueError("Worker count and attempt budget must be positive")
-        if not all(isfinite(value) and value > 0 for value in (self.LEASE_SECONDS, self.POLL_SECONDS)):
-            raise ValueError("Worker lease and polling intervals must be positive")
+        if not all(isfinite(value) and value > 0 for value in (self.LEASE_SECONDS, self.POLL_SECONDS, self.RETRY_SECONDS)):
+            raise ValueError("Worker lease, polling and retry intervals must be positive")
         if self.SANDBOX_MODE not in ("local", "remote"):
             raise ValueError(f"SANDBOX_MODE must be local or remote, got {self.SANDBOX_MODE!r}")
         if self.LOG_LEVEL.upper() not in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):

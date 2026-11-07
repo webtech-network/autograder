@@ -57,10 +57,9 @@ TEMPLATE = Template("Program checks", "One trusted execution evaluator", [Prints
 
 
 DEFINITION = {
-    "schema_version": "1.0",
-    "templates": ["program_checks"],
+    "schema_version": "2.0",
     "languages": ["python"],
-    "criteria": {"base": {"weight": 100, "tests": [{
+    "criteria": {"base": {"tests": [{
         "id": "greets", "type": "prints_line", "name": "Greets the user",
         "parameters": {"program_command": "python3 main.py", "inputs": ["Ada"], "expected_line": "Hello, Ada"},
     }]}},

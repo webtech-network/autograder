@@ -18,6 +18,8 @@ from pathlib import Path
 import re
 import subprocess
 
+from execution_host.submission_files import EXCLUDED_DIRECTORIES
+
 # Events whose workflow and secrets are controlled by the repository's writers.
 PUBLISHING_EVENTS = frozenset({"push", "workflow_dispatch", "repository_dispatch", "schedule", "pull_request"})
 # Events that run with secrets on behalf of code the repository does not control.
@@ -25,7 +27,6 @@ UNSAFE_EVENTS = {
     "pull_request_target": "runs with repository secrets for pull requests from forks",
     "workflow_run": "publishes with secrets after a workflow that may have run untrusted code",
 }
-EXCLUDED_DIRECTORIES = (".git", ".github", ".autograder")
 _OPAQUE_ID = re.compile(r"[\x21-\x7e]{1,255}")
 
 

@@ -38,7 +38,7 @@ curl http://localhost:8000/api/v1/health
 ## 2) Create a grading configuration
 
 A configuration is an assignment alias plus one
-[v1 grading definition](../contracts/DEFINITIONS.md):
+[grading definition](../contracts/DEFINITIONS.md):
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/configs \
@@ -47,14 +47,12 @@ curl -X POST http://localhost:8000/api/v1/configs \
   -d '{
     "external_assignment_id": "demo-assignment-1",
     "definition": {
-      "schema_version": "1.0",
-      "templates": ["input_output"],
+      "schema_version": "2.0",
       "languages": ["python"],
       "criteria": {
         "base": {
-          "weight": 100,
           "subjects": [{
-            "subject_name": "Functionality",
+            "name": "Functionality",
             "weight": 100,
             "tests": [{
               "id": "greets",
@@ -121,5 +119,5 @@ You ran the full core flow:
 
 `validate -> acquire/prepare? -> assess (one AI batch) -> grade -> requested feedback? -> close -> outcome`
 
-To understand each stage in depth, continue with [Pipeline Architecture](../core/pipeline-architecture.md)
+To understand each stage in depth, continue with the [run order](../architecture/overview.md#run-order)
 and the [responsibility map](../architecture/overview.md).

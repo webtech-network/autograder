@@ -71,6 +71,14 @@ def built_images():
 
 
 @pytest.mark.parametrize("name", IMAGES)
+def test_image_links_its_published_package_to_this_repository(name):
+    # main publishes every one of these images (scripts/publish_images.py, ENV-07);
+    # GHCR grants the repository's workflow token write access through this label.
+    labels = json.loads(docker("image", "inspect", "--format", "{{json .Config.Labels}}", image(name)).stdout)
+    assert labels["org.opencontainers.image.source"] == "https://github.com/webtech-network/autograder"
+
+
+@pytest.mark.parametrize("name", IMAGES)
 def test_image_holds_one_python_and_no_development_web_or_database_stack(name):
     assert run(image(name), "python", "--version").startswith("Python 3.13.")
     installed = set(json.loads(run(image(name), "python", "-c", DISTRIBUTIONS)))
@@ -160,7 +168,7 @@ def action_environment(**inputs: str) -> dict:
 def test_action_grades_the_static_example_in_its_image(tmp_path):
     workspace = tmp_path / "workspace"
     (workspace / ".github/autograder").mkdir(parents=True)
-    shutil.copy(ROOT / "docs/contracts/v1/examples/static-conformance.json",
+    shutil.copy(ROOT / "examples/definitions/static-conformance.json",
                 workspace / ".github/autograder/definition.json")
     (workspace / "index.html").write_text("<!doctype html><title>ok</title>\n", encoding="utf-8")
     commands = tmp_path / "file_commands"

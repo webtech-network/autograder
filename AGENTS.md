@@ -41,7 +41,10 @@ every runner): one on-demand sandbox of the selected language, removed before
 publication, with no pool, control API or reclamation
 ([trust.md](docs/github_action/trust.md#runner-execution-boundary)). Fixtures are an uncached host
 `reference -> bytes` call; `FixtureNotFound` is a non-retryable
-`PREPARATION_ERROR`, other provider failures are retryable.
+`PREPARATION_ERROR`, a store refusing the bucket or credentials is the
+non-retryable `FIXTURE_PROVIDER_UNAVAILABLE`, other provider failures are
+retryable. The HTTP worker retries retryable failures within `WEB_MAX_ATTEMPTS`
+([JOBS.md](docs/contracts/JOBS.md#execution-retry)), the only execution retry layer.
 
 ## Public Python and JSON contracts
 
@@ -53,11 +56,14 @@ execution = pipeline.run(submission)
 terminal_json = execution.outcome.model_dump(mode="json")
 ```
 
-`GradingDefinition` v1 is one object: `schema_version`, `templates`, `languages`,
+`GradingDefinition` 2.0 is one object: `schema_version: "2.0"`, `languages`,
 `criteria`, optional `preparation`, `feedback`, and `metadata`. Every test has
 stable `id`, evaluator `type`, display `name`, object-valued `parameters`, and
-relative `weight`. Unknown structural fields and runtime-parameter collisions
-are rejected. There are no live list-parameter/name-fallback/test_library paths.
+relative `weight`; subjects share `name` and `weight`. `type` alone resolves the
+evaluator (no template list; a `type` two templates provide is ambiguous). The
+base category has no weight; bonus/penalty set `max_points`. Unknown structural
+fields, the 1.0 fields and runtime-parameter collisions are rejected. There are
+no live list-parameter/name-fallback/test_library paths.
 
 `compile_definition` resolves the registry, validates and normalizes evaluator
 parameters, and builds the criteria tree without Docker/network/provider calls.
@@ -71,9 +77,12 @@ reloaded with `compile_snapshot` (validated, never re-normalized). A
 `CompiledDefinition` is created only by those functions and is deeply immutable;
 evaluators and reports receive isolated copies of the frozen parameters.
 
-See [DEFINITIONS.md](docs/contracts/DEFINITIONS.md) and the checked-in v1 JSON
-Schemas and valid/invalid examples. The offline converter is an explicit migration
-tool, never a fallback inside the public parser.
+See [DEFINITIONS.md](docs/contracts/DEFINITIONS.md) and the checked-in JSON
+Schemas and valid/invalid examples. The offline converter
+(`autograder.services.definition_migration`: 1.0 and pre-1.0 to 2.0) is an
+explicit migration tool, never a fallback inside the public parser. Stored 1.0
+snapshots bound to finished outcomes stay as stored and verify by
+`snapshot_hash`; outcome provenance names the definition format.
 
 ## Submission and execution
 
@@ -92,8 +101,9 @@ analysis chooses grammars per file type. See
 
 The recursive tree retains base/bonus/penalty, nested subjects, tests and the
 explicit mixed-group `subjects_weight` split. Sibling weights are ratios; all-zero
-siblings share equal weight. Base weight is 100. Bonus adds `score/100 * cap`;
-penalty subtracts `(100-score)/100 * cap`; final score clamps to 0–100.
+siblings share equal weight. Base is the 0–100 score. Bonus adds
+`score/100 * max_points`; penalty subtracts `(100-score)/100 * max_points`;
+final score clamps to 0–100.
 
 `TestNode` embeds an evaluator implementation, normalized parameters, file target,
 weight and criterion ID. Display names may repeat or contain slashes: they never
@@ -231,6 +241,8 @@ Docker integration tests exercise real grading isolation. Architecture tests
 truthfulness and the extension path. `make verify` is the hermetic path (lint,
 schema drift, strict docs build, unit and SQLite HTTP tests); `make test-postgres`,
 `make test-integration`, `make test-isolation` and `make test-e2e` are the database and Docker tiers. CI
-runs exactly these targets and deploys only after all pass; see
+runs exactly these targets and, on `main`, publishes the images only after all pass
+(nothing deploys; the hand-run Release workflow re-tags a verified commit's
+images as a version, [STABILITY.md](docs/contracts/STABILITY.md)); see
 [the development guide](docs/guides/development.md#verification). Preserve unrelated work;
 use a clean worktree for delivery. Do not add co-author commit trailers.

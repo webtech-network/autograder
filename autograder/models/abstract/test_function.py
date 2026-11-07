@@ -66,8 +66,6 @@ class TestFunction(ABC):
     maximum_files: Optional[int] = None
     #: Whole-submission checks and execution need their inputs even outside scope.
     uses_context_files: bool = False
-    #: Multi-file checks can name their required inputs in normalized parameters.
-    file_parameters: Tuple[str, ...] = ()
 
     #: Host capabilities this evaluator needs (see catalog.Capability). Evaluators
     #: declaring sandbox_execution or http_network receive the execution session.

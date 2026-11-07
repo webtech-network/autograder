@@ -105,10 +105,10 @@ class ScriptedContainer:
                                                   b"process: nsexec-0: unable to spawn stage-1: Resource temporarily "
                                                   b"unavailable\r\n")
 
-            def stream(name, data):
-                return f"{name} {len(data)}\n".encode() + base64.b64encode(data[:int(cmd[5])]) + b"\n"
-            header = f"survivors {self.survivors}\nlimits {self.limits[0]} {self.limits[1]}\n".encode()
-            return Mock(exit_code=0, output=header + stream("out", self.stdout) + stream("err", self.stderr))
+            limit = int(cmd[5])
+            header = (f"survivors {self.survivors}\nlimits {self.limits[0]} {self.limits[1]}\n"
+                      f"out {len(self.stdout)}\nerr {len(self.stderr)}\n").encode()
+            return Mock(exit_code=0, output=header + self.stdout[:limit] + self.stderr[:limit])
         return Mock(exit_code=0, output=b"")
 
 
@@ -269,22 +269,25 @@ class TestSandboxContainer(unittest.TestCase):
         self.assertEqual(container.calls, [])
         self.assertIsNotNone(sandbox.invalidated)
 
-    def test_stdin_up_to_the_inline_size_is_an_argument_and_above_it_one_transfer(self):
-        for size, staged in ((48 * 1024, False), (48 * 1024 + 1, True), (1024 * 1024, True)):
-            with self.subTest(size=size):
+    def test_text_stdin_up_to_the_inline_size_is_an_argument_and_other_stdin_one_transfer(self):
+        """Text is written by the runner's shell builtin; bytes an argument cannot carry are staged."""
+        text = "a\u00e9\n" * (48 * 1024 // 4)
+        cases = ((b"", False), (text.encode(), False), (text.encode() + b"x", True), (b"x" * 1024 * 1024, True),
+                 (b"nul\x00byte\n", True), (b"\xff not utf-8\n", True), (b"-", False), (b"=x", False))
+        for stdin, staged in cases:
+            with self.subTest(size=len(stdin), head=stdin[:12]):
                 container = ScriptedContainer()
-                stdin = bytes(range(256)) * (size // 256) + b"\x00" * (size % 256)
                 SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(argv=("p",), stdin=stdin))
                 scripts = [call[0] if call[0] == STAGE else call[0][2] for call in container.calls]
                 runner = next(call[0] for call in container.calls if call[0][2:3] == [RUNNER])
                 if staged:
                     [archive] = container.client.api.archives()
                     [(name, (data, _))] = archive.items()
-                    self.assertEqual((name, runner[5]), (f"{runner[4][1:]}/in", "-"))
+                    self.assertEqual((name, runner[5]), (f"{runner[4][1:]}.in", "-"))
                     self.assertEqual(data, stdin)
                     self.assertEqual(scripts, [STAGE, RUNNER, COLLECT])
                 else:
-                    self.assertEqual(base64.b64decode(runner[5]), stdin)
+                    self.assertEqual(runner[5], "=" + stdin.decode())
                     self.assertEqual(scripts, [RUNNER, COLLECT])
 
     def test_docker_stream_frames_are_joined(self):
@@ -299,7 +302,7 @@ class TestSandboxContainer(unittest.TestCase):
                                                             stdin=b"-n\n"))
         cmd, user, workdir = container.calls[0]
         self.assertEqual(cmd[:4], ["/bin/sh", "-c", RUNNER, "autograder-run"])
-        self.assertEqual(base64.b64decode(cmd[5]), b"-n\n")
+        self.assertEqual(cmd[5], "=-n\n")
         self.assertEqual(cmd[6:], ["python3", "my script.py", ")", "&&", "touch", "/tmp/pwned"])
         self.assertEqual((user, workdir), ("sandbox", "/app"))
         self.assertEqual((result.status, result.exit_code, result.stdout), (ProcessStatus.EXITED, 0, "ok\n"))
@@ -372,6 +375,32 @@ class TestSandboxContainer(unittest.TestCase):
             sandbox.extract_file("/app/out.txt")
         self.assertIs(attached[COLLECT], False)
         self.assertIs(attached[READ], False)
+
+    def test_truncation_is_exact_at_the_bound(self):
+        for size, truncated in ((0, False), (4, False), (5, False), (6, True)):
+            with self.subTest(size=size):
+                result = SandboxContainer(Language.PYTHON, ScriptedContainer(stdout=b"x" * size)).run_process(
+                    ProcessRequest(argv=("p",), max_output_bytes=5))
+                self.assertEqual((result.stdout, result.stdout_truncated), ("x" * min(size, 5), truncated))
+
+    def test_readback_of_other_than_the_reported_byte_count_is_an_execution_error(self):
+        for body in (b"out 3\nerr 0\nab", b"out 3\nerr 0\nabcd", b"out -1\nerr 2\n", b"out 1\nerr\nx", b"err 0\nout 0\n"):
+            with self.subTest(body=body):
+                container = ScriptedContainer()
+                container.exec_run = lambda cmd, body=body, **kwargs: Mock(
+                    exit_code=0, output=b"autograder:started\n" if cmd[2] == RUNNER
+                    else b"survivors 0\nlimits 0 0\n" + body)
+                sandbox = SandboxContainer(Language.PYTHON, container)
+                with self.assertRaises(ProcessExecutionError):
+                    sandbox.run_process(ProcessRequest(argv=("p",)))
+                self.assertIsNotNone(sandbox.invalidated)
+
+    def test_outputs_are_not_read_while_a_process_survives(self):
+        container = ScriptedContainer()
+        container.exec_run = lambda cmd, **kwargs: Mock(
+            exit_code=0, output=b"autograder:started\n" if cmd[2] == RUNNER else b"survivors 2\nlimits 0 0\nout 9\n")
+        with self.assertRaisesRegex(ProcessExecutionError, "survived termination"):
+            SandboxContainer(Language.PYTHON, container).run_process(ProcessRequest(argv=("p",)))
 
     def test_unparseable_readback_is_an_execution_error(self):
         container = ScriptedContainer()

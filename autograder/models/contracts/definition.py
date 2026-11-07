@@ -1,4 +1,5 @@
 """Versioned, provider-free grading definition and pure compilation boundary."""
+import difflib
 import hashlib
 import json
 from pathlib import PurePosixPath
@@ -6,6 +7,7 @@ from types import MappingProxyType
 from typing import Literal, Mapping
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, field_validator, model_validator
 from pydantic.json_schema import GenerateJsonSchema
+from pydantic_core import PydanticCustomError
 from autograder.models.abstract.template import Template
 from autograder.models.config.criteria import CriteriaConfig
 from autograder.models.criteria_tree import CriteriaTree
@@ -154,11 +156,19 @@ class Feedback(StrictModel):
     preferences: FeedbackPreferences = Field(default_factory=FeedbackPreferences, description="Report options.")
 
 
+#: The one definition format this engine reads.
+SCHEMA_VERSION = '2.0'
+
+#: How to bring a definition in an earlier format to this one; nothing converts at runtime.
+CONVERT_COMMAND = 'python -m autograder.services.definition_migration old.json definition.json'
+
+#: The error code of a definition in format 1.0, wherever it is validated (engine or HTTP body).
+UNSUPPORTED_SCHEMA_VERSION = 'UNSUPPORTED_SCHEMA_VERSION'
+
+
 class GradingDefinition(StrictModel):
-    """One assignment's complete grading definition (version 1)."""
-    schema_version: Literal['1.0'] = Field(description="Definition format version.")
-    templates: list[str] = Field(min_length=1, description=(
-        "Distinct template identifiers whose evaluators the criteria may use."))
+    """One assignment's complete grading definition (version 2.0)."""
+    schema_version: Literal['2.0'] = Field(description="Definition format version.")
     languages: list[LanguageId] = Field(min_length=1, description=(
         "Distinct languages a submission may use; with several, each submission names its language."))
     criteria: CriteriaConfig = Field(description="The weighted criteria tree.")
@@ -168,17 +178,79 @@ class GradingDefinition(StrictModel):
     metadata: dict[str, JsonValue] = Field(default_factory=dict, description=(
         "Free-form JSON stored with the definition; never interpreted by grading."))
 
+    @model_validator(mode='before')
+    @classmethod
+    def refuse_earlier_format(cls, value):
+        # Before any field: a 1.0 definition gets one error naming the converter,
+        # not a literal mismatch plus one error per renamed field.
+        if isinstance(value, dict) and value.get('schema_version') == '1.0':
+            raise PydanticCustomError(UNSUPPORTED_SCHEMA_VERSION, (
+                f"This engine reads definition format {SCHEMA_VERSION}; convert this definition offline with "
+                f"`{CONVERT_COMMAND}`"))
+        return value
+
     @model_validator(mode='after')
     def validate_structure(self):
-        for field in ('templates', 'languages'):
-            values = getattr(self, field)
-            if len(set(values)) != len(values) or any(not value.strip() or value != value.strip() for value in values):
-                raise ValueError(f"{field} must contain distinct nonempty canonical identifiers")
-        if self.criteria.base.weight != 100:
-            raise ValueError("base weight must equal 100; bonus and penalty weights are caps")
-        if not set(self.preparation.languages).issubset(self.languages):
-            raise ValueError("preparation languages must be allowed by the definition")
+        for index, value in enumerate(self.languages):
+            if value in self.languages[:index]:
+                raise FieldError("languages must be distinct", 'languages', index)
+        for language in self.preparation.languages:
+            if language not in self.languages:
+                raise FieldError(f"preparation for `{language}` is never used: add it to `languages` "
+                                 f"({', '.join(self.languages)}) or remove it", 'preparation', 'languages', language)
         return self
+
+
+class FieldError(ValueError):
+    """A rule a model checks across fields, broken by one of them.
+
+    ``path`` is relative to the model that raises it; compilation and the HTTP
+    host append it to pydantic's location, so the error names that field instead
+    of the model (``criteria.base.weight`` rather than the whole definition).
+    """
+
+    def __init__(self, message: str, *path: str | int):
+        super().__init__(message)
+        self.path = path
+
+
+#: Fields of format 1.0 that 2.0 rejects, keyed by the end of their path, with what replaced them.
+REMOVED_FIELDS = {
+    ('templates',): "A definition lists no `templates`: `type` alone names the evaluator",
+    ('base', 'weight'): ("The base category has no weight: it is the 0-100 score "
+                         "(bonus and penalty categories set `max_points`)"),
+    ('bonus', 'weight'): "A bonus category caps the points it adds with `max_points`",
+    ('penalty', 'weight'): "A penalty category caps the points it subtracts with `max_points`",
+    ('subject_name',): "A subject is labelled with `name`, like a criterion",
+}
+
+
+def validation_error_detail(item: dict) -> tuple[tuple, str]:
+    """The JSON path and plain message of one pydantic error item (``ValidationError.errors()``).
+
+    A :class:`FieldError` extends the path to its field; a validator's own
+    message is returned without pydantic's "Value error, " prefix; a field
+    removed in format 2.0 names its replacement; a 1.0 definition is reported
+    at its ``schema_version``.
+    """
+    if item['type'] == UNSUPPORTED_SCHEMA_VERSION:
+        return (*item['loc'], 'schema_version'), item['msg']
+    if item['type'] == 'extra_forbidden':
+        for suffix, message in REMOVED_FIELDS.items():
+            if tuple(item['loc'][-len(suffix):]) == suffix:
+                return tuple(item['loc']), message
+    error = (item.get('ctx') or {}).get('error')
+    if isinstance(error, FieldError):
+        return (*item['loc'], *error.path), str(error)
+    if item['type'] in ('value_error', 'assertion_error') and isinstance(error, Exception):
+        return tuple(item['loc']), str(error)
+    return tuple(item['loc']), item['msg']
+
+
+def suggestion(value: str, candidates, describe=lambda match: f"`{match}`") -> str:
+    """``"; did you mean `x`?"`` for the closest candidate, or nothing when none is close."""
+    matches = difflib.get_close_matches(value, list(candidates), n=1)
+    return f"; did you mean {describe(matches[0])}?" if matches else ""
 
 
 class DefinitionValidationError(ValueError):
@@ -195,8 +267,25 @@ def _error(code, path, message):
 
 
 def _pydantic_errors(exc, prefix=()):
-    return [_error('INVALID_DEFINITION', (*prefix, *item['loc']), item['msg'])
-            for item in exc.errors(include_url=False, include_input=False)]
+    errors = []
+    for item in exc.errors(include_url=False, include_input=False):
+        path, message = validation_error_detail(item)
+        code = UNSUPPORTED_SCHEMA_VERSION if item['type'] == UNSUPPORTED_SCHEMA_VERSION else 'INVALID_DEFINITION'
+        errors.append(_error(code, (*prefix, *path), message))
+    # A field removed in 2.0 explains the missing field that replaced it, so it comes first.
+    return sorted(errors, key=lambda error: error['message'] not in REMOVED_FIELDS.values())
+
+
+def _parameter_errors(exc, prefix, evaluator, schema):
+    """Parameter errors; an unknown parameter names the evaluator's closest one or lists them."""
+    accepted = list(schema.model_fields)
+    errors = _pydantic_errors(exc, prefix)
+    for item, error in zip(exc.errors(include_url=False, include_input=False), errors):
+        if item['type'] == 'extra_forbidden' and len(item['loc']) == 1:
+            name = str(item['loc'][0])
+            error['message'] = (f"`{evaluator}` has no parameter `{name}`"
+                                + (suggestion(name, accepted) or f"; it accepts: {', '.join(accepted) or 'none'}"))
+    return errors
 
 
 def walk_tests(criteria):
@@ -271,7 +360,11 @@ class CompiledDefinition:
 
     @property
     def templates(self) -> Mapping[str, Template]:
-        """Resolved trusted template instances keyed by definition identifier."""
+        """The trusted templates injected at compilation, keyed by identifier.
+
+        Built-in templates are always available; criteria resolve evaluators by
+        ``type`` across both, and an identifier offered twice is ambiguous.
+        """
         return self._templates
 
 
@@ -317,25 +410,21 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         raise DefinitionValidationError(_pydantic_errors(exc)) from exc
     from autograder.template_library import BUILTIN_TEMPLATES
     available = {**BUILTIN_TEMPLATES, **(templates or {})}
-    selected, registry, errors = {}, {}, []
-    for index, identifier in enumerate(definition.templates):
-        try:
-            template = available[identifier]
-        except KeyError:
-            errors.append(_error('UNKNOWN_TEMPLATE', ('templates', index), 'Unknown template identifier'))
-            continue
+    errors = []
+    for identifier, template in (templates or {}).items():
         try:
             if not isinstance(template, Template):
                 raise TypeError('Injected templates must be trusted Template instances')
             template.validate_contract()
         except (TypeError, ValueError) as exc:
-            errors.append(_error('INVALID_TEMPLATE', ('templates', index), str(exc)))
-            continue
-        selected[identifier] = template
+            errors.append(_error('INVALID_TEMPLATE', (), f"Template `{identifier}`: {exc}"))
+            available.pop(identifier)
+    injected = {identifier: available[identifier] for identifier in templates or {} if identifier in available}
+    providers = {}
+    for identifier, template in available.items():
         for name, function in template.get_tests().items():
-            if name in registry:
-                errors.append(_error('AMBIGUOUS_EVALUATOR', ('templates', index), f'Duplicate evaluator identifier: {name}'))
-            registry[name] = function
+            providers.setdefault(name, []).append((identifier, function))
+    registry = {name: found[0][1] for name, found in providers.items() if len(found) == 1}
     seen = set()
     for test, path in walk_tests(definition.criteria):
         if test.id in seen:
@@ -346,8 +435,15 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
                 relative_path(test.file)
             except ValueError as exc:
                 errors.append(_error('INVALID_PATH', (*path, 'file'), str(exc)))
+        if len(providers.get(test.type, ())) > 1:
+            errors.append(_error('AMBIGUOUS_EVALUATOR', (*path, 'type'), (
+                f"Evaluator `{test.type}` is provided by several templates "
+                f"({', '.join(sorted(identifier for identifier, _ in providers[test.type]))}); "
+                "give the injected evaluator a distinct name")))
+            continue
         if test.type not in registry:
-            errors.append(_error('UNKNOWN_EVALUATOR', (*path, 'type'), 'Evaluator is not registered in selected templates'))
+            errors.append(_error('UNKNOWN_EVALUATOR', (*path, 'type'),
+                                 f"Unknown evaluator `{test.type}`" + suggestion(test.type, registry)))
             continue
         function = registry[test.type]
         from autograder.models.contracts.parameter_contract import RUNTIME_PARAMETERS
@@ -358,7 +454,7 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         try:
             normalized = function.config_schema.model_validate(test.parameters, strict=True, extra="forbid").model_dump(mode='json')
         except ValidationError as exc:
-            errors.extend(_pydantic_errors(exc, (*path, 'parameters')))
+            errors.extend(_parameter_errors(exc, (*path, 'parameters'), test.type, function.config_schema))
             continue
         except (ValueError, TypeError) as exc:
             errors.append(_error('INVALID_PARAMETER_CONTRACT', (*path, 'parameters'), str(exc)))
@@ -402,13 +498,22 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         raise DefinitionValidationError([_error(
             'DEFINITION_TOO_LARGE', (), f'The definition and its worst-case outcome exceed {MAX_ATTESTATION_BYTES} '
             'bytes; reduce the number of criteria or the size of their parameters')])
-    return CompiledDefinition._create(snapshot, definition_hash(definition), tree, selected,  # pylint: disable=protected-access
+    return CompiledDefinition._create(snapshot, definition_hash(definition), tree, injected,  # pylint: disable=protected-access
                                       outcome_bytes)
 
 
 def definition_hash(definition: GradingDefinition) -> str:
     """SHA-256 over sorted, compact UTF-8 JSON of an already normalized definition."""
-    payload = json.dumps(definition.model_dump(mode='json'), sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
+    return snapshot_hash(definition.model_dump(mode='json'))
+
+
+def snapshot_hash(snapshot: Mapping) -> str:
+    """The definition hash of a stored canonical snapshot, in whatever format version it was written.
+
+    It reads no field, so a snapshot bound before a format change still
+    verifies against the provenance recorded with its outcome.
+    """
+    payload = json.dumps(thaw(snapshot), sort_keys=True, separators=(',', ':'), ensure_ascii=False, allow_nan=False).encode('utf-8')
     return hashlib.sha256(payload).hexdigest()
 
 
@@ -446,6 +551,6 @@ def grading_definition_json_schema() -> dict:
                                'then': {'properties': {'parameters': parameters}}})
     schema['$defs']['TestConfig']['allOf'] = conditions
     schema['$defs']['TestConfig']['properties']['type']['enum'] = sorted({condition['if']['properties']['type']['const'] for condition in conditions})
-    schema['$id'] = 'https://webtech.network/autograder/contracts/grading-definition/1.0'
+    schema['$id'] = 'https://webtech.network/autograder/contracts/grading-definition/2.0'
     schema['$schema'] = 'https://json-schema.org/draft/2020-12/schema'
     return schema

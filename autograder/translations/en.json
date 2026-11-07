@@ -5,7 +5,6 @@
       "target_file_missing": "The criterion '{criterion}' assesses {files}, which was not submitted. Submit it with exactly this name and path.",
       "too_few_files": "The criterion '{criterion}' needs at least {minimum} submitted file(s) of a type it can assess, but found {found}.",
       "ambiguous_file_target": "The criterion '{criterion}' assesses at most {maximum} file(s), but {found} submitted files match. Submit only the expected file, or ask the teacher to name it in the assignment.",
-      "parameter_target_conflict": "The criterion '{criterion}' is configured to read {files}, which is not among its target files. Ask the teacher to fix the assignment.",
       "target_outside_scope": "The criterion '{criterion}' assesses {files}, which is outside the files selected for this evaluation.",
       "unsupported_file_type": "The criterion '{criterion}' cannot assess {files}: the file type is not supported.",
       "language_required": "This assignment accepts several languages. Select one of: {languages}.",
@@ -166,8 +165,8 @@
           "not_found": "No link to Bootstrap CSS or JS was found."
         }
       },
-      "check_bootstrap_usage": {
-        "description": "Checks if Bootstrap is being used in the HTML file.",
+      "has_no_bootstrap": {
+        "description": "Passes while the HTML file links no Bootstrap CSS or JS (the opposite of check_bootstrap_linked).",
         "report": {
           "found": "You are using Bootstrap in your project.",
           "not_found": "You are not using Bootstrap in your project."
@@ -213,12 +212,7 @@
     },
     "css": {
       "count_unused_css_classes": {
-        "description": "Counts the number of unused CSS classes in the HTML and/or CSS code.",
-        "param": {
-          "submission_files": "The dictionary of submitted files.",
-          "html_file": "Name of the HTML file to analyze (e.g., 'index.html').",
-          "css_file": "Name of the CSS file to analyze (e.g., 'styles.css')."
-        },
+        "description": "Counts the CSS classes the project's CSS files define but no HTML file uses (or, without CSS, the HTML classes no CSS defines).",
         "report": {
           "no_files": "No HTML or CSS files provided.",
           "html_no_css": {
@@ -270,9 +264,9 @@
         "description": "Checks if a specific CSS style rule appears a minimum number of times.",
         "param": {
           "style": "The style rule.",
-          "count": "The minimum number of occurrences."
+          "required_count": "The minimum number of occurrences."
         },
-        "report": "Found {found_count} of {count} `{style}` styling rules."
+        "report": "Found {found_count} of {required_count} `{style}` styling rules."
       },
       "check_media_queries": {
         "description": "Checks if there are media queries in the CSS file.",
@@ -305,11 +299,7 @@
         }
       },
       "has_no_js_framework": {
-        "description": "Checks for the presence of forbidden JavaScript frameworks (React, Vue, Angular).",
-        "param": {
-          "html_file": "The name of the HTML file to analyze.",
-          "js_file": "The name of the JavaScript file to analyze."
-        },
+        "description": "Passes while no HTML or JavaScript file of the project references a JavaScript framework (React, Vue, Angular).",
         "report": {
           "found": "JavaScript framework usage (React, Vue, Angular) detected. The use of frameworks is not allowed in this activity.",
           "not_found": "Great! No forbidden JavaScript frameworks were detected."
@@ -408,6 +398,9 @@
     },
     "dont_fail": {
       "description": "Executes the student program with specific input and verifies it doesn't fail (no crash, no timeout).",
+      "params": {
+        "inputs": "Lines sent to the program's standard input, each ending in a newline; empty sends nothing."
+      },
       "report": {
         "success": "Success: Program executed without errors."
       }

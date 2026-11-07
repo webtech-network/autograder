@@ -176,7 +176,9 @@ class SubmissionDetailResponse(SubmissionResponse):
     locale: LocaleId = DEFAULT_LOCALE.value
     evaluation_scope: EvaluationScopeData | None = None
     submission_metadata: dict | None = None
-    definition_snapshot: GradingDefinition | None = None
+    definition_snapshot: dict | None = Field(None, description=(
+        "The exact definition snapshot this execution is bound to, as stored, in the format version its "
+        "outcome's provenance names (`schema_version` 1.0 for executions bound before format 2.0)."))
     outcome: TerminalOutcome | None = None
     diagnostics: dict | None = None
 

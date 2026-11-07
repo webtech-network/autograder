@@ -38,21 +38,69 @@ SDK. It does not prescribe classes or folders.
 | Versioned definition, normalization, immutable compiled definition (`compile_definition`, `compile_snapshot`) | `models/contracts/definition.py` | [DEFINITIONS.md](../contracts/DEFINITIONS.md) |
 | Evaluator contract: `TestFunction`/`AiTestFunction`, parameter contracts derived from `execute`, `validate_parameters`, `accepts_file`; trusted `Template` registries | `models/abstract/`, `models/contracts/parameter_contract.py` | [CATALOG.md](../contracts/CATALOG.md), [Adding an evaluator](extending.md) |
 | Discovery (`describe_templates`) read from the same registry | `models/contracts/catalog.py` | [CATALOG.md](../contracts/CATALOG.md) |
-| Built-in evaluators and their registry | `template_library/` (`BUILTIN_TEMPLATES`) | [Template Library](../core/template-library.md) |
+| Built-in evaluators and their registry | `template_library/` (`BUILTIN_TEMPLATES`) | [Evaluator reference](../reference/evaluators.md) |
 | Language identity (the only language list) | `models/language.py` | [LANGUAGES.md](../contracts/LANGUAGES.md) |
 | Submission input and evaluator file selection | `models/dataclass/submission.py`, `services/file_selection.py` | [SUBMISSIONS.md](../contracts/SUBMISSIONS.md), [FILES.md](../contracts/FILES.md) |
 | Host capability protocols: `ExecutionSession` (`run_process`), `ServerSession`, `AssessmentProvider`, fixture `reference -> bytes` | `models/capabilities.py`, `models/execution.py`, `models/process.py` | [CAPABILITIES.md](../contracts/CAPABILITIES.md), [PROCESSES.md](../contracts/PROCESSES.md) |
-| Run order: bind language, validate, acquire/prepare a session, assess, grade, requested feedback, close, finalize | `autograder.py` (`AutograderPipeline.run`), `services/preparation.py` | [Grading flow](../core/pipeline-architecture.md) |
+| Run order: bind language, validate, acquire/prepare a session, assess, grade, requested feedback, close, finalize | `autograder.py` (`AutograderPipeline.run`), `services/preparation.py` | [Run order](#run-order) |
 | Assessment: ordinary evaluators one by one, all AI criteria in one provider batch, results keyed by criterion ID | `services/assessment.py` | [DECISIONS.md](../contracts/DECISIONS.md#ai-batching-inside-assessment-arc-07) |
-| Result model and scoring: frozen `ResultOutcomeTree` built once; one scoring definition; definition-vs-outcome verification | `services/grading.py`, `models/contracts/scoring.py`, `models/contracts/verification.py` | [OUTCOMES.md](../contracts/OUTCOMES.md) |
-| Requested feedback (focus ranking + the default report) | `services/feedback.py`, `services/focus_service.py`, `services/report/` | [Feedback Generation](../core/feedback-generation.md) |
-| Baseline comparison: pure `compare_outcomes` over two completed canonical outcomes and their bound definitions, joined by criterion ID; never a grading stage | `models/contracts/comparison.py` | [Baseline Comparison](../features/baseline_comparison.md) |
+| Result model and scoring: frozen `ResultOutcomeTree` built once; one scoring definition; definition-vs-outcome verification | `services/grading.py`, `models/contracts/scoring.py`, `models/contracts/verification.py` | [Scores](../author/scoring.md), [OUTCOMES.md](../contracts/OUTCOMES.md) |
+| Requested feedback (focus ranking + the default report) | `services/feedback.py`, `services/focus_service.py`, `services/report/` | [Student feedback](../author/feedback.md) |
+| Baseline comparison: pure `compare_outcomes` over two completed canonical outcomes and their bound definitions, joined by criterion ID; never a grading stage | `models/contracts/comparison.py` | [Baseline Comparison](../contracts/COMPARISON.md) |
 | Terminal outcome v1 and the facade (`evaluate_submission`, `build_pipeline`) | `models/contracts/outcome.py`, `facade.py` | [OUTCOMES.md](../contracts/OUTCOMES.md) |
 
 The core never imports Docker, S3, OpenAI, HTTP frameworks or databases, never
 interprets platform identities or database IDs, and keeps no process globals for
 hosts. Diagnostics are optional observations, never data for later operations
-([diagnostics](pipeline_execution_tracking.md)).
+([diagnostics](#diagnostics)).
+
+### Run order
+
+`AutograderPipeline.run` (`autograder/autograder.py`) is the whole runtime
+order, as ordinary calls passing local values:
+
+1. Bind the submission language and derive requirements from the selected
+   criteria and that language's preparation.
+2. Validate required files and every criterion's file selection, before any
+   provider or session is touched.
+3. Acquire a session only when a selected criterion or the preparation needs
+   one; stage files and fixtures and run the setup commands
+   (`services/preparation.py`).
+4. `assess_criteria` (`services/assessment.py`): ordinary evaluators run one
+   by one, each with a fresh copy of its frozen parameters; every selected AI
+   criterion goes to `assess_many`, one `AssessmentProvider.assess` call keyed
+   by criterion ID.
+5. `grade(criteria, results)` (`services/grading.py`) builds the frozen
+   `ResultOutcomeTree` once; `verify_outcome_tree` checks it against the
+   definition, as it checks externally attested trees.
+6. Only with `feedback.enabled`: `render_feedback(tree, preferences, locale)`
+   ranks criteria by points lost (`find_focus`) and renders the `default`
+   report. A failure here keeps the grade and marks feedback `failed`.
+7. Close the owned session in `finally`, then build the terminal outcome.
+
+Compilation supplies templates, normalized parameters and the criteria tree;
+runtime never reloads them. A required failure returns a failed outcome with
+null score and tree.
+
+### Scoring
+
+`models/contracts/scoring.py` is the only implementation of traversal,
+effective weights and score arithmetic; grading, outcome validation,
+verification, focus and comparison all call it. Traversal is base, bonus,
+penalty and, inside a holder, nested subjects before direct tests; assessment
+runs in that order. The rules themselves are described once, for authors, in
+[Scores](../author/scoring.md). Derived views (`score_vector`,
+`find_focus`, `compare_outcomes`) are keyed by criterion ID, never by
+display name.
+
+### Diagnostics
+
+`run` and `evaluate_submission` accept an optional `observer` callback. It
+receives frozen `DiagnosticEvent`s (execution ID, operation, status, optional
+safe error) with no submission, tree, session or grade, and the coordinator
+never reads them back. Observer exceptions are logged and change nothing.
+Cleanup failures reach logging and the observer as `close_session` /
+`CLEANUP_ERROR` without replacing the outcome.
 
 ## Execution infrastructure (`sandbox_manager/`)
 
@@ -78,6 +126,11 @@ Action's single on-demand sandbox on the runner's Docker), `S3FixtureProvider` (
 `ConfiguredAssessmentProvider` (OpenAI, configured from the environment; one
 lazily built client per host with a 180 s request deadline and no SDK retries). A new
 host or provider is a new value here or in a host, not a core change.
+`collect_files` (`submission_files.py`) reads a directory as a submission for the
+Action and for the author's check, `python -m execution_host.check` (`check.py`):
+`compile_definition`, then `evaluate_submission` of reference directories with a
+`RunnerHost`, and no grading logic of its own
+([Test your rubric](../author/testing.md)).
 
 ## Hosts (`web/`, `github_action/`)
 
@@ -95,7 +148,7 @@ delivery without grading again.
   the same `verify_outcome_tree` as local grades); the read-only baseline
   comparison route; and bounded deliberate execution. See
   [Web Module](web_module.md), [API.md](../API.md) and
-  [Deliberate Code Execution](../features/deliberate_code_execution.md).
+  [Deliberate Execution](../contracts/EXECUTION.md).
 - **GitHub Actions** (`github_action/`): compiles the repository definition (or
   reloads the selected cloud revision's snapshot), grades with a `RunnerHost`
   (one sandbox of the selected language on the runner's Docker, only when the

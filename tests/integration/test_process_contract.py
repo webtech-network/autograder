@@ -26,6 +26,7 @@ from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.remote_client import RemoteSandboxManager, SandboxHandleGone
+from sandbox_manager.sandbox_container import COLLECT, RUNNER, USER
 from tests.sandbox_profiles import TEST_IMAGES, sandbox_config, suite_runtime
 from tests.web.conftest import db_engine, session_factory  # pylint: disable=unused-import
 from web.core.config import Settings
@@ -240,6 +241,110 @@ def test_output_is_bounded_by_the_executing_host(session):
     assert result.stderr == "\u00e9" * 512  # cut on a character boundary
 
 
+#: Writes exactly argv[1] bytes to stdout and argv[2] bytes to stderr (PRF-08 bounds).
+SIZED = ("import sys\nsys.stdout.buffer.write(b'o' * int(sys.argv[1]))\n"
+         "sys.stderr.buffer.write(b'e' * int(sys.argv[2]))\n")
+
+
+@pytest.mark.parametrize("written", [0, 1023, 1024, 1025])
+def test_output_bound_and_truncation_flags_are_exact_at_the_boundary(session, written):
+    result = run(session, argv=("python3", "-c", SIZED, str(written), str(2048 - written)), max_output_bytes=1024)
+    assert result.exit_code == 0, result
+    assert (result.stdout, result.stdout_truncated) == ("o" * min(written, 1024), written > 1024)
+    assert (result.stderr, result.stderr_truncated) == ("e" * min(2048 - written, 1024), 2048 - written > 1024)
+
+
+def test_output_bytes_are_read_back_exactly(session):
+    """Outputs travel as raw bytes: NUL, newlines and invalid UTF-8 keep their place in each stream."""
+    out, err = b"\x00a\nb\r\n\xff\n" * 100, b"\n\n\x00" * 50 + bytes(range(128))
+    program = f"import sys\nsys.stdout.buffer.write({out!r})\nsys.stderr.buffer.write({err!r})\n"
+    result = run(session, argv=("python3", "-c", program))
+    assert (result.stdout, result.stderr) == (out.decode("utf-8", "replace"), err.decode("utf-8", "replace"))
+    assert not result.stdout_truncated and not result.stderr_truncated
+
+
+def test_an_output_replaced_by_a_symbolic_link_is_never_read_through(session):
+    """The collector reads as root: a link the program put in place of its own output is no output."""
+    program = ("import os\nprint('secret?', flush=True)\n"
+               "for fd in (1, 2):\n"
+               "    path = os.readlink(f'/proc/self/fd/{fd}')\n"
+               "    os.remove(path); os.symlink('/etc/shadow', path)\n")
+    result = run(session, argv=("python3", "-c", program))
+    assert (result.exit_code, result.stdout, result.stderr) == (0, "", ""), result
+
+
+def test_text_stdin_with_shell_characters_is_exact(session):
+    """Text stdin travels as one argument written by a shell builtin: nothing in it is interpreted."""
+    for stdin in ("-", "=", "=x", "-n\n", "%s %d \\n $HOME `id` $(id) '\"\n", "é中\U0001f600\r\n\t"):
+        assert probe(run(session, "python3 probe.py", stdin=stdin.encode())) == ([], stdin.encode())
+
+
+#: Appends the pid of one child it forks, the next pid the container allocates, to
+#: a file of its user (root may not append to another user's file in sticky /tmp).
+#: Two probes bracket a control script inside its own exec, so the pids between
+#: them are the script's forks and nothing else; an exec's own pid cost is not.
+#: Under runc, ``runc init``'s Go threads take pids before the script starts, and
+#: how many varies with load, so pid gaps across execs cannot count helpers.
+PROBES = "/tmp/.helpers-probes"
+
+
+def _probe(user):
+    return f"/bin/sh -c 'echo $$ >> {PROBES}.{user}'; :\n"
+
+
+def _bracket(api, container_id, execs):
+    """Record every exec of the container; bracket the runner and collector with fork probes.
+
+    The runner ``exec``s the program, so the program's own probe closes the runner's bracket.
+    """
+    create = api.exec_create
+
+    def exec_create(container, cmd, *args, **kwargs):
+        if container == container_id:
+            script = cmd[2] if len(cmd) > 2 and cmd[:2] == ["/bin/sh", "-c"] else None
+            execs.append({RUNNER: "runner", COLLECT: "collector"}.get(script, cmd))
+            if script == RUNNER:
+                cmd = [*cmd[:2], _probe(USER) + RUNNER, *cmd[3:]]
+            elif script == COLLECT:
+                cmd = [*cmd[:2], _probe("root") + COLLECT + _probe("root"), *cmd[3:]]
+        return create(container, cmd, *args, **kwargs)
+    return exec_create
+
+
+def test_a_run_costs_two_execs_and_at_most_five_helper_processes(managers, monkeypatch):
+    """The fixed cost per test (PRF-08): two Docker execs, and under gVisor each helper
+    process costs about a small program's CPU, charged to the submission's 0.5 CPU quota.
+
+    The runner, given text stdin, forks none; the collector forks its stat, head and
+    rm. Pids are allocated in order in the container's namespace, so the pids between
+    two fork probes are the forks of the code between them.
+    """
+    manager = managers["local"]
+    sandbox = manager.get_sandbox(Language.PYTHON)
+    try:
+        container = sandbox.container_ref
+
+        def root(script):
+            return container.exec_run(["/bin/sh", "-c", script], user="root").output.decode()
+        # The lifetime exec forks its sleep after Docker reports the exec started:
+        # only once it sleeps is the container quiet.
+        deadline = time.monotonic() + 30
+        while root("cat /proc/[0-9]*/comm").split().count("sleep") < 2:
+            assert time.monotonic() < deadline, "the sandbox lifetime never started sleeping"
+        execs = []
+        monkeypatch.setattr(container.client.api, "exec_create", _bracket(container.client.api, container.id, execs))
+        for stdin in (b"", b"5\n3\n", "\u00e9\n".encode()):
+            root(f"rm -f {PROBES}.*")
+            execs.clear()
+            result = sandbox.run_process(ProcessRequest(shell=_probe(USER), stdin=stdin))
+            assert (result.exit_code, result.stdout) == (0, ""), result
+            assert execs == ["runner", "collector"], execs
+            runner, program, collect, collected = (int(pid) for pid in root(f"cat {PROBES}.{USER} {PROBES}.root").split())
+            assert (program - runner - 1, collected - collect - 1) == (0, 5), (stdin, runner, program, collect, collected)
+    finally:
+        manager.dispose(sandbox)
+
+
 def test_missing_artifact_and_unknown_handle_are_distinct(session, managers):
     with pytest.raises(FileNotFoundError):
         session.read_artifact("absent.txt")
@@ -256,8 +361,8 @@ def test_missing_artifact_and_unknown_handle_are_distinct(session, managers):
 # ----- the real evaluator and preparation paths ------------------------------------
 
 def grade(host, tests, files, preparation=None):
-    definition = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-                  "criteria": {"base": {"weight": 100, "tests": tests}}}
+    definition = {"schema_version": "2.0", "languages": ["python"],
+                  "criteria": {"base": {"tests": tests}}}
     if preparation:
         definition["preparation"] = preparation
     pipeline = build_pipeline(definition=definition, capabilities=host.capabilities)
@@ -362,17 +467,17 @@ async def test_http_grading_assesses_a_silent_failure_and_rejects_malformed_comm
     headers = {"Authorization": "Bearer process-token"}
     async with AsyncClient(transport=ASGITransport(app=web_application), base_url="http://test",
                            headers=headers) as client:
-        bad = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-               "criteria": {"base": {"weight": 100, "tests": [dont_fail("bad", "python3 'main.py")]}}}
+        bad = {"schema_version": "2.0", "languages": ["python"],
+               "criteria": {"base": {"tests": [dont_fail("bad", "python3 'main.py")]}}}
         rejected = await client.post("/api/v1/configs", json={"external_assignment_id": "bad", "definition": bad})
         assert rejected.status_code == 422 and rejected.json()["detail"][0]["code"] == "INVALID_COMMAND"
-        bad_setup = dict(bad, criteria={"base": {"weight": 100, "tests": [dont_fail("ok", "python3 fail.py")]}},
+        bad_setup = dict(bad, criteria={"base": {"tests": [dont_fail("ok", "python3 fail.py")]}},
                          preparation={"languages": {"python": {"setup_commands": [
                              {"name": "x", "command": "make 'all"}]}}})
         rejected = await client.post("/api/v1/configs", json={"external_assignment_id": "bad2", "definition": bad_setup})
         assert rejected.status_code == 422
 
-        good = dict(bad, criteria={"base": {"weight": 100, "tests": [dont_fail("silent", "python3 fail.py")]}})
+        good = dict(bad, criteria={"base": {"tests": [dont_fail("silent", "python3 fail.py")]}})
         assert (await client.post("/api/v1/configs", json={"external_assignment_id": "silent",
                                                            "definition": good})).status_code == 200
         accepted = await client.post("/api/v1/submissions", json={

@@ -1,0 +1,58 @@
+{
+  "schema_version": "2.0",
+  "languages": [
+    "node"
+  ],
+  "criteria": {
+    "base": {
+      "tests": [
+        {
+          "id": "base-tests-0",
+          "type": "has_tag",
+          "name": "Header",
+          "parameters": {
+            "tag": "header",
+            "required_count": 0
+          },
+          "file": null,
+          "weight": 100.0,
+          "metadata": {}
+        }
+      ],
+      "subjects": null,
+      "subjects_weight": null,
+      "metadata": {}
+    },
+    "bonus": null,
+    "penalty": null,
+    "metadata": {}
+  },
+  "preparation": {
+    "languages": {
+      "node": {
+        "required_files": [
+          "index.html"
+        ],
+        "setup_commands": []
+      }
+    },
+    "fixtures": []
+  },
+  "feedback": {
+    "enabled": true,
+    "mode": "default",
+    "preferences": {
+      "general": {
+        "report_title": null,
+        "show_score": true,
+        "show_passed_tests": false,
+        "add_report_summary": true,
+        "online_content": []
+      },
+      "default": {
+        "category_headers": {}
+      }
+    }
+  },
+  "metadata": {}
+}
