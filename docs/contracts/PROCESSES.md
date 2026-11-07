@@ -222,8 +222,12 @@ ms, so about 6 ms of wall time). The runner therefore forks nothing: text stdin
 up to 48 KiB is one argument, written with a shell builtin. The collector forks
 five helpers, a `stat` and a `head` for each output and one `rm`. Outputs come
 back as raw bytes, whose sizes the collector reports first, not as base64. A
-real-container test counts the pids a run allocates and keeps the number of
-helpers at five or fewer.
+real-container test checks that a run with text stdin makes exactly these two
+execs and that the runner forks none and the collector five. It counts each script's forks
+inside that script's own exec, from the pids of two probe children. The pids an
+exec itself takes are not a fixed cost. Under runc, `runc init`'s threads take
+pids in the container before the script starts, and how many varies with load,
+so gaps between the pids of separate execs cannot count helpers.
 
 Medians of `run_process` for a program that upper-cases one line, over 3 rounds
 of 40 runs each, under the shipped profile (Intel Core i5-12400, 12 threads,
