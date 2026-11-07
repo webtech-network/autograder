@@ -95,3 +95,9 @@ def test_a_template_declares_no_requirements_of_its_own():
     template = Template("Local", "Local evaluators", [DummyTest()])
     assert not hasattr(template, "requires_sandbox")
     assert vars(template).keys() == {"template_name", "template_description", "evaluators"}
+
+
+def test_builtin_evaluator_identifiers_are_unique_across_templates():
+    """A criterion ``type`` alone selects a built-in evaluator (format 2.0 lists no templates)."""
+    identifiers = [name for template in BUILTIN_TEMPLATES.values() for name in template.get_tests()]
+    assert len(identifiers) == len(set(identifiers))

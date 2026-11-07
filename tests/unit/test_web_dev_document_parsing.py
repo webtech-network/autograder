@@ -21,13 +21,13 @@ HTML_READERS = {"has_class", "check_bootstrap_linked", "check_internal_links", "
                 "has_attribute", "check_no_inline_styles", "uses_semantic_tags", "check_css_linked",
                 "check_headings_sequential", "check_all_images_have_alt", "check_html_direct_children",
                 "check_tag_not_inside", "check_internal_links_to_article", "check_head_details",
-                "check_attribute_and_value", "check_bootstrap_usage", "link_points_to_page_with_query_param",
+                "check_attribute_and_value", "has_no_bootstrap", "link_points_to_page_with_query_param",
                 "count_unused_css_classes"}
 
 
 def _definition(tests):
-    return {"schema_version": "1.0", "templates": ["webdev"], "languages": ["node"],
-            "criteria": {"base": {"weight": 100, "tests": tests}}}
+    return {"schema_version": "2.0", "languages": ["node"],
+            "criteria": {"base": {"tests": tests}}}
 
 
 def _grade(definition, files):

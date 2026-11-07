@@ -36,8 +36,8 @@ def mock_template():
 
 
 def definition(parameters):
-    return {"schema_version": "1.0", "templates": ["mock"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": [{
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": [{
                 "name": "Test 1", "type": "validated_test", "id": "validated-test", "parameters": parameters}]}}}
 
 

@@ -5,7 +5,9 @@ recorded by running these exact inputs on the pre-ARC-03 engine (main at
 a938047, the old ``execute(files, sandbox, **kwargs)`` call shape). Tests
 compare the migrated evaluators against it through the pipeline and HTTP.
 The only edit is ``has-class``: the old engine listed found classes in set
-order (hash-seed dependent); the migrated evaluator sorts them.
+order (hash-seed dependent); the migrated evaluator sorts them. ``DEFINITION``
+is in format 2.0; its recorded 1.0 form is in ``definition_v1_corpus.json``
+and converts to exactly this definition.
 """
 import json
 from pathlib import Path
@@ -38,7 +40,7 @@ WEBDEV_TESTS = [
     _test("html-children", "check_html_direct_children", {}),
     _test("tag-not-inside", "check_tag_not_inside", {"child_tag": "div", "parent_tag": "p"}),
     _test("article-links", "check_internal_links_to_article", {"required_count": 1}),
-    _test("has-style", "has_style", {"style": "margin", "count": 2}),
+    _test("has-style", "has_style", {"style": "margin", "required_count": 2}),
     _test("head-details", "check_head_details", {"detail_tag": "title"}),
     _test("attribute-value", "check_attribute_and_value", {"tag": "html", "attribute": "lang", "value": "en"}),
     _test("dir-exists", "check_dir_exists", {"dir_path": "assets"}),
@@ -47,15 +49,15 @@ WEBDEV_TESTS = [
     _test("relative-units", "uses_relative_units", {}),
     _test("media-queries", "check_media_queries", {}),
     _test("flexbox", "check_flexbox_usage", {}),
-    _test("bootstrap-usage", "check_bootstrap_usage", {}),
+    _test("bootstrap-usage", "has_no_bootstrap", {}),
     _test("query-param-links", "link_points_to_page_with_query_param",
           {"target_page": "detail.html", "query_param": "id", "required_count": 1}),
     _test("query-string", "js_uses_query_string_parsing", {}),
     _test("json-array", "js_has_json_array_with_id", {"required_key": "id", "min_items": 2}),
     _test("dom-manipulation", "js_uses_dom_manipulation",
           {"methods": ["createElement", "appendChild"], "required_count": 2}),
-    _test("no-js-framework", "has_no_js_framework", {"html_file": "index.html", "js_file": "app.js"}),
-    _test("unused-css", "count_unused_css_classes", {"html_file": "index.html", "css_file": "style.css"}),
+    _test("no-js-framework", "has_no_js_framework", {}),
+    _test("unused-css", "count_unused_css_classes", {}),
 ]
 
 STATIC_TESTS = [
@@ -65,12 +67,11 @@ STATIC_TESTS = [
 ]
 
 DEFINITION = {
-    "schema_version": "1.0",
-    "templates": ["webdev", "static_analysis"],
+    "schema_version": "2.0",
     "languages": ["node"],
-    "criteria": {"base": {"weight": 100, "subjects": [
-        {"subject_name": "Web", "weight": 80, "tests": WEBDEV_TESTS},
-        {"subject_name": "Static", "weight": 20, "tests": STATIC_TESTS},
+    "criteria": {"base": {"subjects": [
+        {"name": "Web", "weight": 80, "tests": WEBDEV_TESTS},
+        {"name": "Static", "weight": 20, "tests": STATIC_TESTS},
     ]}},
 }
 

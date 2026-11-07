@@ -41,7 +41,7 @@ class GradingRequest:
 
     @property
     def provenance(self):
-        return DefinitionProvenance(definition_hash=self.definition_hash,
+        return DefinitionProvenance(schema_version=self.definition["schema_version"], definition_hash=self.definition_hash,
                                     reference=str(self.grading_config_id), revision=self.configuration_version)
 
 

@@ -86,7 +86,10 @@ TEMPLATE = Template("Trusted text", "One local, trusted evaluator", [ContainsTex
 Pass it to `compile_definition`, `build_pipeline` or `evaluate_submission` with
 `templates={identifier: TEMPLATE}`. A template declares no requirements of its
 own: capabilities come only from its evaluators. Uploaded code is not
-supported. Reference the evaluator as a criterion `type`, with a distinct `id`.
+supported. Reference the evaluator as a criterion `type`, with a distinct `id`;
+the definition does not name the template. Give the evaluator a `name` no other
+available template uses: a criterion naming an identifier two templates provide
+fails with `AMBIGUOUS_EVALUATOR`.
 
 ## 4. Test it
 
@@ -106,6 +109,7 @@ exists.
 | Step | Enforced by |
 | --- | --- |
 | Register the instance in its template; the template contract and evaluator call shape validate | `tests/unit/test_template_contract.py::test_builtin_templates_validate_contract` |
+| Its identifier is unique across every built-in template | `tests/unit/test_template_contract.py::test_builtin_evaluator_identifiers_are_unique_across_templates` |
 | The catalog sample validates and compiles for every supported language (add `example_parameters` when constraints need domain knowledge) | `tests/unit/test_catalog.py::test_every_catalog_evaluator_resolves_and_its_sample_compiles` |
 | Discovery reports exactly the capabilities the evaluator declares | `tests/unit/test_catalog.py::test_discovery_capabilities_come_only_from_evaluators_including_mixed_templates` |
 | Every `t("key")` exists in `autograder/translations/en.json` and `pt_br.json`, with the same placeholders | `tests/unit/test_translations.py::test_all_source_keys_exist`, `tests/unit/test_translations.py::test_placeholders_match` |

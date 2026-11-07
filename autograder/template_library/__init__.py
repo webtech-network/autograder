@@ -1,6 +1,7 @@
 """The built-in template registry: the only one.
 
-Identifiers are the values accepted in a definition's ``templates`` list.
+Templates group evaluators for discovery; a definition names an evaluator by
+its identifier alone, so identifiers are unique across these templates.
 Instances are created once and shared: evaluators are stateless. Trusted
 callers add or override templates per call with ``templates={identifier:
 instance}``; that never changes this registry.

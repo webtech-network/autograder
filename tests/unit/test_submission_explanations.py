@@ -27,9 +27,9 @@ def definition(*, setup=None, required=("Main.java",), languages=("java",), test
     java = {"required_files": list(required)}
     if setup is not None:
         java["setup_commands"] = setup
-    return {"schema_version": "1.0", "templates": ["input_output"], "languages": list(languages),
+    return {"schema_version": "2.0", "languages": list(languages),
             "preparation": {"languages": {"java": java}},
-            "criteria": {"base": {"weight": 100, "tests": tests or [
+            "criteria": {"base": {"tests": tests or [
                 {"id": "runs", "type": "dont_fail", "name": "Runs", "parameters": {"program_command": "java Main"}}]}}}
 
 
@@ -110,7 +110,6 @@ def test_missing_criterion_target_names_the_criterion_and_file():
     tests = [{"id": "words", "type": "forbidden_keyword", "name": "No while", "file": "Util.java",
               "parameters": {"forbidden_keywords": ["while_loop"]}}]
     value = definition(tests=tests)
-    value["templates"] = ["static_analysis"]
     error = run(value, locale="pt-br")
     assert error.code == "REQUIRED_FILE_MISSING"
     assert error.message == ("O critério 'No while' avalia Util.java, que não foi enviado. "
@@ -121,7 +120,6 @@ def test_target_outside_the_evaluation_scope_is_named():
     tests = [{"id": "words", "type": "forbidden_keyword", "name": "No while", "file": "Main.java",
               "parameters": {"forbidden_keywords": ["while_loop"]}}]
     value = definition(tests=tests, required=())
-    value["templates"] = ["static_analysis"]
     error = run(value, files={**SUBMITTED, "Other.java": SubmissionFile("Other.java", "")},
                 scope=EvaluationScope(["Other.java"]))
     assert error.code == "FILE_TARGET_CONFLICT"
@@ -132,8 +130,8 @@ def test_target_outside_the_evaluation_scope_is_named():
 def test_ambiguous_single_file_target_counts_matches_without_echoing_student_names():
     tests = [{"id": "page", "type": "has_tag", "name": "Has a title",
               "parameters": {"tag": "title", "required_count": 1}}]
-    value = {"schema_version": "1.0", "templates": ["webdev"], "languages": ["python"],
-             "criteria": {"base": {"weight": 100, "tests": tests}}}
+    value = {"schema_version": "2.0", "languages": ["python"],
+             "criteria": {"base": {"tests": tests}}}
     student_names = {name: SubmissionFile(name, "<p>") for name in ("a-secret-name.html", "b.html")}
     error = run(value, files=student_names, language=Language.PYTHON)
     assert error.code == "AMBIGUOUS_FILE_TARGET"
@@ -181,8 +179,8 @@ def test_the_opt_out_keeps_existing_definition_hashes():
     plain = compile_definition(definition(setup=compile_step()))
     explicit_default = compile_definition(definition(setup=compile_step(private_output=False)))
     private = compile_definition(definition(setup=compile_step(private_output=True)))
-    # Pinned from the base branch: definitions written before the field keep their identity.
-    assert plain.definition_hash == "6100775ee56085bc7de12727ab3f88a69a64f8b7ef186eec35d8b693cfd3ce2b"
+    # Pinned when the field was added (re-pinned for format 2.0): omitting it keeps the identity.
+    assert plain.definition_hash == "1759c91d428658fdabd4c9da167ca3ab31dd053d08e14db4531be400b907cd99"
     assert explicit_default.definition_hash == plain.definition_hash
     assert "private_output" not in json.dumps(plain.definition.model_dump(mode="json"))
     assert private.definition_hash != plain.definition_hash
@@ -222,8 +220,8 @@ def test_capability_failures_are_unchanged_in_every_locale(make, expected, local
 
 
 def _ai_definition():
-    return {"schema_version": "1.0", "templates": ["static_analysis"], "languages": ["java"],
-            "criteria": {"base": {"weight": 100, "tests": [{"id": "sort", "type": "ai_sorting_algorithm",
+    return {"schema_version": "2.0", "languages": ["java"],
+            "criteria": {"base": {"tests": [{"id": "sort", "type": "ai_sorting_algorithm",
                                                              "name": "Sort", "parameters": {"algorithm_name": "Merge Sort"}}]}}}
 
 

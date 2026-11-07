@@ -45,7 +45,7 @@ async def test_create_grading_config(db_session):
     )
     assert config.id is not None
     assert config.external_assignment_id == "test-assignment-1"
-    assert config.definition["templates"] == ["input_output"]
+    assert config.definition["schema_version"] == "2.0" and "templates" not in config.definition
     assert config.definition["languages"] == ["python"]
     assert config.is_active is True
 
@@ -60,7 +60,7 @@ async def test_get_config_by_external_id(db_session):
     config = await repo.get_by_external_id("test-assignment-2")
     assert config is not None
     assert config.external_assignment_id == "test-assignment-2"
-    assert config.definition["templates"] == ["input_output"]
+    assert config.definition["schema_version"] == "2.0" and "templates" not in config.definition
 
 
 @pytest.mark.asyncio

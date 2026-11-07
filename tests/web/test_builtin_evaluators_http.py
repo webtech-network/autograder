@@ -55,26 +55,26 @@ async def test_every_static_builtin_grades_over_http_like_the_recorded_engine(te
     assert [test["parameters"] for test in reported] == [test["parameters"] for test in stored]
 
 
-def single(test, templates, languages=("python",)):
-    return {"schema_version": "1.0", "templates": list(templates), "languages": list(languages),
-            "criteria": {"base": {"weight": 100, "tests": [test]}}}
+def single(test, languages=("python",)):
+    return {"schema_version": "2.0", "languages": list(languages),
+            "criteria": {"base": {"tests": [test]}}}
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("definition,code,path", [
-    (single({"id": "t", "type": "has_tag", "name": "Tag", "parameters": {"tag": ""}}, ["webdev"]),
+    (single({"id": "t", "type": "has_tag", "name": "Tag", "parameters": {"tag": ""}}),
      "INVALID_DEFINITION", ["parameters", "tag"]),
-    (single({"id": "t", "type": "count_global_vars", "name": "Vars", "parameters": {"max_allowed": -1}}, ["webdev"]),
+    (single({"id": "t", "type": "count_global_vars", "name": "Vars", "parameters": {"max_allowed": -1}}),
      "INVALID_DEFINITION", ["parameters", "max_allowed"]),
     (single({"id": "k", "type": "forbidden_keyword", "name": "Keywords",
-             "parameters": {"forbidden_keywords": ["eval_call"]}}, ["static_analysis"], ("python", "java")),
+             "parameters": {"forbidden_keywords": ["eval_call"]}}, ("python", "java")),
      "UNSUPPORTED_KEYWORD", ["parameters", "forbidden_keywords", 0]),
     (single({"id": "k", "type": "forbidden_keyword", "name": "Rules",
-             "parameters": {"custom_ast_grep_rules": [{"pattern": "x", "bogus": 1}]}}, ["static_analysis"]),
+             "parameters": {"custom_ast_grep_rules": [{"pattern": "x", "bogus": 1}]}}),
      "INVALID_AST_RULE", ["parameters", "custom_ast_grep_rules", 0]),
     (single({"id": "io", "type": "expect_output", "name": "IO",
              "parameters": {"program_command": {"python": "python3 main.py"}, "expected_output": "x"}},
-            ["input_output"], ("python", "java")),
+            ("python", "java")),
      "MISSING_LANGUAGE_COMMAND", ["parameters", "program_command"]),
 ])
 async def test_evaluator_owned_validation_rejects_configs_over_http(test_client, definition, code, path):
@@ -88,15 +88,15 @@ async def test_evaluator_owned_validation_rejects_configs_over_http(test_client,
 @pytest.mark.asyncio
 @pytest.mark.parametrize("definition,files,code", [
     (single({"id": "ai", "type": "ai_sorting_algorithm", "name": "Sort",
-             "parameters": {"algorithm_name": "Merge Sort"}}, ["static_analysis"]),
+             "parameters": {"algorithm_name": "Merge Sort"}}),
      {"main.py": "def sort(a): return sorted(a)"}, "PROVIDER_UNAVAILABLE"),
     (single({"id": "io", "type": "expect_output", "name": "IO",
-             "parameters": {"program_command": "CMD", "expected_output": "x"}}, ["input_output"]),
+             "parameters": {"program_command": "CMD", "expected_output": "x"}}),
      {"main.py": "print('x')"}, "CAPABILITY_UNAVAILABLE"),
-    (single({"id": "api", "type": "health_check", "name": "Health", "parameters": {"endpoint": "/health"}}, ["api"]),
+    (single({"id": "api", "type": "health_check", "name": "Health", "parameters": {"endpoint": "/health"}}),
      {"server.py": "pass"}, "SERVER_CAPABILITY_UNAVAILABLE"),
     (single({"id": "t", "type": "has_tag", "name": "Tag", "file": "missing.html",
-             "parameters": {"tag": "main"}}, ["webdev"]),
+             "parameters": {"tag": "main"}}),
      {"index.html": "<main></main>"}, "REQUIRED_FILE_MISSING"),
 ])
 async def test_unavailable_or_missing_inputs_fail_without_a_grade_over_http(test_client, application, definition, files, code):
@@ -111,7 +111,7 @@ async def test_unavailable_or_missing_inputs_fail_without_a_grade_over_http(test
 @pytest.mark.asyncio
 async def test_assessed_static_failure_is_a_valid_zero_over_http(test_client, application):
     definition = single({"id": "imports", "type": "forbidden_import", "name": "Imports",
-                         "parameters": {"forbidden_imports": ["os"]}}, ["static_analysis"])
+                         "parameters": {"forbidden_imports": ["os"]}})
     assert (await create(test_client, "imports", deepcopy(definition))).status_code == 200
     polled, outcome = await grade(test_client, application, "imports", {"main.py": "import os\n"})
     assert polled["status"] == "completed" and polled["final_score"] == 0

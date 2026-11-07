@@ -28,9 +28,9 @@ def template_with(*evaluators):
     return Template("Local", "Trusted local evaluators.", evaluators)
 
 
-def definition(evaluator, parameters, languages=("python",), templates=("local",), extra_tests=()):
-    return {"schema_version": "1.0", "templates": list(templates), "languages": list(languages),
-            "criteria": {"base": {"weight": 100, "tests": [
+def definition(evaluator, parameters, languages=("python",), extra_tests=()):
+    return {"schema_version": "2.0", "languages": list(languages),
+            "criteria": {"base": {"tests": [
                 {"id": "check", "type": evaluator, "name": "Check", "parameters": parameters}, *extra_tests]}}}
 
 
@@ -82,7 +82,7 @@ def test_same_parameter_name_does_not_inherit_another_evaluators_rules():
     ({"custom_ast_grep_rules": [{"kind": 3}]}, "INVALID_AST_RULE", ["custom_ast_grep_rules", 0]),
 ])
 def test_builtin_structural_semantics_are_evaluator_owned(parameters, code, path):
-    value = definition("forbidden_keyword", parameters, languages=("python", "java"), templates=("static_analysis",))
+    value = definition("forbidden_keyword", parameters, languages=("python", "java"))
     [error] = errors(value)
     assert error["code"] == code
     assert error["path"] == ["criteria", "base", "tests", 0, "parameters", *path]
@@ -90,7 +90,7 @@ def test_builtin_structural_semantics_are_evaluator_owned(parameters, code, path
 
 def test_builtin_command_coverage_is_evaluator_owned():
     value = definition("expect_output", {"program_command": {"python": "python3 main.py"}, "expected_output": "x"},
-                       languages=("python", "java"), templates=("input_output",))
+                       languages=("python", "java"))
     [error] = errors(value)
     assert error["code"] == "MISSING_LANGUAGE_COMMAND"
     assert error["path"][-2:] == ["parameters", "program_command"]
@@ -291,7 +291,7 @@ def test_execution_session_is_bound_only_to_evaluators_that_declare_it():
     session = MagicMock()
     session.run_process.return_value = exited("ok")
     capture = Capture()
-    value = definition("capture", {}, templates=("local", "input_output"), extra_tests=[{
+    value = definition("capture", {}, extra_tests=[{
         "id": "run", "type": "expect_output", "name": "Run",
         "parameters": {"program_command": "CMD", "expected_output": "ok"}}])
     outcome = evaluate_submission(submission(), definition=value, templates={"local": template_with(capture)},

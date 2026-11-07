@@ -201,7 +201,7 @@ def test_external_metadata_shell_cli_real_wire_outcome(workspace, delivery_fails
                 assert json.loads((workspace / ".autograder/delivery.json").read_text()) == payload
                 assert payload["definition_snapshot"] == config["definition"]
                 assert payload["outcome"]["provenance"] == {
-                    "schema_version": "1.0", "definition_hash": compiled.definition_hash,
+                    "schema_version": "2.0", "definition_hash": compiled.definition_hash,
                     "reference": "7", "revision": 3}
                 assert payload["external_user_id"] == "alice"
                 # The rerunning actor is provenance, never the owner of the grade.
@@ -286,9 +286,9 @@ def test_real_shell_explains_an_ungradable_submission_in_summary_and_artifact(wo
     # lacks. The same explanation with a real sandbox is in
     # tests/integration/test_submission_explanations_docker.py.
     path.write_text(json.dumps({
-        "schema_version": "1.0", "templates": ["webdev"], "languages": ["java"],
+        "schema_version": "2.0", "languages": ["java"],
         "preparation": {"languages": {"java": {"required_files": ["Main.java"]}}},
-        "criteria": {"base": {"weight": 100, "tests": [
+        "criteria": {"base": {"tests": [
             {"id": "file", "type": "check_project_structure", "name": "Main",
              "parameters": {"expected_structure": "Main.java"}}]}}}))
     env = dict(os.environ, PATH=str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"],

@@ -143,10 +143,10 @@ def test_preparation_and_every_execution_evaluator_use_run_process():
     session.run_process.return_value = exited("ok\n")
     session.read_artifact.side_effect = FileNotFoundError("absent")
     command = {"python": "python3 main.py"}
-    definition = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
+    definition = {"schema_version": "2.0", "languages": ["python"],
                   "preparation": {"languages": {"python": {"setup_commands": [
                       {"name": "setup", "command": "sh -c 'echo ready'"}]}}},
-                  "criteria": {"base": {"weight": 100, "tests": [
+                  "criteria": {"base": {"tests": [
                       {"id": "out", "type": "expect_output", "name": "out", "parameters": {
                           "program_command": command, "expected_output": "ok", "inputs": ["", "-n"]}},
                       {"id": "ok", "type": "dont_fail", "name": "ok", "parameters": {"program_command": "CMD"}},
@@ -167,14 +167,14 @@ def test_preparation_and_every_execution_evaluator_use_run_process():
     assert [test.score for test in outcome.tree.base.tests] == [100, 100, 0]
 
 
-def test_dont_fail_sends_one_line_or_nothing():
+def test_dont_fail_sends_exactly_its_input_lines():
     from autograder.template_library.input_output import DontFailTest
     from autograder.models.abstract.test_function import EvaluationInput
-    for user_input, stdin in (("", b""), ("4", b"4\n"), ("-n", b"-n\n")):
+    for inputs, stdin in (([], b""), (["4"], b"4\n"), (["-n"], b"-n\n"), (["1", ""], b"1\n\n")):
         session = MagicMock()
         session.run_process.return_value = exited()
         DontFailTest().execute(EvaluationInput(language=Language.PYTHON, session=session),
-                               program_command="python3 main.py", user_input=user_input)
+                               program_command="python3 main.py", inputs=inputs)
         assert session.run_process.call_args.args[0].stdin == stdin
 
 
@@ -241,9 +241,9 @@ def test_artifact_readback_of_an_exhausted_sandbox_is_assessed():
 def test_a_setup_command_that_exhausts_the_sandbox_fails_the_submission():
     session = MagicMock()
     session.run_process.side_effect = SandboxExhausted("limit")
-    definition = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
+    definition = {"schema_version": "2.0", "languages": ["python"],
                   "preparation": {"languages": {"python": {"setup_commands": [{"name": "build", "command": "make"}]}}},
-                  "criteria": {"base": {"weight": 100, "tests": [
+                  "criteria": {"base": {"tests": [
                       {"id": "ok", "type": "dont_fail", "name": "ok", "parameters": {"program_command": "CMD"}}]}}}
     outcome = build_pipeline(definition=definition, capabilities=HostCapabilities(execution=lambda _, __: session)).run(
         Submission("s", "s", "a", {"main.py": SubmissionFile("main.py", "")}, language=Language.PYTHON)).outcome
@@ -253,11 +253,11 @@ def test_a_setup_command_that_exhausts_the_sandbox_fails_the_submission():
 
 def test_definitions_reject_malformed_commands_at_compilation():
     from autograder import DefinitionValidationError, compile_definition
-    base = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python", "java"]}
+    base = {"schema_version": "2.0", "languages": ["python", "java"]}
     for command, path in (("python3 'x", ["criteria", "base", "tests", 0, "parameters", "program_command"]),
                           ({"python": "python3 x", "java": 'java "Main'},
                            ["criteria", "base", "tests", 0, "parameters", "program_command", "java"])):
-        value = dict(base, criteria={"base": {"weight": 100, "tests": [
+        value = dict(base, criteria={"base": {"tests": [
             {"id": "t", "type": "dont_fail", "name": "t", "parameters": {"program_command": command}}]}})
         with pytest.raises(DefinitionValidationError) as failure:
             compile_definition(value)
@@ -265,7 +265,7 @@ def test_definitions_reject_malformed_commands_at_compilation():
         assert error["code"] == "INVALID_COMMAND" and list(error["path"]) == path
     value = dict(base, languages=["python"], preparation={"languages": {"python": {"setup_commands": [
         {"name": "build", "command": "make 'all"}]}}},
-        criteria={"base": {"weight": 100, "tests": [
+        criteria={"base": {"tests": [
             {"id": "t", "type": "dont_fail", "name": "t", "parameters": {"program_command": "CMD"}}]}})
     with pytest.raises(DefinitionValidationError):
         compile_definition(value)

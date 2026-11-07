@@ -63,9 +63,10 @@ a repository branch. A low grade completes successfully; add your own workflow
 threshold gate if needed.
 
 To write your own definition, follow the [Author tutorial](../author/tutorial.md)
-and [test it](../author/testing.md) before committing it. A definition in the
-pre-v1 split format (`criteria.json`, `feedback.json`, `setup.json`) is
-[converted offline](../contracts/DEFINITIONS.md#definitions-in-the-pre-v1-format).
+and [test it](../author/testing.md) before committing it. A definition in an
+earlier format (`"schema_version": "1.0"`, or the split `criteria.json`,
+`feedback.json`, `setup.json` assembled into one envelope) is
+[converted offline](../contracts/DEFINITIONS.md#definitions-in-an-earlier-format).
 When the graded files live in a subdirectory, set `submission-root` to it and
 `definition-path` to the definition inside it.
 

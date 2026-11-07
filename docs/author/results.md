@@ -20,7 +20,8 @@ The complete format is the [outcome contract](../contracts/OUTCOMES.md).
 
 `tree` repeats your rubric with a score on every node. Each criterion carries
 its `id`, its evaluator, its effective `weight` within its group, its `score`
-and its `report`, the explanation the student sees:
+and its `report`, the explanation the student sees. A category's `weight` is
+the points it moves: 100 for `base`, `max_points` for `bonus` and `penalty`:
 
 <!-- outcome: examples/tutorial/python-io/bad -->
 ```json

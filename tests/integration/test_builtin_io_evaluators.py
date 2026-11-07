@@ -39,15 +39,14 @@ def program(language, offset=0, crash=False):
 
 
 DEFINITION = {
-    "schema_version": "1.0",
-    "templates": ["input_output"],
+    "schema_version": "2.0",
     "languages": list(LANGUAGES),
-    "criteria": {"base": {"weight": 100, "tests": [
+    "criteria": {"base": {"tests": [
         {"id": "sum", "type": "expect_output", "name": "Sum", "parameters": {
             "inputs": ["2", "3"], "expected_output": "5",
             "program_command": {"python": "python3 main.py", "java": "java Main", "node": "node main.js", "cpp": "./main"}}},
         {"id": "no-crash", "type": "dont_fail", "name": "Does not crash", "parameters": {
-            "user_input": "4",
+            "inputs": ["4"],
             "program_command": {"python": "python3 main.py", "java": "java Main", "node": "node main.js", "cpp": "./main"}}},
         {"id": "artifact", "type": "expect_file_artifact", "name": "Writes result", "parameters": {
             "inputs": ["2", "3"], "artifact_path": "out.txt", "expected_content": "sum=5",

@@ -18,7 +18,7 @@ def test_all_registered_tests_are_valid():
         "check_headings_sequential", "check_all_images_have_alt",
         "check_html_direct_children", "check_tag_not_inside",
         "check_internal_links_to_article", "has_style", "check_head_details",
-        "check_attribute_and_value", "check_bootstrap_usage",
+        "check_attribute_and_value", "has_no_bootstrap",
         # CSS
         "css_uses_property", "count_over_usage", "check_id_selector_over_usage",
         "uses_relative_units", "check_media_queries", "check_flexbox_usage",

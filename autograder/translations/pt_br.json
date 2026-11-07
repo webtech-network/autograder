@@ -5,7 +5,6 @@
       "target_file_missing": "O critério '{criterion}' avalia {files}, que não foi enviado. Envie-o exatamente com este nome e caminho.",
       "too_few_files": "O critério '{criterion}' precisa de pelo menos {minimum} arquivo(s) enviado(s) de um tipo que ele consiga avaliar, mas encontrou {found}.",
       "ambiguous_file_target": "O critério '{criterion}' avalia no máximo {maximum} arquivo(s), mas {found} arquivos enviados correspondem. Envie apenas o arquivo esperado ou peça ao professor que o indique na atividade.",
-      "parameter_target_conflict": "O critério '{criterion}' está configurado para ler {files}, que não está entre os seus arquivos-alvo. Peça ao professor que corrija a atividade.",
       "target_outside_scope": "O critério '{criterion}' avalia {files}, que está fora dos arquivos selecionados para esta avaliação.",
       "unsupported_file_type": "O critério '{criterion}' não consegue avaliar {files}: o tipo de arquivo não é suportado.",
       "language_required": "Esta atividade aceita várias linguagens. Selecione uma destas: {languages}.",
@@ -166,8 +165,8 @@
           "not_found": "Não foi encontrado um link para o CSS ou JS do Bootstrap."
         }
       },
-      "check_bootstrap_usage": {
-        "description": "Verifica se o Bootstrap está vinculado no arquivo HTML.",
+      "has_no_bootstrap": {
+        "description": "Passa enquanto o arquivo HTML não vincula CSS ou JS do Bootstrap (o oposto de check_bootstrap_linked).",
         "report": {
           "found": "Você está usando bootstrap no seu CSS.",
           "not_found": "Você não está usando bootstrap no seu CSS."
@@ -213,12 +212,7 @@
     },
     "css": {
       "count_unused_css_classes": {
-        "description": "Conta o número de classes CSS não utilizadas no código HTML e/ou CSS.",
-        "param": {
-          "submission_files": "O dicionário de arquivos enviados.",
-          "html_file": "Nome do arquivo HTML a ser analisado (ex: 'index.html').",
-          "css_file": "Nome do arquivo CSS a ser analisado (ex: 'styles.css').."
-        },
+        "description": "Conta as classes que os arquivos CSS do projeto definem mas nenhum arquivo HTML usa (ou, sem CSS, as classes do HTML que nenhum CSS define).",
         "report": {
           "no_files": "Nenhum arquivo HTML ou CSS fornecido.",
           "html_no_css": {
@@ -270,9 +264,9 @@
         "description": "Verifica se uma regra de estilo CSS específica aparece um número mínimo de vezes.",
         "param": {
           "style": "A regra de estilo.",
-          "count": "O número mínimo de ocorrências."
+          "required_count": "O número mínimo de ocorrências."
         },
-        "report": "Encontrados {found_count} de {count} `{style}` regras de estilização."
+        "report": "Encontrados {found_count} de {required_count} `{style}` regras de estilização."
       },
       "check_media_queries": {
         "description": "Verifica se existem media queries no arquivo CSS.",
@@ -305,11 +299,7 @@
         }
       },
       "has_no_js_framework": {
-        "description": "Verifica a presença de frameworks JavaScript proibidos (React, Vue, Angular).",
-        "param": {
-          "html_file": "O nome do arquivo HTML a ser analisado.",
-          "js_file": "O nome do arquivo JavaScript a ser analisado."
-        },
+        "description": "Passa enquanto nenhum arquivo HTML ou JavaScript do projeto referencia um framework JavaScript (React, Vue, Angular).",
         "report": {
           "found": "Uso de framework JavaScript (React, Vue, Angular) detectado. O uso de frameworks não é permitido nesta atividade.",
           "not_found": "Ótimo! Nenhum framework JavaScript proibido foi detectado."
@@ -408,6 +398,9 @@
     },
     "dont_fail": {
       "description": "Executa o programa do aluno com entrada específica e verifica se não falha (sem crash, sem timeout).",
+      "params": {
+        "inputs": "Linhas enviadas à entrada padrão do programa, cada uma terminada por quebra de linha; vazia não envia nada."
+      },
       "report": {
         "success": "Sucesso: O programa foi executado sem erros."
       }

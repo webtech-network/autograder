@@ -11,10 +11,9 @@ from copy import deepcopy
 from autograder import Submission, SubmissionFile, evaluate_submission
 
 DEFINITION = {
-    "schema_version": "1.0",
-    "templates": ["static_analysis"],
+    "schema_version": "2.0",
     "languages": ["python"],
-    "criteria": {"base": {"weight": 100, "tests": [
+    "criteria": {"base": {"tests": [
         {"id": "no-os", "type": "forbidden_import", "name": "Avoid os", "weight": 3,
          "parameters": {"forbidden_imports": ["os"]}},
         {"id": "no-loops", "type": "forbidden_keyword", "name": "Avoid loops", "weight": 1,

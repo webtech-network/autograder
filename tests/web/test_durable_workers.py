@@ -256,8 +256,8 @@ async def test_burst_acceptance_is_separate_from_active_execution(pg_app, pg_cli
           "workload=1 tiny Python source/config per request; workers=disabled; no sandbox throughput claim")
 
 
-STATIC_DEFINITION = {"schema_version": "1.0", "templates": ["webdev"], "languages": ["python"],
-                     "criteria": {"base": {"weight": 100, "tests": [
+STATIC_DEFINITION = {"schema_version": "2.0", "languages": ["python"],
+                     "criteria": {"base": {"tests": [
                          {"id": "tag", "type": "has_tag", "name": "Tag", "file": "index.html",
                           "parameters": {"tag": "main"}}]}}}
 

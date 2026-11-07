@@ -32,8 +32,8 @@ FILES = {
 
 
 def definition(language, tests, setup=()):
-    value = {"schema_version": "1.0", "templates": ["input_output"], "languages": [language],
-             "criteria": {"base": {"weight": 100, "tests": tests}}}
+    value = {"schema_version": "2.0", "languages": [language],
+             "criteria": {"base": {"tests": tests}}}
     if setup:
         value["preparation"] = {"languages": {language: {"setup_commands": [
             {"name": f"step {index}", "command": command} for index, command in enumerate(setup)]}}}

@@ -138,7 +138,7 @@ def render_evaluators(catalog, missing):
     """The evaluator reference: capabilities, then every template and its evaluators."""
     lines = ["# Evaluator reference", "", generated_notice("the evaluator contracts (`describe_templates()`)"), "",
              "Every evaluator a criterion `type` can name, with the parameters `compile_definition` accepts. "
-             "List the evaluator's template in the definition's `templates`. The same data is served by "
+             "Templates only group evaluators here: `type` alone selects one. The same data is served by "
              "`GET /api/v1/templates`; the [definition reference](definition.md) describes the rest of a "
              "definition.", "",
              "## Capabilities {#capabilities}", "",
@@ -234,7 +234,7 @@ def render_definition(schema):
         return f"[{name}](#{name.lower()})" if name in documented else "any JSON value"
 
     lines = ["# Definition reference", "", generated_notice("the GradingDefinition JSON Schema"), "",
-             "Every field of a grading definition, as the [v1 JSON Schema](../contracts/v1/grading-definition.schema.json) "
+             "Every field of a grading definition, as the [JSON Schema](../contracts/v1/grading-definition.schema.json) "
              "publishes it. Omitted optional fields take the default shown. Each criterion's `parameters` are "
              "described per evaluator in the [evaluator reference](evaluators.md); rules JSON Schema cannot "
              "express are in [DEFINITIONS.md](../contracts/DEFINITIONS.md).", ""]

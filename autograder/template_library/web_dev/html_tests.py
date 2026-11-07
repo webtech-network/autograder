@@ -495,15 +495,15 @@ class CheckBootstrapLinked(TestFunction):
             report=report
         )
 
-class CheckBootstrapUsage(TestFunction):
-    """Checks if Bootstrap is being used."""
+class HasNoBootstrap(TestFunction):
+    """Passes while Bootstrap is not linked: the prohibition counterpart of ``check_bootstrap_linked``."""
     absence_check = "Prohibition: passes while Bootstrap is not used."
     @property
     def name(self):
-        return "check_bootstrap_usage"
+        return "has_no_bootstrap"
     @property
     def description(self):
-        return t("web_dev.html.check_bootstrap_usage.description")
+        return t("web_dev.html.has_no_bootstrap.description")
     file_extensions = (".html", ".htm")
     minimum_files = 1
     maximum_files = 1
@@ -518,7 +518,7 @@ class CheckBootstrapUsage(TestFunction):
                 soup.find("script", src=re.compile(r"bootstrap", re.IGNORECASE)) is not None
         score = 0 if found else 100
         locale = evaluation.locale
-        report = t("web_dev.html.check_bootstrap_usage.report.found", locale=locale) if found else t("web_dev.html.check_bootstrap_usage.report.not_found", locale=locale)
+        report = t("web_dev.html.has_no_bootstrap.report.found", locale=locale) if found else t("web_dev.html.has_no_bootstrap.report.not_found", locale=locale)
         return TestResult(
             test_name=self.name,
             score=score,

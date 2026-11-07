@@ -196,8 +196,8 @@ def test_generated_criterion_examples_compile_as_written():
     examples = [json.loads(block) for block in re.findall(r"```json\n(.*?)```", text, re.S)]
     assert sorted(example["type"] for example in examples) == sorted(catalog)
     for criterion in examples:
-        compile_definition({"schema_version": "1.0", "templates": [catalog[criterion["type"]]],
-                            "languages": ["python"], "criteria": {"base": {"weight": 100, "tests": [criterion]}}})
+        compile_definition({"schema_version": "2.0", "languages": ["python"],
+                            "criteria": {"base": {"tests": [criterion]}}})
 
 
 def unavailable_on(capabilities):

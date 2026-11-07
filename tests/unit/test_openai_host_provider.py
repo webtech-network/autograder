@@ -21,20 +21,20 @@ from execution_host import openai_provider
 from execution_host.docker import ConfiguredAssessmentProvider, DockerHost
 
 AI_DEFINITION = {
-    "schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
-    "criteria": {"base": {"weight": 100, "tests": [
+    "schema_version": "2.0", "languages": ["python"],
+    "criteria": {"base": {"tests": [
         {"id": "sort", "type": "ai_sorting_algorithm", "name": "Sort", "parameters": {"algorithm_name": "Merge Sort"}},
         {"id": "sort-again", "type": "ai_sorting_algorithm", "name": "Sort",
          "parameters": {"algorithm_name": "Quick Sort"}}]}},
 }
 STATIC_DEFINITION = {
-    "schema_version": "1.0", "templates": ["webdev"], "languages": ["python"],
-    "criteria": {"base": {"weight": 100, "tests": [
+    "schema_version": "2.0", "languages": ["python"],
+    "criteria": {"base": {"tests": [
         {"id": "tag", "type": "has_tag", "name": "Tag", "file": "index.html", "parameters": {"tag": "main"}}]}},
 }
 IO_DEFINITION = {
-    "schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-    "criteria": {"base": {"weight": 100, "tests": [
+    "schema_version": "2.0", "languages": ["python"],
+    "criteria": {"base": {"tests": [
         {"id": "sum", "type": "expect_output", "name": "Sum", "parameters": {
             "inputs": ["2", "3"], "expected_output": "5", "program_command": "python3 main.py"}}]}},
 }

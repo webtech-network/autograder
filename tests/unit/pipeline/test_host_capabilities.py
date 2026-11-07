@@ -12,10 +12,9 @@ from tests.process_results import exited, not_started, timed_out
 from autograder.models.language import Language
 
 
-def definition(*, preparation=None, templates=None, evaluator="check_project_structure", parameters=None):
-    return {"schema_version": "1.0", "templates": templates or ["webdev"],
-            "languages": ["python", "java"],
-            "criteria": {"base": {"weight": 100, "tests": [{"id": "structure", "name": "Structure",
+def definition(*, preparation=None, evaluator="check_project_structure", parameters=None):
+    return {"schema_version": "2.0", "languages": ["python", "java"],
+            "criteria": {"base": {"tests": [{"id": "structure", "name": "Structure",
                 "type": evaluator, "parameters": parameters or {"expected_structure": "main.py"}}]}},
             "preparation": preparation or {}}
 
@@ -32,7 +31,7 @@ def session():
 
 
 def test_static_selected_with_unused_execution_template_needs_no_services():
-    outcome = build_pipeline(definition=definition(templates=["webdev", "input_output"])).run(submission()).outcome
+    outcome = build_pipeline(definition=definition()).run(submission()).outcome
     assert outcome.status == "completed" and outcome.score == 100
 
 
@@ -126,7 +125,7 @@ def test_setup_command_that_cannot_start_is_not_a_student_failure():
 
 def test_api_missing_server_capability_fails_before_acquiring_or_scoring():
     acquire = Mock()
-    value = definition(templates=["api"], evaluator="health_check",
+    value = definition(evaluator="health_check",
                        parameters={"endpoint": "/"})
     pipeline = build_pipeline(definition=value, capabilities=HostCapabilities(execution=acquire))
     outcome = pipeline.run(submission()).outcome
@@ -151,7 +150,7 @@ def test_server_profile_owns_startup_readiness_requests_and_teardown(failure):
     owned.close.side_effect = owned.stop_server
     if failure:
         getattr(owned, failure).side_effect = RuntimeError("server details")
-    value = definition(templates=["api"], evaluator="health_check", parameters={"endpoint": "/health"})
+    value = definition(evaluator="health_check", parameters={"endpoint": "/health"})
     pipeline = build_pipeline(definition=value,
         capabilities=HostCapabilities(server_execution=lambda language, budget: owned))
     result = pipeline.run(submission()).outcome

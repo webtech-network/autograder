@@ -1,27 +1,167 @@
-"""Explicit offline legacy conversion. Never called by the live parser."""
+"""Explicit offline conversion to definition format 2.0. Never called by the live parser.
+
+Three inputs are accepted: a pre-1.0 envelope (``template_name``,
+``grading_criteria``, ...), a 1.0 definition and a 2.0 definition, which is only
+checked. Every mapping is deterministic. What cannot be mapped is rejected with
+its path (``CONVERSION_REJECTED``); what is mapped but assessed differently is
+reported as a note next to the converted definition.
+
+Run it on a file::
+
+    python -m autograder.services.definition_migration old.json definition.json
+"""
 import argparse
 from copy import deepcopy
 import json
 from pathlib import Path
-from pydantic import ValidationError
-from autograder.models.contracts.definition import DefinitionValidationError, compile_definition
+import sys
+from typing import Mapping, NamedTuple
+
+from autograder.models.abstract.template import Template
+from autograder.models.contracts.definition import (
+    SCHEMA_VERSION, DefinitionValidationError, compile_definition, compile_snapshot,
+)
+
+REJECTED = 'CONVERSION_REJECTED'
+
+#: 1.0 evaluator parameters renamed in 2.0, per evaluator.
+RENAMED_PARAMETERS = {'has_style': {'count': 'required_count'}}
+#: 1.0 evaluators renamed in 2.0 because the old name hid what scores 100.
+RENAMED_EVALUATORS = {'check_bootstrap_usage': 'has_no_bootstrap'}
+#: 1.0 file-name parameters that duplicated the criterion ``file`` target.
+FILE_PARAMETERS = {'has_no_js_framework': ('html_file', 'js_file'),
+                   'count_unused_css_classes': ('html_file', 'css_file')}
+FILE_PARAMETER_NOTE = ('`{evaluator}` names no files in 2.0: it reads every {kinds} file of the submission, '
+                       'where 1.0 read only {files} (the same result when the project has one of each)')
 
 
-def convert_legacy_definition(legacy: dict) -> dict:
-    """Convert unambiguous legacy rows/files, then compile the resulting v1.
+class Conversion(NamedTuple):
+    """A converted 2.0 definition and what it assesses differently from its source."""
+    definition: dict
+    notes: list
+
+
+def _reject(path, message):
+    raise DefinitionValidationError([{'code': REJECTED, 'path': list(path), 'message': message}])
+
+
+def _rename(owner: dict, old: str, new: str, path):
+    if old not in owner:
+        return
+    if new in owner:
+        _reject((*path, old), f'Both `{old}` and `{new}` are given; keep one')
+    items = list(owner.items())
+    owner.clear()
+    owner.update((new if key == old else key, value) for key, value in items)
+
+
+def upgrade_v1(definition: Mapping) -> Conversion:
+    """Map a 1.0 definition onto the 2.0 shape without consulting any registry.
+
+    Structural only: the result still has to be compiled. A field that 1.0
+    rejected is left for compilation to report at the same path.
+    """
+    source = deepcopy(dict(definition))
+    if source.get('schema_version') != '1.0':
+        _reject(('schema_version',), 'Expected a 1.0 definition')
+    notes = []
+    source.pop('templates', None)  # type alone resolves the evaluator
+    criteria = source.get('criteria')
+    if isinstance(criteria, dict):
+        base = criteria.get('base')
+        if isinstance(base, dict) and 'weight' in base:
+            if base['weight'] != 100 or isinstance(base['weight'], bool):
+                _reject(('criteria', 'base', 'weight'), '1.0 required a base weight of 100; this definition was invalid')
+            del base['weight']
+        for category in ('bonus', 'penalty'):
+            if isinstance(criteria.get(category), dict):
+                _rename(criteria[category], 'weight', 'max_points', ('criteria', category))
+
+        def group(node, path):
+            if not isinstance(node, dict):
+                return
+            for index, test in enumerate(node.get('tests') or []):
+                if isinstance(test, dict):
+                    _upgrade_test(test, (*path, 'tests', index), notes)
+            for index, subject in enumerate(node.get('subjects') or []):
+                if isinstance(subject, dict):
+                    _rename(subject, 'subject_name', 'name', (*path, 'subjects', index))
+                group(subject, (*path, 'subjects', index))
+
+        for category in ('base', 'bonus', 'penalty'):
+            group(criteria.get(category), ('criteria', category))
+    order = ('schema_version', 'languages', 'criteria', 'preparation', 'feedback', 'metadata')
+    upgraded = {key: source[key] for key in order if key in source}
+    upgraded.update({key: value for key, value in source.items() if key not in upgraded})
+    upgraded['schema_version'] = SCHEMA_VERSION
+    return Conversion(upgraded, notes)
+
+
+def _upgrade_test(test: dict, path, notes):
+    evaluator = test.get('type')
+    parameters = test.get('parameters')
+    if evaluator in RENAMED_EVALUATORS:
+        test['type'] = evaluator = RENAMED_EVALUATORS[evaluator]
+    if not isinstance(parameters, dict):
+        return
+    for old, new in RENAMED_PARAMETERS.get(evaluator, {}).items():
+        _rename(parameters, old, new, (*path, 'parameters'))
+    if evaluator == 'dont_fail' and 'user_input' in parameters:
+        if 'inputs' in parameters:
+            _reject((*path, 'parameters', 'user_input'), 'Both `user_input` and `inputs` are given; keep one')
+        line = parameters['user_input']
+        if not isinstance(line, str):
+            _reject((*path, 'parameters', 'user_input'), '`user_input` must be a string')
+        _rename(parameters, 'user_input', 'inputs', (*path, 'parameters'))
+        # One stdin line, or empty stdin for an empty value: exactly the bytes 1.0 sent.
+        parameters['inputs'] = [line] if line else []
+    removed = [name for name in FILE_PARAMETERS.get(evaluator, ()) if name in parameters]
+    if removed:
+        named = [parameters.pop(name) for name in removed]
+        kinds = 'HTML and CSS' if evaluator == 'count_unused_css_classes' else 'HTML and JavaScript'
+        notes.append({'path': [*path, 'parameters'], 'message': FILE_PARAMETER_NOTE.format(
+            evaluator=evaluator, kinds=kinds, files=', '.join(f'`{name}`' for name in named))})
+
+
+def convert_definition(value: Mapping, *, templates: Mapping[str, Template] | None = None) -> Conversion:
+    """Convert authoring input in any earlier format, then compile it as 2.0.
+
+    Raises ``DefinitionValidationError`` with the exact paths of what cannot be
+    converted or does not compile. ``templates`` are the trusted Python
+    templates the definition's evaluators come from, if not built in.
+    """
+    if not isinstance(value, Mapping):
+        _reject((), 'A definition must be an object')
+    version = value.get('schema_version')
+    if version is None:
+        converted = upgrade_v1(_legacy_to_v1(deepcopy(dict(value))))
+    elif version == '1.0':
+        converted = upgrade_v1(value)
+    else:
+        converted = Conversion(deepcopy(dict(value)), [])
+    compiled = compile_definition(converted.definition, templates=templates)
+    return Conversion(compiled.definition.model_dump(mode='json'), converted.notes)
+
+
+def convert_snapshot(snapshot: Mapping) -> Conversion:
+    """Convert a stored canonical 1.0 snapshot without normalizing it again.
+
+    The result is loaded with ``compile_snapshot``, as every stored snapshot
+    is, so a parameter value is never changed: only renamed.
+    """
+    converted = upgrade_v1(snapshot) if snapshot.get('schema_version') == '1.0' else Conversion(deepcopy(dict(snapshot)), [])
+    compiled = compile_snapshot(converted.definition)
+    return Conversion(compiled.definition.model_dump(mode='json'), converted.notes)
+
+
+def _legacy_to_v1(source: dict) -> dict:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+    """Pre-1.0 envelope to a 1.0 definition.
 
     Historical runtime-injected language placeholders are removed. Duplicates,
     competing extra parameter encodings, and unknown authoring fields are errors.
     No undocumented last-value-wins behavior is retained.
     """
-    if not isinstance(legacy, dict):
-        raise DefinitionValidationError([{'code': 'LEGACY_CONVERSION_REJECTED', 'path': [],
-                                          'message': 'Legacy definition must be an object'}])
-    source = deepcopy(legacy)
-    if source.get('schema_version') is not None:
-        return compile_definition(source).definition.model_dump(mode='json')
-    def fail(path, message):
-        raise DefinitionValidationError([{'code':'LEGACY_CONVERSION_REJECTED','path':list(path),'message':message}])
+    fail = _reject
     allowed = {'template_name','grading_criteria','criteria','languages','setup_config','include_feedback','feedback_config','feedback_mode','test_library','assignment_id','id','is_active','created_at','updated_at'}
     unknown = set(source) - allowed
     if unknown:
@@ -31,14 +171,13 @@ def convert_legacy_definition(legacy: dict) -> dict:
     criteria = source.get('grading_criteria', source.get('criteria'))
     if not isinstance(criteria, dict):
         fail(('criteria',), 'Legacy criteria object required')
-    template = source.get('template_name', criteria.pop('test_library', source.get('test_library')))
     criteria.pop('test_library', None)
-    templates = [item.strip() for item in template.split(',')] if isinstance(template, str) else template
     languages = source.get('languages')
     if isinstance(languages, str):
         languages = [item.strip().lower() for item in languages.split(',')]
     elif isinstance(languages, list):
         languages = [item.lower() if isinstance(item,str) else item for item in languages]
+    names = {}
     def walk(group, path):
         if not isinstance(group,dict):
             fail(path, 'Expected criteria group')
@@ -69,26 +208,20 @@ def convert_legacy_definition(legacy: dict) -> dict:
             extras=set(test)-{'name','type','file','weight','parameters','display_name'}
             if extras:
                 fail((*testpath,sorted(extras)[0]),'Extra-key parameter encoding requires explicit resolution')
+            identity='-'.join(map(str,testpath))  # identity derives solely from the path
+            names.setdefault(label,[]).append(identity)
+            converted={'id':identity,'type':evaluator,'name':label,'parameters':normalized}
+            if 'file' in test:
+                converted['file']=None if test['file']=='all' else test['file']
+            if 'weight' in test:
+                converted['weight']=test['weight']
             test.clear()
-            test.update(id='-'.join(map(str,testpath)),type=evaluator,name=label,parameters=normalized)
-            # Replaced below from preserved originals; identity derives solely from path.
+            test.update(converted)
         for i,subject in enumerate(group.get('subjects') or []):
             walk(subject,(*path,'subjects',i))
-    # Preserve display/file/weights while converting each test in place.
-    original=deepcopy(criteria)
     for category in ('base','bonus','penalty'):
         if criteria.get(category) is not None:
             walk(criteria[category],(category,))
-    def restore(new,old):
-        for test, prior in zip(new.get('tests') or [],old.get('tests') or []):
-            for field in ('file','weight'):
-                if field in prior:
-                    test[field]=None if field == 'file' and prior[field] == 'all' else prior[field]
-        for newsub,oldsub in zip(new.get('subjects') or [],old.get('subjects') or []):
-            restore(newsub,oldsub)
-    for category in ('base','bonus','penalty'):
-        if criteria.get(category) is not None:
-            restore(criteria[category],original[category])
     if criteria.get('base'):
         # Legacy base weight was ignored by the grader; canonicalize its semantics.
         criteria['base']['weight']=100
@@ -131,22 +264,11 @@ def convert_legacy_definition(legacy: dict) -> dict:
     preferences=source.get('feedback_config') or {}
     if not isinstance(preferences,dict):
         fail(('feedback_config',),'Expected feedback preferences')
-    # The unused AI preferences have no v1 reporter equivalent; reject nonempty ones.
+    # The unused AI preferences have no reporter equivalent; reject nonempty ones.
     if preferences.get('ai'):
         fail(('feedback_config','ai'),'AI reporter preferences are unsupported')
     preferences.pop('ai',None)
     # Learning links formerly named labels; only unambiguous labels can be migrated.
-    from autograder.models.contracts.definition import GradingDefinition, walk_tests
-    try:
-        parsed = GradingDefinition.model_validate({
-            'schema_version': '1.0', 'templates': templates, 'languages': languages, 'criteria': criteria})
-    except ValidationError as exc:
-        raise DefinitionValidationError([{'code': 'LEGACY_CONVERSION_REJECTED',
-            'path': list(item['loc']), 'message': item['msg']}
-            for item in exc.errors(include_input=False, include_url=False)]) from exc
-    names={}
-    for test,_ in walk_tests(parsed.criteria):
-        names.setdefault(test.name,[]).append(test.id)
     for resource_index,resource in enumerate(preferences.get('general',{}).get('online_content',[])):
         references=[]
         for link in resource.get('linked_tests',[]):
@@ -156,24 +278,27 @@ def convert_legacy_definition(legacy: dict) -> dict:
                      'Legacy learning-resource labels require an unambiguous criterion match')
             references.append(ids[0])
         resource['linked_tests']=references
-    result={'schema_version':'1.0','templates':templates,'languages':languages,'criteria':criteria,
+    return {'schema_version':'1.0','languages':languages,'criteria':criteria,
             'preparation':preparation,'feedback':{'enabled':source.get('include_feedback',False),
             'mode':source.get('feedback_mode') or 'default','preferences':preferences}}
-    return compile_definition(result).definition.model_dump(mode='json')
 
 
-def main():
-    parser=argparse.ArgumentParser(description='Convert one legacy grading definition offline; rejects ambiguity')
-    parser.add_argument('source',type=Path)
-    parser.add_argument('destination',type=Path)
-    args=parser.parse_args()
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=(
+        f'Convert one grading definition (pre-1.0 or 1.0) to format {SCHEMA_VERSION} offline; '
+        'prints what it cannot convert, and what it converted but assesses differently'))
+    parser.add_argument('source', type=Path)
+    parser.add_argument('destination', type=Path)
+    args = parser.parse_args(argv)
     try:
-        result=convert_legacy_definition(json.loads(args.source.read_text()))
+        result = convert_definition(json.loads(args.source.read_text(encoding='utf-8')))
     except DefinitionValidationError as exc:
-        print(json.dumps({'errors':exc.errors()},indent=2))
+        print(json.dumps({'errors': exc.errors()}, indent=2))
         raise SystemExit(2) from exc
-    args.destination.write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n')
+    args.destination.write_text(json.dumps(result.definition, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    if result.notes:
+        print(json.dumps({'notes': result.notes}, indent=2), file=sys.stderr)
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()

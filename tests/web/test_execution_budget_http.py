@@ -13,16 +13,16 @@ from web.service.worker import AttemptClock
 
 
 def io_definition(count, languages=("python",), preparation=None):
-    return {"schema_version": "1.0", "templates": ["input_output"], "languages": list(languages),
-            "criteria": {"base": {"weight": 100, "tests": [
+    return {"schema_version": "2.0", "languages": list(languages),
+            "criteria": {"base": {"tests": [
                 {"id": f"run{index}", "type": "dont_fail", "name": f"Run {index}",
                  "parameters": {"program_command": "CMD"}} for index in range(count)]}},
             "preparation": preparation or {}}
 
 
 def static_definition():
-    return {"schema_version": "1.0", "templates": ["webdev"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": [
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": [
                 {"id": "tag", "type": "has_tag", "name": "Tag", "file": "index.html", "parameters": {"tag": "main"}}]}}}
 
 
@@ -110,8 +110,8 @@ def test_an_execution_attempt_is_clocked_from_its_grant_not_from_the_capacity_wa
 
 def test_ai_only_and_static_attempts_still_have_a_deadline():
     provider = SimpleNamespace(deadline_seconds=190.0)
-    ai = {"schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
-          "criteria": {"base": {"weight": 100, "tests": [
+    ai = {"schema_version": "2.0", "languages": ["python"],
+          "criteria": {"base": {"tests": [
               {"id": "sort", "type": "ai_sorting_algorithm", "name": "Sort",
                "parameters": {"algorithm_name": "Merge Sort"}}]}}}
     assert 249 < AttemptClock(request(ai), HostCapabilities(ai=provider), margin=60).remaining() <= 250
@@ -166,8 +166,8 @@ def test_an_ai_provider_without_a_deadline_is_refused_not_given_zero_seconds(pro
     from web.service.worker import DurableWorker  # pylint: disable=import-outside-toplevel
     with pytest.raises(TypeError, match="must declare deadline_seconds"):
         DurableWorker(Mock(), Mock(), HostCapabilities(ai=provider))
-    ai = {"schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
-          "criteria": {"base": {"weight": 100, "tests": [
+    ai = {"schema_version": "2.0", "languages": ["python"],
+          "criteria": {"base": {"tests": [
               {"id": "sort", "type": "ai_sorting_algorithm", "name": "Sort",
                "parameters": {"algorithm_name": "Merge Sort"}}]}}}
     with pytest.raises(TypeError, match="must declare deadline_seconds"):

@@ -104,8 +104,8 @@ def test_catalog_describes_the_example_evaluators_from_their_own_contracts():
 
 @pytest.mark.parametrize("module", [custom_evaluator, execution_evaluator], ids=lambda m: m.__name__)
 def test_catalog_sample_parameters_compile_for_each_example(module):
-    identifier = module.DEFINITION["templates"][0]
-    template = EXAMPLE_TEMPLATES[identifier]
+    template = module.TEMPLATE
+    identifier = next(name for name, value in EXAMPLE_TEMPLATES.items() if value is template)
     for evaluator in describe_templates({identifier: template}).templates[-1].evaluators:
         value = deepcopy(module.DEFINITION)
         value["criteria"]["base"]["tests"][0].update(type=evaluator.identifier,

@@ -11,6 +11,9 @@ the full canonical tree and score must match exactly.
 Feedback text must match exactly too. It was re-recorded once, when the
 default report started to follow the authored tree and explain the score
 (ONB-03); the tree and score in the golden are unchanged by that recording.
+Format 2.0 (ONB-07) renamed one parameter the tree echoes: ``no-crash``'s
+``user_input: "4"`` is ``inputs: ["4"]``; nothing else in the golden changed,
+and ``DEFINITION`` is the converter's output for its recorded 1.0 form.
 """
 import json
 import os
@@ -33,22 +36,21 @@ def io(criterion_id, name, inputs, expected, weight=1):
 
 
 DEFINITION = {
-    "schema_version": "1.0",
-    "templates": ["input_output", "static_analysis"],
+    "schema_version": "2.0",
     "languages": ["python"],
     "criteria": {
-        "base": {"weight": 100, "subjects": [
-            {"subject_name": "Program / IO", "weight": 3, "tests": [
+        "base": {"subjects": [
+            {"name": "Program / IO", "weight": 3, "tests": [
                 io("sum", "Check / output", ["2", "3"], "5", weight=2),
                 io("sum-large", "Check / output", ["10", "20"], "30", weight=1),
                 {"id": "no-crash", "type": "dont_fail", "name": "Does not crash", "weight": 0,
-                 "parameters": {"user_input": "4", "program_command": RUN}},
+                 "parameters": {"inputs": ["4"], "program_command": RUN}},
             ]},
-            {"subject_name": "Quality", "weight": 1, "subjects_weight": 60, "subjects": [
-                {"subject_name": "Imports", "weight": 0, "tests": [
+            {"name": "Quality", "weight": 1, "subjects_weight": 60, "subjects": [
+                {"name": "Imports", "weight": 0, "tests": [
                     {"id": "imports", "type": "forbidden_import", "name": "Check / output",
                      "parameters": {"forbidden_imports": ["os"]}}]},
-                {"subject_name": "Keywords", "weight": 0, "tests": [
+                {"name": "Keywords", "weight": 0, "tests": [
                     {"id": "loops", "type": "forbidden_keyword", "name": "No loops",
                      "parameters": {"forbidden_keywords": ["for_loop"]}}]},
             ], "tests": [
@@ -57,8 +59,8 @@ DEFINITION = {
                     "program_command": RUN}},
             ]},
         ]},
-        "bonus": {"weight": 10, "tests": [io("bonus-sum", "Bonus / large", ["100", "200"], "300")]},
-        "penalty": {"weight": 20, "tests": [
+        "bonus": {"max_points": 10, "tests": [io("bonus-sum", "Bonus / large", ["100", "200"], "300")]},
+        "penalty": {"max_points": 20, "tests": [
             {"id": "no-subprocess", "type": "forbidden_import", "name": "Avoid subprocess",
              "parameters": {"forbidden_imports": ["subprocess"]}}]},
     },

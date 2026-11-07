@@ -1,14 +1,14 @@
 {
   "$defs": {
-    "CategoryConfig": {
+    "CappedCategoryConfig": {
       "additionalProperties": false,
-      "description": "Configuration for a grading category (base, bonus, or penalty).",
+      "description": "A bonus or penalty category: its criteria move the score by at most `max_points`.",
       "properties": {
-        "weight": {
-          "description": "Base must be 100; bonus and penalty weights (0-100) cap the points they add or subtract.",
+        "max_points": {
+          "description": "The most points this category adds to (bonus) or subtracts from (penalty) the base score.",
           "maximum": 100,
           "minimum": 0,
-          "title": "Weight",
+          "title": "Max Points",
           "type": "number"
         },
         "tests": {
@@ -24,7 +24,7 @@
             }
           ],
           "default": null,
-          "description": "Criteria directly under this category; null when it has none.",
+          "description": "Criteria directly in this group; null when it has none.",
           "title": "Tests"
         },
         "subjects": {
@@ -40,7 +40,7 @@
             }
           ],
           "default": null,
-          "description": "Subjects nested in this category; null when it has none.",
+          "description": "Subjects nested in this group; null when it has none.",
           "title": "Subjects"
         },
         "subjects_weight": {
@@ -69,9 +69,9 @@
         }
       },
       "required": [
-        "weight"
+        "max_points"
       ],
-      "title": "CategoryConfig",
+      "title": "CappedCategoryConfig",
       "type": "object"
     },
     "CriteriaConfig": {
@@ -79,32 +79,32 @@
       "description": "Root configuration for grading criteria.",
       "properties": {
         "base": {
-          "$ref": "#/$defs/CategoryConfig",
-          "description": "Criteria that make up the score (weight 100)."
+          "$ref": "#/$defs/GroupConfig",
+          "description": "Criteria that make up the score (0-100)."
         },
         "bonus": {
           "anyOf": [
             {
-              "$ref": "#/$defs/CategoryConfig"
+              "$ref": "#/$defs/CappedCategoryConfig"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Criteria whose score adds up to their weight in points."
+          "description": "Criteria whose score adds up to max_points."
         },
         "penalty": {
           "anyOf": [
             {
-              "$ref": "#/$defs/CategoryConfig"
+              "$ref": "#/$defs/CappedCategoryConfig"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Criteria whose shortfall subtracts up to their weight in points."
+          "description": "Criteria whose shortfall subtracts up to max_points."
         },
         "metadata": {
           "additionalProperties": {
@@ -286,6 +286,70 @@
       "title": "GeneralPreferences",
       "type": "object"
     },
+    "GroupConfig": {
+      "additionalProperties": false,
+      "description": "A group of criteria, such as the base category: its own tests, nested subjects, or both.",
+      "properties": {
+        "tests": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TestConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Criteria directly in this group; null when it has none.",
+          "title": "Tests"
+        },
+        "subjects": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/SubjectConfig"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Subjects nested in this group; null when it has none.",
+          "title": "Subjects"
+        },
+        "subjects_weight": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Share (0-100) of this group's score taken from its subjects when it has both tests and subjects; its tests get the rest. Required for such mixed groups and rejected otherwise.",
+          "title": "Subjects Weight"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "default": {},
+          "description": "Free-form JSON stored with the definition; never interpreted by grading.",
+          "title": "Metadata",
+          "type": "object"
+        }
+      },
+      "title": "GroupConfig",
+      "type": "object"
+    },
     "JsonValue": {},
     "LanguagePreparation": {
       "additionalProperties": false,
@@ -412,17 +476,17 @@
     },
     "SubjectConfig": {
       "additionalProperties": false,
-      "description": "Configuration for a subject within a grading category.",
+      "description": "A named group of criteria inside a category or another subject.",
       "properties": {
-        "subject_name": {
-          "description": "Display name of the subject.",
+        "name": {
+          "description": "Display name of the subject; may repeat.",
           "minLength": 1,
-          "title": "Subject Name",
+          "title": "Name",
           "type": "string"
         },
         "weight": {
-          "description": "Weight (0-100) relative to sibling subjects; all-zero siblings share equally.",
-          "maximum": 100,
+          "default": 100.0,
+          "description": "Weight relative to sibling criteria or subjects (any nonnegative ratio); all-zero siblings share equally.",
           "minimum": 0,
           "title": "Weight",
           "type": "number"
@@ -440,7 +504,7 @@
             }
           ],
           "default": null,
-          "description": "Criteria directly under this subject; null when it has none.",
+          "description": "Criteria directly in this group; null when it has none.",
           "title": "Tests"
         },
         "subjects": {
@@ -456,7 +520,7 @@
             }
           ],
           "default": null,
-          "description": "Subjects nested in this subject; null when it has none.",
+          "description": "Subjects nested in this group; null when it has none.",
           "title": "Subjects"
         },
         "subjects_weight": {
@@ -485,8 +549,7 @@
         }
       },
       "required": [
-        "subject_name",
-        "weight"
+        "name"
       ],
       "title": "SubjectConfig",
       "type": "object"
@@ -504,7 +567,7 @@
           "type": "string"
         },
         "type": {
-          "description": "Evaluator identifier from one of the listed templates.",
+          "description": "Evaluator identifier (see the evaluator reference).",
           "minLength": 1,
           "title": "Type",
           "type": "string",
@@ -515,7 +578,6 @@
             "check_all_images_have_alt",
             "check_attribute_and_value",
             "check_bootstrap_linked",
-            "check_bootstrap_usage",
             "check_css_linked",
             "check_dir_exists",
             "check_flexbox_usage",
@@ -543,6 +605,7 @@
             "has_attribute",
             "has_class",
             "has_forbidden_tag",
+            "has_no_bootstrap",
             "has_no_js_framework",
             "has_style",
             "has_tag",
@@ -587,7 +650,7 @@
         },
         "weight": {
           "default": 100.0,
-          "description": "Weight relative to sibling criteria; all-zero siblings share equally.",
+          "description": "Weight relative to sibling criteria or subjects (any nonnegative ratio); all-zero siblings share equally.",
           "minimum": 0,
           "title": "Weight",
           "type": "number"
@@ -1233,11 +1296,11 @@
                     "title": "Style",
                     "type": "string"
                   },
-                  "count": {
+                  "required_count": {
                     "default": 1,
                     "description": "The minimum number of occurrences.",
                     "minimum": 1,
-                    "title": "Count",
+                    "title": "Required Count",
                     "type": "integer"
                   }
                 },
@@ -1492,7 +1555,7 @@
           "if": {
             "properties": {
               "type": {
-                "const": "check_bootstrap_usage"
+                "const": "has_no_bootstrap"
               }
             },
             "required": [
@@ -1504,7 +1567,7 @@
               "parameters": {
                 "additionalProperties": false,
                 "properties": {},
-                "title": "CheckBootstrapUsageParameters",
+                "title": "HasNoBootstrapParameters",
                 "type": "object"
               }
             }
@@ -1675,24 +1738,7 @@
             "properties": {
               "parameters": {
                 "additionalProperties": false,
-                "properties": {
-                  "html_file": {
-                    "description": "The name of the HTML file to analyze.",
-                    "minLength": 1,
-                    "title": "Html File",
-                    "type": "string"
-                  },
-                  "js_file": {
-                    "description": "The name of the JavaScript file to analyze.",
-                    "minLength": 1,
-                    "title": "Js File",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "html_file",
-                  "js_file"
-                ],
+                "properties": {},
                 "title": "HasNoJsFrameworkParameters",
                 "type": "object"
               }
@@ -1714,24 +1760,7 @@
             "properties": {
               "parameters": {
                 "additionalProperties": false,
-                "properties": {
-                  "html_file": {
-                    "description": "Name of the HTML file to analyze (e.g., 'index.html').",
-                    "minLength": 1,
-                    "title": "Html File",
-                    "type": "string"
-                  },
-                  "css_file": {
-                    "description": "Name of the CSS file to analyze (e.g., 'styles.css').",
-                    "minLength": 1,
-                    "title": "Css File",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "html_file",
-                  "css_file"
-                ],
+                "properties": {},
                 "title": "CountUnusedCssClassesParameters",
                 "type": "object"
               }
@@ -1903,11 +1932,14 @@
               "parameters": {
                 "additionalProperties": false,
                 "properties": {
-                  "user_input": {
-                    "default": "",
-                    "description": "Single line sent to the program's standard input; empty sends nothing.",
-                    "title": "User Input",
-                    "type": "string"
+                  "inputs": {
+                    "default": [],
+                    "description": "Lines sent to the program's standard input, each ending in a newline; empty sends nothing.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Inputs",
+                    "type": "array"
                   },
                   "program_command": {
                     "anyOf": [
@@ -2214,22 +2246,13 @@
     }
   },
   "additionalProperties": false,
-  "description": "One assignment's complete grading definition (version 1).",
+  "description": "One assignment's complete grading definition (version 2.0).",
   "properties": {
     "schema_version": {
-      "const": "1.0",
+      "const": "2.0",
       "description": "Definition format version.",
       "title": "Schema Version",
       "type": "string"
-    },
-    "templates": {
-      "description": "Distinct template identifiers whose evaluators the criteria may use.",
-      "items": {
-        "type": "string"
-      },
-      "minItems": 1,
-      "title": "Templates",
-      "type": "array"
     },
     "languages": {
       "description": "Distinct languages a submission may use; with several, each submission names its language.",
@@ -2291,12 +2314,11 @@
   },
   "required": [
     "schema_version",
-    "templates",
     "languages",
     "criteria"
   ],
   "title": "GradingDefinition",
   "type": "object",
-  "$id": "https://webtech.network/autograder/contracts/grading-definition/1.0",
+  "$id": "https://webtech.network/autograder/contracts/grading-definition/2.0",
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

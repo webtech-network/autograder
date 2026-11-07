@@ -101,7 +101,7 @@ class TestGradingConfigEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["external_assignment_id"] == "assign-001"
-        assert data["definition"]["templates"] == ["input_output"]
+        assert data["definition"]["schema_version"] == "2.0" and "templates" not in data["definition"]
         assert data["id"] is not None
 
     @pytest.mark.asyncio
@@ -129,7 +129,7 @@ class TestGradingConfigEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["external_assignment_id"] == "assign-003"
-        assert data["definition"]["templates"] == ["input_output"]
+        assert data["definition"]["schema_version"] == "2.0" and "templates" not in data["definition"]
 
     @pytest.mark.asyncio
     async def test_get_nonexistent_config(self, client):
