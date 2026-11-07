@@ -1313,8 +1313,11 @@ job succeeded: the Release workflow (`.github/workflows/release.yml`, `make
 release`, `scripts/release.py`) re-tags `C`'s `sha-<C>` images as the version,
 by digest and without rebuilding, then tags a commit on top of `C`, outside
 `main`, whose only change pins `action.yml`'s `runs.image` to that version, and
-creates the GitHub Release with the version's `CHANGELOG.md` section as notes
-([Releases](../github_action/README.md#releases)). Rebuilding at release time
+creates the GitHub Release as a draft whose notes are the version's
+`.github/release-notes/<version>.md`, or its `CHANGELOG.md` section without one
+([Releases](../github_action/README.md#releases)). The changelog lists every
+change for reference; a hand-written note introduces a release to readers, and
+a maintainer publishes the draft after reading it. Rebuilding at release time
 would ship bytes nothing verified, and pinning `runs.image` on `main` would make
 `@main` run a release instead of the newest verified commit, so the pin lives
 only in the tagged commit. The workflow runs only on `workflow_dispatch` from

@@ -130,7 +130,9 @@ It then tags the `sha-<C>` manifests of the API, sandbox manager and Action
 images with the version, by digest; commits on top of `C`, outside `main`,
 the one change of `runs.image` to `autograder-action:<version>`; pushes only
 the annotated tag `<version>` naming that commit; and creates the GitHub
-Release from the tag with the changelog section as its notes. `@<version>` then
+Release from the tag as a draft, which a maintainer reads and publishes. Its
+notes are `C`'s `.github/release-notes/<version>.md` when that file exists,
+otherwise the changelog section, with repository links pointed at the tag. `@<version>` then
 runs exactly the image verified from `C`, with `C`'s interface, while `main`
 keeps running `:main`. A version is released once: a tag or an image tag of it
 is never moved. The maintainer steps are in the
