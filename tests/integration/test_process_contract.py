@@ -240,6 +240,73 @@ def test_output_is_bounded_by_the_executing_host(session):
     assert result.stderr == "\u00e9" * 512  # cut on a character boundary
 
 
+#: Writes exactly argv[1] bytes to stdout and argv[2] bytes to stderr (PRF-08 bounds).
+SIZED = ("import sys\nsys.stdout.buffer.write(b'o' * int(sys.argv[1]))\n"
+         "sys.stderr.buffer.write(b'e' * int(sys.argv[2]))\n")
+
+
+@pytest.mark.parametrize("written", [0, 1023, 1024, 1025])
+def test_output_bound_and_truncation_flags_are_exact_at_the_boundary(session, written):
+    result = run(session, argv=("python3", "-c", SIZED, str(written), str(2048 - written)), max_output_bytes=1024)
+    assert result.exit_code == 0, result
+    assert (result.stdout, result.stdout_truncated) == ("o" * min(written, 1024), written > 1024)
+    assert (result.stderr, result.stderr_truncated) == ("e" * min(2048 - written, 1024), 2048 - written > 1024)
+
+
+def test_output_bytes_are_read_back_exactly(session):
+    """Outputs travel as raw bytes: NUL, newlines and invalid UTF-8 keep their place in each stream."""
+    out, err = b"\x00a\nb\r\n\xff\n" * 100, b"\n\n\x00" * 50 + bytes(range(128))
+    program = f"import sys\nsys.stdout.buffer.write({out!r})\nsys.stderr.buffer.write({err!r})\n"
+    result = run(session, argv=("python3", "-c", program))
+    assert (result.stdout, result.stderr) == (out.decode("utf-8", "replace"), err.decode("utf-8", "replace"))
+    assert not result.stdout_truncated and not result.stderr_truncated
+
+
+def test_an_output_replaced_by_a_symbolic_link_is_never_read_through(session):
+    """The collector reads as root: a link the program put in place of its own output is no output."""
+    program = ("import os\nprint('secret?', flush=True)\n"
+               "for fd in (1, 2):\n"
+               "    path = os.readlink(f'/proc/self/fd/{fd}')\n"
+               "    os.remove(path); os.symlink('/etc/shadow', path)\n")
+    result = run(session, argv=("python3", "-c", program))
+    assert (result.exit_code, result.stdout, result.stderr) == (0, "", ""), result
+
+
+def test_text_stdin_with_shell_characters_is_exact(session):
+    """Text stdin travels as one argument written by a shell builtin: nothing in it is interpreted."""
+    for stdin in ("-", "=", "=x", "-n\n", "%s %d \\n $HOME `id` $(id) '\"\n", "é中\U0001f600\r\n\t"):
+        assert probe(run(session, "python3 probe.py", stdin=stdin.encode())) == ([], stdin.encode())
+
+
+def _pid(output):
+    return int(output.decode().strip())
+
+
+def test_a_run_forks_at_most_five_helper_processes(managers):
+    """The fixed cost per test (PRF-08): under gVisor each helper process costs about a
+    small program's CPU, charged to the submission's 0.5 CPU quota.
+
+    Pids are allocated in order in the container's namespace, so the pids a run
+    consumes between two programs, less the two execs (runner, collector), are
+    the helpers its control scripts forked: the collector's stat, head and rm.
+    The runner, given text stdin, forks none.
+    """
+    manager = managers["local"]
+    sandbox = manager.get_sandbox(Language.PYTHON)
+    try:
+        container = sandbox.container_ref
+        bare = [_pid(container.exec_run(["/bin/sh", "-c", "echo $$"], user="sandbox").output) for _ in range(3)]
+        per_exec = {b - a for a, b in zip(bare, bare[1:])}
+        assert len(per_exec) == 1, bare  # the container is quiet: nothing else allocates pids
+        exec_cost = per_exec.pop()
+        programs = [_pid(sandbox.run_process(ProcessRequest(shell="echo $$", stdin=stdin)).stdout.encode())
+                    for stdin in (b"", b"5\n3\n", "é\n".encode(), b"")]
+        helpers = [b - a - 2 * exec_cost for a, b in zip(programs, programs[1:])]
+        assert all(0 <= count <= 5 for count in helpers), (helpers, exec_cost)
+    finally:
+        manager.dispose(sandbox)
+
+
 def test_missing_artifact_and_unknown_handle_are_distinct(session, managers):
     with pytest.raises(FileNotFoundError):
         session.read_artifact("absent.txt")

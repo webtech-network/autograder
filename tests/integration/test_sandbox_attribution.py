@@ -141,7 +141,7 @@ def _grade_while(manager, tests, interrupt):
             sandbox = active[0]
             try:
                 output = sandbox.container_ref.exec_run(
-                    ["/bin/sh", "-c", "cat /tmp/.autograder-run-*/out 2>/dev/null"], user="root").output
+                    ["/bin/sh", "-c", "cat /tmp/.autograder-run-*.out 2>/dev/null"], user="root").output
             except docker.errors.APIError:
                 output = b""  # not started yet
             if b"started" in output:
