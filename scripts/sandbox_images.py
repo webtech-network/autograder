@@ -27,9 +27,10 @@ SOURCE = "https://github.com/webtech-network/autograder"  # links each package t
 IMAGES_DIR = Path(__file__).resolve().parents[1] / "sandbox_manager" / "images"
 #: Same value as ``sandbox_manager.manager.RUNTIME_LANGUAGES_LABEL`` (this script needs no project imports).
 LANGUAGES_LABEL = "autograder.runtime.languages"
-_ABSENT = re.compile(r"no such manifest|manifest unknown|name unknown|not found|denied", re.IGNORECASE)
+#: What the registry answers for a reference it does not have.
+ABSENT = re.compile(r"no such manifest|manifest unknown|name unknown|not found|denied", re.IGNORECASE)
 #: What a client without credentials is told for a reference it cannot pull.
-_NOT_PULLABLE = re.compile(_ABSENT.pattern + "|unauthorized", re.IGNORECASE)
+_NOT_PULLABLE = re.compile(ABSENT.pattern + "|unauthorized", re.IGNORECASE)
 _LANGUAGES = re.compile(r'^LABEL\s+' + re.escape(LANGUAGES_LABEL) + r'="([^"]+)"', re.MULTILINE)
 
 
@@ -83,7 +84,7 @@ def published(ref: str, env: Optional[Mapping[str, str]] = None) -> bool:
     """Whether the registry has ``ref``. An unexpected answer is an error, never "absent"."""
     # "denied" is how GHCR answers for a package that does not exist yet; a
     # token that truly lacks access is refused by the push that follows.
-    return _served(ref, _ABSENT, env)
+    return _served(ref, ABSENT, env)
 
 
 def anonymously_pullable(ref: str) -> bool:
@@ -107,13 +108,16 @@ def _served(ref: str, refusal: "re.Pattern[str]", env: Optional[Mapping[str, str
     raise RuntimeError(f"cannot tell whether {ref} is published: {found.stderr.strip()}")
 
 
-def publish(images: Sequence[RuntimeImage]) -> None:
-    """Push the locally built references that the registry does not have yet."""
+def publish(images: Sequence[RuntimeImage]) -> List[str]:
+    """Push the locally built references that the registry does not have yet; return those pushed."""
+    pushed = []
     for image in images:
         if published(image.ref):
             print(f"{image.ref} is already published; published references are immutable", flush=True)
             continue
         subprocess.run(["docker", "push", image.ref], check=True)
+        pushed.append(image.ref)
+    return pushed
 
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
