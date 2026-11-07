@@ -44,7 +44,7 @@ HTTP contract tests. Production workers must share the configured receipt
 storage and database. See the [capability profiles](../contracts/CAPABILITIES.md)
 for local/remote Docker, fixture and provider configuration.
 
-`WEB_WORKER_COUNT`, `WEB_LEASE_SECONDS`, `WEB_MAX_ATTEMPTS` and `WEB_POLL_SECONDS`
+`WEB_WORKER_COUNT`, `WEB_LEASE_SECONDS`, `WEB_MAX_ATTEMPTS`, `WEB_RETRY_SECONDS` and `WEB_POLL_SECONDS`
 control the documented worker policy. Keep `WEB_OUTCOME_RECEIPT_DIR` on persistent
 private storage. A dependency outage can delay execution while the database
 continues accepting jobs. Readiness checks durable acceptance separately from

@@ -110,7 +110,7 @@ class AutograderPipeline:
                     session = acquire(submission.language, requirements.budget)
                     session.prepare_workdir(submission.submission_files)
                 except EvaluationError:
-                    raise  # the host refused the budget: not a transient capability failure
+                    raise  # the host classified it (refused budget, missing runtime, refused token)
                 except Exception as exc:
                     raise EvaluationError("CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.", "capability", True) from exc
                 _observe(observer, execution_id, operation)

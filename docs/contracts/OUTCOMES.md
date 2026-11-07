@@ -49,16 +49,17 @@ unexpected failure in the engine and in every host.
 | AI criterion identities are not unique | Failed, no score | definition / `INVALID_DEFINITION` |
 | Program command is malformed (reached only outside a compiled plan) | Failed, no score | definition / `INVALID_COMMAND` |
 | No program command is defined for the selected language | Failed, no score | submission / `MISSING_LANGUAGE_COMMAND` |
-| Required sandbox cannot be provisioned, or no sandbox budget slot frees up within the grading wait (retryable) | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
+| Required sandbox cannot be provisioned (Docker or the sandbox service unreachable or failing), or no sandbox budget slot frees up within the grading wait (retryable) | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
+| The host has no runtime for the selected language, or the sandbox service refuses the host's token (not retryable: an operator must act) | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
 | Host cannot start and reach an assessed server | Failed, no score | capability / `SERVER_CAPABILITY_UNAVAILABLE` |
 | Sandbox system/transport or artifact extraction failure, or a host/operator that stopped or removed the sandbox (its lifetime passed, `docker kill`/`rm`) | Failed, no score, retryable | capability / `SANDBOX_ERROR` |
 | The definition's execution budget (its declared process deadlines) needs a longer session than the host grants (`running_timeout`); refused before any code runs, and by HTTP hosts at validation and acceptance (422) | Failed, no score | capability / `EXECUTION_BUDGET_EXCEEDED` |
 | Runtime command (`python3`) cannot be started | Failed, no score | capability / `PROCESS_START_FAILED` |
-| Fixture preparation fails (missing reference: not retryable; provider failure: retryable) | Failed, no score | capability / `PREPARATION_ERROR` |
-| Required fixture provider is not supplied by the host | Failed, no score | capability / `FIXTURE_PROVIDER_UNAVAILABLE` |
+| Fixture preparation fails (missing reference: not retryable; transport or other store failure: retryable) | Failed, no score | capability / `PREPARATION_ERROR` |
+| Required fixture provider is not supplied by the host, or its store refuses the bucket or the credentials (missing bucket, access denied; not retryable) | Failed, no score | capability / `FIXTURE_PROVIDER_UNAVAILABLE` |
 | Required structural analysis unavailable | Failed, no score | capability / `CAPABILITY_UNAVAILABLE` |
-| Provider initialization fails (not cached; the next grading tries again) or no provider is supplied | Failed, no score | provider / `PROVIDER_UNAVAILABLE` |
-| Provider request fails, including its deadline expiring (one request, retryable) | Failed, no score | provider / `PROVIDER_ERROR` |
+| Provider initialization fails (not cached; the next grading tries again), no provider is supplied, or the provider refuses the credential, the access or the model (HTTP 401/403/404; not retryable) | Failed, no score | provider / `PROVIDER_UNAVAILABLE` |
+| Provider request fails (one request): transport failure, deadline expiring, HTTP 408/409/429 or 5xx (retryable); any other 4xx answer, such as an input over the model's context (not retryable) | Failed, no score | provider / `PROVIDER_ERROR` |
 | Missing required AI assessment | Failed, no score | provider / `MISSING_EVALUATOR_RESULT` |
 | Duplicate, unknown, or invalid provider assessment | Failed, no score | provider / `INVALID_EVALUATOR_RESULT` |
 | Evaluator returns an invalid numeric grade | Failed, no score | internal / `INVALID_EVALUATOR_RESULT` |
@@ -85,6 +86,16 @@ turn an assessed result into a retryable failure. API evaluators assess returned
 status/content; inability to obtain a response is a capability failure. These
 conservative classifications avoid claiming that unavailable infrastructure
 proved student code incorrect.
+
+`retryable: true` means the cause can pass without an operator acting (an
+outage, a restart, saturation, a deadline, nondeterministic provider output), so
+grading the same input again may succeed. A deterministic misconfiguration (a
+missing bucket, a refused credential, a runtime the host does not have) is never
+retryable. The HTTP host consumes the flag: a retryable failure of accepted work
+is graded again within its attempt budget and published only on the last attempt
+([execution retry](JOBS.md#execution-retry)); the engine itself never retries.
+A published HTTP outcome with `retryable: true` therefore means the host's retries
+are exhausted: an integrator should not resubmit it in a loop.
 
 Public errors expose stable codes, messages, categories
 (`definition`, `submission`, `capability`, `provider`, `internal`), retryability,

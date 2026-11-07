@@ -8,7 +8,8 @@ from autograder.models.contracts.definition import relative_path
 from autograder.models.dataclass.asset import ResolvedAsset
 from autograder.models.evaluation_error import EvaluationError
 from execution_host.fixtures import S3FixtureProvider
-from sandbox_manager.errors import SandboxLifetimeExceeded
+from sandbox_manager.errors import RuntimeUnavailableError, SandboxLifetimeExceeded
+from sandbox_manager.remote_client import RemoteSandboxError
 from sandbox_manager.models.sandbox_models import DisposalStatus
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,11 @@ class DockerSession:
     """One sandbox that stops by itself ``budget.session_seconds`` after its grant.
 
     Without a budget it lives the host's ``running_timeout``. A budget the host
-    does not grant is refused before waiting: ``EXECUTION_BUDGET_EXCEEDED``.
+    does not grant is refused before waiting: ``EXECUTION_BUDGET_EXCEEDED``. A
+    host that has no runtime for the language, or a sandbox service that refuses
+    this host's token, stays that way until an operator acts: the non-retryable
+    ``CAPABILITY_UNAVAILABLE``. Every other acquisition failure (Docker or the
+    sandbox service down, capacity, a handle limit) is retryable.
     """
     fixture_root = "/tmp/app"
 
@@ -37,6 +42,12 @@ class DockerSession:
         except SandboxLifetimeExceeded as exc:
             raise EvaluationError("EXECUTION_BUDGET_EXCEEDED",
                                   "The definition needs more execution time than this host grants.",
+                                  "capability") from exc
+        except (RuntimeUnavailableError, RemoteSandboxError) as exc:
+            if isinstance(exc, RemoteSandboxError) and exc.status_code not in (401, 403):
+                raise
+            logger.error("Sandbox acquisition for %s needs operator action: %s", language.value, exc)
+            raise EvaluationError("CAPABILITY_UNAVAILABLE", "The execution environment is unavailable.",
                                   "capability") from exc
         self._closed = False
 

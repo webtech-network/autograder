@@ -1,12 +1,11 @@
 """HTTP grading with assignment fixtures from a host-composed object store (#390)."""
 # pylint: disable=missing-function-docstring
-import asyncio
-
 import pytest
 
 from autograder.models.capabilities import HostCapabilities
 from tests.process_results import exited
 from tests.fake_object_store import fake_s3_provider
+from tests.web.worker_support import drain
 
 HEADERS = {"Authorization": "Bearer fixture-token"}
 
@@ -67,10 +66,7 @@ async def grade(client, application, assignment, definition):
         "external_assignment_id": assignment, "external_user_id": "student-1", "username": "Student",
         "files": [{"filename": "main.py", "content": "print('ok')"}]})
     assert submitted.status_code == 202, submitted.text
-    for _ in range(100):
-        if await application.state.host.worker.run_once():
-            break
-        await asyncio.sleep(0.02)
+    await drain(application.state.host.worker, application.state.host.worker.sessions)
     polled = (await client.get(submitted.headers["Location"])).json()
     details = await client.get(f'/api/v1/submissions/{polled["id"]}/details', headers=HEADERS)
     assert details.status_code == 200, details.text
@@ -106,5 +102,22 @@ async def test_missing_or_failed_fixture_yields_safe_preparation_failure(
     assert (error["category"], error["code"], error["retryable"]) == ("capability", "PREPARATION_ERROR", retryable)
     assert error["message"] == "Assignment preparation could not complete."
     assert "not-uploaded" not in str(polled) and "not-uploaded" not in str(outcome)
-    [session] = sessions
-    assert session.commands == [] and session.closed == 1
+    # A missing fixture fails on the first attempt; an unreachable store is retried to exhaustion.
+    attempts = application.state.host.settings.MAX_ATTEMPTS if retryable else 1
+    assert len(sessions) == attempts
+    assert all(session.commands == [] and session.closed == 1 for session in sessions)
+
+
+@pytest.mark.asyncio
+async def test_a_store_that_refuses_the_bucket_fails_once_without_retry(client, application, store):
+    """A missing bucket stays missing until an operator acts: no retry burns the budget."""
+    object_store, sessions = store
+    object_store.bucket = "renamed-by-the-operator"
+    polled, outcome = await grade(client, application, "fixtures-no-bucket", fixture_definition(
+        ("course/a/b", "slash.txt", True)))
+    assert polled["status"] == "failed" and polled["final_score"] is None
+    error = outcome["error"]
+    assert (error["category"], error["code"], error["retryable"]) == (
+        "capability", "FIXTURE_PROVIDER_UNAVAILABLE", False)
+    assert error["message"] == "The fixture provider is unavailable."
+    assert len(sessions) == 1 and len(object_store.requests) == 1

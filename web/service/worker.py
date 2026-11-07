@@ -1,4 +1,4 @@
-"""Bounded PostgreSQL workers recover saved input and fence expired attempts."""
+"""Bounded PostgreSQL workers recover saved input, fence expired attempts and retry transient failures."""
 import asyncio
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -26,6 +26,13 @@ logger = get_logger(__name__)
 
 #: Beyond the session and provider deadlines: grading, feedback and handing the outcome back.
 ATTEMPT_MARGIN_SECONDS = 60.0
+#: The longest wait before a retry, however large the attempt budget.
+MAX_RETRY_DELAY_SECONDS = 3600.0
+
+
+def retry_delay(retry_seconds, attempt_number):
+    """Seconds before the attempt after ``attempt_number`` may start: doubling, capped."""
+    return min(retry_seconds * 2.0 ** min(attempt_number - 1, 30), MAX_RETRY_DELAY_SECONDS)
 
 
 def utc(value):
@@ -90,6 +97,11 @@ class AttemptClock:
                        server_execution=clocked(capabilities.server_execution))
 
 
+def retryable(outcome) -> bool:
+    """A failure that is not yet a grade: its cause can pass without an operator (OUTCOMES.md)."""
+    return outcome.get("status") == "failed" and (outcome.get("error") or {}).get("retryable") is True
+
+
 def _discard_late(task):
     """A grading abandoned at its deadline may still finish; its result is never published."""
     if task.cancelled():
@@ -146,11 +158,13 @@ class DurableWorker:
                 request = GradingRequest.from_row(row)
                 if row.attempt_id:
                     previous = await session.get(GradingAttempt, row.attempt_id)
-                    if previous:
+                    if previous and previous.status == "running":
                         previous.status = "expired"
                         previous.finished_at = now
                 if row.attempt_count >= self.settings.MAX_ATTEMPTS:
-                    # This is a recovery failure, not an assessed student zero.
+                    # The last attempt was interrupted (a retryable failure on the last
+                    # attempt is published, never released). This is a recovery
+                    # failure, not an assessed student zero.
                     from web.service.outcome_delivery import persist_outcome
                     from web.repositories import ResultRepository, SubmissionRepository
                     await persist_outcome(ResultRepository(session), SubmissionRepository(session), row.id,
@@ -165,6 +179,35 @@ class DurableWorker:
                 attempt_id = row.attempt_id
                 await session.commit()
                 return request, attempt_id
+            except Exception:
+                await session.rollback()
+                raise
+
+    async def release(self, submission_id, attempt_id):
+        """Return a retryable failure's submission to the queue after a backoff, or ``False`` at exhaustion.
+
+        Fenced like publication: only the attempt that still owns the row may
+        release it. Nothing public changes; the row stays ``processing`` with no
+        owning attempt and a lease that expires after the backoff, when any
+        worker's ordinary reclaim starts the next attempt. The backoff doubles
+        with each attempt (:func:`retry_delay`). The last attempt of the budget
+        is not released: the caller publishes its failure.
+        """
+        async with self.sessions() as session:
+            try:
+                now = utc(await session.scalar(select(func.now())))
+                row = await session.scalar(select(Submission).where(Submission.id == submission_id).with_for_update())
+                if row is None or row.attempt_id != attempt_id or row.status != SubmissionStatus.PROCESSING:
+                    raise StaleAttemptError("A newer attempt owns this submission")
+                if row.attempt_count >= self.settings.MAX_ATTEMPTS:
+                    return False
+                attempt = await session.get(GradingAttempt, attempt_id)
+                if attempt:
+                    attempt.status, attempt.finished_at = "released", now
+                row.attempt_id = None  # Ends this attempt's lease renewal and publication rights.
+                row.lease_until = now + timedelta(seconds=retry_delay(self.settings.RETRY_SECONDS, row.attempt_count))
+                await session.commit()
+                return True
             except Exception:
                 await session.rollback()
                 raise
@@ -226,8 +269,12 @@ class DurableWorker:
                 outcome = failed_outcome(request, "ATTEMPT_DEADLINE_EXCEEDED",
                                          "The grading attempt did not finish within its deadline.",
                                          category="capability", retryable=True)
-            await publish_finalized(self.sessions, request.submission_id, outcome,
-                                    directory=self.settings.RECEIPT_DIR, attempt_id=attempt_id)
+            if retryable(outcome) and await self.release(request.submission_id, attempt_id):
+                logger.warning("Grading attempt %s of submission %s failed with retryable %s; it will be retried",
+                               attempt_id, request.submission_id, outcome["error"]["code"])
+            else:
+                await publish_finalized(self.sessions, request.submission_id, outcome,
+                                        directory=self.settings.RECEIPT_DIR, attempt_id=attempt_id)
         except StaleAttemptError:
             logger.warning("Discarding publication ownership for stale attempt %s", attempt_id)
         except OutcomeDeliveryError:

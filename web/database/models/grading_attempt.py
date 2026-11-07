@@ -14,6 +14,7 @@ class GradingAttempt(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     submission_id: Mapped[int] = mapped_column(ForeignKey("submissions.id"), index=True)
     number: Mapped[int] = mapped_column(Integer)
+    #: running, published, released (ended by a retryable failure; retried later) or expired (interrupted).
     status: Mapped[str] = mapped_column(String(20), default="running")
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
