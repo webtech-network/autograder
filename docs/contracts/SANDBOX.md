@@ -424,7 +424,7 @@ Wire limits agree with the operations they guard (`sandbox_manager/models/api_mo
 | Submission files | 100 files, 1 MiB each, 5 MiB total | shared `sandbox_manager.submission_contract` limits |
 | Fixtures | 100, 32 MiB decoded total | `/tmp` tmpfs size |
 | Process `argv` / `shell` text | 64 KiB | below the Linux 128 KiB per-argument limit |
-| Process `stdin` | 1 MiB (base64 on the wire) | above 48 KiB staged in one transfer, not as an argument |
+| Process `stdin` | 1 MiB (base64 on the wire) | UTF-8 text without NUL up to 48 KiB is one argument; other stdin is staged in one transfer |
 | Process `timeout` | (0, 600] s and at most the pool's `running_timeout` (a process past the sandbox's own lifetime is ended by it) | client read deadline is timeout + 15 s |
 | Process output | `max_output_bytes` per stream, 1 B–8 MiB (default 1 MiB), with `stdout_truncated`/`stderr_truncated` | bounded where the process runs, never after transfer |
 | Artifact read | 1 MiB | same as local `extract_file` default |

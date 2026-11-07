@@ -147,14 +147,22 @@ The unimplemented AI reporter and unknown preferences are rejected.
 | Multilanguage I/O | [multi-language](v1/examples/multi-language-io.json) | [missing command](v1/examples/invalid/missing-command-language.json), [shell operator](v1/examples/invalid/shell-operator-command.json) |
 | Artifact | [file artifact](v1/examples/file-artifact.json) | Absolute/traversal artifact paths are invalid |
 | API | [API](v1/examples/api.json) | [endpoint type](v1/examples/invalid/api-invalid-endpoint.json) |
-| Web/static | [webdev](v1/examples/webdev.json), [import penalty](v1/examples/io-with-import-penalty.json) | [parameter typo](v1/examples/invalid/web-parameter-typo.json), [zero threshold](v1/examples/invalid/zero-presence-threshold.json) |
+| Web/static | [webdev](v1/examples/webdev.json), [import penalty](v1/examples/io-with-import-penalty.json) | [parameter typo](v1/examples/invalid/web-parameter-typo.json), [zero threshold](v1/examples/invalid/zero-presence-threshold.json), [misspelled template](v1/examples/invalid/misspelled-template.json) |
+| Structure | [python-io](v1/examples/python-io.json) | [base weight](v1/examples/invalid/base-weight-not-100.json), [unused preparation language](v1/examples/invalid/preparation-language-not-allowed.json) |
 | AI/static | [AI algorithm](v1/examples/static-ai.json) | [empty algorithm](v1/examples/invalid/ai-empty-algorithm.json) |
 | Nested feedback | [weighted groups](v1/examples/nested-with-feedback.json) | [duplicate ID](v1/examples/invalid/duplicate-criterion-id.json) |
 
 [Invalid-example manifest](v1/examples/invalid/manifest.json) records exact errors.
-For example: `{"code":"INVALID_DEFINITION","path":["criteria","base","tests",0,"parameters","input"],"message":"Extra inputs are not permitted"}`.
-HTTP adds envelope/body components to paths for Pydantic request errors. Errors
-never echo input files/provider credentials.
+For example: ``{"code":"INVALID_DEFINITION","path":["criteria","base","tests",0,"parameters","input"],"message":"`expect_output` has no parameter `input`; did you mean `inputs`?"}``.
+Each error's path names the offending field, cross-field rules included (base
+weight: `["criteria","base","weight"]`; an unused preparation language:
+`["preparation","languages","java"]`), and messages carry no Pydantic prefix.
+Unknown templates, evaluators and parameters name the closest identifier, or the
+template that provides an evaluator the definition does not list. HTTP adds
+envelope/body components to paths for Pydantic request errors and reports their
+Pydantic type as `code`. Errors never echo input files/provider credentials.
+`python -m execution_host.check` prints the same errors offline
+([Action quick start](../github_action/quick-start.md#check-the-definition-first)).
 
 ## Legacy definition migration
 
