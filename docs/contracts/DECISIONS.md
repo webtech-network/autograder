@@ -223,6 +223,25 @@ Definitions that depended on the old behaviour need these changes:
 * Assignments that expected `compilation_error` from an I/O run should compile
   in `preparation.languages.<language>.setup_commands`.
 
+### Per-test sandbox cost (PRF-08)
+
+The runner forked `mkdir` and `base64` to write stdin (sent as base64) and the
+collector forked fourteen helpers,
+returning outputs as base64. The runner now forks none (text stdin up to 48 KiB
+is one argument) and the collector five, returning raw bytes; see
+[Cost of a process](PROCESSES.md#cost-of-a-process). Medians of `run_process`
+for a program that upper-cases one line, on the same machine and profile,
+before and after:
+
+| Runtime | Python | Java | C |
+| --- | --- | --- | --- |
+| gVisor | 195 → 122 ms | 290 → 164 ms | 100 → 67 ms |
+| runc | 106 → 103 ms | 118 → 110 ms | 95 → 83 ms |
+
+A test's marginal cost in complete python-io gradings fell from 216 to 126 ms
+under gVisor (a 21-test grading from 5.0 to 2.8 s) and from 160 to 154 ms
+under runc. Nothing changes for definitions or deployments.
+
 ### Sandbox ownership and configuration
 
 * **Explicit runtime and read-only root (COR-04).** `general.runtime` is
@@ -761,48 +780,17 @@ sandbox manager images no longer share contents: the sandbox manager has no web
 or database stack. No image has `dockerd`, `containerd`, a Docker CLI, Node.js,
 curl, uv or a test tool. The build context is an allow-list (`.dockerignore`),
 so `.env`, `.venv`, `data/` and caches never enter an image. `action.yml` pins
-`docker://ghcr.io/webtech-network/autograder-action:<version>` instead of building
-`Dockerfile.actions` in every job. A version is released once, gated on
-verification, from the branch that raises it (`workflow_dispatch`), before
-that branch can merge: the image is pushed first, then a git tag of the same
-name. `make action-check` (`scripts/action_image.py check`) fails unless
-the `<version>` tag is an ancestor of the checked commit, no released path
-differs between the tagged commit and the checked one, and the pinned image is
-pullable with an empty `DOCKER_CONFIG`. The released paths are `action.yml`
-(read by consumers from the branch), `Dockerfile.actions`, `.dockerignore` and
-every build-context path that Dockerfile copies (read from it, so a new `COPY`
-joins automatically): any change to the Action interface or the image's inputs
-needs a new version and release, or the check fails. It runs in the
-`Service and Action images` job of `verify.yml` on every pull request into
-`main` and on every push to `main`, where `deploy` needs that job. That is what
-enforces it today: a red job on a pull request into `main`, and no API deploy
-from a `main` commit that fails it. It blocks a merge only once the `main`
-ruleset requires that job; today the ruleset still requires the stale `pylint`
-and `pytest` contexts, which no workflow produces, so the merge block depends on
-the repository owner adding the Verify jobs as required checks
-([Required checks](../guides/development.md#required-checks)). With that in
-place, `main`, which every documented `uses: ...@main` follows, only ever names a
-published, public image built from its own history together with the
-`action.yml` it was released with. Release pull requests merge with a merge
-commit, so the tag stays in that history. `tests/images/`
-(`make test-images`, CI) checks the built images, including a build from a
-checkout with planted secrets and the Action grading the static example.
+a prebuilt image instead of building `Dockerfile.actions` in every job; which
+image, and how it is published, is
+[ENV-07](#images-published-from-verified-main-no-releases-before-100-env-07)
+(ENV-04's versioned release before each merge and its `action-check` gate are
+retired). `tests/images/` (`make test-images`, CI) checks the built images,
+including a build from a checkout with planted secrets and the Action grading
+the static example.
 
 Migration: Compose health checks use Python instead of curl. Deployments that
 run `curl` inside the API or sandbox manager containers must do the same. The
-Action image no longer contains Node.js or `tree`. `@main` follows the latest
-released image rather than building the current commit; consumer workflows
-need no change. The first merge of this change into `main` requires
-`autograder-action:0.6.0` to be released from the merging branch and the new
-GHCR package to be made public, verified with an anonymous `docker manifest
-inspect`, and nothing released may change on that branch after the release
-(a later Wave change to `autograder/`, `github_action/` or `action.yml` needs a
-new version). Before that merge, the repository owner replaces the `main`
-ruleset's stale required checks (`pylint`, `pytest`) with the Verify job names
-and confirms them with `gh api`; until then a red `make action-check` is
-visible but does not block the merge. See
-[Releasing a version](../github_action/README.md#releasing-a-version). GitHub
-Release notes remain manual.
+Action image no longer contains Node.js or `tree`.
 
 ## Closed locale and outcome-code vocabularies (COR-07)
 
@@ -1007,10 +995,10 @@ worker thread while the main thread waits, so `SIGTERM` (turned into
 removing the sandbox (and a container still being created) before the process
 exits, and on every other path before anything is retained or published.
 
-**Pinning.** The Action image ships `sandbox_config.yml`, so each Action
-release pins its runtime image references (content-addressed tags, never
-`:latest` or a local-only tag). `make action-check`, the gate on `main`, now
-also fails unless every pinned runtime image is anonymously pullable.
+**Pinning.** The Action image ships `sandbox_config.yml`, so each published
+Action image pins its runtime image references (content-addressed tags, never
+`:latest` or a local-only tag), and `main` publishes those runtime images with
+it ([ENV-07](#images-published-from-verified-main-no-releases-before-100-env-07)).
 
 **Verification.** The `Packaged Action on a hosted runner` job in `verify.yml`
 runs `uses: ./` on `ubuntu-latest` (static, Python I/O, C I/O, a wrong answer
@@ -1025,6 +1013,57 @@ Linux GitHub-hosted runners with no extra step. Workflows that set
 `SANDBOX_MODE`, `SANDBOX_API_URL` or `SANDBOX_API_TOKEN` for the Action can drop
 them; they are ignored. Runners must provide Docker (all Linux GitHub-hosted
 runners do; macOS and Windows runners cannot run container actions at all). Each
-runtime package on GHCR must be public before a release that pins it reaches
-`main`. Python callers of `DockerHost()` must pass `mode`, and `mode="remote"` an
+runtime package on GHCR must be public for the Action to pull it. Python callers of `DockerHost()` must pass `mode`, and `mode="remote"` an
 `api_url`.
+
+## Images published from verified main; no releases before 1.0.0 (ENV-07)
+
+The maintainers decided there are no releases until the refactor is complete;
+the first is 1.0.0. ENV-04's flow (a versioned image released from a branch
+before it merges, and the `action-check` gate failing `main` until it was) left
+`action.yml` on `main` naming `autograder-action:0.6.0`, which was never
+published, so every `webtech-network/autograder@main` workflow failed to pull
+it and every pull request into `main` was red. Automated deployment of the API
+to a VPS is retired as well.
+
+`main` is now the channel. In `.github/workflows/verify.yml`, the `publish`
+job (`Publish images from main`) needs every verification job and runs only
+for pushes to `main`. It rebuilds and checks the images from that commit
+(`make test-images`, `make sandbox-build-all`) and runs `make publish-images`
+(`scripts/publish_images.py`), which publishes nothing unless the commit is
+still the head of `origin`'s `main`, then pushes the runtime images not yet
+published (content-derived references, never overwritten), then the API,
+sandbox manager and Action images as `sha-<commit>` (immutable) and `main`
+(moving), and confirms each with the registry as the workflow token sees it.
+Publications run one at a time (`publish-main` concurrency group). `action.yml`
+runs `docker://ghcr.io/webtech-network/autograder-action:main`. A test ties
+that reference to what the script publishes, and frame tests check the job
+graph: publication needs every verification job, no job deploys, uses a
+secret other than `GITHUB_TOKEN`, tags, releases or runs the retired
+`action-check`, and only the `publish` job can push images. `sandbox-images.yml`
+is folded in: its pull-request run duplicated the `docker` job, and its
+publication is this job's first step. The images carry
+`org.opencontainers.image.source`, so GHCR links each package to this
+repository and the workflow token can push it. No check depends on a release
+or on package visibility: a still-private package is a warning of the publish
+job, never a red pull request.
+
+`@main` reads `action.yml` from the head of `main` but runs the image of the
+newest verified commit, so while a commit is being verified the two can differ
+by that commit; a commit that fails verification publishes nothing. Before
+1.0.0 no `uses:` ref is reproducible: every ref runs `:main`. The 1.0.0 release
+re-tags a verified commit's `sha-<commit>` images as `1.0.0` and tags a commit,
+outside `main`, whose only change pins `runs.image` to that version
+([The 1.0.0 release](../github_action/README.md#the-100-release-plan)).
+
+Migration: consumer workflows need no change. An organization admin makes each
+package public once, after `main` first publishes it (`autograder-action` and
+every `autograder-sandbox-<name>` for runners; `autograder-api` and
+`autograder-sandbox-manager` if deployments pull anonymously). The `Deploy API`
+job, its secrets (`SERVER_HOST`, `SERVER_USER`, `SSH_PRIVATE_KEY`,
+`DEPLOY_PATH`, `GHCR_PULL_TOKEN`) and the `autograder-api:latest` tag are gone:
+operators upgrade by hand ([Upgrade runbook](../operate/deployment.md#upgrade-runbook))
+from a published `sha-<commit>`, and the repository secrets can be deleted.
+The `Release Action image` and `Deploy API` jobs leave the publication side of
+the [required checks](../guides/development.md#required-checks); the required
+verification jobs are unchanged.

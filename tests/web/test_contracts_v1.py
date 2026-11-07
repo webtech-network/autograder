@@ -133,6 +133,31 @@ async def test_validation_rejects_before_storage_and_normalizes(test_client):
 
 
 @pytest.mark.asyncio
+async def test_validation_errors_name_the_offending_field_and_suggest_identifiers(test_client):
+    """ONB-06: cross-field errors point at their field (request validation keeps its
+    ``body`` prefix and pydantic error type as code), with no pydantic message prefix;
+    compilation errors suggest the identifier the author meant."""
+    value = definition()
+    value["criteria"]["base"]["weight"] = 60
+    value["preparation"] = {"languages": {"java": {}}}
+    for endpoint, body, prefix in (("/api/v1/configs/validate", value, ["body"]),
+                                   ("/api/v1/configs", {"external_assignment_id": "bad", "definition": value},
+                                    ["body", "definition"])):
+        response = await test_client.post(endpoint, json=body)
+        assert response.status_code == 422
+        [error] = response.json()["detail"]
+        assert error == {"path": [*prefix, "criteria", "base", "weight"], "code": "value_error",
+                         "message": "base weight must equal 100; bonus and penalty weights are caps"}
+    value = definition()
+    value["templates"] = ["input_outptu"]
+    response = await test_client.post("/api/v1/configs/validate", json=value)
+    assert response.status_code == 422
+    assert response.json()["detail"][0] == {
+        "code": "UNKNOWN_TEMPLATE", "path": ["templates", 0],
+        "message": "Unknown template `input_outptu`; did you mean `input_output`?"}
+
+
+@pytest.mark.asyncio
 async def test_revision_identity_activation_and_nulls(test_client):
     config = await create(test_client)
     endpoint = f'/api/v1/configs/{config["id"]}'

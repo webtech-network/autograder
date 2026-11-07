@@ -1,4 +1,5 @@
 """Versioned, provider-free grading definition and pure compilation boundary."""
+import difflib
 import hashlib
 import json
 from pathlib import PurePosixPath
@@ -172,13 +173,50 @@ class GradingDefinition(StrictModel):
     def validate_structure(self):
         for field in ('templates', 'languages'):
             values = getattr(self, field)
-            if len(set(values)) != len(values) or any(not value.strip() or value != value.strip() for value in values):
-                raise ValueError(f"{field} must contain distinct nonempty canonical identifiers")
+            for index, value in enumerate(values):
+                if not value.strip() or value != value.strip() or value in values[:index]:
+                    raise FieldError(f"{field} must contain distinct nonempty canonical identifiers", field, index)
         if self.criteria.base.weight != 100:
-            raise ValueError("base weight must equal 100; bonus and penalty weights are caps")
-        if not set(self.preparation.languages).issubset(self.languages):
-            raise ValueError("preparation languages must be allowed by the definition")
+            raise FieldError("base weight must equal 100; bonus and penalty weights are caps",
+                             'criteria', 'base', 'weight')
+        for language in self.preparation.languages:
+            if language not in self.languages:
+                raise FieldError(f"preparation for `{language}` is never used: add it to `languages` "
+                                 f"({', '.join(self.languages)}) or remove it", 'preparation', 'languages', language)
         return self
+
+
+class FieldError(ValueError):
+    """A rule a model checks across fields, broken by one of them.
+
+    ``path`` is relative to the model that raises it; compilation and the HTTP
+    host append it to pydantic's location, so the error names that field instead
+    of the model (``criteria.base.weight`` rather than the whole definition).
+    """
+
+    def __init__(self, message: str, *path: str | int):
+        super().__init__(message)
+        self.path = path
+
+
+def validation_error_detail(item: dict) -> tuple[tuple, str]:
+    """The JSON path and plain message of one pydantic error item (``ValidationError.errors()``).
+
+    A :class:`FieldError` extends the path to its field; a validator's own
+    message is returned without pydantic's "Value error, " prefix.
+    """
+    error = (item.get('ctx') or {}).get('error')
+    if isinstance(error, FieldError):
+        return (*item['loc'], *error.path), str(error)
+    if item['type'] in ('value_error', 'assertion_error') and isinstance(error, Exception):
+        return tuple(item['loc']), str(error)
+    return tuple(item['loc']), item['msg']
+
+
+def suggestion(value: str, candidates, describe=lambda match: f"`{match}`") -> str:
+    """``"; did you mean `x`?"`` for the closest candidate, or nothing when none is close."""
+    matches = difflib.get_close_matches(value, list(candidates), n=1)
+    return f"; did you mean {describe(matches[0])}?" if matches else ""
 
 
 class DefinitionValidationError(ValueError):
@@ -195,8 +233,20 @@ def _error(code, path, message):
 
 
 def _pydantic_errors(exc, prefix=()):
-    return [_error('INVALID_DEFINITION', (*prefix, *item['loc']), item['msg'])
-            for item in exc.errors(include_url=False, include_input=False)]
+    return [_error('INVALID_DEFINITION', (*prefix, *path), message)
+            for path, message in map(validation_error_detail, exc.errors(include_url=False, include_input=False))]
+
+
+def _parameter_errors(exc, prefix, evaluator, schema):
+    """Parameter errors; an unknown parameter names the evaluator's closest one or lists them."""
+    accepted = list(schema.model_fields)
+    errors = _pydantic_errors(exc, prefix)
+    for item, error in zip(exc.errors(include_url=False, include_input=False), errors):
+        if item['type'] == 'extra_forbidden' and len(item['loc']) == 1:
+            name = str(item['loc'][0])
+            error['message'] = (f"`{evaluator}` has no parameter `{name}`"
+                                + (suggestion(name, accepted) or f"; it accepts: {', '.join(accepted) or 'none'}"))
+    return errors
 
 
 def walk_tests(criteria):
@@ -322,7 +372,9 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         try:
             template = available[identifier]
         except KeyError:
-            errors.append(_error('UNKNOWN_TEMPLATE', ('templates', index), 'Unknown template identifier'))
+            errors.append(_error('UNKNOWN_TEMPLATE', ('templates', index), f"Unknown template `{identifier}`"
+                                 + (suggestion(identifier, available)
+                                    or f"; available templates: {', '.join(sorted(available))}")))
             continue
         try:
             if not isinstance(template, Template):
@@ -347,7 +399,8 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
             except ValueError as exc:
                 errors.append(_error('INVALID_PATH', (*path, 'file'), str(exc)))
         if test.type not in registry:
-            errors.append(_error('UNKNOWN_EVALUATOR', (*path, 'type'), 'Evaluator is not registered in selected templates'))
+            errors.append(_error('UNKNOWN_EVALUATOR', (*path, 'type'),
+                                 _unknown_evaluator(test.type, {**BUILTIN_TEMPLATES, **selected})))
             continue
         function = registry[test.type]
         from autograder.models.contracts.parameter_contract import RUNTIME_PARAMETERS
@@ -358,7 +411,7 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
         try:
             normalized = function.config_schema.model_validate(test.parameters, strict=True, extra="forbid").model_dump(mode='json')
         except ValidationError as exc:
-            errors.extend(_pydantic_errors(exc, (*path, 'parameters')))
+            errors.extend(_parameter_errors(exc, (*path, 'parameters'), test.type, function.config_schema))
             continue
         except (ValueError, TypeError) as exc:
             errors.append(_error('INVALID_PARAMETER_CONTRACT', (*path, 'parameters'), str(exc)))
@@ -404,6 +457,22 @@ def _compile(value, templates: Mapping[str, Template] | None, *, canonical: bool
             'bytes; reduce the number of criteria or the size of their parameters')])
     return CompiledDefinition._create(snapshot, definition_hash(definition), tree, selected,  # pylint: disable=protected-access
                                       outcome_bytes)
+
+
+def _unknown_evaluator(name, templates):
+    """Which template provides ``name`` (one the definition does not list), or the closest evaluator.
+
+    ``templates`` are the valid ones: the selected templates and the built-in library.
+    """
+    providers = {}
+    for identifier, template in templates.items():
+        for evaluator in template.get_tests():
+            providers.setdefault(evaluator, identifier)
+    if name in providers:
+        return (f"Evaluator `{name}` is provided by template `{providers[name]}`, "
+                "which is not listed in `templates`")
+    return f"Unknown evaluator `{name}`" + suggestion(
+        name, providers, lambda match: f"`{match}` (template `{providers[match]}`)")
 
 
 def definition_hash(definition: GradingDefinition) -> str:

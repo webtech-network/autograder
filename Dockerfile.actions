@@ -1,5 +1,5 @@
-# The GitHub Action (github_action/): grades one checkout. Released as
-# ghcr.io/webtech-network/autograder-action:<version>, the image action.yml pins.
+# The GitHub Action (github_action/): grades one checkout. Published from main as
+# ghcr.io/webtech-network/autograder-action:main, the image action.yml runs.
 #
 # Build context: the repository root, filtered by the allow-list in .dockerignore.
 # Python dependencies come only from uv.lock (base dependencies only: no web,

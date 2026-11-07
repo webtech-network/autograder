@@ -201,3 +201,48 @@ the control API's limit are 1 MiB. Evaluators assess output up to this bound.
 The terminal outcome keeps only a bounded excerpt of any report that quotes it
 ([OUTCOMES.md](OUTCOMES.md#size-bounds)).
 
+## Cost of a process
+
+Each process costs two Docker execs on top of the program itself: the runner
+(as `sandbox`), which `exec`s the program, and the collector (as `root`), which
+sweeps, reports the counters and reads both outputs back. The two are kept
+because they run as different users. `root` holds only `KILL` and
+`DAC_OVERRIDE` (see [SANDBOX.md](SANDBOX.md)), so it cannot start the program
+as `sandbox` itself, and the program must never be able to signal the process
+that confirms its termination. Merging them would need `SETUID`/`SETGID` for
+`root` and a deadline enforced inside the container. That trades away
+isolation and attribution guarantees for about one exec round trip.
+
+The sandbox's 0.5 CPU quota is what makes this cost visible. Everything an exec
+runs in the container is charged to that quota: the control scripts, their
+helper processes, the program, and under gVisor the Sentry's own work. So a
+test's wall time is roughly twice the CPU it uses. Under gVisor each helper
+process that a script forks costs about as much CPU as a small program (about 3
+ms, so about 6 ms of wall time). The runner therefore forks nothing: text stdin
+up to 48 KiB is one argument, written with a shell builtin. The collector forks
+five helpers, a `stat` and a `head` for each output and one `rm`. Outputs come
+back as raw bytes, whose sizes the collector reports first, not as base64. A
+real-container test counts the pids a run allocates and keeps the number of
+helpers at five or fewer.
+
+Medians of `run_process` for a program that upper-cases one line, over 3 rounds
+of 40 runs each, under the shipped profile (Intel Core i5-12400, 12 threads,
+Docker 29.9, gVisor release-20260209.1, load average 2–4 from other jobs):
+
+| Runtime | Python | Java | C |
+| --- | --- | --- | --- |
+| gVisor | 122 ms | 164 ms | 67 ms |
+| runc | 103 ms | 110 ms | 83 ms |
+
+In complete gradings of the capacity benchmark's python-io workload
+([JOBS.md](JOBS.md#capacity-benchmark)), run in process with one warm sandbox,
+a test's marginal cost (the difference between 21 tests and 1 test, divided by
+20, as the median of 3 rounds of 5 gradings) is 126 ms under gVisor, where a
+21-test grading takes 2.8 s, and 154 ms under runc
+([decisions](DECISIONS.md#per-test-sandbox-cost-prf-08)).
+
+The rest of a test's cost is the program itself and the two exec round trips.
+One exec round trip takes about 30 ms under either runtime. Under runc it also
+charges about 18 ms of CPU to the container, because runc sets up each exec
+inside it. Starting the interpreter or JVM takes about 60–70 ms. With runc,
+forks are cheap, so most of the remaining cost is the two execs.

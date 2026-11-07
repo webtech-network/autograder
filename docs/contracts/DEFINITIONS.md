@@ -147,14 +147,22 @@ The unimplemented AI reporter and unknown preferences are rejected.
 | Multilanguage I/O | [multi-language](https://github.com/webtech-network/autograder/blob/main/examples/definitions/multi-language-io.json) | [missing command](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/missing-command-language.json), [shell operator](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/shell-operator-command.json) |
 | Artifact | [file artifact](https://github.com/webtech-network/autograder/blob/main/examples/definitions/file-artifact.json) | Absolute/traversal artifact paths are invalid |
 | API | [API](https://github.com/webtech-network/autograder/blob/main/examples/definitions/api.json) | [endpoint type](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/api-invalid-endpoint.json) |
-| Web/static | [webdev](https://github.com/webtech-network/autograder/blob/main/examples/definitions/webdev.json), [import penalty](https://github.com/webtech-network/autograder/blob/main/examples/definitions/io-with-import-penalty.json) | [parameter typo](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/web-parameter-typo.json), [zero threshold](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/zero-presence-threshold.json) |
+| Web/static | [webdev](https://github.com/webtech-network/autograder/blob/main/examples/definitions/webdev.json), [import penalty](https://github.com/webtech-network/autograder/blob/main/examples/definitions/io-with-import-penalty.json) | [parameter typo](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/web-parameter-typo.json), [zero threshold](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/zero-presence-threshold.json), [misspelled template](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/misspelled-template.json) |
+| Structure | [python-io](https://github.com/webtech-network/autograder/blob/main/examples/definitions/python-io.json) | [base weight](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/base-weight-not-100.json), [unused preparation language](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/preparation-language-not-allowed.json) |
 | AI/static | [AI algorithm](https://github.com/webtech-network/autograder/blob/main/examples/definitions/static-ai.json) | [empty algorithm](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/ai-empty-algorithm.json) |
 | Nested feedback | [weighted groups](https://github.com/webtech-network/autograder/blob/main/examples/definitions/nested-with-feedback.json) | [duplicate ID](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/duplicate-criterion-id.json) |
 
 [Invalid-example manifest](https://github.com/webtech-network/autograder/blob/main/examples/definitions/invalid/manifest.json) records exact errors.
-For example: `{"code":"INVALID_DEFINITION","path":["criteria","base","tests",0,"parameters","input"],"message":"Extra inputs are not permitted"}`.
-HTTP adds envelope/body components to paths for Pydantic request errors. Errors
-never echo input files/provider credentials.
+For example: ``{"code":"INVALID_DEFINITION","path":["criteria","base","tests",0,"parameters","input"],"message":"`expect_output` has no parameter `input`; did you mean `inputs`?"}``.
+Each error's path names the offending field, cross-field rules included (base
+weight: `["criteria","base","weight"]`; an unused preparation language:
+`["preparation","languages","java"]`), and messages carry no Pydantic prefix.
+Unknown templates, evaluators and parameters name the closest identifier, or the
+template that provides an evaluator the definition does not list. HTTP adds
+envelope/body components to paths for Pydantic request errors and reports their
+Pydantic type as `code`. Errors never echo input files/provider credentials.
+`python -m execution_host.check` prints the same errors offline
+([Test your rubric](../author/testing.md)).
 
 ## Definitions in the pre-v1 format
 

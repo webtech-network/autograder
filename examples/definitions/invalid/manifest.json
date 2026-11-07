@@ -12,7 +12,7 @@
           "parameters",
           "input"
         ],
-        "message": "Extra inputs are not permitted"
+        "message": "`expect_output` has no parameter `input`; did you mean `inputs`?"
       }
     ]
   },
@@ -46,7 +46,7 @@
           "parameters",
           "tagg"
         ],
-        "message": "Extra inputs are not permitted"
+        "message": "`has_tag` has no parameter `tagg`; did you mean `tag`?"
       }
     ]
   },
@@ -156,6 +156,58 @@
           "program_command"
         ],
         "message": "`&&` is shell syntax, but commands run without a shell, so it would reach the program as an argument. Put build steps such as compilation in preparation.setup_commands (one command each), quote the operator to pass it literally, or use sh -c '...' only for a real pipeline."
+      }
+    ]
+  },
+  {
+    "file": "base-weight-not-100.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "criteria",
+          "base",
+          "weight"
+        ],
+        "message": "base weight must equal 100; bonus and penalty weights are caps"
+      }
+    ]
+  },
+  {
+    "file": "preparation-language-not-allowed.json",
+    "errors": [
+      {
+        "code": "INVALID_DEFINITION",
+        "path": [
+          "preparation",
+          "languages",
+          "java"
+        ],
+        "message": "preparation for `java` is never used: add it to `languages` (python) or remove it"
+      }
+    ]
+  },
+  {
+    "file": "misspelled-template.json",
+    "errors": [
+      {
+        "code": "UNKNOWN_TEMPLATE",
+        "path": [
+          "templates",
+          0
+        ],
+        "message": "Unknown template `web_dev`; did you mean `webdev`?"
+      },
+      {
+        "code": "UNKNOWN_EVALUATOR",
+        "path": [
+          "criteria",
+          "base",
+          "tests",
+          0,
+          "type"
+        ],
+        "message": "Evaluator `has_tag` is provided by template `webdev`, which is not listed in `templates`"
       }
     ]
   }

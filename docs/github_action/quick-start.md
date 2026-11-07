@@ -39,6 +39,22 @@ and none of the workflow's tokens, and removes it before the step ends
 ([requirements](README.md#requirements)). CI runs exactly this workflow on every
 change to the Action.
 
+## Check the definition first
+
+Before students push, check the definition and grade a reference solution with
+it. From a checkout of this repository (`uv sync`), with the reference solution
+in a directory:
+
+```sh
+python -m execution_host.check .github/autograder/definition.json --submission solution
+```
+
+The command compiles the definition exactly as the Action does, prints each
+error at its JSON path, and grades each `--submission` directory as the Action
+reads a checkout, with sandboxes on the local Docker. Its options, exit
+statuses and a CI workflow that runs it are in
+[Test your rubric](../author/testing.md#2-grade-your-own-submissions).
+
 ## Results
 
 The Action summary shows status and authoritative score. The artifact contains

@@ -92,3 +92,24 @@ def check_budget(budget: ExecutionBudget, max_session_seconds: float | None) -> 
     if max_session_seconds is not None and budget.session_seconds > max_session_seconds:
         raise EvaluationError("EXECUTION_BUDGET_EXCEEDED",
                               "The definition needs more execution time than this host grants.", "capability")
+
+
+def budget_problems(compiled: CompiledDefinition, languages, max_session_seconds: float | None) -> list[dict]:
+    """``EXECUTION_BUDGET_EXCEEDED`` for each of ``languages`` whose execution budget is longer
+    than a host granting ``max_session_seconds`` allows: such a grading could never run there."""
+    from autograder.services.assessment import EXECUTION_CAPABILITIES  # pylint: disable=import-outside-toplevel
+    if max_session_seconds is None:
+        return []
+    problems = []
+    for language in languages:
+        requirements = requirements_for(compiled, Language(language))
+        seconds = requirements.budget.session_seconds
+        if requirements.capabilities & EXECUTION_CAPABILITIES and seconds > max_session_seconds:
+            problems.append({
+                "code": "EXECUTION_BUDGET_EXCEEDED", "path": ["languages", str(language)],
+                "message": (f"In {language}, the worst case of the declared process deadlines "
+                            f"({requirements.budget.processes} processes, {requirements.budget.process_seconds:g} s) "
+                            f"needs a {seconds:g} s sandbox; this host grants at most {max_session_seconds:g} s. "
+                            "Remove criteria or setup commands, or raise the host's running_timeout."),
+            })
+    return problems

@@ -1,8 +1,9 @@
-"""Verification commands, their CI wiring and the deploy gate (ENV-06, #427).
+"""Verification commands, their CI wiring and the publication gate (ENV-06 #427, ENV-07 #472).
 
 Contributors and CI run the same Makefile targets. CI runs on every pull
-request, invokes only those targets, and deployment waits for every
-verification job of the same commit.
+request, invokes only those targets, and image publication waits for every
+verification job of the same commit. Nothing deploys, and before 1.0.0 nothing
+is released.
 """
 # pylint: disable=missing-function-docstring
 import os
@@ -20,8 +21,8 @@ VERIFY = WORKFLOWS / "verify.yml"
 PINNED = re.compile(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}")
 #: Status functions that would let a job run after a failed dependency.
 STATUS_OVERRIDES = ("always()", "failure()", "cancelled()")
-#: Jobs that publish (deploy the service, release the Action image); every other job verifies.
-PUBLICATION = {"deploy", "action-release"}
+#: The job that publishes the verified images of main; every other job verifies.
+PUBLICATION = {"publish"}
 
 
 def makefile_targets() -> tuple[set[str], set[str]]:
@@ -95,7 +96,8 @@ def test_ci_runs_on_every_pull_request_and_on_main():
     triggers = workflow(VERIFY)["on"]
     assert triggers["pull_request"] in (None, {})  # no branch or path filter
     assert triggers["push"] == {"branches": ["main"]}
-    assert triggers["workflow_dispatch"] in (None, {})  # the Action release, on any ref
+    # No hand-run release before 1.0.0: only pull requests and main run, and publish.
+    assert set(triggers) == {"pull_request", "push"}
 
 
 def test_ci_invokes_only_make_targets():
@@ -103,7 +105,7 @@ def test_ci_invokes_only_make_targets():
     jobs = workflow(VERIFY)["jobs"]
     commands = {name: [line.strip() for step in job["steps"] if "run" in step
                        for line in step["run"].strip().splitlines()]
-                for name, job in jobs.items() if name != "deploy"}
+                for name, job in jobs.items()}
     for name, lines in commands.items():
         assert lines, name
         for line in lines:
@@ -132,9 +134,8 @@ def test_publication_waits_for_every_verification_job():
     for name in PUBLICATION:
         assert set(jobs[name]["needs"]) == set(jobs) - PUBLICATION, name
         assert not any(override in jobs[name]["if"] for override in STATUS_OVERRIDES)
-    assert jobs["deploy"]["if"] == "github.event_name == 'push' && github.ref == 'refs/heads/main'"
-    # The Action image is published before main can name it (see the pin check below).
-    assert jobs["action-release"]["if"] == "github.event_name == 'workflow_dispatch'"
+    # Only pushes to main publish: a pull request verifies and publishes nothing.
+    assert jobs["publish"]["if"] == "github.event_name == 'push' && github.ref == 'refs/heads/main'"
     # A red step or job that is allowed to fail would still count as success.
     for name, job in jobs.items():
         assert "continue-on-error" not in job, name
@@ -142,54 +143,41 @@ def test_publication_waits_for_every_verification_job():
             assert "continue-on-error" not in step, f"{name}: {step}"
 
 
-def test_deploy_skips_a_commit_that_is_no_longer_the_head_of_main():
-    # Verification time differs per commit, so an older commit can finish last;
-    # deploying it would roll production and `latest` back.
-    deploy = workflow(VERIFY)["jobs"]["deploy"]
-    assert deploy["concurrency"] == {"group": "deploy-production", "cancel-in-progress": False}
-    check, *rest = deploy["steps"]
-    assert check["id"] == "head"
-    assert "git/ref/heads/main" in check["run"] and "GITHUB_SHA" in check["run"]
-    assert "${{" not in check["run"]  # expressions reach the script only through env
-    assert rest
-    for step in rest:
-        assert step.get("if") == "steps.head.outputs.current == 'true'", step
+def test_publication_pushes_exactly_the_images_it_has_just_built_and_checked():
+    publish = workflow(VERIFY)["jobs"]["publish"]
+    commands = [step["run"].strip() for step in publish["steps"] if "run" in step]
+    # Rebuilt from this commit and checked (service, Action and runtime images), then
+    # pushed by `make publish-images`, which publishes nothing unless this commit is
+    # still the head of main (scripts/publish_images.py).
+    assert commands[-3:] == ["make test-images", "make sandbox-build-all", "make publish-images"]
+    # Publications run one at a time, and a queued one is never cancelled by a running one.
+    assert publish["concurrency"] == {"group": "publish-main", "cancel-in-progress": False}
+    assert publish["permissions"] == {"contents": "read", "packages": "write"}
 
 
-def test_only_the_gated_job_deploys_the_service():
+def test_only_the_gated_job_can_push_images():
     for path in WORKFLOWS.glob("*.yml"):
-        for name, job in workflow(path)["jobs"].items():
+        data = workflow(path)
+        for name, job in data["jobs"].items():
             text = yaml.safe_dump(job)
-            if "SSH_PRIVATE_KEY" in text or "push: true" in text:
-                assert (path, name) == (VERIFY, "deploy")
+            if ("packages" in job.get("permissions", {}) or "docker/login-action" in text
+                    or "push: true" in text or "publish-images" in text):
+                assert (path, name) == (VERIFY, "publish"), f"{path.name}: {name}"
+        assert "packages" not in data.get("permissions", {}), path.name
 
 
-def test_only_the_gated_release_job_publishes_the_action_image():
-    jobs = workflow(VERIFY)["jobs"]
-    release = jobs["action-release"]
-    assert release["concurrency"] == {"group": "action-release", "cancel-in-progress": False}
-    commands = [step["run"].strip() for step in release["steps"] if "run" in step]
-    # It publishes exactly the image it has just built and tested from this commit.
-    assert commands[-2:] == ["make test-images", "make action-publish"]
+def test_nothing_deploys_and_nothing_is_released_before_1_0_0():
+    # ENV-07: the VPS deployment is retired, and there is no versioned release,
+    # git tag or GitHub Release before 1.0.0, so no check waits for one.
     for path in WORKFLOWS.glob("*.yml"):
-        for name, job in workflow(path)["jobs"].items():
-            if "action-publish" in yaml.safe_dump(job):
-                assert (path, name) == (VERIFY, "action-release")
-    assert "make test-images" in [step.get("run", "").strip() for step in jobs["images"]["steps"]]
-
-
-def test_main_only_ever_pins_a_published_action_image():
-    # Every documented consumer uses `webtech-network/autograder@main`: a pull
-    # request into main, and main itself, fail while action.yml pins an image an
-    # anonymous runner cannot pull (missing, or a private package).
-    images = workflow(VERIFY)["jobs"]["images"]
-    gate = [step for step in images["steps"] if step.get("run", "").strip() == "make action-check"]
-    assert len(gate) == 1
-    assert gate[0]["if"] == "github.base_ref == 'main' || github.ref == 'refs/heads/main'"
-    assert "docker/login-action" not in yaml.safe_dump(images)  # anonymous, like a consumer's runner
-    # It asks whether the release tag is an ancestor of this commit: a shallow clone cannot tell.
-    checkout = images["steps"][0]
-    assert checkout["uses"].startswith("actions/checkout@") and checkout["with"]["fetch-depth"] == 0
+        text = path.read_text(encoding="utf-8")
+        assert "ssh-action" not in text and "SSH_PRIVATE_KEY" not in text, path.name
+        assert not re.findall(r"secrets\.(?!GITHUB_TOKEN\b)\w+", text), path.name
+        for forbidden in ("git tag", "git push", "gh release", "action-check", "action-publish"):
+            assert forbidden not in text, f"{path.name}: {forbidden}"
+    assert set(workflow(VERIFY)["jobs"]) & {"deploy", "action-release"} == set()
+    defined, _ = makefile_targets()
+    assert defined & {"action-check", "action-publish"} == set()
 
 
 def test_the_documented_required_checks_are_exactly_the_verification_jobs():
@@ -201,7 +189,6 @@ def test_the_documented_required_checks_are_exactly_the_verification_jobs():
     section = guide.split("### Required checks", 1)[1].split("\n### ", 1)[0]
     required = set(re.findall(r"^- `([^`]+)`", section, re.M))
     assert required == verification
-    assert "Service and Action images" in required  # runs `make action-check` into main
 
 
 def test_third_party_actions_are_pinned_to_commits():

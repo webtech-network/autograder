@@ -7,8 +7,8 @@ quick-start inputs plus the fixture's ``definition-path`` and ``submission-root`
 
 ``prepare`` (``make action-fixtures``) writes the fixture checkouts under
 ``.action-fixtures/`` and points ``action.yml`` at ``Dockerfile.actions``, so the
-runner builds the Action image from this commit instead of pulling the released
-one. A runtime image the registry does not serve anonymously yet (a pull request
+runner builds the Action image from this commit instead of pulling the one
+`main` published. A runtime image the registry does not serve anonymously yet (a pull request
 that changes ``sandbox_manager/images``, or a package not yet made public) is
 built from this checkout under its versioned reference; otherwise the Action
 pulls it itself, as on a consumer's runner.

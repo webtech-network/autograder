@@ -126,6 +126,11 @@ Action's single on-demand sandbox on the runner's Docker), `S3FixtureProvider` (
 `ConfiguredAssessmentProvider` (OpenAI, configured from the environment; one
 lazily built client per host with a 180 s request deadline and no SDK retries). A new
 host or provider is a new value here or in a host, not a core change.
+`collect_files` (`submission_files.py`) reads a directory as a submission for the
+Action and for the author's check, `python -m execution_host.check` (`check.py`):
+`compile_definition`, then `evaluate_submission` of reference directories with a
+`RunnerHost`, and no grading logic of its own
+([Test your rubric](../author/testing.md)).
 
 ## Hosts (`web/`, `github_action/`)
 

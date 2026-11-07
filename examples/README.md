@@ -13,6 +13,18 @@ directory (`tests/unit/test_shipped_examples.py`).
 | `contracts/` | Runnable trusted-Python examples | [Adding an evaluator](../docs/architecture/extending.md) |
 | `demo/` | The browser demo | See below |
 
+## Check an example
+
+Check a definition, then grade a submission with it (code-running criteria use
+a sandbox on the local Docker), from the repository root:
+
+```sh
+python -m execution_host.check examples/tutorial/python-io/definition.json --submission examples/tutorial/python-io/good
+python -m execution_host.check examples/assets/web_dev/definition.json --submission examples/assets/web_dev
+```
+
+See [Test your rubric](../docs/author/testing.md).
+
 ## Trusted Python examples
 
 Run them offline from the repository root:

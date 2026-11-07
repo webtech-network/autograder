@@ -13,9 +13,11 @@ file of the checkout (``.env``, ``.venv``, ``data/``...) can enter an image.
 """
 import argparse
 import hashlib
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Mapping, Optional, Sequence, Tuple
@@ -26,6 +28,8 @@ IMAGES_DIR = Path(__file__).resolve().parents[1] / "sandbox_manager" / "images"
 #: Same value as ``sandbox_manager.manager.RUNTIME_LANGUAGES_LABEL`` (this script needs no project imports).
 LANGUAGES_LABEL = "autograder.runtime.languages"
 _ABSENT = re.compile(r"no such manifest|manifest unknown|name unknown|not found|denied", re.IGNORECASE)
+#: What a client without credentials is told for a reference it cannot pull.
+_NOT_PULLABLE = re.compile(_ABSENT.pattern + "|unauthorized", re.IGNORECASE)
 _LANGUAGES = re.compile(r'^LABEL\s+' + re.escape(LANGUAGES_LABEL) + r'="([^"]+)"', re.MULTILINE)
 
 
@@ -77,13 +81,28 @@ def build(images: Sequence[RuntimeImage], *, no_cache: bool = False) -> None:
 
 def published(ref: str, env: Optional[Mapping[str, str]] = None) -> bool:
     """Whether the registry has ``ref``. An unexpected answer is an error, never "absent"."""
+    # "denied" is how GHCR answers for a package that does not exist yet; a
+    # token that truly lacks access is refused by the push that follows.
+    return _served(ref, _ABSENT, env)
+
+
+def anonymously_pullable(ref: str) -> bool:
+    """Whether a client without credentials, such as a hosted runner, can pull ``ref``.
+
+    GHCR tells such a client "unauthorized" for an existing private package and
+    "denied" for one that does not exist; neither is pullable. Any other answer
+    is an error, as in :func:`published`.
+    """
+    with tempfile.TemporaryDirectory() as anonymous:
+        return _served(ref, _NOT_PULLABLE, {**os.environ, "DOCKER_CONFIG": anonymous})
+
+
+def _served(ref: str, refusal: "re.Pattern[str]", env: Optional[Mapping[str, str]]) -> bool:
     found = subprocess.run(["docker", "manifest", "inspect", ref], capture_output=True, text=True, check=False,
                            env=env)
     if found.returncode == 0:
         return True
-    if _ABSENT.search(found.stderr):
-        # "denied" is how GHCR answers for a package that does not exist yet; a
-        # token that truly lacks access is refused by the push that follows.
+    if refusal.search(found.stderr):
         return False
     raise RuntimeError(f"cannot tell whether {ref} is published: {found.stderr.strip()}")
 
