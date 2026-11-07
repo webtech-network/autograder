@@ -90,7 +90,7 @@ newest *verified* commit. While a new commit is being verified (up to about 45
 minutes) the two can differ by that commit; a commit that fails verification
 publishes nothing, so `main` keeps the last verified image. Any `uses:` ref
 other than a release tag, including a commit SHA, runs that moving `main` image.
-The tags older than 1.0.0 (`0.1.0`–`0.5.0`, `1.1.2`, `v1`, `v0.0.0-285-test`)
+The tags older than 1.0.0 (`0.0.2`–`0.5.0`, `1.1.2`, `v1`, `v0.0.0-285-test`)
 do not run this Action; see
 [upgrading to 1.0.0](../contracts/DECISIONS.md#upgrading-to-100).
 

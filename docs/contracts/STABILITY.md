@@ -15,12 +15,17 @@ them incompatibly:
 
 | Surface | Defined by |
 | --- | --- |
-| Grading definition: its JSON shape, `schema_version`, evaluator identifiers and their parameters | [Definitions](DEFINITIONS.md), the checked-in JSON Schema, the [evaluator reference](../reference/evaluators.md) |
-| Terminal outcome: its JSON shape, `schema_version`, statuses and error codes and categories | [Outcomes](OUTCOMES.md), the checked-in JSON Schema |
+| Grading definition format 2.0 (`"schema_version": "2.0"`): its JSON shape, evaluator identifiers and their parameters | [Definitions](DEFINITIONS.md), the checked-in JSON Schema, the [evaluator reference](../reference/evaluators.md) |
+| Terminal outcome format 1.0 (`"schema_version": "1.0"`): its JSON shape, provenance, statuses and error codes and categories | [Outcomes](OUTCOMES.md), the checked-in JSON Schema |
 | Python API: the names `autograder` exports in `__all__`, and the evaluator authoring contract | [Catalog and Python API](CATALOG.md), [Adding an evaluator](../architecture/extending.md) |
 | HTTP API: the routes under `/api/v1`, their bodies, status codes and authentication | [REST API](../API.md), the checked-in [OpenAPI document](v1/openapi.json), [HTTP trust boundary](AUTH.md) |
 | GitHub Action: inputs, outputs and the files it writes under `.autograder/` | [Action configuration](../github_action/configuration.md), `action.yml` |
 | Host configuration: documented environment variables and `sandbox_config.yml` keys | [Configuration reference](../operate/configuration.md) |
+
+A format's `schema_version` changes only when its shape changes incompatibly,
+and only in a major release; the engine reads one definition format, and the
+offline converter (`python -m autograder.services.definition_migration`)
+converts earlier ones.
 
 A change is **major** when an input these surfaces accepted is rejected, a
 documented field, route, input, output, setting or code is removed or renamed,

@@ -258,6 +258,36 @@ def test_this_checkout_declares_one_version_with_a_changelog_section():
                      rf"{re.escape(version)}$", changelog, re.M)
 
 
+def github_anchors(markdown: str) -> set[str]:
+    """The heading anchors GitHub's file view gives ``markdown``: the release notes link there."""
+    anchors, seen = set(), {}
+    for heading in re.findall(r"^#{1,6}[ \t]+(.+?)[ \t]*#*$", re.sub(r"^```.*?^```", "", markdown, flags=re.M | re.S),
+                              re.M):
+        text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", heading)
+        slug = re.sub(r"[^\w\- ]", "", text.lower()).replace(" ", "-")
+        anchors.add(f"{slug}-{seen[slug]}" if slug in seen else slug)
+        seen[slug] = seen.get(slug, 0) + 1
+    return anchors
+
+
+def test_github_anchors_follow_githubs_heading_slugs():
+    assert github_anchors("## Upgrading to 1.0.0\n### Processes (ARC-08, COR-01)\n## `a` & [b](x.md)\n"
+                          "```\n## code\n```\n## Upgrading to 1.0.0\n") == {
+        "upgrading-to-100", "processes-arc-08-cor-01", "a--b", "upgrading-to-100-1"}
+
+
+def test_every_link_of_the_changelog_reaches_its_file_and_heading():
+    """The release notes are the changelog section with these links pointed at the tagged files."""
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    links = re.findall(r"\]\((?!https?:|mailto:)([^)\s#]*)(?:#([^)\s]+))?\)", changelog)
+    assert len(links) > 20
+    for target, anchor in links:
+        page = ROOT / target if target else ROOT / "CHANGELOG.md"
+        assert page.is_file(), target
+        if anchor:
+            assert anchor in github_anchors(page.read_text(encoding="utf-8")), f"{target}#{anchor}"
+
+
 def test_the_http_and_sandbox_apis_report_the_release_version():
     from sandbox_manager.api import app  # pylint: disable=import-outside-toplevel
     from web.main import create_app  # pylint: disable=import-outside-toplevel

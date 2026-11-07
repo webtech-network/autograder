@@ -107,7 +107,7 @@ kept here so that the contracts describe only current behaviour.
 ### Upgrading to 1.0.0
 
 1.0.0 is the first release. The tags before it (`0.0.2`–`0.5.0`, `1.1.2`, `v1`,
-`v2`, `v0.0.0-285-test`) and the deployments built from `main` before the
+`v0.0.0-285-test`) and the deployments built from `main` before the
 refactor ([#363](https://github.com/webtech-network/autograder/issues/363)) are
 not maintained, and nothing of them is compatible with 1.0.0. The
 [changelog](https://github.com/webtech-network/autograder/blob/main/CHANGELOG.md)
@@ -122,11 +122,13 @@ and `setup.json` from `.github/autograder/` (or a `template-preset` or
    converter ([Definitions](#definitions)), then check the result and grade a
    reference solution with `python -m execution_host.check`
    ([Test your rubric](../author/testing.md)). Feedback settings move into the
-   definition's `feedback`.
+   definition's `feedback`. A repository that followed `main` with a format
+   1.0 `definition.json` runs the same converter on it: the result is format
+   2.0 with the same criterion IDs, weights and scores.
 2. Pin the release: `uses: webtech-network/autograder@1.0.0`.
 3. Remove the inputs `template-preset`, `custom-template`, `feedback-type`,
    `include-feedback`, `github-token`, `app-token` and `openai-key` (and
-   `redis_url`, `redis_token` and the underscore spellings of `v1` and `v2`).
+   `redis_url`, `redis_token` and the underscore spellings of `v1`).
    AI criteria read `OPENAI_API_KEY` from the step's `env`. The job needs only
    `contents: read`: nothing commits feedback or updates Classroom checks.
 4. Read the `status`, `score` and `result-path` outputs instead of `result`
@@ -146,7 +148,7 @@ runner has it ([Requirements](../github_action/README.md#requirements)).
 1. Send `Authorization: Bearer <integration token>` on every route except
    health, readiness and the template catalog
    ([HTTP authentication](#http-authentication-int-01)).
-2. Create configurations with one v1 definition (validate first with
+2. Create configurations with one format 2.0 definition (validate first with
    `POST /api/v1/configs/validate`) and update them with conditional `PATCH`
    ([REST API](../API.md)).
 3. Treat `POST /api/v1/submissions` as acceptance (`202` and `Location`), poll
@@ -159,11 +161,19 @@ runner has it ([Requirements](../github_action/README.md#requirements)).
    Send `locale` as `en` or `pt-br`.
 5. Read the catalog's `evaluators[].identifier` and `required_capabilities`
    ([Catalog](#catalog-int-11-onb-08)).
+6. Send and store format 2.0 definitions, and re-read stored configurations
+   after the upgrade: the server converts them into a new revision, so a stale
+   `If-Match` gets `412`. Accept `provenance.schema_version` `"1.0"` (history)
+   or `"2.0"`, read `definition_snapshot` in the format that provenance names,
+   and attest only 2.0 snapshots ([Definitions](#definitions)).
 
 **Operators of the HTTP service.**
 
 1. Back up the database and drain the old API, then bring the schema under
-   migrations ([Existing databases](JOBS.md#existing-databases)).
+   migrations ([Existing databases](JOBS.md#existing-databases)). The
+   migrations convert stored definitions to format 2.0 and log the
+   configurations they quarantine; PATCH a corrected definition and reactivate
+   each one ([Definitions](#definitions)).
 2. Remove the [retired variables](../operate/configuration.md#retired-variables),
    set `AUTOGRADER_INTEGRATION_TOKEN` and `SANDBOX_API_TOKEN`, and write
    `sandbox_config.yml` from the shipped one: `general.runtime`,

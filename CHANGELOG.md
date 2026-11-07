@@ -27,9 +27,9 @@ breaking change below is marked **Breaking**.
   `webtech-network/autograder@<version>` is reproducible
   ([Releases](docs/github_action/README.md#releases)); a
   [stability policy](docs/contracts/STABILITY.md) and this changelog.
-- The grading definition v1 and terminal outcome v1 contracts, with
-  generated JSON Schemas, checked-in valid and invalid examples, and stable
-  criterion IDs ([Definitions](docs/contracts/DEFINITIONS.md),
+- The grading definition format 2.0 and terminal outcome format 1.0
+  contracts, with generated JSON Schemas, checked-in valid and invalid
+  examples, and stable criterion IDs ([Definitions](docs/contracts/DEFINITIONS.md),
   [Outcomes](docs/contracts/OUTCOMES.md)).
 - Configuration resources with canonical IDs, assignment aliases, revisions and
   conditional `PATCH`; every accepted execution binds the definition snapshot,
@@ -61,6 +61,10 @@ breaking change below is marked **Breaking**.
 - One host-wide sandbox budget (`general.max_sandboxes`) where saturation waits
   instead of failing, and one execution time budget per grading, enforced
   inside every sandbox ([Sandbox capacity](docs/contracts/JOBS.md#sandbox-capacity)).
+  On 12 CPUs, throughput at 24 workers rises from 164 to 280 gradings per
+  minute, and an oversubscribed host completes every submission instead of
+  failing most with `CAPABILITY_UNAVAILABLE`
+  ([PRF-01 sweep](docs/contracts/JOBS.md#prf-01-beforeafter-sweep)).
 - Startup checks: `python -m web.main --check` validates the API configuration,
   the API refuses a database at another migration revision, and hosts verify
   the pinned runtime images and the isolation runtime before serving.
@@ -76,13 +80,28 @@ breaking change below is marked **Breaking**.
   fields are rejected, and the offline converter
   `python -m autograder.services.definition_migration` converts old definitions
   ([Definitions](docs/contracts/DECISIONS.md#definitions)).
-<!-- ONB-07 (#433): pending its pull request; confirm this entry against the merged change before releasing. -->
-- **Breaking:** the authoring vocabulary is simplified: a definition no longer
-  lists `templates` or `criteria.base.weight`, `type` alone resolves an
-  evaluator, and groups and tests share one label field, I/O evaluators one
-  stdin parameter and presence checks one threshold name. Stored definitions
-  convert with the offline converter and a database migration
-  ([#433](https://github.com/webtech-network/autograder/issues/433)).
+<!-- ONB-07: written from pull request #482, which must merge into refactor/363 before this one; then link #definition-format-20-onb-07 instead of #definitions. -->
+- **Breaking:** definition format 2.0 (`"schema_version": "2.0"`) gives each
+  idea one name. A definition lists no `templates`: `type` alone resolves the
+  evaluator, and a `type` that two available templates provide is
+  `AMBIGUOUS_EVALUATOR`. `criteria.base.weight` is gone (base is the 0–100
+  score); bonus and penalty set `max_points` instead of `weight`; subjects are
+  labelled `name` instead of `subject_name` and weighted as ratios like tests;
+  `dont_fail` takes `inputs` instead of `user_input`; `has_style` takes
+  `required_count` instead of `count`; `check_bootstrap_usage` is renamed
+  `has_no_bootstrap`; `has_no_js_framework` and `count_unused_css_classes` take
+  no file-name parameters and read every HTML and JavaScript (or CSS) file.
+  The engine reads only 2.0 and rejects a 1.0 definition with
+  `UNSUPPORTED_SCHEMA_VERSION`. The offline converter maps 1.0 and older
+  definitions with the same criterion IDs, weights and scores, and reports what
+  it cannot map (`CONVERSION_REJECTED`). Migration `011` converts stored
+  configurations into a new revision (a stale `If-Match` gets `412`),
+  quarantines those that do not convert, rebinds queued submissions, and keeps
+  finished submissions with their 1.0 snapshots, which still verify and
+  compare. The terminal outcome format stays 1.0; its
+  `provenance.schema_version` names the format of the bound snapshot, and
+  attestations bind 2.0 snapshots
+  ([Definitions](docs/contracts/DECISIONS.md#definitions)).
 - **Breaking:** definitions that compiled but could not grade correctly are
   rejected: an explicit presence threshold of `0`, an empty forbid or find
   list, a standalone shell operator in a command, and a definition whose
@@ -95,7 +114,7 @@ breaking change below is marked **Breaking**.
   polling is compact, and authenticated details carry the files as objects
   (`submission_files[name].content`)
   ([Submission details](docs/contracts/DECISIONS.md#submission-details)).
-- **Breaking:** results are the terminal outcome v1. A grading that could not
+- **Breaking:** results are the terminal outcome, format 1.0. A grading that could not
   finish is `failed` with a null score and a coded error, never a zero; a
   student program's nonzero exit or timeout is an assessed zero; the
   sandbox's end is attributed from host evidence. `retryable: true` means the
@@ -135,13 +154,24 @@ breaking change below is marked **Breaking**.
 - **Breaking:** migrations own the database schema; the API never creates
   tables and refuses any revision but its own head
   ([Existing databases](docs/contracts/JOBS.md#existing-databases)).
-- Student runtimes are Python 3.13, Java 21, Node.js 24 and GCC 15.
+- Student runtimes are Python 3.13, Java 21, Node.js 24 and GCC 15;
+  `autograder/models/language.py` is the one list of languages, a definition
+  that allows several requires the submission to name one, and hosts map each
+  language to a runtime image ([Languages](docs/contracts/LANGUAGES.md)).
+- The project is one locked Python 3.13 package installed with `uv`
+  (`make install`).
+- Fixtures are fetched uncached from the host's fixture provider; a missing
+  fixture is a non-retryable `PREPARATION_ERROR`
+  ([Host capabilities](docs/contracts/CAPABILITIES.md)).
+- Feedback is generated only when the definition enables it; a disabled
+  report does no work and stays `disabled`.
 - The API, sandbox manager and Action images contain only what their process
   imports; the AI provider is built once per host with a 180 s deadline and no
   hidden retries.
 - Grading is faster: each web document is parsed once per grading, files,
   fixture sets and large stdin are staged in one transfer, and a sandboxed
-  process costs about a third less under gVisor
+  process costs about a third less under gVisor and forks at most five helper
+  processes, a bound the Docker tier measures inside each control exec
   ([Per-test sandbox cost](docs/contracts/DECISIONS.md#per-test-sandbox-cost-prf-08)).
 - The documentation is organized around authoring, integrating, extending and
   operating, with executed examples.
@@ -176,6 +206,10 @@ breaking change below is marked **Breaking**.
 - A submission can no longer turn its grade into an infrastructure failure by
   killing the sandbox's processes, and a host-ended sandbox no longer
   fabricates a zero.
+- A shell diagnostic in a sandbox's readback no longer displaces the process
+  report, which could turn an assessed result into a retryable
+  `SANDBOX_ERROR`: control reports are read from stdout alone
+  ([Who ended a run](docs/contracts/PROCESSES.md#who-ended-a-run)).
 - Accepted HTTP submissions are no longer lost on restart.
 - Sandbox containers are disposed of exactly once and never reused between
   gradings; a failed removal is retried and counted against capacity.
