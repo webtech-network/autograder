@@ -20,8 +20,7 @@ and every submission is graded against it:
 
 | Field | What it says |
 | --- | --- |
-| `schema_version` | Always `"1.0"`. |
-| `templates` | The families of checks the criteria use, such as `input_output` or `webdev`. |
+| `schema_version` | Always `"2.0"`. |
 | `languages` | The languages a student may submit in. |
 | `criteria` | What is checked and how much each check is worth: the rubric. |
 | `preparation` | Files the submission must contain and commands that build it. |
@@ -75,7 +74,8 @@ scores 0 for that criterion, and the student sees why.
 ### Group the checks the way you would grade by hand
 
 A rubric reads better in groups. A *subject* holds criteria (and further
-subjects) under a heading the student sees. Here two output checks make up
+subjects) under a heading the student sees: its `name`, as for a criterion. Its
+`weight` works like a criterion's too. Here two output checks make up
 the "Adds two numbers" subject, and a `dont_fail` check, which only requires
 the program to finish without crashing, makes up "Handles bad input". The
 subject weights, 80 and 20, say that adding correctly is worth four times as
@@ -86,10 +86,9 @@ much as surviving bad input.
 {
   "criteria": {
     "base": {
-      "weight": 100,
       "subjects": [
         {
-          "subject_name": "Adds two numbers",
+          "name": "Adds two numbers",
           "weight": 80,
           "tests": [
             {
@@ -105,14 +104,14 @@ much as surviving bad input.
           ]
         },
         {
-          "subject_name": "Handles bad input",
+          "name": "Handles bad input",
           "weight": 20,
           "tests": [
             {
               "id": "text-input",
               "type": "dont_fail",
               "name": "Does not crash on text input",
-              "parameters": {"program_command": "python3 main.py", "user_input": "abc"}
+              "parameters": {"program_command": "python3 main.py", "inputs": ["abc"]}
             }
           ]
         }
@@ -127,9 +126,10 @@ much as surviving bad input.
 "Do not use `eval`" is a rule, not a skill, so it belongs in the `penalty`
 category. A penalty criterion is written as the behaviour you *want*: the
 `forbidden_keyword` check scores 100 when the student did not call `eval`, and
-the penalty deducts only what is missing from 100. [Scores](scoring.md#penalty)
-explains the rule and the arithmetic. `forbidden_keyword` is in the
-`static_analysis` template, so the definition lists both templates.
+the penalty deducts only what is missing from 100, at most the category's
+`max_points`. [Scores](scoring.md#penalty) explains the rule and the
+arithmetic. Any evaluator in the reference can be used: its `type` is all the
+definition names.
 
 ### The complete definition
 
@@ -139,15 +139,13 @@ missing. `feedback` turns on the student report.
 
 ```json
 {
-  "schema_version": "1.0",
-  "templates": ["input_output", "static_analysis"],
+  "schema_version": "2.0",
   "languages": ["python"],
   "criteria": {
     "base": {
-      "weight": 100,
       "subjects": [
         {
-          "subject_name": "Adds two numbers",
+          "name": "Adds two numbers",
           "weight": 80,
           "tests": [
             {
@@ -173,21 +171,21 @@ missing. `feedback` turns on the student report.
           ]
         },
         {
-          "subject_name": "Handles bad input",
+          "name": "Handles bad input",
           "weight": 20,
           "tests": [
             {
               "id": "text-input",
               "type": "dont_fail",
               "name": "Does not crash on text input",
-              "parameters": {"program_command": "python3 main.py", "user_input": "abc"}
+              "parameters": {"program_command": "python3 main.py", "inputs": ["abc"]}
             }
           ]
         }
       ]
     },
     "penalty": {
-      "weight": 20,
+      "max_points": 20,
       "tests": [
         {
           "id": "no-eval",
@@ -228,21 +226,19 @@ message before any check runs.
 
 This rubric adds the two optional categories:
 
-* `bonus` criteria add extra credit. Its `weight` is the most it can add: 10
+* `bonus` criteria add extra credit. Its `max_points` is the most it can add: 10
   points here.
-* `penalty` criteria take points away. Its `weight` is the most it can take.
+* `penalty` criteria take points away. Its `max_points` is the most it can take.
 
 ```json
 {
-  "schema_version": "1.0",
-  "templates": ["webdev"],
+  "schema_version": "2.0",
   "languages": ["node"],
   "criteria": {
     "base": {
-      "weight": 100,
       "subjects": [
         {
-          "subject_name": "HTML structure",
+          "name": "HTML structure",
           "weight": 40,
           "tests": [
             {
@@ -266,7 +262,7 @@ This rubric adds the two optional categories:
           ]
         },
         {
-          "subject_name": "Styling",
+          "name": "Styling",
           "weight": 30,
           "tests": [
             {
@@ -284,7 +280,7 @@ This rubric adds the two optional categories:
           ]
         },
         {
-          "subject_name": "Interactivity",
+          "name": "Interactivity",
           "weight": 30,
           "tests": [
             {
@@ -301,7 +297,7 @@ This rubric adds the two optional categories:
       ]
     },
     "bonus": {
-      "weight": 10,
+      "max_points": 10,
       "tests": [
         {
           "id": "responsive",
@@ -312,7 +308,7 @@ This rubric adds the two optional categories:
       ]
     },
     "penalty": {
-      "weight": 10,
+      "max_points": 10,
       "tests": [
         {
           "id": "no-inline-styles",
@@ -358,12 +354,10 @@ Only the selected language's preparation and command are used.
 
 ```json
 {
-  "schema_version": "1.0",
-  "templates": ["input_output"],
+  "schema_version": "2.0",
   "languages": ["c", "java"],
   "criteria": {
     "base": {
-      "weight": 100,
       "tests": [
         {
           "id": "zero",
@@ -398,7 +392,7 @@ Only the selected language's preparation and command are used.
       ]
     },
     "bonus": {
-      "weight": 10,
+      "max_points": 10,
       "tests": [
         {
           "id": "twenty",

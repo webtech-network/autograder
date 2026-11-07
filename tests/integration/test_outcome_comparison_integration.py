@@ -59,8 +59,8 @@ def test_mixed_subject_and_test_weights_match_canonical_tree(split, expected):
     grouped['id'] = 'grouped'
     grouped['parameters'] = {'forbidden_imports':['os']}
     value['criteria']['base']['subjects_weight'] = split
-    value['criteria']['base']['subjects'] = [{'subject_name':'Nested','weight':100,
-        'subjects':[{'subject_name':'Inner','weight':100,'tests':[grouped]}]}]
+    value['criteria']['base']['subjects'] = [{'name':'Nested','weight':100,
+        'subjects':[{'name':'Inner','weight':100,'tests':[grouped]}]}]
     execution = build_pipeline(definition=value).run(submission('import os'))
     assert execution.outcome.status == 'completed'
     assert execution.outcome.score == expected
@@ -73,11 +73,11 @@ def test_bonus_and_penalty_caps_are_validated_against_leaf_scores():
     value['criteria']['base']['tests'][0]['parameters']={'forbidden_imports':['sys']}
     test = deepcopy(value['criteria']['base']['tests'][0])
     test['id'] = 'bonus'
-    value['criteria']['bonus']={'weight':25,'tests':[test]}
+    value['criteria']['bonus']={'max_points':25,'tests':[test]}
     test = deepcopy(test)
     test['id'] = 'penalty'
     test['parameters']={'forbidden_imports':['os']}
-    value['criteria']['penalty']={'weight':50,'tests':[test]}
+    value['criteria']['penalty']={'max_points':50,'tests':[test]}
     execution = build_pipeline(definition=value).run(submission('import os'))
     assert execution.outcome.score == 75
     assert outcome_score_vector(execution.outcome) == {'imports':100,'bonus':100,'penalty':0}
@@ -100,8 +100,8 @@ def review_template():
 
 
 def ai_definition():
-    return {'schema_version':'1.0','templates':['review'],'languages':['python'],
-            'criteria':{'base':{'weight':100,'tests':[
+    return {'schema_version':'2.0','languages':['python'],
+            'criteria':{'base':{'tests':[
                 {'id':identity,'type':'review','name':'Repeated display label','parameters':{}}
                 for identity in ['first','second']]}}}
 

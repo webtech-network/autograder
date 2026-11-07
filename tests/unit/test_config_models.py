@@ -8,18 +8,18 @@ from autograder.models.contracts.definition import (
     DefinitionValidationError, compile_definition, grading_definition_json_schema,
     select_language,
 )
-from autograder.services.definition_migration import convert_legacy_definition
+from autograder.services.definition_migration import convert_definition
 from autograder.models.frozen import thaw
 
 
-def definition(evaluator='forbidden_import', parameters=None, templates=None):
-    return {'schema_version':'1.0','templates':templates or ['static_analysis'],'languages':['python'],
-            'criteria':{'base':{'weight':100,'tests':[{'id':'first','type':evaluator,'name':'First',
+def definition(evaluator='forbidden_import', parameters=None):
+    return {'schema_version':'2.0','languages':['python'],
+            'criteria':{'base':{'tests':[{'id':'first','type':evaluator,'name':'First',
                 'parameters':parameters if parameters is not None else {'forbidden_imports':['os']}}]}}}
 
 
 def test_compile_is_pure_and_normalized_parameters_are_executed():
-    value=definition('expect_output',{'program_command':'python3 main.py','expected_output':'ok'},['input_output'])
+    value=definition('expect_output',{'program_command':'python3 main.py','expected_output':'ok'})
     with patch('boto3.client', side_effect=AssertionError('provider')), patch('sandbox_manager.manager.SandboxManager',side_effect=AssertionError('sandbox')):
         compiled=compile_definition(value)
     params=thaw(compiled.criteria_tree.base.tests[0].parameters)
@@ -39,7 +39,7 @@ def test_defaults_and_json_key_order_have_stable_hash():
 
 
 @pytest.mark.parametrize('mutate,path',[
-    (lambda v:v.update(schema_version='2.0'),['schema_version']),
+    (lambda v:v.update(schema_version='3.0'),['schema_version']),
     (lambda v:v.update(languages=['Python']),['languages',0]),
     (lambda v:v.update(languages=[]),['languages']),
     (lambda v:v.update(unknown='ignored?'),['unknown']),
@@ -53,7 +53,11 @@ def test_defaults_and_json_key_order_have_stable_hash():
     (lambda v:v['criteria']['base']['tests'][0]['parameters'].update(locale='pt'),['criteria','base','tests',0,'parameters','locale']),
     (lambda v:v['criteria']['base']['tests'][0].update(file='../private.py'),['criteria','base','tests',0,'file']),
     (lambda v:v['criteria']['base']['tests'][0].update(type='unknown'),['criteria','base','tests',0,'type']),
-    (lambda v:v.update(templates=['unknown']),['templates',0]),
+    # Fields of format 1.0 are rejected, never ignored.
+    (lambda v:v.update(templates=['static_analysis']),['templates']),
+    (lambda v:v['criteria']['base'].update(weight=100),['criteria','base','weight']),
+    (lambda v:v['criteria'].update(bonus={'weight':10,'tests':v['criteria']['base']['tests']}),['criteria','bonus','weight']),
+    (lambda v:v['criteria']['base'].update(subjects_weight=50,subjects=[{'subject_name':'S','tests':[]}]),['criteria','base','subjects',0,'subject_name']),
 ])
 def test_rejections_have_precise_paths(mutate,path):
     value=definition();mutate(value)
@@ -64,14 +68,14 @@ def test_rejections_have_precise_paths(mutate,path):
 
 def test_duplicate_ids_are_rejected_across_categories_and_nested_subjects():
     value=definition()
-    value['criteria']['bonus']={'weight':10,'subjects':[{'subject_name':'a/b','weight':1,'tests':[deepcopy(value['criteria']['base']['tests'][0])]}]}
+    value['criteria']['bonus']={'max_points':10,'subjects':[{'name':'a/b','weight':1,'tests':[deepcopy(value['criteria']['base']['tests'][0])]}]}
     with pytest.raises(DefinitionValidationError) as failure:
         compile_definition(value)
     assert failure.value.errors()[0]['code']=='DUPLICATE_CRITERION_ID'
 
 
 def test_command_map_must_cover_every_allowed_language():
-    value=definition('expect_output',{'expected_output':'','program_command':{'python':'python3 main.py'}},['input_output'])
+    value=definition('expect_output',{'expected_output':'','program_command':{'python':'python3 main.py'}})
     value['languages']=['python','java']
     with pytest.raises(DefinitionValidationError) as failure:
         compile_definition(value)
@@ -98,15 +102,15 @@ def test_preparation_and_feedback_are_typed_and_have_single_shapes():
 
 def test_offline_converter_preserves_names_weights_and_rejects_ambiguity():
     old={'template_name':'static_analysis','languages':['python'],'grading_criteria':{'base':{'weight':50,'tests':[{'name':'Imports','type':'forbidden_import','weight':7,'file':'main.py','parameters':[{'name':'forbidden_imports','value':['os']},{'name':'submission_language','value':'java'}]}]}}}
-    result=convert_legacy_definition(old)
+    result=convert_definition(old).definition
     test=result['criteria']['base']['tests'][0]
     assert test['id']=='base-tests-0' and test['name']=='Imports' and test['weight']==7
-    assert result['criteria']['base']['weight']==100
+    assert 'weight' not in result['criteria']['base']  # the ignored legacy base weight is gone
     assert test['parameters']=={'forbidden_imports':['os']}
     old['grading_criteria']['base']['tests'][0]['parameters'].append({'name':'forbidden_imports','value':['math']})
     with pytest.raises(DefinitionValidationError) as failure:
-        convert_legacy_definition(old)
-    assert failure.value.errors()[0]['code']=='LEGACY_CONVERSION_REJECTED'
+        convert_definition(old)
+    assert failure.value.errors()[0]['code']=='CONVERSION_REJECTED'
 
 
 def test_checked_in_schema_is_current():
@@ -131,9 +135,9 @@ def test_invalid_examples_have_documented_error_paths():
 
 
 def test_known_legacy_display_parameter_moves_to_display_name():
-    result=convert_legacy_definition({'template_name':'static_analysis','languages':['python'],
+    result=convert_definition({'template_name':'static_analysis','languages':['python'],
         'grading_criteria':{'base':{'weight':100,'tests':[{'name':'forbidden_import',
-        'parameters':[{'name':'forbidden_imports','value':['os']},{'name':'display_name','value':'No OS imports'}]}]}}})
+        'parameters':[{'name':'forbidden_imports','value':['os']},{'name':'display_name','value':'No OS imports'}]}]}}}).definition
     test=result['criteria']['base']['tests'][0]
     assert test['name']=='No OS imports' and test['parameters']=={'forbidden_imports':['os']}
 
@@ -142,8 +146,8 @@ def test_tiny_subject_weights_normalize_without_infinity():
     value=definition()
     test=value['criteria']['base'].pop('tests')[0]
     value['criteria']['base']['subjects']=[
-        {'subject_name':'First','weight':1e-320,'tests':[test]},
-        {'subject_name':'Second','weight':1e-320,'tests':[{**test,'id':'second'}]},
+        {'name':'First','weight':1e-320,'tests':[test]},
+        {'name':'Second','weight':1e-320,'tests':[{**test,'id':'second'}]},
     ]
     compiled=compile_definition(value)
     assert [subject.weight for subject in compiled.criteria_tree.base.subjects]==[50,50]

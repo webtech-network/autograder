@@ -106,8 +106,8 @@ class TestPipelineLanguageHandling:
         # Create pipeline with preflight step (which uses sandbox)
         from execution_host.docker import GRADING_CAPACITY_WAIT_SECONDS, docker_capabilities
         pipeline = build_pipeline(capabilities=docker_capabilities(mock_manager), definition={
-            "schema_version": "1.0", "templates": ["input_output"], "languages": ["java"],
-            "criteria": {"base": {"weight": 100, "tests": [{"id": "run", "type": "dont_fail", "name": "Runs",
+            "schema_version": "2.0", "languages": ["java"],
+            "criteria": {"base": {"tests": [{"id": "run", "type": "dont_fail", "name": "Runs",
                           "parameters": {"program_command": "java Test"}}]}}
         })
 

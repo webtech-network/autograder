@@ -50,12 +50,12 @@ def test_a_static_definition_needs_no_sandbox():
 
 
 @pytest.mark.parametrize("name,lines", [
-    ("base-weight-not-100.json",
-     ["criteria.base.weight: base weight must equal 100; bonus and penalty weights are caps [INVALID_DEFINITION]"]),
+    ("removed-base-weight.json",
+     ["criteria.base.weight: The base category has no weight: it is the 0-100 score "
+      "(bonus and penalty categories set `max_points`) [INVALID_DEFINITION]"]),
     ("preparation-language-not-allowed.json", ["preparation.languages.java: preparation for `java`"]),
-    ("misspelled-template.json", [
-        "templates[0]: Unknown template `web_dev`; did you mean `webdev`? [UNKNOWN_TEMPLATE]",
-        "criteria.base.tests[0].type: Evaluator `has_tag` is provided by template `webdev`"]),
+    ("misspelled-evaluator.json", [
+        "criteria.base.tests[0].type: Unknown evaluator `has_tags`; did you mean `has_tag`? [UNKNOWN_EVALUATOR]"]),
     ("web-parameter-typo.json",
      ["criteria.base.tests[0].parameters.tagg: `has_tag` has no parameter `tagg`; did you mean `tag`?"]),
 ])
@@ -80,7 +80,7 @@ def test_every_documented_invalid_example_fails_and_every_valid_one_passes():
 
 def test_malformed_json_names_the_line_and_column(tmp_path):
     path = tmp_path / "definition.json"
-    path.write_text('{\n  "schema_version": "1.0",\n  "templates": [}\n', encoding="utf-8")
+    path.write_text('{\n  "schema_version": "2.0",\n  "languages": [}\n', encoding="utf-8")
     result = check(path)
     assert result.returncode == 1
     assert f"{path}:3:" in result.stdout and "not valid JSON" in result.stdout

@@ -17,8 +17,8 @@ from web.main import create_app
 
 HEADERS = {"Authorization": "Bearer profile-token"}
 DEFINITION = {
-    "schema_version": "1.0", "templates": ["input_output"], "languages": ["python", "c"],
-    "criteria": {"base": {"weight": 100, "tests": [
+    "schema_version": "2.0", "languages": ["python", "c"],
+    "criteria": {"base": {"tests": [
         {"id": "runs", "type": "dont_fail", "name": "Runs", "parameters": {"program_command": "CMD"}}]}},
 }
 

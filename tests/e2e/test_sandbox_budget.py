@@ -43,7 +43,7 @@ FINISH_SECONDS = 300
 # Three I/O criteria share one sandbox per grading and take long enough that
 # the six workers really contend for the two slots.
 PROGRAM = "import time\nname = input()\ntime.sleep(0.5)\nprint(f'Hello, {name}')\n"
-DEFINITION = definition(template="input_output", tests=[
+DEFINITION = definition(tests=[
     {"id": f"greets-{name.lower()}", "name": f"Greets {name}", "type": "expect_output",
      "parameters": {"program_command": "python3 main.py", "inputs": [name], "expected_output": f"Hello, {name}"}}
     for name in ("Ada", "Grace", "Linus")])

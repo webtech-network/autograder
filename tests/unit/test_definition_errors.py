@@ -13,15 +13,15 @@ import pytest
 from autograder import DefinitionValidationError, compile_definition
 
 PYTHON_IO = {
-    "schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-    "criteria": {"base": {"weight": 100, "tests": [
+    "schema_version": "2.0", "languages": ["python"],
+    "criteria": {"base": {"tests": [
         {"id": "sum", "type": "expect_output", "name": "Sum",
          "parameters": {"program_command": "python3 main.py", "inputs": ["1", "2"], "expected_output": "3"}}]}},
     "preparation": {"languages": {"python": {"required_files": ["main.py"]}}},
 }
 WEB = {
-    "schema_version": "1.0", "templates": ["webdev"], "languages": ["node"],
-    "criteria": {"base": {"weight": 100, "tests": [
+    "schema_version": "2.0", "languages": ["node"],
+    "criteria": {"base": {"tests": [
         {"id": "header", "type": "has_tag", "name": "Header", "file": "index.html",
          "parameters": {"tag": "header", "required_count": 1}}]}},
 }
@@ -39,38 +39,39 @@ def first_test(value):
 
 # (case id, definition, code, path, words the message must contain)
 CORPUS = [
-    ("base-weight-not-100", mistake(PYTHON_IO, lambda v: v["criteria"]["base"].update(weight=60)),
-     "INVALID_DEFINITION", ["criteria", "base", "weight"], ["base weight must equal 100"]),
+    # Fields of format 1.0 an author may still write (ONB-07): rejected with what replaced them.
+    ("base-weight-written", mistake(PYTHON_IO, lambda v: v["criteria"]["base"].update(weight=100)),
+     "INVALID_DEFINITION", ["criteria", "base", "weight"], ["base category has no weight", "max_points"]),
+    ("templates-written", mistake(WEB, lambda v: v.update(templates=["web_dev"])),
+     "INVALID_DEFINITION", ["templates"], ["`type` alone"]),
+    ("bonus-weight-written", mistake(PYTHON_IO, lambda v: v["criteria"].update(
+        bonus={"weight": 10, "tests": [{**first_test(v), "id": "extra"}]})),
+     "INVALID_DEFINITION", ["criteria", "bonus", "weight"], ["max_points"]),
+    ("subject-name-field", mistake(PYTHON_IO, lambda v: v["criteria"]["base"].update(
+        tests=None, subjects=[{"subject_name": "IO", "tests": [first_test(v)]}])),
+     "INVALID_DEFINITION", ["criteria", "base", "subjects", 0, "subject_name"], ["`name`"]),
     ("preparation-language-not-allowed",
      mistake(PYTHON_IO, lambda v: v["preparation"]["languages"].update(java={"required_files": ["Main.java"]})),
      "INVALID_DEFINITION", ["preparation", "languages", "java"], ["java", "languages"]),
-    ("duplicate-template", mistake(PYTHON_IO, lambda v: v.update(templates=["input_output", "input_output"])),
-     "INVALID_DEFINITION", ["templates", 1], ["distinct"]),
     ("duplicate-language", mistake(PYTHON_IO, lambda v: v.update(languages=["python", "python"])),
      "INVALID_DEFINITION", ["languages", 1], ["distinct"]),
-    ("template-misspelled", mistake(WEB, lambda v: v.update(templates=["web_dev"])),
-     "UNKNOWN_TEMPLATE", ["templates", 0], ["web_dev", "did you mean `webdev`"]),
-    ("template-unknown", mistake(WEB, lambda v: v.update(templates=["html"])),
-     "UNKNOWN_TEMPLATE", ["templates", 0], ["input_output", "static_analysis", "webdev"]),
-    ("evaluator-template-not-listed", mistake(WEB, lambda v: v.update(templates=["input_output"])),
-     "UNKNOWN_EVALUATOR", ["criteria", "base", "tests", 0, "type"], ["`has_tag`", "template `webdev`", "templates"]),
     ("evaluator-misspelled", mistake(WEB, lambda v: first_test(v).update(type="has_tags")),
      "UNKNOWN_EVALUATOR", ["criteria", "base", "tests", 0, "type"], ["has_tags", "did you mean `has_tag`"]),
     ("parameter-misspelled", mistake(WEB, lambda v: first_test(v)["parameters"].update(tagg="nav")),
      "INVALID_DEFINITION", ["criteria", "base", "tests", 0, "parameters", "tagg"], ["did you mean `tag`"]),
-    ("parameter-alias-of-another-evaluator",
-     mistake(PYTHON_IO, lambda v: first_test(v).update(type="dont_fail")),
-     "INVALID_DEFINITION", ["criteria", "base", "tests", 0, "parameters", "inputs"],
-     ["`dont_fail` has no parameter `inputs`", "did you mean `user_input`"]),
+    ("stdin-under-its-1.0-name", mistake(PYTHON_IO, lambda v: first_test(v).update(
+        type="dont_fail", parameters={"program_command": "python3 main.py", "user_input": "3"})),
+     "INVALID_DEFINITION", ["criteria", "base", "tests", 0, "parameters", "user_input"],
+     ["`dont_fail` has no parameter `user_input`", "did you mean `inputs`"]),
     ("parameter-of-another-evaluator",
      mistake(PYTHON_IO, lambda v: first_test(v).update(
          type="dont_fail", parameters={"program_command": "python3 main.py", "expected_output": "3"})),
      "INVALID_DEFINITION", ["criteria", "base", "tests", 0, "parameters", "expected_output"],
      ["`dont_fail` has no parameter `expected_output`", "it accepts:", "program_command"]),
-    ("empty-category", mistake(PYTHON_IO, lambda v: v["criteria"].update(bonus={"weight": 10})),
+    ("empty-category", mistake(PYTHON_IO, lambda v: v["criteria"].update(bonus={"max_points": 10})),
      "INVALID_DEFINITION", ["criteria", "bonus"], ["at least 'tests' or 'subjects'"]),
     ("mixed-group-without-split", mistake(PYTHON_IO, lambda v: v["criteria"]["base"].update(
-        subjects=[{"subject_name": "More", "weight": 1, "tests": [{**first_test(v), "id": "more"}]}])),
+        subjects=[{"name": "More", "weight": 1, "tests": [{**first_test(v), "id": "more"}]}])),
      "INVALID_DEFINITION", ["criteria", "base"], ["subjects_weight"]),
     ("duplicate-criterion-id", mistake(PYTHON_IO, lambda v: v["criteria"]["base"]["tests"].append(first_test(v))),
      "DUPLICATE_CRITERION_ID", ["criteria", "base", "tests", 1, "id"], ["unique"]),
@@ -111,14 +112,24 @@ def test_messages_carry_no_pydantic_prefixes(value):
         assert not error["message"].startswith(("Value error,", "Assertion failed,")), error
 
 
-def test_a_template_typo_also_explains_every_criterion_that_uses_it():
-    value = mistake(WEB, lambda v: v.update(templates=["web_dev"]))
-    with pytest.raises(DefinitionValidationError) as failure:
-        compile_definition(value)
-    codes = [(error["code"], error["path"]) for error in failure.value.errors()]
-    assert codes == [("UNKNOWN_TEMPLATE", ["templates", 0]),
-                     ("UNKNOWN_EVALUATOR", ["criteria", "base", "tests", 0, "type"])]
-    assert "template `webdev`" in failure.value.errors()[1]["message"]
+#: Phase 5 mistakes that format 1.0 rejected and 2.0 makes impossible (ONB-07): the
+#: author's intent, written without the removed ceremony, now compiles.
+NO_LONGER_MISTAKES = [
+    # was "base-weight-not-100": the base category has no weight to get wrong.
+    ("base-weight", PYTHON_IO),
+    # were "template-misspelled", "template-unknown", "duplicate-template" and
+    # "evaluator-template-not-listed": `type` alone resolves the evaluator.
+    ("evaluators-from-several-templates", mistake(WEB, lambda v: v["criteria"]["base"]["tests"].append(
+        {"id": "imports", "type": "forbidden_import", "name": "No fs", "parameters": {"forbidden_imports": ["fs"]}}))),
+    # was "parameter-alias-of-another-evaluator": stdin is `inputs` for every I/O evaluator.
+    ("one-stdin-name", mistake(PYTHON_IO, lambda v: first_test(v).update(
+        type="dont_fail", parameters={"program_command": "python3 main.py", "inputs": ["1", "2"]}))),
+]
+
+
+@pytest.mark.parametrize("value", [case[1] for case in NO_LONGER_MISTAKES], ids=[case[0] for case in NO_LONGER_MISTAKES])
+def test_removed_ceremony_leaves_nothing_to_get_wrong(value):
+    compile_definition(value)
 
 
 def test_an_unknown_name_with_no_close_match_suggests_nothing():

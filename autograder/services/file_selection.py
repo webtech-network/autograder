@@ -24,12 +24,6 @@ def select_files(
     """Resolve and validate every selected criterion without dropping it from the tree."""
     evaluator = test.test_function
     targets = test.file_target
-    parameter_targets = [test.parameters[name] for name in evaluator.file_parameters if test.parameters.get(name)]
-    if parameter_targets:
-        if targets is not None and not set(parameter_targets).issubset(targets):
-            raise _explained("FILE_TARGET_CONFLICT", "Criterion file parameters conflict with its targets.",
-                             "preflight.error.parameter_target_conflict", test, files=sorted(set(parameter_targets) - set(targets)))
-        targets = parameter_targets
     scoped = set(scope.scoped_files) if scope is not None else None
     if targets is not None:
         missing = [name for name in targets if name not in submission_files]

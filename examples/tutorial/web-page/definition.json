@@ -1,13 +1,11 @@
 {
-  "schema_version": "1.0",
-  "templates": ["webdev"],
+  "schema_version": "2.0",
   "languages": ["node"],
   "criteria": {
     "base": {
-      "weight": 100,
       "subjects": [
         {
-          "subject_name": "HTML structure",
+          "name": "HTML structure",
           "weight": 40,
           "tests": [
             {
@@ -31,7 +29,7 @@
           ]
         },
         {
-          "subject_name": "Styling",
+          "name": "Styling",
           "weight": 30,
           "tests": [
             {
@@ -49,7 +47,7 @@
           ]
         },
         {
-          "subject_name": "Interactivity",
+          "name": "Interactivity",
           "weight": 30,
           "tests": [
             {
@@ -66,7 +64,7 @@
       ]
     },
     "bonus": {
-      "weight": 10,
+      "max_points": 10,
       "tests": [
         {
           "id": "responsive",
@@ -77,7 +75,7 @@
       ]
     },
     "penalty": {
-      "weight": 10,
+      "max_points": 10,
       "tests": [
         {
           "id": "no-inline-styles",

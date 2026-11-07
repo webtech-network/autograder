@@ -59,8 +59,8 @@ def _test(test_id, command, expected=None):
 
 
 def grade(manager, tests):
-    definition = {"schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-                  "criteria": {"base": {"weight": 100, "tests": tests}}}
+    definition = {"schema_version": "2.0", "languages": ["python"],
+                  "criteria": {"base": {"tests": tests}}}
     pipeline = build_pipeline(definition=definition, capabilities=docker_capabilities(manager))
     files = {name: SubmissionFile(name, content) for name, content in PROGRAMS.items()}
     return pipeline.run(Submission("s", "s", "a", files, language=Language.PYTHON)).outcome

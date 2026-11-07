@@ -16,8 +16,8 @@ def integration_token(monkeypatch):
 
 
 def definition(feedback):
-    return {"schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": [
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": [
                 {"id": "imports", "type": "forbidden_import", "name": "Imports / os", "weight": 3,
                  "parameters": {"forbidden_imports": ["os"]}},
                 {"id": "loops", "type": "forbidden_keyword", "name": "Imports / os", "weight": 1,

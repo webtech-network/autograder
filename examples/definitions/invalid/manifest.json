@@ -160,7 +160,7 @@
     ]
   },
   {
-    "file": "base-weight-not-100.json",
+    "file": "removed-base-weight.json",
     "errors": [
       {
         "code": "INVALID_DEFINITION",
@@ -169,7 +169,7 @@
           "base",
           "weight"
         ],
-        "message": "base weight must equal 100; bonus and penalty weights are caps"
+        "message": "The base category has no weight: it is the 0-100 score (bonus and penalty categories set `max_points`)"
       }
     ]
   },
@@ -188,16 +188,8 @@
     ]
   },
   {
-    "file": "misspelled-template.json",
+    "file": "misspelled-evaluator.json",
     "errors": [
-      {
-        "code": "UNKNOWN_TEMPLATE",
-        "path": [
-          "templates",
-          0
-        ],
-        "message": "Unknown template `web_dev`; did you mean `webdev`?"
-      },
       {
         "code": "UNKNOWN_EVALUATOR",
         "path": [
@@ -207,7 +199,7 @@
           0,
           "type"
         ],
-        "message": "Evaluator `has_tag` is provided by template `webdev`, which is not listed in `templates`"
+        "message": "Unknown evaluator `has_tags`; did you mean `has_tag`?"
       }
     ]
   }

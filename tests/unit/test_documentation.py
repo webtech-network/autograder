@@ -72,7 +72,7 @@ def merged(base, fragment):
     """``fragment`` deep-merged into ``base``; a criterion fragment becomes the base's only criterion."""
     result = deepcopy(base)
     if "type" in fragment:
-        result["criteria"] = {"base": {"weight": 100, "tests": [fragment]}}
+        result["criteria"] = {"base": {"tests": [fragment]}}
         return result
 
     def merge(target, source):

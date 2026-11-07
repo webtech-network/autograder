@@ -80,7 +80,6 @@ breaking change below is marked **Breaking**.
   fields are rejected, and the offline converter
   `python -m autograder.services.definition_migration` converts old definitions
   ([Definitions](docs/contracts/DECISIONS.md#definitions)).
-<!-- ONB-07: written from pull request #482, which must merge into refactor/363 before this one; then link #definition-format-20-onb-07 instead of #definitions. -->
 - **Breaking:** definition format 2.0 (`"schema_version": "2.0"`) gives each
   idea one name. A definition lists no `templates`: `type` alone resolves the
   evaluator, and a `type` that two available templates provide is
@@ -101,7 +100,7 @@ breaking change below is marked **Breaking**.
   compare. The terminal outcome format stays 1.0; its
   `provenance.schema_version` names the format of the bound snapshot, and
   attestations bind 2.0 snapshots
-  ([Definitions](docs/contracts/DECISIONS.md#definitions)).
+  ([Definition format 2.0](docs/contracts/DECISIONS.md#definition-format-20-onb-07)).
 - **Breaking:** definitions that compiled but could not grade correctly are
   rejected: an explicit presence threshold of `0`, an empty forbid or find
   list, a standalone shell operator in a command, and a definition whose

@@ -253,7 +253,9 @@ def test_this_checkout_declares_one_version_with_a_changelog_section():
     assert release.VERSION.fullmatch(version)
     assert autograder.__version__ == version  # what the HTTP and sandbox APIs report
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    assert release.changelog_section(changelog, version)
+    section = release.changelog_section(changelog, version)
+    assert section
+    assert "<!--" not in section  # the section is published verbatim as the GitHub Release notes
     assert re.search(rf"^\[{re.escape(version)}\]: https://github\.com/webtech-network/autograder/releases/tag/"
                      rf"{re.escape(version)}$", changelog, re.M)
 

@@ -11,19 +11,19 @@ report shows the same numbers.
 2. **A group scores the weighted average of its members.** Siblings' weights
    are ratios: 80 and 20 mean the same as 4 and 1. A member with weight 0
    still runs, and its result is reported, but it does not count; if every
-   sibling has weight 0, they count equally. A criterion without a `weight`
-   weighs 100.
+   sibling has weight 0, they count equally. A criterion or subject without a
+   `weight` weighs 100. The same rule holds at every level.
 3. **A group can hold both subjects and criteria.** Then `subjects_weight`
    (0 to 100) says how much of the group the subjects make up together; its
    own criteria make up the rest.
-4. **`base` scores 0 to 100.** Its weight is always 100.
-5. **`bonus` and `penalty` move the base score.** Their `weight` is the most
-   points they can move it:
+4. **`base` scores 0 to 100.** It has no weight to set.
+5. **`bonus` and `penalty` move the base score.** Their `max_points` is the
+   most points they can move it:
 
     ```text
     final = base score
-          + bonus score / 100 × bonus weight
-          − (100 − penalty score) / 100 × penalty weight
+          + bonus score / 100 × bonus max_points
+          − (100 − penalty score) / 100 × penalty max_points
     ```
 
     and the result is kept between 0 and 100.
@@ -36,7 +36,7 @@ contributes nothing.
 **A penalty criterion scores 100 when the student complied.** Write it as the
 rule the student must follow, never as the mistake you are looking for. The
 penalty then deducts only the shortfall: a criterion scoring 100 deducts
-nothing, one scoring 0 deducts its full share of the penalty weight.
+nothing, one scoring 0 deducts its full share of the penalty's `max_points`.
 
 | Rule | Evaluator that scores 100 when it is followed |
 | --- | --- |
@@ -55,8 +55,8 @@ points when the program crashes.
 
 ## Bonus
 
-A bonus criterion adds its share of the bonus weight as it is earned: a
-bonus of weight 10 with one criterion scoring 50 adds 5 points. Extra credit
+A bonus criterion adds its share of the bonus `max_points` as it is earned: a
+bonus of `"max_points": 10` with one criterion scoring 50 adds 5 points. Extra credit
 cannot lift a score above 100, so a bonus helps a student who lost base points.
 
 ## A worked example

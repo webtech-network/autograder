@@ -3,7 +3,8 @@
 The source of truth for HTTP requests and responses is the [generated OpenAPI
 document](v1/openapi.json). The [definition](v1/grading-definition.schema.json)
 and [terminal outcome](v1/terminal-outcome.schema.json) schemas are generated from
-the same typed Python models. All three use contract version `1.0`; run
+the same typed Python models: the definition is format `2.0`, the outcome and
+the HTTP API version `1.0`. Run
 `make contracts` after changing their models. CI runs this check and the
 conformance tests. Regenerate with
 `uv run python scripts/generate_contract_schemas.py` when a model
@@ -62,7 +63,7 @@ both artifacts and never changes a completed grade into a failed grade.
 [Adding an evaluator](../architecture/extending.md) is the recipe; its examples are
 executed by `tests/unit/test_architecture.py`.
 Run `python -m examples.contracts.custom_evaluator` for a complete
-local `TestFunction` and `Template` example. It compiles a v1 definition with
+local `TestFunction` and `Template` example. It compiles a definition with
 `templates={"trusted_text": TEMPLATE}`, grades an in-memory
 submission, and prints the terminal outcome. Only a trusted Python caller can
 inject executable evaluator code. JSON sent to HTTP or Actions cannot load a
@@ -82,7 +83,7 @@ for explicit execution/provider composition.
 | Custom Python evaluator | Trusted local Python process with repository requirements | Actual pipeline run, passing and assessed zero-score cases |
 
 These tests do not establish production PostgreSQL recovery, live provider
-availability, or runner isolation properties. The contract version is `1.0`.
+availability, or runner isolation properties.
 
 ## HTTP client integration
 

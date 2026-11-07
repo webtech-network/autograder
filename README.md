@@ -74,12 +74,10 @@ definition is one JSON document:
 
 ```json
 {
-  "schema_version": "1.0",
-  "templates": ["input_output"],
+  "schema_version": "2.0",
   "languages": ["python"],
   "criteria": {
     "base": {
-      "weight": 100,
       "tests": [
         {
           "id": "sum",

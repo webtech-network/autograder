@@ -52,8 +52,8 @@ def label_template():
 
 
 def raw_definition():
-    return {"schema_version": "1.0", "templates": ["label"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": [{
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": [{
                 "id": "labelled", "type": "label", "name": "Label",
                 "parameters": {"label": "x", "items": ["one"], "nested": {"a": [1]}}}]}}}
 
@@ -171,8 +171,8 @@ def test_compiled_definitions_cannot_be_constructed_outside_the_compiler():
 
 
 def builtin_snapshot():
-    return compile_definition({"schema_version": "1.0", "templates": ["input_output"], "languages": ["python", "java"],
-        "criteria": {"base": {"weight": 100, "tests": [{"id": "io", "type": "expect_output", "name": "IO",
+    return compile_definition({"schema_version": "2.0", "languages": ["python", "java"],
+        "criteria": {"base": {"tests": [{"id": "io", "type": "expect_output", "name": "IO",
             "parameters": {"program_command": {"python": "python3 main.py", "java": "java Main"},
                            "expected_output": "ok"}}]}}}).definition.model_dump(mode="json")
 

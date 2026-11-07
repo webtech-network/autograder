@@ -38,11 +38,11 @@ LANGUAGES = ("java", "c")
 
 
 def definition(language, **step):
-    return {"schema_version": "1.0", "templates": ["input_output"], "languages": [language],
+    return {"schema_version": "2.0", "languages": [language],
             "preparation": {"languages": {language: {
                 "required_files": [SOURCE[language]],
                 "setup_commands": [{"name": "compile", "command": COMPILE[language], **step}]}}},
-            "criteria": {"base": {"weight": 100, "tests": [
+            "criteria": {"base": {"tests": [
                 {"id": "runs", "type": "dont_fail", "name": "Runs", "parameters": {"program_command": RUN[language]}}]}}}
 
 

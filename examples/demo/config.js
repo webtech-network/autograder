@@ -35,17 +35,17 @@ function buildCriteriaTree(criteria) {
     let tree = 'Criteria Tree:\n';
 
     if (criteria.base) {
-        tree += '├── Base (weight: ' + criteria.base.weight + ')\n';
+        tree += '├── Base (0-100 points)\n';
         tree += buildSection(criteria.base, '│   ');
     }
 
     if (criteria.bonus) {
-        tree += '├── Bonus (weight: ' + criteria.bonus.weight + ')\n';
+        tree += '├── Bonus (up to ' + criteria.bonus.max_points + ' points)\n';
         tree += buildSection(criteria.bonus, '│   ');
     }
 
     if (criteria.penalty) {
-        tree += '└── Penalty (weight: ' + criteria.penalty.weight + ')\n';
+        tree += '└── Penalty (up to ' + criteria.penalty.max_points + ' points)\n';
         tree += buildSection(criteria.penalty, '    ');
     }
 
@@ -61,7 +61,7 @@ function buildSection(section, prefix) {
             const connector = isLast ? '└── ' : '├── ';
             const extension = isLast ? '    ' : '│   ';
 
-            result += prefix + connector + subject.subject_name + ' (weight: ' + subject.weight + ')\n';
+            result += prefix + connector + subject.name + ' (weight: ' + subject.weight + ')\n';
 
             result += buildSection(subject, prefix + extension);
         });

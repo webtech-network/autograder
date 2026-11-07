@@ -236,7 +236,7 @@ def test_the_documented_definition_check_runs_from_the_action_image(tmp_path):
     (workspace / "solution").mkdir()
     (workspace / "solution/main.py").write_text(SUM, encoding="utf-8")
     broken = json.loads(json.dumps(PYTHON_IO))
-    broken["templates"] = ["input_outptu"]
+    broken["criteria"]["base"]["tests"][0]["type"] = "expect_outptu"
     (workspace / "broken.json").write_text(json.dumps(broken), encoding="utf-8")
     name = f"onb06-check-{uuid.uuid4().hex[:12]}"
 
@@ -254,7 +254,8 @@ def test_the_documented_definition_check_runs_from_the_action_image(tmp_path):
         assert "Reference solution (python): completed, score 100.00/100" in result.stdout
         result = step("broken.json")
         assert result.returncode == 1, result.stdout + result.stderr
-        assert "templates[0]: Unknown template `input_outptu`; did you mean `input_output`?" in result.stdout
+        assert ("criteria.base.tests[0].type: Unknown evaluator `expect_outptu`; did you mean `expect_output`?"
+                in result.stdout)
     finally:
         docker("rm", "--force", name, check=False)
         sandboxes = docker("ps", "--all", "--quiet", "--filter", f"label={OWNER_HOST_LABEL}={name}").stdout.split()

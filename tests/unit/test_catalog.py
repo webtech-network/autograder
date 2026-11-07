@@ -29,7 +29,7 @@ def test_every_catalog_evaluator_resolves_and_its_sample_compiles(template):
             "additionalProperties": False}
         for language in evaluator.supported_languages or LANGUAGE_IDS:
             value = deepcopy(DEFINITION)
-            value.update(templates=[template.identifier], languages=[language])
+            value.update(languages=[language])
             value["criteria"]["base"]["tests"][0].update(
                 type=evaluator.identifier, parameters=evaluator.sample_parameters)
             compiled = compile_definition(value)
@@ -57,8 +57,12 @@ def test_trusted_override_is_local_to_call_and_uses_same_resolution_as_compiler(
     catalog = describe_templates({"webdev": custom})
     assert next(t for t in catalog.templates if t.identifier == "webdev").evaluators[0].identifier == "contains_text"
     value = deepcopy(DEFINITION)
-    value["templates"] = ["webdev"]
     assert dict(compile_definition(value, templates={"webdev": custom}).templates) == {"webdev": custom}
+    # The override replaces the built-in template of that identifier: its evaluators are gone.
+    value["criteria"]["base"]["tests"][0].update(type="has_tag", parameters={"tag": "h1"})
+    with pytest.raises(DefinitionValidationError) as failure:
+        compile_definition(value, templates={"webdev": custom})
+    assert failure.value.errors()[0]["code"] == "UNKNOWN_EVALUATOR"
     assert "has_tag" in BUILTIN_TEMPLATES["webdev"].get_tests()
 
 
@@ -159,8 +163,8 @@ def run_mixed(*evaluators):
         sessions.append(FakeSession())
         return sessions[-1]
 
-    definition = {"schema_version": "1.0", "templates": ["mixed"], "languages": ["python"],
-                  "criteria": {"base": {"weight": 100, "tests": [
+    definition = {"schema_version": "2.0", "languages": ["python"],
+                  "criteria": {"base": {"tests": [
                       {"id": name, "type": name, "name": name, "parameters": {}} for name in evaluators]}}}
     outcome = evaluate_submission(
         Submission("u", "u", "a", {"main.py": SubmissionFile("main.py", "print(1)")}),

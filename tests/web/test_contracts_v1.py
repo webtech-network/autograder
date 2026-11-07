@@ -8,12 +8,10 @@ from web.database.models.submission import Submission
 
 def definition():
     return {
-        "schema_version": "1.0",
-        "templates": ["input_output"],
+        "schema_version": "2.0",
         "languages": ["python"],
         "criteria": {
             "base": {
-                "weight": 100,
                 "tests": [
                     {
                         "id": "hello",
@@ -57,7 +55,7 @@ def outcome(config, *, failed=False, score=0):
         "execution_id": execution_id,
         "language": "python",
         "provenance": {
-            "schema_version": "1.0",
+            "schema_version": "2.0",
             "reference": str(config["id"]),
             "revision": config["version"],
             "definition_hash": config["definition_hash"],
@@ -137,24 +135,29 @@ async def test_validation_errors_name_the_offending_field_and_suggest_identifier
     """ONB-06: cross-field errors point at their field (request validation keeps its
     ``body`` prefix and pydantic error type as code), with no pydantic message prefix;
     compilation errors suggest the identifier the author meant."""
+    cross_field = definition()
+    cross_field["preparation"] = {"languages": {"java": {}}}
+    removed = definition()
+    removed["criteria"]["base"]["weight"] = 100
+    for value, path, code, message in (
+            (cross_field, ["preparation", "languages", "java"], "value_error",
+             "preparation for `java` is never used: add it to `languages` (python) or remove it"),
+            (removed, ["criteria", "base", "weight"], "extra_forbidden",
+             "The base category has no weight: it is the 0-100 score (bonus and penalty categories set `max_points`)")):
+        for endpoint, body, prefix in (("/api/v1/configs/validate", value, ["body"]),
+                                       ("/api/v1/configs", {"external_assignment_id": "bad", "definition": value},
+                                        ["body", "definition"])):
+            response = await test_client.post(endpoint, json=body)
+            assert response.status_code == 422
+            [error] = response.json()["detail"]
+            assert error == {"path": [*prefix, *path], "code": code, "message": message}
     value = definition()
-    value["criteria"]["base"]["weight"] = 60
-    value["preparation"] = {"languages": {"java": {}}}
-    for endpoint, body, prefix in (("/api/v1/configs/validate", value, ["body"]),
-                                   ("/api/v1/configs", {"external_assignment_id": "bad", "definition": value},
-                                    ["body", "definition"])):
-        response = await test_client.post(endpoint, json=body)
-        assert response.status_code == 422
-        [error] = response.json()["detail"]
-        assert error == {"path": [*prefix, "criteria", "base", "weight"], "code": "value_error",
-                         "message": "base weight must equal 100; bonus and penalty weights are caps"}
-    value = definition()
-    value["templates"] = ["input_outptu"]
+    value["criteria"]["base"]["tests"][0]["type"] = "expect_outptu"
     response = await test_client.post("/api/v1/configs/validate", json=value)
     assert response.status_code == 422
     assert response.json()["detail"][0] == {
-        "code": "UNKNOWN_TEMPLATE", "path": ["templates", 0],
-        "message": "Unknown template `input_outptu`; did you mean `input_output`?"}
+        "code": "UNKNOWN_EVALUATOR", "path": ["criteria", "base", "tests", 0, "type"],
+        "message": "Unknown evaluator `expect_outptu`; did you mean `expect_output`?"}
 
 
 @pytest.mark.asyncio

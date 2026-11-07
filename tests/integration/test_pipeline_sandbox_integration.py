@@ -53,10 +53,9 @@ class TestPipelineSandboxIntegration(unittest.TestCase):
         # Define assignment configuration
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Basic Tests",
+                        "name": "Basic Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -149,10 +148,9 @@ elif operation == 'DIV':
         """Test pipeline with incorrect submission (partial credit)."""
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Basic Tests",
+                        "name": "Basic Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -226,10 +224,9 @@ else:
         """Test that pipeline fails in pre-flight when required file is missing."""
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Tests",
+                        "name": "Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -290,10 +287,9 @@ else:
         """Test that setup commands execute correctly in sandbox."""
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Tests",
+                        "name": "Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -354,10 +350,9 @@ print(lib_function())
         """Test multiple pipeline executions concurrently."""
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Tests",
+                        "name": "Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -417,10 +412,9 @@ print(lib_function())
         """Test Java assignment with compilation step in pipeline."""
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Tests",
+                        "name": "Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -491,10 +485,9 @@ public class HelloWorld {
         """Test multi-file Python project through pipeline."""
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Module Tests",
+                        "name": "Module Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -556,10 +549,9 @@ def calculate(a, b):
         """Test that sandbox is properly cleaned up even when execution errors occur."""
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Tests",
+                        "name": "Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -624,10 +616,9 @@ raise Exception("Intentional error!")
 
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Tests",
+                        "name": "Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -674,10 +665,9 @@ raise Exception("Intentional error!")
         """Test that sandboxes are isolated between different submissions."""
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Tests",
+                        "name": "Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -715,10 +705,9 @@ print('Created')
             include_feedback=False,
             grading_criteria={
                 "base": {
-                    "weight": 100,
                     "subjects": [
                         {
-                            "subject_name": "Tests",
+                            "name": "Tests",
                             "weight": 100,
                             "tests": [
                                 {
@@ -793,10 +782,9 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
 
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Tests",
+                        "name": "Tests",
                         "weight": 100,
                         "tests": [
                             {
@@ -855,10 +843,9 @@ class TestPipelineSandboxResourceManagement(unittest.TestCase):
 
         grading_criteria = {
             "base": {
-                "weight": 100,
                 "subjects": [
                     {
-                        "subject_name": "Tests",
+                        "name": "Tests",
                         "weight": 100,
                         "tests": [
                             {

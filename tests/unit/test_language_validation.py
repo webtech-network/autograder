@@ -16,16 +16,16 @@ class TestLanguageValidation:
 
     @pytest.mark.parametrize("language", ["python","java","node","cpp","c"])
     def test_grading_config_create_valid_languages(self,language):
-        definition={"schema_version":"1.0","templates":["static_analysis"],"languages":[language],
-            "criteria":{"base":{"weight":100,"tests":[{"id":"imports","type":"forbidden_import",
+        definition={"schema_version":"2.0","languages":[language],
+            "criteria":{"base":{"tests":[{"id":"imports","type":"forbidden_import",
                 "name":"Imports","parameters":{"forbidden_imports":[]}}]}}}
         config=GradingConfigCreate(external_assignment_id="test-001",definition=definition)
         assert config.definition.languages==[language]
 
     @pytest.mark.parametrize("language", ["Python","javascript","ruby","","go"])
     def test_grading_config_rejects_noncanonical_languages(self,language):
-        definition={"schema_version":"1.0","templates":["static_analysis"],"languages":[language],
-            "criteria":{"base":{"weight":100,"tests":[{"id":"imports","type":"forbidden_import",
+        definition={"schema_version":"2.0","languages":[language],
+            "criteria":{"base":{"tests":[{"id":"imports","type":"forbidden_import",
                 "name":"Imports","parameters":{}}]}}}
         with pytest.raises(ValidationError) as failure:
             GradingConfigCreate(external_assignment_id="test-001",definition=definition)

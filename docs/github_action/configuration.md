@@ -3,7 +3,7 @@
 | Input | Default | Meaning |
 |---|---|---|
 | `execution-mode` | `repo` | `repo` loads a local definition; `external` fetches one |
-| `definition-path` | `.github/autograder/definition.json` | Workspace-relative or absolute v1 JSON path; repo mode |
+| `definition-path` | `.github/autograder/definition.json` | Workspace-relative or absolute definition JSON path (format 2.0); repo mode |
 | `submission-root` | `.` | Workspace-relative or absolute readable directory of UTF-8 files |
 | `submission-language` | omitted | Allowed canonical language; required with multiple choices |
 | `locale` | `en` | `en` or `pt-br`; identical across modes |

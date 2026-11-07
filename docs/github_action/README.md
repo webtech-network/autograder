@@ -1,6 +1,6 @@
 # GitHub Actions adapter
 
-The Action grades one checkout with the same v1 definition and terminal outcome
+The Action grades one checkout with the same definition (format 2.0) and terminal outcome
 used by the HTTP service and Python API. Configuration source and result
 publication are independent choices. Any workflow job name works; repository
 write permissions are unnecessary.

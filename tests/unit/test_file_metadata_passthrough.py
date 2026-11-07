@@ -84,7 +84,7 @@ async def test_rich_repository_metadata_survives_hydration_and_grader_passthroug
     request = GradingRequest(
         submission_id=10,
         grading_config_id=20,
-        definition={},  # Pipeline construction is mocked; this test exercises metadata hydration.
+        definition={"schema_version": "2.0"},  # Pipeline construction is mocked; this test exercises metadata hydration.
         configuration_version=1,
         definition_hash="0" * 64,
         language="python",

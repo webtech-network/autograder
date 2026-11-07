@@ -25,15 +25,15 @@ def imports(identity, module, weight=1, **extra):
 
 
 DEFINITION = {
-    "schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
+    "schema_version": "2.0", "languages": ["python"],
     "criteria": {
-        "base": {"weight": 100, "subjects_weight": 70, "subjects": [
-            {"subject_name": "Group / one", "weight": 1, "tests": [imports("os", "os"), imports("sys", "sys", 3)]},
-            {"subject_name": "Group / two", "weight": 0, "subjects": [
-                {"subject_name": "Inner", "weight": 1, "tests": [imports("re", "re", file="main.py")]}]},
+        "base": {"subjects_weight": 70, "subjects": [
+            {"name": "Group / one", "weight": 1, "tests": [imports("os", "os"), imports("sys", "sys", 3)]},
+            {"name": "Group / two", "weight": 0, "subjects": [
+                {"name": "Inner", "weight": 1, "tests": [imports("re", "re", file="main.py")]}]},
         ], "tests": [imports("json", "json", 0), imports("csv", "csv", 0)]},
-        "bonus": {"weight": 10, "tests": [imports("bonus", "math")]},
-        "penalty": {"weight": 20, "tests": [imports("penalty", "subprocess")]},
+        "bonus": {"max_points": 10, "tests": [imports("bonus", "math")]},
+        "penalty": {"max_points": 20, "tests": [imports("penalty", "subprocess")]},
     },
 }
 

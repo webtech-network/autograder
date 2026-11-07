@@ -2,17 +2,19 @@
 
 Grading semantics belong to the engine. Transport, persistence, credentials,
 acceptance, publication, and submission identity belong to hosting adapters.
-The version 1 wire contract has one parser and one terminal outcome format.
+The wire contract has one definition parser (format 2.0) and one terminal outcome format (1.0).
 
 ## Definition
 
-`schema_version: "1.0"`, `templates: [identifier]`, `languages: [language]`,
-`criteria`, optional `preparation`, `feedback`, and optional `metadata` constitute
-one definition. Structural unknown fields are errors. Criteria retain base,
-bonus, penalty, nested subjects, relative sibling weights, and the explicit
-`subjects_weight` split. Tests require `id`, `type`, `name`, and object-valued
-`parameters`; IDs are globally unique within a definition. Display names are
-never identities. Base weight is 100; bonus and penalty weights are caps.
+`schema_version: "2.0"`, `languages: [language]`, `criteria`, optional
+`preparation`, `feedback`, and optional `metadata` constitute one definition.
+Structural unknown fields are errors. Criteria retain base, bonus, penalty,
+nested subjects, relative sibling weights, and the explicit `subjects_weight`
+split. Tests require `id`, `type`, `name`, and object-valued `parameters`; IDs
+are globally unique within a definition, and `type` alone names the evaluator.
+Subjects and tests are labelled with `name`. Display names are never identities.
+The base category is the 0–100 score; bonus and penalty categories set
+`max_points`.
 
 Preparation has language-keyed required files and named setup commands, and
 fixtures identified by logical reference and a relative fixture-root path. Required-file paths are relative to the submission root.
@@ -214,8 +216,8 @@ engine/API/Action consumers together, run Alembic upgrade, inspect quarantined r
 then reactivate only corrected definitions. Rollback restores the pre-upgrade DB
 backup with the previous code. Automatic schema creation does not migrate a DB.
 
-The old `test_library` envelope is unsupported. Multiple templates use an
-explicit list with collision-checked registry resolution. Evaluator parameters
+The old `test_library` envelope is unsupported. Format 1.0 listed the templates
+explicitly; format 2.0 lists none (below). Evaluator parameters
 have typed contracts and stable criterion IDs. Provider mapping, resource limits,
 and infrastructure scheduling belong to the hosting environment rather than
 the definition schema.
@@ -243,6 +245,86 @@ delete the criterion, and move compile steps such as `javac A.java && java A`
 into `setup_commands` (`javac A.java`) with `program_command: "java A"`. A
 legacy envelope carrying these values is rejected by the converter in the same
 way, so migration 005 would quarantine such a row.
+
+#### Definition format 2.0 (ONB-07)
+
+Format 2.0 removes the authoring fields that carried no information and gives
+each idea one name. Every change, and what the converter does with it:
+
+| Format 1.0 | Format 2.0 | Converter |
+| --- | --- | --- |
+| `"schema_version": "1.0"` | `"2.0"` | rewritten |
+| `templates: [...]` | absent: `type` alone names the evaluator | dropped |
+| `criteria.base.weight` (had to be 100) | absent: base is the 0–100 score | dropped; anything but 100 is rejected (the 1.0 definition was invalid) |
+| bonus/penalty `weight` (a cap) | `max_points` | renamed |
+| subject `subject_name` | `name`, as on criteria | renamed |
+| subject `weight` 0–100, required | ratio ≥ 0, unbounded, default 100, as on criteria | kept |
+| `dont_fail.user_input: "x"` | `inputs: ["x"]` (`""` becomes `[]`), as on `expect_output` | rewritten; identical stdin bytes |
+| `has_style.count` | `required_count`, as on every presence check | renamed |
+| `check_bootstrap_usage` (100 when Bootstrap is absent) | `has_no_bootstrap` | renamed |
+| `has_no_js_framework` `html_file`/`js_file`, `count_unused_css_classes` `html_file`/`css_file` | no parameters: they read every HTML and JS (or CSS) file, whatever the scope; `file` still narrows to one | dropped, with a note |
+
+Convert a definition file (format 1.0, or the pre-1.0 envelope above):
+
+```sh
+python -m autograder.services.definition_migration old.json definition.json
+```
+
+Every mapping is deterministic and only renames: no parameter value changes,
+so criterion IDs, weights, labels and scores stay as they were. The converter
+prints `{"errors": [...]}` with exact paths for what it cannot convert (a base
+weight other than 100, an old and a new name both given, a non-string
+`user_input`, anything that does not compile today), and `{"notes": [...]}` on
+standard error for what it converted but assesses differently: only the two
+multi-file web checks, which now read all of the project's HTML and CSS (or
+JavaScript) files instead of the two named ones (the same result when the
+project has one of each). Python callers use `convert_definition(value)` for
+authoring input and `convert_snapshot(snapshot)` for a stored canonical
+snapshot (renamed, never normalized again); both return `(definition, notes)`.
+Trusted Python templates pass `templates={...}` to `convert_definition`.
+
+A 1.0 definition given to the engine or to any HTTP route fails with one
+`UNSUPPORTED_SCHEMA_VERSION` error naming the command. The removed fields in a 2.0 definition fail at their path
+with what replaced them. There is no runtime alias.
+
+**Stored data (HTTP host).** Alembic revision `011` converts with
+`convert_snapshot`:
+
+* each stored 1.0 configuration becomes a new revision (`version + 1`, a new
+  `definition_hash`), so a revision never names two hashes. Clients holding the
+  old `ETag` get `412` on their next PATCH and refetch. A definition that does
+  not convert (for example one ONB-01 made invalid) is quarantined: inactive,
+  `definition` and its hash cleared, and `migration_error` holding
+  `{"schema_version": "1.0", "definition": <the 1.0 definition>, "errors":
+  [...]}`. Submissions to it answer `409` until a corrected definition is
+  PATCHed and the configuration reactivated;
+* queued submissions (pending or processing) are rebound to the converted
+  snapshot and its hash and keep their revision, so they grade as before;
+* finished submissions keep their 1.0 snapshot, hash and outcome untouched.
+  `GET /submissions/{id}/details` returns that snapshot as stored
+  (`definition_snapshot` is plain JSON in any format), its outcome's
+  `provenance.schema_version` stays `"1.0"`, and the hash still verifies
+  against it. Comparison reads such a baseline by checking the hash on the
+  stored snapshot, then reading it through the converter's structural step,
+  so a pre-upgrade baseline compares with a new head by criterion ID
+  (`cross_revision`, `schema_version` in the changed sections).
+
+Upgrade: back up the database, stop the old API, run `alembic -c
+web/alembic.ini upgrade head`, read the warnings it logs (quarantined
+configurations, and the notes for the two web checks), then start the new
+release. Downgrading below `011` refuses while any 2.0 definition is stored:
+roll back by restoring that backup together with the previous release.
+
+**Integrators (Prisma, Actions repositories, the demo).** Send and store
+format 2.0 definitions: run the converter over each definition file in a
+repository (`.github/autograder/definition.json`) and over the definitions a
+client generates. Read stored configurations again after the upgrade (their
+revision moved). Accept outcomes whose `provenance.schema_version` is `"1.0"`
+(history) or `"2.0"`, and treat `definition_snapshot` in submission details as
+the snapshot in the format its provenance names. An attestation must bind a 2.0
+snapshot, with `provenance.schema_version` `"2.0"`. The terminal outcome
+format is unchanged (`schema_version` `"1.0"`); its category `weight` remains
+the points a category moves (100 for base, `max_points` otherwise).
 
 ### Host capabilities
 
@@ -422,7 +504,8 @@ under runc. Nothing changes for definitions or deployments.
 
 Remove the unused `required_file`/`required_file_type` properties. Optional
 `TestFunction` declarations are `file_extensions`, `minimum_files`,
-`maximum_files`, `uses_context_files`, and `file_parameters`, plus the
+`maximum_files`, `uses_context_files`, and `file_parameters` (dropped again by
+ONB-07: no built-in evaluator names files in its parameters), plus the
 `accepts_file(filename, language)` hook. Defaults allow zero or more scoped files
 without a type restriction; the default hook honours `file_extensions`. Source
 analysers override the hook with their parser rules (`source_files_only` was
@@ -1186,6 +1269,42 @@ publish on the first attempt. The fixture client makes one request per fixture
 (no SDK retries). No wire, schema or engine change; see
 [JOBS.md](JOBS.md#execution-retry) and the
 [migration note](#execution-retry-cor-03).
+
+## Definition format 2.0 (ONB-07)
+
+The authoring shape carried fields with no information (`templates`, a base
+weight that had to be 100) and several names for one idea (`subject_name` and
+`name`, `user_input` and `inputs`, `count` and `required_count`, `weight` as a
+ratio and as a cap). Six of the 35 realistic mistakes in the Phase 5 probe
+traced to them; format 2.0 removes them (see the [migration notes](#definition-format-20-onb-07)).
+
+**Version.** The definition hash covers every field, and outcome provenance
+records the definition's `schema_version` with that hash. Renaming fields
+under `"1.0"` would give one version label two incompatible shapes, so a
+reader of a stored snapshot or an attestation could not tell which parser
+applies. The change is therefore `2.0`: the engine reads only 2.0, a 1.0
+snapshot stays verifiable as stored, and provenance names the format of the
+snapshot it is bound to. The outcome format does not change and stays `1.0`.
+
+**Resolution.** Templates group evaluators for discovery and for trusted Python
+injection; they are not part of a definition. Built-in evaluator identifiers
+are unique across built-in templates, and a criterion `type` provided by two
+available templates is `AMBIGUOUS_EVALUATOR`, so injection never silently
+shadows a built-in evaluator.
+
+**Renamed evaluators.** One rename, on evidence: `check_bootstrap_usage` ran
+the same detection as `check_bootstrap_linked` with the opposite score and a
+description ("Checks if Bootstrap is being used") that did not say which; it is
+now `has_no_bootstrap`, like `has_no_js_framework`. The other prohibition and
+limit checks keep their names: their names (`forbidden`, `no`, `max_allowed`)
+and the `absence_check` published in the reference already state what scores
+100, and no confusion was reported. `min_items` keeps its name: it counts array
+items, not occurrences of the checked text.
+
+**Not changed.** The terminal outcome, its tree and its category `weight`
+(stored outcomes and attestations stay valid without a migration); the
+criterion `file` target; evaluator semantics, except that the two multi-file
+web checks read every file of their types instead of two named ones.
 
 ## Releases re-tag verified images (REL-01)
 

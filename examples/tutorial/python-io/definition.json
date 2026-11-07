@@ -1,13 +1,11 @@
 {
-  "schema_version": "1.0",
-  "templates": ["input_output", "static_analysis"],
+  "schema_version": "2.0",
   "languages": ["python"],
   "criteria": {
     "base": {
-      "weight": 100,
       "subjects": [
         {
-          "subject_name": "Adds two numbers",
+          "name": "Adds two numbers",
           "weight": 80,
           "tests": [
             {
@@ -33,21 +31,21 @@
           ]
         },
         {
-          "subject_name": "Handles bad input",
+          "name": "Handles bad input",
           "weight": 20,
           "tests": [
             {
               "id": "text-input",
               "type": "dont_fail",
               "name": "Does not crash on text input",
-              "parameters": {"program_command": "python3 main.py", "user_input": "abc"}
+              "parameters": {"program_command": "python3 main.py", "inputs": ["abc"]}
             }
           ]
         }
       ]
     },
     "penalty": {
-      "weight": 20,
+      "max_points": 20,
       "tests": [
         {
           "id": "no-eval",

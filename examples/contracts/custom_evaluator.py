@@ -30,12 +30,10 @@ TEMPLATE = Template("Trusted text", "One local, trusted evaluator", [ContainsTex
 
 
 DEFINITION = {
-    "schema_version": "1.0",
-    "templates": ["trusted_text"],
+    "schema_version": "2.0",
     "languages": ["node"],
     "criteria": {
         "base": {
-            "weight": 100,
             "tests": [{
                 "id": "greeting",
                 "type": "contains_text",

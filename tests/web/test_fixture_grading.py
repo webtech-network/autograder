@@ -33,8 +33,8 @@ class RecordingSession:
 
 
 def fixture_definition(*fixtures):
-    return {"schema_version": "1.0", "templates": ["webdev"], "languages": ["python"],
-            "criteria": {"base": {"weight": 100, "tests": [{"id": "entry", "name": "Entry point",
+    return {"schema_version": "2.0", "languages": ["python"],
+            "criteria": {"base": {"tests": [{"id": "entry", "name": "Entry point",
                 "type": "check_project_structure", "parameters": {"expected_structure": "main.py"}}]}},
             "preparation": {"languages": {"python": {"setup_commands": [
                 {"name": "inspect", "command": "ls -la /tmp/app"}]}},

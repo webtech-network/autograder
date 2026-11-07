@@ -182,8 +182,8 @@ class _Lender:
 
 def _fixture_definition(fixtures):
     return compile_definition({
-        "schema_version": "1.0", "templates": ["input_output"], "languages": ["python"],
-        "criteria": {"base": {"weight": 100, "tests": [{
+        "schema_version": "2.0", "languages": ["python"],
+        "criteria": {"base": {"tests": [{
             "id": "runs", "type": "expect_output", "name": "Runs",
             "parameters": {"program_command": "python3 main.py", "inputs": [], "expected_output": "ok"}}]}},
         "preparation": {"fixtures": [{"reference": reference, "path": path, "read_only": read_only}
