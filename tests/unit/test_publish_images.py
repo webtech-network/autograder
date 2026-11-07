@@ -1,10 +1,15 @@
 """ENV-07: main publishes the images it verified, and ``@main`` runs the Action image main publishes.
 
+REL-01: ``sha-<commit>`` is never overwritten, and ``main`` is moved to exactly
+its manifests, so a release re-tags the bytes verification published.
+
 The git side is real (a clone of a real bare ``origin``); the registry is the
 docker CLI, whose answers are scripted and whose effects are recorded. The
 images themselves are built and checked against real Docker in ``tests/images/``.
 """
 # pylint: disable=missing-function-docstring
+import hashlib
+import json
 import subprocess
 from pathlib import Path
 
@@ -21,8 +26,8 @@ RUNTIMES = [image.ref for image in sandbox_images.catalog()]
 def test_action_runs_the_image_main_publishes_and_builds_nothing():
     runs = yaml.safe_load((ROOT / "action.yml").read_text(encoding="utf-8"))["runs"]
     assert runs["using"] == "docker"
-    # A Dockerfile path would be built on every consumer job; a version tag would
-    # name an image nothing publishes before 1.0.0.
+    # A Dockerfile path would be built on every consumer job; a version tag here
+    # would stop @main following main. Only a release's tagged commit pins one.
     assert runs["image"] == "docker://" + publish_images.reference("action", publish_images.CHANNEL)
     assert runs["image"] == "docker://ghcr.io/webtech-network/autograder-action:main"
     assert "args" not in runs and "entrypoint" not in runs  # the image's own entrypoint runs
@@ -36,13 +41,26 @@ def test_published_images_are_the_three_built_by_make_images():
 
 
 class Registry:
-    """The docker CLI: what the registry holds, per client configuration, and what was pushed."""
+    """The docker CLI: what the registry holds (reference -> digest), per client configuration, and what was pushed.
 
-    def __init__(self, *, present=(), public=True, lose=()):
-        self.present = set(present)
+    A local image's digest depends on ``build``: two builds of one commit are not
+    byte-identical, as real rebuilds are not.
+    """
+
+    def __init__(self, *, present=(), public=True, lose=(), build="first"):
+        self.present = dict(present) if isinstance(present, dict) else {ref: fake_digest("old", ref) for ref in present}
         self.public = public
-        self.lose = set(lose)  # pushes the registry acknowledges but does not serve
+        self.lose = set(lose)  # writes the registry acknowledges but does not serve
+        self.build = build
+        self.local = {}
         self.effects = []
+
+    def resolve(self, ref):
+        if "@" in ref:
+            name, wanted = ref.split("@", 1)
+            return wanted if any(publish_images.repository(held) == name and held_digest == wanted
+                                 for held, held_digest in self.present.items()) else None
+        return self.present.get(ref)
 
     def __call__(self, args, **kwargs):
         if args[0] == "git":
@@ -58,14 +76,35 @@ class Registry:
             url = f"https://ghcr.io/v2/{ref.split('/', 1)[1].replace(':', '/manifests/')}"
             answer = f'Get "{url}": unauthorized' if ref in self.present else "denied"
             return subprocess.CompletedProcess(args, 1, "", answer)
+        if args[:4] == ["docker", "buildx", "imagetools", "inspect"]:
+            assert args[5:] == ["--format", "{{json .Manifest}}"], args
+            found = self.resolve(args[4])
+            if found is None:
+                return subprocess.CompletedProcess(args, 1, "", f"ERROR: {args[4]}: not found")
+            return subprocess.CompletedProcess(args, 0, json.dumps({"mediaType": "m", "digest": found}), "")
         assert kwargs.get("check") is True, args
         self.effects.append(args)
-        if args[:2] == ["docker", "push"] and args[2] not in self.lose:
-            self.present.add(args[2])
+        if args[:2] == ["docker", "tag"]:
+            self.local[args[3]] = fake_digest(self.build, args[2])
+        elif args[:2] == ["docker", "push"] and args[2] not in self.lose:
+            self.present[args[2]] = self.local.get(args[2], fake_digest(self.build, args[2]))
+        elif args[:4] == ["docker", "buildx", "imagetools", "create"]:
+            assert args[4:6] == ["--prefer-index=false", "--tag"], args  # copy the manifest, do not wrap it
+            target, source = args[6], args[7]
+            assert "@sha256:" in source, source  # by digest: what was checked is what gets tagged
+            if target not in self.lose:
+                self.present[target] = self.resolve(source)
         return subprocess.CompletedProcess(args, 0, "", "")
 
     def pushed(self):
         return [args[2] for args in self.effects if args[:2] == ["docker", "push"]]
+
+    def retagged(self):
+        return [args[6] for args in self.effects if args[:4] == ["docker", "buildx", "imagetools", "create"]]
+
+
+def fake_digest(*parts):
+    return "sha256:" + hashlib.sha256(":".join(parts).encode()).hexdigest()
 
 
 def git(cwd, *args):
@@ -89,7 +128,7 @@ def checkout(tmp_path, monkeypatch):
 
 
 def services(commit, tags=None):
-    """The service references a publication of ``commit`` pushes: immutable tags first, then the channel."""
+    """The service references a publication of ``commit`` writes: immutable tags first, then the channel."""
     tags = tags or (f"sha-{commit}", "main")
     return [publish_images.reference(service, tag) for tag in tags for service in publish_images.SERVICES]
 
@@ -100,11 +139,16 @@ def test_the_head_of_main_publishes_runtimes_then_its_images_by_commit_then_main
     monkeypatch.setattr(subprocess, "run", registry)
     assert publish_images.publish("autograder", "local", checkout) == RUNTIMES + services(commit)
     # Runtime images first: the Action and sandbox manager pull the ones they pin.
-    assert registry.pushed() == RUNTIMES + services(commit)
+    assert registry.pushed() == RUNTIMES + services(commit, (f"sha-{commit}",))
     tags = [args for args in registry.effects if args[:2] == ["docker", "tag"]]
     # Exactly the local images `make test-images` built and checked.
-    assert tags == [["docker", "tag", f"autograder-{service}:local", publish_images.reference(service, tag)]
-                    for tag in (f"sha-{commit}", "main") for service in publish_images.SERVICES]
+    assert tags == [["docker", "tag", f"autograder-{service}:local", publish_images.verified(service, commit)]
+                    for service in publish_images.SERVICES]
+    # `main` is the very manifest published as sha-<commit>, moved in the registry, Action last.
+    assert registry.retagged() == services(commit, ("main",))
+    for service in publish_images.SERVICES:
+        assert registry.present[publish_images.reference(service, "main")] == \
+            registry.present[publish_images.verified(service, commit)]
     assert "::warning::" not in capsys.readouterr().out
 
 
@@ -113,7 +157,23 @@ def test_published_runtime_references_are_never_overwritten(monkeypatch, checkou
     registry = Registry(present=RUNTIMES)
     monkeypatch.setattr(subprocess, "run", registry)
     publish_images.publish("autograder", "local", checkout)
-    assert registry.pushed() == services(commit)
+    assert registry.pushed() == services(commit, (f"sha-{commit}",))
+
+
+def test_a_published_commit_reference_is_never_overwritten(monkeypatch, checkout, capsys):
+    # A re-run of the publish job for the same commit rebuilds images that are not
+    # byte-identical; sha-<commit> keeps the first run's bytes, which a release re-tags.
+    commit = git(checkout, "rev-parse", "HEAD")
+    first = {ref: fake_digest("first run", ref) for ref in services(commit, (f"sha-{commit}",))}
+    registry = Registry(present=first, build="re-run")
+    monkeypatch.setattr(subprocess, "run", registry)
+    publish_images.publish("autograder", "local", checkout)
+    assert registry.pushed() == RUNTIMES
+    assert {ref: registry.present[ref] for ref in first} == first
+    for service in publish_images.SERVICES:
+        assert registry.present[publish_images.reference(service, "main")] == \
+            first[publish_images.verified(service, commit)]
+    assert "already published; published references are immutable" in capsys.readouterr().out
 
 
 def test_a_commit_that_is_no_longer_the_head_of_main_publishes_nothing(monkeypatch, checkout, tmp_path, capsys):
@@ -143,12 +203,17 @@ def test_a_checkout_without_a_main_on_origin_is_an_error(monkeypatch, tmp_path):
     assert registry.effects == []
 
 
-def test_a_push_the_registry_does_not_serve_fails_the_publication(monkeypatch, checkout):
-    # Confirmed as the workflow token sees the registry: a lost push is red, never green.
-    lost = publish_images.reference("api", "main")
-    monkeypatch.setattr(subprocess, "run", Registry(lose=[lost]))
+@pytest.mark.parametrize("tag", ["sha", "main"])
+def test_a_write_the_registry_does_not_serve_fails_the_publication(monkeypatch, checkout, tag):
+    # Confirmed as the workflow token sees the registry: a lost write is red, never green.
+    commit = git(checkout, "rev-parse", "HEAD")
+    lost = publish_images.reference("api", f"sha-{commit}" if tag == "sha" else "main")
+    registry = Registry(lose=[lost])
+    monkeypatch.setattr(subprocess, "run", registry)
     with pytest.raises(RuntimeError, match=lost):
         publish_images.publish("autograder", "local", checkout)
+    if tag == "sha":
+        assert registry.retagged() == []  # main never moves to a commit whose images are not all served
 
 
 def test_a_private_package_is_published_with_a_warning_not_a_failure(monkeypatch, checkout, capsys):

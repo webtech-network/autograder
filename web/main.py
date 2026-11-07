@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+from autograder import __version__
 from autograder.models.contracts.definition import validation_error_detail
 from web.api import api_router
 from web.config.body_limit import RequestBodyLimitMiddleware
@@ -79,7 +80,7 @@ def create_app(settings=None, *, session_factory=None, capabilities=None,
     setup_logging(json_logs=settings.JSON_LOGS, service_name=settings.SERVICE_NAME,
                   app_env=settings.APP_ENV, log_level=settings.LOG_LEVEL)
     application = FastAPI(title=settings.API_TITLE, description=settings.API_DESCRIPTION,
-                          version=settings.API_VERSION, lifespan=lifespan)
+                          version=__version__, lifespan=lifespan)
     application.state.host = host
     application.add_exception_handler(RequestValidationError, safe_validation_error)
     application.add_middleware(RequestBodyLimitMiddleware)

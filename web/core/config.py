@@ -78,7 +78,6 @@ def parse_attestation_tokens(value: str) -> dict[str, str]:
 
 @dataclass(frozen=True)
 class Settings:
-    API_VERSION: str = "1.0.0"
     API_TITLE: str = "Autograder Web API"
     API_DESCRIPTION: str = "RESTful API for code submission grading"
     CORS_ORIGINS: list[str] = field(default_factory=lambda: ["*"])

@@ -242,6 +242,7 @@ truthfulness and the extension path. `make verify` is the hermetic path (lint,
 schema drift, strict docs build, unit and SQLite HTTP tests); `make test-postgres`,
 `make test-integration`, `make test-isolation` and `make test-e2e` are the database and Docker tiers. CI
 runs exactly these targets and, on `main`, publishes the images only after all pass
-(nothing deploys; no releases before 1.0.0); see
+(nothing deploys; the hand-run Release workflow re-tags a verified commit's
+images as a version, [STABILITY.md](docs/contracts/STABILITY.md)); see
 [the development guide](docs/guides/development.md#verification). Preserve unrelated work;
 use a clean worktree for delivery. Do not add co-author commit trailers.
