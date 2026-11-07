@@ -31,10 +31,10 @@ class CompilerSession:
 
 
 DEFINITION = {
-    "schema_version": "1.0", "templates": ["input_output"], "languages": ["java"],
+    "schema_version": "2.0", "languages": ["java"],
     "preparation": {"languages": {"java": {"required_files": ["Main.java"],
                                            "setup_commands": [{"name": "compile", "command": "javac Main.java"}]}}},
-    "criteria": {"base": {"weight": 100, "tests": [
+    "criteria": {"base": {"tests": [
         {"id": "runs", "type": "dont_fail", "name": "Runs", "parameters": {"program_command": "java Main"}}]}},
 }
 

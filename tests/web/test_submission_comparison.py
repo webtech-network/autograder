@@ -98,7 +98,7 @@ async def test_same_definition_executed_baseline_and_attested_head(test_client, 
     assert body["head"]["submission_id"] == head and body["head"]["source"] == "attested"
     assert body["baseline"]["execution_id"] == f"local-{baseline}" and body["head"]["execution_id"] == "attested"
     for side in ("baseline", "head"):
-        assert body[side]["provenance"] == {"schema_version": "1.0", "definition_hash": config["definition_hash"],
+        assert body[side]["provenance"] == {"schema_version": "2.0", "definition_hash": config["definition_hash"],
                                             "reference": str(config["id"]), "revision": 1}
     assert body["criteria"] == [{
         "criterion_id": "hello", "status": "improved", "baseline_label": "Hello", "head_label": "Hello",

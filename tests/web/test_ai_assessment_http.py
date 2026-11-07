@@ -15,15 +15,15 @@ from tests.grading import FakeProvider
 HEADERS = {"Authorization": "Bearer ai-token"}
 
 DEFINITION = {
-    "schema_version": "1.0", "templates": ["static_analysis"], "languages": ["python"],
-    "criteria": {"base": {"weight": 100, "subjects": [
-        {"subject_name": "Algorithms", "weight": 3, "tests": [
+    "schema_version": "2.0", "languages": ["python"],
+    "criteria": {"base": {"subjects": [
+        {"name": "Algorithms", "weight": 3, "tests": [
             {"id": "merge", "type": "ai_sorting_algorithm", "name": "Algorithm / review",
              "parameters": {"algorithm_name": "merge sort"}, "weight": 1},
             {"id": "quick", "type": "ai_sorting_algorithm", "name": "Algorithm / review",
              "parameters": {"algorithm_name": "quick sort"}, "weight": 3},
         ]},
-        {"subject_name": "Hygiene", "weight": 1, "tests": [
+        {"name": "Hygiene", "weight": 1, "tests": [
             {"id": "imports", "type": "forbidden_import", "name": "Imports",
              "parameters": {"forbidden_imports": ["os"]}},
         ]},

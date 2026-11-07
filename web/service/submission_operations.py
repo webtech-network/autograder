@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from autograder.models.capabilities import budget_problems
 from autograder.models.contracts.comparison import ComparisonError, compare_outcomes
-from autograder.models.contracts.definition import compile_snapshot, select_language, DefinitionValidationError
+from autograder.models.contracts.definition import SCHEMA_VERSION, compile_snapshot, select_language, DefinitionValidationError
 from autograder.models.contracts.verification import (
     OutcomeStructureError, OutcomeTooLargeError, verify_outcome_size, verify_outcome_tree,
 )
@@ -91,7 +91,8 @@ def project_submission(row, *, details=False):
             if outcome
             else (
                 {
-                    "schema_version": "1.0",
+                    # Only queued work lacks an outcome, and queued work is bound to the current format.
+                    "schema_version": SCHEMA_VERSION,
                     "definition_hash": row.definition_hash,
                     "reference": str(row.grading_config_id),
                     "revision": row.configuration_version,
@@ -367,9 +368,9 @@ async def _ingest_attested_outcome(session, payload):
     compiled = _compile_snapshot(payload.definition_snapshot)
     outcome = payload.outcome.model_dump(mode="json")
     provenance = outcome["provenance"]
-    if provenance["definition_hash"] != compiled.definition_hash or provenance.get(
-        "reference"
-    ) != str(config.id):
+    if (provenance["definition_hash"], provenance["schema_version"]) != (
+        compiled.definition_hash, compiled.definition.schema_version
+    ) or provenance.get("reference") != str(config.id):
         raise OperationError(
             422, "Outcome provenance does not match its definition snapshot/resource"
         )
