@@ -26,6 +26,7 @@ from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.manager import SandboxManager
 from sandbox_manager.models.pool_config import SandboxPoolConfig
 from sandbox_manager.remote_client import RemoteSandboxManager, SandboxHandleGone
+from sandbox_manager.sandbox_container import COLLECT, RUNNER, USER
 from tests.sandbox_profiles import TEST_IMAGES, sandbox_config, suite_runtime
 from tests.web.conftest import db_engine, session_factory  # pylint: disable=unused-import
 from web.core.config import Settings
@@ -278,31 +279,68 @@ def test_text_stdin_with_shell_characters_is_exact(session):
         assert probe(run(session, "python3 probe.py", stdin=stdin.encode())) == ([], stdin.encode())
 
 
-def _pid(output):
-    return int(output.decode().strip())
+#: Appends the pid of one child it forks, the next pid the container allocates, to
+#: a file of its user (root may not append to another user's file in sticky /tmp).
+#: Two probes bracket a control script inside its own exec, so the pids between
+#: them are the script's forks and nothing else; an exec's own pid cost is not.
+#: Under runc, ``runc init``'s Go threads take pids before the script starts, and
+#: how many varies with load, so pid gaps across execs cannot count helpers.
+PROBES = "/tmp/.helpers-probes"
 
 
-def test_a_run_forks_at_most_five_helper_processes(managers):
-    """The fixed cost per test (PRF-08): under gVisor each helper process costs about a
-    small program's CPU, charged to the submission's 0.5 CPU quota.
+def _probe(user):
+    return f"/bin/sh -c 'echo $$ >> {PROBES}.{user}'; :\n"
 
-    Pids are allocated in order in the container's namespace, so the pids a run
-    consumes between two programs, less the two execs (runner, collector), are
-    the helpers its control scripts forked: the collector's stat, head and rm.
-    The runner, given text stdin, forks none.
+
+def _bracket(api, container_id, execs):
+    """Record every exec of the container; bracket the runner and collector with fork probes.
+
+    The runner ``exec``s the program, so the program's own probe closes the runner's bracket.
+    """
+    create = api.exec_create
+
+    def exec_create(container, cmd, *args, **kwargs):
+        if container == container_id:
+            script = cmd[2] if len(cmd) > 2 and cmd[:2] == ["/bin/sh", "-c"] else None
+            execs.append({RUNNER: "runner", COLLECT: "collector"}.get(script, cmd))
+            if script == RUNNER:
+                cmd = [*cmd[:2], _probe(USER) + RUNNER, *cmd[3:]]
+            elif script == COLLECT:
+                cmd = [*cmd[:2], _probe("root") + COLLECT + _probe("root"), *cmd[3:]]
+        return create(container, cmd, *args, **kwargs)
+    return exec_create
+
+
+def test_a_run_costs_two_execs_and_at_most_five_helper_processes(managers, monkeypatch):
+    """The fixed cost per test (PRF-08): two Docker execs, and under gVisor each helper
+    process costs about a small program's CPU, charged to the submission's 0.5 CPU quota.
+
+    The runner, given text stdin, forks none; the collector forks its stat, head and
+    rm. Pids are allocated in order in the container's namespace, so the pids between
+    two fork probes are the forks of the code between them.
     """
     manager = managers["local"]
     sandbox = manager.get_sandbox(Language.PYTHON)
     try:
         container = sandbox.container_ref
-        bare = [_pid(container.exec_run(["/bin/sh", "-c", "echo $$"], user="sandbox").output) for _ in range(3)]
-        per_exec = {b - a for a, b in zip(bare, bare[1:])}
-        assert len(per_exec) == 1, bare  # the container is quiet: nothing else allocates pids
-        exec_cost = per_exec.pop()
-        programs = [_pid(sandbox.run_process(ProcessRequest(shell="echo $$", stdin=stdin)).stdout.encode())
-                    for stdin in (b"", b"5\n3\n", "é\n".encode(), b"")]
-        helpers = [b - a - 2 * exec_cost for a, b in zip(programs, programs[1:])]
-        assert all(0 <= count <= 5 for count in helpers), (helpers, exec_cost)
+
+        def root(script):
+            return container.exec_run(["/bin/sh", "-c", script], user="root").output.decode()
+        # The lifetime exec forks its sleep after Docker reports the exec started:
+        # only once it sleeps is the container quiet.
+        deadline = time.monotonic() + 30
+        while root("cat /proc/[0-9]*/comm").split().count("sleep") < 2:
+            assert time.monotonic() < deadline, "the sandbox lifetime never started sleeping"
+        execs = []
+        monkeypatch.setattr(container.client.api, "exec_create", _bracket(container.client.api, container.id, execs))
+        for stdin in (b"", b"5\n3\n", "\u00e9\n".encode()):
+            root(f"rm -f {PROBES}.*")
+            execs.clear()
+            result = sandbox.run_process(ProcessRequest(shell=_probe(USER), stdin=stdin))
+            assert (result.exit_code, result.stdout) == (0, ""), result
+            assert execs == ["runner", "collector"], execs
+            runner, program, collect, collected = (int(pid) for pid in root(f"cat {PROBES}.{USER} {PROBES}.root").split())
+            assert (program - runner - 1, collected - collect - 1) == (0, 5), (stdin, runner, program, collect, collected)
     finally:
         manager.dispose(sandbox)
 
