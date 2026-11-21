@@ -337,3 +337,22 @@ def test_rejected_credential_is_looked_up_again_on_the_next_grading(stub, monkey
     assert [request["authorization"] for request in stub.wait_for_requests(3)] == [
         "Bearer old-key", "Bearer new-key", "Bearer new-key"]
     assert secrets.call_count == 2 and factory.call_count == 2
+
+
+# --- Logs: no prompts (student code) and no provider messages --------------------
+
+def test_prompts_and_provider_messages_never_reach_the_logs(caplog):
+    class EchoingFailure(Exception):
+        """A provider error whose message echoes the request (student code, a key)."""
+
+    client = Mock()
+    client.responses.parse.side_effect = EchoingFailure("rejected input: def s(a): return a (key sk-live-123)")
+    provider = ConfiguredAssessmentProvider(secret_name="AUTOGRADER_OPENAI_KEY",
+                                            secret_source=Mock(return_value="sk-live-123"),
+                                            client_factory=Mock(return_value=client))
+    with caplog.at_level("DEBUG"):
+        outcome = grade_ai(provider)
+    assert outcome.status == "failed"
+    logged = caplog.text + "".join(caplog.handler.format(record) for record in caplog.records)
+    assert "def s(a)" not in logged and "sk-live-123" not in logged
+    assert "AI batch request failed: EchoingFailure" in caplog.text

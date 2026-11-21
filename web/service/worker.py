@@ -13,6 +13,7 @@ from autograder.models.contracts.definition import compile_snapshot
 from autograder.models.language import Language
 from autograder.services.assessment import EXECUTION_CAPABILITIES
 
+from sandbox_manager.structured_logging import reset_request_id, set_request_id
 from web.config.logging import get_logger
 from web.database.models.submission import Submission, SubmissionStatus
 from web.database.models.grading_attempt import GradingAttempt
@@ -242,6 +243,14 @@ class DurableWorker:
         if claimed is None:
             return False
         request, attempt_id = claimed
+        # The attempt id correlates this attempt's lines here and in the sandbox manager.
+        context = set_request_id(str(attempt_id))
+        try:
+            return await self._run_attempt(request, attempt_id)
+        finally:
+            reset_request_id(context)
+
+    async def _run_attempt(self, request, attempt_id):
         clock = AttemptClock(request, self.capabilities, self.attempt_margin)
         finished = asyncio.Event()
         renewer = asyncio.create_task(self.heartbeat(request.submission_id, attempt_id, finished, clock))

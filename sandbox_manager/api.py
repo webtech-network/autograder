@@ -58,11 +58,13 @@ from sandbox_manager.models.api_models import (
     ProcessResultModel,
 )
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
+from sandbox_manager.structured_logging import request_logging_middleware, setup_logging
 from autograder.models.language import Language
 
 logger = logging.getLogger(__name__)
 
 TRUE_VALUES = {"1", "true", "yes"}
+LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 # Threads in which acquisitions wait for a budget slot. Separate from the route
 # threadpool, so waiting acquisitions can never starve the DELETE that frees a slot.
 ACQUIRE_THREADS = 256
@@ -101,6 +103,10 @@ class ControlSettings:
     reaper_interval_seconds: float = 5.0
     worker_count: int = 1
     config_file: str = "sandbox_config.yml"
+    json_logs: bool = False
+    log_level: str = "INFO"
+    service_name: str = "autograder-sandbox-manager"
+    app_env: str = "local"
 
     @classmethod
     def from_env(cls) -> "ControlSettings":
@@ -115,6 +121,10 @@ class ControlSettings:
             tombstone_seconds=_setting("SANDBOX_HANDLE_TOMBSTONE_SECONDS", 3600.0, float),
             worker_count=_setting("WEB_CONCURRENCY", 1, int),
             config_file=_setting("SANDBOX_CONFIG_FILE", "sandbox_config.yml"),
+            json_logs=_setting("JSON_LOGS", "").lower() in TRUE_VALUES,
+            log_level=_setting("LOG_LEVEL", "INFO"),
+            service_name=_setting("SERVICE_NAME", "autograder-sandbox-manager"),
+            app_env=_setting("APP_ENV", "local"),
         )
 
     def validate(self) -> None:
@@ -128,6 +138,8 @@ class ControlSettings:
             logger.warning("!!! SANDBOX CONTROL API IS UNAUTHENTICATED (SANDBOX_API_ALLOW_UNAUTHENTICATED=true). "
                            "Any client that reaches this port can run code and control sandboxes. "
                            "Never use this outside local development. !!!")
+        if self.log_level.upper() not in LOG_LEVELS:
+            raise RuntimeError(f"LOG_LEVEL must be DEBUG, INFO, WARNING, ERROR or CRITICAL, got {self.log_level!r}")
         if self.handle_ttl_seconds <= 0 or self.tombstone_seconds <= 0:
             raise RuntimeError("Handle lifetimes must be positive")
 
@@ -519,11 +531,18 @@ def _default_manager(config_file):
 def create_app(settings: Optional[ControlSettings] = None,
                manager_factory: Optional[Callable[[], object]] = None,
                clock: Callable[[], float] = time.monotonic) -> FastAPI:
-    """Build the control API. The lifespan owns the manager and the handle reaper."""
+    """Build the control API. The lifespan owns the manager and the handle reaper.
+
+    Uvicorn calls this as a factory (``--factory sandbox_manager.api:create_app``),
+    so importing this module configures nothing.
+    """
+    control = settings or ControlSettings.from_env()
+    # Before Uvicorn serves anything, so its own lines share the JSON schema too.
+    setup_logging(json_logs=control.json_logs, service_name=control.service_name,
+                  app_env=control.app_env, log_level=control.log_level)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
-        control = settings or ControlSettings.from_env()
         control.validate()
         application.state.control = control
         manager = manager_factory() if manager_factory else _default_manager(control.config_file)
@@ -552,6 +571,7 @@ def create_app(settings: Optional[ControlSettings] = None,
                           description="Private control API for sandbox containers",
                           version=__version__, lifespan=lifespan)
     application.add_middleware(BodyLimitMiddleware)
+    application.middleware("http")(request_logging_middleware)
 
     @application.exception_handler(ControlError)
     async def control_error(_request: Request, exc: ControlError):
@@ -572,5 +592,3 @@ def create_app(settings: Optional[ControlSettings] = None,
     application.include_router(router)
     return application
 
-
-app = create_app()

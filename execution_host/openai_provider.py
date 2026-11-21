@@ -108,9 +108,7 @@ class AiExecutor:
             tests=test_batch_str,
         )
 
-        logger.debug("System Prompt:\n%s", system_prompt)
-        logger.debug("User Prompt:\n%s", user_prompt)
-
+        # The prompts carry student code: they are sent to the provider, never logged.
         try:
             logger.info("Sending AI engine batch request (%d criteria)…", len(requests))
             response = self.client.responses.parse(
@@ -123,8 +121,11 @@ class AiExecutor:
             )
             parsed = response.output_parsed
         except Exception as e:
-            logger.error("AI batch request failed: %s", e)
-            raise provider_failure(e) from e
+            # The type and status only: a provider's message may echo request content.
+            logger.error("AI batch request failed: %s (status %s)", type(e).__name__,
+                         getattr(e, "status_code", None))
+            # ``from None``: a logged traceback would otherwise print the provider's message.
+            raise provider_failure(e) from None
         if parsed is None:
             raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
         return [ProviderAssessment(criterion_id=output.criterion_id, score=output.score, report=output.feedback)

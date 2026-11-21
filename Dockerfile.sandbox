@@ -38,4 +38,4 @@ LABEL org.opencontainers.image.source="https://github.com/webtech-network/autogr
 # network and set SANDBOX_API_TOKEN (the service refuses to start without it).
 EXPOSE 8001
 # Exactly one worker: sandbox handles live in this process's memory.
-CMD ["uvicorn", "sandbox_manager.api:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+CMD ["uvicorn", "--factory", "sandbox_manager.api:create_app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

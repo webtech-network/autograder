@@ -343,10 +343,11 @@ def test_every_release_notes_file_is_publishable_and_its_links_reach_the_tagged_
 
 
 def test_the_http_and_sandbox_apis_report_the_release_version():
-    from sandbox_manager.api import app  # pylint: disable=import-outside-toplevel
+    from sandbox_manager.api import ControlSettings  # pylint: disable=import-outside-toplevel
+    from sandbox_manager.api import create_app as create_sandbox_app  # pylint: disable=import-outside-toplevel
     from web.main import create_app  # pylint: disable=import-outside-toplevel
     from fastapi.testclient import TestClient  # pylint: disable=import-outside-toplevel
-    assert app.version == autograder.__version__
+    assert create_sandbox_app(ControlSettings(token="t")).version == autograder.__version__
     web = create_app(start_workers=False)
     assert web.version == autograder.__version__
     assert TestClient(web).get("/api/v1/health").json()["version"] == autograder.__version__

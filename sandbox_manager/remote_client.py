@@ -40,6 +40,7 @@ from sandbox_manager.errors import (
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS, ProcessRequestModel, ProcessResultModel
 from autograder.models.execution import ExtractedFile
 from sandbox_manager.models.sandbox_models import DisposalStatus
+from sandbox_manager.structured_logging import REQUEST_ID_HEADER, get_request_id
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
@@ -117,8 +118,18 @@ def _checked(response: requests.Response, *, artifact_path: Optional[str] = None
     raise RemoteSandboxError(text, status_code=response.status_code, code=code)
 
 
+class _CorrelatedSession(requests.Session):
+    """Sends the active request id (``X-Request-ID``) so both services log the same id."""
+
+    def request(self, method, url, *args, headers=None, **kwargs):
+        request_id = get_request_id()
+        if request_id:
+            headers = {REQUEST_ID_HEADER: request_id, **(headers or {})}
+        return super().request(method, url, *args, headers=headers, **kwargs)
+
+
 def _new_session(token: Optional[str]) -> requests.Session:
-    session = requests.Session()
+    session = _CorrelatedSession()
     # requests' default adapter performs no retries; replay policy lives here.
     if token:
         session.headers["Authorization"] = f"Bearer {token}"
@@ -144,8 +155,9 @@ class RemoteSandboxContainer:
             return self._session.request(method, self._base + path,
                                          timeout=(CONNECT_TIMEOUT_SECONDS, read_timeout), **kwargs)
         except TRANSPORT_ERRORS as exc:
+            # ``from None``: the requests error's message holds the URL, i.e. the handle.
             raise RemoteSandboxError(f"Sandbox control API unreachable during {path or 'request'}: "
-                                     f"{type(exc).__name__}", code="TRANSPORT_ERROR") from exc
+                                     f"{type(exc).__name__}", code="TRANSPORT_ERROR") from None
 
     def close(self):
         """Close this handle's HTTP session (idempotent)."""
@@ -198,7 +210,7 @@ class RemoteSandboxManager:
             except TRANSPORT_ERRORS as exc:
                 if attempt == attempts:
                     raise RemoteSandboxError(f"Sandbox control API unreachable: {type(exc).__name__}",
-                                             code="TRANSPORT_ERROR") from exc
+                                             code="TRANSPORT_ERROR") from None
         raise AssertionError("unreachable")
 
     def get_sandbox(self, lang: Language, wait_seconds: float = 0.0,

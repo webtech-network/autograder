@@ -1,8 +1,5 @@
 """FastAPI Web API for the Autograder system."""
 
-from time import perf_counter
-from uuid import uuid4
-
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -10,18 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from autograder import __version__
 from autograder.models.contracts.definition import validation_error_detail
+from sandbox_manager.structured_logging import request_logging_middleware
 from web.api import api_router
 from web.config.body_limit import RequestBodyLimitMiddleware
-from web.config.logging import get_logger, setup_logging
-from web.config.request_context import (
-    REQUEST_ID_HEADER,
-    clear_request_id,
-    set_request_id,
-)
+from web.config.logging import setup_logging
 from web.core.host import WebHost
 from web.core.lifespan import lifespan
-
-logger = get_logger(__name__)
 
 
 async def safe_validation_error(request: Request, exc: RequestValidationError):
@@ -34,42 +25,6 @@ async def safe_validation_error(request: Request, exc: RequestValidationError):
         path, message = validation_error_detail(error)
         details.append({"path": list(path), "code": error["type"], "message": message})
     return JSONResponse(status_code=422, content={"detail": details})
-
-
-async def correlation_logging_middleware(request: Request, call_next):
-    request_id = request.headers.get(REQUEST_ID_HEADER, "").strip() or uuid4().hex[:8]
-    set_request_id(request_id)
-
-    start = perf_counter()
-    try:
-        response = await call_next(request)
-    except Exception:
-        duration_ms = int((perf_counter() - start) * 1000)
-        logger.exception(
-            "http_request_failed",
-            extra={
-                "method": request.method,
-                "path": request.url.path,
-                "status": 500,
-                "duration_ms": duration_ms,
-            },
-        )
-        clear_request_id()
-        raise
-
-    duration_ms = int((perf_counter() - start) * 1000)
-    response.headers[REQUEST_ID_HEADER] = request_id
-    logger.info(
-        "http_request_completed",
-        extra={
-            "method": request.method,
-            "path": request.url.path,
-            "status": response.status_code,
-            "duration_ms": duration_ms,
-        },
-    )
-    clear_request_id()
-    return response
 
 
 def create_app(settings=None, *, session_factory=None, capabilities=None,
@@ -88,7 +43,7 @@ def create_app(settings=None, *, session_factory=None, capabilities=None,
                                allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
                                allow_methods=settings.CORS_ALLOW_METHODS,
                                allow_headers=settings.CORS_ALLOW_HEADERS)
-    application.middleware("http")(correlation_logging_middleware)
+    application.middleware("http")(request_logging_middleware)
     application.include_router(api_router)
     return application
 
