@@ -1,5 +1,7 @@
 """Canonical grading definition resource; execution snapshots live on submissions."""
 
+from __future__ import annotations  # avoids pylint E1136 on Mapped[...]: pylint-dev/astroid#3383
+
 from datetime import datetime
 from sqlalchemy import Boolean, Integer, String, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship

@@ -4,6 +4,8 @@ One row binds (authenticated principal, operation, caller key) to the resource t
 first request created and a fingerprint of that request. It is written in the
 same transaction as the resource, so either both exist or neither does.
 """
+from __future__ import annotations  # avoids pylint E1136 on Mapped[...]: pylint-dev/astroid#3383
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint

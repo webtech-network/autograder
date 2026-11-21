@@ -1107,8 +1107,8 @@ page cache dropped grew a sandbox's writable layer on host disk (540 MB under
 runc, 1 GiB under gVisor within the probe's time) on the VPS it shares with
 PostgreSQL. Sandboxes now have a read-only root filesystem; the writable paths
 are tmpfs mounts (`/app` 64 MiB, `/tmp` 32 MiB, `/dev/shm` 64 MiB) charged to the
-memory limit, plus runc's in-kernel `/dev/mqueue`, so the per-sandbox host-disk
-bound is 0 bytes. Any error
+memory limit, plus runc's in-kernel `/dev/mqueue`, so a submission adds 0 bytes
+to host disk. Any error
 mentioning `runsc` used to switch a pool to runc for the rest of its life. The
 runtime is now the host's explicit, required `general.runtime` (`runsc` or
 `runc`), verified and logged when the manager starts; a failed gVisor start

@@ -27,6 +27,10 @@ from tests.sandbox_profiles import TEST_IMAGES, offered_runtimes
 PY = Language.PYTHON
 #: Paths a submission might try to fill outside its writable mounts.
 READ_ONLY_PATHS = ("/", "/home/sandbox", "/var/tmp", "/usr/local/lib", "/etc", "/run", "/root")
+#: Docker's own mountpoints, created when the container starts. Docker 29's containerd
+#: snapshotter keeps them in the writable layer (one 4 KiB block per directory on ext4,
+#: so `SizeRw` starts above 0); the overlay2 driver kept them in its init layer.
+DOCKER_MOUNTPOINTS = {"/app", "/sbin", "/sbin/docker-init"}
 
 # Writes 9 MiB files (below the fsize limit) with fsync and POSIX_FADV_DONTNEED,
 # so page cache never counts against the memory limit, until a write fails or
@@ -92,6 +96,13 @@ def python(sandbox, program, *args, timeout=120):
     return result.stdout
 
 
+def writable_layer_size(sandbox):
+    """The container's ``SizeRw``, once its writable layer holds only Docker's mountpoints."""
+    changed = {change["Path"] for change in sandbox.container_ref.diff() or []}
+    assert changed <= DOCKER_MOUNTPOINTS, changed
+    return inspect(sandbox, size=True)["SizeRw"]
+
+
 def inspect(sandbox, size=False):
     """The host's view of the container (``size`` adds the writable layer's ``SizeRw``)."""
     api = docker.from_env().api
@@ -120,12 +131,12 @@ def test_the_configured_runtime_and_the_one_profile_are_in_effect(sandbox, runti
 
 def test_disk_fill_never_reaches_host_storage(sandbox):
     """The probe that grew SizeRw by 540 MB (runc) and 1 GiB (runsc) now writes nothing to host disk."""
+    before = writable_layer_size(sandbox)
     report = json.loads(python(sandbox, FILL, str(256 * 1024 * 1024), "keep", *READ_ONLY_PATHS))
     assert report == {path: [0, report[path][1]] for path in READ_ONLY_PATHS}, report
     assert {error for _, error in report.values()} <= {"EROFS", "EACCES"}, report
-    state = inspect(sandbox, size=True)
-    assert state["SizeRw"] == 0
-    assert [m for m in state["Mounts"] if m["Type"] == "volume"] == []  # no anonymous VOLUME /app
+    assert writable_layer_size(sandbox) == before
+    assert [m for m in inspect(sandbox)["Mounts"] if m["Type"] == "volume"] == []  # no anonymous VOLUME /app
     assert sandbox.container_ref.logs() == b""
 
 
@@ -149,10 +160,11 @@ def test_only_the_declared_paths_are_writable(sandbox, runtime):
 @pytest.mark.parametrize("path", sorted(WRITABLE_PATHS))
 def test_each_writable_path_is_bounded_in_memory_and_by_its_size(sandbox, path):
     size = WRITABLE_PATHS[path]
+    before = writable_layer_size(sandbox)
     report = json.loads(python(sandbox, FILL, str(4 * size), "remove", path))
     written, error = report[path]
     assert error == "ENOSPC" and 0 < written <= size, report
-    assert inspect(sandbox, size=True)["SizeRw"] == 0
+    assert writable_layer_size(sandbox) == before
 
 
 def test_writes_to_the_container_log_are_refused(sandbox):

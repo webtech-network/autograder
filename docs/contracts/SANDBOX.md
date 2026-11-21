@@ -131,11 +131,12 @@ files, fixtures staged readable, and the image. Every image is built without
 setuid/setgid files (see [Runtime images](LANGUAGES.md#runtime-images)).
 
 **Storage.** The root filesystem is read-only, so no write reaches the
-container's writable layer on host disk: its `SizeRw` stays 0 under both
-runtimes, and the image's `VOLUME /app` never becomes an anonymous volume. A
-submission can write these in-memory tmpfs mounts, each bounded by its size,
-charged to the container's 128 MiB memory limit (no swap) and removed with the
-container:
+container's writable layer on host disk: under both runtimes a submission
+never grows its `SizeRw`, the layer holds only Docker's own mountpoints and
+their parent (`/app`, `/sbin`, `/sbin/docker-init`), and the image's
+`VOLUME /app` never becomes an anonymous volume. A submission can write these
+in-memory tmpfs mounts, each bounded by its size, charged to the container's
+128 MiB memory limit (no swap) and removed with the container:
 
 | Path | Bound | Use |
 | --- | ---: | --- |
@@ -152,8 +153,8 @@ user by `RLIMIT_MSGQUEUE` (819200 bytes). No other path is writable.
 
 No single file exceeds 10 MB (`fsize`). Filling `/tmp` can only make the
 submission's own output unreadable; filling memory ends the sandbox as
-`SandboxExhausted` ([PROCESSES.md](PROCESSES.md)). The per-sandbox host-disk
-bound is therefore **0 bytes**, and the memory-backed bound is the memory limit.
+`SandboxExhausted` ([PROCESSES.md](PROCESSES.md)). A submission therefore adds
+**0 bytes** to host disk, and the memory-backed bound is the memory limit.
 
 **Runtime.** The OCI runtime is one explicit host decision,
 `general.runtime` in `sandbox_config.yml` (`runtime=` for
@@ -208,7 +209,7 @@ hostile-submission suite is `tests/integration/test_hostile_submissions.py`.
 | Guarantee | Pinned by |
 | --- | --- |
 | Every sandbox uses the configured runtime and this one profile (read-only root, tmpfs, limits, capabilities, `no-new-privileges`) | `tests/integration/test_hostile_submissions.py::test_the_configured_runtime_and_the_one_profile_are_in_effect` |
-| A disk-fill probe (fsync, page cache dropped) writes nothing outside the tmpfs mounts and grows no host storage (`SizeRw` 0, no volume, no log) | `tests/integration/test_hostile_submissions.py::test_disk_fill_never_reaches_host_storage` |
+| A disk-fill probe (fsync, page cache dropped) writes nothing outside the tmpfs mounts and grows no host storage (`SizeRw` unchanged, writable layer holds only Docker's mountpoints, no volume, no log) | `tests/integration/test_hostile_submissions.py::test_disk_fill_never_reaches_host_storage` |
 | Only the declared paths are writable (the tmpfs mounts, and `/dev/mqueue` under runc); no regular file is writable | `tests/integration/test_hostile_submissions.py::test_only_the_declared_paths_are_writable` |
 | Each writable path stops at its size bound, in memory | `tests/integration/test_hostile_submissions.py::test_each_writable_path_is_bounded_in_memory_and_by_its_size` |
 | The submission cannot write the container log | `tests/integration/test_hostile_submissions.py::test_writes_to_the_container_log_are_refused` |
