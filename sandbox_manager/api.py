@@ -59,6 +59,7 @@ from sandbox_manager.models.api_models import (
 )
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
 from sandbox_manager.structured_logging import request_logging_middleware, setup_logging
+from sandbox_manager.tracing_setup import instrument_fastapi, setup_tracing
 from autograder.models.language import Language
 
 logger = logging.getLogger(__name__)
@@ -540,6 +541,7 @@ def create_app(settings: Optional[ControlSettings] = None,
     # Before Uvicorn serves anything, so its own lines share the JSON schema too.
     setup_logging(json_logs=control.json_logs, service_name=control.service_name,
                   app_env=control.app_env, log_level=control.log_level)
+    setup_tracing(control.service_name)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
@@ -572,6 +574,8 @@ def create_app(settings: Optional[ControlSettings] = None,
                           version=__version__, lifespan=lifespan)
     application.add_middleware(BodyLimitMiddleware)
     application.middleware("http")(request_logging_middleware)
+    # Continues the caller's trace (W3C traceparent) when OTEL_EXPORTER_OTLP_ENDPOINT is set.
+    instrument_fastapi(application)
 
     @application.exception_handler(ControlError)
     async def control_error(_request: Request, exc: ControlError):

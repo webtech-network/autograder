@@ -12,6 +12,8 @@ from autograder.models.contracts.definition import SCHEMA_VERSION, compile_snaps
 from autograder.models.contracts.verification import (
     OutcomeStructureError, OutcomeTooLargeError, verify_outcome_size, verify_outcome_tree,
 )
+from sandbox_manager.structured_logging import get_request_id
+from sandbox_manager.tracing import current_traceparent
 from web.database.models.submission import SubmissionStatus
 from web.database.models.operation_receipt import OperationReceipt
 from web.repositories import GradingConfigRepository, SubmissionRepository, ResultRepository
@@ -357,6 +359,9 @@ async def _accept_submission(session, submission, max_session_seconds=None):
         configuration_version=config.version,
         locale=submission.locale,
         evaluation_scope=submission.evaluation_scope.model_dump() if submission.evaluation_scope is not None else None,
+        # The worker's logs and traces lead back to the request that accepted this submission.
+        request_id=get_request_id(),
+        traceparent=current_traceparent(),
     )
     return row
 

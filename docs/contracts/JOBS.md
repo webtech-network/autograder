@@ -213,8 +213,10 @@ process must not publish work after a new worker policy starts.
 - **Created by an older API startup** (no `alembic_version` table): run
   `python -m web.database.schema adopt` with `DATABASE_URL` set. It stamps revision
   `008` (the schema the old startup created) only when the live schema equals the
-  models, and otherwise prints the differences and changes nothing. Then run
-  `upgrade head`, which applies the later data migrations such as `009`. Reconcile those differences, or, when
+  models as revision `008` had them (without the columns later revisions add,
+  such as `012`'s `submissions.request_id` and `submissions.traceparent`), and
+  otherwise prints the differences and changes nothing. Then run
+  `upgrade head`, which applies the later revisions such as `009` and `012`. Reconcile those differences, or, when
   `pg_dump --schema-only` matches `tests/web/fixtures/legacy_007_schema.sql` (the
   old chain's schema), run `alembic -c web/alembic.ini stamp 007` and upgrade.
 

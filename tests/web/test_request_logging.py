@@ -1,4 +1,4 @@
-"""The API's structured logs: route templates, request ids, worker correlation (#487)."""
+"""The API's structured logs: route templates, request ids, worker correlation (#487, #489)."""
 import asyncio
 import io
 import json
@@ -6,13 +6,14 @@ import logging
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from autograder.models.capabilities import HostCapabilities
-from sandbox_manager.structured_logging import REQUEST_ID_HEADER, _ServiceHandler, get_request_id
+from sandbox_manager.structured_logging import REQUEST_ID_HEADER, _ServiceHandler, get_attempt_id, get_request_id
 from tests.web.test_contracts_v1 import definition
 from web.core.config import Settings
 from web.database.models.grading_attempt import GradingAttempt
+from web.database.models.submission import Submission
 from web.service.grading_service import evaluate
 
 TOKEN = "request-logging-token"
@@ -25,7 +26,7 @@ async def logged(session_factory, tmp_path):
     seen = []
 
     async def observed(request, capabilities=None):
-        seen.append(get_request_id())
+        seen.append((get_request_id(), get_attempt_id()))
         return await evaluate(request, capabilities)
 
     app = create_app(Settings(RECEIPT_DIR=str(tmp_path / "receipts"), INTEGRATION_TOKEN=TOKEN, JSON_LOGS=True,
@@ -80,18 +81,38 @@ async def test_a_malformed_request_id_is_replaced(logged):
     assert [line["request_id"] for line in request_lines(records)] == [fresh]
 
 
-@pytest.mark.asyncio
-async def test_the_worker_grades_under_its_attempt_id(logged, session_factory):
-    app, client, _, seen = logged
+async def accept(client, **headers):
     assert (await client.post("/api/v1/configs", json={"external_assignment_id": "logs",
                                                        "definition": definition()})).status_code == 200
-    accepted = await client.post("/api/v1/submissions", json={
+    accepted = await client.post("/api/v1/submissions", headers=headers, json={
         "external_assignment_id": "logs", "external_user_id": "student", "username": "Student",
         "files": [{"filename": "main.py", "content": "print('ok')\n"}]})
     assert accepted.status_code == 202, accepted.text
+    return accepted.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_the_worker_grades_under_the_accepting_request_id_and_its_attempt_id(logged, session_factory):
+    app, client, _, seen = logged
+    submission_id = await accept(client, **{REQUEST_ID_HEADER: "prisma-req-1"})
+    async with session_factory() as session:
+        assert (await session.get(Submission, submission_id)).request_id == "prisma-req-1"
     # Outside any HTTP request, as the worker loop runs.
     assert await asyncio.create_task(app.state.host.worker.run_once()) is True
     async with session_factory() as session:
         attempt_id = await session.scalar(select(GradingAttempt.id))
-    assert seen == [str(attempt_id)]
-    assert get_request_id() is None
+    assert seen == [("prisma-req-1", str(attempt_id))]
+    assert get_request_id() is None and get_attempt_id() is None
+
+
+@pytest.mark.asyncio
+async def test_a_submission_accepted_before_ids_were_recorded_grades_under_its_attempt_id(logged, session_factory):
+    app, client, _, seen = logged
+    submission_id = await accept(client)
+    async with session_factory() as session:  # as migration 012 leaves earlier rows
+        await session.execute(update(Submission).where(Submission.id == submission_id).values(request_id=None))
+        await session.commit()
+    assert await asyncio.create_task(app.state.host.worker.run_once()) is True
+    async with session_factory() as session:
+        attempt_id = await session.scalar(select(GradingAttempt.id))
+    assert seen == [(str(attempt_id), str(attempt_id))]

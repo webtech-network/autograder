@@ -28,6 +28,9 @@ class GradingRequest:
     submission_files: dict
     locale: str = "en"
     evaluation_scope: dict | None = None
+    #: The accepting request's id and trace context, when they were recorded (#489).
+    request_id: str | None = None
+    traceparent: str | None = None
 
     @classmethod
     def from_row(cls, row):
@@ -37,6 +40,7 @@ class GradingRequest:
             definition_hash=row.definition_hash, language=row.language, username=row.username,
             external_user_id=row.external_user_id, submission_files=row.submission_files,
             locale=row.locale, evaluation_scope=row.evaluation_scope,
+            request_id=row.request_id, traceparent=row.traceparent,
         )
 
     @property

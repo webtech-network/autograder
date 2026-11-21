@@ -9,15 +9,33 @@ users must take are in the
 
 ## [Unreleased]
 
+### Added
+
+- OpenTelemetry tracing in the API and the sandbox manager, off unless
+  `OTEL_EXPORTER_OTLP_ENDPOINT` is set (OTLP over HTTP; the standard `OTEL_*`
+  variables apply, `OTEL_SERVICE_NAME` defaults to `SERVICE_NAME`). Both
+  services continue an incoming W3C `traceparent` and the API sends its own to
+  the sandbox manager; the API also traces database statements (never their
+  values) and AI provider calls. Each grading attempt is its own trace, linked
+  to the request that accepted the submission. Log lines carry `trace_id` and
+  `span_id` while a span is active. Spans never hold raw paths, query strings,
+  URLs, client addresses or exception messages
+  ([traces](docs/operate/configuration.md#traces), #489).
+- Migration `012` records on each submission the `X-Request-ID` and the trace
+  context of the request that accepted it (#489).
+
 ### Changed
 
 - The sandbox manager writes the API's structured log lines: `JSON_LOGS`,
   `LOG_LEVEL`, `SERVICE_NAME` (default `autograder-sandbox-manager`) and
   `APP_ENV` configure it as they configure the API. Both services log one
   `http_request_completed` line per request with the route template as `path`,
-  turn off Uvicorn's access line, and accept, echo and forward `X-Request-ID`;
-  the grading worker uses the attempt id as the request id
+  turn off Uvicorn's access line, and accept, echo and forward `X-Request-ID`
   ([log lines](docs/operate/configuration.md#sandbox-manager), #487).
+- Every line of a grading attempt, in both services, carries the request id of
+  the request that accepted the submission (the attempt id for a submission
+  accepted before migration `012`); the API's lines also carry `attempt_id`
+  (#489).
 - The sandbox manager image starts Uvicorn with
   `--factory sandbox_manager.api:create_app`, so its first log line is already
   structured. A deployment that overrides the image command must do the same;

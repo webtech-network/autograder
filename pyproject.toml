@@ -14,6 +14,9 @@ dependencies = [
     "boto3~=1.43",
     "docker~=7.1.0",
     "openai==1.93.0",
+    # The trace context API only (no-op without the SDK): the sandbox client propagates
+    # W3C traceparent and the logs read the active span (sandbox_manager.tracing).
+    "opentelemetry-api~=1.45.2",
     "pydantic~=2.12.5",
     # Imported directly for PydanticCustomError; pydantic pins the exact version.
     "pydantic-core",
@@ -27,6 +30,11 @@ sandbox = [
     # Imported directly by the sandbox control API (its acquisition capacity limiter).
     "anyio~=4.16",
     "fastapi~=0.115.0",
+    # Tracing (sandbox_manager.tracing): off unless OTEL_EXPORTER_OTLP_ENDPOINT is set.
+    # The instrumentation packages are released in lockstep with the SDK.
+    "opentelemetry-exporter-otlp-proto-http~=1.45.2",
+    "opentelemetry-instrumentation-fastapi==0.66b2",
+    "opentelemetry-sdk~=1.45.2",
     "uvicorn[standard]~=0.32.0",
 ]
 # The HTTP service (web/), which can also host the sandboxes in-process: the API image.
@@ -36,6 +44,9 @@ server = [
     "alembic~=1.13.0",
     "asyncpg~=0.30",
     "sqlalchemy[asyncio]~=2.0.0",
+    # The database and the AI provider's HTTP client (httpx) in API traces.
+    "opentelemetry-instrumentation-httpx==0.66b2",
+    "opentelemetry-instrumentation-sqlalchemy==0.66b2",
 ]
 
 [dependency-groups]
