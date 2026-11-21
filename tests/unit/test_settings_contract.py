@@ -28,6 +28,8 @@ HOSTS_BY_PACKAGE = {
     "execution_host": {"api", "action"},
     "github_action": {"action"},
 }
+#: Shared modules that configure more than their package's host: both services set up tracing.
+HOSTS_BY_FILE = {"sandbox_manager/tracing_setup.py": {"api", "sandbox"}}
 SECTIONS = {"API service": "api", "Sandbox manager": "sandbox", "GitHub Action": "action",
             "Retired variables": "retired"}
 #: Names conventionally bound to the process environment (``config = os.environ ...``).
@@ -87,10 +89,11 @@ def environment_reads(source: str) -> tuple[set[str], list[str]]:
 def code_reads() -> dict[str, dict[str, set[str]]]:
     """host -> variable -> files reading it."""
     reads: dict[str, dict[str, set[str]]] = {}
-    for package, hosts in HOSTS_BY_PACKAGE.items():
+    for package in HOSTS_BY_PACKAGE:
         for path in sorted((ROOT / package).rglob("*.py")):
             names, dynamic = environment_reads(path.read_text(encoding="utf-8"))
             relative = path.relative_to(ROOT).as_posix()
+            hosts = HOSTS_BY_FILE.get(relative, HOSTS_BY_PACKAGE[package])
             assert not dynamic, f"{relative} reads a variable whose name is not a literal: {dynamic}"
             assert not names or hosts, f"{relative} (the engine) reads the environment: {sorted(names)}"
             for host in hosts:

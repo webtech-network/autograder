@@ -22,7 +22,10 @@ from autograder.models.capabilities import HostCapabilities
 from autograder.models.contracts.outcome import MAX_FEEDBACK_BYTES, bound_outcome_text
 from web.core.config import Settings
 from web.database.base import Base
-from web.database.schema import ADOPTED_REVISION, SchemaNotCurrent, adopt, head_revision, schema_differences
+from web.database.schema import (
+    ADDED_AFTER_ADOPTION, ADOPTED_REVISION, SchemaNotCurrent, adopt, adoption_differences, head_revision,
+    schema_differences,
+)
 from web.main import create_app
 from tests.web.test_contracts_v1 import definition
 
@@ -147,6 +150,32 @@ async def test_downgrade_base_then_upgrade_head_round_trips(postgres_url):
     assert await on_database(url, schema_differences) == []
 
 
+def test_012_adds_the_accepting_request_columns_to_existing_submissions_and_drops_them_on_downgrade(tmp_path):
+    url = f"sqlite+aiosqlite:///{tmp_path / 'at-011.sqlite3'}"
+    alembic(url, "upgrade", "011")
+
+    def seed(connection):
+        connection.execute(text(
+            "INSERT INTO grading_configurations (id, external_assignment_id, version, is_active) "
+            "VALUES (1, 'kept', 1, false)"))
+        connection.execute(text(
+            "INSERT INTO submissions (id, grading_config_id, external_user_id, username, submission_files, "
+            "status, locale, attempt_count) VALUES (1, 1, 'student', 'Student', '{}', 'completed', 'en', 0)"))
+    asyncio.run(on_database(url, seed))
+    alembic(url, "upgrade", "012")
+
+    def columns(connection):
+        return {column["name"]: column for column in inspect(connection).get_columns("submissions")}
+    added = asyncio.run(on_database(url, columns))
+    assert added["request_id"]["nullable"] and added["request_id"]["type"].length == 128
+    assert added["traceparent"]["nullable"] and added["traceparent"]["type"].length == 55
+    rows = asyncio.run(on_database(url, lambda connection: connection.execute(text(
+        "SELECT username, request_id, traceparent FROM submissions")).all()))
+    assert [tuple(row) for row in rows] == [("Student", None, None)]  # no backfill
+    alembic(url, "downgrade", "011")
+    assert not {"request_id", "traceparent"} & set(asyncio.run(on_database(url, columns)))
+
+
 def test_sqlite_upgrades_to_the_models_and_round_trips(tmp_path):
     url = f"sqlite+aiosqlite:///{tmp_path / 'migrated.sqlite3'}"
     alembic(url, "upgrade", "head")
@@ -263,7 +292,11 @@ async def test_startup_serves_a_database_at_head(postgres_url, tmp_path):
 
 
 async def create_all(url):
+    """The schema an older API startup created: today's models without later revisions' columns."""
     await on_database(url, Base.metadata.create_all)
+    for table, column in sorted(ADDED_AFTER_ADOPTION):
+        await on_database(url, lambda connection, t=table, c=column: connection.execute(
+            text(f"ALTER TABLE {t} DROP COLUMN {c}")))
 
 
 async def test_adopting_a_create_all_database_stamps_the_adopted_revision_and_upgrades(postgres_url, tmp_path):
@@ -300,13 +333,24 @@ async def test_adopting_a_create_all_database_stamps_the_adopted_revision_and_up
 
 
 async def test_adopted_revision_has_exactly_the_models_schema(postgres_url):
-    """Adoption compares the live schema with the models but stamps ``ADOPTED_REVISION``.
+    """Adoption compares the live schema with the models as ``ADOPTED_REVISION`` had them.
 
-    Only data migrations may follow it; a later schema change must revisit the constant.
+    A later revision that changes the schema lists its columns in ``ADDED_AFTER_ADOPTION``.
     """
     url = await postgres_url()
     alembic(url, "upgrade", ADOPTED_REVISION)
-    assert await on_database(url, schema_differences) == []
+    assert await on_database(url, adoption_differences) == []
+    assert {(difference[2], difference[3].name) for difference in await on_database(url, schema_differences)
+            } == ADDED_AFTER_ADOPTION
+
+
+async def test_adoption_refuses_a_database_that_already_has_a_later_revisions_column(postgres_url):
+    url = await postgres_url()
+    await on_database(url, Base.metadata.create_all)  # today's models: 012's columns included
+    process = run(url, "-m", "web.database.schema", "adopt")
+    assert process.returncode == 1
+    assert "unexpected column submissions.request_id" in process.stderr
+    assert await on_database(url, current_revision) is None
 
 
 async def test_adoption_refuses_a_schema_that_differs_from_the_models(postgres_url):

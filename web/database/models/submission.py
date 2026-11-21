@@ -62,6 +62,9 @@ class Submission(Base):
     attempt_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    # The accepting request: its X-Request-ID and its span's W3C traceparent (#489).
+    request_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    traceparent: Mapped[Optional[str]] = mapped_column(String(55), nullable=True)
 
     # Relationships
     grading_config: Mapped["GradingConfiguration"] = relationship(

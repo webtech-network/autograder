@@ -30,6 +30,8 @@ class SubmissionRepository(BaseRepository[Submission]):
         configuration_version: Optional[int] = None,
         locale: str = "en",
         evaluation_scope: Optional[dict] = None,
+        request_id: Optional[str] = None,
+        traceparent: Optional[str] = None,
     ) -> Submission:
         """Create a new submission."""
 
@@ -47,6 +49,8 @@ class SubmissionRepository(BaseRepository[Submission]):
             configuration_version=configuration_version,
             locale=locale,
             evaluation_scope=evaluation_scope,
+            request_id=request_id,
+            traceparent=traceparent,
         )
 
         self.session.add(db_submission)

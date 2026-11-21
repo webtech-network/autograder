@@ -2,7 +2,8 @@
 
 ``python -m web.database.schema adopt`` brings a database created by the old
 startup ``create_all`` under migrations: it stamps ``ADOPTED_REVISION`` only when the
-live schema already equals the models, and otherwise prints the differences.
+live schema already equals the models as that revision had them (without the
+``ADDED_AFTER_ADOPTION`` columns), and otherwise prints the differences.
 """
 import argparse
 import asyncio
@@ -26,6 +27,9 @@ UPGRADE_COMMAND = "alembic -c web/alembic.ini upgrade head"
 # it, never head, so ``upgrade head`` still runs the later revisions, including data
 # migrations such as ``009`` (stored outcome text excerpts) that the rows need.
 ADOPTED_REVISION = "008"
+#: Columns that revisions after ``ADOPTED_REVISION`` add: absent from a database the
+#: old startup created, so adoption requires them absent and ``upgrade head`` adds them.
+ADDED_AFTER_ADOPTION = frozenset({("submissions", "request_id"), ("submissions", "traceparent")})  # 012
 
 
 class SchemaNotCurrent(RuntimeError):
@@ -66,6 +70,24 @@ async def require_current_schema(engine):
         "adopted with `python -m web.database.schema adopt` (docs/contracts/JOBS.md).")
 
 
+def _added_after_adoption(difference):
+    return (isinstance(difference, tuple) and difference[0] == "add_column"
+            and (difference[2], difference[3].name) in ADDED_AFTER_ADOPTION)
+
+
+def adoption_differences(connection):
+    """Differences between the live schema and the models as ``ADOPTED_REVISION`` had them."""
+    inspector = inspect(connection)
+    existing = set(inspector.get_table_names())
+    unexpected = []
+    for table in sorted({table for table, _ in ADDED_AFTER_ADOPTION} & existing):
+        unexpected += [f"unexpected column {table}.{column['name']}: a later revision adds it"
+                       for column in inspector.get_columns(table)
+                       if (table, column["name"]) in ADDED_AFTER_ADOPTION]
+    return unexpected + [difference for difference in schema_differences(connection)
+                         if not _added_after_adoption(difference)]
+
+
 def _adopt(connection):
     context = MigrationContext.configure(connection)
     current = context.get_current_revision()
@@ -73,7 +95,7 @@ def _adopt(connection):
         return False, f"Database is already managed by migrations (revision {current}); run `{UPGRADE_COMMAND}`."
     if not set(Base.metadata.tables) & set(inspect(connection).get_table_names()):
         return False, f"Database has no application tables; create them with `{UPGRADE_COMMAND}`."
-    differences = schema_differences(connection)
+    differences = adoption_differences(connection)
     if differences:
         listed = "\n".join(f"  {difference}" for difference in differences)
         return False, ("Schema differs from the models, so it cannot be stamped. Reconcile these "

@@ -15,8 +15,9 @@ from fastapi.testclient import TestClient
 from autograder.models.language import Language
 from sandbox_manager.api import ControlSettings, create_app
 from sandbox_manager.remote_client import RemoteSandboxContainer, RemoteSandboxError, RemoteSandboxManager
+from sandbox_manager.tracing import UNMATCHED_ROUTE
 from sandbox_manager.structured_logging import (
-    REQUEST_DUMPING_LOGGERS, REQUEST_ID_HEADER, UNMATCHED_PATH, JSONFormatter, _ServiceHandler, accept_request_id,
+    REQUEST_DUMPING_LOGGERS, REQUEST_ID_HEADER, JSONFormatter, _ServiceHandler, accept_request_id,
     get_request_id, request_logging_middleware, reset_request_id, set_request_id, setup_logging,
 )
 from tests.unit.sandbox.test_control_api import AUTH, TOKEN, FakeManager, acquire
@@ -121,7 +122,7 @@ def test_an_unmatched_path_is_not_logged_raw(logged):
     assert client.get("/sandboxes/some-handle-value/unknown/route", headers=AUTH).status_code == 404
     out, records = lines()
     assert "some-handle-value" not in out
-    assert [r["path"] for r in request_lines(records)] == [UNMATCHED_PATH]
+    assert [r["path"] for r in request_lines(records)] == [UNMATCHED_ROUTE]
 
 
 def test_request_id_is_kept_or_replaced_echoed_and_stamped_on_the_request_line(logged):

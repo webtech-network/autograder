@@ -46,6 +46,24 @@ def imported_names(path):
             yield node.module
 
 
+def distribution_of(name, distributions):
+    """The distribution that installs module ``name``.
+
+    Several distributions share a namespace package (``opentelemetry``): the
+    one whose files contain the module is the one the import needs.
+    """
+    root = name.split(".")[0]
+    candidates = distributions.get(root, [root])
+    if len(candidates) == 1:
+        return candidates[0]
+    path = name.replace(".", "/")
+    owners = sorted(candidate for candidate in candidates
+                    if any(str(file).startswith(f"{path}/") or str(file) == f"{path}.py"
+                           for file in importlib.metadata.distribution(candidate).files or ()))
+    assert owners, f"no installed distribution provides {name}"
+    return owners[0]
+
+
 def third_party_distributions(names):
     distributions = importlib.metadata.packages_distributions()
     found = set()
@@ -53,7 +71,7 @@ def third_party_distributions(names):
         root = name.split(".")[0]
         if root in PACKAGES or root in sys.stdlib_module_names:
             continue
-        found.add(canonical(PROVIDED_BY.get(root) or distributions.get(root, [root])[0]))
+        found.add(canonical(PROVIDED_BY.get(root) or distribution_of(name, distributions)))
     return found
 
 

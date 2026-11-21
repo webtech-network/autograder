@@ -11,6 +11,7 @@ from sandbox_manager.structured_logging import request_logging_middleware
 from web.api import api_router
 from web.config.body_limit import RequestBodyLimitMiddleware
 from web.config.logging import setup_logging
+from web.config.tracing import setup_api_tracing
 from web.core.host import WebHost
 from web.core.lifespan import lifespan
 
@@ -45,6 +46,7 @@ def create_app(settings=None, *, session_factory=None, capabilities=None,
                                allow_headers=settings.CORS_ALLOW_HEADERS)
     application.middleware("http")(request_logging_middleware)
     application.include_router(api_router)
+    setup_api_tracing(application, service_name=settings.SERVICE_NAME, engine=host.engine)
     return application
 
 

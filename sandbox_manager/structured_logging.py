@@ -2,7 +2,8 @@
 
 Both services write one line per record to stdout: JSON when ``json_logs`` is on,
 otherwise a human-readable line. Every line carries ``service``, ``env`` and the
-active ``request_id``; ``trace_id``/``span_id`` appear only when a record has them.
+active ``request_id``; ``trace_id``/``span_id`` appear only while a span is active
+(#489), and ``attempt_id`` only inside a grading attempt.
 
 What never reaches a log line: the raw request path or query string (sandbox
 handle IDs are bearer-like capabilities, user IDs identify students), the client
@@ -20,13 +21,13 @@ from time import perf_counter
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
+from sandbox_manager.tracing import UNMATCHED_ROUTE, current_trace_ids
+
 REQUEST_ID_HEADER = "X-Request-ID"
 #: An incoming ``X-Request-ID`` is client-controlled: anything else is replaced.
 REQUEST_ID_PATTERN = re.compile(r"[A-Za-z0-9._:-]{1,128}")
-#: Logged instead of a path no route matched (the raw path may hold a handle).
-UNMATCHED_PATH = "<unmatched>"
 #: Record attributes copied into JSON lines when present.
-CONTEXT_FIELDS = ("request_id", "trace_id", "span_id", "method", "path", "status", "duration_ms")
+CONTEXT_FIELDS = ("request_id", "attempt_id", "trace_id", "span_id", "method", "path", "status", "duration_ms")
 
 #: Libraries whose INFO/DEBUG lines dump requests: URLs (a sandbox URL holds its
 #: handle), bodies (the AI SDK logs the prompts, i.e. student code) or signed
@@ -34,6 +35,7 @@ CONTEXT_FIELDS = ("request_id", "trace_id", "span_id", "method", "path", "status
 REQUEST_DUMPING_LOGGERS = ("urllib3", "httpx", "httpcore", "openai", "botocore", "boto3", "s3transfer")
 
 _request_id: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
+_attempt_id: ContextVar[Optional[str]] = ContextVar("attempt_id", default=None)
 #: Request lines have the same logger name in both services; ``service`` tells them apart.
 logger = logging.getLogger("http.request")
 
@@ -51,6 +53,21 @@ def set_request_id(request_id: Optional[str]) -> Token:
 def reset_request_id(token: Token) -> None:
     """Restore the request id bound before ``set_request_id`` returned ``token``."""
     _request_id.reset(token)
+
+
+def get_attempt_id() -> Optional[str]:
+    """The grading attempt id of the active context, if any."""
+    return _attempt_id.get()
+
+
+def set_attempt_id(attempt_id: Optional[str]) -> Token:
+    """Bind the grading attempt id to the active context; pass the token to ``reset_attempt_id``."""
+    return _attempt_id.set(attempt_id)
+
+
+def reset_attempt_id(token: Token) -> None:
+    """Restore the attempt id bound before ``set_attempt_id`` returned ``token``."""
+    _attempt_id.reset(token)
 
 
 def accept_request_id(value: Optional[str]) -> str:
@@ -86,11 +103,26 @@ class JSONFormatter(logging.Formatter):
 
 
 class RequestContextFilter(logging.Filter):
-    """Stamp the active request id on every record (``-`` outside a request)."""
+    """Stamp the active request id (``-`` outside a request), attempt id and span ids on every record."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         record.request_id = get_request_id() or "-"
+        record.attempt_id = get_attempt_id()
+        record.trace_id, record.span_id = current_trace_ids()
         return True
+
+
+class TextFormatter(logging.Formatter):
+    """The human-readable line; it names the trace while a span is active."""
+
+    def __init__(self):
+        super().__init__("%(asctime)s - %(name)s - %(levelname)s - [request_id=%(request_id)s%(trace)s] %(message)s",
+                         datefmt="%Y-%m-%d %H:%M:%S")
+
+    def format(self, record: logging.LogRecord) -> str:
+        trace_id = getattr(record, "trace_id", None)
+        record.trace = f" trace_id={trace_id}" if trace_id else ""
+        return super().format(record)
 
 
 class _ServiceHandler(logging.StreamHandler):
@@ -110,9 +142,7 @@ def setup_logging(*, json_logs: bool, service_name: str, app_env: str, log_level
         root.removeHandler(handler)
     handler = _ServiceHandler(sys.stdout)
     handler.addFilter(RequestContextFilter())
-    handler.setFormatter(JSONFormatter(service_name, app_env) if json_logs else logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - [request_id=%(request_id)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"))
+    handler.setFormatter(JSONFormatter(service_name, app_env) if json_logs else TextFormatter())
     root.addHandler(handler)
     root.setLevel(level)
     for name in ("uvicorn", "uvicorn.error"):
@@ -131,7 +161,7 @@ def setup_logging(*, json_logs: bool, service_name: str, app_env: str, log_level
 
 def _route_template(request) -> str:
     route = request.scope.get("route")
-    return getattr(route, "path", None) or UNMATCHED_PATH
+    return getattr(route, "path", None) or UNMATCHED_ROUTE
 
 
 async def request_logging_middleware(request, call_next):

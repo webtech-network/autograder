@@ -25,9 +25,11 @@ Recovery rules:
   :class:`~sandbox_manager.errors.SandboxLifetimeExceeded`, as the local manager does.
 """
 import base64
+import re
 import uuid
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Dict, List, Optional
+from urllib.parse import urlsplit
 
 import requests
 
@@ -41,6 +43,7 @@ from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS, ProcessR
 from autograder.models.execution import ExtractedFile
 from sandbox_manager.models.sandbox_models import DisposalStatus
 from sandbox_manager.structured_logging import REQUEST_ID_HEADER, get_request_id
+from sandbox_manager.tracing import UNMATCHED_ROUTE, client_span, record_status
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
@@ -118,14 +121,39 @@ def _checked(response: requests.Response, *, artifact_path: Optional[str] = None
     raise RemoteSandboxError(text, status_code=response.status_code, code=code)
 
 
+_HANDLE_ROUTE = re.compile(r"/sandboxes/[^/]+(?P<operation>/(?:prepare|inject|process|files))?$")
+
+
+def route_template(method: str, url: str) -> str:
+    """The control API route ``url`` calls, as a template (``/sandboxes/{sandbox_id}/process``)."""
+    path = urlsplit(url).path
+    if path.endswith("/stats"):
+        return "/stats"
+    match = _HANDLE_ROUTE.search(path)
+    if match is None:
+        return UNMATCHED_ROUTE
+    if match["operation"]:
+        return "/sandboxes/{sandbox_id}" + match["operation"]
+    # POST acquires a sandbox of a language; DELETE disposes a handle.
+    return "/sandboxes/{language}" if method.upper() == "POST" else "/sandboxes/{sandbox_id}"
+
+
 class _CorrelatedSession(requests.Session):
-    """Sends the active request id (``X-Request-ID``) so both services log the same id."""
+    """Sends the active request id (``X-Request-ID``) and trace context (``traceparent``).
+
+    Each call is one client span named by the control API's route template:
+    the URL holds the sandbox handle and is never recorded.
+    """
 
     def request(self, method, url, *args, headers=None, **kwargs):
+        headers = dict(headers or {})
         request_id = get_request_id()
         if request_id:
-            headers = {REQUEST_ID_HEADER: request_id, **(headers or {})}
-        return super().request(method, url, *args, headers=headers, **kwargs)
+            headers.setdefault(REQUEST_ID_HEADER, request_id)
+        with client_span(method, route_template(method, url), headers) as span:
+            response = super().request(method, url, *args, headers=headers, **kwargs)
+            record_status(span, response.status_code)
+            return response
 
 
 def _new_session(token: Optional[str]) -> requests.Session:
