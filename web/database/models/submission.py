@@ -1,5 +1,7 @@
 """Submission database model."""
 
+from __future__ import annotations  # avoids pylint E1136 on Mapped[...]: pylint-dev/astroid#3383
+
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional

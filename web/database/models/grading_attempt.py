@@ -1,4 +1,6 @@
 """Worker history is internal; submission status remains the public job state."""
+from __future__ import annotations  # avoids pylint E1136 on Mapped[...]: pylint-dev/astroid#3383
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String
