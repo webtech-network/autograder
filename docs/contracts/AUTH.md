@@ -37,6 +37,7 @@ Authentication is declared once per router in `web/api/v1/__init__.py`:
 | --- | --- |
 | `GET /api/v1/health`, `GET /api/v1/ready` | public |
 | `GET /api/v1/templates`, `GET /api/v1/templates/{template_name}` | public (static evaluator catalog) |
+| `GET /metrics` | public; Prometheus counts only, keep it on the private network ([metrics](../operate/metrics.md)) |
 | `POST /api/v1/submissions/external-results` | `attest` scope |
 | every other `/api/v1/...` route, including every configuration alias, `/configs/validate`, submission polling/history/details and `/execute` | `integration` scope |
 

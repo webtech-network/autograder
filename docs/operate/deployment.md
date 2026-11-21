@@ -16,6 +16,10 @@ One Docker host runs:
 | PostgreSQL 17 | `postgres:17` | Durable submissions, outcomes and configurations ([Durable jobs](../contracts/JOBS.md)). |
 | Fixture store (optional) | S3 or compatible | `EXTERNAL_ASSETS_BUCKET_NAME`. |
 
+Prometheus scrapes `GET /metrics` on both services from the internal network
+([metrics](metrics.md)). The endpoint needs no credential, so the TLS proxy in
+front of `api` must not forward `/metrics` (route only `/api/`).
+
 The runtime images named under `runtimes:` in `sandbox_config.yml` must be
 pulled on the Docker host before `sandbox-manager` starts, and the Docker daemon
 must offer the OCI runtime named by `general.runtime`: the shipped file says

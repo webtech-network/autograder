@@ -117,6 +117,7 @@ nav:
   - Operate and Contribute:
       - Deploying the HTTP Service: operate/deployment.md
       - Configuration Reference: operate/configuration.md
+      - Metrics: operate/metrics.md
       - Sandbox Ownership: contracts/SANDBOX.md
       - Development Guide: guides/development.md
       - Sandbox Manager Internals: architecture/sandbox_manager.md

@@ -80,7 +80,7 @@ compatibility table and an example.
 
 ## Authentication
 
-Every route except `/health`, `/ready` and the template catalog requires
+Every route except `/health`, `/ready`, `/metrics` and the template catalog requires
 `Authorization: Bearer <token>`. `AUTOGRADER_INTEGRATION_TOKEN` grants every
 operation; restricted `AUTOGRADER_ATTESTATION_TOKENS` producers may only call
 `POST /api/v1/submissions/external-results`. Missing server configuration gives
@@ -101,6 +101,8 @@ parameters do not imply the selected host has API networking: no shipped host
 provides it, and such definitions produce structured failed outcomes.
 
 `GET /api/v1/health` returns service health, version and a UTC timestamp.
+`GET /metrics` (at the root, outside `/api/v1` and OpenAPI) returns
+[Prometheus metrics](operate/metrics.md); scrape it from the private network.
 `GET /api/v1/ready` returns readiness and a UTC timestamp, with status 503 when the host cannot durably accept work. Execution-provider
 availability is reported separately and does not strand accepted jobs.
 
