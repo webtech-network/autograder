@@ -2,17 +2,22 @@
 import io
 import json
 import logging
+import re
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+import requests
+import uvicorn.importer
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from autograder.models.language import Language
 from sandbox_manager.api import ControlSettings, create_app
-from sandbox_manager.remote_client import RemoteSandboxManager
+from sandbox_manager.remote_client import RemoteSandboxContainer, RemoteSandboxError, RemoteSandboxManager
 from sandbox_manager.structured_logging import (
-    HTTP_CLIENT_LOGGERS, REQUEST_ID_HEADER, UNMATCHED_PATH, JSONFormatter, _ServiceHandler, accept_request_id, reset_request_id,
-    set_request_id, setup_logging,
+    REQUEST_DUMPING_LOGGERS, REQUEST_ID_HEADER, UNMATCHED_PATH, JSONFormatter, _ServiceHandler, accept_request_id,
+    get_request_id, request_logging_middleware, reset_request_id, set_request_id, setup_logging,
 )
 from tests.unit.sandbox.test_control_api import AUTH, TOKEN, FakeManager, acquire
 from tests.unit.sandbox.test_remote_client import acquired
@@ -77,18 +82,20 @@ def test_well_formed_incoming_request_ids_are_kept(value):
     assert accept_request_id(value) == value
 
 
-def test_setup_keeps_foreign_handlers_replaces_its_own_and_silences_url_bearing_loggers():
+def test_setup_keeps_foreign_handlers_replaces_its_own_and_silences_request_dumping_loggers():
     foreign = logging.NullHandler()
     root = logging.getLogger()
     root.addHandler(foreign)
     try:
         for _ in range(2):
-            setup_logging(json_logs=True, service_name="s", app_env="e")
+            setup_logging(json_logs=True, service_name="s", app_env="e", log_level="DEBUG")
         assert foreign in root.handlers
         assert len([h for h in root.handlers if isinstance(h, _ServiceHandler)]) == 1
         assert logging.getLogger("uvicorn.access").disabled
         assert logging.getLogger("uvicorn.error").propagate
-        assert all(logging.getLogger(name).level == logging.WARNING for name in HTTP_CLIENT_LOGGERS)
+        # Even at DEBUG: URLs (handles), AI request bodies (student code), signed S3 headers.
+        assert {"urllib3", "httpx", "openai", "botocore"} <= set(REQUEST_DUMPING_LOGGERS)
+        assert not any(logging.getLogger(name).isEnabledFor(logging.INFO) for name in REQUEST_DUMPING_LOGGERS)
     finally:
         root.removeHandler(foreign)
 
@@ -146,3 +153,72 @@ def test_remote_client_forwards_the_active_request_id():
     manager._session.send = Mock(return_value=acquired())  # pylint: disable=protected-access
     manager.get_pool_stats()
     assert REQUEST_ID_HEADER not in manager._session.send.call_args.args[0].headers  # pylint: disable=protected-access
+
+
+def json_stream():
+    """Point the service handler at a fresh stream and return a reader of its JSON lines."""
+    stream = io.StringIO()
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, _ServiceHandler):
+            handler.setStream(stream)
+    return lambda: (stream.getvalue(), [json.loads(line) for line in stream.getvalue().splitlines()])
+
+
+def test_a_failed_request_logs_its_template_and_resets_the_request_id():
+    setup_logging(json_logs=True, service_name="s", app_env="e")
+    lines = json_stream()
+    app = FastAPI()
+    app.middleware("http")(request_logging_middleware)
+
+    @app.get("/things/{secret}")
+    def explode(secret: str):
+        raise RuntimeError("boom")
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert client.get("/things/handle-xyz", headers={REQUEST_ID_HEADER: "req-9"}).status_code == 500
+    out, records = lines()
+    assert "handle-xyz" not in out
+    [failed] = [r for r in records if r["message"] == "http_request_failed"]
+    assert failed["path"] == "/things/{secret}" and failed["status"] == 500 and failed["request_id"] == "req-9"
+    assert failed["logger"] == "http.request" and "RuntimeError: boom" in failed["exception"]
+    assert get_request_id() is None
+
+
+def test_a_logged_transport_failure_carries_no_handle():
+    sandbox = RemoteSandboxContainer("handle-secret-1", Language.PYTHON, "http://sandbox:8001", token="tok")
+    sandbox._session.send = Mock(side_effect=requests.ConnectionError(  # pylint: disable=protected-access
+        "Max retries exceeded with url: /sandboxes/handle-secret-1/prepare"))
+    setup_logging(json_logs=True, service_name="s", app_env="e")
+    lines = json_stream()
+    try:
+        sandbox.prepare_workdir({})
+    except RemoteSandboxError:
+        logging.getLogger("test").exception("Execution session cleanup failed")
+    out, records = lines()
+    assert "RemoteSandboxError" in records[0]["exception"] and "handle-secret-1" not in out
+
+
+def test_logging_settings_come_from_the_environment(monkeypatch):
+    for name in ("JSON_LOGS", "LOG_LEVEL", "SERVICE_NAME", "APP_ENV"):
+        monkeypatch.delenv(name, raising=False)
+    defaults = ControlSettings.from_env()
+    assert (defaults.json_logs, defaults.log_level, defaults.service_name, defaults.app_env) == (
+        False, "INFO", "autograder-sandbox-manager", "local")
+    monkeypatch.setenv("JSON_LOGS", "true")
+    monkeypatch.setenv("LOG_LEVEL", "warning")
+    monkeypatch.setenv("SERVICE_NAME", "sbx")
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("SANDBOX_API_TOKEN", "t")
+    configured = ControlSettings.from_env()
+    assert (configured.json_logs, configured.log_level, configured.service_name, configured.app_env) == (
+        True, "warning", "sbx", "staging")
+    configured.validate()
+    with pytest.raises(RuntimeError, match="LOG_LEVEL"):
+        ControlSettings(token="t", log_level="LOUD").validate()
+
+
+def test_the_image_starts_the_sandbox_manager_as_a_factory():
+    dockerfile = (Path(__file__).resolve().parents[3] / "Dockerfile.sandbox").read_text(encoding="utf-8")
+    command = json.loads(re.search(r"^CMD (\[.*\])$", dockerfile, re.MULTILINE).group(1))
+    target = command[command.index("--factory") + 1]
+    assert uvicorn.importer.import_from_string(target) is create_app

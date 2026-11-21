@@ -93,5 +93,5 @@ async def test_the_worker_grades_under_its_attempt_id(logged, session_factory):
     assert await asyncio.create_task(app.state.host.worker.run_once()) is True
     async with session_factory() as session:
         attempt_id = await session.scalar(select(GradingAttempt.id))
-    assert seen == [attempt_id]
+    assert seen == [str(attempt_id)]
     assert get_request_id() is None

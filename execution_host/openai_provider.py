@@ -124,7 +124,8 @@ class AiExecutor:
             # The type and status only: a provider's message may echo request content.
             logger.error("AI batch request failed: %s (status %s)", type(e).__name__,
                          getattr(e, "status_code", None))
-            raise provider_failure(e) from e
+            # ``from None``: a logged traceback would otherwise print the provider's message.
+            raise provider_failure(e) from None
         if parsed is None:
             raise EvaluationError("MISSING_EVALUATOR_RESULT", "A required AI assessment was not returned.", "provider", True)
         return [ProviderAssessment(criterion_id=output.criterion_id, score=output.score, report=output.feedback)

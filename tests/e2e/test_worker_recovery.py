@@ -65,10 +65,10 @@ def listen(port=0):
 def serve(app, env, listener, log_path):
     """Start uvicorn on an already bound socket (no free-port race); the caller's copy is closed.
 
-    ``app`` is uvicorn's application argument, or a list of arguments (``--factory`` and its target).
+    ``app`` is the list of uvicorn's application arguments (``["--factory", target]`` or ``[target]``).
     """
     with log_path.open("a") as log:
-        process = subprocess.Popen([sys.executable, "-m", "uvicorn", *([app] if isinstance(app, str) else app), "--fd", str(listener.fileno()),
+        process = subprocess.Popen([sys.executable, "-m", "uvicorn", *app, "--fd", str(listener.fileno()),
                                     "--log-level", "warning"], cwd=REPO, env=env,
                                    pass_fds=(listener.fileno(),), stdout=log, stderr=subprocess.STDOUT)
     listener.close()
@@ -143,7 +143,7 @@ def stack(tmp_path_factory, database_url, docker_client):  # pylint: disable=red
     def start_api():
         listener = listen()
         url = f"http://127.0.0.1:{listener.getsockname()[1]}/api/v1"
-        process = serve("web.main:app", api_env, listener, state["api_log"])
+        process = serve(["web.main:app"], api_env, listener, state["api_log"])
         wait_until(responds(url + "/ready"), 60, "the API is ready", process, state["api_log"])
         state["apis"].append(process)
         state["url"] = url

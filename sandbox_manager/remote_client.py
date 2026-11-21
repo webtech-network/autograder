@@ -155,8 +155,9 @@ class RemoteSandboxContainer:
             return self._session.request(method, self._base + path,
                                          timeout=(CONNECT_TIMEOUT_SECONDS, read_timeout), **kwargs)
         except TRANSPORT_ERRORS as exc:
+            # ``from None``: the requests error's message holds the URL, i.e. the handle.
             raise RemoteSandboxError(f"Sandbox control API unreachable during {path or 'request'}: "
-                                     f"{type(exc).__name__}", code="TRANSPORT_ERROR") from exc
+                                     f"{type(exc).__name__}", code="TRANSPORT_ERROR") from None
 
     def close(self):
         """Close this handle's HTTP session (idempotent)."""
@@ -209,7 +210,7 @@ class RemoteSandboxManager:
             except TRANSPORT_ERRORS as exc:
                 if attempt == attempts:
                     raise RemoteSandboxError(f"Sandbox control API unreachable: {type(exc).__name__}",
-                                             code="TRANSPORT_ERROR") from exc
+                                             code="TRANSPORT_ERROR") from None
         raise AssertionError("unreachable")
 
     def get_sandbox(self, lang: Language, wait_seconds: float = 0.0,

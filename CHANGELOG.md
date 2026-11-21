@@ -27,7 +27,11 @@ users must take are in the
 
 - Logs no longer contain sandbox handle IDs or student user IDs from request
   paths, client addresses, query strings, the AI prompts (student code, formerly
-  at `DEBUG`) or AI provider error messages (#487).
+  at `DEBUG`) or AI provider error messages. Even at `LOG_LEVEL=DEBUG`, the
+  HTTP, AI and AWS client libraries log warnings only (they would log URLs,
+  request bodies and signed headers), and sandbox transport and AI provider
+  errors no longer chain the library exception whose message held the URL or
+  the request (#487).
 
 ## [1.0.0] - 2026-11-07
 

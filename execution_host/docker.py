@@ -140,8 +140,8 @@ class ConfiguredAssessmentProvider:
         try:
             return executor.assess(requests, context_files=context_files, locale=locale)
         except EvaluationError as error:
-            from openai import AuthenticationError
-            if isinstance(error.__cause__, AuthenticationError):
+            # A refused credential or model: the next grading resolves the key and client again.
+            if error.code == "PROVIDER_UNAVAILABLE":
                 with self._lock:
                     if self._executor is executor:
                         self._executor = None

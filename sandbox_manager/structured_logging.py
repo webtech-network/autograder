@@ -7,8 +7,8 @@ active ``request_id``; ``trace_id``/``span_id`` appear only when a record has th
 What never reaches a log line: the raw request path or query string (sandbox
 handle IDs are bearer-like capabilities, user IDs identify students), the client
 address, and request headers. ``request_logging_middleware`` logs the matched
-route *template* instead, and Uvicorn's own access line is silenced, as are
-the URL-bearing lines of HTTP client libraries.
+route *template* instead, and Uvicorn's own access line is silenced, and
+libraries that dump requests (URLs, bodies, signed headers) log warnings only.
 """
 import json
 import logging
@@ -28,11 +28,14 @@ UNMATCHED_PATH = "<unmatched>"
 #: Record attributes copied into JSON lines when present.
 CONTEXT_FIELDS = ("request_id", "trace_id", "span_id", "method", "path", "status", "duration_ms")
 
-#: Client libraries whose INFO/DEBUG lines contain request URLs.
-HTTP_CLIENT_LOGGERS = ("urllib3", "httpx", "httpcore")
+#: Libraries whose INFO/DEBUG lines dump requests: URLs (a sandbox URL holds its
+#: handle), bodies (the AI SDK logs the prompts, i.e. student code) or signed
+#: headers (botocore logs the access key id and session token).
+REQUEST_DUMPING_LOGGERS = ("urllib3", "httpx", "httpcore", "openai", "botocore", "boto3", "s3transfer")
 
 _request_id: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
-logger = logging.getLogger(__name__)
+#: Request lines have the same logger name in both services; ``service`` tells them apart.
+logger = logging.getLogger("http.request")
 
 
 def get_request_id() -> Optional[str]:
@@ -117,9 +120,8 @@ def setup_logging(*, json_logs: bool, service_name: str, app_env: str, log_level
         uvicorn_logger.handlers = []
         uvicorn_logger.propagate = True
         uvicorn_logger.setLevel(level)
-    # HTTP client libraries log request URLs (urllib3 at DEBUG, httpx at INFO); a
-    # sandbox URL holds its handle, so they log warnings only.
-    for name in HTTP_CLIENT_LOGGERS:
+    # Even at LOG_LEVEL=DEBUG these libraries log warnings only.
+    for name in REQUEST_DUMPING_LOGGERS:
         logging.getLogger(name).setLevel(max(level, logging.WARNING))
     access = logging.getLogger("uvicorn.access")
     access.handlers = []
