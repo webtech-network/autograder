@@ -63,9 +63,12 @@ def listen(port=0):
 
 
 def serve(app, env, listener, log_path):
-    """Start uvicorn on an already bound socket (no free-port race); the caller's copy is closed."""
+    """Start uvicorn on an already bound socket (no free-port race); the caller's copy is closed.
+
+    ``app`` is uvicorn's application argument, or a list of arguments (``--factory`` and its target).
+    """
     with log_path.open("a") as log:
-        process = subprocess.Popen([sys.executable, "-m", "uvicorn", app, "--fd", str(listener.fileno()),
+        process = subprocess.Popen([sys.executable, "-m", "uvicorn", *([app] if isinstance(app, str) else app), "--fd", str(listener.fileno()),
                                     "--log-level", "warning"], cwd=REPO, env=env,
                                    pass_fds=(listener.fileno(),), stdout=log, stderr=subprocess.STDOUT)
     listener.close()
@@ -131,7 +134,7 @@ def stack(tmp_path_factory, database_url, docker_client):  # pylint: disable=red
              "sandbox_log": directory / "sandbox.log", "api_log": directory / "api.log", "apis": [], "sandbox": None}
 
     def start_sandbox():
-        process = serve("sandbox_manager.api:app", sandbox_env, listen(sandbox_port), state["sandbox_log"])
+        process = serve(["--factory", "sandbox_manager.api:create_app"], sandbox_env, listen(sandbox_port), state["sandbox_log"])
         wait_until(responds(f"http://127.0.0.1:{sandbox_port}/health"), 60, "the sandbox service is up",
                    process, state["sandbox_log"])
         state["sandbox"] = process

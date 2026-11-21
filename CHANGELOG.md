@@ -9,6 +9,26 @@ users must take are in the
 
 ## [Unreleased]
 
+### Changed
+
+- The sandbox manager writes the API's structured log lines: `JSON_LOGS`,
+  `LOG_LEVEL`, `SERVICE_NAME` (default `autograder-sandbox-manager`) and
+  `APP_ENV` configure it as they configure the API. Both services log one
+  `http_request_completed` line per request with the route template as `path`,
+  turn off Uvicorn's access line, and accept, echo and forward `X-Request-ID`;
+  the grading worker uses the attempt id as the request id
+  ([log lines](docs/operate/configuration.md#sandbox-manager), #487).
+- The sandbox manager image starts Uvicorn with
+  `--factory sandbox_manager.api:create_app`, so its first log line is already
+  structured. A deployment that overrides the image command must do the same;
+  `sandbox_manager.api:app` no longer exists (#487).
+
+### Security
+
+- Logs no longer contain sandbox handle IDs or student user IDs from request
+  paths, client addresses, query strings, the AI prompts (student code, formerly
+  at `DEBUG`) or AI provider error messages (#487).
+
 ## [1.0.0] - 2026-11-07
 
 The first release: the outcome of the codebase refactoring

@@ -85,6 +85,25 @@ host ([Sandbox ownership](../contracts/SANDBOX.md#private-control-api)).
 | `WEB_CONCURRENCY` | `1` | Must be `1`: handles live in process memory (Uvicorn also reads it). |
 | `SANDBOX_HOST` | `127.0.0.1` | Bind address of `python -m sandbox_manager`. The image's command binds `0.0.0.0:8001`. |
 | `SANDBOX_PORT` | `8001` | Port of `python -m sandbox_manager`. |
+| `JSON_LOGS` | `false` | JSON log lines (`true` in production). |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`. |
+| `SERVICE_NAME` | `autograder-sandbox-manager` | `service` field of log lines. |
+| `APP_ENV` | `local` | `env` field of log lines. |
+
+Both services write one log line per record to stdout, in the same format. With
+`JSON_LOGS=true` each line is a JSON object with `timestamp`, `level`, `logger`,
+`message`, `service`, `env` and `request_id` (`-` outside a request), plus
+`exception` when one was raised. `trace_id` and `span_id` appear only on lines
+that carry them. Each HTTP request gets one `http_request_completed` (or
+`http_request_failed`) line with `method`, `path`, `status` and `duration_ms`.
+`path` is the matched route template (`/sandboxes/{sandbox_id}/process`), or
+`<unmatched>` when no route matched; the raw path, the query string, headers
+and the client address are never logged, and Uvicorn's own access line is
+turned off. A request keeps a well-formed incoming `X-Request-ID`
+(`[A-Za-z0-9._:-]`, at most 128 characters) or gets a new one, and the response
+echoes it. The API forwards it to the sandbox manager. Its grading worker uses
+the grading attempt id as the request id, so one attempt's lines share an id in
+both services.
 
 ## GitHub Action
 

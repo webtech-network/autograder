@@ -10,7 +10,8 @@ import uvicorn
 
 if __name__ == "__main__":
     uvicorn.run(
-        "sandbox_manager.api:app",
+        "sandbox_manager.api:create_app",
+        factory=True,
         host=os.getenv("SANDBOX_HOST", "127.0.0.1"),
         port=int(os.getenv("SANDBOX_PORT", "8001")),
         workers=1,

@@ -40,6 +40,7 @@ from sandbox_manager.errors import (
 from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS, ProcessRequestModel, ProcessResultModel
 from autograder.models.execution import ExtractedFile
 from sandbox_manager.models.sandbox_models import DisposalStatus
+from sandbox_manager.structured_logging import REQUEST_ID_HEADER, get_request_id
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
@@ -117,8 +118,18 @@ def _checked(response: requests.Response, *, artifact_path: Optional[str] = None
     raise RemoteSandboxError(text, status_code=response.status_code, code=code)
 
 
+class _CorrelatedSession(requests.Session):
+    """Sends the active request id (``X-Request-ID``) so both services log the same id."""
+
+    def request(self, method, url, *args, headers=None, **kwargs):
+        request_id = get_request_id()
+        if request_id:
+            headers = {REQUEST_ID_HEADER: request_id, **(headers or {})}
+        return super().request(method, url, *args, headers=headers, **kwargs)
+
+
 def _new_session(token: Optional[str]) -> requests.Session:
-    session = requests.Session()
+    session = _CorrelatedSession()
     # requests' default adapter performs no retries; replay policy lives here.
     if token:
         session.headers["Authorization"] = f"Bearer {token}"
