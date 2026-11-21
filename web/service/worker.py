@@ -120,7 +120,7 @@ def _discard_late(task):
 class DurableWorker:
     """A process owns bounded workers; PostgreSQL owns the durable work state."""
     def __init__(self, session_factory, settings, capabilities=None, *, evaluator=evaluate,
-                 attempt_margin=ATTEMPT_MARGIN_SECONDS, metrics=None):
+                 attempt_margin=ATTEMPT_MARGIN_SECONDS, metrics: GradingMetrics | None = None):
         self.sessions = session_factory
         self.settings = settings
         self.capabilities = capabilities

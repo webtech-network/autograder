@@ -101,10 +101,11 @@ parameters do not imply the selected host has API networking: no shipped host
 provides it, and such definitions produce structured failed outcomes.
 
 `GET /api/v1/health` returns service health, version and a UTC timestamp.
-`GET /metrics` (at the root, outside `/api/v1` and OpenAPI) returns
-[Prometheus metrics](operate/metrics.md); scrape it from the private network.
 `GET /api/v1/ready` returns readiness and a UTC timestamp, with status 503 when the host cannot durably accept work. Execution-provider
 availability is reported separately and does not strand accepted jobs.
+
+`GET /metrics` (at the root, outside `/api/v1` and OpenAPI) returns
+[Prometheus metrics](operate/metrics.md); scrape it from the private network.
 
 `POST /api/v1/execute` is the [bounded deliberate execution API](contracts/EXECUTION.md).
 It requires the integration Bearer token. `test_cases` supplies stdin lines;

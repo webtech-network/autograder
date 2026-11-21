@@ -31,7 +31,8 @@ namespaces [replay keys](REPLAY.md), so producers never observe each other's rec
 
 ## Route policy
 
-Authentication is declared once per router in `web/api/v1/__init__.py`:
+Authentication is declared once per router in `web/api/v1/__init__.py`; the
+root `GET /metrics` router is mounted, public, in `web/api/__init__.py`:
 
 | Routes | Requirement |
 | --- | --- |

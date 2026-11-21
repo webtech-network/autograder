@@ -7,27 +7,28 @@ categories and the published outcome error codes); a value outside its set is
 reported as ``other``. Submission, attempt and user identifiers are never labels.
 """
 import asyncio
-from datetime import datetime, timezone
-from time import perf_counter
+from datetime import timezone
+from time import monotonic, perf_counter
+from typing import get_args
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
-from sqlalchemy import event, func, select
+from sqlalchemy import event, func, select, text
 from sqlalchemy.pool import QueuePool
 
-from autograder.models.contracts.outcome import OUTCOME_ERROR_CODES
+from autograder.models.contracts.outcome import OUTCOME_ERROR_CODES, OutcomeError
 from autograder.models.language import Language
-from sandbox_manager.metrics import HttpMetrics, SandboxCollector
+from sandbox_manager.metrics import OTHER, HttpMetrics, SandboxCollector
 from web.config.logging import get_logger
 from web.database.models.submission import Submission, SubmissionStatus
 
 logger = get_logger(__name__)
 
-OTHER = "other"
 LANGUAGES = frozenset(language.value for language in Language)
 OUTCOME_STATUSES = frozenset({"completed", "failed"})
-ERROR_CATEGORIES = frozenset({"definition", "submission", "capability", "provider", "internal"})
+ERROR_CATEGORIES = frozenset(get_args(
+    OutcomeError.model_fields["category"].annotation))  # pylint: disable=unsubscriptable-object  # pydantic class property
 ERROR_CODES = frozenset(OUTCOME_ERROR_CODES)
 #: Seconds per attempt: static checks take under a second, sandboxed runs minutes.
 GRADING_BUCKETS = (0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0)
@@ -35,6 +36,8 @@ GRADING_BUCKETS = (0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0)
 CONNECT_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0)
 #: A scrape gives up on the queue query after this long (Prometheus' default scrape timeout is 10 s).
 QUEUE_QUERY_TIMEOUT_SECONDS = 5.0
+#: Scrapes within this interval of the last queue read reuse it: at most one query per interval.
+QUEUE_REFRESH_SECONDS = 5.0
 QUEUE_STATES = ("pending", "processing", "retry_wait")
 _CONNECT_STARTED = "autograder_metrics_connect_started"
 
@@ -82,55 +85,83 @@ class GradingMetrics:
                                 _closed(language, LANGUAGES), category).inc()
 
 
-class QueueMetrics:
-    """The shared PostgreSQL backlog, read once per scrape (every replica reports the same values)."""
+class QueueMetrics(Collector):
+    """Open submissions of the shared PostgreSQL queue (every replica reports the same values).
 
-    def __init__(self, registry: CollectorRegistry):
-        self.submissions = Gauge(
-            "autograder_queue_submissions",
-            "Claimable submissions: pending, processing (an attempt owns it) or retry_wait (released for retry).",
-            ("state",), registry=registry)
-        self.oldest_age = Gauge("autograder_queue_oldest_age_seconds",
-                                "Age of the oldest pending submission (0 when none is pending).",
-                                registry=registry)
-        self.up = Gauge("autograder_queue_up", "1 if the last scrape read the queue, 0 if the query failed.",
-                        registry=registry)
+    Concurrent scrapes share one read and reuse it for ``QUEUE_REFRESH_SECONDS``,
+    so an unauthenticated flood of ``/metrics`` requests reads the database at most
+    once per interval. Each read publishes one immutable snapshot: a scrape never
+    sees half-updated values. A failed or slow read reports ``autograder_queue_up 0``
+    and no queue values, and is logged once per transition.
+    """
+
+    def __init__(self, *, clock=monotonic):
+        self._clock = clock
+        self._lock = asyncio.Lock()
+        self._read_at = None
+        self._snapshot = None  # (counts by state, oldest pending age in seconds) or None after a failure
+
+    def describe(self):
+        return []  # Nothing is read at registration.
 
     async def refresh(self, sessions) -> None:
-        """Read the backlog; a failed or slow query reports ``autograder_queue_up 0`` and no queue values."""
-        try:
-            counts, oldest = await asyncio.wait_for(self._read(sessions), QUEUE_QUERY_TIMEOUT_SECONDS)
-        except Exception as exc:  # pylint: disable=broad-exception-caught  # a scrape never fails on the database
-            logger.warning("metrics_queue_unavailable: %s", type(exc).__name__)
-            self.submissions.clear()
-            self.oldest_age.set(float("nan"))
-            self.up.set(0)
+        """Read the queue unless a read finished within ``QUEUE_REFRESH_SECONDS``."""
+        async with self._lock:
+            if self._read_at is not None and self._clock() - self._read_at < QUEUE_REFRESH_SECONDS:
+                return
+            try:
+                snapshot = await asyncio.wait_for(self._read(sessions), QUEUE_QUERY_TIMEOUT_SECONDS)
+            except Exception as exc:  # pylint: disable=broad-exception-caught  # a scrape never fails on the database
+                if self._snapshot is not None or self._read_at is None:
+                    logger.warning("metrics_queue_unavailable: %s", type(exc).__name__)
+                snapshot = None
+            else:
+                if self._snapshot is None and self._read_at is not None:
+                    logger.info("metrics_queue_available")
+            self._snapshot, self._read_at = snapshot, self._clock()
+
+    def collect(self):
+        snapshot = self._snapshot
+        yield GaugeMetricFamily("autograder_queue_up", "1 if the last queue read succeeded, 0 if it failed.",
+                                value=0 if snapshot is None else 1)
+        if snapshot is None:
             return
+        counts, oldest_age = snapshot
+        submissions = GaugeMetricFamily(
+            "autograder_queue_submissions",
+            "Open submissions: pending (never claimed), processing (an attempt holds or held it) or "
+            "retry_wait (released after a retryable failure).", labels=("state",))
         for state in QUEUE_STATES:
-            self.submissions.labels(state).set(counts.get(state, 0))
-        self.oldest_age.set(0.0 if oldest is None else
-                            max(0.0, (datetime.now(timezone.utc) - _utc(oldest)).total_seconds()))
-        self.up.set(1)
+            submissions.add_metric((state,), counts.get(state, 0))
+        yield submissions
+        yield GaugeMetricFamily("autograder_queue_oldest_age_seconds",
+                                "Age of the oldest pending submission (0 when none is pending).", value=oldest_age)
 
     @staticmethod
     async def _read(sessions):
         # Only the two open statuses (indexed column), grouped: a handful of rows whatever the history size.
-        # The predicate mirrors the worker's claim, so the count is the claimable backlog.
+        # Rows without a bound definition are never claimed, so they are not queued work.
         statement = (select(Submission.status, Submission.attempt_id.is_(None), func.count(),
                             func.min(Submission.submitted_at))
                      .where(Submission.status.in_((SubmissionStatus.PENDING, SubmissionStatus.PROCESSING)),
                             Submission.definition_snapshot.is_not(None))
                      .group_by(Submission.status, Submission.attempt_id.is_(None)))
         async with sessions() as session:
+            if session.get_bind().dialect.name == "postgresql":
+                # Bound the statement on the server too: cancelling the client does not stop it.
+                await session.execute(text(f"SET LOCAL statement_timeout = {int(QUEUE_QUERY_TIMEOUT_SECONDS * 1000)}"))
+            now = _utc(await session.scalar(select(func.now())))  # The clock that stamped submitted_at.
             rows = (await session.execute(statement)).all()
+            await session.rollback()
         counts, oldest = {}, None
         for status, unowned, count, first in rows:
             if status == SubmissionStatus.PENDING:
-                state, oldest = "pending", first if oldest is None or first < oldest else oldest
+                state = "pending"
+                oldest = _utc(first) if oldest is None else min(oldest, _utc(first))
             else:
                 state = "retry_wait" if unowned else "processing"
             counts[state] = counts.get(state, 0) + count
-        return counts, oldest
+        return counts, 0.0 if oldest is None else max(0.0, (now - oldest).total_seconds())
 
 
 class DatabasePoolCollector(Collector):
@@ -198,7 +229,8 @@ class WebMetrics:
         self.registry = CollectorRegistry()
         self.http = HttpMetrics(self.registry)
         self.grading = GradingMetrics(self.registry)
-        self.queue = QueueMetrics(self.registry)
+        self.queue = QueueMetrics()
+        self.registry.register(self.queue)
         self.database = DatabaseMetrics(self.registry)
 
     def watch_sandboxes(self, manager) -> None:

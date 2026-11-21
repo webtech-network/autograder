@@ -74,7 +74,7 @@ def test_unknown_methods_collapse_into_one_label(instrumented):
     client.request("PROPFIND", "/items/1")
     methods = {sample.labels["method"] for metric in registry.collect() if metric.name == "http_server_requests"
                for sample in metric.samples}
-    assert methods == {"OTHER"}
+    assert methods == {"other"}
 
 
 def test_sandbox_collector_reports_every_state_per_language_and_the_budget():

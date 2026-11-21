@@ -18,7 +18,8 @@ One Docker host runs:
 
 Prometheus scrapes `GET /metrics` on both services from the internal network
 ([metrics](metrics.md)). The endpoint needs no credential, so the TLS proxy in
-front of `api` must not forward `/metrics` (route only `/api/`).
+front of `api` must not forward `/metrics` (forward `/api/`, plus `/docs` and
+`/openapi.json` if you publish them).
 
 The runtime images named under `runtimes:` in `sandbox_config.yml` must be
 pulled on the Docker host before `sandbox-manager` starts, and the Docker daemon

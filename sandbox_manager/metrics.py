@@ -1,7 +1,7 @@
 """Prometheus exposition shared by the sandbox control API and the HTTP service.
 
 Every label value comes from a closed set: an HTTP method from ``HTTP_METHODS``
-(else ``OTHER``), the matched route *template* (never the concrete path; a
+(else ``other``, the one spelling for any value outside its set), the matched route *template* (never the concrete path; a
 request no route matched is ``unmatched``), a status code, a language of
 :class:`~autograder.models.language.Language` and a pool state. Identifiers,
 paths, tokens and submission content never become labels.
@@ -9,6 +9,7 @@ paths, tokens and submission content never become labels.
 Each application owns its :class:`~prometheus_client.CollectorRegistry`, so
 several applications in one process (tests) never share series.
 """
+import asyncio
 from time import perf_counter
 from typing import Callable, Iterable, Optional
 
@@ -17,6 +18,9 @@ from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
 from fastapi import Response
 
+OTHER = "other"
+#: Recorded when the client went away before a response started (nginx's convention).
+CLIENT_CLOSED = 499
 HTTP_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
 UNMATCHED_ROUTE = "unmatched"
 #: Seconds; control-API calls and API requests are sub-second, a capacity wait may take minutes.
@@ -27,7 +31,7 @@ SANDBOX_STATES = ("idle", "creating", "active", "closing", "quarantined")
 
 def _method(scope) -> str:
     method = scope.get("method", "")
-    return method if method in HTTP_METHODS else "OTHER"
+    return method if method in HTTP_METHODS else OTHER
 
 
 def _route(scope) -> str:
@@ -53,7 +57,9 @@ class HttpMetricsMiddleware:
     """Pure ASGI middleware recording :class:`HttpMetrics` for every HTTP request.
 
     Register it outermost so rejections by other middleware count too. A request
-    that raises is recorded as status 500 and the exception propagates unchanged.
+    that raises before responding is recorded as status 500, one cancelled or
+    finished without a response (the client disconnected) as 499; exceptions
+    propagate unchanged.
     """
 
     def __init__(self, app, metrics: HttpMetrics):
@@ -65,7 +71,7 @@ class HttpMetricsMiddleware:
             await self.app(scope, receive, send)
             return
         method = _method(scope)
-        status = 500
+        status = None
 
         async def send_and_record_status(message):
             nonlocal status
@@ -78,10 +84,15 @@ class HttpMetricsMiddleware:
         start = perf_counter()
         try:
             await self.app(scope, receive, send_and_record_status)
+        except asyncio.CancelledError:
+            raise
+        except BaseException:
+            status = status or 500
+            raise
         finally:
             route = _route(scope)
             self.metrics.duration.labels(method, route).observe(perf_counter() - start)
-            self.metrics.requests.labels(method, route, str(status)).inc()
+            self.metrics.requests.labels(method, route, str(status or CLIENT_CLOSED)).inc()
             in_progress.dec()
 
 

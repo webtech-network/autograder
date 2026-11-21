@@ -30,6 +30,12 @@ users must take are in the
   release's image (the previous one does not know revision `012`; the recorded
   ids are dropped), then start the previous image (#489).
 
+- `GET /metrics` on the HTTP service and on the sandbox manager: Prometheus HTTP
+  golden signals, grading throughput, failures and duration, the queue backlog,
+  database connection-pool and sandbox pool gauges, with closed-set labels only
+  ([Metrics](docs/operate/metrics.md),
+  [#488](https://github.com/webtech-network/autograder/issues/488)).
+
 ### Changed
 
 - The sandbox manager writes the API's structured log lines: `JSON_LOGS`,

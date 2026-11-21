@@ -10,7 +10,7 @@ Both services expose Prometheus metrics in the text format at `GET /metrics`:
 `/metrics` needs no credential, like `/health`: it carries counts, durations and
 closed-set labels only, never identifiers, paths, tokens, names or submission
 content. Scrape it from the private network and never route it publicly: the
-proxy in front of `api` forwards `/api/` only (see
+proxy in front of `api` must not forward `/metrics` (see
 [deployment](deployment.md#supported-topology)), and the sandbox manager's port
 is never published at all (see
 [SANDBOX.md](../contracts/SANDBOX.md#private-control-api)). It is not part of the
@@ -24,16 +24,17 @@ deployment, not by traffic:
 
 | Label | Values |
 | --- | --- |
-| `method` | `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, else `OTHER` |
+| `method` | `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` |
 | `route` | the matched route template (`/api/v1/submissions/{submission_id}`), or `unmatched` |
-| `status` (HTTP) | the response status code; an unhandled exception is `500` |
+| `status` (HTTP) | the response status code; an exception before any response is `500`, a client that disconnected before one is `499` |
 | `language` | a [supported language](../contracts/LANGUAGES.md) |
 | `status` (grading) | `completed` or `failed` |
 | `error_category`, `category` | the [outcome error categories](../contracts/OUTCOMES.md), `none` on success |
 | `code` | the published [outcome error codes](../contracts/OUTCOMES.md) |
+| `retryable` | `true` or `false` |
 | `state` | pool states, or queue states (below) |
 
-A value outside its set is reported as `other` (grading labels) or `OTHER` (methods).
+A value outside its set is reported as `other`.
 
 ## HTTP (both services)
 
@@ -58,14 +59,17 @@ appear on the sandbox manager's target, which gives the control-API latency.
 ## Queue (`api`)
 
 The backlog is the shared database queue, read with one grouped query over the
-open statuses each scrape (bounded by a 5 s timeout), so every replica reports
-the same values; aggregate with `max`, not `sum`.
+open statuses, bounded by a 5 s timeout (on PostgreSQL also as the statement's
+`statement_timeout`). Concurrent scrapes share one read, and scrapes within 5 s
+of it reuse its values, so the database sees at most one query per 5 s per
+process however often `/metrics` is requested. Every replica reports the same
+values; aggregate with `max`, not `sum`.
 
 | Metric | Type | Meaning |
 | --- | --- | --- |
-| `autograder_queue_submissions{state}` | gauge | `pending` (accepted, never claimed), `processing` (an attempt owns it) and `retry_wait` (released after a retryable failure, waiting for its backoff) |
-| `autograder_queue_oldest_age_seconds` | gauge | Age of the oldest pending submission; `0` when none, `NaN` when the query failed |
-| `autograder_queue_up` | gauge | `1` if the last scrape read the queue; `0` if the query failed (the queue counts are then absent and a warning is logged) |
+| `autograder_queue_submissions{state}` | gauge | Open submissions by ownership: `pending` (accepted, never claimed), `processing` (an attempt holds it, or held it until its lease expired and a worker reclaims it) and `retry_wait` (released after a retryable failure; claimable once its backoff ends) |
+| `autograder_queue_oldest_age_seconds` | gauge | Age of the oldest pending submission by the database clock; `0` when none is pending |
+| `autograder_queue_up` | gauge | `1` if the last queue read succeeded; `0` if it failed or timed out, when the two queue metrics above are absent (a warning is logged once per outage) |
 
 ## Database pool (`api`)
 
