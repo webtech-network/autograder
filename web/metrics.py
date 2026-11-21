@@ -100,6 +100,7 @@ class QueueMetrics(Collector):
         self._lock = asyncio.Lock()
         self._read_at = None
         self._snapshot = None  # (counts by state, oldest pending age in seconds) or None after a failure
+        self._up = None  # Whether the last read succeeded; None before the first read.
 
     def describe(self):
         return []  # Nothing is read at registration.
@@ -112,13 +113,13 @@ class QueueMetrics(Collector):
             try:
                 snapshot = await asyncio.wait_for(self._read(sessions), QUEUE_QUERY_TIMEOUT_SECONDS)
             except Exception as exc:  # pylint: disable=broad-exception-caught  # a scrape never fails on the database
-                if self._snapshot is not None or self._read_at is None:
+                if self._up is not False:  # Logged once per outage.
                     logger.warning("metrics_queue_unavailable: %s", type(exc).__name__)
                 snapshot = None
             else:
-                if self._snapshot is None and self._read_at is not None:
+                if self._up is False:
                     logger.info("metrics_queue_available")
-            self._snapshot, self._read_at = snapshot, self._clock()
+            self._snapshot, self._read_at, self._up = snapshot, self._clock(), snapshot is not None
 
     def collect(self):
         snapshot = self._snapshot
@@ -152,7 +153,7 @@ class QueueMetrics(Collector):
                 await session.execute(text(f"SET LOCAL statement_timeout = {int(QUEUE_QUERY_TIMEOUT_SECONDS * 1000)}"))
             now = _utc(await session.scalar(select(func.now())))  # The clock that stamped submitted_at.
             rows = (await session.execute(statement)).all()
-            await session.rollback()
+            await session.rollback()  # Ends the transaction, and with it the SET LOCAL timeout, explicitly.
         counts, oldest = {}, None
         for status, unowned, count, first in rows:
             if status == SubmissionStatus.PENDING:

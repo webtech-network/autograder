@@ -9,7 +9,6 @@ paths, tokens and submission content never become labels.
 Each application owns its :class:`~prometheus_client.CollectorRegistry`, so
 several applications in one process (tests) never share series.
 """
-import asyncio
 from time import perf_counter
 from typing import Callable, Iterable, Optional
 
@@ -84,9 +83,8 @@ class HttpMetricsMiddleware:
         start = perf_counter()
         try:
             await self.app(scope, receive, send_and_record_status)
-        except asyncio.CancelledError:
-            raise
-        except BaseException:
+        except Exception:
+            # Cancellation (a disconnected client) is not an Exception: it stays 499 below.
             status = status or 500
             raise
         finally:

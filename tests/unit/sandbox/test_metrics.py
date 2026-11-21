@@ -1,4 +1,6 @@
 """Prometheus exposition of the sandbox control API and the shared HTTP middleware (#488)."""
+import asyncio
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -128,3 +130,55 @@ def test_only_a_started_local_docker_host_reports_its_pools():
     assert local.local_manager() is None  # not started: the scrape starts nothing
     local._manager = manager = StatsManager()  # pylint: disable=protected-access  # stands in for start()
     assert local.local_manager() is manager
+
+
+async def _drive(app):
+    """One request through the middleware around ``app``; returns its registry and what reached the client."""
+    registry = CollectorRegistry()
+    middleware = HttpMetricsMiddleware(app, HttpMetrics(registry))
+    sent = []
+
+    async def receive():
+        return {"type": "http.request", "body": b""}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {"type": "http", "method": "GET", "path": "/x", "headers": []}
+    try:
+        await middleware(scope, receive, send)
+    except (asyncio.CancelledError, RuntimeError):
+        pass
+    return registry, sent
+
+
+def _status(registry):
+    return {sample.labels["status"]: sample.value for metric in registry.collect()
+            if metric.name == "http_server_requests" for sample in metric.samples
+            if sample.name == "http_server_requests_total"}
+
+
+@pytest.mark.asyncio
+async def test_a_request_without_a_response_or_cancelled_counts_as_client_closed():
+
+    async def no_response(_scope, _receive, _send):
+        return None
+
+    async def cancelled(_scope, _receive, _send):
+        raise asyncio.CancelledError
+
+    for app in (no_response, cancelled):
+        registry, _ = await _drive(app)
+        assert _status(registry) == {"499": 1}
+        assert registry.get_sample_value("http_server_requests_in_progress", {"method": "GET"}) == 0
+
+
+@pytest.mark.asyncio
+async def test_an_exception_after_the_response_started_keeps_the_sent_status():
+    async def fails_mid_body(_scope, _receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        raise RuntimeError("body failed")
+
+    registry, sent = await _drive(fails_mid_body)
+    assert sent[0]["status"] == 200
+    assert _status(registry) == {"200": 1}
