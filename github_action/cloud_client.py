@@ -327,6 +327,12 @@ class CloudClient:
                 reason = getattr(exc, "reason", None) or type(exc).__name__
                 if watchdog.expired:
                     reason = f"the {self.total_timeout:.0f}s total deadline was exceeded"
+                    # The shutdown may surface as a reset or another OSError instead of the EOF that
+                    # check() reports; the deadline ended the exchange either way, and the socket's
+                    # report stays chained.
+                    if not isinstance(exc, TimeoutError):
+                        last_error = TimeoutError("total deadline exceeded")
+                        last_error.__cause__ = exc
                 logger.warning("Network error reaching Autograder Cloud for %s (attempt %d/%d): %s",
                                context_label, attempt, attempts, reason)
             finally:

@@ -9,7 +9,8 @@
 # no tag or other image of that version exists. It then tags those images as
 # the version by digest, tags a commit on top of the chosen one, outside main,
 # whose only change pins action.yml's runs.image to the version, and creates the
-# GitHub Release from the changelog section
+# GitHub Release as a draft, with .github/release-notes/<version>.md (or the
+# changelog section) as notes, for a maintainer to read and publish
 # (docs/github_action/README.md#releases).
 name: Release
 

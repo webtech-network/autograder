@@ -127,14 +127,46 @@ def test_a_release_tags_the_verified_images_and_a_commit_that_only_pins_the_acti
                        f'+  image: "docker://{publish_images.reference("action", VERSION)}"']
     runs = yaml.safe_load(git(origin, "show", f"{VERSION}:action.yml"))["runs"]
     assert runs["image"] == f"docker://ghcr.io/webtech-network/autograder-action:{VERSION}"
-    # The GitHub Release is created from that tag with the changelog section, links made absolute.
+    # The GitHub Release is a draft from that tag with the changelog section, links made absolute.
     [(args, notes)] = github.releases
-    assert args[3] == VERSION and "--verify-tag" in args
+    assert args[3] == VERSION and "--verify-tag" in args and "--draft" in args
     assert notes.startswith("### Changed\n- Everything")
     assert "Older" not in notes and "releases/tag" not in notes
     assert ("(https://github.com/webtech-network/autograder/blob/1.0.0/docs/contracts/DECISIONS.md"
             "#migration-notes)") in notes
     assert "(https://example.invalid/x)" in notes
+
+
+def test_hand_written_release_notes_replace_the_changelog_section(monkeypatch, repository, tmp_path):
+    origin, checkout, _ = repository
+    author = tmp_path / "author"
+    (author / ".github" / "release-notes").mkdir(parents=True)
+    commit(author, {f".github/release-notes/{VERSION}.md": "## Highlights\n\n- See [the guide](docs/guide.md#start).\n"})
+    git(author, "push", "-q", "origin", "HEAD:main")
+    verified = git(author, "rev-parse", "HEAD")
+    github = GitHub(present=published(verified))
+    monkeypatch.setattr(subprocess, "run", github)
+    release.release(verified, VERSION, checkout)
+    [(args, notes)] = github.releases
+    assert "--draft" in args
+    assert notes == ("## Highlights\n\n- See [the guide]"
+                     "(https://github.com/webtech-network/autograder/blob/1.0.0/docs/guide.md#start).")
+    assert git(origin, "rev-parse", f"{VERSION}^{{commit}}^") == verified
+
+
+def test_empty_release_notes_are_refused(monkeypatch, repository, tmp_path):
+    _, checkout, _ = repository
+    author = tmp_path / "author"
+    (author / ".github" / "release-notes").mkdir(parents=True)
+    commit(author, {f".github/release-notes/{VERSION}.md": "\n"})
+    git(author, "push", "-q", "origin", "HEAD:main")
+    verified = git(author, "rev-parse", "HEAD")
+    github = GitHub(present=published(verified))
+    monkeypatch.setattr(subprocess, "run", github)
+    with pytest.raises(release.Refused, match="is empty"):
+        release.release(verified, VERSION, checkout)
+    assert not github.releases and not github.retagged()
+    assert not git(checkout, "ls-remote", "--tags", "origin")
 
 
 def test_an_interrupted_release_resumes_without_touching_the_identical_image_tags(monkeypatch, repository):
@@ -288,6 +320,26 @@ def test_every_link_of_the_changelog_reaches_its_file_and_heading():
         assert page.is_file(), target
         if anchor:
             assert anchor in github_anchors(page.read_text(encoding="utf-8")), f"{target}#{anchor}"
+
+
+def test_every_release_notes_file_is_publishable_and_its_links_reach_the_tagged_files():
+    """Release notes link to the tagged files absolutely, so they read the same on GitHub and in the Release."""
+    notes = sorted((ROOT / release.NOTES).glob("*.md"))
+    assert notes  # 1.0.0 has hand-written notes
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    for path in notes:
+        version, text = path.stem, path.read_text(encoding="utf-8")
+        assert release.VERSION.fullmatch(version), path.name
+        assert release.changelog_section(changelog, version), f"{version} has notes but no changelog section"
+        assert text.strip() and "<!--" not in text and not text.startswith("# "), path.name  # the title is the version
+        assert not re.findall(r"\]\((?!https?:|mailto:|#)", text), f"{path.name}: use absolute links"
+        source = f"https://github.com/webtech-network/autograder/blob/{version}/"
+        links = re.findall(rf"\]\({re.escape(source)}([^)\s#]+)(?:#([^)\s]+))?\)", text)
+        assert links
+        for target, anchor in links:
+            assert (ROOT / target).is_file(), target
+            if anchor:
+                assert anchor in github_anchors((ROOT / target).read_text(encoding="utf-8")), f"{target}#{anchor}"
 
 
 def test_the_http_and_sandbox_apis_report_the_release_version():

@@ -9,7 +9,7 @@ users must take are in the
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-11-06
+## [1.0.0] - 2026-11-07
 
 The first release: the outcome of the codebase refactoring
 ([#363](https://github.com/webtech-network/autograder/issues/363)). One versioned
@@ -106,7 +106,7 @@ breaking change below is marked **Breaking**.
   list, a standalone shell operator in a command, and a definition whose
   processes need more time than the host allows (`EXECUTION_BUDGET_EXCEEDED`)
   ([ONB-01](docs/contracts/DECISIONS.md#definitions-that-compile-no-longer-onb-01)).
-- **Breaking:** every HTTP route except health, readiness and the template
+- **Breaking:** every HTTP route except health, readiness, the API docs and the template
   catalog requires the integration bearer token
   ([HTTP authentication](docs/contracts/DECISIONS.md#http-authentication-int-01)).
 - **Breaking:** `POST /api/v1/submissions` answers `202` with a `Location`;

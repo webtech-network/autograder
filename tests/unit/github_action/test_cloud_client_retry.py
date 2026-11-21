@@ -355,6 +355,23 @@ def test_close_delimited_body_is_not_accepted_truncated():
     assert isinstance(error.__cause__, TimeoutError)
 
 
+def test_a_read_cut_by_the_deadline_reports_the_deadline_whatever_the_socket_raised():
+    """The watchdog's shutdown can surface as a reset or a plain OSError instead of EOF; either way the
+    deadline ended the exchange, and the failure says so (the race behind a flaky CI run)."""
+    def cut_at_the_deadline(_req, *, watchdog, **_kwargs):
+        while not watchdog.expired:
+            time.sleep(0.005)
+        raise ConnectionResetError(104, "Connection reset by peer")
+
+    with patch.object(cloud_client, "_urlopen", side_effect=cut_at_the_deadline):
+        with pytest.raises(CloudConnectionError) as error:
+            CloudClient("http://cloud.invalid", "t", connect_timeout=0.05, read_timeout=0.05,
+                        total_timeout=0.05, max_retries=0).submit_external_result({}, idempotency_key="k")
+    assert error.value.uncertain is True
+    assert isinstance(error.value.__cause__, TimeoutError)
+    assert isinstance(error.value.__cause__.__cause__, ConnectionResetError)  # the socket's report is kept
+
+
 def test_trickled_headers_are_bounded():
     _assert_bounded(_bytes("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}"),
                     lambda client: client.get_grading_config(1))
