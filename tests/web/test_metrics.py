@@ -149,6 +149,30 @@ async def test_a_slow_queue_read_reports_down_and_logs_once(monkeypatch, caplog)
 
 
 @pytest.mark.asyncio
+async def test_queue_outages_are_logged_once_each_with_their_recovery(monkeypatch, caplog):
+    outcomes = iter([None, ({"pending": 1}, 0.0), None])
+
+    async def read(_sessions):
+        result = next(outcomes)
+        if result is None:
+            raise RuntimeError("database down")
+        return result
+
+    monkeypatch.setattr(QueueMetrics, "_read", staticmethod(read))
+    registry = CollectorRegistry()
+    queue = QueueMetrics()
+    registry.register(queue)
+    up = []
+    for _ in range(3):
+        await queue.refresh(None)
+        up.append(registry.get_sample_value("autograder_queue_up"))
+    assert up == [0, 1, 0]
+    messages = [record.getMessage() for record in caplog.records if record.name == "web.metrics"]
+    assert messages == ["metrics_queue_unavailable: RuntimeError", "metrics_queue_available",
+                        "metrics_queue_unavailable: RuntimeError"]
+
+
+@pytest.mark.asyncio
 async def test_an_unreadable_queue_reports_down_and_the_scrape_still_answers(application):
     def broken_sessions():
         raise RuntimeError("database down")

@@ -132,8 +132,11 @@ def test_only_a_started_local_docker_host_reports_its_pools():
     assert local.local_manager() is manager
 
 
-async def _drive(app):
-    """One request through the middleware around ``app``; returns its registry and what reached the client."""
+async def _drive(app, raises=None):
+    """One request through the middleware around ``app``; asserts it re-raises ``raises``.
+
+    Returns the registry and what reached the client.
+    """
     registry = CollectorRegistry()
     middleware = HttpMetricsMiddleware(app, HttpMetrics(registry))
     sent = []
@@ -145,10 +148,11 @@ async def _drive(app):
         sent.append(message)
 
     scope = {"type": "http", "method": "GET", "path": "/x", "headers": []}
-    try:
+    if raises is None:
         await middleware(scope, receive, send)
-    except (asyncio.CancelledError, RuntimeError):
-        pass
+    else:
+        with pytest.raises(raises):
+            await middleware(scope, receive, send)
     return registry, sent
 
 
@@ -160,15 +164,14 @@ def _status(registry):
 
 @pytest.mark.asyncio
 async def test_a_request_without_a_response_or_cancelled_counts_as_client_closed():
-
     async def no_response(_scope, _receive, _send):
         return None
 
     async def cancelled(_scope, _receive, _send):
         raise asyncio.CancelledError
 
-    for app in (no_response, cancelled):
-        registry, _ = await _drive(app)
+    for app, raises in ((no_response, None), (cancelled, asyncio.CancelledError)):
+        registry, _ = await _drive(app, raises)
         assert _status(registry) == {"499": 1}
         assert registry.get_sample_value("http_server_requests_in_progress", {"method": "GET"}) == 0
 
@@ -179,6 +182,6 @@ async def test_an_exception_after_the_response_started_keeps_the_sent_status():
         await send({"type": "http.response.start", "status": 200, "headers": []})
         raise RuntimeError("body failed")
 
-    registry, sent = await _drive(fails_mid_body)
+    registry, sent = await _drive(fails_mid_body, RuntimeError)
     assert sent[0]["status"] == 200
     assert _status(registry) == {"200": 1}
