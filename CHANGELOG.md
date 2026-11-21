@@ -13,16 +13,19 @@ users must take are in the
 
 - OpenTelemetry tracing in the API and the sandbox manager, off unless
   `OTEL_EXPORTER_OTLP_ENDPOINT` is set (OTLP over HTTP; the standard `OTEL_*`
-  variables apply, `OTEL_SERVICE_NAME` defaults to `SERVICE_NAME`). Both
+  variables apply; the service name defaults to `SERVICE_NAME`). Both
   services continue an incoming W3C `traceparent` and the API sends its own to
   the sandbox manager; the API also traces database statements (never their
   values) and AI provider calls. Each grading attempt is its own trace, linked
   to the request that accepted the submission. Log lines carry `trace_id` and
-  `span_id` while a span is active. Spans never hold raw paths, query strings,
-  URLs, client addresses or exception messages
+  `span_id` while a span context is active. Spans never hold raw paths, query
+  strings, URLs, client addresses or exception messages, and only W3C trace
+  context is propagated (never `baggage`)
   ([traces](docs/operate/configuration.md#traces), #489).
 - Migration `012` records on each submission the `X-Request-ID` and the trace
-  context of the request that accepted it (#489).
+  context of the request that accepted it. Run `upgrade head` before starting
+  this release; to roll back, restore the previous API image first, then
+  `downgrade 011`, which drops both columns (#489).
 
 ### Changed
 
@@ -31,11 +34,14 @@ users must take are in the
   `APP_ENV` configure it as they configure the API. Both services log one
   `http_request_completed` line per request with the route template as `path`,
   turn off Uvicorn's access line, and accept, echo and forward `X-Request-ID`
-  ([log lines](docs/operate/configuration.md#sandbox-manager), #487).
+  ([log lines](docs/operate/configuration.md#log-lines), #487).
 - Every line of a grading attempt, in both services, carries the request id of
   the request that accepted the submission (the attempt id for a submission
-  accepted before migration `012`); the API's lines also carry `attempt_id`
-  (#489).
+  accepted before migration `012`), replacing #487's attempt id as the request
+  id. `request_id` now groups a submission's acceptance and all its attempts;
+  log consumers isolate one attempt by `attempt_id` (API lines, new) or
+  `trace_id` (each attempt is its own trace)
+  ([log lines](docs/operate/configuration.md#log-lines), #489).
 - The sandbox manager image starts Uvicorn with
   `--factory sandbox_manager.api:create_app`, so its first log line is already
   structured. A deployment that overrides the image command must do the same;

@@ -26,8 +26,6 @@ from sandbox_manager.tracing import UNMATCHED_ROUTE, current_trace_ids
 REQUEST_ID_HEADER = "X-Request-ID"
 #: An incoming ``X-Request-ID`` is client-controlled: anything else is replaced.
 REQUEST_ID_PATTERN = re.compile(r"[A-Za-z0-9._:-]{1,128}")
-#: Logged instead of a path no route matched (the raw path may hold a handle).
-UNMATCHED_PATH = UNMATCHED_ROUTE
 #: Record attributes copied into JSON lines when present.
 CONTEXT_FIELDS = ("request_id", "attempt_id", "trace_id", "span_id", "method", "path", "status", "duration_ms")
 
@@ -163,7 +161,7 @@ def setup_logging(*, json_logs: bool, service_name: str, app_env: str, log_level
 
 def _route_template(request) -> str:
     route = request.scope.get("route")
-    return getattr(route, "path", None) or UNMATCHED_PATH
+    return getattr(route, "path", None) or UNMATCHED_ROUTE
 
 
 async def request_logging_middleware(request, call_next):

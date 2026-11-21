@@ -43,7 +43,7 @@ from sandbox_manager.models.api_models import TRANSPORT_MARGIN_SECONDS, ProcessR
 from autograder.models.execution import ExtractedFile
 from sandbox_manager.models.sandbox_models import DisposalStatus
 from sandbox_manager.structured_logging import REQUEST_ID_HEADER, get_request_id
-from sandbox_manager.tracing import UNMATCHED_ROUTE, client_span, end_client_span
+from sandbox_manager.tracing import UNMATCHED_ROUTE, client_span, record_status
 
 if TYPE_CHECKING:
     from autograder.models.dataclass.asset import ResolvedAsset
@@ -151,12 +151,8 @@ class _CorrelatedSession(requests.Session):
         if request_id:
             headers.setdefault(REQUEST_ID_HEADER, request_id)
         with client_span(method, route_template(method, url), headers) as span:
-            try:
-                response = super().request(method, url, *args, headers=headers, **kwargs)
-            except Exception as exc:
-                end_client_span(span, error=exc)
-                raise
-            end_client_span(span, status_code=response.status_code)
+            response = super().request(method, url, *args, headers=headers, **kwargs)
+            record_status(span, response.status_code)
             return response
 
 

@@ -150,6 +150,32 @@ async def test_downgrade_base_then_upgrade_head_round_trips(postgres_url):
     assert await on_database(url, schema_differences) == []
 
 
+def test_012_adds_the_accepting_request_columns_to_existing_submissions_and_drops_them_on_downgrade(tmp_path):
+    url = f"sqlite+aiosqlite:///{tmp_path / 'at-011.sqlite3'}"
+    alembic(url, "upgrade", "011")
+
+    def seed(connection):
+        connection.execute(text(
+            "INSERT INTO grading_configurations (id, external_assignment_id, version, is_active) "
+            "VALUES (1, 'kept', 1, false)"))
+        connection.execute(text(
+            "INSERT INTO submissions (id, grading_config_id, external_user_id, username, submission_files, "
+            "status, locale, attempt_count) VALUES (1, 1, 'student', 'Student', '{}', 'completed', 'en', 0)"))
+    asyncio.run(on_database(url, seed))
+    alembic(url, "upgrade", "012")
+
+    def columns(connection):
+        return {column["name"]: column for column in inspect(connection).get_columns("submissions")}
+    added = asyncio.run(on_database(url, columns))
+    assert added["request_id"]["nullable"] and added["request_id"]["type"].length == 128
+    assert added["traceparent"]["nullable"] and added["traceparent"]["type"].length == 55
+    rows = asyncio.run(on_database(url, lambda connection: connection.execute(text(
+        "SELECT username, request_id, traceparent FROM submissions")).all()))
+    assert [tuple(row) for row in rows] == [("Student", None, None)]  # no backfill
+    alembic(url, "downgrade", "011")
+    assert not {"request_id", "traceparent"} & set(asyncio.run(on_database(url, columns)))
+
+
 def test_sqlite_upgrades_to_the_models_and_round_trips(tmp_path):
     url = f"sqlite+aiosqlite:///{tmp_path / 'migrated.sqlite3'}"
     alembic(url, "upgrade", "head")
@@ -323,7 +349,7 @@ async def test_adoption_refuses_a_database_that_already_has_a_later_revisions_co
     await on_database(url, Base.metadata.create_all)  # today's models: 012's columns included
     process = run(url, "-m", "web.database.schema", "adopt")
     assert process.returncode == 1
-    assert "unexpected_column" in process.stderr and "request_id" in process.stderr
+    assert "unexpected column submissions.request_id" in process.stderr
     assert await on_database(url, current_revision) is None
 
 

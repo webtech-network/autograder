@@ -14,7 +14,7 @@ from autograder.models.language import Language
 from autograder.services.assessment import EXECUTION_CAPABILITIES
 
 from sandbox_manager.structured_logging import reset_attempt_id, reset_request_id, set_attempt_id, set_request_id
-from sandbox_manager.tracing import linked_root_span
+from sandbox_manager.tracing import linked_root_span, record_attempt_outcome
 from web.config.logging import get_logger
 from web.database.models.submission import Submission, SubmissionStatus
 from web.database.models.grading_attempt import GradingAttempt
@@ -251,10 +251,10 @@ class DurableWorker:
         attempt_context = set_attempt_id(str(attempt_id))
         try:
             # Its own trace, linked to the accepting request's span: retries come hours apart.
-            with linked_root_span("grading.attempt", request.traceparent, {
-                    "autograder.submission.id": request.submission_id,
-                    "autograder.attempt.id": str(attempt_id),
-                    "autograder.language": request.language or ""}):
+            attributes = {"autograder.submission.id": request.submission_id, "autograder.attempt.id": str(attempt_id)}
+            if request.language:
+                attributes["autograder.language"] = request.language
+            with linked_root_span("grading.attempt", request.traceparent, attributes):
                 return await self._run_attempt(request, attempt_id)
         finally:
             reset_attempt_id(attempt_context)
@@ -288,6 +288,7 @@ class DurableWorker:
                 outcome = failed_outcome(request, "ATTEMPT_DEADLINE_EXCEEDED",
                                          "The grading attempt did not finish within its deadline.",
                                          category="capability", retryable=True)
+            record_attempt_outcome(outcome)
             if retryable(outcome) and await self.release(request.submission_id, attempt_id):
                 logger.warning("Grading attempt %s of submission %s failed with retryable %s; it will be retried",
                                attempt_id, request.submission_id, outcome["error"]["code"])

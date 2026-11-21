@@ -59,7 +59,7 @@ from sandbox_manager.models.api_models import (
 )
 from sandbox_manager.models.sandbox_models import DisposalStatus, SandboxState
 from sandbox_manager.structured_logging import request_logging_middleware, setup_logging
-from sandbox_manager.tracing_setup import instrument_fastapi, setup_tracing
+from sandbox_manager.tracing_setup import instrument_fastapi, setup_tracing, shutdown_tracing
 from autograder.models.language import Language
 
 logger = logging.getLogger(__name__)
@@ -568,6 +568,7 @@ def create_app(settings: Optional[ControlSettings] = None,
             if getattr(application.state, "registry", None) is not None:
                 application.state.registry.forget_all()
             manager.shutdown()
+            shutdown_tracing()  # exports the spans still batched
 
     application = FastAPI(title="Sandbox Manager API",
                           description="Private control API for sandbox containers",

@@ -77,9 +77,13 @@ def _added_after_adoption(difference):
 
 def adoption_differences(connection):
     """Differences between the live schema and the models as ``ADOPTED_REVISION`` had them."""
-    present = {(table, column["name"]) for table, _ in ADDED_AFTER_ADOPTION
-               for column in inspect(connection).get_columns(table)} & ADDED_AFTER_ADOPTION
-    unexpected = [("unexpected_column", None, table, column) for table, column in sorted(present)]
+    inspector = inspect(connection)
+    existing = set(inspector.get_table_names())
+    unexpected = []
+    for table in sorted({table for table, _ in ADDED_AFTER_ADOPTION} & existing):
+        unexpected += [f"unexpected column {table}.{column['name']}: a later revision adds it"
+                       for column in inspector.get_columns(table)
+                       if (table, column["name"]) in ADDED_AFTER_ADOPTION]
     return unexpected + [difference for difference in schema_differences(connection)
                          if not _added_after_adoption(difference)]
 

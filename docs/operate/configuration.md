@@ -67,7 +67,6 @@ marked *required* have no working default for a deployment.
 | `SERVICE_NAME` | `autograder-api` | `service` field of log lines. |
 | `APP_ENV` | `local` | `env` field of log lines. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | OTLP/HTTP collector base URL (`http://alloy:4318`). Unset, nothing is traced ([traces](#traces)). |
-| `OTEL_SERVICE_NAME` | `SERVICE_NAME` | `service.name` of the API's spans. |
 
 Booleans accept `true`/`false`, `1`/`0` and `yes`/`no`; anything else stops
 startup, as do non-numeric numbers and out-of-range values.
@@ -92,25 +91,36 @@ host ([Sandbox ownership](../contracts/SANDBOX.md#private-control-api)).
 | `SERVICE_NAME` | `autograder-sandbox-manager` | `service` field of log lines. |
 | `APP_ENV` | `local` | `env` field of log lines. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | OTLP/HTTP collector base URL (`http://alloy:4318`). Unset, nothing is traced ([traces](#traces)). |
-| `OTEL_SERVICE_NAME` | `SERVICE_NAME` | `service.name` of the sandbox manager's spans. |
+
+## Logs and traces
+
+Both services, the API and the sandbox manager, log and trace the same way.
+
+### Log lines
 
 Both services write one log line per record to stdout, in the same format. With
 `JSON_LOGS=true` each line is a JSON object with `timestamp`, `level`, `logger`,
 `message`, `service`, `env` and `request_id` (`-` outside a request), plus
 `exception` when one was raised. `trace_id` and `span_id` appear on lines
-written while a traced span is active (the text format shows `trace_id` after
-the request id), and `attempt_id` on the API's lines of a grading attempt. Each HTTP request gets one `http_request_completed` (or
-`http_request_failed`) line with `method`, `path`, `status` and `duration_ms`.
-`path` is the matched route template (`/sandboxes/{sandbox_id}/process`), or
-`<unmatched>` when no route matched; the raw path, the query string, headers
-and the client address are never logged, and Uvicorn's own access line is
-turned off. A request keeps a well-formed incoming `X-Request-ID`
-(`[A-Za-z0-9._:-]`, at most 128 characters) or gets a new one, and the response
-echoes it. The API forwards it to the sandbox manager. The API records the id
-of the request that accepted a submission, and its grading worker uses that id
-as the request id of every attempt, so the acceptance and all of a
-submission's attempt lines share one id in both services (a submission accepted
-before the id was recorded uses the attempt id instead).
+written while a span context is active (the text format shows `trace_id` after
+the request id); a trace backend holds the trace only when its span was
+sampled. `attempt_id` appears on the API's lines of a grading attempt. Each
+HTTP request gets one `http_request_completed` (or `http_request_failed`) line
+with `method`, `path`, `status` and `duration_ms`. `path` is the matched route
+template (`/sandboxes/{sandbox_id}/process`), or `<unmatched>` when no route
+matched; the raw path, the query string, headers and the client address are
+never logged, and Uvicorn's own access line is turned off. A request keeps a
+well-formed incoming `X-Request-ID` (`[A-Za-z0-9._:-]`, at most 128
+characters) or gets a new one, and the response echoes it. The API forwards it
+to the sandbox manager.
+
+**Grading attempts.** The API records the id of the request that accepted a
+submission, and its grading worker uses that id as the request id of every
+attempt, in both services. So `request_id` groups a submission's acceptance
+and all of its attempts, retries included. To isolate one attempt, use
+`attempt_id` (API lines) or `trace_id` (both services; each attempt is its own
+trace, different from the accepting request's). A submission accepted before
+the id was recorded (migration `012`) uses its attempt id as the request id.
 
 ### Traces
 
@@ -119,23 +129,28 @@ service: spans are batched in the background and sent over OTLP/HTTP
 (protobuf) to `<endpoint>/v1/traces`; a slow or unreachable collector drops
 spans and never delays a request. Unset, no instrumentation is installed. The
 standard SDK variables apply as well, among them `OTEL_RESOURCE_ATTRIBUTES`
-(for example `deployment.environment.name=production`), `OTEL_TRACES_SAMPLER`
+(for example `deployment.environment.name=production`; a `service.name` set
+there, like `OTEL_SERVICE_NAME`, replaces `SERVICE_NAME`), `OTEL_TRACES_SAMPLER`
 (default `parentbased_always_on`: everything is traced, and an incoming
 `traceparent`'s sampling decision is kept) and `OTEL_EXPORTER_OTLP_HEADERS`.
 
 - Both services continue an incoming W3C `traceparent`, and the API sends its
-  own to the sandbox manager, so one request is one trace across both.
+  own to the sandbox manager, so one request is one trace across both. Only
+  W3C trace context is propagated: incoming `baggage` is ignored. The API
+  trusts its callers' `traceparent`, like the rest of its private interface.
 - `/health`, `/ready` and `/metrics` are never traced.
 - The API traces database statements (with placeholders, never the bound
   values) and AI provider calls (without bodies), only inside a request or a
   grading attempt: the idle worker's polling produces no traces.
-- Each grading attempt is its own trace, rooted at a `grading.attempt` span
-  that links to the span of the request that accepted the submission; its
-  sandbox calls continue the attempt's trace.
+- Each grading attempt is its own trace, rooted at a `grading.attempt` span;
+  its sandbox calls continue the attempt's trace. When the request that
+  accepted the submission was sampled, the API stored its span's
+  `traceparent` (migration `012`) and the attempt's span links to it; the
+  stored `request_id` joins the attempt's log lines to that request.
 - No span carries a raw path, query string, full URL, client address, or
   exception message or stack trace: server spans keep the route template
-  (`/sandboxes/{sandbox_id}/process`) and exceptions their type. The log line
-  with the same `trace_id` has the details.
+  (`/sandboxes/{sandbox_id}/process`), and errors keep their type only. The
+  log line with the same `trace_id` has the details.
 
 ## GitHub Action
 
