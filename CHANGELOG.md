@@ -23,9 +23,12 @@ users must take are in the
   context is propagated (never `baggage`)
   ([traces](docs/operate/configuration.md#traces), #489).
 - Migration `012` records on each submission the `X-Request-ID` and the trace
-  context of the request that accepted it. Run `upgrade head` before starting
-  this release; to roll back, restore the previous API image first, then
-  `downgrade 011`, which drops both columns (#489).
+  context of the request that accepted it. Run
+  `alembic -c web/alembic.ini upgrade head` before starting this release
+  ([deployment](docs/operate/deployment.md)). To roll back: stop the API, back
+  up the database, run `alembic -c web/alembic.ini downgrade 011` with this
+  release's image (the previous one does not know revision `012`; the recorded
+  ids are dropped), then start the previous image (#489).
 
 ### Changed
 

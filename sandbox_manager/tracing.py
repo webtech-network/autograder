@@ -97,18 +97,6 @@ def record_status(span, status_code: int) -> None:
         span.set_status(Status(StatusCode.ERROR))
 
 
-def record_attempt_outcome(outcome: dict) -> None:
-    """Name the active attempt span's result: its status and published error code (never the message)."""
-    span = trace.get_current_span()
-    if not span.is_recording():
-        return
-    span.set_attribute("autograder.outcome.status", str(outcome.get("status")))
-    error = outcome.get("error") or {}
-    if error.get("code"):
-        span.set_attribute("error.type", str(error["code"]))
-        span.set_status(Status(StatusCode.ERROR))
-
-
 @contextmanager
 def linked_root_span(name: str, traceparent: Optional[str], attributes: dict) -> Iterator[object]:
     """A new trace's root span, linked to the span ``traceparent`` names when it is valid.

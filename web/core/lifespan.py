@@ -1,7 +1,7 @@
 """Application lifespan uses only the host attached to this application."""
 from contextlib import asynccontextmanager
 
-from sandbox_manager.tracing_setup import shutdown_tracing
+from web.config.tracing import shutdown_api_tracing
 
 
 @asynccontextmanager
@@ -13,4 +13,4 @@ async def lifespan(app):
     finally:
         await host.close()
         # After the workers drained: their last attempts' spans are exported too.
-        shutdown_tracing()
+        shutdown_api_tracing()

@@ -4,9 +4,11 @@ Tracing is off unless ``OTEL_EXPORTER_OTLP_ENDPOINT`` is set: nothing is
 instrumented and no span is exported. When it is set, ``setup_tracing`` builds
 one tracer provider for the process (OTLP over HTTP/protobuf, batched in a
 background thread, so a slow or absent collector never delays a request) and
-the standard ``OTEL_*`` variables apply: ``OTEL_SERVICE_NAME`` (default: the
-service's ``SERVICE_NAME``), ``OTEL_RESOURCE_ATTRIBUTES``, ``OTEL_TRACES_SAMPLER``
-(default ``parentbased_always_on``) and the exporter's own settings.
+the standard ``OTEL_*`` variables apply: ``OTEL_SERVICE_NAME`` or ``service.name``
+in ``OTEL_RESOURCE_ATTRIBUTES`` (default: the service's ``SERVICE_NAME``),
+``OTEL_TRACES_SAMPLER`` (default ``parentbased_always_on``) and the exporter's
+own settings. Only W3C trace context is propagated: a caller's ``baggage`` is
+neither read nor forwarded.
 
 What never reaches an exported span, whatever an instrumentation records: the
 raw request path or query string and the full URL (sandbox handle IDs are
@@ -107,17 +109,8 @@ class NoRootClientSpans(Sampler):
         return f"NoRootClientSpans{{{self._configured.get_description()}}}"
 
 
-def _needs_redaction(span) -> bool:
-    attributes = span.attributes or {}
-    return (span.status.description is not None
-            or any(key in attributes for key in (*_PATH_ATTRIBUTES, *_DROPPED_ATTRIBUTES))
-            or any(event.name == "exception" for event in span.events))
-
-
 def redacted(span):
-    """``span`` without raw paths, URLs, peer addresses or exception messages."""
-    if not _needs_redaction(span):
-        return span
+    """A copy of ``span`` without raw paths, URLs, peer addresses or exception messages."""
     attributes = {key: value for key, value in (span.attributes or {}).items() if key not in _DROPPED_ATTRIBUTES}
     for key in _PATH_ATTRIBUTES:
         if key in attributes:

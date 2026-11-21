@@ -21,7 +21,7 @@ from sandbox_manager import tracing_setup
 from sandbox_manager.tracing import linked_root_span, tracer_provider
 from sandbox_manager.tracing_setup import setup_tracing, shutdown_tracing
 from tests.web.test_contracts_v1 import definition
-from web.config.tracing import setup_api_tracing
+from web.config.tracing import setup_api_tracing, shutdown_api_tracing
 from web.core.config import Settings
 from web.database.models.submission import Submission
 from web.service.grading_service import evaluate, failed_outcome
@@ -84,8 +84,8 @@ def test_create_app_instruments_the_api_when_an_endpoint_is_set(monkeypatch, ses
         assert HTTPXClientInstrumentor().is_instrumented_by_opentelemetry
         assert tracer_provider().resource.attributes["service.name"] == "autograder-api"
     finally:
-        HTTPXClientInstrumentor().uninstrument()
-        shutdown_tracing()
+        shutdown_api_tracing()  # what the lifespan runs after the drain
+    assert tracer_provider() is None and not HTTPXClientInstrumentor().is_instrumented_by_opentelemetry
 
 
 @pytest.mark.asyncio

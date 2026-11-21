@@ -14,7 +14,8 @@ from autograder.models.language import Language
 from autograder.services.assessment import EXECUTION_CAPABILITIES
 
 from sandbox_manager.structured_logging import reset_attempt_id, reset_request_id, set_attempt_id, set_request_id
-from sandbox_manager.tracing import linked_root_span, record_attempt_outcome
+from sandbox_manager.tracing import linked_root_span
+from web.config.tracing import record_attempt_outcome
 from web.config.logging import get_logger
 from web.database.models.submission import Submission, SubmissionStatus
 from web.database.models.grading_attempt import GradingAttempt
