@@ -2,7 +2,7 @@
 
 Every label value comes from a closed set: an HTTP method from ``HTTP_METHODS``
 (else ``other``, the one spelling for any value outside its set), the matched route *template* (never the concrete path; a
-request no route matched is ``unmatched``), a status code, a language of
+request no route matched is ``<unmatched>``, as in logs and spans), a status code, a language of
 :class:`~autograder.models.language.Language` and a pool state. Identifiers,
 paths, tokens and submission content never become labels.
 
@@ -12,16 +12,17 @@ several applications in one process (tests) never share series.
 from time import perf_counter
 from typing import Callable, Iterable, Optional
 
+from fastapi import Response
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
-from fastapi import Response
+
+from sandbox_manager.tracing import UNMATCHED_ROUTE
 
 OTHER = "other"
 #: Recorded when the client went away before a response started (nginx's convention).
 CLIENT_CLOSED = 499
 HTTP_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
-UNMATCHED_ROUTE = "unmatched"
 #: Seconds; control-API calls and API requests are sub-second, a capacity wait may take minutes.
 HTTP_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
 #: Pool states reported by ``LanguagePool.get_stats``.

@@ -109,7 +109,8 @@ HTTP request gets one `http_request_completed` (or `http_request_failed`) line
 with `method`, `path`, `status` and `duration_ms`. `path` is the matched route
 template (`/sandboxes/{sandbox_id}/process`), or `<unmatched>` when no route
 matched; the raw path, the query string, headers and the client address are
-never logged, and Uvicorn's own access line is turned off. A request keeps a
+never logged, and Uvicorn's own access line is turned off. A successful
+`GET /metrics` (a Prometheus scrape, every few seconds) logs its line at `DEBUG`. A request keeps a
 well-formed incoming `X-Request-ID` (`[A-Za-z0-9._:-]`, at most 128
 characters) or gets a new one, and the response echoes it. The API forwards it
 to the sandbox manager.

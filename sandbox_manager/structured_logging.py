@@ -159,6 +159,10 @@ def setup_logging(*, json_logs: bool, service_name: str, app_env: str, log_level
     access.disabled = True
 
 
+#: Routes whose successful requests are logged at DEBUG (failures are always logged).
+QUIET_ROUTES = frozenset({"/metrics"})
+
+
 def _route_template(request) -> str:
     route = request.scope.get("route")
     return getattr(route, "path", None) or UNMATCHED_ROUTE
@@ -181,7 +185,9 @@ async def request_logging_middleware(request, call_next):
                 "duration_ms": int((perf_counter() - start) * 1000)})
             raise
         response.headers[REQUEST_ID_HEADER] = request_id
-        logger.info("http_request_completed", extra={
+        # Prometheus scrapes /metrics every few seconds: its success lines are DEBUG, not INFO.
+        level = logging.DEBUG if _route_template(request) in QUIET_ROUTES else logging.INFO
+        logger.log(level, "http_request_completed", extra={
             "method": request.method, "path": _route_template(request), "status": response.status_code,
             "duration_ms": int((perf_counter() - start) * 1000)})
         return response

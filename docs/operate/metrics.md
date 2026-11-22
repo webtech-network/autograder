@@ -14,7 +14,8 @@ proxy in front of `api` must not forward `/metrics` (see
 [deployment](deployment.md#supported-topology)), and the sandbox manager's port
 is never published at all (see
 [SANDBOX.md](../contracts/SANDBOX.md#private-control-api)). It is not part of the
-OpenAPI contract. Each service process keeps its own counters, which restart at
+OpenAPI contract, is never traced, and logs its successful requests at `DEBUG`
+only. Each service process keeps its own counters, which restart at
 zero with the process; `rate()` and `increase()` handle that.
 
 ## Labels
@@ -25,7 +26,7 @@ deployment, not by traffic:
 | Label | Values |
 | --- | --- |
 | `method` | `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` |
-| `route` | the matched route template (`/api/v1/submissions/{submission_id}`), or `unmatched` |
+| `route` | the matched route template (`/api/v1/submissions/{submission_id}`), or `<unmatched>` (as in log lines and spans) |
 | `status` (HTTP) | the response status code; an exception before any response is `500`, a client that disconnected before one is `499` |
 | `language` | a [supported language](../contracts/LANGUAGES.md) |
 | `status` (grading) | `completed` or `failed` |

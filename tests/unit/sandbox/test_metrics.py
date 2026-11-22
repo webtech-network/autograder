@@ -55,7 +55,7 @@ def test_requests_are_labelled_by_route_template_never_by_concrete_path(instrume
     labels = {"method": "GET", "route": "/items/{item_id}", "status": "200"}
     assert registry.get_sample_value("http_server_requests_total", labels) == 3
     assert registry.get_sample_value("http_server_requests_total",
-                                     {"method": "GET", "route": "unmatched", "status": "404"}) == 1
+                                     {"method": "GET", "route": "<unmatched>", "status": "404"}) == 1
     assert registry.get_sample_value("http_server_request_duration_seconds_count",
                                      {"method": "GET", "route": "/items/{item_id}"}) == 3
     exposed = "\n".join(str(metric.samples) for metric in registry.collect())
@@ -185,3 +185,17 @@ async def test_an_exception_after_the_response_started_keeps_the_sent_status():
     registry, sent = await _drive(fails_mid_body, RuntimeError)
     assert sent[0]["status"] == 200
     assert _status(registry) == {"200": 1}
+
+
+def test_scrapes_are_logged_at_debug_and_other_requests_at_info(caplog):
+    manager = StatsManager()
+    settings = ControlSettings(token=TOKEN, handle_ttl_seconds=60, tombstone_seconds=600,
+                               reaper_interval_seconds=3600)
+    with TestClient(create_app(settings, lambda: manager, clock=Clock())) as client:
+        caplog.set_level("DEBUG")
+        caplog.clear()
+        client.get("/metrics")
+        client.get("/health")
+    completed = {record.path: record.levelname for record in caplog.records
+                 if record.getMessage() == "http_request_completed"}
+    assert completed == {"/metrics": "DEBUG", "/health": "INFO"}

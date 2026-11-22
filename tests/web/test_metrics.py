@@ -340,7 +340,7 @@ async def test_requests_rejected_by_middleware_or_authentication_are_counted(app
         assert oversized.status_code == 413
         assert (await anonymous.get("/api/v1/submissions/1",
                                     headers={"Authorization": "Bearer wrong"})).status_code == 401
-    assert value(application, "http_server_requests_total", method="POST", route="unmatched", status="413") == 1
+    assert value(application, "http_server_requests_total", method="POST", route="<unmatched>", status="413") == 1
     assert value(application, "http_server_requests_total", method="GET",
                  route="/api/v1/submissions/{submission_id}", status="401") == 1
 
