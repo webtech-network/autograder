@@ -137,7 +137,8 @@ Steps 1 and 2 are required; the others are recommended:
    ([traces](../operate/configuration.md#traces)).
 
 To roll back to 1.0.0, stop the API, back up the database and, while
-`AUTOGRADER_IMAGE_TAG` is still `1.1.0` (1.0.0 does not know revision `012`),
+the `api` image is still 1.1.0 (for example `AUTOGRADER_IMAGE_TAG=1.1.0`; 1.0.0
+does not know revision `012`),
 run `docker compose run --rm --no-deps api alembic -c web/alembic.ini downgrade 011`.
 The downgrade drops the recorded request ids and trace contexts. Then start the
 1.0.0 images.
