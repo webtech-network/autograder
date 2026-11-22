@@ -355,3 +355,14 @@ def test_values_outside_their_closed_set_are_reported_as_other():
                                      {"category": "other", "code": "other", "retryable": "true"}) == 1
     assert registry.get_sample_value("autograder_submissions_total",
                                      {"status": "other", "language": "other", "error_category": "other"}) == 1
+
+
+@pytest.mark.asyncio
+async def test_successful_scrapes_log_at_debug_and_failed_ones_at_info(application, caplog):
+    caplog.set_level("DEBUG")
+    await scrape(application)
+    async with AsyncClient(transport=ASGITransport(app=application), base_url="http://test") as anonymous:
+        assert (await anonymous.post("/metrics")).status_code == 405
+    completed = [(record.method, record.status, record.levelname) for record in caplog.records
+                 if record.getMessage() == "http_request_completed" and record.path == "/metrics"]
+    assert completed == [("GET", 200, "DEBUG"), ("POST", 405, "INFO")]

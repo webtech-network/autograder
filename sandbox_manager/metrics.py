@@ -17,7 +17,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, G
 from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
 
-from sandbox_manager.tracing import UNMATCHED_ROUTE
+from sandbox_manager.tracing import server_route
 
 OTHER = "other"
 #: Recorded when the client went away before a response started (nginx's convention).
@@ -32,12 +32,6 @@ SANDBOX_STATES = ("idle", "creating", "active", "closing", "quarantined")
 def _method(scope) -> str:
     method = scope.get("method", "")
     return method if method in HTTP_METHODS else OTHER
-
-
-def _route(scope) -> str:
-    """The template of the route that handled the request (set by FastAPI's router)."""
-    route = scope.get("route")
-    return getattr(route, "path", None) or UNMATCHED_ROUTE
 
 
 class HttpMetrics:
@@ -89,7 +83,7 @@ class HttpMetricsMiddleware:
             status = status or 500
             raise
         finally:
-            route = _route(scope)
+            route = server_route(scope)
             self.metrics.duration.labels(method, route).observe(perf_counter() - start)
             self.metrics.requests.labels(method, route, str(status or CLIENT_CLOSED)).inc()
             in_progress.dec()

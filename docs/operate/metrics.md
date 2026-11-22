@@ -14,8 +14,8 @@ proxy in front of `api` must not forward `/metrics` (see
 [deployment](deployment.md#supported-topology)), and the sandbox manager's port
 is never published at all (see
 [SANDBOX.md](../contracts/SANDBOX.md#private-control-api)). It is not part of the
-OpenAPI contract, is never traced, and logs its successful requests at `DEBUG`
-only. Each service process keeps its own counters, which restart at
+OpenAPI contract, is never traced, and logs responses below 400 at `DEBUG` (other
+statuses at `INFO`). Each service process keeps its own counters, which restart at
 zero with the process; `rate()` and `increase()` handle that.
 
 ## Labels

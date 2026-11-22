@@ -195,7 +195,9 @@ def test_scrapes_are_logged_at_debug_and_other_requests_at_info(caplog):
         caplog.set_level("DEBUG")
         caplog.clear()
         client.get("/metrics")
+        assert client.post("/metrics").status_code == 405  # a failed scrape route stays visible
         client.get("/health")
-    completed = {record.path: record.levelname for record in caplog.records
-                 if record.getMessage() == "http_request_completed"}
-    assert completed == {"/metrics": "DEBUG", "/health": "INFO"}
+    completed = [(record.method, record.path, record.status, record.levelname) for record in caplog.records
+                 if record.getMessage() == "http_request_completed"]
+    assert completed == [("GET", "/metrics", 200, "DEBUG"), ("POST", "/metrics", 405, "INFO"),
+                         ("GET", "/health", 200, "INFO")]

@@ -32,8 +32,7 @@ users must take are in the
 - `GET /metrics` on the HTTP service and on the sandbox manager: Prometheus HTTP
   golden signals, grading throughput, failures and duration, the queue backlog,
   database connection-pool and sandbox pool gauges, with closed-set labels only
-  ([Metrics](docs/operate/metrics.md),
-  [#488](https://github.com/webtech-network/autograder/issues/488)).
+  ([Metrics](docs/operate/metrics.md), #488).
 
 ### Changed
 
