@@ -22,7 +22,8 @@ UNMATCHED_ROUTE = "<unmatched>"
 def server_route(scope) -> str:
     """The template of the route that handled a request (set by FastAPI's router), else ``UNMATCHED_ROUTE``.
 
-    The one ``route``/``path`` value of server spans, log lines and metrics.
+    The ``path`` of request log lines and the ``route`` label of HTTP metrics; server spans
+    take OpenTelemetry's ``http.route`` with the same ``UNMATCHED_ROUTE`` fallback.
     """
     return getattr(scope.get("route"), "path", None) or UNMATCHED_ROUTE
 
