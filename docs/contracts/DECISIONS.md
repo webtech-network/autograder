@@ -109,31 +109,38 @@ kept here so that the contracts describe only current behaviour.
 ### Upgrading to 1.1.0
 
 1.1.0 changes nothing for definitions, outcomes, the `/api/v1` routes or the
-Action: `uses: webtech-network/autograder@1.1.0` replaces `@1.0.0` as is. Only
-operators of the HTTP service have steps, all in the
-[upgrade runbook](../operate/deployment.md#upgrade-runbook):
+Action: `uses: webtech-network/autograder@1.1.0` replaces `@1.0.0` as is. Both
+services add the unauthenticated `GET /metrics` route and echo an
+`X-Request-ID` response header ([log lines](../operate/configuration.md#log-lines)).
+Operators of the HTTP service follow the
+[upgrade runbook](../operate/deployment.md#upgrade-runbook) with these steps.
+Steps 1 and 2 are required; the others are recommended:
 
-1. **Migrate to `012`** with the 1.1.0 image before starting it:
-   `alembic -c web/alembic.ini upgrade head`. It records on each submission the
-   request id and trace context of the request that accepted it.
-2. **Keep the sandbox manager's command**, or start it as the image does:
-   `uvicorn --factory sandbox_manager.api:create_app`;
+1. **Back up the database and migrate to `012`** with the 1.1.0 image before
+   starting it: `docker compose run --rm --no-deps api alembic -c web/alembic.ini upgrade head`.
+   It records on each submission the request id and trace context of the
+   request that accepted it.
+2. **If you override the sandbox manager's command**, start it as the image
+   does: `uvicorn --factory sandbox_manager.api:create_app`;
    `sandbox_manager.api:app` no longer exists.
-3. **Configure the sandbox manager's logs** like the API's: `JSON_LOGS=true`,
-   `SERVICE_NAME` (default `autograder-sandbox-manager`) and `APP_ENV`
-   ([log lines](../operate/configuration.md#log-lines)). Log queries that
-   isolated one grading attempt by `request_id` now use `attempt_id` (API
-   lines) or `trace_id`: `request_id` is the id of the request that accepted the
-   submission, shared by all its attempts.
-4. **Optionally scrape and trace:** `GET /metrics` on `api:8000` and
-   `sandbox-manager:8001` needs no credential, so never route it publicly
-   ([Metrics](../operate/metrics.md)); setting `OTEL_EXPORTER_OTLP_ENDPOINT`
-   turns on tracing ([traces](../operate/configuration.md#traces)).
+3. **Configure the sandbox manager's logs** like the API's, in the
+   `sandbox-manager` service's environment: `JSON_LOGS=true` and your
+   `APP_ENV` (`SERVICE_NAME` defaults to `autograder-sandbox-manager`)
+   ([log lines](../operate/configuration.md#log-lines)).
+4. **Update log queries that use `request_id`:** it is now the id of the
+   request that accepted the submission, shared by all its attempts. Isolate
+   one attempt by `attempt_id` (API lines) or `trace_id`.
+5. **Scrape and trace:** scrape `GET /metrics` on `api:8000` and
+   `sandbox-manager:8001` from the private network; it needs no credential, so
+   never route it publicly ([Metrics](../operate/metrics.md)). Setting
+   `OTEL_EXPORTER_OTLP_ENDPOINT` turns on tracing
+   ([traces](../operate/configuration.md#traces)).
 
-To roll back to 1.0.0, stop the API, back up the database, run
-`alembic -c web/alembic.ini downgrade 011` **with the 1.1.0 image** (1.0.0 does
-not know revision `012`; the recorded ids are dropped), then start the 1.0.0
-images.
+To roll back to 1.0.0, stop the API, back up the database and, while
+`AUTOGRADER_IMAGE_TAG` is still `1.1.0` (1.0.0 does not know revision `012`),
+run `docker compose run --rm --no-deps api alembic -c web/alembic.ini downgrade 011`.
+The downgrade drops the recorded request ids and trace contexts. Then start the
+1.0.0 images.
 
 ### Upgrading to 1.0.0
 
