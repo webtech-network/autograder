@@ -58,7 +58,7 @@ publishes `ghcr.io/webtech-network/autograder-api` and
 `main`, and the runtime images under the references its `sandbox_config.yml`
 pins; a release tags the same images with its version
 ([Versions and images](../github_action/README.md#versions-and-images)).
-Deploy a release version (`1.0.0`), or a `sha-<commit>` reference, never the
+Deploy a release version (`1.1.0`), or a `sha-<commit>` reference, never the
 moving `main`, so every service and a rollback name one verified commit; the
 [changelog](https://github.com/webtech-network/autograder/blob/main/CHANGELOG.md)
 lists what changed between releases. `docker-compose.yml` runs the local names

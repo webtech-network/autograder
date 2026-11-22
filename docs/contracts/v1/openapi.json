@@ -3,7 +3,7 @@
   "info": {
     "title": "Autograder Web API",
     "description": "RESTful API for code submission grading",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "paths": {
     "/api/v1/health": {

@@ -1,6 +1,6 @@
 [project]
 name = "autograder"
-version = "1.0.0"
+version = "1.1.0"
 description = "General-purpose grading engine with an HTTP service and a GitHub Action host."
 readme = "README.md"
 license = "Apache-2.0"
