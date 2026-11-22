@@ -6,6 +6,7 @@ from pathlib import Path
 from time import monotonic
 from uuid import uuid4
 
+from prometheus_client import CollectorRegistry
 from sqlalchemy import and_, func, or_, select, update
 
 from autograder.models.capabilities import ExecutionBudget, requirements_for
@@ -19,6 +20,7 @@ from web.config.tracing import record_attempt_outcome
 from web.config.logging import get_logger
 from web.database.models.submission import Submission, SubmissionStatus
 from web.database.models.grading_attempt import GradingAttempt
+from web.metrics import GradingMetrics
 from web.service.grading_service import GradingRequest, evaluate, failed_outcome
 from web.service.outcome_delivery import (
     OutcomeDeliveryError, StaleAttemptError, read_receipt, store_receipt, publish_finalized,
@@ -118,12 +120,14 @@ def _discard_late(task):
 class DurableWorker:
     """A process owns bounded workers; PostgreSQL owns the durable work state."""
     def __init__(self, session_factory, settings, capabilities=None, *, evaluator=evaluate,
-                 attempt_margin=ATTEMPT_MARGIN_SECONDS):
+                 attempt_margin=ATTEMPT_MARGIN_SECONDS, metrics: GradingMetrics | None = None):
         self.sessions = session_factory
         self.settings = settings
         self.capabilities = capabilities
         self.evaluator = evaluator
         self.attempt_margin = attempt_margin
+        # The host passes the registry it exposes; standalone workers record into a private one.
+        self.metrics = metrics or GradingMetrics(CollectorRegistry())
         if getattr(capabilities, "ai", None) is not None:
             ai_deadline(capabilities.ai)  # refuse at startup, not at the first AI attempt
         self.tasks = set()
@@ -170,9 +174,10 @@ class DurableWorker:
                     # failure, not an assessed student zero.
                     from web.service.outcome_delivery import persist_outcome
                     from web.repositories import ResultRepository, SubmissionRepository
-                    await persist_outcome(ResultRepository(session), SubmissionRepository(session), row.id,
-                                          failed_outcome(request, "RECOVERY_EXHAUSTED", "Grading recovery attempts were exhausted."))
+                    exhausted = failed_outcome(request, "RECOVERY_EXHAUSTED", "Grading recovery attempts were exhausted.")
+                    await persist_outcome(ResultRepository(session), SubmissionRepository(session), row.id, exhausted)
                     await session.commit()
+                    self.metrics.published(request.language, exhausted)
                     return None
                 row.attempt_id = str(uuid4())
                 row.attempt_count += 1
@@ -266,6 +271,8 @@ class DurableWorker:
         finished = asyncio.Event()
         renewer = asyncio.create_task(self.heartbeat(request.submission_id, attempt_id, finished, clock))
         cancelled = False
+        attempt_started = monotonic()
+        self.metrics.in_progress.inc()
         try:
             evaluation = asyncio.create_task(self.evaluator(request, clock.watch(self.capabilities)))
             while not evaluation.done() and clock.remaining() > 0:
@@ -290,17 +297,22 @@ class DurableWorker:
                                          "The grading attempt did not finish within its deadline.",
                                          category="capability", retryable=True)
             record_attempt_outcome(outcome)
+            self.metrics.attempt_finished(request.language, outcome, monotonic() - attempt_started)
             if retryable(outcome) and await self.release(request.submission_id, attempt_id):
                 logger.warning("Grading attempt %s of submission %s failed with retryable %s; it will be retried",
                                attempt_id, request.submission_id, outcome["error"]["code"])
             else:
                 await publish_finalized(self.sessions, request.submission_id, outcome,
                                         directory=self.settings.RECEIPT_DIR, attempt_id=attempt_id)
+                self.metrics.published(request.language, outcome)
         except StaleAttemptError:
             logger.warning("Discarding publication ownership for stale attempt %s", attempt_id)
         except OutcomeDeliveryError:
             logger.exception("Finalized outcome retained for submission %s", request.submission_id)
+            # Final all the same: the receipt is delivered later without grading again.
+            self.metrics.published(request.language, outcome)
         finally:
+            self.metrics.in_progress.dec()
             finished.set()
             await renewer
         if cancelled:

@@ -21,7 +21,7 @@ from time import perf_counter
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
-from sandbox_manager.tracing import UNMATCHED_ROUTE, current_trace_ids
+from sandbox_manager.tracing import current_trace_ids, server_route
 
 REQUEST_ID_HEADER = "X-Request-ID"
 #: An incoming ``X-Request-ID`` is client-controlled: anything else is replaced.
@@ -159,9 +159,8 @@ def setup_logging(*, json_logs: bool, service_name: str, app_env: str, log_level
     access.disabled = True
 
 
-def _route_template(request) -> str:
-    route = request.scope.get("route")
-    return getattr(route, "path", None) or UNMATCHED_ROUTE
+#: Routes whose successful (status < 400) responses are logged at DEBUG; others stay at INFO.
+QUIET_ROUTES = frozenset({"/metrics"})
 
 
 async def request_logging_middleware(request, call_next):
@@ -177,12 +176,15 @@ async def request_logging_middleware(request, call_next):
             response = await call_next(request)
         except Exception:
             logger.exception("http_request_failed", extra={
-                "method": request.method, "path": _route_template(request), "status": 500,
+                "method": request.method, "path": server_route(request.scope), "status": 500,
                 "duration_ms": int((perf_counter() - start) * 1000)})
             raise
         response.headers[REQUEST_ID_HEADER] = request_id
-        logger.info("http_request_completed", extra={
-            "method": request.method, "path": _route_template(request), "status": response.status_code,
+        path = server_route(request.scope)
+        # Prometheus scrapes /metrics every few seconds: its successful lines are DEBUG, not INFO.
+        quiet = path in QUIET_ROUTES and response.status_code < 400
+        logger.log(logging.DEBUG if quiet else logging.INFO, "http_request_completed", extra={
+            "method": request.method, "path": path, "status": response.status_code,
             "duration_ms": int((perf_counter() - start) * 1000)})
         return response
     finally:

@@ -29,6 +29,10 @@ users must take are in the
   up the database, run `alembic -c web/alembic.ini downgrade 011` with this
   release's image (the previous one does not know revision `012`; the recorded
   ids are dropped), then start the previous image (#489).
+- `GET /metrics` on the HTTP service and on the sandbox manager: Prometheus HTTP
+  golden signals, grading throughput, failures and duration, the queue backlog,
+  database connection-pool and sandbox pool gauges, with closed-set labels only
+  ([Metrics](docs/operate/metrics.md), #488).
 
 ### Changed
 

@@ -2,7 +2,8 @@
 
 Deployment boundary: this service is reachable only from trusted hosts on a
 private network (Compose ``expose``, never a published port) and every route
-except ``GET /health`` requires ``Authorization: Bearer $SANDBOX_API_TOKEN``.
+except ``GET /health`` and ``GET /metrics`` (counts only, see
+``sandbox_manager.metrics``) requires ``Authorization: Bearer $SANDBOX_API_TOKEN``.
 The service refuses to start without a token unless
 ``SANDBOX_API_ALLOW_UNAUTHENTICATED=true`` is set for local development.
 
@@ -31,6 +32,7 @@ import anyio
 from fastapi import APIRouter, Depends, FastAPI, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from prometheus_client import CollectorRegistry
 
 from autograder import __version__
 from autograder.models.dataclass.asset import ResolvedAsset
@@ -45,6 +47,7 @@ from sandbox_manager.errors import (
     SandboxLifetimeExceeded,
 )
 from sandbox_manager.language_pool import SandboxUnavailableError
+from sandbox_manager.metrics import HttpMetrics, HttpMetricsMiddleware, SandboxCollector, exposition
 from sandbox_manager.models.api_models import (
     MAX_ARTIFACT_BYTES,
     MAX_BODY_BYTES,
@@ -575,6 +578,10 @@ def create_app(settings: Optional[ControlSettings] = None,
                           version=__version__, lifespan=lifespan)
     application.add_middleware(BodyLimitMiddleware)
     application.middleware("http")(request_logging_middleware)
+    metrics = CollectorRegistry()
+    metrics.register(SandboxCollector(lambda: getattr(application.state, "manager", None)))
+    # Outermost of the application's middleware, so rejections by the others are counted too.
+    application.add_middleware(HttpMetricsMiddleware, metrics=HttpMetrics(metrics))
     # Continues the caller's trace (W3C traceparent) when OTEL_EXPORTER_OTLP_ENDPOINT is set.
     instrument_fastapi(application)
 
@@ -593,6 +600,11 @@ def create_app(settings: Optional[ControlSettings] = None,
     def health():
         """Liveness only; reveals nothing and needs no token."""
         return {"status": "ok"}
+
+    @application.get("/metrics", include_in_schema=False)
+    def prometheus_metrics():
+        """Prometheus exposition: request and pool counts only, no identifiers; needs no token."""
+        return exposition(metrics)
 
     application.include_router(router)
     return application

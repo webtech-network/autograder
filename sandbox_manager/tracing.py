@@ -18,6 +18,15 @@ TRACER_NAME = "autograder"
 #: Named instead of a path no route matched (the raw path may hold a handle).
 UNMATCHED_ROUTE = "<unmatched>"
 
+
+def server_route(scope) -> str:
+    """The template of the route that handled a request (set by FastAPI's router), else ``UNMATCHED_ROUTE``.
+
+    The ``path`` of request log lines and the ``route`` label of HTTP metrics; server spans
+    take OpenTelemetry's ``http.route`` with the same ``UNMATCHED_ROUTE`` fallback.
+    """
+    return getattr(scope.get("route"), "path", None) or UNMATCHED_ROUTE
+
 _provider = None  # pylint: disable=invalid-name  # set once per process
 _tracer = trace.get_tracer(TRACER_NAME)  # pylint: disable=invalid-name  # follows _provider
 #: Only W3C trace context crosses a process boundary here (never ``baggage``).

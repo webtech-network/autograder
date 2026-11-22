@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from web.api.metrics import router as metrics_router
 from web.api.v1 import api_router as v1_router
 
 
@@ -10,5 +11,8 @@ api_router = APIRouter()
 
 # Include v1 routes under /api/v1
 api_router.include_router(v1_router, prefix="/api/v1")
+
+# Prometheus scrapes the conventional root path; public like health (docs/contracts/AUTH.md).
+api_router.include_router(metrics_router)
 
 

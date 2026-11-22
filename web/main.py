@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from autograder import __version__
 from autograder.models.contracts.definition import validation_error_detail
+from sandbox_manager.metrics import HttpMetricsMiddleware
 from sandbox_manager.structured_logging import request_logging_middleware
 from web.api import api_router
 from web.config.body_limit import RequestBodyLimitMiddleware
@@ -45,6 +46,8 @@ def create_app(settings=None, *, session_factory=None, capabilities=None,
                                allow_methods=settings.CORS_ALLOW_METHODS,
                                allow_headers=settings.CORS_ALLOW_HEADERS)
     application.middleware("http")(request_logging_middleware)
+    # Outermost of these, so requests other middleware reject are counted too.
+    application.add_middleware(HttpMetricsMiddleware, metrics=host.metrics.http)
     application.include_router(api_router)
     setup_api_tracing(application, service_name=settings.SERVICE_NAME, engine=host.engine)
     return application
