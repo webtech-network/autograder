@@ -16,6 +16,11 @@ One Docker host runs:
 | PostgreSQL 17 | `postgres:17` | Durable submissions, outcomes and configurations ([Durable jobs](../contracts/JOBS.md)). |
 | Fixture store (optional) | S3 or compatible | `EXTERNAL_ASSETS_BUCKET_NAME`. |
 
+Prometheus scrapes `GET /metrics` on both services from the internal network
+([metrics](metrics.md)). The endpoint needs no credential, so the TLS proxy in
+front of `api` must not forward `/metrics` (forward `/api/`, plus the FastAPI
+documentation routes `/docs`, `/redoc` and `/openapi.json` if you publish them).
+
 The runtime images named under `runtimes:` in `sandbox_config.yml` must be
 pulled on the Docker host before `sandbox-manager` starts, and the Docker daemon
 must offer the OCI runtime named by `general.runtime`: the shipped file says
@@ -53,7 +58,7 @@ publishes `ghcr.io/webtech-network/autograder-api` and
 `main`, and the runtime images under the references its `sandbox_config.yml`
 pins; a release tags the same images with its version
 ([Versions and images](../github_action/README.md#versions-and-images)).
-Deploy a release version (`1.0.0`), or a `sha-<commit>` reference, never the
+Deploy a release version (`1.1.0`), or a `sha-<commit>` reference, never the
 moving `main`, so every service and a rollback name one verified commit; the
 [changelog](https://github.com/webtech-network/autograder/blob/main/CHANGELOG.md)
 lists what changed between releases. `docker-compose.yml` runs the local names

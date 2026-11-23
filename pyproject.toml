@@ -1,6 +1,6 @@
 [project]
 name = "autograder"
-version = "1.0.0"
+version = "1.1.0"
 description = "General-purpose grading engine with an HTTP service and a GitHub Action host."
 readme = "README.md"
 license = "Apache-2.0"
@@ -35,6 +35,8 @@ sandbox = [
     "opentelemetry-exporter-otlp-proto-http~=1.45.2",
     "opentelemetry-instrumentation-fastapi==0.66b2",
     "opentelemetry-sdk~=1.45.2",
+    # The /metrics exposition of the sandbox control API and of the HTTP service.
+    "prometheus-client~=0.26",
     "uvicorn[standard]~=0.32.0",
 ]
 # The HTTP service (web/), which can also host the sandboxes in-process: the API image.

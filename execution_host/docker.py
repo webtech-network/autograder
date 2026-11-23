@@ -204,6 +204,10 @@ class DockerHost:
         if self.mode == "local":
             self._get_manager()
 
+    def local_manager(self):
+        """The in-process manager once started in local mode (its pools to report), else ``None``."""
+        return self._manager if self.mode == "local" else None
+
     def acquire(self, language, budget=None, wait_seconds=GRADING_CAPACITY_WAIT_SECONDS):
         """An owned session for ``budget``; waits up to ``wait_seconds`` for a slot of the sandbox budget."""
         return DockerSession(self._get_manager(), language, budget, wait_seconds)

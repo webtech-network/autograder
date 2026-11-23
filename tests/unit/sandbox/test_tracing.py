@@ -244,7 +244,7 @@ def test_every_control_api_route_has_its_template():
     """A route added to the control API without teaching ``route_template`` fails here, not as <unmatched>."""
     app = create_app(ControlSettings(token=TOKEN), FakeManager)
     routes = [(method, route.path) for route in app.routes for method in getattr(route, "methods", None) or ()
-              if route.path not in ("/health", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc")
+              if route.path not in ("/health", "/metrics", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc")
               and method != "HEAD"]
     assert routes
     for method, path in routes:

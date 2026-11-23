@@ -8,6 +8,7 @@ from web.config.logging import get_logger
 from web.core.config import Settings
 from web.database.schema import require_current_schema
 from web.database.session import create_database
+from web.metrics import WebMetrics
 from web.schemas.execution import CAPACITY_WAIT_SECONDS
 from web.service.worker import DurableWorker
 
@@ -43,6 +44,7 @@ class WebHost:
     def __init__(self, settings=None, *, session_factory=None, capabilities=None,
                  resource_owner=None, evaluator=None, start_workers=True):
         self.settings = settings or Settings()
+        self.metrics = WebMetrics()
         self.engine = None
         if session_factory is None:
             self.engine, session_factory = create_database(
@@ -50,6 +52,7 @@ class WebHost:
                 pool_size=self.settings.DATABASE_POOL_SIZE, max_overflow=self.settings.DATABASE_MAX_OVERFLOW,
                 pool_timeout=self.settings.DATABASE_POOL_TIMEOUT, pool_recycle=self.settings.DATABASE_POOL_RECYCLE,
             )
+            self.metrics.database.instrument(self.engine)
         self.sessions = session_factory
         self.resource_owner = resource_owner
         if capabilities is None:
@@ -60,12 +63,14 @@ class WebHost:
                 config_file=self.settings.SANDBOX_CONFIG_FILE,
             )
             capabilities = self.resource_owner.capabilities
+            self.metrics.watch_sandboxes(self.resource_owner.local_manager)
         ensure_deliberate_execution_fits(capabilities.max_session_seconds)
         self.capabilities = capabilities
         self.templates = BuiltinCatalog()
         self.start_workers = start_workers
         worker_args = {"evaluator": evaluator} if evaluator is not None else {}
-        self.worker = DurableWorker(self.sessions, self.settings, self.capabilities, **worker_args)
+        self.worker = DurableWorker(self.sessions, self.settings, self.capabilities,
+                                    metrics=self.metrics.grading, **worker_args)
         self.ready = False
         self.execution_tasks = set()
         self._closing = None

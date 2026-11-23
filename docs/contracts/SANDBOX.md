@@ -333,7 +333,9 @@ any exec is created.
 The control API runs code on behalf of trusted hosts. Its deployment boundary
 is a private network plus a shared bearer token:
 
-* Every route except `GET /health` (liveness, no data) requires
+* Every route except `GET /health` (liveness, no data) and `GET /metrics`
+  (Prometheus counts with closed-set labels, no handles, container ids or
+  errors; see [metrics](../operate/metrics.md)) requires
   `Authorization: Bearer $SANDBOX_API_TOKEN`, compared in constant time.
 * The service refuses to start without `SANDBOX_API_TOKEN` unless
   `SANDBOX_API_ALLOW_UNAUTHENTICATED=true` is set for local development; it then
@@ -361,6 +363,7 @@ timeout); handles with an operation in flight are never reaped.
 | `DELETE /sandboxes/{id}` | dispose |
 | `GET /stats` | pool stats (including quarantine), budget and handle counts |
 | `GET /health` | unauthenticated liveness |
+| `GET /metrics` | unauthenticated Prometheus metrics: request counts and durations, pool states and budget |
 
 Errors use `{"detail": {"code", "message"}}` and never echo request input:
 

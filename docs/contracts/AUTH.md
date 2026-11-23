@@ -31,12 +31,14 @@ namespaces [replay keys](REPLAY.md), so producers never observe each other's rec
 
 ## Route policy
 
-Authentication is declared once per router in `web/api/v1/__init__.py`:
+Authentication is declared once per router in `web/api/v1/__init__.py`; the
+root `GET /metrics` router is mounted, public, in `web/api/__init__.py`:
 
 | Routes | Requirement |
 | --- | --- |
 | `GET /api/v1/health`, `GET /api/v1/ready` | public |
 | `GET /api/v1/templates`, `GET /api/v1/templates/{template_name}` | public (static evaluator catalog) |
+| `GET /metrics` | public; Prometheus counts only, keep it on the private network ([metrics](../operate/metrics.md)) |
 | `POST /api/v1/submissions/external-results` | `attest` scope |
 | every other `/api/v1/...` route, including every configuration alias, `/configs/validate`, submission polling/history/details and `/execute` | `integration` scope |
 

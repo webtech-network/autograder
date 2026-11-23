@@ -9,6 +9,15 @@ users must take are in the
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-21
+
+An observability release: both services write the same structured logs, expose
+Prometheus metrics and can send OpenTelemetry traces. Grading, the definition
+and outcome formats, the `/api/v1` routes and the Action are unchanged. Operators
+upgrading from 1.0.0 follow
+[Upgrading to 1.1.0](docs/contracts/DECISIONS.md#upgrading-to-110): run migration
+`012`, and update any overridden sandbox manager command.
+
 ### Added
 
 - OpenTelemetry tracing in the API and the sandbox manager, off unless
@@ -29,6 +38,10 @@ users must take are in the
   up the database, run `alembic -c web/alembic.ini downgrade 011` with this
   release's image (the previous one does not know revision `012`; the recorded
   ids are dropped), then start the previous image (#489).
+- `GET /metrics` on the HTTP service and on the sandbox manager: Prometheus HTTP
+  golden signals, grading throughput, failures and duration, the queue backlog,
+  database connection-pool and sandbox pool gauges, with closed-set labels only
+  ([Metrics](docs/operate/metrics.md), #488).
 
 ### Changed
 
@@ -276,5 +289,6 @@ breaking change below is marked **Breaking**.
 - Submissions run with a read-only root, bounded writable memory and no
   network, under gVisor on the HTTP host.
 
-[Unreleased]: https://github.com/webtech-network/autograder/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/webtech-network/autograder/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/webtech-network/autograder/releases/tag/1.1.0
 [1.0.0]: https://github.com/webtech-network/autograder/releases/tag/1.0.0

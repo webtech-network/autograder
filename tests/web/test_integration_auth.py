@@ -23,8 +23,11 @@ PUBLIC = {
     ("GET", "/api/v1/ready"),
     ("GET", "/api/v1/templates"),
     ("GET", "/api/v1/templates/{template_name}"),
+    ("GET", "/metrics"),  # Prometheus exposition: counts only, private network (AUTH.md)
 }
 ATTESTATION = {("POST", "/api/v1/submissions/external-results")}
+#: Public routes outside the OpenAPI contract (Prometheus text, not JSON).
+UNDOCUMENTED = {("GET", "/metrics")}
 
 
 def _bearer(token):
@@ -242,7 +245,11 @@ def test_openapi_declares_auth_accurately():
     schema = create_app(Settings(INTEGRATION_TOKEN=TOKEN), session_factory=lambda: None,
                         capabilities=HostCapabilities(), start_workers=False).openapi()
     assert schema["components"]["securitySchemes"]["IntegrationBearer"]["scheme"] == "bearer"
+    assert UNDOCUMENTED <= PUBLIC and not UNDOCUMENTED & {(m.upper(), p) for p, ops in schema["paths"].items()
+                                                           for m in ops}
     for method, path in ALL_ROUTES:
+        if (method, path) in UNDOCUMENTED:
+            continue
         operation = schema["paths"][path][method.lower()]
         if (method, path) in PUBLIC:
             assert "security" not in operation, (method, path)
